@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette Médicale Pro - Mode Sombre */
+  --color-medical-dark: #070e1d;    /* Bleu nuit ultra profond (Fondation Dark Mode) */
+  --color-medical-pearl: #f8fafc;   /* Gris perle (Historique) */
+  --color-medical-accent: #3b82f6;  /* Bleu soin (Actions) */
+  
+  /* Variables Glassmorphism Premium */
+  --color-glass-bg: rgba(255, 255, 255, 0.03);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --blur-glass-md: 12px;
+  --blur-glass-xl: 24px;
+  
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer components {
+  /* Filigrane inspiré de la note d'honoraires - Adapté Dark Mode */
+  .document-watermark {
+    position: relative;
+  }
+  
+  .document-watermark::before {
+    content: "DIGITAL CROWN";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 8rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.02); /* Ultra léger, adapté au fond sombre */
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+  }
+}
+
+body {
+  /* Le fond global est sombre, le MainLayout gère l'immersion */
+  @apply bg-medical-dark text-slate-200 antialiased;
+}

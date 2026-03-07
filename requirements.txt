@@ -1,0 +1,22 @@
+﻿# --- Core Framework & Web ---
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# --- Database & ORM ---
+sqlalchemy==2.0.28
+pydantic[email]==2.6.3
+psycopg2-binary==2.9.9
+
+# --- AI & Vision (Stable for Win/3.12) ---
+google-generativeai
+tensorflow
+numpy==1.26.4
+opencv-python-headless
+torch
+Pillow
+
+# --- Security & File Validation ---
+python-magic==0.4.27
+python-magic-bin==0.4.14; platform_system == "Windows"
+passlib[bcrypt]==1.7.4

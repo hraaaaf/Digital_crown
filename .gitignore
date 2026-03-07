@@ -1,0 +1,46 @@
+# ========================================
+# SECRETS & ENVIRONNEMENT
+# ========================================
+.env
+.env.*
+!.env.example
+
+# ========================================
+# MODELES IA (Trop lourds pour Git)
+# ========================================
+backend/ai_models/
+
+# ========================================
+# DONNEES PATIENTS & FICHIERS GENERES
+# ========================================
+backend/static/uploads/
+backend/static/archive/
+backend/static/backups/
+backend/static/documents/
+backend/static/patients/
+backend/static/reports/
+static/
+*.db
+*.sqlite3
+
+# ========================================
+# PYTHON & CACHE
+# ========================================
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ========================================
+# FRONTEND (REACT/VITE)
+# ========================================
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+
+# ========================================
+# OS
+# ========================================
+.DS_Store
+Thumbs.db
