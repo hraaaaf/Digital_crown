@@ -44,3 +44,9 @@ frontend/.eslintcache
 # ========================================
 .DS_Store
 Thumbs.db
+
+# ========================================
+# FICHIERS TEMPORAIRES / NOTES
+# ========================================
+notes.txt
+arborescence.txt
