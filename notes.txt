@@ -1,7 +1,0 @@
-quand je modifie un patient déjà créé je perds sa date de naissance déjà saisie auparavant je veux qu'elle reste 
-
-ajouter antécédants médicaux dans la fiche du patient 
-
-repenser l'odontogramme 
-	- QUAND JE VEUX MODIFIER UNE LIGNE SAISIE DEPUIS L ODONTGRAMME UNE NOUVELLE SE CREE AUTOMATIQUEMENT 
-	
