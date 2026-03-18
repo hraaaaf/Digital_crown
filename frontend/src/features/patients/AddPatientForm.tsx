@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Save, User, Phone, Mail, Activity, CheckCircle2, AlertTriangle, UserCheck, FolderOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Save, User, Phone, Mail, Activity, CheckCircle2, AlertTriangle, UserCheck, FolderOpen, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types';
 import { cn } from '../../utils/cn';
@@ -19,6 +19,7 @@ interface DuplicateInfo {
 
 export const AddPatientForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isOrtho, setIsOrtho] = useState(false);
@@ -28,9 +29,13 @@ export const AddPatientForm = () => {
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
   const [forceCreate, setForceCreate] = useState(false);
 
+  // Récupérer les paramètres de recherche pour pré-remplissage
+  const prefillNom = searchParams.get('nom') || '';
+  const prefillPrenom = searchParams.get('prenom') || '';
+
   const [formData, setFormData] = useState<Patient & { antecedents_medicaux?: string }>({
-    nom: '',
-    prenom: '',
+    nom: prefillNom,
+    prenom: prefillPrenom,
     date_naissance: '',
     sexe: 'F', 
     telephone: '',
@@ -178,6 +183,17 @@ export const AddPatientForm = () => {
           {errors.global && (
             <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
+            </div>
+          )}
+          
+          {/* Info pré-remplissage depuis recherche */}
+          {(prefillNom || prefillPrenom) && (
+            <div className="p-4 bg-blue-50 text-[#003380] rounded-2xl border border-blue-100 flex items-center gap-3 text-sm">
+              <Search className="w-5 h-5" />
+              <span className="font-medium">
+                Patient "<strong>{prefillNom} {prefillPrenom}</strong>" introuvable. 
+                Vérifiez les informations et complétez le formulaire ci-dessous.
+              </span>
             </div>
           )}
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { cn } from '../../utils/cn';
 import { api } from '../../services/api';
 import { 
   ArrowLeft, 
@@ -8,7 +9,9 @@ import {
   User, 
   Phone, 
   Calendar, 
-  UserCircle 
+  UserCircle,
+  MapPin,
+  Activity
 } from 'lucide-react';
 
 
@@ -22,7 +25,9 @@ export const EditPatientForm = () => {
     nom: '',
     prenom: '',
     date_naissance: '',
-    telephone: ''
+    telephone: '',
+    adresse: '',
+    antecedents_medicaux: ''
   });
 
   // Chargement initial des données du patient
@@ -31,7 +36,23 @@ export const EditPatientForm = () => {
       try {
         setLoading(true);
         const res = await api.get(`/patients/${id}`);
-        setFormData(res.data);
+        const patient = res.data;
+        
+        // Formater la date de naissance pour l'input type="date" (YYYY-MM-DD)
+        let dateFormatted = '';
+        if (patient.date_naissance) {
+          const date = new Date(patient.date_naissance);
+          dateFormatted = date.toISOString().split('T')[0];
+        }
+        
+        setFormData({
+          nom: patient.nom || '',
+          prenom: patient.prenom || '',
+          date_naissance: dateFormatted,
+          telephone: patient.telephone || '',
+          adresse: patient.adresse || '',
+          antecedents_medicaux: patient.antecedents_medicaux || ''
+        });
       } catch (err) {
         console.error("Erreur de récupération:", err);
       } finally {
@@ -134,6 +155,28 @@ export const EditPatientForm = () => {
               value={formData.telephone} 
               onChange={(e) => setFormData({...formData, telephone: e.target.value})} 
               required 
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}><MapPin size={12}/> Adresse</label>
+            <input 
+              type="text" 
+              className={inputClass} 
+              value={formData.adresse} 
+              onChange={(e) => setFormData({...formData, adresse: e.target.value})} 
+              placeholder="123 Rue de la Paix, 75000 Paris"
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}><Activity size={12}/> Antécédents médicaux</label>
+            <textarea 
+              className={cn(inputClass, "min-h-[120px] resize-none")} 
+              value={formData.antecedents_medicaux} 
+              onChange={(e) => setFormData({...formData, antecedents_medicaux: e.target.value})} 
+              placeholder="Ex: Diabète, hypertension, allergie à la pénicilline, traitement en cours..."
+              rows={4}
             />
           </div>
 

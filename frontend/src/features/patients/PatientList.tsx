@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types'; 
-import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X } from 'lucide-react';
+import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 
@@ -92,6 +92,33 @@ export const PatientList = () => {
           <div className="p-32 flex flex-col items-center justify-center gap-6">
             <Loader2 className="animate-spin text-[#003380]" size={36} />
             <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Chargement...</p>
+          </div>
+        ) : filtered.length === 0 && searchTerm.trim() ? (
+          /* AUCUN RÉSULTAT - PROPOSITION DE CRÉATION */
+          <div className="p-16 flex flex-col items-center justify-center gap-6 text-center">
+            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center">
+              <UserX className="text-[#003380]" size={36} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-800">Aucun patient trouvé</h3>
+              <p className="text-slate-500 mt-2 font-medium">
+                Aucun dossier ne correspond à "<span className="font-bold text-[#003380]">{searchTerm}</span>"
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                // Parser le nom saisi (nom prénom ou juste nom)
+                const parts = searchTerm.trim().split(/\s+/);
+                const nom = parts[0]?.toUpperCase() || '';
+                const prenom = parts.slice(1).join(' ') || '';
+                navigate(`/patients/new?nom=${encodeURIComponent(nom)}&prenom=${encodeURIComponent(prenom)}`);
+              }}
+              className="mt-4 bg-gradient-to-br from-[#003380] to-blue-900 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:shadow-2xl hover:shadow-[#003380]/30 hover:-translate-y-1 transition-all duration-300"
+            >
+              <UserPlus size={22} strokeWidth={2.5} />
+              Créer "{searchTerm}"
+              <ArrowRight size={18} />
+            </button>
           </div>
         ) : (
           <table className="w-full text-left text-sm">

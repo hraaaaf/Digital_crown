@@ -151,7 +151,12 @@ class AccountingGenerator:
             dent_display = getattr(p, 'dent', '-')
             if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
                 dent_display = ', '.join([str(d) for d in p.dents])
-            table_data.append([acte_para, dent_display, getattr(p, 'mode_reglement', 'Espèces'), f"{p.montant:.2f}"])
+            table_data.append([
+                acte_para,
+                Paragraph(str(dent_display), self.styles['TableText']),
+                Paragraph(getattr(p, 'mode_reglement', 'Espèces'), self.styles['TableText']),
+                Paragraph(f"{p.montant:.2f}", self.styles['TableText'])
+            ])
             total += p.montant
 
         table_data.append(["", "", Paragraph("<b>TOTAL</b>", self.styles['TableText']), Paragraph(f"<b>{total:.2f}</b>", self.styles['TableText'])])
@@ -162,7 +167,8 @@ class AccountingGenerator:
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('GRID', (0,0), (-1,-2), 0.3, NAVY_BLUE),
-            ('TEXTCOLOR', (0,1), (-1,-1), NAVY_BLUE)
+            ('TEXTCOLOR', (0,1), (-1,-1), NAVY_BLUE),
+            ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
         
@@ -190,7 +196,11 @@ class AccountingGenerator:
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
                 dent_display = ', '.join([str(d) for d in item.dents])
-            table_data.append([acte_para, dent_display, f"{item.prix_unitaire:.2f}"])
+            table_data.append([
+                acte_para,
+                Paragraph(str(dent_display), self.styles['TableText']),
+                Paragraph(f"{item.prix_unitaire:.2f}", self.styles['TableText'])
+            ])
             total += item.prix_unitaire
 
         table_data.append(["", Paragraph("<b>TOTAL</b>", self.styles['TableText']), Paragraph(f"<b>{total:.2f}</b>", self.styles['TableText'])])
@@ -201,7 +211,8 @@ class AccountingGenerator:
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('GRID', (0,0), (-1,-2), 0.3, NAVY_BLUE),
-            ('TEXTCOLOR', (0,1), (-1,-1), NAVY_BLUE)
+            ('TEXTCOLOR', (0,1), (-1,-1), NAVY_BLUE),
+            ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
         
