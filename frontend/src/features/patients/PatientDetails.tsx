@@ -12,7 +12,8 @@ import {
   Info,
   ClipboardList,
   History,
-  Archive
+  Archive,
+  FileDigit
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -23,6 +24,7 @@ import { PatientDocuments } from './PatientDocuments';
 
 interface Patient {
   id: number;
+  numero_dossier: string;
   nom: string;
   prenom: string;
   date_naissance: string;
@@ -111,8 +113,8 @@ export const PatientDetails = () => {
                 
                 <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-slate-500 transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
                   <div className="flex items-center gap-2 px-2 py-1 bg-white border border-slate-200/60 rounded-lg shadow-sm">
-                    <Hash size={14} className="text-[#003380]" />
-                    <span className="font-mono text-[#003380]">ID-{patient.id}</span>
+                    <FileDigit size={14} className="text-[#003380]" />
+                    <span className="font-mono text-[#003380]">{patient.numero_dossier || `ID-${patient.id}`}</span>
                   </div>
                   <div className="flex items-center gap-2"><Calendar size={16} className="text-slate-400" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
                   <div className="flex items-center gap-2"><Phone size={16} className="text-slate-400" /><span>{patient.telephone}</span></div>

@@ -75,6 +75,7 @@ class Patient(Base):
     __tablename__ = "patients"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    numero_dossier: Mapped[Optional[str]] = mapped_column(String(20), unique=True, index=True, nullable=True)
     nom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     prenom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     date_naissance: Mapped[datetime] = mapped_column(DateTime, nullable=False)

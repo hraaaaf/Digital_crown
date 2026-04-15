@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Save, User, Phone, Mail, Activity, CheckCircle2, AlertTriangle, UserCheck, FolderOpen, Search } from 'lucide-react';
+import { Save, User, Phone, Mail, Activity, CheckCircle2, AlertTriangle, UserCheck, FolderOpen, Search, FileDigit, RefreshCw } from 'lucide-react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types';
 import { cn } from '../../utils/cn';
@@ -33,7 +33,13 @@ export const AddPatientForm = () => {
   const prefillNom = searchParams.get('nom') || '';
   const prefillPrenom = searchParams.get('prenom') || '';
 
+  // État pour la gestion du numéro de dossier
+  const [hasExistingNumber, setHasExistingNumber] = useState(false);
+  const [nextAutoNumber, setNextAutoNumber] = useState<string>('');
+  const [loadingNumber, setLoadingNumber] = useState(false);
+
   const [formData, setFormData] = useState<Patient & { antecedents_medicaux?: string }>({
+    numero_dossier: '',
     nom: prefillNom,
     prenom: prefillPrenom,
     date_naissance: '',
@@ -43,6 +49,38 @@ export const AddPatientForm = () => {
     adresse: '',
     antecedents_medicaux: ''
   });
+
+  // Charger le prochain numéro de dossier disponible au chargement
+  useEffect(() => {
+    fetchNextDossierNumber();
+  }, []);
+
+  const fetchNextDossierNumber = async () => {
+    setLoadingNumber(true);
+    try {
+      const response = await api.get('/patients/next-dossier-number');
+      setNextAutoNumber(response.data.next_number);
+      // Si c'est un nouveau patient, pré-remplir avec le numéro auto
+      if (!hasExistingNumber) {
+        setFormData(prev => ({ ...prev, numero_dossier: response.data.next_number }));
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération du prochain numéro:", err);
+    } finally {
+      setLoadingNumber(false);
+    }
+  };
+
+  const handleToggleExistingNumber = (hasNumber: boolean) => {
+    setHasExistingNumber(hasNumber);
+    if (hasNumber) {
+      // L'utilisateur a un numéro existant, vider le champ pour qu'il le saisisse
+      setFormData(prev => ({ ...prev, numero_dossier: '' }));
+    } else {
+      // Nouveau patient, utiliser le numéro auto
+      setFormData(prev => ({ ...prev, numero_dossier: nextAutoNumber }));
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -56,6 +94,12 @@ export const AddPatientForm = () => {
       setShowDuplicateModal(false);
       setForceCreate(false);
     }
+  };
+
+  const handleNumeroDossierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase().trim();
+    setFormData({ ...formData, numero_dossier: value });
+    if (errors.numero_dossier) setErrors({ ...errors, numero_dossier: '' });
   };
 
   const validate = () => {
@@ -77,6 +121,7 @@ export const AddPatientForm = () => {
   const checkDuplicate = async (): Promise<boolean> => {
     try {
       const response = await api.post('/patients/check-duplicate', {
+        numero_dossier: formData.numero_dossier || null,
         nom: formData.nom,
         prenom: formData.prenom,
         date_naissance: formData.date_naissance,
@@ -197,15 +242,100 @@ export const AddPatientForm = () => {
             </div>
           )}
 
-          {/* Section Identité */}
+          {/* Section Numéro de Dossier */}
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Identité Civile</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Numéro de Dossier</span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Toggle Nouveau / Ancien patient */}
+            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => handleToggleExistingNumber(false)}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                  !hasExistingNumber 
+                    ? "bg-[#003380] text-white shadow-lg shadow-blue-900/20" 
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                )}
+              >
+                <User className="w-4 h-4" />
+                Nouveau patient
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleExistingNumber(true)}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                  hasExistingNumber 
+                    ? "bg-[#003380] text-white shadow-lg shadow-blue-900/20" 
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                )}
+              >
+                <FolderOpen className="w-4 h-4" />
+                Dossier existant
+              </button>
+            </div>
+
+            {/* Champ Numéro de dossier */}
+            <div className="relative">
+              <label className={labelClass}>
+                {hasExistingNumber ? "Numéro de dossier existant *" : "Numéro attribué automatiquement"}
+              </label>
+              <div className="relative">
+                <FileDigit className={cn(
+                  "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5",
+                  hasExistingNumber ? "text-[#003380]" : "text-slate-400"
+                )} />
+                <input 
+                  type="text" 
+                  name="numero_dossier" 
+                  value={formData.numero_dossier || ''} 
+                  onChange={handleNumeroDossierChange}
+                  disabled={!hasExistingNumber || loadingNumber}
+                  readOnly={!hasExistingNumber}
+                  className={cn(
+                    inputClass, 
+                    "pl-14 font-mono text-lg tracking-wider",
+                    !hasExistingNumber && "bg-slate-100/50 text-slate-500",
+                    errors.numero_dossier && "border-red-400 focus:border-red-400 focus:ring-red-100"
+                  )}
+                  placeholder="P-XXXXXX"
+                />
+                {!hasExistingNumber && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
+                      Auto
+                    </span>
+                  </div>
+                )}
+                {hasExistingNumber && (
+                  <button
+                    type="button"
+                    onClick={fetchNextDossierNumber}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-[#003380] hover:bg-blue-50 rounded-lg transition-all"
+                    title="Rafraîchir le prochain numéro disponible"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", loadingNumber && "animate-spin")} />
+                  </button>
+                )}
+              </div>
+              {errors.numero_dossier && (
+                <span className="text-red-500 text-xs mt-1 ml-1">{errors.numero_dossier}</span>
+              )}
+              <p className="text-xs text-slate-500 mt-2 ml-1">
+                {hasExistingNumber 
+                  ? "Saisissez le numéro de dossier physique du patient"
+                  : `Le numéro suivant sera attribué : ${nextAutoNumber}`
+                }
+              </p>
+            </div>
+
+            {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
+            <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
               <div>
                 <label className={labelClass}>Nom de famille *</label>
                 <input 
@@ -231,7 +361,18 @@ export const AddPatientForm = () => {
                 />
                 {errors.prenom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
               </div>
+            </div>
+          </div>
 
+          {/* Section Identité */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Identité Civile</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className={labelClass}>Date de naissance *</label>
                 <input 

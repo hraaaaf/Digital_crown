@@ -102,8 +102,14 @@ class OrdonnanceGenerator:
                 Paragraph(forme, self.styles['MedName'])
             ]
             
-            t = Table([row], colWidths=[0.8*cm, 4.5*cm, 3.5*cm, 3.0*cm])
-            t.setStyle(TableStyle([('TEXTCOLOR', (0,0), (-1,-1), NAVY_BLUE), ('VALIGN', (0,0), (-1,-1), 'BOTTOM'), ('LEFTPADDING', (0,0), (-1,-1), 0)]))
+            # Colonnes réajustées : plus d'espace pour le nom du médicament
+            t = Table([row], colWidths=[0.6*cm, 6.5*cm, 2.8*cm, 1.9*cm])
+            t.setStyle(TableStyle([
+                ('TEXTCOLOR', (0,0), (-1,-1), NAVY_BLUE), 
+                ('VALIGN', (0,0), (-1,-1), 'BOTTOM'), 
+                ('LEFTPADDING', (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 3),  # Petit padding droit pour éviter collage
+            ]))
             elements.append(t)
             elements.append(Paragraph(med.posologie, self.styles['PosoStyle']))
             elements.append(Spacer(1, spacing*cm))

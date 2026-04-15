@@ -11,7 +11,9 @@ import {
   Calendar, 
   UserCircle,
   MapPin,
-  Activity
+  Activity,
+  FileDigit,
+  AlertCircle
 } from 'lucide-react';
 
 
@@ -22,6 +24,7 @@ export const EditPatientForm = () => {
   const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState({
+    numero_dossier: '',
     nom: '',
     prenom: '',
     date_naissance: '',
@@ -29,6 +32,7 @@ export const EditPatientForm = () => {
     adresse: '',
     antecedents_medicaux: ''
   });
+  const [numeroError, setNumeroError] = useState('');
 
   // Chargement initial des données du patient
   useEffect(() => {
@@ -46,6 +50,7 @@ export const EditPatientForm = () => {
         }
         
         setFormData({
+          numero_dossier: patient.numero_dossier || '',
           nom: patient.nom || '',
           prenom: patient.prenom || '',
           date_naissance: dateFormatted,
@@ -64,14 +69,24 @@ export const EditPatientForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNumeroError('');
     setSaving(true);
     try {
       // Mise à jour via l'API
       await api.put(`/patients/${id}`, formData);
       // Retour immédiat à la fiche patient après succès
       navigate(`/patients/${id}`);
-    } catch (err) {
-      alert("Erreur lors de la sauvegarde.");
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        const detail = err.response.data.detail;
+        if (detail?.message?.includes('numéro de dossier')) {
+          setNumeroError(detail.message);
+        } else {
+          alert(detail?.message || "Conflit avec un patient existant.");
+        }
+      } else {
+        alert("Erreur lors de la sauvegarde.");
+      }
     } finally {
       setSaving(false);
     }
@@ -107,12 +122,38 @@ export const EditPatientForm = () => {
           </div>
           <div>
             <h2 className="text-3xl font-black text-[#003380] tracking-tight leading-none">Mise à jour</h2>
-            <p className="text-slate-400 font-bold text-sm mt-2">Dossier Patient ID-{id}</p>
+            <p className="text-slate-400 font-bold text-sm mt-2">Dossier {formData.numero_dossier || `ID-${id}`}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
+          {/* Numéro de dossier - Section spéciale */}
+          <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
+            <label className={cn(labelClass, "text-[#003380]")}><FileDigit size={12}/> Numéro de Dossier</label>
+            <div className="flex items-center gap-3">
+              <input 
+                type="text" 
+                className={cn(inputClass, "font-mono text-lg tracking-wider", numeroError && "border-red-400 focus:border-red-400")} 
+                value={formData.numero_dossier} 
+                onChange={(e) => {
+                  setFormData({...formData, numero_dossier: e.target.value.toUpperCase().trim()});
+                  setNumeroError('');
+                }}
+                placeholder="P-XXXXXX"
+              />
+            </div>
+            {numeroError ? (
+              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle size={14} /> {numeroError}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelClass}><User size={12}/> Nom</label>

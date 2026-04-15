@@ -45,6 +45,14 @@ interface PriceItem {
 }
 interface DocumentHubProps { patientId: string | undefined; patientName: string; }
 
+interface PatientDetails {
+  id: number;
+  nom: string;
+  prenom: string;
+  date_naissance?: string;
+  genre?: string;
+}
+
 interface ClinicalCategory { id: number; label: string; }
 interface ClinicalProtocol { id: number; category_id: number; variant_name: string; medications_json: any; }
 interface MedicationOut { id: number; nom: string; dosage: string; forme: string; usage_count: number; }
@@ -55,11 +63,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
+  const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
 
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
 
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [showPrintWarning, setShowPrintWarning] = useState(false);
   const [pendingPrint, setPendingPrint] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -135,6 +144,33 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       return [...base, ...newItems];
     });
   }, []); // Pas de dépendance à items !
+
+  // Chargement des détails du patient (pour l'âge et autres infos)
+  useEffect(() => {
+    if (!patientId) return;
+    const fetchPatient = async () => {
+      try {
+        const res = await api.get(`/patients/${patientId}`);
+        setPatientDetails(res.data);
+      } catch (e) {
+        console.error("Erreur chargement patient:", e);
+      }
+    };
+    fetchPatient();
+  }, [patientId]);
+
+  // Calcul de l'âge à partir de la date de naissance
+  const calculateAge = (dateNaissance?: string): number | undefined => {
+    if (!dateNaissance) return undefined;
+    const birth = new Date(dateNaissance);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   const handleGenerateAI = async () => {
     if (!patientId) return;
@@ -336,7 +372,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       } else if (activeTab === 'certificat') {
         payload.data = { reason: certifType, days: Number(certifDays) || 0, start_date: docDate, is_work_stop: certifType === 'Arrêt de travail' };
       } else if (activeTab === 'libre') {
-        payload.data = { title: libreTitle, content: libreContent, doc_date: docDate };
+        const age = calculateAge(patientDetails?.date_naissance);
+        payload.data = { 
+          title: libreTitle, 
+          content: libreContent, 
+          doc_date: docDate,
+          age: age,
+          gender: patientDetails?.genre
+        };
       } else if (activeTab === 'devis' || activeTab === 'honoraires') {
         const commonItems = items.map(i => ({ 
           acte: i.description, 
@@ -402,7 +445,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (!showPreview || activeTab === 'ai') return;
     const timer = setTimeout(() => handleGenerate(false, false), 1500); 
     return () => clearTimeout(timer);
-  }, [showPreview, drugs, items, certifType, certifDays, paymentMode, libreTitle, libreContent, docDate, activeTab, selectedTeethFromOdontogram]);
+  }, [showPreview, drugs, items, certifType, certifDays, paymentMode, libreTitle, libreContent, docDate, activeTab, selectedTeethFromOdontogram, patientDetails]);
 
   useEffect(() => {
     if (pendingPrint && pdfUrl && activeTab !== 'ai') {

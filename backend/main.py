@@ -236,6 +236,49 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
     
     return query.first()
 
+
+def generate_next_dossier_number(db: Session) -> str:
+    """
+    Génère le prochain numéro de dossier disponible.
+    Format: P-XXXXXX (ex: P-000001, P-000002, etc.)
+    """
+    from sqlalchemy import func
+    
+    # Récupérer le dernier patient créé
+    last_patient = db.query(models.Patient).order_by(models.Patient.id.desc()).first()
+    
+    if last_patient and last_patient.numero_dossier:
+        # Essayer d'extraire le numéro du dernier dossier
+        try:
+            # Format attendu: P-XXXXXX
+            last_num = int(last_patient.numero_dossier.split('-')[1])
+            next_num = last_num + 1
+        except (ValueError, IndexError):
+            # Si le format est différent, compter le nombre total de patients
+            count = db.query(models.Patient).count()
+            next_num = count + 1
+    else:
+        # Premier patient
+        next_num = 1
+    
+    return f"P-{next_num:06d}"
+
+
+@app.get("/patients/next-dossier-number")
+def get_next_dossier_number(db: Session = Depends(database.get_db)):
+    """
+    Retourne le prochain numéro de dossier disponible.
+    Utile pour le frontend lors de la création d'un nouveau patient.
+    """
+    next_number = generate_next_dossier_number(db)
+    return {"next_number": next_number}
+
+
+@app.get("/patients/", response_model=List[schemas.PatientOut])
+def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    return db.query(models.Patient).offset(skip).limit(limit).all()
+
+
 @app.post("/patients/", response_model=schemas.PatientOut)
 def create_patient(
     patient: schemas.PatientBase, 
@@ -245,6 +288,7 @@ def create_patient(
     """
     Crée un nouveau patient avec vérification des doublons.
     Si force_create=False et doublon détecté -> retourne une erreur 409 avec le patient existant.
+    Si numero_dossier n'est pas fourni, il sera généré automatiquement.
     """
     try:
         # Vérifier les doublons (insensible à la casse)
@@ -275,6 +319,29 @@ def create_patient(
         # Normaliser le nom/prénom (première lettre majuscule)
         patient_data['nom'] = patient_data['nom'].upper().strip()
         patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
+        
+        # Générer automatiquement le numéro de dossier si non fourni ou vide
+        if not patient_data.get('numero_dossier'):
+            patient_data['numero_dossier'] = generate_next_dossier_number(db)
+        else:
+            # Vérifier que le numéro de dossier n'existe pas déjà
+            existing_numero = db.query(models.Patient).filter(
+                models.Patient.numero_dossier == patient_data['numero_dossier']
+            ).first()
+            if existing_numero:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "message": f"Le numéro de dossier '{patient_data['numero_dossier']}' existe déjà.",
+                        "existing_patient": {
+                            "id": existing_numero.id,
+                            "numero_dossier": existing_numero.numero_dossier,
+                            "nom": existing_numero.nom,
+                            "prenom": existing_numero.prenom,
+                        },
+                        "suggestion": "Utilisez un autre numéro ou laissez vide pour générer automatiquement."
+                    }
+                )
         
         # Le sexe est déjà une string valide (M/F) grâce à Pydantic
         
@@ -327,10 +394,6 @@ def check_patient_duplicate(
     
     return {"has_duplicate": False}
 
-@app.get("/patients/", response_model=List[schemas.PatientOut])
-def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    return db.query(models.Patient).offset(skip).limit(limit).all()
-
 @app.get("/patients/{patient_id}", response_model=schemas.PatientOut)
 def read_patient(patient_id: int, db: Session = Depends(database.get_db)):
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
@@ -375,6 +438,26 @@ def update_patient(
     # Normaliser
     update_data['nom'] = update_data['nom'].upper().strip()
     update_data['prenom'] = update_data['prenom'].capitalize().strip()
+    
+    # Vérifier l'unicité du numéro de dossier si modifié
+    if update_data.get('numero_dossier') and update_data['numero_dossier'] != db_patient.numero_dossier:
+        existing_numero = db.query(models.Patient).filter(
+            models.Patient.numero_dossier == update_data['numero_dossier'],
+            models.Patient.id != patient_id
+        ).first()
+        if existing_numero:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": f"Le numéro de dossier '{update_data['numero_dossier']}' est déjà utilisé par un autre patient.",
+                    "existing_patient": {
+                        "id": existing_numero.id,
+                        "numero_dossier": existing_numero.numero_dossier,
+                        "nom": existing_numero.nom,
+                        "prenom": existing_numero.prenom,
+                    }
+                }
+            )
     
     for key, value in update_data.items():
         setattr(db_patient, key, value)

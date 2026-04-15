@@ -64,6 +64,7 @@ class DossierOut(BaseModel):
 # --- 5. SCHÉMAS PATIENTS ---
 
 class PatientBase(BaseModel):
+    numero_dossier: Optional[str] = None  # Optionnel à la création, auto-généré si vide
     nom: str
     prenom: str
     date_naissance: datetime
@@ -87,6 +88,7 @@ class PatientCreate(PatientBase):
 
 class PatientOut(PatientBase):
     id: int
+    numero_dossier: str  # Rendu obligatoire en sortie
     created_at: datetime
     dossier: Optional[DossierOut] = None
     model_config = ConfigDict(from_attributes=True)
@@ -168,11 +170,13 @@ class HonorairesData(BaseModel):
     gender: Optional[str] = None
 
 class LibreData(BaseModel):
-    titre: str
-    texte: str
+    titre: str = Field(default='DOCUMENT MÉDICAL', alias='title')
+    texte: str = Field(default='', alias='content')
     doc_date: date
     age: Optional[int] = None
     gender: Optional[str] = None
+    
+    model_config = ConfigDict(populate_by_name=True)
 
 class DocumentRequest(BaseModel):
     type: Literal["ordonnance", "certificat", "devis", "note", "honoraires", "libre"]

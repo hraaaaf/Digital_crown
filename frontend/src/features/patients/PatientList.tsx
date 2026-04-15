@@ -47,7 +47,8 @@ export const PatientList = () => {
 
   const filtered = patients.filter(p => 
     p.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.prenom.toLowerCase().includes(searchTerm.toLowerCase())
+    p.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.numero_dossier && p.numero_dossier.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getStatusBadge = (id?: number) => {
@@ -148,7 +149,9 @@ export const PatientList = () => {
                         </div>
                         <div>
                           <div className="font-black text-[#003380] text-lg tracking-tight">{p.nom.toUpperCase()} {p.prenom}</div>
-                          <div className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">ID-{p.id}</div>
+                          <div className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider font-mono">
+                            {p.numero_dossier || `ID-${p.id}`}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -197,7 +200,7 @@ export const PatientList = () => {
 
       {/* MODALE DE SUPPRESSION PREMIUM */}
       {deleteModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300 h-screen w-screen">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-white relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6">
                <button onClick={() => setDeleteModal({ ...deleteModal, open: false })} className="text-slate-300 hover:text-slate-500 transition-colors">
