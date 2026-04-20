@@ -10,14 +10,17 @@ import { PatientList } from './features/patients/PatientList';
 
 // --- LE NOUVEAU HUB PATIENT ---
 import { PatientDetails } from './features/patients/PatientDetails';
+import { AgendaPage } from './pages/AgendaPage';
+import { AccountingPage } from './pages/AccountingPage';
 
 // --- ADMINISTRATION & ARCHIVES ---
 import { EditPatientForm } from './features/patients/EditPatientForm';
 import { PatientDocuments } from './features/patients/PatientDocuments';
 import { Settings } from './pages/Settings';
 
-// --- WIZARD SETUP (NOUVEAU) ---
+// --- WIZARD SETUP & WELCOME ---
 import { SetupWizard } from './features/admin/SetupWizard';
+import { WelcomeScreen } from './pages/WelcomeScreen';
 
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
@@ -40,9 +43,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     try {
       const status = await cabinetApi.checkInitStatus();
       setIsInitialized(status.is_initialized);
+      
+      // AUTO-BYPASS : Si le cabinet est déjà initialisé (ancien compte), 
+      // on active le mode réel par défaut pour éviter l'écran de bienvenue.
+      if (status.is_initialized && !localStorage.getItem('appMode')) {
+        console.log("Installation existante détectée. Activation du mode réel.");
+        localStorage.setItem('appMode', 'prod');
+      }
     } catch (error) {
       console.error('Erreur vérification statut:', error);
-      // En cas d'erreur, on suppose non initialisé pour être sûr
       setIsInitialized(false);
     } finally {
       setIsLoading(false);
@@ -60,14 +69,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // Si non initialisé et pas déjà sur /setup, rediriger vers setup
-  if (!isInitialized && location.pathname !== '/setup') {
-    return <Navigate to="/setup" replace />;
+  // Force le choix du mode s'il n'existe pas
+  const appMode = localStorage.getItem('appMode');
+  if (!appMode && location.pathname !== '/welcome') {
+    return <Navigate to="/welcome" replace />;
   }
 
-  // Si déjà initialisé et sur /setup, rediriger vers dashboard
-  if (isInitialized && location.pathname === '/setup') {
-    return <Navigate to="/dashboard" replace />;
+  // En mode démo, on ignore la redirection forcée vers setup si on veut explorer librement
+  // mais on autorise l'accès au setup. Si mode réel, on impose /setup si non init.
+  if (appMode === 'prod') {
+    if (!isInitialized && location.pathname !== '/setup') {
+      return <Navigate to="/setup" replace />;
+    }
+    if (isInitialized && location.pathname === '/setup') {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -85,6 +101,8 @@ const ProtectedRoutes = () => (
       {/* Redirection de la racine vers le dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/agenda" element={<AgendaPage />} />
+      <Route path="/accounting" element={<AccountingPage />} />
 
       {/* Routes Patients */}
       <Route path="/patients" element={<PatientList />} />
@@ -113,15 +131,20 @@ const ProtectedRoutes = () => (
 function App() {
   return (
     <BrowserRouter>
-      <ProtectedRoute>
-        <Routes>
-          {/* Route publique : Setup Wizard (sans layout) */}
-          <Route path="/setup" element={<SetupWizard />} />
-          
-          {/* Toutes les autres routes sont protégées */}
-          <Route path="/*" element={<ProtectedRoutes />} />
-        </Routes>
-      </ProtectedRoute>
+      <Routes>
+        {/* Route d'entrée absolue (sans protection) */}
+        <Route path="/welcome" element={<WelcomeScreen />} />
+        
+        {/* Toutes les autres routes passent par le filtre Mode/Init */}
+        <Route path="/*" element={
+          <ProtectedRoute>
+            <Routes>
+              <Route path="/setup" element={<SetupWizard />} />
+              <Route path="/*" element={<ProtectedRoutes />} />
+            </Routes>
+          </ProtectedRoute>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

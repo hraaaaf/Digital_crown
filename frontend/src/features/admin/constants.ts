@@ -1,0 +1,109 @@
+import { 
+  Stethoscope, 
+  Activity, 
+  Shield, 
+  Layers, 
+  Shapes, 
+  Scissors, 
+  Pin, 
+  Sun, 
+  Smile, 
+  Building2, 
+  Sparkles, 
+  Moon,
+  Phone,
+  Palette,
+  CheckCircle2,
+  Image as ImageIcon
+} from 'lucide-react';
+
+export const SPECIALTIES_DICT = [
+  { id: 'soins', fr: 'Soins', ar: 'علاج', icon: Stethoscope },
+  { id: 'endo', fr: 'Endodontie', ar: 'علاج العصب', icon: Activity },
+  { id: 'paro', fr: 'Parodontologie', ar: 'أمراض اللثة', icon: Shield },
+  { id: 'ortho', fr: 'Orthodontie', ar: 'تقويم الأسنان', icon: Layers },
+  { id: 'prothese', fr: 'Prothèse', ar: 'تعويض الأسنان', icon: Shapes },
+  { id: 'chirurgie', fr: 'Chirurgie', ar: 'جراحة', icon: Scissors },
+  { id: 'implant', fr: 'Implantologie', ar: 'زراعة الأسنان', icon: Pin },
+  { id: 'blanchiment', fr: 'Blanchiment', ar: 'تبييض الأسنان', icon: Sun },
+  { id: 'esthetique', fr: 'Esthétique', ar: 'تجميل الأسنان', icon: Smile }
+];
+
+export const STEPS = [
+  { id: 1, title: "Identité", icon: Building2 },
+  { id: 2, title: "Domaines", icon: Stethoscope },
+  { id: 3, title: "Contacts", icon: Phone },
+  { id: 4, title: "Design", icon: ImageIcon },
+  { id: 5, title: "Ambiance", icon: Palette },
+  { id: 6, title: "Lancement", icon: CheckCircle2 }
+];
+
+// Wait, I should use the correct icons. Let's re-import them or use string names/component references if needed.
+// Actually, I'll just copy the constants from SetupWizard and fix imports.
+
+export const CROWN_MESSAGES: Record<number, string> = {
+  1: "Bienvenue Docteur. Commençons par définir l'identité de votre cabinet pour personnaliser vos documents.",
+  2: "Sélectionnez vos expertises. Je vais les formater automatiquement en Français et en Arabe.",
+  3: "Comment vos patients peuvent-ils vous joindre ? Ces infos figureront discrètement en pied de page.",
+  4: "C'est ici que la magie opère. Choisissez un style qui vous ressemble. L'aperçu à droite est vivant !",
+  5: "Dernière touche : l'ambiance de votre logiciel. Ghost Elite est mon préféré pour son élégance.",
+  6: "Tout est prêt. Vérifiez une dernière fois. Je m'occupe de configurer tout votre univers Digital Crown."
+};
+
+export const PREMIUM_FONTS = [
+  { id: 'inter', name: 'Inter', desc: 'Professionnel & Clair', class: 'font-sans' },
+  { id: 'outfit', name: 'Outfit', desc: 'Moderne & Dynamique', class: 'font-outfit' },
+  { id: 'playfair', name: 'Playfair', desc: 'Élégant & Classique', class: 'font-serif' }
+];
+
+export const DESIGN_VARIANTS = [
+  { id: 'classic', name: 'Elite Classic', icon: Building2 },
+  { id: 'elite', name: 'Elite Modern', icon: Sparkles },
+  { id: 'prestige', name: 'Prestige Dark', icon: Moon },
+  { id: 'minimal', name: 'Minimal Zen', icon: Layers }
+];
+
+export const BRAND_IDENTITIES = [
+  {
+    id: 'elite-royal',
+    name: 'Élite Royal',
+    desc: 'Autorité & Confiance',
+    primary: '#003380', secondary: '#1e40af', accent: '#60a5fa',
+    vibe: 'Professionnel Classique'
+  },
+  {
+    id: 'rose-prestige',
+    name: 'Rose Prestige',
+    desc: 'Luxe & Douceur',
+    primary: '#db2777', secondary: '#9d174d', accent: '#fbcfe8',
+    vibe: 'Féminin & Esthétique'
+  },
+  {
+    id: 'emerald-zen',
+    name: 'Émeraude Zen',
+    desc: 'Santé & Sérénité',
+    primary: '#065f46', secondary: '#047857', accent: '#a7f3d0',
+    vibe: 'Naturel & Serein'
+  },
+  {
+    id: 'indigo-night',
+    name: 'Indigo Night',
+    desc: 'Innovation & Tech',
+    primary: '#312e81', secondary: '#4338ca', accent: '#c7d2fe',
+    vibe: 'Moderne & Futuriste'
+  },
+  {
+    id: 'noir-elite',
+    name: 'Graphite Élite',
+    desc: 'Minimalisme & Pureté',
+    primary: '#0f172a', secondary: '#334155', accent: '#94a3b8',
+    vibe: 'Épuré & Intemporel'
+  },
+  {
+    id: 'gold-heritage',
+    name: 'Or Héritage',
+    desc: 'Excellence & Tradition',
+    primary: '#854d0e', secondary: '#a16207', accent: '#fef9c3',
+    vibe: 'Prestigieux & Ancien'
+  }
+];

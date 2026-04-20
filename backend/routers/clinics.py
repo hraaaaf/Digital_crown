@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from backend import models, schemas, database
+from backend.services.card_extractor import card_extractor
 
 router = APIRouter()
 
@@ -26,16 +27,34 @@ def get_db():
 @router.get("/init-status")
 def check_init_status(db: Session = Depends(get_db)):
     """
-    Vérifier si le cabinet est initialisé (pour le wizard).
+    Vérifie si le cabinet est initialisé. 
+    Règle absolue : S'il y a un Dentiste/Admin en DB, on considère le cabinet initialisé et on bypass le Wizard.
     """
-    any_config = db.query(models.CabinetConfig).first()
-    
-    if any_config:
+    admin_user = db.query(models.User).filter(
+        models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE])
+    ).first()
+
+    if admin_user:
+        any_config = db.query(models.CabinetConfig).first()
+        if not any_config:
+            new_config = models.CabinetConfig(
+                owner_id=admin_user.id,
+                nom_cabinet=admin_user.nom_complet or "Mon Cabinet",
+                nom_praticien=admin_user.nom_complet or "Docteur",
+                is_initialized=True
+            )
+            db.add(new_config)
+            db.commit()
+        elif not any_config.is_initialized:
+            any_config.is_initialized = True
+            db.commit()
+            
         return {
-            "is_initialized": any_config.is_initialized,
-            "needs_setup": not any_config.is_initialized
+            "is_initialized": True,
+            "needs_setup": False
         }
     
+    # Mode "Nouveau Client" (pas de dentiste créé / base de donnée vide)
     return {
         "is_initialized": False,
         "needs_setup": True
@@ -71,6 +90,7 @@ def create_clinic(
     
     db_config = models.CabinetConfig(
         owner_id=admin_user.id,
+        nom_cabinet=config.nom_cabinet,
         header_lines_fr=config.header_lines_fr,
         header_lines_ar=config.header_lines_ar,
         footer_address=config.footer_address,
@@ -80,6 +100,8 @@ def create_clinic(
         font_ar=config.font_ar,
         watermark_enabled=config.watermark_enabled,
         watermark_opacity=config.watermark_opacity,
+        selected_theme=config.selected_theme,
+        cabinet_type=models.CabinetType(config.cabinet_type),
         is_initialized=True
     )
     
@@ -112,8 +134,21 @@ def update_my_clinic(
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non trouvé")
     
-    for key, value in config_update.model_dump(exclude_unset=True).items():
-        setattr(config, key, value)
+    update_dict = config_update.model_dump(exclude_unset=True)
+    
+    # Mapping des alias vers les colonnes physiques
+    if "adresse" in update_dict:
+        update_dict["footer_address"] = update_dict.pop("adresse")
+    if "telephone" in update_dict:
+        update_dict["footer_phones"] = update_dict.pop("telephone")
+        
+    # Identifiants légaux
+    if "if" in update_dict:
+        update_dict["if_"] = update_dict.pop("if")
+        
+    for key, value in update_dict.items():
+        if hasattr(config, key):
+            setattr(config, key, value)
     
     db.commit()
     db.refresh(config)
@@ -158,6 +193,8 @@ async def upload_clinic_letterhead(
     file: UploadFile = File(...),
     hide_header: bool = True,
     hide_footer: bool = True,
+    margins_top: float = 3.6,
+    margins_bottom: float = 3.2,
     db: Session = Depends(get_db)
 ):
     """Uploader le papier en-tête (Letterhead) du cabinet."""
@@ -203,6 +240,8 @@ async def upload_clinic_letterhead(
     
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.letterhead_path = relative_path
+    config.margin_top = margins_top
+    config.margin_bottom = margins_bottom
     db.commit()
     
     return {
@@ -211,3 +250,18 @@ async def upload_clinic_letterhead(
         "hide_default_footer": hide_footer,
         "message": "Letterhead uploadé avec succès."
     }
+
+@router.post("/extract-card")
+async def extract_business_card(file: UploadFile = File(...)):
+    """Extraction IA d'une carte de visite pour remplissage auto."""
+    # Sauvegarde temporaire
+    temp_path = f"temp_card_{uuid.uuid4().hex}.jpg"
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    try:
+        data = await card_extractor.extract(temp_path)
+        return data
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)

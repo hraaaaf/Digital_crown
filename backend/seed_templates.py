@@ -13,23 +13,8 @@ logger = logging.getLogger(__name__)
 # Même structure pour tous les styles, seul le CSS (design_config) change
 ORDONNANCE_TEMPLATE_HTML = """
 <div class="document">
-    <h1 class="doc-title">{{ titre }}</h1>
-    
-    <div class="doc-meta">
-        <p>Fait à {{ cabinet.ville }}, le {{ date }}</p>
-    </div>
-    
-    <div class="patient-info">
-        <p><strong>Patient:</strong> {{ patient.nom }} {{ patient.prenom }}</p>
-        <p><strong>Âge:</strong> {{ patient.age }} ans</p>
-    </div>
-    
     <div class="doc-content">
         {{ content }}
-    </div>
-    
-    <div class="signature-section">
-        <p class="signature-label">Signature et cachet:</p>
     </div>
 </div>
 """.strip()
@@ -436,7 +421,10 @@ def seed_system_templates(db: Session) -> None:
         ).first()
         
         if existing:
-            logger.debug(f"Template '{config['name']}' déjà existant, ignoré.")
+            # Mise à jour pour refléter les changements de nettoyage du body
+            if existing.body_html != ORDONNANCE_TEMPLATE_HTML:
+                existing.body_html = ORDONNANCE_TEMPLATE_HTML
+                db.add(existing) # Marquer pour mise à jour
             templates_skipped += 1
             continue
         
@@ -483,27 +471,8 @@ def seed_certificat_templates(db: Session) -> None:
     
     CERTIFICAT_TEMPLATE_HTML = """
 <div class="document">
-    <h1 class="doc-title">CERTIFICAT MÉDICAL</h1>
-    
-    <div class="doc-meta">
-        <p>Fait à {{ cabinet.ville }}, le {{ date }}</p>
-    </div>
-    
-    <div class="patient-info">
-        <p><strong>Patient:</strong> {{ patient.nom }} {{ patient.prenom }}</p>
-        <p><strong>Âge:</strong> {{ patient.age }} ans</p>
-    </div>
-    
     <div class="doc-content">
         {{ content }}
-    </div>
-    
-    <div class="certification-text">
-        <p>Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit.</p>
-    </div>
-    
-    <div class="signature-section">
-        <p class="signature-label">Signature et cachet:</p>
     </div>
 </div>
 """.strip()
@@ -516,6 +485,9 @@ def seed_certificat_templates(db: Session) -> None:
         ).first()
         
         if existing:
+            if existing.body_html != CERTIFICAT_TEMPLATE_HTML:
+                existing.body_html = CERTIFICAT_TEMPLATE_HTML
+                db.add(existing)
             continue
         
         template = models.DocumentTemplate(

@@ -28,3 +28,35 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- AUTO-MIGRATION (Self-Healing) ---
+def check_and_update_db():
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            # Vérifier et ajouter les colonnes de branding et structure manquantes
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_theme VARCHAR DEFAULT 'elite'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_cabinet VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_praticien VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_praticien_ar VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS secondary_color VARCHAR DEFAULT '#1e40af'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS accent_color VARCHAR DEFAULT '#60a5fa'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cabinet_type VARCHAR DEFAULT 'PRIVE'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS logo_path VARCHAR"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS letterhead_path VARCHAR"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_template VARCHAR DEFAULT 'classic'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_fr VARCHAR DEFAULT 'inter'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_ar VARCHAR DEFAULT 'amiri'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_top FLOAT DEFAULT 3.6"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_bottom FLOAT DEFAULT 3.2"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS ice VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS if_ VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS inpe VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS contacts_json JSONB DEFAULT '{}'"))
+            conn.commit()
+            print("Database check completed: All branding and layout columns verified.")
+        except Exception as e:
+            print(f"Migration notice: {e}")
+
+# Exécuter au chargement du module
+check_and_update_db()

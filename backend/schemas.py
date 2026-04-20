@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from datetime import datetime, date
+import datetime
 from typing import Optional, Dict, List, Literal, Any, Tuple, Union
 from enum import Enum
 
@@ -44,13 +44,17 @@ class AnalysisMetrics(BaseModel):
 
 # --- 3. CONFIGURATION CABINET ---
 
-class CabinetConfigOut(BaseModel):
+class PraticienProfileOut(BaseModel):
     nom_complet: str
+    nom: Optional[str] = None # Alias
     specialites: Optional[str] = None
     adresse_complete: Optional[str] = None
+    adresse: Optional[str] = None # Alias
     telephone_fixe: Optional[str] = None
+    telephone: Optional[str] = None # Alias
     telephone_mobile: Optional[str] = None
     identifiants_legaux: Optional[Dict[str, str]] = None
+    inpe: Optional[str] = None # Alias
     model_config = ConfigDict(from_attributes=True)
 
 # --- 4. DOSSIER CLINIQUE ---
@@ -67,11 +71,12 @@ class PatientBase(BaseModel):
     numero_dossier: Optional[str] = None  # Optionnel à la création, auto-généré si vide
     nom: str
     prenom: str
-    date_naissance: datetime
+    date_naissance: datetime.datetime
     sexe: Literal["M", "F"]
     email: Optional[EmailStr] = Field(None, validate_default=True)
     telephone: Optional[str] = None
     adresse: Optional[str] = None
+    assurance: Optional[str] = "AUCUNE"
     photo_url: Optional[str] = None
     antecedents_medicaux: Optional[str] = None
     
@@ -89,11 +94,46 @@ class PatientCreate(PatientBase):
 class PatientOut(PatientBase):
     id: int
     numero_dossier: str  # Rendu obligatoire en sortie
-    created_at: datetime
+    created_at: datetime.datetime
     dossier: Optional[DossierOut] = None
     model_config = ConfigDict(from_attributes=True)
 
-# --- 6. SCHÉMA ANALYSE CÉPHALOMÉTRIQUE ---
+# --- 6. SCHÉMAS AGENDA CLINIQUE ---
+
+class AppointmentStatus(str, Enum):
+    PREVU = "PRÉVU"
+    EN_SALLE_ATTENTE = "EN_S_ATTENTE" 
+    EN_FAUTEUIL = "EN_FAUTEUIL"
+    TERMINE = "TERMINÉ"
+    ANNULE = "ANNULÉ"
+
+class AppointmentBase(BaseModel):
+    patient_id: Optional[int] = None
+    patient_name: Optional[str] = None
+    datetime_start: datetime.datetime
+    duration_minutes: int = 30
+    motif: Optional[str] = None
+    status: AppointmentStatus = AppointmentStatus.PREVU
+    notes: Optional[str] = None
+
+class AppointmentCreate(AppointmentBase):
+    pass
+
+class AppointmentUpdate(BaseModel):
+    patient_id: Optional[int] = None
+    patient_name: Optional[str] = None
+    datetime_start: Optional[datetime.datetime] = None
+    duration_minutes: Optional[int] = None
+    motif: Optional[str] = None
+    status: Optional[AppointmentStatus] = None
+    notes: Optional[str] = None
+
+class AppointmentOut(AppointmentBase):
+    id: int
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+# --- 7. SCHÉMA ANALYSE CÉPHALOMÉTRIQUE ---
 
 class CephaloAnalysisOut(BaseModel):
     id: int
@@ -101,7 +141,7 @@ class CephaloAnalysisOut(BaseModel):
     angles_data: Optional[Dict] = None
     landmarks_data: Optional[Dict] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
-    created_at: datetime
+    created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
@@ -111,20 +151,20 @@ class CephaloAnalysisOut(BaseModel):
 
 class MedicationItem(BaseModel):
     nom: str
-    dosage: str
-    forme: str = "Sachets"
-    posologie: str
+    dosage: Optional[str] = ""
+    forme: Optional[str] = "Sachets"
+    posologie: Optional[str] = ""
 
 class OrdonnanceData(BaseModel):
-    medications: List[MedicationItem]
-    doc_date: date
+    medications: List[MedicationItem] = []
+    doc_date: Optional[datetime.date] = None # Utilise date d'en-tête, si absent utilise today
     age: Optional[int] = None
     gender: Optional[str] = None
 
 class CertificatData(BaseModel):
-    reason: str
-    days: int
-    start_date: date
+    reason: Optional[str] = "Certificat Médical"
+    days: Optional[int] = 1
+    start_date: Optional[datetime.date] = None # Sera remplacé par today si None dans le générateur
     is_work_stop: bool = False
     age: Optional[int] = None
     gender: Optional[str] = None
@@ -142,29 +182,29 @@ class ToothData(BaseModel):
     notes: Optional[str] = None
 
 class DevisItem(BaseModel):
-    acte: str
-    dent: str
+    acte: str = ""
+    dent: str = ""
     dents: List[Union[int, str]] = []  # Liste des numéros de dents concernées
-    prix_unitaire: float
+    prix_unitaire: float = 0.0
 
 class DevisData(BaseModel):
-    items: List[DevisItem]
-    doc_date: date
+    items: List[DevisItem] = []
+    doc_date: Optional[datetime.date] = None
     teeth_data: List[ToothData] = []  # Données détaillées de l'odontogramme
     age: Optional[int] = None
     gender: Optional[str] = None
 
 class PaymentItem(BaseModel):
-    date: date
-    acte: str
+    date: Optional[datetime.date] = None
+    acte: str = ""
     dent: str = "-"
     dents: List[Union[int, str]] = []  # Liste des numéros de dents concernées
-    montant: float
+    montant: float = 0.0
     mode_reglement: str = "Espèces"
 
 class HonorairesData(BaseModel):
-    payments: List[PaymentItem]
-    doc_date: date
+    payments: List[PaymentItem] = []
+    doc_date: Optional[datetime.date] = None
     teeth_data: List[ToothData] = []  # Données détaillées de l'odontogramme
     age: Optional[int] = None
     gender: Optional[str] = None
@@ -172,7 +212,7 @@ class HonorairesData(BaseModel):
 class LibreData(BaseModel):
     titre: str = Field(default='DOCUMENT MÉDICAL', alias='title')
     texte: str = Field(default='', alias='content')
-    doc_date: date
+    doc_date: Optional[datetime.date] = None
     age: Optional[int] = None
     gender: Optional[str] = None
     
@@ -184,7 +224,6 @@ class DocumentRequest(BaseModel):
     data: Dict
 
 
-# ==============================================================================
 # --- 8. SCHÉMAS : SMART ORDONNANCE (PHASE 2) ---
 # ==============================================================================
 
@@ -358,12 +397,12 @@ class DocumentArchiveCreate(DocumentArchiveBase):
 
 class DocumentVersionInfo(BaseModel):
     version_number: int
-    created_at: datetime
+    created_at: datetime.datetime
     file_size: int
     is_latest: bool
 
 class DocumentArchiveOut(DocumentArchiveBase):
-    id: int
+    id: Union[int, str]
     patient_id: int
     filename: str
     original_filename: str
@@ -373,9 +412,9 @@ class DocumentArchiveOut(DocumentArchiveBase):
     version_number: int
     is_latest_version: bool
     status: DocumentStatus
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime] = None
     thumbnail_url: Optional[str] = None
     download_url: str
     all_versions: List[DocumentVersionInfo] = []
@@ -410,8 +449,8 @@ class DocumentListParams(BaseModel):
     status: Optional[DocumentStatus] = DocumentStatus.ACTIF
     tags: List[str] = []
     search_query: Optional[str] = None
-    date_from: Optional[datetime] = None
-    date_to: Optional[datetime] = None
+    date_from: Optional[datetime.datetime] = None
+    date_to: Optional[datetime.datetime] = None
     page: int = 1
     page_size: int = 20
 
@@ -423,17 +462,17 @@ class DocumentListResponse(BaseModel):
 
 class DocumentTrashResponse(BaseModel):
     message: str
-    document_id: int
-    deleted_at: datetime
-    permanent_delete_at: datetime
+    document_id: Union[int, str]
+    deleted_at: datetime.datetime
+    permanent_delete_at: datetime.datetime
 
 class DocumentRestoreResponse(BaseModel):
     message: str
-    document_id: int
-    restored_at: datetime
+    document_id: Union[int, str]
+    restored_at: datetime.datetime
 
 class DocumentBatchDeleteRequest(BaseModel):
-    document_ids: List[int]
+    document_ids: List[Union[int, str]]
     permanent: bool = False
 
 class DocumentBatchResponse(BaseModel):
@@ -442,16 +481,31 @@ class DocumentBatchResponse(BaseModel):
 
 class DocumentShareLink(BaseModel):
     token: str
-    expires_at: datetime
+    expires_at: datetime.datetime
     download_url: str
     max_downloads: int = 5
 
 class DocumentPreviewResponse(BaseModel):
-    document_id: int
+    document_id: Union[int, str]
     preview_url: str
     thumbnail_url: Optional[str] = None
     file_type: str
     can_preview: bool
+ 
+class HonoraireItem(BaseModel):
+    id: Union[int, str]
+    patient_id: int
+    patient_name: str
+    assurance: Optional[str] = "AUCUNE"
+    date: datetime.datetime
+    title: str
+    amount: float
+    file_url: str
+    
+class HonoraireListResponse(BaseModel):
+    total: int
+    total_amount: float
+    items: List[HonoraireItem]
 
 
 
@@ -559,15 +613,35 @@ class DesignConfig(BaseModel):
 # --- Cabinet Config ---
 
 class CabinetConfigBase(BaseModel):
+    nom_cabinet: str = Field(default="", max_length=255)
+    nom_praticien: str = Field(default="", max_length=255)
+    nom_praticien_ar: str = Field(default="", max_length=255)
+    cabinet_type: str = Field(default="PRIVE") # "PRIVE" ou "CLINIQUE"
     header_lines_fr: List[str] = Field(default_factory=list, max_length=6)
     header_lines_ar: List[str] = Field(default_factory=list, max_length=6)
-    footer_address: str = Field(default="", max_length=500)
-    footer_phones: str = Field(default="", max_length=255)
+    footer_address: Optional[str] = Field(default="", max_length=500)
+    footer_phones: Optional[str] = Field(default="", max_length=255)
+    adresse: Optional[str] = Field(default="", max_length=500, alias="adresse") # Alias pour compatibilité frontend
+    telephone: Optional[str] = Field(default="", max_length=255, alias="telephone") 
+    
+    # Identifiants légaux
+    ice: Optional[str] = Field(default="", max_length=50)
+    if_: Optional[str] = Field(default="", max_length=50, alias="if")
+    inpe: Optional[str] = Field(default="", max_length=50)
+    
+    letterhead_path: Optional[str] = None
     primary_color: str = Field(default="#003380", pattern=r"^#[0-9A-Fa-f]{6}$")
+    secondary_color: str = Field(default="#1e40af", pattern=r"^#[0-9A-Fa-f]{6}$")
+    accent_color: str = Field(default="#60a5fa", pattern=r"^#[0-9A-Fa-f]{6}$")
     font_fr: str = Field(default="Helvetica", max_length=50)
     font_ar: str = Field(default="Amiri", max_length=50)
     watermark_enabled: bool = Field(default=True)
     watermark_opacity: float = Field(default=0.10, ge=0.0, le=1.0)
+    selected_theme: str = Field(default="elite", max_length=20)
+    selected_template: str = Field(default="classic", max_length=20)
+    margin_top: float = Field(default=3.6, ge=0.0, le=15.0)
+    margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
+    contacts_json: Optional[Dict] = Field(default_factory=dict)
 
 
 class CabinetConfigCreate(CabinetConfigBase):
@@ -579,16 +653,15 @@ class CabinetConfigUpdate(CabinetConfigBase):
 
 
 class CabinetConfigOut(CabinetConfigBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     
     id: str
     public_id: str
     owner_id: int
     logo_path: Optional[str] = None
-    letterhead_path: Optional[str] = None
     is_initialized: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
 
 
 class CabinetInitStatus(BaseModel):
@@ -630,8 +703,8 @@ class DocumentTemplateOut(DocumentTemplateBase):
     is_default: bool
     design_config: DesignConfig
     body_html: Optional[str] = Field(default=None)
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
 
 
 class DocumentTemplateList(BaseModel):
@@ -650,3 +723,11 @@ class TemplatePreviewRequest(BaseModel):
         "date": "02/03/2026",
         "titre": "ORDONNANCE"
     })
+
+class VisionResult(BaseModel):
+    analysis_id: int
+    date_analyse: datetime.datetime
+    points: Dict
+    metrics: Dict
+    status: str
+    message: Optional[str] = None

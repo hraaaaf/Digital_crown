@@ -7,7 +7,6 @@ import {
   User, 
   Calendar, 
   Phone, 
-  Hash,
   Loader2,
   Info,
   ClipboardList,
@@ -29,6 +28,7 @@ interface Patient {
   prenom: string;
   date_naissance: string;
   telephone: string;
+  assurance: string;
 }
 
 type TabType = 'analysis' | 'admin' | 'archives';
@@ -43,6 +43,16 @@ export const PatientDetails = () => {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingDoc, setEditingDoc] = useState<any>(null);
+
+  useEffect(() => {
+    const handleEditDoc = (e: any) => {
+      setEditingDoc(e.detail);
+      setSearchParams({ tab: 'admin' });
+    };
+    window.addEventListener('edit_document', handleEditDoc);
+    return () => window.removeEventListener('edit_document', handleEditDoc);
+  }, [setSearchParams]);
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -104,6 +114,17 @@ export const PatientDetails = () => {
               <div>
                 <h1 className={cn("font-black text-[#003380] tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")}>
                   {fullName}
+                  {patient.assurance && patient.assurance !== 'AUCUNE' && (
+                    <span className={cn(
+                      "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border shadow-sm",
+                      patient.assurance === 'CNOPS' ? "bg-blue-100 text-blue-700 border-blue-200" :
+                      patient.assurance === 'CNSS' ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                      patient.assurance === 'MUTUELLE_FAR' ? "bg-purple-100 text-purple-700 border-purple-200" :
+                      "bg-amber-100 text-amber-700 border-amber-200"
+                    )}>
+                      {patient.assurance === 'MUTUELLE_FAR' ? 'FAR' : patient.assurance}
+                    </span>
+                  )}
                   {!isCompact && (
                     <span className="px-2.5 py-1 bg-blue-50 text-[#003380] text-[10px] font-black rounded-lg uppercase tracking-widest border border-blue-100 shadow-sm">
                       Dossier Actif
@@ -159,7 +180,7 @@ export const PatientDetails = () => {
           )}
           
           {activeTab === 'admin' && (
-            <DocumentHub patientId={id} patientName={fullName} />
+            <DocumentHub patientId={id} patientName={fullName} editData={editingDoc} />
           )}
 
           {activeTab === 'archives' && (

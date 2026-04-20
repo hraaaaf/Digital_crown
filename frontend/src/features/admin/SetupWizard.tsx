@@ -1,1064 +1,929 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Building2, 
+import {
+  Building2,
   Stethoscope,
   Phone,
   Palette,
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft,
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
   MapPin,
-  User,
   Image as ImageIcon,
   Check,
-  Smartphone,
-  MessageCircle,
-  Instagram,
   FileImage,
   Upload,
-  Settings2
+  Sparkles,
+  Type,
+  MousePointer2,
+  Camera,
+  X,
+  Plus,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { cabinetApi } from '../../services/templateApi';
 import { cn } from '../../utils/cn';
-
-// =============================================================================
-// Dictionnaire des spécialités (FR/AR)
-// =============================================================================
-const SPECIALTIES_DICT = [
-  { id: 'soins', fr: 'Soins', ar: 'علاج' },
-  { id: 'endo', fr: 'Endodontie', ar: 'علاج العصب' },
-  { id: 'paro', fr: 'Parodontologie', ar: 'أمراض اللثة' },
-  { id: 'ortho', fr: 'Orthodontie', ar: 'تقويم الأسنان' },
-  { id: 'prothese', fr: 'Prothèse', ar: 'تعويض الأسنان' },
-  { id: 'chirurgie', fr: 'Chirurgie', ar: 'جراحة' },
-  { id: 'implant', fr: 'Implantologie', ar: 'زراعة الأسنان' },
-  { id: 'blanchiment', fr: 'Blanchiment', ar: 'تبييض الأسنان' },
-  { id: 'esthetique', fr: 'Esthétique', ar: 'تجميل الأسنان' }
-];
-
-// =============================================================================
-// Types pour les contacts conditionnels
-// =============================================================================
-type ContactType = 'fixe' | 'mobile' | 'whatsapp' | 'instagram';
-
-interface ContactConfig {
-  fixe: { enabled: boolean; value: string };
-  mobile: { enabled: boolean; value: string };
-  whatsapp: { enabled: boolean; value: string };
-  instagram: { enabled: boolean; value: string };
-}
-
-// =============================================================================
-// Configuration des étapes
-// =============================================================================
-interface WizardStep {
-  id: number;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-}
-
-const STEPS: WizardStep[] = [
-  {
-    id: 1,
-    title: "Identité",
-    description: "Votre cabinet",
-    icon: Building2
-  },
-  {
-    id: 2,
-    title: "Spécialités",
-    description: "Vos domaines",
-    icon: Stethoscope
-  },
-  {
-    id: 3,
-    title: "Contacts",
-    description: "Vos coordonnées",
-    icon: Phone
-  },
-  {
-    id: 4,
-    title: "Design",
-    description: "Votre en-tête",
-    icon: Palette
-  },
-  {
-    id: 5,
-    title: "Validation",
-    description: "Confirmez tout",
-    icon: CheckCircle2
-  }
-];
-
-// =============================================================================
-// Type pour l'option d'en-tête
-// =============================================================================
-type HeaderOption = 'auto' | 'letterhead';
+import {
+  SPECIALTIES_DICT,
+  STEPS,
+  CROWN_MESSAGES,
+  PREMIUM_FONTS,
+  DESIGN_VARIANTS,
+  BRAND_IDENTITIES
+} from './constants';
+import type {
+  IdentityState,
+  HeaderOption,
+  TemplateOption,
+  ContactType,
+  ContactConfig
+} from './types';
+import { LiveDocumentStudio } from './components/LiveDocumentStudio';
+import { CrownGuide } from './components/CrownGuide';
 
 export const SetupWizard: React.FC = () => {
   const navigate = useNavigate();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
-  
-  // État de navigation
+
+  // Navigation
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  
-  // =============================================================================
-  // ÉTAPE 1: Identité
-  // =============================================================================
-  const [identity, setIdentity] = useState({
-    nomCabinet: '',
-    nomPraticien: '',
-    adresse: ''
-  });
-  
-  // =============================================================================
-  // ÉTAPE 2: Spécialités (IDs cochés)
-  // =============================================================================
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem('appMode') === 'demo');
+
+  const toggleDemoMode = useCallback(() => {
+    setIsDemoMode(prev => {
+      const next = !prev;
+      localStorage.setItem('appMode', next ? 'demo' : 'live');
+      return next;
+    });
+  }, []);
+
+  // État du cabinet
+  const [cabinetType, setCabinetType] = useState<'PRIVE' | 'CLINIQUE'>('PRIVE');
+  const [identity, setIdentity] = useState<IdentityState>({ nomCabinet: '', nomPraticien: '', nomPraticienAR: '', adresse: '' });
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
-  
-  // =============================================================================
-  // ÉTAPE 3: Contacts conditionnels
-  // =============================================================================
+  const [customSpecialty, setCustomSpecialty] = useState({ fr: '', ar: '' });
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [contacts, setContacts] = useState<ContactConfig>({
-    fixe: { enabled: true, value: '' },  // Coché par défaut
+    fixe: { enabled: true, value: '' },
     mobile: { enabled: false, value: '' },
     whatsapp: { enabled: false, value: '' },
     instagram: { enabled: false, value: '' }
   });
-  
-  // =============================================================================
-  // ÉTAPE 4: Design de l'en-tête
-  // =============================================================================
+
+  // État Design & Ambiance
   const [headerOption, setHeaderOption] = useState<HeaderOption>('auto');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('classic');
+  const [selectedFont, setSelectedFont] = useState('inter');
+  const [selectedIdentity, setSelectedIdentity] = useState(BRAND_IDENTITIES[0].id);
+  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'prestige'>('elite');
+
+  // Médias
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
-  const [margins, setMargins] = useState({
-    top: 3.0,    // cm
-    bottom: 2.5  // cm
-  });
-  
-  // =============================================================================
-  // Erreurs de validation
-  // =============================================================================
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [margins, setMargins] = useState({ top: 3.0, bottom: 2.5 });
 
-  // =============================================================================
-  // Handlers
-  // =============================================================================
-  const handleIdentityChange = (field: keyof typeof identity, value: string) => {
-    setIdentity(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+  // Effet pour appliquer le thème visuel dynamiquement
+  useEffect(() => {
+    const brandIdentity = BRAND_IDENTITIES.find(i => i.id === selectedIdentity) || BRAND_IDENTITIES[0];
+    document.body.dataset.theme = selectedTheme === 'elite' ? '' : selectedTheme;
+
+    const root = document.documentElement;
+    root.style.setProperty('--primary', brandIdentity.primary);
+    root.style.setProperty('--secondary', brandIdentity.secondary);
+    root.style.setProperty('--accent', brandIdentity.accent);
+
+    return () => {
+      document.body.dataset.theme = '';
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--secondary');
+      root.style.removeProperty('--accent');
+    };
+  }, [selectedTheme, selectedIdentity]);
+
+  // Handler d'extraction IA
+  const handleCardImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const hasExistingData = identity.nomCabinet || identity.nomPraticien;
+    if (hasExistingData) {
+      const confirmed = window.confirm("Des données d'identité existent déjà. Les remplacer par l'extraction IA ?");
+      if (!confirmed) return;
+    }
+
+    setIsExtracting(true);
+    try {
+      const data = await cabinetApi.extractCard(file);
+      if (data && !data.error) {
+        setIdentity({
+          nomCabinet: data.nom_cabinet || identity.nomCabinet,
+          nomPraticien: data.nom_praticien || identity.nomPraticien,
+          nomPraticienAR: data.nom_praticien_ar || identity.nomPraticienAR,
+          adresse: data.adresse || identity.adresse
+        });
+
+        if (data.specialites && Array.isArray(data.specialites)) {
+          // Mapper les spécialités extraites aux IDs existants si possible
+          const matched = SPECIALTIES_DICT.filter(s =>
+            data.specialites.some((ext: string) => ext.toLowerCase().includes(s.fr.toLowerCase()))
+          ).map(s => s.id);
+
+          if (matched.length > 0) setSelectedSpecialties(prev => Array.from(new Set([...prev, ...matched])));
+        }
+
+        // Notification succès (Crown Guide)
+        // On pourrait ajouter un message spécifique
+      }
+    } catch (err) {
+      console.error("Erreur extraction:", err);
+    } finally {
+      setIsExtracting(false);
     }
   };
 
-  const toggleSpecialty = (id: string) => {
-    setSelectedSpecialties(prev => 
-      prev.includes(id) 
-        ? prev.filter(s => s !== id)
-        : [...prev, id]
-    );
-  };
+  // Utilitaires
+  const specialtyStrings = useMemo(() => {
+    const frArr: string[] = [];
+    const arArr: string[] = [];
+    selectedSpecialties.forEach(id => {
+      const s = SPECIALTIES_DICT.find(x => x.id === id);
+      if (s) { frArr.push(s.fr); arArr.push(s.ar); }
+    });
+    if (customSpecialty.fr) frArr.push(customSpecialty.fr);
+    if (customSpecialty.ar) arArr.push(customSpecialty.ar);
 
-  const toggleContact = (type: ContactType) => {
-    setContacts(prev => ({
-      ...prev,
-      [type]: { ...prev[type], enabled: !prev[type].enabled }
-    }));
-  };
+    return { fr: frArr.join(' - '), ar: arArr.join(' - ') };
+  }, [selectedSpecialties, customSpecialty]);
 
-  const updateContactValue = (type: ContactType, value: string) => {
-    setContacts(prev => ({
-      ...prev,
-      [type]: { ...prev[type], value }
-    }));
-  };
+  const contactString = useMemo(() => {
+    const parts: string[] = [];
+    (Object.keys(contacts) as ContactType[]).forEach(type => {
+      const c = contacts[type];
+      if (c.enabled && c.value.trim()) {
+        const icon = type === 'fixe' ? '📞' : type === 'mobile' ? '📱' : type === 'whatsapp' ? '💬' : '📸';
+        parts.push(`${icon} ${c.value.trim()}`);
+      }
+    });
+    return parts.join(' | ');
+  }, [contacts]);
 
+  // Handlers
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, logo: 'Le fichier ne doit pas dépasser 2Mo' }));
-        return;
-      }
-      if (!['image/png', 'image/svg+xml'].includes(file.type)) {
-        setErrors(prev => ({ ...prev, logo: 'Format accepté : PNG ou SVG uniquement' }));
-        return;
-      }
+    if (file && file.size <= 2 * 1024 * 1024) {
       setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setLogoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-      setErrors(prev => ({ ...prev, logo: '' }));
+      const r = new FileReader();
+      r.onloadend = () => setLogoPreview(r.result as string);
+      r.readAsDataURL(file);
     }
   };
 
   const handleLetterheadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, letterhead: 'Le fichier ne doit pas dépasser 5Mo' }));
-        return;
-      }
-      if (!['image/jpeg', 'image/png'].includes(file.type)) {
-        setErrors(prev => ({ ...prev, letterhead: 'Format accepté : JPG ou PNG uniquement' }));
-        return;
-      }
+    if (file && file.size <= 5 * 1024 * 1024) {
       setLetterheadFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setLetterheadPreview(reader.result as string);
-      reader.readAsDataURL(file);
-      setErrors(prev => ({ ...prev, letterhead: '' }));
+      const r = new FileReader();
+      r.onloadend = () => setLetterheadPreview(r.result as string);
+      r.readAsDataURL(file);
     }
   };
 
-  // =============================================================================
-  // Validation par étape
-  // =============================================================================
-  const validateStep = (step: number): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    switch (step) {
-      case 1:
-        if (!identity.nomPraticien.trim()) {
-          newErrors.nomPraticien = 'Le nom du praticien est requis';
-        }
-        if (!identity.nomCabinet.trim()) {
-          newErrors.nomCabinet = 'Le nom du cabinet est requis';
-        }
-        if (!identity.adresse.trim()) {
-          newErrors.adresse = 'L\'adresse est requise';
-        }
-        break;
-        
-      case 2:
-        if (selectedSpecialties.length === 0) {
-          newErrors.specialties = 'Sélectionnez au moins une spécialité';
-        }
-        break;
-        
-      case 3:
-        const hasEnabledContact = Object.values(contacts).some(c => c.enabled && c.value.trim());
-        if (!hasEnabledContact) {
-          newErrors.contacts = 'Renseignez au moins un contact';
-        }
-        // Vérifier que les contacts activés ont une valeur
-        Object.entries(contacts).forEach(([type, config]) => {
-          if (config.enabled && !config.value.trim()) {
-            newErrors[`contact_${type}`] = 'Ce contact est activé mais vide';
-          }
-        });
-        break;
-        
-      case 4:
-        if (headerOption === 'auto' && !logoFile) {
-          // Logo optionnel en mode auto
-        }
-        if (headerOption === 'letterhead' && !letterheadFile) {
-          newErrors.letterhead = 'Veuillez uploader votre papier en-tête';
-        }
-        break;
+  const validateStep = (step: number) => {
+    const errs: Record<string, string> = {};
+    if (step === 1) {
+      if (!identity.nomCabinet) errs.nomCabinet = "Requis";
+      if (!identity.nomPraticien) errs.nomPraticien = "Requis";
+      if (!identity.adresse) errs.adresse = "Requis";
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (step === 2 && selectedSpecialties.length === 0) errs.specialties = "Choisissez au moins une spécialité";
+    if (step === 3 && !Object.values(contacts).some(c => c.enabled && c.value.trim())) errs.contacts = "Renseignez au moins un contact";
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleNext = () => {
-    if (!validateStep(currentStep)) {
-      return;
-    }
-    if (currentStep < 5) {
-      setCurrentStep(prev => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
-
-  // =============================================================================
-  // Construction des chaînes de spécialités (FR et AR séparés par -)
-  // =============================================================================
-  const buildSpecialtyStrings = () => {
-    const frParts: string[] = [];
-    const arParts: string[] = [];
-    
-    selectedSpecialties.forEach(id => {
-      const spec = SPECIALTIES_DICT.find(s => s.id === id);
-      if (spec) {
-        frParts.push(spec.fr);
-        arParts.push(spec.ar);
+    if (currentStep === 3) {
+      const hasValid = Object.values(contacts).some(c => c.enabled && c.value.trim());
+      if (!hasValid) {
+        setErrors({ contacts: "Activez et renseignez au moins un contact" });
+        return;
       }
-    });
-    
-    return {
-      fr: frParts.join(' - '),
-      ar: arParts.join(' - ')
-    };
+    }
+    validateStep(currentStep) && setCurrentStep(prev => Math.min(prev + 1, 6));
   };
 
-  // =============================================================================
-  // Construction de la chaîne de contacts concaténée
-  // =============================================================================
-  const buildContactString = () => {
-    const parts: string[] = [];
-    
-    const icons: Record<ContactType, string> = {
-      fixe: '📞',
-      mobile: '📱',
-      whatsapp: '💬',
-      instagram: '📸'
-    };
-    
-    const labels: Record<ContactType, string> = {
-      fixe: 'Fixe',
-      mobile: 'Mobile',
-      whatsapp: 'WhatsApp',
-      instagram: 'Instagram'
-    };
-    
-    (Object.keys(contacts) as ContactType[]).forEach(type => {
-      const config = contacts[type];
-      if (config.enabled && config.value.trim()) {
-        parts.push(`${icons[type]} ${labels[type]}: ${config.value.trim()}`);
-      }
-    });
-    
-    return parts.join(' - ');
-  };
+  const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
-  // =============================================================================
-  // Soumission finale
-  // =============================================================================
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const specialties = buildSpecialtyStrings();
-      const contactString = buildContactString();
-      
-      // Construction du payload CabinetConfigCreate
-      const configData = {
-        header_lines_fr: [
-          identity.nomPraticien,
-          'Chirurgien Dentiste',
-          specialties.fr
-        ],
-        header_lines_ar: [
-          '', // Sera rempli côté backend si besoin
-          'طبيب جراح للأسنان',
-          specialties.ar
-        ],
+      const sanitizedMargins = {
+        top: Math.max(1, Math.min(8, margins.top)),
+        bottom: Math.max(1, Math.min(6, margins.bottom))
+      };
+
+      const identityData = BRAND_IDENTITIES.find(i => i.id === selectedIdentity) || BRAND_IDENTITIES[0];
+      const payload = {
+        nom_cabinet: identity.nomCabinet,
+        header_lines_fr: [identity.nomPraticien, 'Chirurgien Dentiste', specialtyStrings.fr],
+        header_lines_ar: [identity.nomPraticienAR, 'طبيب جراح للأسنان', specialtyStrings.ar],
         footer_address: identity.adresse,
         footer_phones: contactString,
-        primary_color: '#003380',
-        font_fr: 'Helvetica',
-        font_ar: 'Amiri',
+        ice: identity.ice,
+        if_: identity.if,
+        inpe: identity.inpe,
+        cabinet_type: cabinetType,
+        selected_theme: selectedTheme,
+        selected_template: selectedTemplate,
+        selected_font: selectedFont,
+        primary_color: identityData.primary,
+        secondary_color: identityData.secondary,
+        accent_color: identityData.accent,
         watermark_enabled: headerOption === 'auto',
-        watermark_opacity: 0.10,
-        // Configuration spécifique pour le papier en-tête
-        background_letterhead: headerOption === 'letterhead' ? {
-          enabled: true,
-          margins: margins
-        } : undefined
+        contacts_json: contacts
       };
-      
-      // 1. Créer le cabinet
-      await cabinetApi.create(configData);
-      
-      // 2. Uploader le logo si mode auto
-      if (headerOption === 'auto' && logoFile) {
-        await cabinetApi.uploadLogo(logoFile);
+
+      if (isDemoMode) {
+        await new Promise(r => setTimeout(r, 1200));
+        sessionStorage.setItem('demoConfig', JSON.stringify(payload));
+        navigate('/dashboard');
+      } else {
+        await cabinetApi.create(payload as any);
+        if (logoFile) await cabinetApi.uploadLogo(logoFile);
+
+        if (headerOption === 'letterhead' && letterheadFile) {
+          await cabinetApi.uploadLetterhead(letterheadFile, sanitizedMargins.top, sanitizedMargins.bottom);
+        }
+
+        navigate('/dashboard');
       }
-      
-      // 3. Uploader le papier en-tête si mode letterhead
-      if (headerOption === 'letterhead' && letterheadFile) {
-        // Appel API spécifique pour le papier en-tête
-        const formData = new FormData();
-        formData.append('file', letterheadFile);
-        formData.append('margins_top', margins.top.toString());
-        formData.append('margins_bottom', margins.bottom.toString());
-        await fetch('http://localhost:8000/api/clinics/me/letterhead', {
-          method: 'POST',
-          body: formData
-        });
-      }
-      
-      // 4. Rediriger vers le dashboard
-      navigate('/dashboard');
-    } catch (error: any) {
-      console.error('Erreur création cabinet:', error);
-      setErrors({ submit: error.response?.data?.detail || 'Erreur lors de la création du cabinet' });
+    } catch (e) {
+      setErrors({ submit: "Échec de l'initialisation. Réessayez." });
     } finally {
       setLoading(false);
     }
   };
 
   // =============================================================================
-  // RENDU ÉTAPE 1: IDENTITÉ
+  // RENDU DES ÉTAPES
   // =============================================================================
+
   const renderStep1 = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Identité de votre cabinet</h2>
-        <p className="text-slate-600 mt-2">Ces informations apparaîtront sur vos documents officiels</p>
+        <h2 className="text-2xl font-black text-slate-900">Structure du Cabinet</h2>
+        <p className="text-sm text-slate-500">Définissez le mode d'exercice de votre cabinet.</p>
       </div>
 
-      <div className="space-y-5">
-        {/* Nom du cabinet */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <button
+          onClick={() => setCabinetType('PRIVE')}
+          className={cn(
+            "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+            cabinetType === 'PRIVE' ? "border-primary bg-primary/5 shadow-lg" : "border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
+          )}
+        >
+          <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600"><Building2 size={24} /></div>
+          <div className="text-center">
+            <span className="block font-black text-slate-900 text-sm">Cabinet Privé</span>
+            <span className="text-[10px] text-slate-500">Mono-praticien</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setCabinetType('CLINIQUE')}
+          className={cn(
+            "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+            cabinetType === 'CLINIQUE' ? "border-emerald-500 bg-emerald-50 shadow-lg" : "border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
+          )}
+        >
+          <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600"><Stethoscope size={24} /></div>
+          <div className="text-center">
+            <span className="block font-black text-slate-900 text-sm">Clinique / Centre</span>
+            <span className="text-[10px] text-slate-500">Multi-spécialistes</span>
+          </div>
+        </button>
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-slate-100">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <Building2 className="w-4 h-4 inline mr-1" />
-            Nom du cabinet *
-          </label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nom de l'établissement *</label>
           <input
             type="text"
             value={identity.nomCabinet}
-            onChange={(e) => handleIdentityChange('nomCabinet', e.target.value)}
-            placeholder="Cabinet Dentaire Benmoussa"
-            className={cn(
-              "w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all",
-              errors.nomCabinet ? "border-red-300" : "border-slate-300"
-            )}
+            onChange={e => setIdentity({ ...identity, nomCabinet: e.target.value })}
+            className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm", errors.nomCabinet ? "border-red-300" : "border-slate-200")}
+            placeholder={cabinetType === 'CLINIQUE' ? "Ex: Centre Dentaire Al Massira" : "Ex: Cabinet Dr. Alami"}
           />
-          {errors.nomCabinet && <p className="text-sm text-red-500 mt-1">{errors.nomCabinet}</p>}
         </div>
-
-        {/* Nom du praticien */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <User className="w-4 h-4 inline mr-1" />
-            Nom complet du praticien *
-          </label>
-          <input
-            type="text"
-            value={identity.nomPraticien}
-            onChange={(e) => handleIdentityChange('nomPraticien', e.target.value)}
-            placeholder="Dr. Benmoussa Achraf"
-            className={cn(
-              "w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all",
-              errors.nomPraticien ? "border-red-300" : "border-slate-300"
-            )}
-          />
-          {errors.nomPraticien && <p className="text-sm text-red-500 mt-1">{errors.nomPraticien}</p>}
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Praticien Principal / Titulaire *</label>
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="text"
+              value={identity.nomPraticien}
+              onChange={e => setIdentity({ ...identity, nomPraticien: e.target.value })}
+              className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
+              placeholder="Dr. Jean Dupont"
+            />
+            <input
+              type="text"
+              dir="rtl"
+              value={identity.nomPraticienAR}
+              onChange={e => setIdentity({ ...identity, nomPraticienAR: e.target.value })}
+              className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm font-arabic", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
+              placeholder="د. الإسم الكامل"
+            />
+          </div>
         </div>
-
-        {/* Adresse */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <MapPin className="w-4 h-4 inline mr-1" />
-            Adresse complète *
-          </label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Adresse Professionnelle *</label>
           <textarea
             value={identity.adresse}
-            onChange={(e) => handleIdentityChange('adresse', e.target.value)}
-            placeholder="156, 1er étage, Secteur 3, Lotissement Zerdal Gharbia, Sidi Bouknadel, Salé"
-            rows={3}
-            className={cn(
-              "w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all",
-              errors.adresse ? "border-red-300" : "border-slate-300"
-            )}
+            onChange={e => setIdentity({ ...identity, adresse: e.target.value })}
+            className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-600 text-sm h-24 shadow-sm", errors.adresse ? "border-red-300" : "border-slate-200")}
+            placeholder="Étage, Résidence, Rue, Ville..."
           />
-          {errors.adresse && <p className="text-sm text-red-500 mt-1">{errors.adresse}</p>}
         </div>
       </div>
     </div>
   );
 
-  // =============================================================================
-  // RENDU ÉTAPE 2: SPÉCIALITÉS (Grille de checkboxes)
-  // =============================================================================
   const renderStep2 = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Vos spécialités</h2>
-        <p className="text-slate-600 mt-2">Sélectionnez les domaines d'expertise de votre cabinet</p>
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-black text-slate-900">Spécialités</h2>
+        <p className="text-sm text-slate-500">Sélectionnez vos domaines d'expertise.</p>
       </div>
 
-      {errors.specialties && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{errors.specialties}</p>
+      <div className="flex flex-col gap-4">
+        {/* Magic Import Button */}
+        <div className="relative group">
+          <input
+            type="file"
+            id="card-upload"
+            className="hidden"
+            accept="image/*,application/pdf"
+            onChange={handleCardImport}
+          />
+          <label
+            htmlFor="card-upload"
+            className={cn(
+              "flex items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 cursor-pointer transition-all hover:bg-primary/10 hover:border-primary group-hover:scale-[1.02]",
+              isExtracting && "opacity-50 pointer-events-none animate-pulse"
+            )}
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <Camera size={20} />
+            </div>
+            <div className="text-left">
+              <span className="block font-black text-xs text-primary uppercase tracking-tighter">
+                {isExtracting ? "Extraction IA en cours..." : "Importer depuis une Carte de Visite"}
+              </span>
+              <span className="text-[10px] text-slate-500">Remplissage automatique intelligent</span>
+            </div>
+            <Sparkles className="ml-auto text-primary/40" size={16} />
+          </label>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {SPECIALTIES_DICT.map((spec) => {
-          const isSelected = selectedSpecialties.includes(spec.id);
-          return (
+        <div className="grid grid-cols-2 gap-3">
+          {SPECIALTIES_DICT.map((spec) => (
             <button
               key={spec.id}
-              onClick={() => toggleSpecialty(spec.id)}
+              onClick={() => {
+                const newSpecs = selectedSpecialties.includes(spec.id)
+                  ? selectedSpecialties.filter(id => id !== spec.id)
+                  : [...selectedSpecialties, spec.id];
+                setSelectedSpecialties(newSpecs);
+              }}
               className={cn(
-                "relative p-4 rounded-xl border-2 text-left transition-all duration-200",
-                isSelected
-                  ? "border-blue-500 bg-blue-50 shadow-sm"
-                  : "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50"
+                "p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden group",
+                selectedSpecialties.includes(spec.id)
+                  ? "border-primary bg-primary/5 shadow-md"
+                  : "border-slate-100 bg-white hover:border-slate-200"
               )}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-center gap-3 mb-1">
                 <div className={cn(
-                  "w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 transition-colors",
-                  isSelected ? "bg-blue-500 border-blue-500" : "border-slate-300"
+                  "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300",
+                  selectedSpecialties.includes(spec.id)
+                    ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
+                    : "bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-105"
                 )}>
-                  {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                  <spec.icon size={32} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">{spec.fr}</p>
-                  <p className="text-sm text-slate-500" dir="rtl">{spec.ar}</p>
-                </div>
+                <span className={cn(
+                  "font-black text-xs transition-colors",
+                  selectedSpecialties.includes(spec.id) ? "text-primary" : "text-slate-900"
+                )}>{spec.fr}</span>
               </div>
+              <div className="text-[10px] text-slate-400 font-medium text-right font-arabic">{spec.ar}</div>
+
+              {selectedSpecialties.includes(spec.id) && (
+                <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                  <Check size={10} className="text-white" />
+                </div>
+              )}
             </button>
-          );
-        })}
+          ))}
+
+          {/* Custom Specialty Toggle */}
+          <button
+            onClick={() => setShowCustomModal(true)}
+            className="p-4 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center gap-2 text-slate-500 hover:border-primary hover:text-primary transition-all"
+          >
+            <Plus size={16} />
+            <span className="font-bold text-xs">Autre spécialité...</span>
+          </button>
+        </div>
       </div>
 
-      {/* Récapitulatif des sélections */}
-      {selectedSpecialties.length > 0 && (
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-          <p className="text-sm font-medium text-blue-900 mb-2">Sélection actuelle :</p>
-          <div className="flex flex-wrap gap-2">
-            {selectedSpecialties.map(id => {
-              const spec = SPECIALTIES_DICT.find(s => s.id === id);
-              return spec ? (
-                <span key={id} className="px-3 py-1 bg-white text-blue-700 text-sm rounded-full border border-blue-200">
-                  {spec.fr}
-                </span>
-              ) : null;
-            })}
+      {/* Modal Specialty */}
+      {showCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">
+            <div className="p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900">Spécialité Personnalisée</h3>
+                <button onClick={() => setShowCustomModal(false)} className="p-2 rounded-full hover:bg-slate-100"><X size={20} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">En Français</label>
+                  <input
+                    type="text"
+                    value={customSpecialty.fr}
+                    onChange={e => setCustomSpecialty({ ...customSpecialty, fr: e.target.value })}
+                    className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900"
+                    placeholder="Ex: Pédodontie"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">En Arabe (Clavier)</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={customSpecialty.ar}
+                      onChange={e => setCustomSpecialty({ ...customSpecialty, ar: e.target.value })}
+                      className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 font-arabic text-lg"
+                      placeholder="Ex: طب أسنان الأطفال"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1 p-2 bg-slate-50 rounded-lg justify-center">
+                      {["ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "خ", "ح", "ج", "د", "ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط", "ئ", "ء", "ؤ", "ر", "لا", "ى", "ة", "َ", "ِ", "ُ", "ْ", "ّ", "ً", "ٍ", "ٌ", "أ", "إ"].map(char => (
+                        <button
+                          key={char}
+                          onClick={() => setCustomSpecialty(prev => ({ ...prev, ar: prev.ar + char }))}
+                          className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded text-sm font-arabic hover:bg-primary hover:text-white transition-all shadow-sm active:scale-90"
+                        >
+                          {char}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCustomSpecialty(prev => ({ ...prev, ar: prev.ar.slice(0, -1) }))}
+                        className="px-4 h-8 flex items-center justify-center bg-slate-200 rounded text-[10px] font-black uppercase hover:bg-red-100 hover:text-red-600 transition-all active:scale-95"
+                      >
+                        Effacer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowCustomModal(false)}
+                className="w-full py-4 bg-primary text-white rounded-2xl font-black text-sm"
+              >
+                Valider
+              </button>
+            </div>
           </div>
         </div>
       )}
+      {errors.specialties && <p className="text-[10px] text-red-500 font-bold text-center">{errors.specialties}</p>}
     </div>
   );
 
-  // =============================================================================
-  // RENDU ÉTAPE 3: CONTACTS (Checkboxes conditionnelles)
-  // =============================================================================
-  const renderStep3 = () => {
-    const contactConfigs: { type: ContactType; icon: React.ElementType; label: string; placeholder: string }[] = [
-      { type: 'fixe', icon: Phone, label: 'Fixe', placeholder: '05 37 82 23 33' },
-      { type: 'mobile', icon: Smartphone, label: 'Mobile', placeholder: '06 12 34 56 78' },
-      { type: 'whatsapp', icon: MessageCircle, label: 'WhatsApp', placeholder: '06 48 27 58 52' },
-      { type: 'instagram', icon: Instagram, label: 'Instagram', placeholder: '@votre.cabinet' }
-    ];
-
-    return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Vos coordonnées</h2>
-          <p className="text-slate-600 mt-2">Sélectionnez les moyens de contact à afficher sur vos documents</p>
-        </div>
-
-        {errors.contacts && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{errors.contacts}</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {contactConfigs.map(({ type, icon: Icon, label, placeholder }) => {
-            const config = contacts[type];
-            const hasError = errors[`contact_${type}`];
-            
-            return (
-              <div key={type} className={cn(
-                "border-2 rounded-xl overflow-hidden transition-all",
-                config.enabled ? "border-blue-500 bg-blue-50/30" : "border-slate-200 bg-white"
-              )}>
-                {/* Checkbox */}
-                <button
-                  onClick={() => toggleContact(type)}
-                  className="w-full p-4 flex items-center gap-4 text-left hover:bg-slate-50/50 transition-colors"
-                >
-                  <div className={cn(
-                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                    config.enabled ? "bg-blue-500 border-blue-500" : "border-slate-300"
-                  )}>
-                    {config.enabled && <Check className="w-3.5 h-3.5 text-white" />}
-                  </div>
-                  <Icon className={cn("w-5 h-5", config.enabled ? "text-blue-600" : "text-slate-400")} />
-                  <span className={cn("font-medium", config.enabled ? "text-slate-900" : "text-slate-600")}>
-                    {label}
-                  </span>
-                  {type === 'fixe' && (
-                    <span className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                      Recommandé
-                    </span>
-                  )}
-                </button>
-                
-                {/* Input conditionnel */}
-                {config.enabled && (
-                  <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
-                    <input
-                      type="text"
-                      value={config.value}
-                      onChange={(e) => updateContactValue(type, e.target.value)}
-                      placeholder={placeholder}
-                      className={cn(
-                        "w-full px-4 py-2.5 rounded-lg border bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all",
-                        hasError ? "border-red-300" : "border-slate-300"
-                      )}
-                    />
-                    {hasError && <p className="text-xs text-red-500 mt-1">{hasError}</p>}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Aperçu du format final */}
-        {buildContactString() && (
-          <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <p className="text-sm font-medium text-slate-700 mb-2">Format sur les documents :</p>
-            <p className="text-sm text-slate-600 font-mono bg-white p-3 rounded-lg border">
-              {buildContactString()}
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // =============================================================================
-  // RENDU ÉTAPE 4: DESIGN DE L'EN-TÊTE (Choix binaire)
-  // =============================================================================
-  const renderStep4 = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+  const renderStep3 = () => (
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Design de l'en-tête</h2>
-        <p className="text-slate-600 mt-2">Choisissez comment apparaîtra votre en-tête sur les documents</p>
+        <h2 className="text-2xl font-black text-slate-900">Coordonnées</h2>
+        <p className="text-sm text-slate-500">Comment les patients peuvent-ils vous joindre ?</p>
+      </div>
+      <div className="space-y-3">
+        {(['fixe', 'mobile', 'whatsapp', 'instagram'] as ContactType[]).map(type => (
+          <div key={type} className={cn("p-4 rounded-2xl border-2 transition-all", contacts[type].enabled ? "border-primary bg-primary/5" : "border-slate-100 bg-white")}>
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                onClick={() => setContacts({ ...contacts, [type]: { ...contacts[type], enabled: !contacts[type].enabled } })}
+                className={cn("w-5 h-5 rounded flex items-center justify-center border-2 transition-all", contacts[type].enabled ? "bg-primary border-primary" : "border-slate-200")}
+              >
+                {contacts[type].enabled && <Check size={12} className="text-white" />}
+              </button>
+              <span className="font-bold text-slate-800 text-sm capitalize">{type}</span>
+            </div>
+            {contacts[type].enabled && (
+              <input
+                type="text"
+                value={contacts[type].value}
+                onChange={e => setContacts({ ...contacts, [type]: { ...contacts[type], value: e.target.value } })}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold"
+                placeholder={`Numéro ou pseudo ${type}...`}
+              />
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Toggle entre les deux options */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Option A : Génération automatique */}
+      <div className="pt-4 border-t border-slate-100">
+        <h3 className="text-sm font-black text-slate-800 mb-4">Identifiants Légaux (Optionnel)</h3>
+        <p className="text-[10px] text-slate-500 mb-3">Requis pour les notes d'honoraires et devis.</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">I.C.E</label>
+            <input
+              type="text"
+              value={identity.ice || ''}
+              onChange={e => setIdentity({ ...identity, ice: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm text-xs"
+              placeholder="N° ICE"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">I.F</label>
+            <input
+              type="text"
+              value={identity.if || ''}
+              onChange={e => setIdentity({ ...identity, if: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm text-xs"
+              placeholder="Id. Fiscal"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">I.N.P.E</label>
+            <input
+              type="text"
+              value={identity.inpe || ''}
+              onChange={e => setIdentity({ ...identity, inpe: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm text-xs"
+              placeholder="N° INPE"
+            />
+          </div>
+        </div>
+      </div>
+      {errors.contacts && <p className="text-[10px] text-red-500 font-bold text-center">{errors.contacts}</p>}
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center">
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Studio de Design</h2>
+        <p className="text-slate-500 text-sm mt-1">Personnalisez l'apparence de vos documents officiels.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => setHeaderOption('auto')}
           className={cn(
-            "relative p-6 rounded-xl border-2 text-left transition-all",
-            headerOption === 'auto'
-              ? "border-blue-500 bg-blue-50 shadow-md"
-              : "border-slate-200 bg-white hover:border-blue-300"
+            "p-5 rounded-2xl border-2 text-left transition-all",
+            headerOption === 'auto' ? "border-primary bg-primary/5 shadow-lg" : "border-slate-200 bg-white"
           )}
         >
-          {headerOption === 'auto' && (
-            <div className="absolute top-4 right-4">
-              <div className="bg-blue-600 text-white rounded-full p-1">
-                <Check className="w-4 h-4" />
-              </div>
-            </div>
-          )}
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-            <ImageIcon className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600"><ImageIcon size={18} /></div>
+            <span className="font-bold text-slate-900">Auto-Généré</span>
           </div>
-          <h3 className="font-semibold text-slate-900 mb-2">Générer automatiquement</h3>
-          <p className="text-sm text-slate-500">
-            Nous créons votre en-tête avec votre logo, nom et coordonnées automatiquement formatés.
-          </p>
+          <p className="text-[10px] text-slate-500 leading-tight">Mise en page automatique avec votre logo et typo.</p>
         </button>
 
-        {/* Option B : Papier en-tête personnalisé */}
         <button
           onClick={() => setHeaderOption('letterhead')}
           className={cn(
-            "relative p-6 rounded-xl border-2 text-left transition-all",
-            headerOption === 'letterhead'
-              ? "border-green-500 bg-green-50 shadow-md"
-              : "border-slate-200 bg-white hover:border-green-300"
+            "p-5 rounded-2xl border-2 text-left transition-all",
+            headerOption === 'letterhead' ? "border-emerald-500 bg-emerald-50 shadow-lg" : "border-slate-200 bg-white"
           )}
         >
-          {headerOption === 'letterhead' && (
-            <div className="absolute top-4 right-4">
-              <div className="bg-green-600 text-white rounded-full p-1">
-                <Check className="w-4 h-4" />
-              </div>
-            </div>
-          )}
-          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-            <FileImage className="w-6 h-6 text-green-600" />
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600"><FileImage size={18} /></div>
+            <span className="font-bold text-slate-900">Papier A5</span>
           </div>
-          <h3 className="font-semibold text-slate-900 mb-2">J'ai mon papier en-tête A5</h3>
-          <p className="text-sm text-slate-500">
-            Uploadez votre propre papier à en-tête. Nous ajustons les marges pour un rendu parfait.
-          </p>
+          <p className="text-[10px] text-slate-500 leading-tight">Uploadez votre propre papier à en-tête pré-imprimé.</p>
         </button>
       </div>
 
-      {/* Contenu conditionnel selon l'option */}
-      <div className="mt-8">
-        {headerOption === 'auto' ? (
-          <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl">
-            <label className="block text-sm font-medium text-slate-700 mb-4">
-              <Upload className="w-4 h-4 inline mr-1" />
-              Logo du cabinet (optionnel)
-            </label>
-            
-            <div 
-              onClick={() => logoInputRef.current?.click()}
+      {headerOption === 'auto' ? (
+        <div className="space-y-6">
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200/60">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Identité Visuelle & Harmonie</label>
+            <div className="grid grid-cols-2 gap-3">
+              {BRAND_IDENTITIES.map(id => (
+                <button
+                  key={id.id}
+                  onClick={() => setSelectedIdentity(id.id)}
+                  className={cn(
+                    "p-4 rounded-2xl border-2 transition-all text-left flex flex-col gap-3 group relative overflow-hidden",
+                    selectedIdentity === id.id ? "border-primary bg-white shadow-lg scale-[1.02]" : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-[10px] font-black uppercase tracking-tighter text-slate-900">{id.name}</h5>
+                    <div className="flex -space-x-2">
+                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.primary }} />
+                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.secondary }} />
+                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.accent }} />
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-slate-500 leading-tight italic">{id.vibe}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Type size={12} /> Typographie Premium</label>
+              <div className="space-y-2">
+                {PREMIUM_FONTS.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setSelectedFont(f.id)}
+                    className={cn(
+                      "w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all",
+                      selectedFont === f.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-slate-200 bg-white hover:bg-slate-50"
+                    )}
+                  >
+                    <div>
+                      <span className={cn("block text-sm font-bold", f.class)}>{f.name}</span>
+                      <span className="text-[9px] text-slate-400">{f.desc}</span>
+                    </div>
+                    {selectedFont === f.id && <MousePointer2 size={12} className="text-primary" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Palette size={12} /> Modèle de mise en page</label>
+              <div className="space-y-2">
+                {DESIGN_VARIANTS.map((v: any) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSelectedTemplate(v.id as any)}
+                    className={cn(
+                      "w-full p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all",
+                      selectedTemplate === v.id ? "border-primary bg-primary/5" : "border-slate-200 bg-white"
+                    )}
+                  >
+                    <v.icon size={16} className={selectedTemplate === v.id ? "text-primary" : "text-slate-400"} />
+                    <span className="text-xs font-bold text-slate-900">{v.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center bg-white overflow-hidden shadow-inner">
+                {logoPreview ? <img src={logoPreview} className="w-full h-full object-contain" alt="Logo" /> : <ImageIcon className="text-slate-300" size={20} />}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Logo du cabinet</h4>
+                <p className="text-[10px] text-slate-500">PNG ou SVG (Optionnel)</p>
+              </div>
+            </div>
+            <button onClick={() => logoInputRef.current?.click()} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Uploader</button>
+            <input ref={logoInputRef} type="file" className="hidden" accept="image/png,image/svg+xml" onChange={handleLogoChange} />
+          </div>
+        </div>
+      ) : (
+        <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-[2rem] space-y-6">
+          <div className="flex flex-col items-center">
+            <div
+              onClick={() => letterheadInputRef.current?.click()}
               className={cn(
-                "w-full h-40 rounded-xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center transition-colors",
-                logoPreview 
-                  ? "border-blue-500 bg-blue-50" 
-                  : "border-slate-300 hover:border-blue-400 hover:bg-slate-100"
+                "w-full h-48 rounded-2xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center transition-all shadow-inner",
+                letterheadPreview ? "border-emerald-500 bg-white" : "border-emerald-300 hover:bg-white"
               )}
             >
-              {logoPreview ? (
-                <img src={logoPreview} alt="Logo preview" className="h-full object-contain p-4" />
+              {letterheadPreview ? (
+                <img src={letterheadPreview} className="h-full object-contain p-4" alt="Letterhead" />
               ) : (
                 <>
-                  <ImageIcon className="w-10 h-10 text-slate-400 mb-2" />
-                  <span className="text-sm text-slate-500">Cliquez pour uploader votre logo</span>
-                  <span className="text-xs text-slate-400 mt-1">PNG ou SVG (max 2Mo)</span>
+                  <Upload className="text-emerald-400 mb-2" size={32} />
+                  <span className="text-xs font-bold text-emerald-600">Uploader votre Papier A5</span>
                 </>
               )}
             </div>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png, image/svg+xml"
-              onChange={handleLogoChange}
-              className="hidden"
-            />
-            {errors.logo && <p className="text-sm text-red-500 mt-2">{errors.logo}</p>}
-            
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Info :</strong> Sans logo, votre en-tête sera généré avec du texte uniquement, 
-                avec le filigrane du cabinet en arrière-plan.
-              </p>
+            <input ref={letterheadInputRef} type="file" className="hidden" accept="image/png,image/jpeg" onChange={handleLetterheadChange} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Marge Haute ({margins.top} cm)</label>
+              <input type="range" min="1" max="8" step="0.5" value={margins.top} onChange={e => setMargins(m => ({ ...m, top: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-emerald-200 rounded-lg accent-emerald-600 cursor-pointer" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Marge Basse ({margins.bottom} cm)</label>
+              <input type="range" min="1" max="6" step="0.5" value={margins.bottom} onChange={e => setMargins(m => ({ ...m, bottom: parseFloat(e.target.value) }))} className="w-full h-1.5 bg-emerald-200 rounded-lg accent-emerald-600 cursor-pointer" />
             </div>
           </div>
-        ) : (
-          <div className="p-6 bg-green-50 border border-green-200 rounded-xl space-y-6">
-            {/* Upload papier en-tête */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-4">
-                <Upload className="w-4 h-4 inline mr-1" />
-                Votre papier en-tête A5 *
-              </label>
-              
-              <div 
-                onClick={() => letterheadInputRef.current?.click()}
-                className={cn(
-                  "w-full h-48 rounded-xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center transition-colors",
-                  letterheadPreview 
-                    ? "border-green-500 bg-white" 
-                    : "border-slate-300 hover:border-green-400 hover:bg-white/50"
-                )}
-              >
-                {letterheadPreview ? (
-                  <img src={letterheadPreview} alt="Letterhead preview" className="h-full object-contain p-4" />
-                ) : (
-                  <>
-                    <FileImage className="w-10 h-10 text-slate-400 mb-2" />
-                    <span className="text-sm text-slate-500">Cliquez pour uploader votre papier en-tête</span>
-                    <span className="text-xs text-slate-400 mt-1">JPG ou PNG (max 5Mo)</span>
-                  </>
-                )}
-              </div>
-              <input
-                ref={letterheadInputRef}
-                type="file"
-                accept="image/jpeg, image/png"
-                onChange={handleLetterheadChange}
-                className="hidden"
-              />
-              {errors.letterhead && <p className="text-sm text-red-500 mt-2">{errors.letterhead}</p>}
-            </div>
+        </div>
+      )}
+    </div>
+  );
 
-            {/* Sliders pour les marges */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
-                  <Settings2 className="w-4 h-4" />
-                  Marge Haute
-                </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1"
-                    max="8"
-                    step="0.5"
-                    value={margins.top}
-                    onChange={(e) => setMargins(prev => ({ ...prev, top: parseFloat(e.target.value) }))}
-                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                  />
-                  <span className="text-sm font-medium text-slate-700 w-16 text-right">
-                    {margins.top.toFixed(1)} cm
-                  </span>
-                </div>
-              </div>
+  const renderStep5 = () => (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-black text-slate-900">Atmosphère Élite</h2>
+        <p className="text-sm text-slate-500">Choisissez l'univers visuel qui vous ressemble.</p>
+      </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
-                  <Settings2 className="w-4 h-4" />
-                  Marge Basse
-                </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1"
-                    max="6"
-                    step="0.5"
-                    value={margins.bottom}
-                    onChange={(e) => setMargins(prev => ({ ...prev, bottom: parseFloat(e.target.value) }))}
-                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                  />
-                  <span className="text-sm font-medium text-slate-700 w-16 text-right">
-                    {margins.bottom.toFixed(1)} cm
-                  </span>
-                </div>
-              </div>
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { id: 'elite', label: 'Lumière Pure', class: 'bg-white border-slate-200', desc: 'Clarté & Professionalisme' },
+          { id: 'emerald', label: 'Escale Zen', class: 'bg-emerald-50 border-emerald-100', desc: 'Sérénité & Nature' },
+          { id: 'prestige', label: 'Nuit Intense', class: 'bg-slate-900 border-slate-800 text-white', desc: 'Luxe & Autorité' }
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSelectedTheme(t.id as any)}
+            className={cn(
+              "flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden",
+              t.class,
+              selectedTheme === t.id ? "ring-4 ring-primary/20 border-primary scale-[1.05] shadow-xl" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
+            )}
+          >
+            <div className={cn("inline-flex w-16 h-16 rounded-[1.5rem] items-center justify-center transition-transform group-hover:rotate-12", t.id === 'prestige' ? 'bg-white/10' : 'bg-white shadow-inner')}>
+              {t.id === 'elite' ? <Sun size={32} className="text-amber-500" /> : t.id === 'emerald' ? <Sparkles size={32} className="text-emerald-500" /> : <Moon size={32} className="text-white" />}
             </div>
+            <div className="text-center">
+              <span className="block text-[10px] font-black uppercase tracking-[0.2em] mb-1">{t.label}</span>
+              <span className="text-[9px] opacity-60 font-medium">{t.desc}</span>
+            </div>
+            {selectedTheme === t.id && (
+              <div className="absolute top-4 right-4 animate-bounce"><CheckCircle2 size={20} className="text-primary" /></div>
+            )}
+          </button>
+        ))}
+      </div>
 
-            <div className="p-3 bg-white border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                <strong>Configuration :</strong> Les marges définissent l'espace réservé pour votre 
-                en-tête (haut) et pied de page (bas). Le contenu sera inséré entre ces marges.
-              </p>
-            </div>
+      <div className="mt-8 p-6 rounded-3xl bg-slate-50 border border-slate-100 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <Sparkles size={18} />
           </div>
-        )}
+          <div>
+            <h4 className="text-sm font-black text-slate-900">Aperçu en temps réel</h4>
+            <p className="text-[10px] text-slate-500">L'application entière a adopté le thème <b>{selectedTheme}</b>.</p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-700">Définir comme thème par défaut ?</span>
+          <div className="flex gap-2">
+            <button onClick={() => setSelectedTheme('elite')} className="px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-100 transition-colors">ANNULER</button>
+            <button onClick={() => alert("Thème confirmé !")} className="px-3 py-1.5 rounded-lg bg-primary text-white text-[10px] font-black shadow-lg shadow-primary/20">CONFIRMER</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 
-  // =============================================================================
-  // RENDU ÉTAPE 5: VALIDATION FINALE
-  // =============================================================================
-  const renderStep5 = () => {
-    const specialties = buildSpecialtyStrings();
-    
+  const renderStep6 = () => {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Récapitulatif</h2>
-          <p className="text-slate-600 mt-2">Vérifiez vos informations avant de finaliser</p>
+        <div className="text-center">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">C'est presque prêt !</h2>
+          <p className="text-slate-500 text-sm mt-1">Vérifiez vos préférences finales avant l'activation.</p>
         </div>
-
-        <div className="bg-slate-50 rounded-xl p-6 space-y-6">
-          {/* Identité */}
-          <div className="border-b border-slate-200 pb-4">
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-blue-600" />
-              Identité du cabinet
-            </h3>
-            <div className="space-y-2 text-sm">
-              <p><span className="text-slate-500">Cabinet:</span> <span className="font-medium">{identity.nomCabinet || 'Non renseigné'}</span></p>
-              <p><span className="text-slate-500">Praticien:</span> <span className="font-medium">{identity.nomPraticien || 'Non renseigné'}</span></p>
-              <p><span className="text-slate-500">Adresse:</span> {identity.adresse || 'Non renseignée'}</p>
+        <div className="space-y-4">
+          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200/60 shadow-inner">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter">Votre Cabinet</h3>
+                <p className="text-lg font-bold text-primary">Dr. {identity.nomPraticien || '...'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center"><Building2 size={20} className="text-primary" /></div>
+            </div>
+            <div className="space-y-3 pt-4 border-t border-slate-200/50">
+              <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><MapPin size={14} className="text-slate-400" /> {identity.adresse || '...'}</div>
+              <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><Stethoscope size={14} className="text-slate-400" /> {specialtyStrings.fr || '...'}</div>
+              <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><Phone size={14} className="text-slate-400" /> {contactString || '...'}</div>
             </div>
           </div>
 
-          {/* Spécialités */}
-          <div className="border-b border-slate-200 pb-4">
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-              <Stethoscope className="w-5 h-5 text-blue-600" />
-              Spécialités
-            </h3>
-            <div className="space-y-2">
-              <p className="text-sm text-slate-600">{specialties.fr}</p>
-              <p className="text-sm text-slate-600" dir="rtl">{specialties.ar}</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Police & Identité</p>
+              <p className="text-xs font-bold text-slate-800 capitalize">{selectedFont} / {BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.name}</p>
             </div>
-          </div>
-
-          {/* Contacts */}
-          <div className="border-b border-slate-200 pb-4">
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-              <Phone className="w-5 h-5 text-blue-600" />
-              Coordonnées
-            </h3>
-            <p className="text-sm text-slate-600">{buildContactString()}</p>
-          </div>
-
-          {/* Design */}
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-              <Palette className="w-5 h-5 text-blue-600" />
-              Design de l'en-tête
-            </h3>
-            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200">
-              {headerOption === 'auto' ? (
-                <>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900">Génération automatique</p>
-                    <p className="text-sm text-slate-500">
-                      {logoFile ? `Logo: ${logoFile.name}` : 'Sans logo (texte uniquement)'}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <FileImage className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900">Papier en-tête personnalisé</p>
-                    <p className="text-sm text-slate-500">
-                      {letterheadFile?.name} | Marges: {margins.top}cm / {margins.bottom}cm
-                    </p>
-                  </div>
-                </>
-              )}
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Ambiance Applicative</p>
+              <p className="text-xs font-bold text-slate-800 capitalize">{selectedTheme}</p>
             </div>
           </div>
         </div>
-
-        {errors.submit && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{errors.submit}</p>
-          </div>
-        )}
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Vous pourrez modifier tous ces réglages à tout moment depuis 
-            les paramètres du cabinet.
-          </p>
-        </div>
+        {errors.submit && <div className="p-4 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-100 text-center">{errors.submit}</div>}
       </div>
     );
   };
 
-  // =============================================================================
-  // RENDU PRINCIPAL
-  // =============================================================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-slate-900">Digital Crown</h1>
-              <p className="text-xs text-slate-500">Configuration initiale</p>
-            </div>
+    <div className="min-h-screen bg-slate-50 font-outfit text-slate-900 selection:bg-primary/20">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-[100]">
+        <div className="max-w-[1400px] mx-auto px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Building2 className="text-white" size={20} /></div>
+            <div><h1 className="font-black text-slate-900 tracking-tight text-lg">Digital Crown</h1><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">Setup Wizard v1.2</p></div>
           </div>
-          <div className="text-sm text-slate-500">
-            Étape {currentStep} sur {STEPS.length}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-xl border border-slate-200/40">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Demo Sandbox</span>
+              <button onClick={toggleDemoMode} className={cn("w-10 h-5 rounded-full relative transition-all", isDemoMode ? "bg-primary" : "bg-slate-300")}><div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all", isDemoMode ? "left-6" : "left-1")} /></button>
+            </div>
+            <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-slate-400 hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
           </div>
         </div>
       </header>
 
-      {/* Progress Bar */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = step.id === currentStep;
-              const isCompleted = step.id < currentStep;
-              
-              return (
-                <React.Fragment key={step.id}>
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={cn(
-                        "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors",
-                        isActive && "bg-blue-600 text-white",
-                        isCompleted && "bg-green-500 text-white",
-                        !isActive && !isCompleted && "bg-slate-100 text-slate-400"
-                      )}
-                    >
-                      {isCompleted ? <Check className="w-5 h-5 sm:w-6 sm:h-6" /> : <Icon className="w-5 h-5 sm:w-6 sm:h-6" />}
-                    </div>
-                    <span className={cn(
-                      "mt-2 text-xs sm:text-sm font-medium hidden sm:block",
-                      isActive ? "text-blue-600" : "text-slate-500"
-                    )}>
-                      {step.title}
-                    </span>
-                  </div>
-                  
-                  {index < STEPS.length - 1 && (
-                    <div className={cn(
-                      "flex-1 h-1 mx-2 sm:mx-4 rounded",
-                      isCompleted ? "bg-green-500" : "bg-slate-200"
-                    )} />
-                  )}
-                </React.Fragment>
-              );
-            })}
+      <div className="max-w-[1400px] mx-auto px-8 py-10">
+        <div className="flex items-center gap-4 mb-20 max-w-4xl mx-auto">
+          {STEPS.map((s, i) => (
+            <React.Fragment key={s.id}>
+              <div className="flex flex-col items-center relative group">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500", s.id === currentStep ? "bg-primary text-white scale-110 shadow-xl shadow-primary/30" : s.id < currentStep ? "bg-emerald-500 text-white" : "bg-white text-slate-300 border border-slate-200")}>
+                  {s.id < currentStep ? <Check size={20} /> : <s.icon size={20} />}
+                </div>
+                <span className={cn("absolute -bottom-8 text-[9px] font-black uppercase tracking-widest transition-all", s.id === currentStep ? "text-primary translate-y-2 opacity-100" : "text-slate-400 opacity-60")}>{s.title}</span>
+              </div>
+              {i < STEPS.length - 1 && <div className={cn("flex-1 h-0.5 rounded-full transition-all duration-1000", s.id < currentStep ? "bg-emerald-500 scale-x-100" : "bg-slate-200 scale-x-100")} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className={cn("grid grid-cols-1 gap-12 items-start transition-all", (currentStep >= 3 && currentStep <= 6) ? "lg:grid-cols-12" : "max-w-2xl mx-auto")}>
+          <div className={cn("bg-white rounded-[2.5rem] border border-slate-200/60 shadow-2xl shadow-slate-900/5 p-12 relative overflow-hidden", (currentStep >= 3 && currentStep <= 6) ? "lg:col-span-7" : "")}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[4rem] pointer-events-none" />
+
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+            {currentStep === 4 && renderStep4()}
+            {currentStep === 5 && renderStep5()}
+            {currentStep === 6 && renderStep6()}
+
+            <div className="mt-16 pt-10 border-t border-slate-100 flex items-center justify-between">
+              <button onClick={handleBack} disabled={currentStep === 1} className={cn("flex items-center gap-2 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentStep === 1 ? "opacity-0 invisible" : "text-slate-400 hover:text-primary hover:bg-slate-50")}>
+                <ArrowLeft size={16} /> Retour
+              </button>
+              {currentStep < 6 ? (
+                <button onClick={handleNext} className="bg-primary text-white px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all flex items-center gap-3">
+                  Continuer <ArrowRight size={18} />
+                </button>
+              ) : (
+                <button onClick={handleSubmit} disabled={loading} className={cn("px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-3", loading ? "bg-slate-300" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20")}>
+                  {loading ? "Chargement..." : <><CheckCircle2 size={18} /> Finaliser l'Installation</>}
+                </button>
+              )}
+            </div>
           </div>
+
+          {(currentStep >= 3 && currentStep <= 6) && (
+            <div className="lg:col-span-5 sticky top-28 animate-in fade-in slide-in-from-right-12 duration-1000">
+              <div className="mb-6 flex items-center justify-between px-4">
+                <div className="flex items-center gap-2"><Sparkles className="text-primary animate-pulse" size={16} /><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aperçu Live Studio</span></div>
+                <div className="bg-white px-3 py-1 rounded-md border text-[9px] font-bold text-slate-400 shadow-sm">Document A5 Premium</div>
+              </div>
+              <LiveDocumentStudio
+                identity={identity}
+                selectedIdentity={selectedIdentity}
+                selectedTemplate={selectedTemplate}
+                selectedFont={selectedFont}
+                headerOption={headerOption}
+                logoPreview={logoPreview}
+                letterheadPreview={letterheadPreview}
+                margins={margins}
+                cabinetType={cabinetType}
+                specialtyStrings={specialtyStrings}
+                contactString={contactString}
+              />
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Content */}
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-          {currentStep === 4 && renderStep4()}
-          {currentStep === 5 && renderStep5()}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-slate-200">
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 1 || loading}
-              className={cn(
-                "flex items-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors",
-                currentStep === 1
-                  ? "opacity-0 cursor-default"
-                  : "text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              <ChevronLeft className="w-5 h-5" />
-              Retour
-            </button>
-
-            {currentStep < 5 ? (
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                Continuer
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className={cn(
-                  "flex items-center gap-2 px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors",
-                  loading
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                )}
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                    Création...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5" />
-                    Terminer
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </main>
+      <CrownGuide message={CROWN_MESSAGES[currentStep]} />
     </div>
   );
 };

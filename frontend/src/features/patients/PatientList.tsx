@@ -10,6 +10,8 @@ export const PatientList = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'>('newest');
+  const [filterStatus, setFilterStatus] = useState<'all'|'nouveau'|'encours'|'termine'>('all');
 
   // NOUVEAU : État de la modale de suppression
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; name: string }>({
@@ -45,11 +47,27 @@ export const PatientList = () => {
     }
   };
 
-  const filtered = patients.filter(p => 
-    p.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.numero_dossier && p.numero_dossier.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filtered = patients.filter(p => {
+    const term = searchTerm.toLowerCase();
+    const matchSearch = p.nom.toLowerCase().includes(term) ||
+                        p.prenom.toLowerCase().includes(term) ||
+                        (p.numero_dossier && p.numero_dossier.toLowerCase().includes(term));
+    if (!matchSearch) return false;
+
+    if (filterStatus !== 'all') {
+      const statusLabel = getStatusBadge(p.id).label.toLowerCase();
+      if (filterStatus === 'nouveau' && statusLabel !== 'nouveau') return false;
+      if (filterStatus === 'encours' && statusLabel !== 'en cours') return false;
+      if (filterStatus === 'termine' && statusLabel !== 'terminé') return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    if (sortOrder === 'newest') return (b.id || 0) - (a.id || 0);
+    if (sortOrder === 'oldest') return (a.id || 0) - (b.id || 0);
+    if (sortOrder === 'az') return a.nom.localeCompare(b.nom);
+    if (sortOrder === 'za') return b.nom.localeCompare(a.nom);
+    return 0;
+  });
 
   const getStatusBadge = (id?: number) => {
     const safeId = id ?? 0;
@@ -75,16 +93,42 @@ export const PatientList = () => {
         </Link>
       </div>
 
-      {/* BARRE DE RECHERCHE */}
-      <div className="relative group max-w-2xl">
-        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#003380] transition-colors" size={22} />
-        <input 
-            type="text" 
-            placeholder="Rechercher un patient..." 
-            className="w-full pl-16 pr-6 py-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-[2rem] focus:ring-4 focus:ring-[#003380]/10 focus:border-[#003380] outline-none text-lg shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 font-bold text-[#003380]"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      {/* BARRE DE RECHERCHE ET FILTRES */}
+      <div className="flex flex-col xl:flex-row gap-4 bg-white/60 backdrop-blur-xl border border-white/80 p-4 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="relative group flex-1">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#003380] transition-colors" size={20} />
+          <input 
+              type="text" 
+              placeholder="Rechercher par nom, prénom ou dossier..." 
+              className="w-full pl-12 pr-6 py-3 bg-white/80 border border-slate-200/60 rounded-2xl focus:ring-4 focus:ring-[#003380]/10 focus:border-[#003380] outline-none text-base transition-all font-bold text-[#003380]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          <select 
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as any)}
+            className="bg-white border border-slate-200 text-slate-600 font-bold px-4 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer min-w-[180px]"
+          >
+            <option value="newest">Plus Récents</option>
+            <option value="oldest">Plus Anciens</option>
+            <option value="az">Alphabétique (A-Z)</option>
+            <option value="za">Alphabétique (Z-A)</option>
+          </select>
+          
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as any)}
+            className="bg-white border border-slate-200 text-slate-600 font-bold px-4 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-100 cursor-pointer min-w-[180px]"
+          >
+            <option value="all">Tous les Statuts</option>
+            <option value="nouveau">Statut: Nouveau</option>
+            <option value="encours">Statut: En Cours</option>
+            <option value="termine">Statut: Terminé</option>
+          </select>
+        </div>
       </div>    
 
       {/* TABLEAU DES DOSSIERS */}
@@ -126,6 +170,7 @@ export const PatientList = () => {
             <thead className="border-b border-slate-200/50 font-black text-slate-400 uppercase tracking-widest text-[10px]">
               <tr>
                 <th className="px-10 py-8">Patient</th>
+                <th className="px-6 py-8">Assurance</th>
                 <th className="px-6 py-8">Statut Clinique</th>
                 <th className="px-6 py-8 text-center">Contact</th>
                 <th className="px-10 py-8 text-right">Maintenance</th>
@@ -154,6 +199,21 @@ export const PatientList = () => {
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-6">
+                      {p.assurance && p.assurance !== 'AUCUNE' ? (
+                        <span className={cn(
+                          "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                          p.assurance === 'CNOPS' ? "bg-blue-100 text-blue-700 border-blue-200" :
+                          p.assurance === 'CNSS' ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                          p.assurance === 'MUTUELLE_FAR' ? "bg-purple-100 text-purple-700 border-purple-200" :
+                          "bg-amber-100 text-amber-700 border-amber-200"
+                        )}>
+                          {p.assurance === 'MUTUELLE_FAR' ? 'FAR' : p.assurance}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 text-[10px] font-bold uppercase">Privé</span>
+                      )}
                     </td>
                     <td className="px-6 py-6">
                       <span className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm", status.classes)}>

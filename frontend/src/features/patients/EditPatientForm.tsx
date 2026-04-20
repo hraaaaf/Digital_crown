@@ -30,6 +30,7 @@ export const EditPatientForm = () => {
     date_naissance: '',
     telephone: '',
     adresse: '',
+    assurance: 'AUCUNE',
     antecedents_medicaux: ''
   });
   const [numeroError, setNumeroError] = useState('');
@@ -56,6 +57,7 @@ export const EditPatientForm = () => {
           date_naissance: dateFormatted,
           telephone: patient.telephone || '',
           adresse: patient.adresse || '',
+          assurance: patient.assurance || 'AUCUNE',
           antecedents_medicaux: patient.antecedents_medicaux || ''
         });
       } catch (err) {
@@ -186,6 +188,22 @@ export const EditPatientForm = () => {
               onChange={(e) => setFormData({...formData, date_naissance: e.target.value})} 
               required 
             />
+          </div>
+
+          <div>
+            <label className={labelClass}><Activity size={12}/> Assurance / Couverture</label>
+            <select 
+              name="assurance" 
+              value={formData.assurance} 
+              onChange={(e) => setFormData({...formData, assurance: e.target.value})}
+              className={inputClass}
+            >
+              <option value="AUCUNE">Aucune (Privé)</option>
+              <option value="CNOPS">CNOPS</option>
+              <option value="CNSS">CNSS</option>
+              <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
+              <option value="PRIVEE">Assurance Privée</option>
+            </select>
           </div>
 
           <div>

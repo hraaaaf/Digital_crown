@@ -5,7 +5,10 @@ import {
   Users, 
   Activity, 
   FileText,
-  History 
+  History,
+  Calendar,
+  Receipt,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -75,12 +78,14 @@ export const Sidebar = () => {
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4 mt-2">Navigation</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
+          <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />
+          <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />
           <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />
 
           {/* NAVIGATION CONTEXTUELLE DU DOSSIER ACTIF */}
           {currentPatientId && (
             <div className="mt-8 animate-in fade-in slide-in-from-left-4 duration-300">
-              <div className="text-[10px] font-black text-[#003380] bg-blue-50/80 py-2 px-4 rounded-xl uppercase tracking-widest mx-2 mb-3 border border-blue-100/50 shadow-sm flex items-center gap-2">
+              <div className="text-[10px] font-black text-primary bg-blue-50/80 py-2 px-4 rounded-xl uppercase tracking-widest mx-2 mb-3 border border-blue-100/50 shadow-sm flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                 Dossier Actif
               </div>
@@ -107,6 +112,21 @@ export const Sidebar = () => {
               />
             </div>
           )}
+
+          {/* SECTION EXPÉRIMENTALE / DÉMO */}
+          <div className="mt-8 pt-8 border-t border-slate-200/60">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4">Expérimental</div>
+            <button
+               onClick={() => {
+                 localStorage.removeItem('appMode');
+                 window.location.href = '/welcome';
+               }}
+               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-indigo-600 hover:bg-indigo-50 transition-all duration-300 group cursor-pointer"
+            >
+              <FlaskConical size={20} className="group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-bold tracking-wide">Activer Lab Mode</span>
+            </button>
+          </div>
         </nav>
       </aside>
     </>
@@ -122,8 +142,8 @@ const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.Rea
       return cn(
         "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden cursor-pointer mb-1",
         isActuallyActive 
-          ? "bg-white text-[#003380] shadow-sm border border-slate-200/60" 
-          : "text-slate-600 hover:bg-white/80 hover:text-[#003380]"
+          ? "bg-white text-primary shadow-sm border border-slate-200/60" 
+          : "text-slate-600 hover:bg-white/80 hover:text-primary"
       );
     }}
   >
@@ -131,8 +151,8 @@ const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.Rea
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return (
         <>
-          {isActuallyActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#003380] rounded-r-full shadow-[0_0_8px_rgba(0,51,128,0.2)]" />}
-          <span className={cn("relative z-10 transition-transform duration-300", isActuallyActive ? "scale-110 text-[#003380]" : "group-hover:scale-110")}>
+          {isActuallyActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-primary rounded-r-full shadow-[0_0_8px_rgba(0,51,128,0.2)]" />}
+          <span className={cn("relative z-10 transition-transform duration-300", isActuallyActive ? "scale-110 text-primary" : "group-hover:scale-110")}>
             {icon}
           </span>
           <span className={cn("text-sm relative z-10 tracking-wide", isActuallyActive ? "font-black" : "font-bold")}>

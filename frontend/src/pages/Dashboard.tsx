@@ -109,15 +109,15 @@ export const Dashboard: React.FC = () => {
             <p className="text-slate-500 text-sm mt-2 font-medium">Accéder aux dossiers patients.</p>
           </Link>
 
-          <div className="group bg-white/40 backdrop-blur-md border border-slate-200/40 p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-between">
-            <div className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mb-6 border border-slate-200">
+          <Link to="/agenda" className="group bg-white/80 backdrop-blur-md border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 border border-amber-100">
               <Calendar size={28} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-slate-700">Agenda Clinique</h3>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Mode Consultation Seul</p>
+              <h3 className="text-xl font-black text-[#003380]">Agenda Clinique</h3>
+              <p className="text-slate-500 text-sm mt-2 font-medium">Mode Consultation Seul</p>
             </div>
-          </div>
+          </Link>
         </div>
       </section>
 

@@ -49,13 +49,44 @@ class CephaloPDFGenerator(BaseTemplate):
         birth = born.date() if isinstance(born, datetime) else born
         return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
-    def _draw_canvas(self, canvas, doc):
+    def _draw_canvas(self, canvas, doc, config=None, user=None):
         """Appel de la fonction de dessin statique (Header/Footer) héritée de BaseTemplate"""
-        self.draw_static_elements(canvas, doc)
+        self.draw_static_elements(canvas, doc, config=config, user=user)
 
-    def generate(self, patient_data, analysis_payload, image_path=None, filename=None):
+    def generate(self, patient_data, analysis_payload, image_path=None, filename=None, db=None, user_id=None):
         """Génère le PDF et retourne le chemin d'accès absolu."""
         
+        # --- RÉCUPÉRATION CONFIGURATION ---
+        config = None
+        user_obj = None
+        if db and user_id:
+            from backend.models import CabinetConfig, User
+            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+            user_obj = db.query(User).filter(User.id == user_id).first()
+        
+        p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
+        
+        # Styles dynamiques basés sur le thème
+        report_title_style = ParagraphStyle(
+            name='ReportTitle', 
+            parent=self.styles['Heading1'], 
+            fontName='Helvetica-Bold', 
+            fontSize=16, 
+            textColor=p_color, 
+            alignment=TA_CENTER, 
+            spaceAfter=20
+        )
+        
+        section_title_style = ParagraphStyle(
+            name='SectionTitle', 
+            parent=self.styles['Heading2'], 
+            fontName='Helvetica-Bold', 
+            fontSize=12, 
+            textColor=p_color, 
+            spaceBefore=15, 
+            spaceAfter=10
+        )
+
         # Extraction sécurisée des données patient (support objet SQLAlchemy ou Dict)
         if isinstance(patient_data, dict):
             p_nom = patient_data.get('nom', 'Inconnu')
@@ -67,30 +98,44 @@ class CephaloPDFGenerator(BaseTemplate):
             p_age = self._calculate_age(getattr(patient_data, 'date_naissance', None))
 
         if not filename:
-            date_str = datetime.now().strftime('%d%m%Y_%H%M')
+            date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"RAPPORT_CEPHALO_{p_nom.upper()}_{date_str}.pdf"
 
         file_path = os.path.join(self.output_dir, filename)
+        
+        # Marges dynamiques
+        m_top = (config.margin_top if config else 4.5) * cm
+        m_bottom = (config.margin_bottom if config else 3.5) * cm
         
         doc = SimpleDocTemplate(
             file_path, 
             pagesize=A4, 
             rightMargin=1.5*cm, 
             leftMargin=1.5*cm, 
-            topMargin=4.5*cm,  
-            bottomMargin=3.5*cm 
+            topMargin=m_top,  
+            bottomMargin=m_bottom 
         )
         
         elements = []
 
         # --- 1. HEADER (Titre & Patient) ---
-        elements.append(Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA", self.styles['ReportTitle']))
+        elements.append(Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA", report_title_style))
 
         date_display = datetime.now().strftime('%d/%m/%Y')
+        
+        patient_info_style = ParagraphStyle(
+            name='PatientInfo', 
+            parent=self.styles['Normal'], 
+            fontName='Helvetica-Bold', 
+            fontSize=10, 
+            textColor=colors.HexColor('#000000'), 
+            leading=14
+        )
+        
         info_text = f"<b>Patient(e):</b> {p_nom.upper()} {p_prenom.capitalize()}<br/>"
         info_text += f"<b>Âge:</b> {p_age} ans<br/>"
         info_text += f"<b>Date d'analyse:</b> {date_display}"
-        elements.append(Paragraph(info_text, self.styles['PatientInfo']))
+        elements.append(Paragraph(info_text, patient_info_style))
         elements.append(Spacer(1, 0.5*cm))
 
         # --- 2. MILIEU (Radio Burn-in & Tableau des Déviants) ---
@@ -106,11 +151,10 @@ class CephaloPDFGenerator(BaseTemplate):
                 except Exception as e:
                     logger.error(f"Erreur d'intégration de l'image PDF: {e}")
 
-        elements.append(Paragraph("Analyse des Valeurs Déviantes", self.styles['SectionTitle']))
+        elements.append(Paragraph("Analyse des Valeurs Déviantes", section_title_style))
         
         table_data = [["Métrique", "Valeur", "Norme", "Statut"]]
         
-        # Sécurisation: results peut exister mais être None
         results_data = analysis_payload.get("results") or analysis_payload or {}
         if not isinstance(results_data, dict):
             results_data = {}
@@ -120,8 +164,6 @@ class CephaloPDFGenerator(BaseTemplate):
         for category, measures in metrics.items():
             for metric_name, data in measures.items():
                 status = data.get('status', 'Normal')
-                
-                # RECTIFICATION : Prise en compte du statut "Compensated"
                 if status in ["High", "Low", "Compensated"]:
                     has_deviants = True
                     val = str(data.get('value', 'N/A'))
@@ -134,7 +176,7 @@ class CephaloPDFGenerator(BaseTemplate):
 
         t = Table(table_data, colWidths=[6.5*cm, 3*cm, 4.5*cm, 3*cm])
         t_style = [
-            ('BACKGROUND', (0,0), (-1,0), NAVY_BLUE),
+            ('BACKGROUND', (0,0), (-1,0), p_color),
             ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('ALIGN', (0,1), (0,-1), 'LEFT'),
@@ -164,31 +206,41 @@ class CephaloPDFGenerator(BaseTemplate):
         elements.append(Spacer(1, 0.5*cm))
 
         # --- 3. BAS (Narrateur SLM - Format Dictionnaire) ---
-        elements.append(Paragraph("Synthèse Clinique IA (SLM)", self.styles['SectionTitle']))
+        elements.append(Paragraph("Synthèse Clinique IA (SLM)", section_title_style))
 
-        # Récupération du dictionnaire (ai_diagnostic ou ai_narrative)
         results_for_ai = analysis_payload.get("results") or {}
         if not isinstance(results_for_ai, dict):
             results_for_ai = {}
         ai_diag = analysis_payload.get("ai_diagnostic") or analysis_payload.get("ai_narrative") or results_for_ai.get("ai_diagnostic") or {}
 
+        narrative_style = ParagraphStyle(
+            name='Narrative', 
+            parent=self.styles['Normal'], 
+            fontName='Helvetica', 
+            fontSize=10, 
+            leading=15, 
+            alignment=TA_JUSTIFY, 
+            spaceAfter=6
+        )
+
         narrative_blocks = []
         if isinstance(ai_diag, dict) and ai_diag:
             if ai_diag.get("diagnostic_squelettique"):
-                narrative_blocks.append(Paragraph(f"<b>Squelettique :</b> {ai_diag.get('diagnostic_squelettique')}", self.styles['Narrative']))
+                narrative_blocks.append(Paragraph(f"<b>Squelettique :</b> {ai_diag.get('diagnostic_squelettique')}", narrative_style))
             if ai_diag.get("analyse_dentaire"):
-                narrative_blocks.append(Paragraph(f"<b>Dentaire :</b> {ai_diag.get('analyse_dentaire')}", self.styles['Narrative']))
+                narrative_blocks.append(Paragraph(f"<b>Dentaire :</b> {ai_diag.get('analyse_dentaire')}", narrative_style))
             if ai_diag.get("strategie_therapeutique"):
-                narrative_blocks.append(Paragraph(f"<b>Stratégie :</b> {ai_diag.get('strategie_therapeutique')}", self.styles['Narrative']))
+                narrative_blocks.append(Paragraph(f"<b>Stratégie :</b> {ai_diag.get('strategie_therapeutique')}", narrative_style))
         else:
             fallback_text = str(ai_diag) if ai_diag else "Aucune synthèse clinique générée."
-            narrative_blocks.append(Paragraph(fallback_text, self.styles['Narrative']))
+            narrative_blocks.append(Paragraph(fallback_text, narrative_style))
 
         elements.append(KeepTogether(narrative_blocks))
 
         # Génération avec callbacks pour BaseTemplate
         try:
-            doc.build(elements, onFirstPage=self._draw_canvas, onLaterPages=self._draw_canvas)
+            draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
+            doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
             logger.info(f"PDF COM généré avec succès: {file_path}")
             return file_path
         except Exception as e:

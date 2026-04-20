@@ -22,18 +22,22 @@ class ActeType(str, enum.Enum):
     ORTHO_SEMESTRE = "ORTHO_SEMESTRE"
     ORTHO_CONTENTION = "ORTHO_CONTENTION"
 
-class DocumentType(str, enum.Enum):
-    ORDONNANCE = "ordonnance"
-    CERTIFICAT = "certificat"
-    DEVIS = "devis"
-    NOTE_HONORAIRES = "note_honoraires"
-    LIBRE = "libre"
-    BILAN = "bilan"
 
 class PaiementStatut(str, enum.Enum):
     EN_ATTENTE = "EN_ATTENTE"
     PAYE = "PAYE"
     PARTIEL = "PARTIEL"
+
+class AppointmentStatus(str, enum.Enum):
+    PREVU = "PRÉVU"
+    EN_SALLE_ATTENTE = "EN_S_ATTENTE" 
+    EN_FAUTEUIL = "EN_FAUTEUIL"
+    TERMINE = "TERMINÉ"
+    ANNULE = "ANNULÉ"
+ 
+class CabinetType(str, enum.Enum):
+    PRIVE = "PRIVE"
+    CLINIQUE = "CLINIQUE"
 
 # --- 2. BASE DE DÉCLARATION ---
 
@@ -86,6 +90,7 @@ class Patient(Base):
     telephone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     photo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     adresse: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    assurance: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # CNOPS, CNSS, MUTUELLE_FAR, PRIVEE, AUCUNE
     antecedents_medicaux: Mapped[str | None] = mapped_column(String, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
@@ -94,6 +99,26 @@ class Patient(Base):
     actes: Mapped[List["Acte"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     analyses: Mapped[List["CephaloAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     documents: Mapped[List["DocumentArchive"]] = relationship("DocumentArchive", back_populates="patient", cascade="all, delete-orphan")
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
+    patient_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True) # Utilisé si patient_id est nul (rdv rapide)
+    
+    datetime_start: Mapped[datetime] = mapped_column(DateTime, index=True, nullable=False)
+    duration_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    
+    motif: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    # Relation inversée
+    patient: Mapped[Optional["Patient"]] = relationship(back_populates="appointments")
 
 class DossierClinique(Base):
     __tablename__ = "dossiers_cliniques"
@@ -204,6 +229,7 @@ class DocumentType(str, enum.Enum):
     PHOTO_CLINIQUE = "PHOTO_CLINIQUE"
     RADIOGRAPHIE = "RADIOGRAPHIE"
     MOULAGE = "MOULAGE"
+    BILAN = "BILAN"
     AUTRE = "AUTRE"
 
 class DocumentStatus(str, enum.Enum):
@@ -296,6 +322,10 @@ class CabinetConfig(Base):
         default=lambda: uuid.uuid4().hex[:16]
     )
     
+    nom_cabinet: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    nom_praticien: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    nom_praticien_ar: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    
     # Logo : chemin relatif isolé par clinic_id
     logo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
@@ -310,17 +340,35 @@ class CabinetConfig(Base):
     footer_address: Mapped[str] = mapped_column(Text, nullable=False, default="")
     footer_phones: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     
+    # Identifiants légaux (Copie dans config pour accès rapide PDF)
+    ice: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    if_: Mapped[str] = mapped_column(String(50), nullable=True, default="")  # 'if' est réservé
+    inpe: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    
     # Paramètres globaux de style
     primary_color: Mapped[str] = mapped_column(String(7), default="#003380", nullable=False)
+    secondary_color: Mapped[str] = mapped_column(String(7), default="#1e40af", nullable=False)
+    accent_color: Mapped[str] = mapped_column(String(7), default="#60a5fa", nullable=False)
     font_fr: Mapped[str] = mapped_column(String(50), default="Helvetica")
     font_ar: Mapped[str] = mapped_column(String(50), default="Amiri")
     
     # Options watermark
-    watermark_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    watermark_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     watermark_opacity: Mapped[float] = mapped_column(default=0.10)
+    
+    # Marges personnalisées (utile pour le mode Letterhead)
+    margin_top: Mapped[float] = mapped_column(Float, default=3.6, nullable=False)
+    margin_bottom: Mapped[float] = mapped_column(Float, default=3.2, nullable=False)
     
     # État
     is_initialized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    selected_theme: Mapped[str] = mapped_column(String(20), default="elite", nullable=False)
+    selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
+    cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
+    
+    # Templates de clôture personnalisables (Accounting)
+    cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de {total_words} TTC ({total_amount} MAD).")
+    cloture_devis_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêté le présent devis à la somme de {total_words} TTC ({total_amount} MAD).")
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
@@ -362,3 +410,22 @@ class DocumentTemplate(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+class DoctorPrescriptionPreference(Base):
+    """
+    Surcharges personnalisées des protocoles d'ordonnance par médecin.
+    Permet une logique de priorité : Préférence Doc > Protocole Système.
+    """
+    __tablename__ = "doctor_prescription_preferences"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    act_code: Mapped[str] = mapped_column(String, index=True, nullable=False) # ex: EXTRACTION_SIMPLE
+    
+    # Stocke la liste des médicaments [ {name, dosage, forme, posologie}, ... ]
+    drugs_json: Mapped[Dict] = mapped_column(JSON, nullable=False)
+    
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relations
+    doctor: Mapped["User"] = relationship("User")

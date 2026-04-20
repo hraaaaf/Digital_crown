@@ -440,6 +440,37 @@ existing = query.filter(
 
 ---
 
+### 🆕 Onboarding "Zero-Friction" v4.0 (`frontend/src/features/admin/SetupWizard.tsx`)
+
+**Fonctionnement**:
+Le Wizard v4.0 est un studio de design immersif permettant d'initialiser le cabinet avec un rendu WYSIWYG instantané.
+
+**Breakthroughs Techniques**:
+1. **Dynamic Branding Engine** : Synchronisation temps réel entre le frontend (CSS Variables) et le backend (ReportLab Context).
+2. **Architecture Découpée** : `LiveDocumentStudio` mémoïsé pour des performances fluides lors de la saisie (0 lag).
+3. **Pied de page Rigoureux** : Centrage géométrique (10.5cm) et typographie premium sur tous les documents.
+4. **Bilinguisme Intégral** : Support natif du nom du praticien et des spécialités en arabe avec moteur de prévisualisation dédié.
+5. **Icônes Premium** : Agrandissement à 32px pour une interaction tactile optimisée et un visuel "Elite".
+
+---
+
+## 10. Moteur PDF v4.0 (ReportLab Dynamic)
+
+Le système a abandonné les styles statiques au profit d'une injection de contexte via `CabinetConfig`.
+
+**Flux de Génération**:
+1. `DocumentFactory` reçoit `db` et `user_id`.
+2. Elle récupère la `CabinetConfig` du praticien.
+3. Elle injecte la `primary_color`, les logos et les en-têtes bilingues dans les générateurs.
+4. `BaseTemplate` dessine dynamiquement les éléments statiques (Header/Footer).
+
+**Règles d'Or**:
+- Tout nouveau document DOIT hériter de `BaseTemplate`.
+- Les couleurs ne doivent JAMAIS être hardcodées (utiliser `p_color` de la config).
+- L'alignement central doit toujours utiliser `10.5*cm` (A4 standard).
+
+---
+
 ## 10. Dépannage courant
 
 ### Erreur "Module not found" sur backend
@@ -493,8 +524,30 @@ Ce projet est développé par SANINOVA. Pour toute contribution:
 | **Vision** | `vision_service.py` | PyTorch + CephLD-CCA U-Net | Détection 19 landmarks céphalo + 2 apex |
 | **Géométrie** | `cephalo_engine.py` | Python (math) | Calculs angles, normes COM, projections |
 | **Diagnostic** | `ai_advisor.py` | Ollama/Llama3.2 (SLM) | Diagnostic structuré (squelettique/dentaire/stratégie) |
-| **Suggérer** | `ai_advisor.py` | Heuristique + API externe | Suggestions ordonnances, actes cliniques |
-| **Documents** | `generators/*.py` | ReportLab | Génération PDF (ordonnances, bilans, devis) |
+| **Prescription** | `prescription_service.py`| Arbre décisionnel (Python) | Résolution contextuelle (Acte > Préférence > Sécurité) |
+| **CardExtractor**| `card_extractor.py`      | Gemini 1.5 Flash (Vision)  | Extraction intelligente de cartes de visite (Onboarding) |
+| **DocMaster** | `*.md` | Markdown Sync Agent | Actualisation en temps réel des specs, roadmap et journal d'erreurs |
+| Diagnostic | Analyse IA | Ollama/Llama3.2 (SLM) |
+| Suggérer | Heuristique + API externe | Suggestions ordonnances, actes cliniques |
+| Documents | Generators/*.py | ReportLab | Génération PDF (ordonnances, bilans, devis) |
+
+---
+
+## 👥 Équipe Virtuelle de Sub-Agents
+
+Pour toute intervention, l'agent doit se référer aux spécialités suivantes (voir `TEAM.md`) :
+- **Architector** (Backend/BDD) : Priorité à l'intégrité SQL et FastAPI.
+- **PixelMaster** (Frontend) : Priorité au design Ghost Elite (React 19).
+- **DataPhysicist** (Maths/IA) : Priorité à la précision Cephalo.
+- **Financia** (Compta/Docs) : Priorité à la traçabilité financière.
+
+---
+
+## 🛡️ Règles de Sécurité Documentaire (Anti-Doublon)
+
+1. **Doublon de Contenu** : Avant d'archiver, le système compare les `clinical_data`. Si une note identique existe (mêmes actes/montant), l'archivage est bloqué.
+2. **Forçage** : L'utilisateur doit explicitement approuver via `force=True` pour enregistrer un doublon réel.
+3. **Extraction** : En cas de perte de données, utiliser `PyPDF2` pour reconstruire les métadonnées depuis les fichiers physiques.
 
 **Architecture**:
 ```
@@ -520,3 +573,13 @@ Radiographie JPEG/PNG
          ↓
     Rapport céphalo PDF
 ```
+
+---
+
+### 🆕 Stabilisation Technique v4.0 (Avril 2026)
+
+1. **Moteur PDF v4.0 (ReportLab Dynamic)** : Standardisation du `BaseTemplate` pour un rendu vectoriel natif. Synchronisation typographique totale (Amiri) entre le contenu du document et le pied de page pour une harmonie parfaite.
+2. **Système de Contacts Granulaires** : Gestion fine des coordonnées (Tel, WhatsApp, Instagram) avec persistance JSON et génération dynamique de la chaîne de contact.
+3. **Pied de page de Haute Précision** : Centrage géométrique rigoureux (10.5cm) et support bilingue intégral (BiDi/RTL) pour les adresses et contacts.
+4. **Live Preview Résilient** : Durcissement des schémas Pydantic (`schemas.py`) permettant un rendu WYSIWYG fluide même lors de la saisie partielle des données par l'utilisateur.
+5. **Gestion des Identifiants** : Centralisation des champs ICE, IF, INPE dans `CabinetConfig` avec injection automatique dans les documents financiers.

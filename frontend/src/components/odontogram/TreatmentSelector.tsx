@@ -235,8 +235,8 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                             type="number"
                             value={currentPrice || ''}
                             onChange={(e) => updateTreatmentPrice(template.id, Number(e.target.value))}
-                            placeholder="Prix"
-                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-right font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="0"
+                            className="w-28 px-3 py-2 border-2 border-slate-200 rounded-xl text-right font-mono text-base font-black text-slate-950 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-inner"
                             autoFocus
                           />
                           <span className="text-gray-500 font-medium">MAD</span>

@@ -59,9 +59,21 @@ class DocumentFactory:
         2. Template système par défaut
         3. Premier template système disponible
         """
+        # Conversion du type (str) en Enum pour respecter la contrainte PostgreSQL
+        enum_map = {
+            'ordonnance': models.DocumentType.ORDONNANCE,
+            'certificat': models.DocumentType.CERTIFICAT,
+            'devis': models.DocumentType.DEVIS,
+            'honoraires': models.DocumentType.NOTE_HONORAIRES,
+            'note': models.DocumentType.NOTE_HONORAIRES,
+            'libre': models.DocumentType.DOCUMENT_LIBRE,
+            'cephalo': models.DocumentType.RAPPORT_CEPHALO
+        }
+        actual_type = enum_map.get(doc_type.lower(), models.DocumentType.AUTRE)
+        
         # 1. Chercher template perso par défaut
         template = db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == doc_type,
+            models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.user_id == user_id,
             models.DocumentTemplate.is_default == True
         ).first()
@@ -71,7 +83,7 @@ class DocumentFactory:
         
         # 2. Chercher template système par défaut
         template = db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == doc_type,
+            models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.is_system == True,
             models.DocumentTemplate.is_default == True
         ).first()
@@ -81,7 +93,7 @@ class DocumentFactory:
         
         # 3. Premier template système disponible
         template = db.query(models.DocumentTemplate).filter(
-            models.DocumentTemplate.type == doc_type,
+            models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.is_system == True
         ).first()
         
@@ -115,22 +127,16 @@ class DocumentFactory:
     # MÉTHODES PUBLIQUES (Interface existante préservée)
     # ==========================================================================
     
-    def create_ordonnance(self, patient, data, db: Session, user_id: int):
+    def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None):
         """
         Génère une ordonnance PDF.
-        
-        Args:
-            patient: Objet Patient
-            data: Données de l'ordonnance (médicaments...)
-            db: Session SQLAlchemy
-            user_id: ID de l'utilisateur (pour récupérer son template)
         """
         try:
             # Récupérer template et config
             template = self._get_default_template('ordonnance', db, user_id)
             if not template:
-                logger.warning("Template ordonnance non trouvé, fallback ancien système")
-                return self.ord_gen.generate(patient, data)
+                logger.warning("Template ordonnance non trouvé, fallback système ReportLab")
+                return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
             
             cabinet = self._get_cabinet_config(user_id, db)
             
@@ -157,16 +163,17 @@ class DocumentFactory:
             )
             
         except Exception as e:
-            logger.error(f"Erreur génération ordonnance template: {e}")
-            logger.info("Fallback vers ancien générateur")
-            return self.ord_gen.generate(patient, data)
+            logger.error(f"Erreur génération ordonnance, tentative fallback ReportLab: {e}")
+            return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
     
-    def create_certificat(self, patient, data, db: Session, user_id: int):
-        """Génère un certificat médical."""
+    def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
+        """
+        Génère un certificat médical PDF.
+        """
         try:
             template = self._get_default_template('certificat', db, user_id)
             if not template:
-                return self.cert_gen.generate(patient, data)
+                return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
             
             cabinet = self._get_cabinet_config(user_id, db)
             
@@ -191,38 +198,38 @@ class DocumentFactory:
             )
             
         except Exception as e:
-            logger.error(f"Erreur génération certificat template: {e}")
-            return self.cert_gen.generate(patient, data)
+            logger.error(f"Erreur certificat template, fallback ReportLab: {e}")
+            return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
     
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
         """
-        Note d'honoraires - conserve l'ancien générateur pour l'instant
-        (document complexe avec tableaux spécifiques).
+        Note d'honoraires - Moteur ReportLab natif.
         """
         facture_seq = getattr(data, 'facture_numero', None)
-        return self.acc_gen.generate_note(patient, data, facture_number=facture_seq)
+        return self.acc_gen.generate_note(patient, data, facture_number=facture_seq, db=db, user_id=user_id)
     
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         """
-        Devis - conserve l'ancien générateur pour l'instant.
+        Devis - Moteur ReportLab natif.
         """
         devis_seq = getattr(data, 'devis_numero', None)
-        return self.acc_gen.generate_devis(patient, data, document_number=devis_seq)
+        return self.acc_gen.generate_devis(patient, data, document_number=devis_seq, db=db, user_id=user_id)
     
     def create_document_libre(self, patient, data, db: Session = None, user_id: int = None):
-        """Document libre - conserve l'ancien générateur."""
-        return self.libre_gen.generate(patient, data)
-    
-    def create_cephalo_report(self, patient, analysis_data):
         """
-        Rapport céphalométrique - conserve le générateur spécialisé
-        (document technique complexe avec dessins).
+        Document libre - Moteur ReportLab natif.
         """
-        return self.ceph_gen.generate(patient, analysis_data)
+        return self.libre_gen.generate(patient, data, db=db, user_id=user_id)
     
-    def create_bilan_report(self, patient, analysis_data):
+    def create_cephalo_report(self, patient, analysis_data, db: Session = None, user_id: int = None):
+        """
+        Rapport céphalométrique - Moteur ReportLab natif complexe.
+        """
+        return self.ceph_gen.generate(patient, analysis_data, db=db, user_id=user_id)
+    
+    def create_bilan_report(self, patient, analysis_data, db: Session = None, user_id: int = None):
         """Alias pour create_cephalo_report."""
-        return self.create_cephalo_report(patient, analysis_data)
+        return self.create_cephalo_report(patient, analysis_data, db=db, user_id=user_id)
     
     # ==========================================================================
     # UTILITAIRES
@@ -242,9 +249,8 @@ class DocumentFactory:
         if not medications:
             return "<p>Aucun médicament prescrit.</p>"
         
-        html = "<ul>"
+        html = ""
         for i, med in enumerate(medications, 1):
-            html += f"<li><strong>{i}. {med.nom}</strong> - {med.dosage}<br>"
-            html += f"<em>{med.posologie}</em></li>"
-        html += "</ul>"
+            html += f"<b>{i}. {med.nom}</b> - {med.dosage}<br/>"
+            html += f"<i>{med.posologie}</i><br/><br/>"
         return html

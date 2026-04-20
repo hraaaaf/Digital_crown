@@ -6,12 +6,10 @@ import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 from jinja2 import Environment, BaseLoader, StrictUndefined, TemplateError
-try:
-    from weasyprint import HTML, CSS
-    from weasyprint.text.fonts import FontConfiguration
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
+import importlib.util
+# Détection dynamique pour supprimer les avertissements de l'IDE sur les modules manquants
+WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
+if not WEASYPRINT_AVAILABLE:
     logging.warning("WeasyPrint non installé. Fallback ReportLab uniquement.")
 
 from backend import models
@@ -279,7 +277,8 @@ class TemplateEngine:
             return
         try:
             # Test simple
-            HTML(string="<html><body>Test</body></html>").write_pdf()
+            weasy = importlib.import_module("weasyprint")
+            weasy.HTML(string="<html><body>Test</body></html>").write_pdf()
             self.weasyprint_available = True
         except Exception as e:
             logger.warning(f"WeasyPrint non disponible: {e}. Fallback vers ReportLab.")
@@ -354,8 +353,9 @@ class TemplateEngine:
             <meta charset="UTF-8">
         </head>
         <body>
-            {'<img src="' + render_context['cabinet']['logo_url'] + '" class="watermark" />' if cabinet.watermark_enabled and render_context['cabinet']['logo_url'] else ''}
+            {f'<img src="file://{os.path.abspath(os.path.join(self.static_dir, "uploads", cabinet.logo_path))}" class="watermark" />' if cabinet.watermark_enabled and cabinet.logo_path else ''}
             
+            {f'''
             <div class="header">
                 <div class="header-left">
                     {'<br>'.join(cabinet.header_lines_fr)}
@@ -363,30 +363,45 @@ class TemplateEngine:
                 <div class="header-right arabic">
                     {'<br>'.join(cabinet.header_lines_ar)}
                 </div>
-                {'<img src="' + render_context['cabinet']['logo_url'] + '" class="logo" />' if cabinet.logo_path and not cabinet.watermark_enabled else ''}
+                {f'<img src="file://{os.path.abspath(os.path.join(self.static_dir, "uploads", cabinet.logo_path))}" class="logo" />' if cabinet.logo_path else ''}
             </div>
+            ''' if not cabinet.letterhead_path else ''}
             
             <div class="content">
                 {body_html}
             </div>
             
+            {f'''
             <div class="footer">
                 {cabinet.footer_address}<br>
                 {cabinet.footer_phones}
             </div>
+            ''' if not cabinet.letterhead_path else ''}
         </body>
         </html>
         """
         
         # 4. Générer le CSS
         design_config = DesignConfig(**template.design_config)
+        
+        # Synchronisation des marges si un papier en-tête est actif
+        if cabinet.letterhead_path:
+            design_config.layout.margins.top = cabinet.margin_top
+            design_config.layout.margins.bottom = cabinet.margin_bottom
+            # En mode letterhead, on active aussi l'option letterhead du design si pas déjà fait
+            design_config.letterhead.enabled = True
+            design_config.letterhead.image_url = f"file://{os.path.abspath(os.path.join(self.static_dir, 'uploads', cabinet.letterhead_path))}"
+        
         css = self.css_generator.generate(design_config)
         
         # 5. Rendu PDF
-        font_config = FontConfiguration()
-        HTML(string=full_html, base_url=self.static_dir).write_pdf(
+        weasy = importlib.import_module("weasyprint")
+        weasy_fonts = importlib.import_module("weasyprint.text.fonts")
+        
+        font_config = weasy_fonts.FontConfiguration()
+        weasy.HTML(string=full_html, base_url=self.static_dir).write_pdf(
             output_path,
-            stylesheets=[CSS(string=css, font_config=font_config)]
+            stylesheets=[weasy.CSS(string=css, font_config=font_config)]
         )
         
         return output_path
@@ -399,27 +414,60 @@ class TemplateEngine:
         output_path: str
     ) -> str:
         """
-        Fallback vers ReportLab si WeasyPrint échoue.
-        Génération basique mais fonctionnelle.
+        Fallback ReportLab AMÉLIORÉ avec branding du cabinet.
         """
         from reportlab.lib.pagesizes import A5
+        from reportlab.lib.units import cm
+        from reportlab.lib import colors
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from backend.services.base_template import BaseTemplate
         
-        logger.warning("Utilisation du fallback ReportLab")
+        logger.warning("WeasyPrint indisponible : Utilisation du fallback ReportLab avec branding.")
         
-        doc = SimpleDocTemplate(output_path, pagesize=A5)
+        # Marges dynamiques
+        m_top = (cabinet.margin_top if cabinet else 3.6) * cm
+        m_bottom = (cabinet.margin_bottom if cabinet else 3.2) * cm
+        
+        doc = SimpleDocTemplate(
+            output_path, 
+            pagesize=A5,
+            rightMargin=1.5*cm,
+            leftMargin=1.5*cm,
+            topMargin=m_top,
+            bottomMargin=m_bottom
+        )
+        
         styles = getSampleStyleSheet()
+        p_color = colors.HexColor(cabinet.primary_color) if cabinet else colors.HexColor('#003380')
+        
+        title_style = ParagraphStyle(
+            'TitleBranded', 
+            parent=styles['Heading1'], 
+            textColor=p_color, 
+            alignment=1, # TA_CENTER
+            fontSize=16
+        )
+        
         story = []
+        story.append(Spacer(1, 0.5*cm))
+        # Le titre est optionnel et doit être géré dans le contenu du template
+        # story.append(Paragraph(f"<u><b>{template.name.upper()}</b></u>", title_style))
+        story.append(Spacer(1, 1.2*cm))
         
-        # Contenu basique
-        story.append(Paragraph(template.name, styles['Title']))
-        story.append(Spacer(1, 12))
-        story.append(Paragraph(f"Patient: {context.get('patient', {}).get('nom', 'N/A')}", styles['Normal']))
-        story.append(Spacer(1, 12))
-        story.append(Paragraph(context.get('content', ''), styles['Normal']))
+        # Contenu HTML simplifié pour ReportLab
+        content = context.get('content', '')
+        if isinstance(content, str):
+            # Nettoyage minimal pour éviter les erreurs ReportLab
+            content = content.replace('\n', '<br/>')
         
-        doc.build(story)
+        story.append(Paragraph(content, styles['Normal']))
+        
+        # Dessin du branding
+        bt = BaseTemplate()
+        draw_method = lambda canv, d: bt.draw_static_elements(canv, d, config=cabinet)
+        
+        doc.build(story, onFirstPage=draw_method, onLaterPages=draw_method)
         return output_path
     
     def preview_template(

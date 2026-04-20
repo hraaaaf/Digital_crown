@@ -47,6 +47,7 @@ export const AddPatientForm = () => {
     telephone: '',
     email: '',
     adresse: '',
+    assurance: 'AUCUNE',
     antecedents_medicaux: ''
   });
 
@@ -395,6 +396,22 @@ export const AddPatientForm = () => {
                 >
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Assurance / Couverture Médicale</label>
+                <select 
+                  name="assurance" 
+                  value={formData.assurance} 
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="AUCUNE">Aucune (Privé)</option>
+                  <option value="CNOPS">CNOPS</option>
+                  <option value="CNSS">CNSS</option>
+                  <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
+                  <option value="PRIVEE">Assurance Privée</option>
                 </select>
               </div>
             </div>

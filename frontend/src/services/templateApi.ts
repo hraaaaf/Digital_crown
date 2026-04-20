@@ -82,6 +82,35 @@ export const cabinetApi = {
     });
     return data;
   },
+
+  /**
+   * Uploader le papier à en-tête (A5)
+   */
+  uploadLetterhead: async (file: File, marginsTop: number, marginsBottom: number): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('margins_top', marginsTop.toString());
+    formData.append('margins_bottom', marginsBottom.toString());
+    
+    const { data } = await api.post('/api/clinics/me/letterhead', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  /**
+   * Extraire les infos d'une carte de visite (JPEG/PDF) via IA
+   */
+  extractCard: async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/api/clinics/extract-card', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
 };
 
 // --- Templates API ---
