@@ -61,7 +61,7 @@ class OrdonnanceGenerator:
             name='TitlePremium', 
             parent=self.styles['Normal'], 
             fontName=font_bold, 
-            fontSize=16, 
+            fontSize=17, 
             textColor=primary_color, 
             alignment=TA_CENTER,
             underlineWidth=1.5
@@ -69,11 +69,11 @@ class OrdonnanceGenerator:
         
         # TOUJOURS dessiner le Titre et le bloc Patient (même avec un papier en-tête !)
         elements = [
-            Spacer(1, 0.5*cm),
+            Spacer(1, 0.4*cm),
             Paragraph("ORDONNANCE", title_style),
             Spacer(1, 1.0*cm),
             self._create_header(patient, data, primary_color),
-            Spacer(1, 1.5*cm)
+            Spacer(1, 1.4*cm)
         ]
 
         for i, med in enumerate(data.medications, 1):
@@ -87,7 +87,7 @@ class OrdonnanceGenerator:
                 name='MedName', 
                 parent=self.styles['Normal'], 
                 fontName=font_bold, 
-                fontSize=10, 
+                fontSize=11, 
                 textColor=primary_color, 
                 alignment=TA_LEFT
             )
@@ -111,11 +111,11 @@ class OrdonnanceGenerator:
             poso_style = ParagraphStyle(
                 name='PosoStyle', 
                 parent=self.styles['Normal'], 
-                fontName=font_name, 
-                fontSize=9.5, 
-                textColor=colors.HexColor('#333333'), 
+                fontName=font_bold, # Demandé en gras
+                fontSize=10.5, 
+                textColor=primary_color, # Demandé en couleur branding
                 leftIndent=1.0*cm, 
-                leading=12
+                leading=13
             )
             elements.append(Paragraph(med.posologie, poso_style))
             elements.append(Spacer(1, spacing*cm))
@@ -154,15 +154,15 @@ class OrdonnanceGenerator:
             name='HeaderInfo', 
             parent=self.styles['Normal'], 
             fontName=font_bold, 
-            fontSize=10, 
+            fontSize=11, 
             textColor=p_color, 
-            leading=14
+            leading=15
         )
         date_style = ParagraphStyle(
             name='HeaderDate', 
             parent=self.styles['Normal'], 
             fontName=font_name, 
-            fontSize=10, 
+            fontSize=11, 
             textColor=p_color, 
             alignment=TA_RIGHT
         )
@@ -170,7 +170,7 @@ class OrdonnanceGenerator:
         info_text = f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans"
         
         header_table = Table([
-            [Paragraph(info_text, info_style), Paragraph(f"Le : ....{current_date}....", date_style)]
+            [Paragraph(info_text, info_style), Paragraph(f"Le : {current_date}", date_style)]
         ], colWidths=[6.0*cm, 5.8*cm])
         header_table.setStyle(TableStyle([('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('VALIGN', (0,0), (-1,-1), 'TOP')]))
         return header_table

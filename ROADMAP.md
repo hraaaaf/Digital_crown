@@ -90,14 +90,36 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🎨 9. Multi-Style Engine & Personnalisation Avancée
-**Statut :** Planifié (Concept validé)
-**Priorité :** Moyenne
-**Spécialiste :** PixelMaster
+## ✅ 9. Pack "Medical Premium" & Stabilisation Typographique v4.6 (TERMINÉ)
+**Statut :** Déployé (v4.6)
+**Spécialiste :** PixelMaster & Architector
+
+- [x] **Premium Typography** : Intégration native des polices Google Fonts (Outfit & Inter) pour un rendu haut de gamme via WeasyPrint.
+- [x] **Branding Forcing** : Application systématique de la couleur primaire sur l'intégralité du contenu textuel (élimination totale du noir).
+- [x] **Smart Font Scaling** : Augmentation globale de +1pt sur tous les paragraphes et titres pour un confort de lecture "Elite".
+- [x] **Simplification Comptable** : Affichage exclusif en lettres pour les mentions légales de clôture (Zéro redondance numérique).
+- [x] **Layout Certificat v4.6** : Inversion patient/date avant le titre et alignement géométrique latéral optimisé.
+
+---
+
+## 🎨 10. Multi-Style Engine & Personnalisation Avancée
 
 - [ ] **Sélecteur de Style Contextuel** : Choix du rendu au moment de l'impression (Classic, Ghost Elite, Minimaliste).
 - [ ] **Dynamic Theme Engine** : Curseurs de couleurs (Primaire/Secondaire) et sélecteur de polices Google Fonts directement dans les Settings.
 - [ ] **Mode Impression sur Papier En-tête** : Toggle intelligent pour masquer dynamiquement le Header/Footer si le praticien utilise son propre papier physique.
 - [ ] **Gestion Multi-Templates** : Possibilité de créer et sauvegarder plusieurs variantes (ex: Ordonnance Enfant vs Adulte) avec des styles distincts.
 
-*Dernière mise à jour : 2026-04-20 par Antigravity Staff Engineering (v4.2 Dynamic).*
+---
+
+## 💎 10. CRM & Fidélisation : Patient Scoring
+**Statut :** Idée / Recherche
+**Priorité :** Basse
+**Spécialiste :** Architector & Financia
+
+- [ ] **Logique de Scoring Discret** : Attribution d'un grade (Bronze, Silver, Gold, Platinum) basé sur un algorithme interne.
+- [ ] **Indice d'Assiduité** : Calcul du ratio RDV honorés / RDV annulés ou "No-Show" (impacte le score négativement).
+- [ ] **Indice de Solvabilité** : Analyse du "Sérieu Paiement" (Délais de règlement, impayés résolus, acomptes immédiats).
+- [ ] **Badge Visuel** : Affichage d'un badge discret sur la fiche patient pour alerter le praticien sur le profil du patient dès l'ouverture du dossier.
+- [ ] **Avantages Automatisés** : Suggestion de remises ou priorités de rendez-vous pour les patients "Élite".
+
+*Dernière mise à jour : 2026-04-21 par Antigravity Staff Engineering (v4.3 CRM Concept).*

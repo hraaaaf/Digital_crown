@@ -106,157 +106,102 @@ class CSSGenerator:
         hide_footer_css = ""
         
         if letterhead.enabled and letterhead.image_url:
-            # Ajouter le background-image sur la page
-            letterhead_css = f"""
-            background-image: url('{letterhead.image_url}');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            """
+            letterhead_css = (
+                f"background-image: url('{letterhead.image_url}');\n"
+                "background-size: cover;\n"
+                "background-position: center;\n"
+                "background-repeat: no-repeat;"
+            )
             
-            # Masquer le header/footer par défaut si demandé
             if letterhead.hide_default_header:
-                hide_header_css = """
-                .header, .doc-header { display: none !important; }
-                """
+                hide_header_css = ".header, .doc-header { display: none !important; }"
             if letterhead.hide_default_footer:
-                hide_footer_css = """
-                .footer, .doc-footer { display: none !important; }
-                """
+                hide_footer_css = ".footer, .doc-footer { display: none !important; }"
         
-        css = f"""
-        @page {{
-            size: {layout.page_size};
-            margin: {layout.margins.top}cm {layout.margins.right}cm {layout.margins.bottom}cm {layout.margins.left}cm;
-            {letterhead_css}
-            
-            @top-center {{
-                content: "";
-                height: {layout.header_height}cm;
-            }}
-            
-            @bottom-center {{
-                content: "";
-                height: {layout.footer_height}cm;
-            }}
-        }}
+        css_lines = []
+        css_lines.append("@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;600&display=swap');")
         
-        /* Masquage header/footer pour mode letterhead */
-        {hide_header_css}
-        {hide_footer_css}
+        css_lines.append(f"@page {{")
+        css_lines.append(f"    size: {layout.page_size};")
+        css_lines.append(f"    margin: {layout.margins.top}cm {layout.margins.right}cm {layout.margins.bottom}cm {layout.margins.left}cm;")
+        if letterhead_css:
+            css_lines.append(f"    {letterhead_css}")
         
-        /* Fonts */
-        body {{
-            font-family: '{fonts.fr}', '{fonts.fallback}', sans-serif;
-            font-size: {typography.body_size}pt;
-            line-height: {typography.body_line_height};
-            color: {colors.primary};
-        }}
+        css_lines.append(f"    @top-center {{ content: ''; height: {layout.header_height}cm; }}")
+        css_lines.append(f"    @bottom-center {{ content: ''; height: {layout.footer_height}cm; }}")
+        css_lines.append("}}")
         
-        .arabic {{
-            font-family: '{fonts.ar}', '{fonts.fallback}', sans-serif;
-            direction: rtl;
-        }}
+        css_lines.append(f"/* Masquage header/footer */")
+        if hide_header_css: css_lines.append(hide_header_css)
+        if hide_footer_css: css_lines.append(hide_footer_css)
         
-        /* Titre principal */
-        .doc-title {{
-            font-size: {typography.title_size}pt;
-            font-weight: {'bold' if typography.title_bold else 'normal'};
-            text-align: {typography.title_align};
-            color: {colors.primary};
-            margin-bottom: {spacing.section_gap_cm}cm;
-            {'text-decoration: underline;' if typography.title_underline else ''}
-        }}
+        css_lines.append("/* Fonts - Médical Premium */")
+        css_lines.append("body {")
+        css_lines.append("    font-family: 'Outfit', 'Inter', 'Helvetica', sans-serif;")
+        css_lines.append(f"    font-size: {typography.body_size}pt;")
+        css_lines.append(f"    line-height: {typography.body_line_height};")
+        css_lines.append(f"    color: {colors.primary};")
+        css_lines.append("    font-weight: 400;")
+        css_lines.append("}")
         
-        /* En-tête */
-        .header {{
-            {'border-bottom: 1px solid ' + borders.header_line_color + ';' if borders.header_line else ''}
-            padding-bottom: 0.5cm;
-            margin-bottom: {spacing.section_gap_cm}cm;
-        }}
+        css_lines.append("/* Force Branding */")
+        css_lines.append(f"body, body *, p, div, span, b, i, strong, em {{ color: {colors.primary} !important; }}")
         
-        .header-left {{
-            float: left;
-            width: 45%;
-        }}
+        css_lines.append(f".arabic {{")
+        css_lines.append(f"    font-family: '{fonts.ar}', 'Amiri', serif;")
+        css_lines.append("    direction: rtl;")
+        css_lines.append("}}")
         
-        .header-right {{
-            float: right;
-            width: 45%;
-            text-align: right;
-        }}
+        css_lines.append(f".doc-title {{")
+        css_lines.append(f"    font-size: {typography.title_size}pt;")
+        css_lines.append(f"    font-weight: {'bold' if typography.title_bold else 'normal'};")
+        css_lines.append(f"    text-align: {typography.title_align};")
+        css_lines.append(f"    color: {colors.primary};")
+        css_lines.append(f"    margin-bottom: {spacing.section_gap_cm}cm;")
+        if typography.title_underline:
+            css_lines.append("    text-decoration: underline;")
+        css_lines.append("}}")
         
-        .logo {{
-            width: {header.logo_header_size_cm}cm;
-            height: auto;
-            margin: 0 auto;
-            display: block;
-        }}
+        css_lines.append(f".header {{")
+        if borders.header_line:
+            css_lines.append(f"    border-bottom: 1px solid {borders.header_line_color};")
+        css_lines.append("    padding-bottom: 0.5cm;")
+        css_lines.append(f"    margin-bottom: {spacing.section_gap_cm}cm;")
+        css_lines.append("}}")
         
-        /* Informations patient */
-        .patient-info {{
-            margin-bottom: {spacing.section_gap_cm}cm;
-            {'border-left: 3px solid ' + colors.primary + '; padding-left: 0.5cm;' if borders.content_border else ''}
-        }}
+        css_lines.append(".header-left { float: left; width: 45%; color: " + colors.primary + "; }")
+        css_lines.append(".header-right { float: right; width: 45%; text-align: right; color: " + colors.secondary + "; }")
         
-        .patient-name {{
-            font-weight: bold;
-            font-size: {typography.body_size + 1}pt;
-        }}
+        css_lines.append(f".logo {{")
+        css_lines.append(f"    width: {header.logo_header_size_cm}cm;")
+        css_lines.append("    height: auto; margin: 0 auto; display: block;")
+        css_lines.append("}}")
         
-        /* Contenu */
-        .content {{
-            margin-top: {spacing.paragraph_gap_cm}cm;
-        }}
+        css_lines.append(f".patient-info {{ margin-bottom: {spacing.section_gap_cm}cm; }}")
+        css_lines.append(f".patient-name {{ font-weight: bold; font-size: {typography.body_size + 1}pt; }}")
         
-        .content p {{
-            margin-bottom: {spacing.paragraph_gap_cm}cm;
-        }}
+        css_lines.append(f".content {{ margin-top: {spacing.paragraph_gap_cm}cm; }}")
+        css_lines.append(f".content p {{ margin-bottom: {spacing.paragraph_gap_cm}cm; }}")
         
-        /* Pied de page */
-        .footer {{
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 9pt;
-            color: {colors.secondary};
-            {'border-top: 1px solid ' + colors.primary + '; padding-top: 0.3cm;' if borders.header_line else ''}
-        }}
+        css_lines.append(".doc-footer-signature { margin-top: " + str(spacing.paragraph_gap_cm) + "cm; color: " + colors.primary + "; font-weight: bold; }")
         
-        /* Watermark */
-        .watermark {{
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            opacity: {watermark.opacity};
-            width: {watermark.size_cm}cm;
-            height: auto;
-            z-index: -1;
-        }}
+        css_lines.append(f".footer {{")
+        css_lines.append("    position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9pt;")
+        css_lines.append(f"    color: {colors.secondary};")
+        if borders.header_line:
+            css_lines.append(f"    border-top: 1px solid {colors.primary}; padding-top: 0.3cm;")
+        css_lines.append("}}")
         
-        /* Tableaux (ordonnances, devis) */
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: {spacing.section_gap_cm}cm 0;
-        }}
+        css_lines.append(f".watermark {{")
+        css_lines.append("    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);")
+        css_lines.append(f"    opacity: {watermark.opacity}; width: {watermark.size_cm}cm; height: auto; z-index: -1;")
+        css_lines.append("}}")
         
-        th, td {{
-            padding: 0.3cm;
-            text-align: left;
-            border-bottom: 1px solid {colors.secondary};
-        }}
+        css_lines.append("table { width: 100%; border-collapse: collapse; margin: " + str(spacing.section_gap_cm) + "cm 0; }")
+        css_lines.append(f"th, td {{ padding: 0.3cm; text-align: left; border-bottom: 1px solid {colors.secondary}; }}")
+        css_lines.append(f"th {{ font-weight: bold; color: {colors.primary}; }}")
         
-        th {{
-            font-weight: bold;
-            color: {colors.primary};
-        }}
-        """
-        
-        return css
+        return "\n".join(css_lines)
 
 
 class TemplateEngine:
@@ -419,7 +364,8 @@ class TemplateEngine:
         from reportlab.lib.pagesizes import A5
         from reportlab.lib.units import cm
         from reportlab.lib import colors
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.enums import TA_RIGHT
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from backend.services.base_template import BaseTemplate
         
@@ -438,28 +384,85 @@ class TemplateEngine:
             bottomMargin=m_bottom
         )
         
-        styles = getSampleStyleSheet()
+        # Styles personnalisés branchés sur la couleur primaire
         p_color = colors.HexColor(cabinet.primary_color) if cabinet else colors.HexColor('#003380')
+        
+        styles = getSampleStyleSheet()
+        # On force la couleur de marque sur ABSOLUMENT TOUS les styles ReportLab
+        for name in styles.byName:
+            styles[name].textColor = p_color
+            styles[name].fontName = 'Helvetica'
+            
+        styles['Normal'].fontSize = 11
+        styles['Normal'].leading = 16 # Plus d'interligne pour le look premium
         
         title_style = ParagraphStyle(
             'TitleBranded', 
             parent=styles['Heading1'], 
             textColor=p_color, 
             alignment=1, # TA_CENTER
-            fontSize=16
+            fontSize=18,
+            leading=22,
+            fontName='Helvetica-Bold'
         )
         
         story = []
         story.append(Spacer(1, 0.5*cm))
-        # Le titre est optionnel et doit être géré dans le contenu du template
-        # story.append(Paragraph(f"<u><b>{template.name.upper()}</b></u>", title_style))
-        story.append(Spacer(1, 1.2*cm))
         
-        # Contenu HTML simplifié pour ReportLab
+        # 1. Informations Patient & Date (AU DESSUS DU TITRE)
+        patient = context.get('patient', {})
+        date_doc = context.get('date', datetime.now().strftime('%d/%m/%Y'))
+        
+        info_text = f"<b>Patient(e) :</b> {patient.get('nom', '').upper()} {patient.get('prenom', '').capitalize()} ({patient.get('age', '??')} ans)"
+        date_text = f"<b>Date :</b> {date_doc}"
+        
+        header_table = Table([
+            [Paragraph(info_text, styles['Normal']), Paragraph(date_text, ParagraphStyle(name='RightDate', parent=styles['Normal'], alignment=TA_RIGHT, textColor=p_color))]
+        ], colWidths=[7.8*cm, 4.0*cm])
+        header_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0,0), (-1,-1), 0), 
+            ('RIGHTPADDING', (0,0), (-1,-1), 0), 
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('TEXTCOLOR', (0,0), (-1,-1), p_color)
+        ]))
+        
+        story.append(header_table)
+        story.append(Spacer(1, 1*cm))
+
+        # 2. Rendu du Titre
+        titre = context.get('titre', template.name).upper()
+        story.append(Paragraph(f"<u><b>{titre}</b></u>", title_style))
+        story.append(Spacer(1, 1.5*cm))
+        
+        # 3. Contenu
         content = context.get('content', '')
+        praticien = context.get('praticien', {})
+        dr_name = praticien.get('nom_complet', 'Docteur')
+        
+        # Nettoyage Dr
+        import re
+        dr_name = re.sub(r'^(Dr\.?\s*)+', '', dr_name, flags=re.IGNORECASE).strip()
+        
         if isinstance(content, str):
-            # Nettoyage minimal pour éviter les erreurs ReportLab
+            # Nettoyage minimal
             content = content.replace('\n', '<br/>')
+            
+            # Si c'est un certificat et que le contenu est court, on l'étoffe comme le legacy
+            if 'CERTIFICAT' in titre and len(content) < 200:
+                 content = (
+                    f"Je, soussigné <b>Dr {dr_name}</b>, certifie que l'état de santé de "
+                    f"<b>{patient.get('nom', '').upper()} {patient.get('prenom', '').capitalize()}</b>, "
+                    f"âgé(e) de {patient.get('age', '??')} ans, nécessite un repos/traitement.<br/><br/>"
+                    f"<b>Observations :</b> {content}<br/><br/>"
+                    f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
+                )
+            
+            # Si le contenu est une liste de médicaments (Ordonnance)
+            elif 'medications' in context and context['medications']:
+                content = ""
+                for i, med in enumerate(context['medications'], 1):
+                    content += f"<b>{i}. {med.get('nom', '')}</b> - {med.get('dosage', '')}<br/>"
+                    content += f"<i>{med.get('posologie', '')}</i><br/><br/>"
         
         story.append(Paragraph(content, styles['Normal']))
         

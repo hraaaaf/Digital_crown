@@ -71,8 +71,8 @@ class PatientBase(BaseModel):
     numero_dossier: Optional[str] = None  # Optionnel à la création, auto-généré si vide
     nom: str
     prenom: str
-    date_naissance: datetime.datetime
-    sexe: Literal["M", "F"]
+    date_naissance: Union[datetime.datetime, datetime.date, str]
+    sexe: str # "M" ou "F", mais tolérant à "Homme"/"Femme"
     email: Optional[EmailStr] = Field(None, validate_default=True)
     telephone: Optional[str] = None
     adresse: Optional[str] = None
@@ -80,7 +80,39 @@ class PatientBase(BaseModel):
     photo_url: Optional[str] = None
     antecedents_medicaux: Optional[str] = None
     
+    @field_validator('sexe', mode='before')
+    @classmethod
+    def normalize_sexe(cls, v):
+        if not v: return "M"
+        v_upper = str(v).upper()
+        if "HOMME" in v_upper or "MASC" in v_upper or v_upper.startswith("M"):
+            return "M"
+        if "FEMME" in v_upper or "GARC" in v_upper or v_upper.startswith("F"): # GARC is actually for Garçon but wait...
+             # Actually "GARCON" is Male. "FILLE" is Female.
+             return "M" if "GARC" in v_upper else "F"
+        return "F" if "F" in v_upper else "M"
+    
 
+    @field_validator('date_naissance', mode='before')
+    @classmethod
+    def parse_date_naissance(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        if isinstance(v, datetime.date):
+            return datetime.datetime.combine(v, datetime.time.min)
+        if isinstance(v, str):
+            try:
+                # Tentative ISO
+                return datetime.datetime.fromisoformat(v.replace('Z', '+00:00'))
+            except ValueError:
+                try:
+                    # Tentative date simple YYYY-MM-DD
+                    d = datetime.date.fromisoformat(v)
+                    return datetime.datetime.combine(d, datetime.time.min)
+                except ValueError:
+                    raise ValueError("Format de date invalide (ISO attendu)")
+        return v
+    
     @field_validator('email', mode='before')
     @classmethod
     def empty_string_to_none(cls, v):
@@ -642,6 +674,10 @@ class CabinetConfigBase(BaseModel):
     margin_top: float = Field(default=3.6, ge=0.0, le=15.0)
     margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
     contacts_json: Optional[Dict] = Field(default_factory=dict)
+    
+    # Templates de clôture (Accounting)
+    cloture_note_template: str = Field(default="Arrêtée la présente note à la somme de {total_words} TTC.")
+    cloture_devis_template: str = Field(default="Arrêté le présent devis à la somme de {total_words} TTC.")
 
 
 class CabinetConfigCreate(CabinetConfigBase):

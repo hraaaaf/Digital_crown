@@ -48,22 +48,22 @@ class CertificatGenerator:
             name='HeaderInfo', 
             parent=self.styles['Normal'], 
             fontName=font_bold, 
-            fontSize=10, 
+            fontSize=11, 
             textColor=p_color, 
-            leading=14
+            leading=15
         )
         date_style = ParagraphStyle(
             name='HeaderDate', 
             parent=self.styles['Normal'], 
             fontName=font_name, 
-            fontSize=10, 
+            fontSize=11, 
             textColor=p_color, 
             alignment=TA_RIGHT
         )
         
         info_text = f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans"
         header_table = Table([
-            [Paragraph(info_text, info_style), Paragraph(f"Le : ....{current_date}....", date_style)]
+            [Paragraph(info_text, info_style), Paragraph(f"Le : {current_date}", date_style)]
         ], colWidths=[6.0*cm, 5.8*cm])
         header_table.setStyle(TableStyle([('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('VALIGN', (0,0), (-1,-1), 'TOP')]))
         return header_table
@@ -89,17 +89,16 @@ class CertificatGenerator:
             name='CertificatTitleA5', 
             parent=self.styles['Normal'], 
             fontName=font_bold, 
-            fontSize=18, 
+            fontSize=20, 
             textColor=p_color, 
             alignment=TA_CENTER
         )
 
-        # TOUJOURS dessiner le Titre et le bloc Patient
         elements = [
-            Spacer(1, 0.5*cm),
-            Paragraph("CERTIFICAT MÉDICAL", title_style),
-            Spacer(1, 1.0*cm),
+            Spacer(1, 0.4*cm),
             self._create_header(patient, data, p_color),
+            Spacer(1, 1.2*cm),
+            Paragraph("CERTIFICAT MÉDICAL", title_style),
             Spacer(1, 1.5*cm)
         ]
 
@@ -117,17 +116,17 @@ class CertificatGenerator:
             name='CertifBody', 
             parent=self.styles['Normal'], 
             fontName=font_name, 
-            fontSize=12, 
-            textColor=colors.HexColor('#000000'), 
+            fontSize=13, 
+            textColor=p_color, 
             alignment=TA_JUSTIFY, 
-            leading=18
+            leading=20
         )
         
         sig_style = ParagraphStyle(
             name='SignatureStyle', 
             parent=self.styles['Normal'], 
             fontName=font_bold, 
-            fontSize=11, 
+            fontSize=12, 
             textColor=p_color, 
             alignment=TA_RIGHT
         )
