@@ -74,7 +74,24 @@ async def lifespan(app: FastAPI):
     logger.info("Démarrage du système Digital Crown...")
     
     # 1. Initialisation BDD
-    models.Base.metadata.create_all(bind=database.engine)
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+        # Migration manuelle pour les nouvelles colonnes si create_all ne les a pas ajoutées 
+        # (create_all n'ajoute pas de colonnes aux tables existantes)
+        from sqlalchemy import text
+        with database.engine.connect() as connection:
+            for col_name, col_def in [
+                ("contacts_json", "JSON DEFAULT '{}'"),
+                ("cloture_note_template", "TEXT DEFAULT 'Arrêtée la présente note à la somme de {total_words} TTC.'"),
+                ("cloture_devis_template", "TEXT DEFAULT 'Arrêté le présent devis à la somme de {total_words} TTC.'")
+            ]:
+                res = connection.execute(text(f"SELECT 1 FROM information_schema.columns WHERE table_name='cabinet_configs' AND column_name='{col_name}'"))
+                if not res.fetchone():
+                    logger.info(f"Migration: Ajout de la colonne {col_name}...")
+                    connection.execute(text(f"ALTER TABLE cabinet_configs ADD COLUMN {col_name} {col_def}"))
+                    connection.commit()
+    except Exception as e:
+        logger.error(f"Erreur lors de l'initialisation/migration BDD: {e}")
     
     # 2. Seeding des templates système
     try:
@@ -96,6 +113,10 @@ app = FastAPI(
 # --- MIDDLEWARES ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Logue les détails des erreurs 422 pour le débugging."""
+    logger.error(f"422 Validation Error: {request.method} {request.url}")
+    logger.error(f"Détails: {exc.errors()}")
+    # Pour le body, c'est asynchrone, on peut le logger si besoin mais attention aux gros payloads
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # --- CORS CONFIGURATION ---

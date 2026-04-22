@@ -576,10 +576,22 @@ Radiographie JPEG/PNG
 
 ---
 
-### 🆕 Stabilisation Technique v4.0 (Avril 2026)
+### 🆕 Stabilisation Technique v4.6 (Avril 2026)
 
-1. **Moteur PDF v4.0 (ReportLab Dynamic)** : Standardisation du `BaseTemplate` pour un rendu vectoriel natif. Synchronisation typographique totale (Amiri) entre le contenu du document et le pied de page pour une harmonie parfaite.
-2. **Système de Contacts Granulaires** : Gestion fine des coordonnées (Tel, WhatsApp, Instagram) avec persistance JSON et génération dynamique de la chaîne de contact.
-3. **Pied de page de Haute Précision** : Centrage géométrique rigoureux (10.5cm) et support bilingue intégral (BiDi/RTL) pour les adresses et contacts.
-4. **Live Preview Résilient** : Durcissement des schémas Pydantic (`schemas.py`) permettant un rendu WYSIWYG fluide même lors de la saisie partielle des données par l'utilisateur.
-5. **Gestion des Identifiants** : Centralisation des champs ICE, IF, INPE dans `CabinetConfig` avec injection automatique dans les documents financiers.
+1. **Pack "Medical Premium"** : Intégration native des polices Google Fonts (**Outfit** pour la structure et **Inter** pour le corps) via le moteur WeasyPrint, garantissant un rendu "Designer".
+2. **Branding Forcing** : Application stricte de la couleur primaire (`p_color`) sur tout le contenu textuel, supprimant définitivement le noir pour une identité visuelle "Elite".
+3. **Optimisation A5** : Augmentation systématique de **+1pt** sur toutes les polices pour un confort de lecture optimal sur les imprimantes de cabinet.
+4. **Clarté Financière v4.6** : Affichage exclusif du montant total en toutes lettres dans les mentions de clôture légale, éliminant la redondance numérique pour un aspect plus prestigieux.
+5. **Layout Certificat v4.6** : Re-hiérarchisation du contenu (Patient/Date avant le titre) et alignement latéral géométrique précis.
+
+---
+
+### 🛡️ Smart QR Validation (En cours de Brainstorming)
+
+- **Agent QR** : `qr_service.py` (Projeté)
+- **Rôle** : Génération de signatures numériques infalsifiables.
+- **Usage** : Validation de l'authenticité des ordonnances et paiements express via QR Code sécurisé.
+
+---
+
+*Document mis à jour le 2026-04-21 pour agents IA - Digital Crown v1.2 (Elite Edition)*

@@ -366,6 +366,9 @@ class CabinetConfig(Base):
     selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
     
+    # Gestion des contacts granulaires (Sprint 59)
+    contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
+    
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de {total_words} TTC ({total_amount} MAD).")
     cloture_devis_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêté le présent devis à la somme de {total_words} TTC ({total_amount} MAD).")

@@ -1,8 +1,8 @@
 # Digital Crown - Documentation Complète
 
-> **Version**: 2026.04 (v4.0)  
+> **Version**: 2026.04 (v4.6)  
 > **Projet**: Cabinet dentaire/orthodontique avec IA intégrée  
-> **Stack**: FastAPI + React 19 + PostgreSQL + PyTorch + ReportLab Vectorial
+> **Stack**: FastAPI + React 19 + PostgreSQL + PyTorch + WeasyPrint/ReportLab Vectorial
 
 ---
 
@@ -12,8 +12,8 @@ Digital Crown est une application full-stack de gestion de cabinet dentaire int�
 - **Analyse céphalométrique assistée par IA** (détection automatique des landmarks)
 - **Protocole COM** (Centre d'Orthodontie Moderne) pour le diagnostic
 - **Génération de documents médicaux** (ordonnances, certificats, devis)
-- **Setup Wizard & Branding v4.0** : Onboarding immersif piloté par State Machine (6 étapes) avec le **Crown Guide** (assistance IA contextuelle) et prévisualisation Triple Colonne (FR/Logo/AR). Thémisation dynamique (Elite, Emerald, Prestige).
-- **Master Template PDF v4.0** : Moteur de rendu 100% vectoriel natif (Vector-First). Suppression des letterheads images pour une netteté absolue. Injection automatique des identifiants légaux (ICE, IF, INPE) sur les flux financiers.
+- **Setup Wizard & Branding Elite v4.6** : Onboarding immersif avec le **Crown Guide** et typographie **Medical Premium** (Outfit/Inter). Thémisation dynamique et forçage du branding couleur sur tous les documents.
+- **Master Template PDF v4.6** : Moteur de rendu 100% vectoriel. Affichage simplifié des montants (lettres uniquement) pour un aspect prestigieux.
 - **Odontogramme Interactif** : Interface graphique de suivi patient avec nomenclature FDI.
 
 ---

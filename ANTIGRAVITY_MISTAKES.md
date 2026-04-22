@@ -19,5 +19,10 @@ Ce document répertorie les faux-pas techniques et ergonomiques identifiés lors
 - **[CORRECTION] Extraction Hors-Corps** : Toujours définir les sous-composants en dehors du composant principal (ou dans un fichier séparé) et passer les données via des props.
 - **[LEÇON]** : Ne jamais définir un composant React à l'intérieur d'un autre composant. Utiliser `React.memo` sur les sous-composants extraits pour une optimisation maximale.
 
+### 5. Backend & Génération de Code (Parsing)
+- **[ERREUR] Injection CSS via F-Strings complexes** : Tentative d'injecter des blocs CSS massifs contenant des accolades `{}` et des quotes `'` via des f-strings Python. Le parser Python a confondu la syntaxe CSS avec les expressions Python, causant des erreurs de parsing critiques (`missing closing quote`, `unknown name atic`).
+- **[CORRECTION] Construction par liste (`css_lines.append`)** : Abandonner les blocs f-strings multi-lignes pour le code injecté. Privilégier une construction ligne par ligne via une liste, puis un `"\n".join(lines)`.
+- **[LEÇON]** : Ne JAMAIS utiliser de f-strings pour plus de 3-5 lignes de code injecté. Plus le bloc est long, plus le risque de collision entre les syntaxes (Python vs CSS/JS) est élevé.
+
 ---
-*Dernière mise à jour : 2026-04-18 (Session v4.0)*
+*Dernière mise à jour : 2026-04-21 (Session v4.6)*

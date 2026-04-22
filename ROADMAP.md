@@ -102,7 +102,18 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🎨 10. Multi-Style Engine & Personnalisation Avancée
+## 🔒 11. Smart QR Validation & Digital Trust (CONCEPT)
+**Statut :** Brainstorming acté
+**Priorité :** Basse / Confort Elite
+**Spécialiste :** Architector & Financia
+
+- [ ] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé.
+- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct.
+- [ ] **Patient Digital Hub** : Scan pour téléchargement mobile instantané du bilan.
+
+---
+
+## 🎨 12. Multi-Style Engine & Personnalisation Avancée
 
 - [ ] **Sélecteur de Style Contextuel** : Choix du rendu au moment de l'impression (Classic, Ghost Elite, Minimaliste).
 - [ ] **Dynamic Theme Engine** : Curseurs de couleurs (Primaire/Secondaire) et sélecteur de polices Google Fonts directement dans les Settings.

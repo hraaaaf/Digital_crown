@@ -11,10 +11,26 @@ logger = logging.getLogger(__name__)
 
 # Template HTML commun (verrouillé, sécurisé)
 # Même structure pour tous les styles, seul le CSS (design_config) change
+# Template HTML commun (verrouillé, sécurisé)
+# Rendu immersif avec support des variables Jinja2
 ORDONNANCE_TEMPLATE_HTML = """
 <div class="document">
+    <div class="doc-top-info" style="display: block; margin-bottom: 0.5cm; border-bottom: 1px solid {colors.primary}; padding-bottom: 5pt;">
+        <div style="float: left; width: 55%;"><b>Patient(e) : {{ patient.nom }} {{ patient.prenom }} ({{ patient.age }} ans)</b></div>
+        <div style="float: right; width: 40%; text-align: right;"><b>Date : {{ date }}</b></div>
+        <div style="clear: both;"></div>
+    </div>
+
+    <div class="doc-header">
+        <div class="doc-title" style="margin-top: 1cm; margin-bottom: 1.5cm;">{{ titre }}</div>
+    </div>
+
     <div class="doc-content">
         {{ content }}
+    </div>
+    
+    <div class="doc-footer-signature">
+        <p>Signature et Cachet :</p>
     </div>
 </div>
 """.strip()
@@ -122,7 +138,7 @@ def get_modern_design() -> dict:
             "title_bold": True,
             "title_underline": True,
             "title_align": "center",
-            "body_size": 10,
+            "body_size": 11,
             "body_line_height": 1.5
         },
         spacing={
@@ -176,7 +192,7 @@ def get_minimalist_design() -> dict:
             "title_bold": False,
             "title_underline": False,
             "title_align": "left",
-            "body_size": 10,
+            "body_size": 11,
             "body_line_height": 1.8
         },
         spacing={
@@ -471,8 +487,26 @@ def seed_certificat_templates(db: Session) -> None:
     
     CERTIFICAT_TEMPLATE_HTML = """
 <div class="document">
-    <div class="doc-content">
+    <div class="doc-top-info" style="display: block; margin-bottom: 0.5cm; border-bottom: 1px solid {colors.primary}; padding-bottom: 5pt;">
+        <div style="float: left; width: 55%;"><b>Patient(e) : {{ patient.nom }} {{ patient.prenom }} ({{ patient.age }} ans)</b></div>
+        <div style="float: right; width: 40%; text-align: right;"><b>Date : {{ date }}</b></div>
+        <div style="clear: both;"></div>
+    </div>
+
+    <div class="doc-header">
+        <div class="doc-title" style="margin-top: 1cm; margin-bottom: 1.5cm;">{{ titre }}</div>
+    </div>
+
+    <div class="doc-content" style="min-height: 7cm; line-height: 2.0; font-size: 13pt; text-align: justify;">
         {{ content }}
+    </div>
+
+    <div class="doc-footer-legal" style="margin-top: 1cm;">
+        <p>Fait à {{ cabinet.ville or 'Casablanca' }}, le {{ date }}</p>
+    </div>
+    
+    <div class="doc-footer-signature" style="margin-top: 1.5cm; text-align: right; padding-right: 2cm;">
+        <p><b>Signature et Cachet :</b></p>
     </div>
 </div>
 """.strip()

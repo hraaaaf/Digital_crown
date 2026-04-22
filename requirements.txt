@@ -1,4 +1,4 @@
-﻿# --- Core Framework & Web ---
+# --- Core Framework & Web ---
 fastapi==0.110.0
 uvicorn[standard]==0.27.1
 python-multipart==0.0.9
@@ -20,3 +20,4 @@ Pillow
 python-magic==0.4.27
 python-magic-bin==0.4.14; platform_system == "Windows"
 passlib[bcrypt]==1.7.4
+qrcode==7.4.2

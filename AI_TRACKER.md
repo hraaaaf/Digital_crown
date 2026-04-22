@@ -3,9 +3,9 @@
 Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à jour systématiquement à chaque modification significative de l'application pour garantir un contexte persistant entre les différentes sessions.
 
 ## 📌 État Actuel du Projet
-- **Version** : 4.0 (Master Template Native & Identifiants Légaux)
+- **Version** : 4.6 (Medical Premium & Smart Typography)
 - **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / TailwindCSS 4
-- **Dernière M.A.J** : 20 Avril 2026 (Native Engine v4.0 - Migration Vectorielle)
+- **Dernière M.A.J** : 21 Avril 2026 (Medical Premium Stabilization v4.6)
 
 ---
 
@@ -53,14 +53,16 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 | 19/04/2026 | **Refactoring Architectural 10/10** : Extraction de `LiveDocumentStudio` et `CrownGuide` pour éliminer les re-rendus. Optimisation performance (hooks), support Arabe diacritique, confirmation IA extraction, et validation contacts Step 3. | `SetupWizard.tsx`, `LiveDocumentStudio.tsx`, `CrownGuide.tsx`, `AI_TRACKER.md` | ✅ |
 | 20/04/2026 | **Sécurisation Live Preview (v4.1)** : Résolution de `RuntimeError: Response content shorter than Content-Length` via l'implémentation d'un nommage unique avec horodatage (seconde) dans tous les générateurs. Isolation des imports critiques pour la stabilité ASGI. | `accounting_gen.py`, `libre_gen.py`, `ordonnance_gen.py`, `certificat_gen.py`, `template_engine.py` | ✅ |
 | 20/04/2026 | **Master Template Native (v4.0)** : Transition complète vers un moteur vectoriel sans images de fond. Centralisation de la mise en page dans `BaseTemplate`. Intégration des identifiants ICE, IF, INPE dans `CabinetConfig` et affichage conditionnel sur les factures/devis. Mise à jour de l'UI Settings. | `base_template.py`, `models.py`, `schemas.py`, `clinics.py`, `Settings.tsx`, `accounting_gen.py`, `ordonnance_gen.py`, `certificat_gen.py`, `libre_gen.py`, `cephalo_gen.py` | ✅ |
+| 21/04/2026 | **Stabilisation Medical Premium (v4.6)** : Intégration Outfit/Inter via WeasyPrint. Forçage de la couleur primaire sur tout le texte. Simplification des totaux (lettres uniquement). Fix syntaxe CSS generator. | `template_engine.py`, `ordonnance_gen.py`, `certificat_gen.py`, `accounting_gen.py`, `schemas.py`, `ROADMAP.md` | ✅ |
 
 ---
 
 ## 🎯 Prochaines Actions & Todo (À remplir lors des directives)
 
+- [ ] **Smart QR Validation** : Implémenter la signature numérique QR sur les documents (Brainstorming validé).
 - [ ] **Validation Impresseur** : Confirmer l'alignement millimétré du papier en-tête physique vs PDF.
 - [ ] **Morphing T2** : Finalisation du moteur de prédiction de croissance.
-- [ ] **Audit Accessibilité** : Vérifier le contraste des thèmes `emerald` et `prestige`.
+- [ ] **Multi-Style Engine** : Permettre le changement de layout au moment de l'impression.
 
 ---
 

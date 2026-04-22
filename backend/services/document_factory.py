@@ -150,6 +150,9 @@ class DocumentFactory:
                 'titre': 'ORDONNANCE',
                 'content': self._format_medications(data.medications),
                 'medications': data.medications,
+                'praticien': {
+                    'nom_complet': cabinet.nom_praticien or (cabinet.owner.nom_complet if cabinet.owner else "Docteur")
+                },
                 'date': datetime.now().strftime('%d/%m/%Y')
             }
             
@@ -177,14 +180,43 @@ class DocumentFactory:
             
             cabinet = self._get_cabinet_config(user_id, db)
             
+            # Re-construction de la logique "Smart" Legacy pour le texte du certificat
+            from datetime import date
+            doc_date = getattr(data, 'doc_date', date.today())
+            age = self._calculate_age(patient.date_naissance)
+            gender = getattr(patient, 'sexe', 'M')
+            hon = "Mr" if gender in ["Homme", "Garçon", "M", "Masculin"] else "Mme"
+            
+            type_repos = "Arrêt de travail" if getattr(data, 'is_work_stop', False) else "Repos médical"
+            start_date_obj = getattr(data, 'start_date', None) or doc_date
+            start_date_str = start_date_obj.strftime('%d/%m/%Y') if hasattr(start_date_obj, 'strftime') else str(start_date_obj)
+            days = getattr(data, 'days', 1)
+            reason = getattr(data, 'reason', 'son état de santé')
+            dr_name = cabinet.nom_praticien or (cabinet.owner.nom_complet if cabinet.owner else "Docteur")
+            
+            # Nettoyage profond du préfixe Dr
+            import re
+            dr_name = re.sub(r'^(Dr\.?\s*)+', '', dr_name, flags=re.IGNORECASE).strip()
+            
+            full_cert_text = (
+                f"Je soussigné, <b>Dr {dr_name}</b>, certifie que l'état de santé de "
+                f"{hon} <b>{patient.nom.upper()} {patient.prenom.capitalize()}</b>, âgé(e) de {age} ans, "
+                f"nécessite un <b>{type_repos}</b> de <b>{days} jours</b>, à partir du {start_date_str}.<br/><br/>"
+                f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
+            )
+
             context = {
                 'patient': {
                     'nom': patient.nom,
                     'prenom': patient.prenom,
-                    'age': self._calculate_age(patient.date_naissance)
+                    'age': age,
+                    'hon': hon
                 },
                 'titre': 'CERTIFICAT MÉDICAL',
-                'content': data.reason if hasattr(data, 'reason') else '',
+                'content': full_cert_text,
+                'praticien': {
+                    'nom_complet': cabinet.nom_praticien or (cabinet.owner.nom_complet if cabinet.owner else "Docteur")
+                },
                 'date': datetime.now().strftime('%d/%m/%Y')
             }
             
@@ -251,6 +283,7 @@ class DocumentFactory:
         
         html = ""
         for i, med in enumerate(medications, 1):
-            html += f"<b>{i}. {med.nom}</b> - {med.dosage}<br/>"
-            html += f"<i>{med.posologie}</i><br/><br/>"
+            # On utilise le gras pour tout et on enlève l'italique qui peut poser problème de couleur en fallback
+            html += f"<b>{i}. {med.nom} - {med.dosage}</b><br/>"
+            html += f"<b>Posologie : {med.posologie}</b><br/><br/>"
         return html
