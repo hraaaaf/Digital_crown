@@ -122,4 +122,38 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [ ] **Badge Visuel** : Affichage d'un badge discret sur la fiche patient pour alerter le praticien sur le profil du patient dès l'ouverture du dossier.
 - [ ] **Avantages Automatisés** : Suggestion de remises ou priorités de rendez-vous pour les patients "Élite".
 
+## 🦷 11. Analyseur Radio Panoramique IA (PanoVision Engine)
+**Statut :** Planifié
+**Priorité :** Haute
+**Référence technique :** github.com/SubGlitch1/DentalXrayAI (YOLOv8 / DENTEX)
+
+### Module A — Détection des Anomalies (PanoDetect)
+- [ ] Intégration YOLOv8 pré-entraîné (DENTEX dataset) dans `vision_service.py`
+- [ ] Détection multi-classes par quadrant FDI :
+  - Dentaire : caries, caries profondes, lésions péri-apicales, résorptions
+  - Inclusions : dents de sagesse, canines incluses
+  - Prothétique : implants, couronnes, bridges, obturations (inventaire auto)
+  - Pathologique : kystes, calcifications, opacités sinusiennes
+  - ATM : asymétrie condylienne, érosion
+- [ ] Annotations visuelles sur l'image (bounding boxes colorés par sévérité)
+- [ ] Score de confiance par détection
+
+### Module B — Bilan PDF Structuré (PanoReport)
+- [ ] Générateur `pano_gen.py` dans `services/generators/`
+- [ ] Rapport par quadrant (Q1→Q4) avec tableau récapitulatif
+- [ ] Overlay radio annotée intégré au PDF
+- [ ] Conclusion clinique générée par IA (Gemini/heuristique)
+- [ ] Export intégré dans le hub documentaire patient
+
+### Module C — Modules Complémentaires (Futures Itérations)
+- [ ] **Analyseur Rétro-Alvéolaire (Bitewing)** : détection caries proximales
+  sur radios de routine — usage quotidien en cabinet
+- [ ] **Estimation Âge Dentaire (Demirjian)** : stades de maturation
+  à croiser avec le CVM céphalométrique existant
+- [ ] **Comparaison Évolutive T1/T2** : overlay deux panoramiques
+  pour quantifier perte osseuse ou déplacement dentaire
+- [ ] **Module Implantologie Assistée** : mesure hauteur/largeur
+  osseuse disponible pour planification implantaire
+
+
 *Dernière mise à jour : 2026-04-21 par Antigravity Staff Engineering (v4.3 CRM Concept).*
