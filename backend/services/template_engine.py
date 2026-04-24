@@ -3,9 +3,9 @@
 # ==============================================================================
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
-from jinja2 import Environment, BaseLoader, StrictUndefined, TemplateError
+from jinja2 import Environment, StrictUndefined, TemplateError
 import importlib.util
 # Détection dynamique pour supprimer les avertissements de l'IDE sur les modules manquants
 WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
@@ -25,16 +25,19 @@ class SecureTemplateRenderer:
     
     # Variables autorisées uniquement
     ALLOWED_VARIABLES = {
-        'patient', 'praticien', 'cabinet', 'date', 
-        'content', 'titre', 'medications', 'actes', 'custom'
+        'patient', 'patient_nom', 'patient_prenom', 'patient_age',
+        'praticien', 'cabinet', 'config', 'date', 'date_generation',
+        'content', 'titre', 'medications', 'actes', 'custom',
+        'qr_code_url', 'logo_url'
     }
     
-    def __init__(self):
-        # Environnement Jinja2 sécurisé
+    def __init__(self, template_dir: str = "backend/templates"):
+        # Environnement Jinja2 avec FileSystemLoader pour supporter les extends
+        from jinja2 import FileSystemLoader
         self.env = Environment(
-            loader=BaseLoader(),
-            undefined=StrictUndefined,  # Lève une erreur si variable non définie
-            autoescape=True  # Échappement HTML automatique
+            loader=FileSystemLoader(template_dir),
+            undefined=StrictUndefined,
+            autoescape=True
         )
     
     def render(self, template_html: str, context: Dict[str, Any]) -> str:
@@ -58,7 +61,10 @@ class SecureTemplateRenderer:
         }
         
         try:
-            template = self.env.from_string(template_html)
+            if template_html.endswith('.html'):
+                template = self.env.get_template(template_html)
+            else:
+                template = self.env.from_string(template_html)
             return template.render(**safe_context)
         except TemplateError as e:
             logger.error(f"Erreur de rendu template: {e}")
@@ -121,17 +127,18 @@ class CSSGenerator:
         css_lines = []
         css_lines.append("@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;600&display=swap');")
         
-        css_lines.append(f"@page {{")
+        css_lines.append("@page {")
         css_lines.append(f"    size: {layout.page_size};")
         css_lines.append(f"    margin: {layout.margins.top}cm {layout.margins.right}cm {layout.margins.bottom}cm {layout.margins.left}cm;")
         if letterhead_css:
             css_lines.append(f"    {letterhead_css}")
         
+        css_lines.append(".doc-content { font-size: 11pt; line-height: 1.6; }")
         css_lines.append(f"    @top-center {{ content: ''; height: {layout.header_height}cm; }}")
         css_lines.append(f"    @bottom-center {{ content: ''; height: {layout.footer_height}cm; }}")
         css_lines.append("}}")
         
-        css_lines.append(f"/* Masquage header/footer */")
+        css_lines.append("/* Masquage header/footer */")
         if hide_header_css: css_lines.append(hide_header_css)
         if hide_footer_css: css_lines.append(hide_footer_css)
         
@@ -147,12 +154,12 @@ class CSSGenerator:
         css_lines.append("/* Force Branding */")
         css_lines.append(f"body, body *, p, div, span, b, i, strong, em {{ color: {colors.primary} !important; }}")
         
-        css_lines.append(f".arabic {{")
+        css_lines.append(".arabic {")
         css_lines.append(f"    font-family: '{fonts.ar}', 'Amiri', serif;")
         css_lines.append("    direction: rtl;")
         css_lines.append("}}")
         
-        css_lines.append(f".doc-title {{")
+        css_lines.append(".doc-title {")
         css_lines.append(f"    font-size: {typography.title_size}pt;")
         css_lines.append(f"    font-weight: {'bold' if typography.title_bold else 'normal'};")
         css_lines.append(f"    text-align: {typography.title_align};")
@@ -162,7 +169,7 @@ class CSSGenerator:
             css_lines.append("    text-decoration: underline;")
         css_lines.append("}}")
         
-        css_lines.append(f".header {{")
+        css_lines.append(".header {")
         if borders.header_line:
             css_lines.append(f"    border-bottom: 1px solid {borders.header_line_color};")
         css_lines.append("    padding-bottom: 0.5cm;")
@@ -172,27 +179,35 @@ class CSSGenerator:
         css_lines.append(".header-left { float: left; width: 45%; color: " + colors.primary + "; }")
         css_lines.append(".header-right { float: right; width: 45%; text-align: right; color: " + colors.secondary + "; }")
         
-        css_lines.append(f".logo {{")
+        css_lines.append(".logo {")
         css_lines.append(f"    width: {header.logo_header_size_cm}cm;")
         css_lines.append("    height: auto; margin: 0 auto; display: block;")
-        css_lines.append("}}")
+        css_lines.append("}")
         
+        css_lines.append(".doc-date { text-align: right; margin-bottom: 1cm; }")
         css_lines.append(f".patient-info {{ margin-bottom: {spacing.section_gap_cm}cm; }}")
+        css_lines.append(".doc-patient-info { font-weight: bold; }")
         css_lines.append(f".patient-name {{ font-weight: bold; font-size: {typography.body_size + 1}pt; }}")
         
         css_lines.append(f".content {{ margin-top: {spacing.paragraph_gap_cm}cm; }}")
+        css_lines.append(".doc-header { margin-bottom: 2cm; }")
         css_lines.append(f".content p {{ margin-bottom: {spacing.paragraph_gap_cm}cm; }}")
         
-        css_lines.append(".doc-footer-signature { margin-top: " + str(spacing.paragraph_gap_cm) + "cm; color: " + colors.primary + "; font-weight: bold; }")
+        css_lines.append(f".doc-footer-signature {{ margin-top: {spacing.paragraph_gap_cm}cm; color: {colors.primary}; font-weight: bold; }}")
         
-        css_lines.append(f".footer {{")
+        css_lines.append(".qr-signature {")
+        css_lines.append("    position: absolute; bottom: 0.5cm; right: 0.5cm;")
+        css_lines.append("    width: 2.2cm; height: 2.2cm; opacity: 0.9;")
+        css_lines.append("}")
+        
+        css_lines.append(".footer {")
         css_lines.append("    position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9pt;")
         css_lines.append(f"    color: {colors.secondary};")
         if borders.header_line:
             css_lines.append(f"    border-top: 1px solid {colors.primary}; padding-top: 0.3cm;")
-        css_lines.append("}}")
+        css_lines.append("}")
         
-        css_lines.append(f".watermark {{")
+        css_lines.append(".watermark {")
         css_lines.append("    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);")
         css_lines.append(f"    opacity: {watermark.opacity}; width: {watermark.size_cm}cm; height: auto; z-index: -1;")
         css_lines.append("}}")
@@ -269,6 +284,9 @@ class TemplateEngine:
         # 1. Préparer le contexte
         render_context = {
             'patient': context.get('patient', {}),
+            'patient_nom': context.get('patient', {}).get('nom', ''),
+            'patient_prenom': context.get('patient', {}).get('prenom', ''),
+            'patient_age': context.get('patient', {}).get('age', ''),
             'praticien': context.get('praticien', {}),
             'cabinet': {
                 'nom': cabinet.owner.nom_complet if cabinet.owner else '',
@@ -279,11 +297,15 @@ class TemplateEngine:
                 'header_ar': cabinet.header_lines_ar,
                 'logo_url': f"file://{os.path.abspath(os.path.join(self.static_dir, 'uploads', cabinet.logo_path))}" if cabinet.logo_path else None
             },
+            'config': cabinet, # Pour base_elite.html
             'date': context.get('date', datetime.now().strftime('%d/%m/%Y')),
+            'date_generation': context.get('date', datetime.now().strftime('%d/%m/%Y')),
             'titre': context.get('titre', template.name),
             'content': context.get('content', ''),
             'medications': context.get('medications', []),
             'actes': context.get('actes', []),
+            'qr_code_url': context.get('custom', {}).get('qr_code_url', ''), # Pour base_elite.html
+            'logo_url': f"file://{os.path.abspath(os.path.join(self.static_dir, 'uploads', cabinet.logo_path))}" if cabinet.logo_path else None,
             'custom': context.get('custom', {})
         }
         
@@ -322,6 +344,8 @@ class TemplateEngine:
                 {cabinet.footer_phones}
             </div>
             ''' if not cabinet.letterhead_path else ''}
+
+            {f'<img src="{render_context["custom"]["qr_code_url"]}" class="qr-signature" />' if "custom" in render_context and "qr_code_url" in render_context["custom"] else ''}
         </body>
         </html>
         """
@@ -409,29 +433,30 @@ class TemplateEngine:
         story = []
         story.append(Spacer(1, 0.5*cm))
         
-        # 1. Informations Patient & Date (AU DESSUS DU TITRE)
+        # 1. En-tête Patient Épuré (Style Elite)
         patient = context.get('patient', {})
         date_doc = context.get('date', datetime.now().strftime('%d/%m/%Y'))
+        age = patient.get('age', '??')
         
-        info_text = f"<b>Patient(e) :</b> {patient.get('nom', '').upper()} {patient.get('prenom', '').capitalize()} ({patient.get('age', '??')} ans)"
-        date_text = f"<b>Date :</b> {date_doc}"
+        info_text = f"<b>{patient.get('nom', 'PATIENT').upper()} {patient.get('prenom', '').capitalize()}</b>, {age} ans"
+        date_text = f"Le : <u>{date_doc}</u>"
         
         header_table = Table([
             [Paragraph(info_text, styles['Normal']), Paragraph(date_text, ParagraphStyle(name='RightDate', parent=styles['Normal'], alignment=TA_RIGHT, textColor=p_color))]
-        ], colWidths=[7.8*cm, 4.0*cm])
+        ], colWidths=[7.5*cm, 4.3*cm])
         header_table.setStyle(TableStyle([
             ('LEFTPADDING', (0,0), (-1,-1), 0), 
             ('RIGHTPADDING', (0,0), (-1,-1), 0), 
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('TEXTCOLOR', (0,0), (-1,-1), p_color)
+            ('TEXTCOLOR', (0,0), (-1,-1), p_color),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 15)
         ]))
         
         story.append(header_table)
-        story.append(Spacer(1, 1*cm))
+        story.append(Spacer(1, 0.8*cm))
 
         # 2. Rendu du Titre
-        titre = context.get('titre', template.name).upper()
-        story.append(Paragraph(f"<u><b>{titre}</b></u>", title_style))
+        story.append(Paragraph("<u><b>CERTIFICAT MEDICAL</b></u>", title_style))
         story.append(Spacer(1, 1.5*cm))
         
         # 3. Contenu
@@ -448,12 +473,16 @@ class TemplateEngine:
             content = content.replace('\n', '<br/>')
             
             # Si c'est un certificat et que le contenu est court, on l'étoffe comme le legacy
-            if 'CERTIFICAT' in titre and len(content) < 200:
+            if 'CERTIFICAT' in titre.upper() and len(content) < 200:
+                 hon = context.get('hon', 'Mr/Mme')
+                 start_date = context.get('start_date', date_doc)
+                 days = context.get('certif_days', 3)
+                 type_repos = context.get('type_repos', 'un repos médical')
+                 
                  content = (
-                    f"Je, soussigné <b>Dr {dr_name}</b>, certifie que l'état de santé de "
-                    f"<b>{patient.get('nom', '').upper()} {patient.get('prenom', '').capitalize()}</b>, "
-                    f"âgé(e) de {patient.get('age', '??')} ans, nécessite un repos/traitement.<br/><br/>"
-                    f"<b>Observations :</b> {content}<br/><br/>"
+                    f"Je, soussigné Dr. {dr_name}, certifie que l'état de santé de "
+                    f"{hon} <b>{patient.get('nom', 'PATIENT').upper()} {patient.get('prenom', '').capitalize()}</b>, "
+                    f"âgé(e) de <b>{age} ans</b>, nécessite {type_repos} d'une durée de <b>{days} jours</b>, à partir du <b>{start_date}</b>.<br/><br/>"
                     f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
                 )
             

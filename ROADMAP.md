@@ -102,35 +102,44 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🔒 11. Smart QR Validation & Digital Trust (CONCEPT)
-**Statut :** Brainstorming acté
-**Priorité :** Basse / Confort Elite
+## ✅ 10. Smart QR Validation & Digital Trust (TERMINÉ)
+**Statut :** Déployé (v5.0)
+**Priorité :** Confort Elite
 **Spécialiste :** Architector & Financia
 
-- [ ] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé.
-- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct.
-- [ ] **Patient Digital Hub** : Scan pour téléchargement mobile instantané du bilan.
+- [x] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code.
+- [x] **Signature Numérique** : Génération Base64 via `qr_service` intégrée aux flux WeasyPrint.
+- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct (Prochaine étape).
 
 ---
 
-## 🎨 12. Multi-Style Engine & Personnalisation Avancée
+## ✅ 11. Dynamic Theme Engine & Personnalisation Ghost Elite (TERMINÉ)
+**Statut :** Déployé (v5.0)
+**Spécialiste :** PixelMaster
 
-- [ ] **Sélecteur de Style Contextuel** : Choix du rendu au moment de l'impression (Classic, Ghost Elite, Minimaliste).
-- [ ] **Dynamic Theme Engine** : Curseurs de couleurs (Primaire/Secondaire) et sélecteur de polices Google Fonts directement dans les Settings.
-- [ ] **Mode Impression sur Papier En-tête** : Toggle intelligent pour masquer dynamiquement le Header/Footer si le praticien utilise son propre papier physique.
-- [ ] **Gestion Multi-Templates** : Possibilité de créer et sauvegarder plusieurs variantes (ex: Ordonnance Enfant vs Adulte) avec des styles distincts.
+- [x] **Ghost Elite Dashboard** : Refonte totale basée sur les variables CSS (`--primary`, `--secondary`).
+- [x] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire) directement dans les Settings avec persistence BDD.
+- [x] **Visual Insights** : Intégration de graphiques de performance (Recharts) dans le Studio Comptable.
+- [x] **UX Zero-Friction** : Barre d'actions rapides (Quick Acts) et autocomplétion intelligente.
 
 ---
 
-## 💎 10. CRM & Fidélisation : Patient Scoring
+## 💎 12. CRM & Fidélisation : Patient Scoring
 **Statut :** Idée / Recherche
 **Priorité :** Basse
 **Spécialiste :** Architector & Financia
 
 - [ ] **Logique de Scoring Discret** : Attribution d'un grade (Bronze, Silver, Gold, Platinum) basé sur un algorithme interne.
 - [ ] **Indice d'Assiduité** : Calcul du ratio RDV honorés / RDV annulés ou "No-Show" (impacte le score négativement).
-- [ ] **Indice de Solvabilité** : Analyse du "Sérieu Paiement" (Délais de règlement, impayés résolus, acomptes immédiats).
-- [ ] **Badge Visuel** : Affichage d'un badge discret sur la fiche patient pour alerter le praticien sur le profil du patient dès l'ouverture du dossier.
-- [ ] **Avantages Automatisés** : Suggestion de remises ou priorités de rendez-vous pour les patients "Élite".
 
-*Dernière mise à jour : 2026-04-21 par Antigravity Staff Engineering (v4.3 CRM Concept).*
+---
+
+## 📊 13. Visual Insights & Business Analytics
+**Statut :** En cours (v5.1)
+**Priorité :** Moyenne
+
+- [x] **Comptabilité Analytique** : Graphiques de revenus (AreaChart) intégrés à la gestion des honoraires.
+- [ ] **Analyse de Rentabilité par Acte** : Visualisation des actes les plus performants.
+- [ ] **Reporting Mensuel Automatisé** : Génération d'un bilan financier PDF avec graphiques WeasyPrint.
+
+*Dernière mise à jour : 2026-04-22 par Antigravity Staff Engineering (v5.0 Ghost Elite Release).*

@@ -63,7 +63,7 @@ export const SetupWizard: React.FC = () => {
 
   // État du cabinet
   const [cabinetType, setCabinetType] = useState<'PRIVE' | 'CLINIQUE'>('PRIVE');
-  const [identity, setIdentity] = useState<IdentityState>({ nomCabinet: '', nomPraticien: '', nomPraticienAR: '', adresse: '' });
+  const [identity, setIdentity] = useState<IdentityState>({ nomCabinet: '', nomPraticien: '', nomPraticienAR: '', adresse: '', ice: '', if: '', inpe: '' });
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [customSpecialty, setCustomSpecialty] = useState({ fr: '', ar: '' });
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -123,6 +123,7 @@ export const SetupWizard: React.FC = () => {
       const data = await cabinetApi.extractCard(file);
       if (data && !data.error) {
         setIdentity({
+          ...identity,
           nomCabinet: data.nom_cabinet || identity.nomCabinet,
           nomPraticien: data.nom_praticien || identity.nomPraticien,
           nomPraticienAR: data.nom_praticien_ar || identity.nomPraticienAR,
@@ -132,7 +133,7 @@ export const SetupWizard: React.FC = () => {
         if (data.specialites && Array.isArray(data.specialites)) {
           // Mapper les spécialités extraites aux IDs existants si possible
           const matched = SPECIALTIES_DICT.filter(s =>
-            data.specialites.some((ext: string) => ext.toLowerCase().includes(s.fr.toLowerCase()))
+            data.specialites?.some((ext: string) => ext.toLowerCase().includes(s.fr.toLowerCase()))
           ).map(s => s.id);
 
           if (matched.length > 0) setSelectedSpecialties(prev => Array.from(new Set([...prev, ...matched])));

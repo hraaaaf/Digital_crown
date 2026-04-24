@@ -1,6 +1,7 @@
 import math
 import logging
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List, Any
+from backend import schemas
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class CephaloEngine:
 
         if value is None:
             return {
-                "value": None,
+                "valeur": None,
                 "norm_mean": float(mean),
                 "norm_min": float(min_val),
                 "norm_max": float(max_val),
@@ -102,7 +103,7 @@ class CephaloEngine:
                 interp = dec_msg
             
         return {
-            "value": val_rounded,
+            "valeur": val_rounded,
             "norm_mean": float(mean),
             "norm_min": float(min_val),
             "norm_max": float(max_val),
@@ -164,8 +165,12 @@ class CephaloEngine:
         return t1
 
     # --- ORCHESTRATEUR PRINCIPAL ---
-
-    def calculate_metrics(self, raw_points: Dict, custom_mm_ratio: Optional[float] = None, age: Optional[int] = None, cvm_stage: Optional[str] = None, mcnamara_projections: Optional[Dict] = None) -> Dict:
+    def calculate_metrics(self, 
+                          raw_points: Dict, 
+                          custom_mm_ratio: Optional[float] = None, 
+                          age: Optional[int] = None, 
+                          cvm_stage: Optional[str] = None, 
+                          mcnamara_projections: Optional[Dict] = None) -> schemas.CephaloAnalysisResult:
         """
         Orchestre les 4 flux :
         1. Calcul des métriques géométriques COM.
@@ -276,73 +281,91 @@ class CephaloEngine:
             prof_faciale, norm_prof_fac[0], norm_prof_fac[1], "Profondeur augmentée", "Profondeur diminuée", "Profondeur normale"
         )
 
-        if pts["Po"] and pts["Or"] and pts["N"]:
-            n_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["N"])
-            payload["visual_debug"]["N_prime"] = [round(n_prime[0], 2), round(n_prime[1], 2)]
-        
-        # Projections A' et B' sur le plan de Francfort (pour affichage McNamara)
-        # Utilisation de pts qui contient déjà les points normalisés via _get_point()
-        # pts a les clés canoniques: 'A', 'B', 'Po', 'Or', 'N', etc.
-        
-        logger.warning(f"[CEPHALO] Points pour projection - Po:{pts.get('Po')}, Or:{pts.get('Or')}, A:{pts.get('A')}, B:{pts.get('B')}")
-        
-        if pts.get("Po") and pts.get("Or") and pts.get("A"):
-            a_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["A"])
-            payload["visual_debug"]["A_prime"] = [round(a_prime[0], 2), round(a_prime[1], 2)]
-            logger.warning(f"[CEPHALO] A' calculé: {payload['visual_debug']['A_prime']}")
-        else:
-            logger.warning(f"[CEPHALO] A' NON calculé - points manquants: Po={pts.get('Po')}, Or={pts.get('Or')}, A={pts.get('A')}")
-        
-        if pts.get("Po") and pts.get("Or") and pts.get("B"):
-            b_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["B"])
-            payload["visual_debug"]["B_prime"] = [round(b_prime[0], 2), round(b_prime[1], 2)]
-            logger.warning(f"[CEPHALO] B' calculé: {payload['visual_debug']['B_prime']}")
-        else:
-            logger.warning(f"[CEPHALO] B' NON calculé - points manquants: Po={pts.get('Po')}, Or={pts.get('Or')}, B={pts.get('B')}")
+        # --- FLUX 4 : ANALYSE MCNAMARA (CENTRALISÉE) ---
+        # 1. Calcul des Projections Automatiques
+        if uFH and uPerp:
+            if pts["N"]:
+                n_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["N"])
+                payload["visual_debug"]["N_prime"] = [round(n_prime[0], 2), round(n_prime[1], 2)]
+            
+            if pts["A"]:
+                a_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["A"])
+                payload["visual_debug"]["A_prime"] = [round(a_prime[0], 2), round(a_prime[1], 2)]
+                
+            if pts["B"]:
+                b_prime = self._get_orthogonal_projection(pts["Po"], pts["Or"], pts["B"])
+                payload["visual_debug"]["B_prime"] = [round(b_prime[0], 2), round(b_prime[1], 2)]
 
-        # --- FLUX 1b : DISTANCES McNAMARA (utilisant les projections du frontend si disponibles) ---
-        # Si le frontend a envoyé les projections A', B', N', on les utilise pour calculer les distances
-        if mcnamara_projections:
-            logger.info(f"[McNamara] Projections reçues du frontend: {mcnamara_projections}")
-            
-            n_prime_frontend = mcnamara_projections.get('N_prime')
-            a_prime_frontend = mcnamara_projections.get('A_prime')
-            b_prime_frontend = mcnamara_projections.get('B_prime')
-            
-            if n_prime_frontend and a_prime_frontend:
-                # Distance N' à A' = Situation A (en mm)
-                dist_na_mm = math.hypot(a_prime_frontend[0] - n_prime_frontend[0], a_prime_frontend[1] - n_prime_frontend[1]) * ratio
-                payload["metrics"]["analyse_osseuse"]["Distance_NA_mm"] = round(dist_na_mm, 2)
-                logger.info(f"[McNamara] Distance N'A' (Situation A): {dist_na_mm:.2f} mm")
-            
-            if n_prime_frontend and b_prime_frontend:
-                # Distance N' à B' = Situation B (en mm)
-                dist_nb_mm = math.hypot(b_prime_frontend[0] - n_prime_frontend[0], b_prime_frontend[1] - n_prime_frontend[1]) * ratio
-                payload["metrics"]["analyse_osseuse"]["Distance_NB_mm"] = round(dist_nb_mm, 2)
-                logger.info(f"[McNamara] Distance N'B' (Situation B): {dist_nb_mm:.2f} mm")
-            
-            if a_prime_frontend and b_prime_frontend:
-                # Distance A' à B' = Décalage A-B (en mm)
-                dist_ab_mm = math.hypot(b_prime_frontend[0] - a_prime_frontend[0], b_prime_frontend[1] - a_prime_frontend[1]) * ratio
-                payload["metrics"]["analyse_osseuse"]["Distance_AB_mm"] = round(dist_ab_mm, 2)
-                logger.info(f"[McNamara] Distance A'B' (Décalage): {dist_ab_mm:.2f} mm")
+            # 2. Calcul des Distances (Priorité Backend, Fallback Frontend pour compatibilité)
+            np = payload["visual_debug"].get("N_prime") or (mcnamara_projections.get("N_prime") if mcnamara_projections else None)
+            ap = payload["visual_debug"].get("A_prime") or (mcnamara_projections.get("A_prime") if mcnamara_projections else None)
+            bp = payload["visual_debug"].get("B_prime") or (mcnamara_projections.get("B_prime") if mcnamara_projections else None)
 
-        # --- FLUX 2 : PROJECTION MORPHOLOGIQUE T1 ---
+            if np and ap:
+                # Distance N'A' (algébrique sur FH)
+                v_na = (ap[0] - np[0], ap[1] - np[1])
+                dist_na_mm = (v_na[0]*uFH[0] + v_na[1]*uFH[1]) * ratio
+                payload["metrics"]["analyse_osseuse"]["Situation_A"] = self._evaluate_metric(
+                    dist_na_mm, norm_sit_a[0], norm_sit_a[1]-norm_sit_a[0], "Prognathie maxillaire", "Rétrognathie maxillaire", "Normoposition"
+                )
+            
+            if np and bp:
+                # Distance N'B' (algébrique sur FH)
+                v_nb = (bp[0] - np[0], bp[1] - np[1])
+                dist_nb_mm = (v_nb[0]*uFH[0] + v_nb[1]*uFH[1]) * ratio
+                payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
+                    dist_nb_mm, norm_sit_b[0], norm_sit_b[1]-norm_sit_b[0], "Prognathie mandibulaire", "Rétrognathie mandibulaire", "Normoposition"
+                )
+
+            if ap and bp:
+                # Décalage A-B (positif = Classe II, négatif = Classe III)
+                v_ab = (ap[0] - bp[0], ap[1] - bp[1])
+                dist_ab_mm = (v_ab[0]*uFH[0] + v_ab[1]*uFH[1]) * ratio
+                payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
+                    dist_ab_mm, norm_dec_ab[0], norm_dec_ab[1]-norm_dec_ab[0], "Classe II squelettique", "Classe III squelettique", "Classe I squelettique"
+                )
+
+        # --- FLUX 2 : ANALYSE ESTHÉTIQUE (LIGNE E DE RICKETTS) ---
+        prn = pts.get('Prn')
+        pog_s = pts.get('Pog_soft')
+        ls = pts.get('Ls')
+        li = pts.get('Li')
+
+        if prn and pog_s:
+            # Ligne E = Droite passant par Prn et Pog_soft
+            # p, a, b sont des tuples (x, y)
+            def dist_to_line(p, a, b):
+                num = (b[0]-a[0])*(a[1]-p[1]) - (a[0]-p[0])*(b[1]-a[1])
+                den = math.sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2)
+                return (num / den) * ratio
+
+            if ls:
+                d_ls = dist_to_line(ls, prn, pog_s)
+                payload["metrics"]["analyse_esthetique"]["Ligne_E_Ls"] = self._evaluate_metric(
+                    d_ls, -4.0, 2.0, "Lèvre supérieure en avant", "Lèvre supérieure en retrait", "Équilibre labial supérieur"
+                )
+            if li:
+                d_li = dist_to_line(li, prn, pog_s)
+                payload["metrics"]["analyse_esthetique"]["Ligne_E_Li"] = self._evaluate_metric(
+                    d_li, -2.0, 2.0, "Lèvre inférieure en avant", "Lèvre inférieure en retrait", "Équilibre labial inférieur"
+                )
+
+        # --- FLUX 3 : PROJECTION MORPHOLOGIQUE T1 ---
         payload["t1_projection"] = self._project_t1_growth(pts, ratio, age)
 
         # --- FLUX 3 : INTELLIGENCE CLINIQUE DÉTERMINISTE (Normes COM) ---
         
         # Extraction sécurisée des valeurs pour la synthèse
-        val_tweed = payload["metrics"]["analyse_osseuse"].get("Angle_de_Tweed", {}).get("value", 26.0)
-        val_dec_ab = payload["metrics"]["analyse_osseuse"].get("Decalage_A_B", {}).get("value", norm_dec_ab[0])
-        val_sit_a = payload["metrics"]["analyse_osseuse"].get("Situation_A", {}).get("value", norm_sit_a[0])
-        val_sit_b = payload["metrics"]["analyse_osseuse"].get("Situation_B", {}).get("value", norm_sit_b[0])
+        val_tweed = payload["metrics"]["analyse_osseuse"].get("Angle_de_Tweed", {}).get("valeur", 26.0)
+        val_dec_ab = payload["metrics"]["analyse_osseuse"].get("Decalage_A_B", {}).get("valeur", norm_dec_ab[0])
+        val_sit_a = payload["metrics"]["analyse_osseuse"].get("Situation_A", {}).get("valeur", norm_sit_a[0])
+        val_sit_b = payload["metrics"]["analyse_osseuse"].get("Situation_B", {}).get("valeur", norm_sit_b[0])
         
-        val_impa = payload["metrics"]["analyse_dentaire"].get("IMPA", {}).get("value", 90.0)
-        val_if = payload["metrics"]["analyse_dentaire"].get("I_Francfort", {}).get("value", 107.0)
-        val_inter = payload["metrics"]["analyse_dentaire"].get("Inter_Incisif", {}).get("value", 131.0)
-        val_surplomb = payload["metrics"]["analyse_dentaire"].get("Surplomb", {}).get("value", 2.25)
-        val_recouvrement = payload["metrics"]["analyse_dentaire"].get("Recouvrement", {}).get("value", 2.25)
+        val_impa = payload["metrics"]["analyse_dentaire"].get("IMPA", {}).get("valeur", 90.0)
+        val_if = payload["metrics"]["analyse_dentaire"].get("I_Francfort", {}).get("valeur", 107.0)
+        val_inter = payload["metrics"]["analyse_dentaire"].get("Inter_Incisif", {}).get("valeur", 131.0)
+        val_surplomb = payload["metrics"]["analyse_dentaire"].get("Surplomb", {}).get("valeur", 2.25)
+        val_recouvrement = payload["metrics"]["analyse_dentaire"].get("Recouvrement", {}).get("valeur", 2.25)
 
         # Sécurisation anti-None
         val_tweed = val_tweed if val_tweed is not None else 26.0
@@ -410,7 +433,7 @@ class CephaloEngine:
             "strategie_therapeutique": strategie
         }
 
-        return payload
+        return schemas.CephaloAnalysisResult.model_validate(payload)
 
 # Instance singleton prête à l'emploi
 cephalo_engine = CephaloEngine()

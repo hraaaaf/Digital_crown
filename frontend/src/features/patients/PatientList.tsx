@@ -73,34 +73,34 @@ export const PatientList = () => {
     const safeId = id ?? 0;
     if (safeId % 4 === 0) return { label: 'Terminé', classes: 'bg-emerald-50 text-emerald-600 border-emerald-100/50' }; 
     if (safeId % 3 === 0) return { label: 'En cours', classes: 'bg-orange-50 text-orange-600 border-orange-100/50' }; 
-    return { label: 'Nouveau', classes: 'bg-blue-50 text-[#003380] border-blue-100/50' }; 
+    return { label: 'Nouveau', classes: 'bg-blue-50 border-blue-100/50', style: { color: 'var(--primary)' } }; 
   };
 
   return (
     <div className="space-y-8 p-6 md:p-10 max-w-[1500px] mx-auto animate-in fade-in duration-700">
       
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-4xl font-black text-[#003380] tracking-tight">Dossiers Patients</h2>
+          <h2 className="text-4xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Dossiers Patients</h2>
           <p className="text-slate-500 mt-2 font-medium">Gestion et maintenance de la base de données</p>
         </div>
         <Link 
           to="/patients/new" 
-          className="bg-gradient-to-br from-[#003380] to-blue-900 text-white px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-[#003380]/30 hover:-translate-y-1 transition-all duration-300"
+          className="text-white px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+          style={{ backgroundColor: 'var(--primary)', boxShadow: '0 8px 30px -10px var(--primary)' }}
         >
           <UserPlus size={22} strokeWidth={2.5} /> Créer un dossier
         </Link>
       </div>
 
-      {/* BARRE DE RECHERCHE ET FILTRES */}
       <div className="flex flex-col xl:flex-row gap-4 bg-white/60 backdrop-blur-xl border border-white/80 p-4 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="relative group flex-1">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#003380] transition-colors" size={20} />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--primary)] transition-colors" size={20} />
           <input 
               type="text" 
               placeholder="Rechercher par nom, prénom ou dossier..." 
-              className="w-full pl-12 pr-6 py-3 bg-white/80 border border-slate-200/60 rounded-2xl focus:ring-4 focus:ring-[#003380]/10 focus:border-[#003380] outline-none text-base transition-all font-bold text-[#003380]"
+              className="w-full pl-12 pr-6 py-3 bg-white/80 border border-slate-200/60 rounded-2xl focus:ring-4 outline-none text-base transition-all font-bold"
+              style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)', borderColor: 'var(--primary)', color: 'var(--primary)' } as any}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
           />

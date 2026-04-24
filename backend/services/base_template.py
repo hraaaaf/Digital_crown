@@ -35,6 +35,13 @@ class BaseTemplate:
         reshaped_text = arabic_reshaper.reshape(text)
         return get_display(reshaped_text)
 
+    def _get_val(self, obj, key, default=None):
+        """Récupère une valeur que l'objet soit un dict ou un modèle SQLAlchemy."""
+        if obj is None: return default
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
     def draw_static_elements(self, canvas, doc, config=None, draw_legal_ids=False, user=None):
         """
         Dessine les éléments statiques du Template Mère.
@@ -44,13 +51,18 @@ class BaseTemplate:
         canvas.saveState()
         
         # 1. Récupération des paramètres
-        primary_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        secondary_color = colors.HexColor(config.secondary_color) if config else colors.HexColor('#666666')
-        accent_color = colors.HexColor(config.accent_color) if config else colors.HexColor('#0055AA')
+        p_color_hex = self._get_val(config, 'primary_color', '#003380')
+        s_color_hex = self._get_val(config, 'secondary_color', '#666666')
+        a_color_hex = self._get_val(config, 'accent_color', '#0055AA')
+
+        primary_color = colors.HexColor(p_color_hex)
+        secondary_color = colors.HexColor(s_color_hex)
+        accent_color = colors.HexColor(a_color_hex)
         
+        logo_filename = self._get_val(config, 'logo_path')
         logo_path = None
-        if config and config.logo_path:
-            logo_path = os.path.join(self.base_path, "static", "uploads", config.logo_path)
+        if logo_filename:
+            logo_path = os.path.join(self.base_path, "static", "uploads", logo_filename)
         if not logo_path or not os.path.exists(logo_path):
             logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
 
@@ -61,9 +73,10 @@ class BaseTemplate:
         
         # 2. Watermark Central (Opalescent)
         # Transparent et majestueux
-        if config and config.watermark_enabled and logo_path:
+        watermark_enabled = self._get_val(config, 'watermark_enabled', False)
+        if watermark_enabled and logo_path:
             canvas.saveState()
-            opacity = config.watermark_opacity if hasattr(config, 'watermark_opacity') else 0.10
+            opacity = self._get_val(config, 'watermark_opacity', 0.10)
             canvas.setFillAlpha(opacity)
             w_size = 9*cm # Légèrement plus grand comme demandé
             canvas.drawImage(logo_path, (p_width - w_size)/2, (p_height - w_size)/2, width=w_size, height=w_size, mask='auto')
@@ -83,8 +96,11 @@ class BaseTemplate:
         """
         y_pos = p_height - 1.5*cm
         
-        fr_lines = config.header_lines_fr if config and config.header_lines_fr else ["Dr. Nom Prénom", "Chirurgien Dentiste"]
-        ar_lines = config.header_lines_ar if config and config.header_lines_ar else ["د. الإسم الكامل", "طبيب جراح للأسنان"]
+        fr_lines = self._get_val(config, 'header_lines_fr')
+        if not fr_lines: fr_lines = ["Dr. Nom Prénom", "Chirurgien Dentiste"]
+        
+        ar_lines = self._get_val(config, 'header_lines_ar')
+        if not ar_lines: ar_lines = ["د. الإسم الكامل", "طبيب جراح للأسنان"]
 
         # Centre : Logo
         if logo_path:
@@ -123,8 +139,8 @@ class BaseTemplate:
         p_width, _ = doc.pagesize
         
         # Couleurs
-        p_color = config.primary_color if config else "#003380"
-        s_color = config.secondary_color if config else "#666666"
+        p_color = self._get_val(config, 'primary_color', '#003380')
+        s_color = self._get_val(config, 'secondary_color', '#666666')
         
         # Trait de séparation
         canvas.setStrokeColor(colors.HexColor(p_color))
@@ -140,17 +156,17 @@ class BaseTemplate:
         def _clean(val):
             return str(val).strip() if val else ""
 
-        address = _clean(config.footer_address) if config else ""
+        address = self._get_val(config, 'footer_address')
         if not address:
-            address = _clean(getattr(user, "adresse_complete", None)) or "Votre adresse de cabinet"
+            address = self._get_val(user, "adresse_complete") or "Votre adresse de cabinet"
             
         center_x = p_width / 2
         canvas.drawCentredString(center_x, 2.0*cm, self._prepare_arabic(address))
         
         # Gestion des contacts granulaires (Sprint 59)
         contacts_to_show = []
-        if config and config.contacts_json:
-            c_json = config.contacts_json
+        c_json = self._get_val(config, 'contacts_json')
+        if c_json:
             labels = {"fixe": "Tél", "mobile": "Mob", "whatsapp": "WhatsApp", "instagram": "Insta"}
             for key in ["fixe", "mobile", "whatsapp", "instagram"]:
                 info = c_json.get(key)
@@ -159,9 +175,9 @@ class BaseTemplate:
         
         # Fallback sur footer_phones si contacts_json vide
         if not contacts_to_show:
-            phones = _clean(config.footer_phones) if config else ""
+            phones = self._get_val(config, 'footer_phones')
             if not phones:
-                phones = _clean(getattr(user, "telephone_fixe", None)) or _clean(getattr(user, "telephone_mobile", None)) or "Contactez-nous"
+                phones = self._get_val(user, "telephone_fixe") or self._get_val(user, "telephone_mobile") or "Contactez-nous"
             contacts_to_show = [phones]
             
         contact_str = " / ".join(contacts_to_show)
@@ -174,9 +190,9 @@ class BaseTemplate:
         if draw_legal_ids:
             identifiants = []
             if config:
-                c_ice = str(config.ice).strip() if getattr(config, 'ice', None) else ""
-                c_if = str(config.if_).strip() if getattr(config, 'if_', None) else ""
-                c_inpe = str(config.inpe).strip() if getattr(config, 'inpe', None) else ""
+                c_ice = str(self._get_val(config, 'ice', "")).strip()
+                c_if = str(self._get_val(config, 'if_', "")).strip()
+                c_inpe = str(self._get_val(config, 'inpe', "")).strip()
                 
                 if c_ice: identifiants.append(f"ICE : {c_ice}")
                 if c_inpe: identifiants.append(f"INP : {c_inpe}")

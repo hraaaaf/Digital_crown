@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, ZoomIn, ZoomOut, Maximize, CheckCircle2, Loader2 } from 'lucide-react';
 
-import { api } from '../../services/api';
+import { cephaloRepository, type Point as BackendPoint } from '../../services/cephaloRepository';
 
 // --- NOMENCLATURE OFFICIELLE (19 POINTS) ---
 const LANDMARK_LABELS: Record<string, string> = {
@@ -68,18 +68,26 @@ export const CephaloStudio: React.FC<CephaloStudioProps> = ({
     }));
   };
 
-  // --- SYNCHRONISATION BACKEND ---
+  // --- SYNCHRONISATION VIA REPOSITORY ---
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Envoi des points corrigés pour recalcul des angles SNA, SNB, ANB
-      await api.post(`/analyses/${analysisId}/refine`, {
-        landmarks: landmarks
+      // Conversion au format plat [ {id, x, y} ] pour le Backend
+      const formattedLandmarks: BackendPoint[] = Object.entries(landmarks).map(([id, p]) => ({
+        id,
+        x: p.x,
+        y: p.y
+      }));
+
+      await cephaloRepository.refineAnalysis(analysisId, {
+        landmarks: formattedLandmarks
       });
+
       if (onUpdateSuccess) onUpdateSuccess();
       alert("Points cliniques validés. Mesures recalculées.");
     } catch (error) {
       console.error("Erreur de synchronisation Cephalo:", error);
+      alert("Erreur lors de la validation de l'analyse.");
     } finally {
       setIsSaving(false);
     }

@@ -136,15 +136,31 @@ def update_my_clinic(
     
     update_dict = config_update.model_dump(exclude_unset=True)
     
-    # Mapping des alias vers les colonnes physiques
+    # Mapping intelligent des alias vers les colonnes physiques
     if "adresse" in update_dict:
-        update_dict["footer_address"] = update_dict.pop("adresse")
+        if "footer_address" not in update_dict:
+            update_dict["footer_address"] = update_dict.pop("adresse")
+        else:
+            update_dict.pop("adresse")
+            
     if "telephone" in update_dict:
-        update_dict["footer_phones"] = update_dict.pop("telephone")
-        
-    # Identifiants légaux
-    if "if" in update_dict:
-        update_dict["if_"] = update_dict.pop("if")
+        if "footer_phones" not in update_dict:
+            update_dict["footer_phones"] = update_dict.pop("telephone")
+        else:
+            update_dict.pop("telephone")
+            
+    if "nom" in update_dict:
+        nom_val = update_dict.pop("nom")
+        update_dict["nom_praticien"] = nom_val
+        if "nom_cabinet" not in update_dict:
+            update_dict["nom_cabinet"] = nom_val
+            
+        current_headers = list(config.header_lines_fr) if config.header_lines_fr else []
+        if current_headers:
+            current_headers[0] = nom_val
+        else:
+            current_headers = [nom_val]
+        update_dict["header_lines_fr"] = current_headers
         
     for key, value in update_dict.items():
         if hasattr(config, key):

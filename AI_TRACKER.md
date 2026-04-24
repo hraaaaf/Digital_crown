@@ -3,9 +3,9 @@
 Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à jour systématiquement à chaque modification significative de l'application pour garantir un contexte persistant entre les différentes sessions.
 
 ## 📌 État Actuel du Projet
-- **Version** : 4.6 (Medical Premium & Smart Typography)
-- **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / TailwindCSS 4
-- **Dernière M.A.J** : 21 Avril 2026 (Medical Premium Stabilization v4.6)
+- **Version** : 5.0 (Ghost Elite & Secure QR Validation)
+- **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / TailwindCSS 4 / Recharts / WeasyPrint
+- **Dernière M.A.J** : 22 Avril 2026 (Ghost Elite Rebranding & QR Integration)
 
 ---
 
@@ -16,27 +16,26 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 - **Moteur Géométrique :** `backend/services/cephalo_engine.py` (Calculs COM V4)
 - **Moteur Vision (ML) :** `backend/services/vision_service.py` (CephLD-CCA / U-Net)
 - **Moteur Diagnostic (LLM) :** `backend/services/ai_advisor.py` (Ollama/Llama 3.2 local)
-- **Générateurs PDF :** `backend/services/generators/` (ReportLab)
+- **Générateurs PDF :** `backend/services/generators/` (Migration progressive vers WeasyPrint/Jinja2)
+- **Service QR :** `backend/services/qr_service.py` (Validation sécurisée)
 - **Base de données :** PostgreSQL (config: `backend/database.py`)
 
 ### Frontend (Port 5173)
 - **Interface Base :** `frontend/src/`
-- **Routing :** React Router
-- **Composants Transverses :** `frontend/src/components/`
-- **Setup Wizard & Studio :** `frontend/src/features/admin/SetupWizard.tsx` (Architecture v4.0 optimisée avec `useMemo` et `useCallback`)
-- **Composants Studio :** `frontend/src/features/admin/components/LiveDocumentStudio.tsx` (Moteur de rendu WYSIWYG isolé) et `CrownGuide.tsx`
-- **Odontogramme FDI :** `frontend/src/components/odontogram/` (Interactif SVG)
+- **Branding Engine :** `frontend/src/components/Layout/MainLayout.tsx` (CSS Variables Source of Truth)
+- **Composants Analytiques :** `frontend/src/pages/AccountingPage.tsx` (Intégration Recharts)
+- **Studio Comptable :** `frontend/src/features/admin/AccountingStudio.tsx` (UX Zero-Friction)
 
 ---
 
 ## 🚀 Fonctionnalités Clés Implémentées
 
-1. **Analyse Céphalométrique Automatisée :** De l'upload radio (Vision PyTorch) jusqu'au compte rendu clinique (ReportLab), incluant les calculs COM et le diagnostic assisté.
+1. **Analyse Céphalométrique Automatisée :** De l'upload radio (Vision PyTorch) jusqu'au compte rendu clinique (ReportLab/WeasyPrint), incluant les calculs COM et le diagnostic assisté.
 2. **Odontogramme Interactif :** Interface graphique de suivi patient avec les nomenclatures (11-48, etc) et une logique de devis.
 3. **Sécurité et Anti-Doublons :** Logiques en place pour les saisies patients, avec module d'archivage des documents avec délai de rétention.
-4. **Design** : Choix entre en-tête automatique (Logo + Texte) ou Papier en-tête pré-imprimé (A5).
-    *   **Template Studio** : Choix du layout (`modern`, `classic`, `minimal`).
-5. **Ambiance** : Sélection du thème global (`elite`, `emerald`, `prestige`) avec application instantanée via variables CSS.
+4. **Design Ghost Elite** : Thème ultra-premium entièrement basé sur des variables CSS (`--primary`, `--secondary`), synchronisé entre le dashboard, la compta et les réglages.
+5. **Visual Insights** : Graphiques de performance (Recharts) intégrés au Studio Comptable pour le suivi des revenus.
+6. **Validation QR** : Signature numérique QR sur les documents (Ordonnances) pour certifier l'authenticité via `qr_service`.
 
 ---
 
@@ -44,25 +43,18 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 
 | Date | Agent / Action | Fichiers Modifiés | Statut |
 |------|----------------|-------------------|--------|
-| 15/04/2026 | Refonte de l'archivage en base de données, implémentation option Modifier/Régénérer et Suppression logique (Corbeille). Fix nettoyage linter. | `main.py`, `PatientDocuments.tsx`, `PatientDetails.tsx`, `DocumentHub.tsx` | ✅ |
-| 15/04/2026 | Initialisation de la documentation de suivi (`AI_TRACKER.md`). | `AI_TRACKER.md` | ✅ |
-| 18/04/2026 | Stabilisation critique du SetupWizard (v1.1). Fix erreurs de scope (specialties) et structure JSX (LiveDocumentStudio). Synchronisation des thèmes. | `SetupWizard.tsx`, `ROADMAP.md`, `AGENTS.md` | ✅ |
-| 18/04/2026 | Intégration du Template Studio dans le Wizard. Sélection de 3 modèles de layouts avec prévisualisation dynamique. | `SetupWizard.tsx`, `ROADMAP.md`, `AGENTS.md` | ✅ |
-| 18/04/2026 | Déploiement du Branding Engine (v3.0). Personnalisation typographique (Premium Fonts) et chromatique (Elite Colors). | `SetupWizard.tsx`, `ROADMAP.md`, `AGENTS.md` | ✅ |
-| 18/04/2026 | **Stabilisation Technique Finale** : Correction du typage `CabinetConfig` (couleurs secondaires/accent), unification du nommage (`primary_color`), fix des imports d'icônes Lucide et nettoyage linter. Synchronisation critique du mode Démo. Migration DB auto implémentée pour `secondary_color` et `accent_color`. Correction du conflit de schémas `CabinetConfigOut`. | `template.ts`, `SetupWizard.tsx`, `MainLayout.tsx`, `Sidebar.tsx`, `WelcomeScreen.tsx`, `database.py`, `schemas.py`, `main.py` | ✅ |
-| 19/04/2026 | **Refactoring Architectural 10/10** : Extraction de `LiveDocumentStudio` et `CrownGuide` pour éliminer les re-rendus. Optimisation performance (hooks), support Arabe diacritique, confirmation IA extraction, et validation contacts Step 3. | `SetupWizard.tsx`, `LiveDocumentStudio.tsx`, `CrownGuide.tsx`, `AI_TRACKER.md` | ✅ |
-| 20/04/2026 | **Sécurisation Live Preview (v4.1)** : Résolution de `RuntimeError: Response content shorter than Content-Length` via l'implémentation d'un nommage unique avec horodatage (seconde) dans tous les générateurs. Isolation des imports critiques pour la stabilité ASGI. | `accounting_gen.py`, `libre_gen.py`, `ordonnance_gen.py`, `certificat_gen.py`, `template_engine.py` | ✅ |
-| 20/04/2026 | **Master Template Native (v4.0)** : Transition complète vers un moteur vectoriel sans images de fond. Centralisation de la mise en page dans `BaseTemplate`. Intégration des identifiants ICE, IF, INPE dans `CabinetConfig` et affichage conditionnel sur les factures/devis. Mise à jour de l'UI Settings. | `base_template.py`, `models.py`, `schemas.py`, `clinics.py`, `Settings.tsx`, `accounting_gen.py`, `ordonnance_gen.py`, `certificat_gen.py`, `libre_gen.py`, `cephalo_gen.py` | ✅ |
-| 21/04/2026 | **Stabilisation Medical Premium (v4.6)** : Intégration Outfit/Inter via WeasyPrint. Forçage de la couleur primaire sur tout le texte. Simplification des totaux (lettres uniquement). Fix syntaxe CSS generator. | `template_engine.py`, `ordonnance_gen.py`, `certificat_gen.py`, `accounting_gen.py`, `schemas.py`, `ROADMAP.md` | ✅ |
+| 22/04/2026 | **Refonte Ghost Elite (Phase 1-4)** : Suppression des couleurs hardcodées, passage au branding dynamique CSS. Intégration Recharts dans `AccountingPage`. Optimisation UX `AccountingStudio` (Actes Rapides). Implémentation QR Validation & Migration `OrdonnanceGenerator` vers WeasyPrint. | `MainLayout.tsx`, `Dashboard.tsx`, `AccountingPage.tsx`, `Settings.tsx`, `AccountingStudio.tsx`, `qr_service.py`, `ordonnance_gen.py`, `base_elite.html` | ✅ |
+| 23/04/2026 | **Phase 6 : Synchronisation & Rendu "Ghost Elite"** : Intégration des métriques esthétiques (Ricketts), Auto-Calibration IA, et Color-Coding des déviations. Certification PDF v4.6 stable. | `CephaloWorkspace.tsx`, `Step3Clinical.tsx`, `cephalo_gen.py`, `cephaloTypes.ts` | ✅ |
 
 ---
 
-## 🎯 Prochaines Actions & Todo (À remplir lors des directives)
+## 🎯 Prochaines Actions & Todo
 
-- [ ] **Smart QR Validation** : Implémenter la signature numérique QR sur les documents (Brainstorming validé).
+- [x] **Smart QR Validation** : Implémenter la signature numérique QR sur les documents.
 - [ ] **Validation Impresseur** : Confirmer l'alignement millimétré du papier en-tête physique vs PDF.
 - [ ] **Morphing T2** : Finalisation du moteur de prédiction de croissance.
-- [ ] **Multi-Style Engine** : Permettre le changement de layout au moment de l'impression.
+- [ ] **UX "Zero-Friction" Full** : Drag-and-Drop pour la réorganisation des actes dans le Studio.
+- [ ] **Reporting PDF Global** : Migrer tous les générateurs (Certificat, Devis, Note) vers WeasyPrint + QR.
 
 ---
 

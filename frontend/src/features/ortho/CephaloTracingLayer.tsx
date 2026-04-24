@@ -101,6 +101,7 @@ export interface CephaloTracingLayerProps {
   hoveredMetric?:  { key: string; points: string[]; lines: string[] } | null;
   onEmptyAreaClick?: (x: number, y: number) => void;
   magnifierEnabled?: boolean;
+  performanceMode?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -297,13 +298,14 @@ interface ToothProps {
   isGhost?:        boolean;
   isBeingDragged?: boolean;
   glowFilter?:     string;
+  performanceMode?: boolean;
 }
 
 const AnatomicalTooth: React.FC<ToothProps> = React.memo(({
   incisalPoint, apexPoint, color,
   isHovered, opacity = 1,
   isGhost = false, isBeingDragged = false,
-  glowFilter,
+  glowFilter, performanceMode = false,
 }) => {
   const cx    = (incisalPoint.x + apexPoint.x) / 2;
   const cy    = (incisalPoint.y + apexPoint.y) / 2;
@@ -322,7 +324,7 @@ const AnatomicalTooth: React.FC<ToothProps> = React.memo(({
     <g
       transform={`translate(${cx},${cy}) rotate(${angle}) scale(${s})`}
       opacity={opacity}
-      style={{ pointerEvents: 'none', filter: isBeingDragged && !isGhost ? glowFilter : undefined }}
+      style={{ pointerEvents: 'none', filter: !performanceMode && isBeingDragged && !isGhost ? glowFilter : undefined }}
     >
       {/* Silhouette anatomique couronne */}
       <path
@@ -463,6 +465,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   hoveredMetric,
   onEmptyAreaClick,
   magnifierEnabled = true,
+  performanceMode = false,
 }) => {
   if (imageWidth === 0 || imageHeight === 0) return null;
 
@@ -615,9 +618,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
           stroke={c} strokeDasharray={opts?.dash ?? ghostDash}
           vectorEffect="non-scaling-stroke"
-          animate={{ strokeWidth: sw, opacity: op }}
+          animate={performanceMode ? {} : { strokeWidth: sw, opacity: op }}
           transition={{ duration: 0.14 }}
-          style={isH ? { filter: `drop-shadow(0 0 5px ${c})` } : {}}
+          style={!performanceMode && isH ? { filter: `drop-shadow(0 0 5px ${c})` } : {}}
         />
       );
     };

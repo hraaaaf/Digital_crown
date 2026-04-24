@@ -1,0 +1,58 @@
+{% extends "base_elite.html" %}
+
+{% block extra_css %}
+    .document-content {
+        margin-top: 0.5cm;
+    }
+
+    .patient-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 2cm;
+        color: var(--primary);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .patient-name {
+        font-weight: 900;
+        font-size: 11pt;
+    }
+
+    .doc-date {
+        font-weight: 700;
+        font-size: 11pt;
+    }
+
+    .certif-body {
+        font-family: 'Inter', sans-serif;
+        font-size: 11pt;
+        color: var(--primary);
+        line-height: 2;
+        text-align: justify;
+        margin-top: 1.5cm;
+    }
+
+    .certif-body b {
+        font-weight: 900;
+    }
+{% endblock %}
+
+{% block content %}
+    <h1 class="document-title" style="text-decoration: underline; text-underline-offset: 6px;">CERTIFICAT MEDICAL</h1>
+
+    <div class="document-content">
+        <div class="patient-header">
+            <div class="patient-name">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}, {{ patient_age }} ans</div>
+            <div class="doc-date">Le : <u>{{ date_generation }}</u></div>
+        </div>
+
+        <div class="certif-body">
+            Je, soussigné Dr. {{ praticien.nom_complet }}, certifie que l'état de santé de 
+            {{ hon }} <b>{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}</b>, 
+            âgé(e) de <b>{{ patient_age }} ans</b>, nécessite {{ type_repos }} d'une durée de <b>{{ certif_days }} jours</b>, 
+            à partir du <b>{{ start_date }}</b>.<br/><br/>
+            Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit.
+        </div>
+    </div>
+{% endblock %}

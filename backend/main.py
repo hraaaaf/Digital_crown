@@ -7,36 +7,31 @@ import uuid
 import time
 import subprocess
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from datetime import date, datetime
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc
+from sqlalchemy import func, and_, desc
 from pydantic import BaseModel
 
 # --- IMPORTS SERVICES IA (INSTANCE SINGLETON DYNAMIQUE) ---
 from backend.services.cephalo_engine import cephalo_engine
-from backend.services.vision_service import vision_engine
 from backend.services.ai_advisor import ai_advisor
 from backend.services.prescription_service import prescription_service
+from backend.services.cephalo_service import CephaloService
 
 # --- IMPORTS SERVICES DOCUMENTS ---
 from backend.services.pdf_generator import PDFReportGenerator
 from backend.services.document_factory import DocumentFactory
-from backend.services.archive_service import ArchiveService, get_archive_service
+from backend.services.archive_service import get_archive_service
 from backend.services.generators.report_gen import ReportGenerator
 
 # --- IMPORTS SÉCURITÉ ---
-from backend.services.file_validator import (
-    validate_uploaded_image, 
-    sanitize_filename,
-    ALLOWED_EXTENSIONS
-)
 
 from backend import models, schemas, database
 from backend.seed_templates import run_full_seed
@@ -116,8 +111,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """Logue les détails des erreurs 422 pour le débugging."""
     logger.error(f"422 Validation Error: {request.method} {request.url}")
     logger.error(f"Détails: {exc.errors()}")
-    # Pour le body, c'est asynchrone, on peut le logger si besoin mais attention aux gros payloads
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    from fastapi.encoders import jsonable_encoder
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Intercepte et logue toutes les erreurs HTTP >= 400 pour le terminal."""
+    if exc.status_code >= 400:
+        logger.error(f"HTTP {exc.status_code} Error: {request.method} {request.url} - Detail: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 # --- CORS CONFIGURATION ---
 # En production, définir ALLOWED_ORIGINS dans le .env
@@ -325,11 +330,6 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
 
 
 def generate_next_dossier_number(db: Session) -> str:
-    """
-    Génère le prochain numéro de dossier disponible.
-    Format: P-XXXXXX (ex: P-000001, P-000002, etc.)
-    """
-    from sqlalchemy import func
     
     # Récupérer le dernier patient créé
     last_patient = db.query(models.Patient).order_by(models.Patient.id.desc()).first()
@@ -603,8 +603,6 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         })
         
     # 2. Rétrocompatibilité : Lecture des anciens fichiers (Legacy)
-    # On ne les ajoute QUE s'ils ne sont pas déjà présents en base de données (doublons)
-    import uuid
     p_folder = f"{patient.id}_{patient.nom.upper()}_{patient.prenom.capitalize()}"
     patient_docs_dir = os.path.join(STATIC_DIR, "patients", p_folder, "Documents")
     
@@ -646,12 +644,9 @@ def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = De
     if not patient: 
         raise HTTPException(status_code=404, detail="Patient introuvable")
 
-    # --- SAUVEGARDE DU FICHIER (validation simplifiée) ---
+    # --- SAUVEGARDE DU FICHIER ---
     content_type = file.content_type or ""
-    if "jpeg" in content_type or "jpg" in content_type:
-        ext = ".jpg"
-    else:
-        ext = ".png"
+    ext = ".jpg" if ("jpeg" in content_type or "jpg" in content_type) else ".png"
     unique_filename = f"{uuid.uuid4()}{ext}"
     file_location = os.path.join(RADIO_DIR, unique_filename)
     db_path = f"static/uploads/radios/{unique_filename}"
@@ -659,143 +654,43 @@ def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = De
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Vérifier que le fichier existe et a une taille > 0
     if not os.path.exists(file_location) or os.path.getsize(file_location) == 0:
         raise HTTPException(status_code=400, detail="Erreur lors de la sauvegarde du fichier")
     
-    logger.info(f"Fichier sauvegardé: {file_location}, taille: {os.path.getsize(file_location)} bytes")
-
-    # 1. Inférence Vision
+    # --- APPEL AU SERVICE CENTRALISÉ ---
     try:
-        vision_result = vision_engine.predict_landmarks(file_location)
-        pts = vision_result["landmarks"]
-        points_dict = {p['id']: (p['x'], p['y']) for p in pts}
+        service = CephaloService(db)
+        result = service.process_new_radio(patient_id, file_location, db_path)
+        
+        # Injection de l'URL pour le frontend
+        result["file_url"] = f"http://localhost:8000/{db_path}"
+        return result
     except Exception as e:
-        logger.error(f"Erreur lors de l'analyse de l'image: {e}")
-        # Supprimer le fichier en cas d'erreur
-        if os.path.exists(file_location):
-            os.remove(file_location)
-        raise HTTPException(status_code=400, detail=f"Impossible d'analyser l'image: {str(e)}")
-    
-    # 2. Calcul des métriques & Orchestration IA
-    final_payload = cephalo_engine.calculate_metrics(points_dict)
-    
-    # 3. Initialisation structurelle V4 du conteneur Bilan
-    final_payload["clinical_data"] = {
-        "ddm_maxillaire": None, 
-        "ddm_mandibulaire": None, 
-        "ddm_reelle": None, 
-        "plan_traitement": ""
-    }
-    
-    # 4. Injection des métadonnées de vision
-    final_payload["vision_metadata"] = {
-        "mode_inference": vision_result["mode_inference"],
-        "warning": vision_result["warning"],
-        "processing_time_ms": vision_result["processing_time_ms"]
-    }
-
-    db_analysis = models.CephaloAnalysis(
-        patient_id=patient_id,
-        image_original_path=db_path,
-        angles_data=final_payload,
-        landmarks_data=pts
-    )
-    db.add(db_analysis); db.commit(); db.refresh(db_analysis)
-
-    return {
-        "status": "success",
-        "analysis_id": db_analysis.id,
-        "file_url": f"http://localhost:8000/{db_path}",
-        "results": final_payload,
-        "ai_diagnostic": final_payload.get("ai_narrative", {}),
-        "landmarks": pts,
-        "is_calibrated": db_analysis.is_calibrated,
-        "mm_per_pixel": db_analysis.mm_per_pixel
-    }
+        logger.error(f"Erreur lors de l'analyse IA : {e}")
+        if os.path.exists(file_location): os.remove(file_location)
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.put("/analyses/{analysis_id}")
 def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session = Depends(database.get_db)):
-    """Sauvegarde unifiée V4 : Points, Diagnostic IA et Données de Moulages (DDM)."""
-    db_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
-    if not db_analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
-
-    # 1. Recalcul Géométrique (avec projections McNamara si fournies)
-    points_dict = {p.id: (p.x, p.y) for p in req.landmarks}
-    mcnamara_proj = req.mcnmara_projections.model_dump() if req.mcnmara_projections else None
-    final_payload = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=req.mm_per_pixel, mcnamara_projections=mcnamara_proj)
-
-    # 2. Persistance du Diagnostic IA (Master Logic)
-    if req.ai_diagnostic:
-        # On conserve le texte corrigé manuellement par le médecin
-        final_payload["ai_diagnostic"] = req.ai_diagnostic
-    else:
-        # On régénère via l'IA
-        final_payload["ai_diagnostic"] = ai_advisor.generate_diagnostic(final_payload)
-    
-    # 3. Persistance du Bilan Clinique (Moulages & Plan de Traitement)
-    if req.clinical_data is not None:
-        # Conversion du modèle Pydantic en Dict pour stockage JSON
-        cd = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
+    """Sauvegarde unifiée v4.7 : Utilisation du CephaloService pour une logique unifiée."""
+    try:
+        service = CephaloService(db)
+        # Conversion McNamara en dict si présent pour éviter AttributeError .get() dans l'engine
+        mcnamara_dict = req.mcnmara_projections.model_dump() if req.mcnmara_projections else None
         
-        # Calcul automatique de la DDM Réelle si l'IMPA et les DDM Cliniques sont présents
-        impa = final_payload["metrics"]["analyse_dentaire"]["IMPA"]["value"]
-        
-        # DDM Céphalo = (IMPA − 90°) / 2.5  →  s'applique aux DEUX arcades
-        ddm_cephalo = (impa - 90) / 2.5 if impa else 0
-        
-        # DDM Réelle Maxillaire = DDM Clinique Max + DDM Céphalo
-        if cd.get("ddm_maxillaire"):
-            ddm_max_clinique = cd["ddm_maxillaire"].get("calcul_ddm", 0)
-            ddm_max_reelle = ddm_max_clinique + ddm_cephalo
-            cd["ddm_maxillaire"]["calcul_ddm_reelle"] = round(ddm_max_reelle, 2)
-        else:
-            ddm_max_reelle = 0
-        
-        # DDM Réelle Mandibulaire = DDM Clinique Mand + DDM Céphalo
-        if cd.get("ddm_mandibulaire"):
-            ddm_mand_clinique = cd["ddm_mandibulaire"].get("calcul_ddm", 0)
-            ddm_mand_reelle = ddm_mand_clinique + ddm_cephalo
-            cd["ddm_mandibulaire"]["calcul_ddm_reelle"] = round(ddm_mand_reelle, 2)
-        else:
-            ddm_mand_reelle = 0
-        
-        # DDM Réelle Totale = Max + Mand
-        cd["ddm_reelle"] = round(ddm_max_reelle + ddm_mand_reelle, 2)
-            
-        final_payload["clinical_data"] = cd
-    else:
-        # Conservation des données existantes si non fournies dans l'update
-        final_payload["clinical_data"] = db_analysis.angles_data.get("clinical_data", {})
-
-    if req.mm_per_pixel is not None:
-        final_payload["mm_per_pixel"] = req.mm_per_pixel
-    
-    # 4. Stockage des projections McNamara (A', B', N') si fournies par le frontend
-    if req.mcnmara_projections:
-        final_payload["mcnamara_projections"] = req.mcnmara_projections.model_dump() if hasattr(req.mcnmara_projections, 'model_dump') else req.mcnmara_projections.dict()
-        logger.info(f"[McNamara] Projections reçues - A': {final_payload['mcnamara_projections'].get('A_prime')}, B': {final_payload['mcnamara_projections'].get('B_prime')}")
-
-    # 5. Mise à jour Base de données
-    db_analysis.landmarks_data = [p.model_dump() if hasattr(p, 'model_dump') else p.dict() for p in req.landmarks]
-    db_analysis.angles_data = final_payload
-    db.commit()
-    db.refresh(db_analysis)
-
-    # LOG: Compare landmarks reçus et renvoyés
-    import logging
-    logging.warning("[PUT /analyses/%s] Landmarks reçus: %s", analysis_id, req.landmarks)
-    logging.warning("[PUT /analyses/%s] Landmarks renvoyés: %s", analysis_id, db_analysis.landmarks_data)
-
-    return {
-        "status": "success",
-        "analysis_id": db_analysis.id,
-        "results": final_payload,
-        "ai_diagnostic": final_payload["ai_diagnostic"],
-        "landmarks": db_analysis.landmarks_data,
-        "is_calibrated": db_analysis.is_calibrated,
-        "mm_per_pixel": db_analysis.mm_per_pixel
-    }
+        return service.refine_analysis(
+            analysis_id=analysis_id,
+            landmarks=req.landmarks,
+            clinical_data=req.clinical_data,
+            ai_diagnostic=req.ai_diagnostic,
+            mm_per_pixel=req.mm_per_pixel,
+            mcnamara_projections=mcnamara_dict
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erreur lors de la mise à jour de l'analyse : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/analyses/{analysis_id}/calibrate", response_model=schemas.CalibrationResponse)
@@ -841,8 +736,8 @@ def calibrate_analysis(
     # Recalcul des métriques avec le nouveau ratio
     if db_analysis.landmarks_data:
         points_dict = {p['id']: (p['x'], p['y']) for p in db_analysis.landmarks_data}
-        new_angles = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_per_pixel)
-        db_analysis.angles_data = new_angles
+        new_analysis_result = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_per_pixel)
+        db_analysis.angles_data = new_analysis_result.model_dump()
     
     db.commit()
     db.refresh(db_analysis)
@@ -887,9 +782,13 @@ def generate_patient_pdf(patient_id: int, req: schemas.CephaloPDFRequest, db: Se
         analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
 
     try:
+        # Récupération de l'identité du médecin pour la thémisation (fallback local)
+        user = db.query(models.User).first()
+        user_id = user.id if user else 1
+
         # Orchestration vers le nouveau moteur de Bilan Complet Multi-pages
-        # Transmission de db et owner_id pour thémisation
-        pdf_path = doc_factory.create_bilan_report(patient, analysis_data, db=db, user_id=patient.owner_id)
+        # Transmission de db et user_id pour thémisation
+        pdf_path = doc_factory.create_bilan_report(patient, analysis_data, db=db, user_id=user_id)
     except Exception as e:
         import traceback
         logger.error(f"Échec de la génération du Bilan Complet PDF : {str(e)}")
@@ -1459,7 +1358,7 @@ def cleanup_trash_cron(
     deleted_count = archive_service.cleanup_expired_trash()
     
     return {
-        "message": f"Nettoyage effectué",
+        "message": "Nettoyage effectué",
         "documents_deleted": deleted_count,
         "timestamp": datetime.now()
     }
@@ -1587,13 +1486,24 @@ def export_accounting_pdf(
         
     # Génération via le nouveau service
     report_gen = ReportGenerator()
-    pdf_url = report_gen.generate_accounting_report(
+    filepath = report_gen.generate_accounting_report(
         items=items,
         total_amount=total_amount,
         filters={"assurance": assurance, "month": month, "year": year}
     )
     
-    return {"pdf_url": pdf_url}
+    # Rigueur CTO : On retourne le fichier directement pour un téléchargement immédiat
+    from fastapi.responses import FileResponse
+    full_path = os.path.join(os.getcwd(), filepath)
+    
+    # On définit un nom de fichier propre pour le téléchargement
+    download_name = f"Rapport_Honoraires_{year or 'Global'}_{month or ''}.pdf"
+    
+    return FileResponse(
+        path=full_path, 
+        filename=download_name,
+        media_type='application/pdf'
+    )
 
 @app.get("/patients/{patient_id}/appointment-intel")
 def get_patient_appointment_intel(patient_id: int, db: Session = Depends(database.get_db)):

@@ -10,11 +10,13 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.odontogram_drawer import OdontogramDrawer
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
         self.base_output_dir = base_output_dir
         self.base_template = BaseTemplate()
+        self.odontogram_drawer = OdontogramDrawer()
         self.styles = getSampleStyleSheet()
         self._init_styles()
 
@@ -123,10 +125,15 @@ class AccountingGenerator:
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
         return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
-    def _draw_canvas(self, canvas, doc, config=None, user=None):
+    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
         """Rendu de la note comptable avec identifiants et clôture épinglée."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
         
+        # Dessin de l'odontogramme schématique (Désactivé sur demande utilisateur)
+        # if highlighted_teeth:
+        #     p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
+        #     self.odontogram_drawer.draw(canvas, 1.5*cm, 16.5*cm, highlighted_teeth=highlighted_teeth, p_color=p_color)
+            
         # Clôture épinglée en bas
         if hasattr(doc, 'cloture_text') and doc.cloture_text:
             p_width, p_height = doc.pagesize
@@ -224,11 +231,19 @@ class AccountingGenerator:
             template = "Arrêtée la présente note à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+        # Extraction des dents pour le schéma
+        highlighted_teeth = []
+        for p in data.payments:
+            if hasattr(p, 'dents') and p.dents:
+                highlighted_teeth.extend([int(d) for d in p.dents])
+            elif hasattr(p, 'dent') and p.dent and str(p.dent).isdigit():
+                highlighted_teeth.append(int(p.dent))
+                
         user_obj = None
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj)
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)))
 
     def generate_devis(self, patient, data, document_number=None, db=None, user_id=None, **kwargs):
         filepath = self._get_save_path(patient, "DEVIS", data, doc_id=document_number)
@@ -281,17 +296,25 @@ class AccountingGenerator:
             template = "Arrêté le présent devis à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+        # Extraction des dents pour le schéma
+        highlighted_teeth = []
+        for item in data.items:
+            if hasattr(item, 'dents') and item.dents:
+                highlighted_teeth.extend([int(d) for d in item.dents])
+            elif hasattr(item, 'dent') and item.dent and str(item.dent).isdigit():
+                highlighted_teeth.append(int(item.dent))
+
         user_obj = None
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj)
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)))
 
-    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None):
+    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None):
         m_top = (config.margin_top if config else 3.6) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.cloture_text = cloture_text
-        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user)
+        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath[filepath.find("static"):].replace("\\", "/")

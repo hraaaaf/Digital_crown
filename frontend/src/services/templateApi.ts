@@ -11,6 +11,8 @@ import type {
   DocumentTemplateCreate,
   DocumentTemplateUpdate,
   TemplatePreviewRequest,
+  LetterheadUploadResponse,
+  CardExtractionResult,
 } from '../types/template';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -86,7 +88,7 @@ export const cabinetApi = {
   /**
    * Uploader le papier à en-tête (A5)
    */
-  uploadLetterhead: async (file: File, marginsTop: number, marginsBottom: number): Promise<any> => {
+  uploadLetterhead: async (file: File, marginsTop: number, marginsBottom: number): Promise<LetterheadUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('margins_top', marginsTop.toString());
@@ -103,7 +105,7 @@ export const cabinetApi = {
   /**
    * Extraire les infos d'une carte de visite (JPEG/PDF) via IA
    */
-  extractCard: async (file: File): Promise<any> => {
+  extractCard: async (file: File): Promise<CardExtractionResult> => {
     const formData = new FormData();
     formData.append('file', file);
     const { data } = await api.post('/api/clinics/extract-card', formData, {

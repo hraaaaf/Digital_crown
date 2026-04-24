@@ -13,7 +13,18 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
 import { api } from '../services/api';
+
+// --- COMPOSANTS INTERNES ---
 
 interface HonoraireItem {
   id: number | string;
@@ -51,8 +62,8 @@ export const AccountingPage = () => {
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
       const res = await api.get(url);
-      setItems(res.data.items);
-      setTotalAmount(res.data.total_amount);
+      setItems(res.data.items || []);
+      setTotalAmount(res.data.total_amount || 0);
     } catch (err) {
       console.error("Erreur honoraires:", err);
     } finally {
@@ -71,8 +82,15 @@ export const AccountingPage = () => {
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
-      const res = await api.get(url);
-      window.open(`http://localhost:8000/${res.data.pdf_url}`, '_blank');
+      const response = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `Rapport_Honoraires_${selectedYear}_${selectedMonth || 'Global'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (err) {
       console.error("Erreur export:", err);
       alert("Erreur lors de la génération du rapport PDF.");
@@ -85,9 +103,7 @@ export const AccountingPage = () => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note d'honoraires ? Elle sera déplacée dans la corbeille.")) {
       try {
         await api.post(`/documents/${id}/trash`);
-        // Mise à jour locale de la liste
         setItems(prev => prev.filter(item => item.id !== id));
-        // Recalculer le total optionnellement ou re-fetcher
         fetchHonoraires();
       } catch (err) {
         console.error("Erreur suppression honoraire:", err);
@@ -114,25 +130,37 @@ export const AccountingPage = () => {
   const getBreakdown = () => {
     const breakdown: Record<string, number> = {};
     items.forEach(item => {
-      const ass = item.assurance || 'AUCUNE';
-      breakdown[ass] = (breakdown[ass] || 0) + item.amount;
+      breakdown[item.assurance] = (breakdown[item.assurance] || 0) + item.amount;
     });
     return breakdown;
   };
 
+  // Préparation des données pour le graphique (par jour)
+  const getChartData = () => {
+    const dataMap: Record<string, number> = {};
+    items.forEach(item => {
+      const dateKey = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      dataMap[dateKey] = (dataMap[dateKey] || 0) + item.amount;
+    });
+    
+    return Object.entries(dataMap)
+      .map(([date, amount]) => ({ date, amount }))
+      .reverse(); // Ordre chronologique
+  };
+
+  const chartData = getChartData();
   const breakdown = getBreakdown();
 
   return (
     <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-8 animate-in fade-in duration-700">
       
-      {/* HEADER PREMIUM */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
         <div className="flex items-center gap-5">
-          <div className="w-14 h-14 bg-[#003380] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+          <div className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20" style={{ backgroundColor: 'var(--primary)' }}>
             <Receipt size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-[#003380] tracking-tight">Comptabilité & Honoraires</h1>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Comptabilité & Honoraires</h1>
             <p className="text-slate-500 font-medium mt-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
               <TrendingUp size={14} className="text-emerald-500" />
               Suivi des encaissements par assurance
@@ -145,19 +173,20 @@ export const AccountingPage = () => {
             {Object.entries(breakdown).map(([ass, amount]) => amount > 0 && (
               <div key={ass} className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl flex flex-col items-center min-w-[80px]">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{ass === 'MUTUELLE_FAR' ? 'FAR' : ass}</span>
-                <span className="text-[11px] font-bold text-[#003380]">{amount.toLocaleString('fr-FR')}</span>
+                <span className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{amount.toLocaleString('fr-FR')}</span>
               </div>
             ))}
           </div>
           <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Période</span>
-            <span className="text-2xl font-black text-[#003380]">{totalAmount.toLocaleString('fr-FR')} MAD</span>
+            <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</span>
           </div>
 
           <button 
             onClick={handleExport}
             disabled={exporting || items.length === 0}
-            className="flex items-center gap-3 px-6 py-4 bg-[#003380] text-white rounded-[1.5rem] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-900/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+            className="flex items-center gap-3 px-6 py-4 text-white rounded-[1.5rem] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+            style={{ backgroundColor: 'var(--primary)' }}
           >
             {exporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
             {exporting ? "Génération..." : "Exporter Rapport"}
@@ -165,16 +194,105 @@ export const AccountingPage = () => {
         </div>
       </header>
 
+      {/* SECTION INSIGHTS FINANCIERS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Graphique d'évolution */}
+        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm h-[350px] flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution des Recettes</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variation sur la période sélectionnée</p>
+            </div>
+          </div>
+          
+          <div className="flex-1 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
+                  dy={10}
+                />
+                <YAxis 
+                  hide 
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{payload[0].payload.date}</p>
+                          <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
+                            {payload[0].value?.toLocaleString('fr-FR')} MAD
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="var(--primary)" 
+                  strokeWidth={4}
+                  fillOpacity={1} 
+                  fill="url(#colorAmount)" 
+                  animationDuration={1500}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Mini Stats Grid */}
+        <div className="grid grid-cols-1 gap-4 h-full">
+          <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne / Note</span>
+            <div className="mt-2">
+              <span className="text-3xl font-black text-slate-800">
+                {items.length > 0 ? (totalAmount / items.length).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) : 0}
+              </span>
+              <span className="text-xs font-bold text-slate-400 ml-2">MAD</span>
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-emerald-500">
+              <TrendingUp size={14} />
+              <span className="text-[10px] font-bold">Stable sur 30 jours</span>
+            </div>
+          </div>
+
+          <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volume d'Activité</span>
+            <div className="mt-2">
+              <span className="text-3xl font-black text-slate-800">{items.length}</span>
+              <span className="text-xs font-bold text-slate-400 ml-2">Notes émises</span>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
+               <div className="bg-primary h-full transition-all duration-1000" style={{ width: '65%', backgroundColor: 'var(--primary)' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* FILTRES DYNAMIQUES */}
       <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm flex flex-wrap items-center gap-6">
         
         {/* Recherche */}
         <div className="relative flex-1 min-w-[300px] group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#003380] transition-colors" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Rechercher un patient..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-[#003380]/5 outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -182,9 +300,9 @@ export const AccountingPage = () => {
 
         {/* Filtre Assurance */}
         <div className="flex items-center gap-3">
-          <ShieldCheck size={18} className="text-[#003380]" />
+          <ShieldCheck size={18} style={{ color: 'var(--primary)' }} />
           <select 
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-[#003380]/5"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
             value={selectedAssurance}
             onChange={(e) => setSelectedAssurance(e.target.value)}
           >
@@ -199,9 +317,9 @@ export const AccountingPage = () => {
 
         {/* Filtre Mois */}
         <div className="flex items-center gap-3">
-          <Calendar size={18} className="text-[#003380]" />
+          <Calendar size={18} style={{ color: 'var(--primary)' }} />
           <select 
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-[#003380]/5"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
           >
@@ -214,7 +332,7 @@ export const AccountingPage = () => {
 
         {/* Filtre Année */}
         <select 
-          className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-[#003380]/5"
+          className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
           value={selectedYear}
           onChange={(e) => setSelectedYear(Number(e.target.value))}
         >
@@ -228,7 +346,7 @@ export const AccountingPage = () => {
       <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">
         {loading ? (
           <div className="py-40 flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin text-[#003380]" size={48} />
+            <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={48} />
             <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Extraction des encaissements...</p>
           </div>
         ) : filteredItems.length > 0 ? (
@@ -246,15 +364,15 @@ export const AccountingPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+                  <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[#003380] font-black text-xs border border-slate-200 group-hover:bg-[#003380] group-hover:text-white transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-xs border border-slate-200 group-hover:bg-primary group-hover:text-white transition-all" style={{ color: 'var(--primary)' }}>
                           {item.patient_name.charAt(0)}
                         </div>
                         <Link 
                           to={`/patients/${item.patient_id}?tab=admin`}
-                          className="font-bold text-slate-800 tracking-tight hover:text-[#003380] hover:underline transition-colors"
+                          className="font-bold text-slate-800 tracking-tight hover:text-primary hover:underline transition-colors"
                         >
                           {item.patient_name}
                         </Link>
@@ -270,7 +388,7 @@ export const AccountingPage = () => {
                       <span className="text-sm font-bold text-slate-600 truncate max-w-[200px] block">{item.title}</span>
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <span className="font-black text-[#003380]">{item.amount.toLocaleString('fr-FR')} MAD</span>
+                      <span className="font-black" style={{ color: 'var(--primary)' }}>{item.amount.toLocaleString('fr-FR')} MAD</span>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center justify-center gap-2">
@@ -278,17 +396,17 @@ export const AccountingPage = () => {
                           href={`http://localhost:8000/${item.file_url}`} 
                           target="_blank" 
                           rel="noreferrer"
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-[#003380] hover:text-white transition-all border border-blue-100"
+                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-primary hover:text-white transition-all border border-blue-100"
                         >
                           <Eye size={16} />
                         </a>
-                        <a 
-                          href={`/patients/${item.patient_id}/edit`}
+                        <Link 
+                          to={`/patients/${item.patient_id}/edit`}
                           className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
                           title="Attribuer Assurance"
                         >
                           <Edit size={16} />
-                        </a>
+                        </Link>
                         <a 
                           href={`http://localhost:8000/${item.file_url}`} 
                           download

@@ -41,6 +41,7 @@ class CardExtractor:
             {
               "nom_cabinet": "Nom de l'établissement",
               "nom_praticien": "Nom complet du docteur",
+              "nom_praticien_ar": "Nom complet du docteur en Arabe (si présent)",
               "adresse": "Adresse postale complète",
               "specialites": ["liste", "des", "specialites", "extraites"],
               "telephone_fixe": "Numéro de tel fixe",

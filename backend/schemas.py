@@ -15,32 +15,37 @@ class DiagnosticSLM(BaseModel):
 
 class MeasureData(BaseModel):
     """Encapsule une mesure avec ses normes, compensations et son statut clinique."""
-    valeur: Optional[float]
-    norm_mean: float
-    norm_min: float
-    norm_max: float
+    valeur: Optional[float] = None
+    norm_mean: float = 0.0
+    norm_min: float = 0.0
+    norm_max: float = 0.0
     plage_compensation: Optional[Tuple[float, float]] = None
-    status: str
-    interpretation: str
-    z_score: float
+    status: str = "N/A"
+    interpretation: str = "Non calculé"
+    z_score: float = 0.0
 
 class DentalAnalysis(BaseModel):
-    Surplomb: MeasureData
-    Recouvrement: MeasureData
-    IMPA: MeasureData
-    I_Francfort: MeasureData
-    Inter_Incisif: MeasureData
+    Surplomb: MeasureData = Field(default_factory=MeasureData)
+    Recouvrement: MeasureData = Field(default_factory=MeasureData)
+    IMPA: MeasureData = Field(default_factory=MeasureData)
+    I_Francfort: MeasureData = Field(default_factory=MeasureData)
+    Inter_Incisif: MeasureData = Field(default_factory=MeasureData)
 
 class SkeletalAnalysis(BaseModel):
-    Angle_de_Tweed: MeasureData
-    Decalage_A_B: MeasureData
-    Situation_A: MeasureData
-    Situation_B: MeasureData
-    Profondeur_Faciale: MeasureData
+    Angle_de_Tweed: MeasureData = Field(default_factory=MeasureData)
+    Decalage_A_B: MeasureData = Field(default_factory=MeasureData)
+    Situation_A: MeasureData = Field(default_factory=MeasureData)
+    Situation_B: MeasureData = Field(default_factory=MeasureData)
+    Profondeur_Faciale: MeasureData = Field(default_factory=MeasureData)
+
+class EstheticAnalysis(BaseModel):
+    Ligne_E_Ls: MeasureData = Field(default_factory=MeasureData)
+    Ligne_E_Li: MeasureData = Field(default_factory=MeasureData)
 
 class AnalysisMetrics(BaseModel):
-    analyse_dentaire: DentalAnalysis
-    analyse_osseuse: SkeletalAnalysis
+    analyse_osseuse: SkeletalAnalysis = Field(default_factory=SkeletalAnalysis)
+    analyse_dentaire: DentalAnalysis = Field(default_factory=DentalAnalysis)
+    analyse_esthetique: EstheticAnalysis = Field(default_factory=EstheticAnalysis)
 
 # --- 3. CONFIGURATION CABINET ---
 
@@ -317,6 +322,7 @@ class DDMComponent(BaseModel):
     espace_disponible: float
     espace_necessaire: float
     calcul_ddm: float
+    calcul_ddm_reelle: Optional[float] = None
 
 class ClinicalData(BaseModel):
     """Conteneur unifié pour les mesures de moulages et la synthèse clinique."""
@@ -331,12 +337,43 @@ class McNamaraProjections(BaseModel):
     A_prime: Optional[Tuple[float, float]] = None
     B_prime: Optional[Tuple[float, float]] = None
 
+class AnalysisMetadata(BaseModel):
+    unit: str = "mm"
+    pixel_ratio: float
+    type: str = "COM_Skeletal"
+    cohort: str
+
+class CephaloAnalysisResult(BaseModel):
+    """Schéma de sortie unifié du moteur CephaloEngine."""
+    analysis_metadata: AnalysisMetadata
+    metrics: AnalysisMetrics
+    visual_debug: Dict[str, Any]
+    t1_projection: Dict[str, Tuple[float, float]]
+    ai_narrative: Optional[Dict[str, str]] = None
+    ai_diagnostic: Optional[DiagnosticSLM] = None # Version structurée
+    clinical_data: ClinicalData
+
 class AnalysisUpdate(BaseModel):
     landmarks: List[LandmarkItem]
     mm_per_pixel: Optional[float] = None
     ai_diagnostic: Optional[Dict[str, str]] = None
     clinical_data: Optional[ClinicalData] = None
     mcnmara_projections: Optional[McNamaraProjections] = None  # Projections A', B', N'
+
+class CephaloViewModel(BaseModel):
+    """ViewModel unifié pour le générateur PDF (découplage total)."""
+    patient_nom: str
+    patient_prenom: str
+    patient_age: str
+    patient_id: Optional[int] = None
+    
+    analysis: CephaloAnalysisResult
+    
+    cabinet_config: Optional[Dict[str, Any]] = None # p_color, logos, etc.
+    doctor_name: Optional[str] = None
+    
+    radio_image_path: Optional[str] = None
+    date_generation: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%d/%m/%Y"))
 
 class CephaloPDFRequest(BaseModel):
     """Payload pour forcer l'impression du Bilan Complet avec les modifications Live."""
@@ -655,6 +692,7 @@ class CabinetConfigBase(BaseModel):
     footer_phones: Optional[str] = Field(default="", max_length=255)
     adresse: Optional[str] = Field(default="", max_length=500, alias="adresse") # Alias pour compatibilité frontend
     telephone: Optional[str] = Field(default="", max_length=255, alias="telephone") 
+    nom: Optional[str] = Field(default=None, max_length=255) # Alias pour nom_praticien
     
     # Identifiants légaux
     ice: Optional[str] = Field(default="", max_length=50)

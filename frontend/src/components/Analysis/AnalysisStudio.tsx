@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Upload, Brain, AlertCircle, Ruler } from 'lucide-react';
-import { api } from '../../services/api';
-import { CephaloStudio } from '../../components/Analysis/CephaloStudio';
+import { cephaloRepository, type AnalysisResults } from '../../services/cephaloRepository';
+import { CephaloStudio } from './CephaloStudio';
 import { cn } from '../../utils/cn';
 
-interface AnalysisResults {
-  id: number;
-  image_url: string;
-  landmarks: Record<string, { x: number; y: number }>;
-  angles: {
-    SNA: number;
-    SNB: number;
-    ANB: number;
-  };
-}
-
 export const AnalysisStudio = () => {
+  const { id: patientIdStr } = useParams();
+  const patientId = parseInt(patientIdStr || '0', 10);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisResults | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,29 +16,31 @@ export const AnalysisStudio = () => {
   // --- LOGIQUE D'UPLOAD & ANALYSE IA ---
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+    if (!selectedFile || !patientId) return;
 
     setIsAnalyzing(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
     try {
-      // Déclenchement de l'événement pour l'animation Breath du Logo
       window.dispatchEvent(new Event('ai-generation-start'));
-
-      const response = await api.post('/analyses/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      setAnalysisData(response.data);
+      const data = await cephaloRepository.uploadRadio(patientId, selectedFile);
+      setAnalysisData(data);
     } catch (err) {
       setError("Le serveur Backend ne répond pas ou l'IA a rencontré une erreur.");
     } finally {
       setIsAnalyzing(false);
       window.dispatchEvent(new Event('ai-generation-end'));
     }
+  };
+
+  // Conversion landmarks Array -> Record pour CephaloStudio
+  const getFormattedLandmarks = () => {
+    if (!analysisData?.landmarks) return {};
+    const record: Record<string, { x: number; y: number }> = {};
+    analysisData.landmarks.forEach(p => {
+      record[p.id] = { x: p.x, y: p.y };
+    });
+    return record;
   };
 
   return (
@@ -90,9 +85,12 @@ export const AnalysisStudio = () => {
           </div>
         ) : (
           <CephaloStudio 
-            analysisId={analysisData.id}
-            imageUrl={analysisData.image_url}
-            initialLandmarks={analysisData.landmarks}
+            analysisId={analysisData.analysis_id}
+            imageUrl={analysisData.file_url}
+            initialLandmarks={getFormattedLandmarks()}
+            onUpdateSuccess={() => {
+              // Optionnel: Recharger les données ou rafraîchir l'UI
+            }}
           />
         )}
       </div>
@@ -110,9 +108,10 @@ export const AnalysisStudio = () => {
           </div>
 
           <div className="space-y-4">
-            <AngleCard label="Angle SNA" value={analysisData?.angles.SNA} normal="82° ± 2" />
-            <AngleCard label="Angle SNB" value={analysisData?.angles.SNB} normal="80° ± 2" />
-            <AngleCard label="Angle ANB" value={analysisData?.angles.ANB} normal="2° ± 2" highlight />
+            <AngleCard label="Angle SNA" value={analysisData?.results?.metrics?.analyse_osseuse?.Situation_A?.value} normal="82° ± 2" />
+            <AngleCard label="Angle SNB" value={analysisData?.results?.metrics?.analyse_osseuse?.Situation_B?.value} normal="80° ± 2" />
+            <AngleCard label="Angle ANB" value={analysisData?.results?.metrics?.analyse_osseuse?.Decalage_A_B?.value} normal="2° ± 2" highlight />
+            <AngleCard label="IMPA" value={analysisData?.results?.metrics?.analyse_dentaire?.IMPA?.value} normal="90° ± 5" />
           </div>
         </div>
 
@@ -148,7 +147,7 @@ const AngleCard = ({ label, value, normal, highlight }: any) => (
     </div>
     <div className="flex items-baseline gap-1">
       <span className={cn("text-2xl font-black", highlight ? "text-[#003380]" : "text-slate-800")}>
-        {value ? value.toFixed(1) : '--.-'}
+        {typeof value === 'number' ? value.toFixed(1) : '--.-'}
       </span>
       <span className="text-sm font-bold text-slate-400">°</span>
     </div>

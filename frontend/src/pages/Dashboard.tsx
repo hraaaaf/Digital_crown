@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   UserPlus, 
-  Search, 
   Calendar, 
   Clock, 
   FileText, 
   ChevronRight,
   TrendingUp,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
@@ -38,6 +38,10 @@ export const Dashboard: React.FC = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
+  const formatDate = (dateStr: string) => {
+    return dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -45,7 +49,6 @@ export const Dashboard: React.FC = () => {
         setStats(response.data);
       } catch (err) {
         console.warn("Route API manquante ou invalide, injection des données de secours.");
-        // Rigueur CTO : Fallback Premium pour garantir la continuité de service
         setStats({
           total_patients: 0,
           total_analyses: 0,
@@ -61,80 +64,84 @@ export const Dashboard: React.FC = () => {
     fetchStats();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full w-full gap-4">
-        <Loader2 className="w-12 h-12 text-[#003380] animate-spin" />
-        <p className="text-slate-500 font-bold tracking-widest uppercase text-xs animate-pulse">Chargement sécurisé...</p>
+  if (loading) return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="w-12 h-12 animate-spin" style={{ color: 'var(--primary)' }} />
+        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Initialisation de votre cabinet...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-10 animate-in fade-in duration-700">
+    <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12 animate-in fade-in duration-700">
       
-      {/* 1. EN-TÊTE PREMIUM */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
+      {/* HEADER GREETING */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-[#003380] tracking-tight">Bonjour, Dr. Benmoussa</h1>
-          <p className="text-slate-500 font-medium mt-2 capitalize flex items-center gap-2">
-            <Calendar size={16} className="text-[#003380]" />
-            {today}
-          </p>
+          <h1 className="text-4xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Bonjour, Dr. Benmoussa</h1>
+          <div className="flex items-center gap-3 mt-2 bg-white/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-200/60 w-fit">
+            <Calendar size={16} style={{ color: 'var(--primary)' }} />
+            <p className="text-slate-500 font-bold text-sm">{formatDate(today)}</p>
+          </div>
         </div>
-        <div className="flex gap-4">
-          <div className="bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-100 flex items-center gap-3 shadow-sm">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
-            <span className="text-sm font-black text-emerald-700 uppercase tracking-wider">Système Opérationnel</span>
+        
+        <div className="flex items-center gap-4 bg-white/40 p-2 rounded-3xl border border-white/60 shadow-sm">
+          <div className="px-6 py-3 rounded-2xl flex flex-col items-end">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Système</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-black text-slate-700 uppercase tracking-tighter">Elite Cloud Connecté</span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* 2. ACTIONS RAPIDES */}
-      <section>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link to="/patients/new" className="group bg-gradient-to-br from-[#003380] to-blue-900 p-8 rounded-[2.5rem] shadow-xl shadow-[#003380]/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
-            <div className="w-14 h-14 bg-white/10 text-white rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 shadow-inner">
-              <UserPlus size={28} />
+      {/* QUICK ACTIONS GRID */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        {/* ACTION: AJOUT PATIENT */}
+        <Link to="/patients/new" className="group p-8 rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(to bottom right, var(--primary), var(--secondary, #1e3a8a))', boxShadow: '0 20px 40px -15px var(--primary)' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/30 group-hover:rotate-12 transition-transform">
+              <UserPlus className="text-white" size={32} />
             </div>
-            <h3 className="text-xl font-black text-white">Nouveau Patient</h3>
-            <p className="text-blue-200 text-sm mt-2 font-medium">Créer une fiche clinique IA.</p>
-          </Link>
+            <h3 className="text-2xl font-black text-white leading-none">Nouveau Patient</h3>
+            <p className="text-white/70 mt-2 font-medium">Ouvrir un dossier clinique complet</p>
+          </div>
+        </Link>
 
-          <Link to="/patients" className="group bg-white/80 backdrop-blur-md border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-            <div className="w-14 h-14 bg-blue-50 text-[#003380] rounded-2xl flex items-center justify-center mb-6 border border-blue-100">
-              <Search size={28} />
-            </div>
-            <h3 className="text-xl font-black text-[#003380]">Base de Données</h3>
-            <p className="text-slate-500 text-sm mt-2 font-medium">Accéder aux dossiers patients.</p>
-          </Link>
+        {/* ACTION: RECHERCHE / LISTE */}
+        <Link to="/patients" className="group bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:bg-primary group-hover:text-white transition-all duration-300" style={{ color: 'var(--primary)' }}>
+            <Users size={28} />
+          </div>
+          <h3 className="text-xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Base de Données</h3>
+          <p className="text-slate-500 mt-1 font-medium italic">Gérez vos dossiers patients</p>
+        </Link>
 
-          <Link to="/agenda" className="group bg-white/80 backdrop-blur-md border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
-            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 border border-amber-100">
-              <Calendar size={28} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-[#003380]">Agenda Clinique</h3>
-              <p className="text-slate-500 text-sm mt-2 font-medium">Mode Consultation Seul</p>
-            </div>
-          </Link>
-        </div>
+        {/* ACTION: AGENDA */}
+        <Link to="/agenda" className="group bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+          <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+            <Calendar size={28} />
+          </div>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">Agenda Clinique</h3>
+          <p className="text-slate-500 mt-1 font-medium italic">Suivi des rendez-vous</p>
+        </Link>
+
       </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* SECTION SÉCURISÉE : ACTIVITÉ RÉCENTE */}
-        <section className="xl:col-span-2 space-y-5">
-          <div className="flex items-center justify-between mb-2 px-4">
-            <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Clock size={18} /> Activité Récente
-            </h2>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* SECTION PATIENTS RÉCENTS */}
+        <section className="space-y-5">
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
+            <Clock size={18} /> Activité Récente
+          </h2>
           
           <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] p-4 shadow-sm">
             {stats?.recent_patients && stats.recent_patients.length > 0 ? (
               stats.recent_patients.map((patient, index) => {
-                // SÉCURITÉ : Vérification de l'existence du patient et du nom
                 if (!patient || !patient.nom) return null;
 
                 return (
@@ -147,12 +154,10 @@ export const Dashboard: React.FC = () => {
                     )}
                   >
                     <div className="flex items-center gap-5">
-                      {/* SÉCURITÉ : charAt(0) protégé */}
                       <div className="w-14 h-14 bg-blue-50/50 text-[#003380] rounded-xl flex items-center justify-center font-black text-xl border border-blue-100/50 group-hover:bg-[#003380] group-hover:text-white transition-all duration-300 shadow-sm">
                         {(patient.nom || '?').charAt(0)}
                       </div>
                       <div>
-                        {/* SÉCURITÉ : toUpperCase() protégé */}
                         <h4 className="font-black text-[#003380] text-lg leading-none">
                           {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
                         </h4>
@@ -214,7 +219,6 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </section>
-
       </div>
     </div>
   );

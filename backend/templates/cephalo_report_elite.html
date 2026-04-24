@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;600&display=swap');
+
+        :root {
+            --primary-color: {{ primary_color }};
+            --secondary-color: {{ secondary_color }};
+            --bg-light: #F8FAFC;
+            --border-color: #E2E8F0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #1E293B;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+        }
+
+        .header-title {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 20pt;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .patient-card {
+            background-color: var(--bg-light);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .patient-card table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .patient-card td {
+            padding: 4px 0;
+        }
+
+        .label {
+            font-weight: 600;
+            color: var(--primary-color);
+            width: 120px;
+        }
+
+        .radio-container {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .radio-image {
+            max-width: 100%;
+            max-height: 450px;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-size: 14pt;
+            font-weight: 600;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            margin-top: 25px;
+        }
+
+        table.metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .metrics-table th {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 9pt;
+        }
+
+        .metrics-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 9pt;
+        }
+
+        .metrics-table tr:nth-child(even) {
+            background-color: var(--bg-light);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 8pt;
+            text-transform: uppercase;
+        }
+
+        .status-high { color: #DC2626; background: #FEE2E2; }
+        .status-low { color: #D97706; background: #FEF3C7; }
+        .status-compensated { color: #7C3AED; background: #F3E8FF; }
+        .status-normal { color: #059669; background: #D1FAE5; }
+
+        .narrative-container {
+            background-color: white;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+
+        .narrative-block {
+            margin-bottom: 15px;
+        }
+
+        .narrative-block b {
+            display: block;
+            color: var(--primary-color);
+            font-family: 'Outfit', sans-serif;
+            margin-bottom: 4px;
+        }
+
+        .footer-cert {
+            text-align: center;
+            font-size: 8pt;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        @page {
+            margin: 2cm;
+            @bottom-center {
+                content: "Page " counter(page) " sur " counter(pages);
+                font-size: 8pt;
+                color: #64748B;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-title">Rapport d'Analyse Céphalométrique IA</div>
+
+    <div class="patient-card">
+        <table>
+            <tr>
+                <td class="label">Patient(e) :</td>
+                <td style="font-size: 12pt; font-weight: 700;">{{ patient_nom | upper }} {{ patient_prenom | title }}</td>
+                <td class="label" style="text-align: right;">Date :</td>
+                <td style="text-align: right;">{{ date_analyse }}</td>
+            </tr>
+            <tr>
+                <td class="label">Âge :</td>
+                <td>{{ patient_age }} ans</td>
+                <td class="label" style="text-align: right;">ID :</td>
+                <td style="text-align: right;">#{{ patient_id or '---' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if radio_url %}
+    <div class="radio-container">
+        <img src="{{ radio_url }}" class="radio-image" alt="Analyse Radio" />
+    </div>
+    {% endif %}
+
+    <div class="section-title">Analyse des Valeurs Déviantes</div>
+    
+    <table class="metrics-table">
+        <thead>
+            <tr>
+                <th>Métrique</th>
+                <th>Valeur</th>
+                <th>Norme (Moyenne ± Tol)</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set count = namespace(value=0) %}
+            {% for metric in metrics %}
+                {% if metric.status in ['High', 'Low', 'Compensated'] %}
+                    {% set count.value = count.value + 1 %}
+                    <tr>
+                        <td><b>{{ metric.name }}</b></td>
+                        <td>{{ metric.valeur }} {{ metric.unite }}</td>
+                        <td>{{ metric.norm_mean }} ({{ metric.norm_min }} - {{ metric.norm_max }})</td>
+                        <td>
+                            <span class="status-badge status-{{ metric.status | lower }}">
+                                {{ metric.status }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endif %}
+            {% endfor %}
+            
+            {% if count.value == 0 %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #64748B;">Aucune déviation significative détectée.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="section-title">Synthèse Clinique IA (SLM)</div>
+    <div class="narrative-container">
+        {% if ai_diag %}
+            {% if ai_diag.diagnostic_squelettique %}
+                <div class="narrative-block">
+                    <b>Squelettique</b>
+                    {{ ai_diag.diagnostic_squelettique }}
+                </div>
+            {% endif %}
+            {% if ai_diag.analyse_dentaire %}
+                <div class="narrative-block">
+                    <b>Dentaire</b>
+                    {{ ai_diag.analyse_dentaire }}
+                </div>
+            {% endif %}
+            {% if ai_diag.strategie_therapeutique %}
+                <div class="narrative-block">
+                    <b>Stratégie</b>
+                    {{ ai_diag.strategie_therapeutique }}
+                </div>
+            {% endif %}
+            
+            {% if not ai_diag.diagnostic_squelettique and not ai_diag.analyse_dentaire and not ai_diag.strategie_therapeutique %}
+                <p>{{ ai_diag }}</p>
+            {% endif %}
+        {% else %}
+            <p style="color: #64748B;">Aucune synthèse clinique générée.</p>
+        {% endif %}
+    </div>
+
+    <div class="footer-cert">
+        Document généré par Digital Crown Vision v4.6 - Précision SOTA certifiée
+    </div>
+</body>
+</html>

@@ -107,7 +107,16 @@ export const AddPatientForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!formData.nom) newErrors.nom = "Le nom est requis.";
     if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";
-    if (!formData.date_naissance) newErrors.date_naissance = "La date de naissance est obligatoire.";
+    if (!formData.date_naissance) {
+      newErrors.date_naissance = "La date de naissance est obligatoire.";
+    } else {
+      const bDate = new Date(formData.date_naissance);
+      const minDate = new Date('1900-01-01');
+      const maxDate = new Date();
+      if (isNaN(bDate.getTime()) || bDate < minDate || bDate > maxDate) {
+        newErrors.date_naissance = "Date invalide (doit être entre 1900 et aujourd'hui).";
+      }
+    }
     // Téléphone, email et adresse sont optionnels
     
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {

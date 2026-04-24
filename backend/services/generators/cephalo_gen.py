@@ -1,247 +1,181 @@
-# ==============================================================================
-# FICHIER 1 : backend/services/generators/cephalo_gen.py
-# ==============================================================================
 import os
 import logging
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, KeepTogether
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from jinja2 import Environment, FileSystemLoader
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend import schemas
+
+# Imports conditionnels pour WeasyPrint
+import importlib.util
+WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
 
 logger = logging.getLogger(__name__)
 
 class CephaloPDFGenerator(BaseTemplate):
     """
-    Usine PDF Officielle COM. Hérite de BaseTemplate.
-    Intègre les données patient, la radio tracée, la table des valeurs déviantes et la synthèse SLM structurée (Dict).
+    Usine PDF Officielle COM - ELITE EDITION.
+    Utilise WeasyPrint pour un rendu moderne (HTML/CSS) avec fallback ReportLab.
     """
     
     def __init__(self, output_dir="static/reports"):
         super().__init__()
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.styles = getSampleStyleSheet()
-        self._init_styles()
-
-    def _init_styles(self):
-        self.styles.add(ParagraphStyle(
-            name='PatientInfo', parent=self.styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=NAVY_BLUE, leading=14
-        ))
-        self.styles.add(ParagraphStyle(
-            name='ReportTitle', parent=self.styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=NAVY_BLUE, alignment=TA_CENTER, spaceAfter=20
-        ))
-        self.styles.add(ParagraphStyle(
-            name='SectionTitle', parent=self.styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=NAVY_BLUE, spaceBefore=15, spaceAfter=10
-        ))
-        self.styles.add(ParagraphStyle(
-            name='Narrative', parent=self.styles['Normal'], fontName='Helvetica', fontSize=10, leading=15, alignment=TA_JUSTIFY, spaceAfter=6
-        ))
+        
+        # Initialisation Jinja2
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        template_dir = os.path.join(base_dir, "backend", "templates")
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
     def _calculate_age(self, born):
         if not born:
             return "N/A"
         today = date.today()
-        birth = born.date() if isinstance(born, datetime) else born
+        birth = born.date() if hasattr(born, 'date') else born
         return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
-    def _draw_canvas(self, canvas, doc, config=None, user=None):
-        """Appel de la fonction de dessin statique (Header/Footer) héritée de BaseTemplate"""
-        self.draw_static_elements(canvas, doc, config=config, user=user)
-
-    def generate(self, patient_data, analysis_payload, image_path=None, filename=None, db=None, user_id=None):
-        """Génère le PDF et retourne le chemin d'accès absolu."""
+    def generate(self, vm: schemas.CephaloViewModel, filename: Optional[str] = None):
+        """Génère le PDF via WeasyPrint (Elite) avec fallback ReportLab."""
         
-        # --- RÉCUPÉRATION CONFIGURATION ---
-        config = None
-        user_obj = None
-        if db and user_id:
-            from backend.models import CabinetConfig, User
-            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
-            user_obj = db.query(User).filter(User.id == user_id).first()
-        
-        p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        
-        # Styles dynamiques basés sur le thème
-        report_title_style = ParagraphStyle(
-            name='ReportTitle', 
-            parent=self.styles['Heading1'], 
-            fontName='Helvetica-Bold', 
-            fontSize=16, 
-            textColor=p_color, 
-            alignment=TA_CENTER, 
-            spaceAfter=20
-        )
-        
-        section_title_style = ParagraphStyle(
-            name='SectionTitle', 
-            parent=self.styles['Heading2'], 
-            fontName='Helvetica-Bold', 
-            fontSize=12, 
-            textColor=p_color, 
-            spaceBefore=15, 
-            spaceAfter=10
-        )
-
-        # Extraction sécurisée des données patient (support objet SQLAlchemy ou Dict)
-        if isinstance(patient_data, dict):
-            p_nom = patient_data.get('nom', 'Inconnu')
-            p_prenom = patient_data.get('prenom', '')
-            p_age = patient_data.get('age', 'N/A')
-        else:
-            p_nom = getattr(patient_data, 'nom', 'Inconnu')
-            p_prenom = getattr(patient_data, 'prenom', '')
-            p_age = self._calculate_age(getattr(patient_data, 'date_naissance', None))
-
         if not filename:
             date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"RAPPORT_CEPHALO_{p_nom.upper()}_{date_str}.pdf"
+            filename = f"RAPPORT_CEPHALO_{vm.patient_nom.upper()}_{date_str}.pdf"
 
         file_path = os.path.join(self.output_dir, filename)
         
-        # Marges dynamiques
-        m_top = (config.margin_top if config else 4.5) * cm
-        m_bottom = (config.margin_bottom if config else 3.5) * cm
+        if WEASYPRINT_AVAILABLE:
+            try:
+                return self._generate_weasyprint(vm, file_path)
+            except Exception as e:
+                logger.error(f"Échec WeasyPrint, repli sur ReportLab: {e}")
+                return self._generate_reportlab(vm, file_path)
+        else:
+            return self._generate_reportlab(vm, file_path)
+
+    def _generate_weasyprint(self, vm: schemas.CephaloViewModel, output_path: str):
+        """Rendu Moderne via WeasyPrint."""
+        import weasyprint
         
-        doc = SimpleDocTemplate(
-            file_path, 
-            pagesize=A4, 
-            rightMargin=1.5*cm, 
-            leftMargin=1.5*cm, 
-            topMargin=m_top,  
-            bottomMargin=m_bottom 
-        )
+        # 1. Préparation des données métriques (aplatissement)
+        flat_metrics = []
+        analysis = vm.analysis
+        for cat_name, measures in [("Dentaire", analysis.metrics.analyse_dentaire), 
+                                   ("Osseuse", analysis.metrics.analyse_osseuse),
+                                   ("Esthétique", analysis.metrics.analyse_esthetique)]:
+            for metric_name, data in measures:
+                if isinstance(data, schemas.MeasureData):
+                    flat_metrics.append({
+                        "name": metric_name.replace("_", " "),
+                        "valeur": data.valeur if data.valeur is not None else 'N/A',
+                        "norm_mean": data.norm_mean,
+                        "norm_min": data.norm_min,
+                        "norm_max": data.norm_max,
+                        "status": data.status,
+                        "unite": "mm" if "Ligne" in metric_name or "Surplomb" in metric_name else ""
+                    })
+
+        # 2. Préparation du contexte Jinja
+        config = vm.cabinet_config
+        p_color = config.get('primary_color', '#1A365D')
+        s_color = config.get('secondary_color', '#64748B')
         
+        # Image URL absolue pour WeasyPrint
+        radio_url = None
+        if vm.radio_image_path:
+            # Nettoyage du path
+            img_path = vm.radio_image_path
+            if "8000/" in img_path:
+                img_path = img_path.split("8000/")[-1]
+            
+            abs_path = os.path.abspath(img_path)
+            if os.path.exists(abs_path):
+                radio_url = f"file:///{abs_path.replace('\\', '/')}"
+
+        context = {
+            "primary_color": p_color,
+            "secondary_color": s_color,
+            "patient_nom": vm.patient_nom,
+            "patient_prenom": vm.patient_prenom,
+            "patient_age": vm.patient_age,
+            "patient_id": vm.patient_id,
+            "date_analyse": vm.date_generation,
+            "radio_url": radio_url,
+            "metrics": flat_metrics,
+            "ai_diag": vm.analysis.ai_narrative,
+            "doctor_name": vm.doctor_name
+        }
+
+        # 3. Rendu
+        template = self.jinja_env.get_template("cephalo_report_elite.html")
+        html_content = template.render(context)
+        
+        # WeasyPrint
+        weasyprint.HTML(string=html_content).write_pdf(output_path)
+        logger.info(f"Rendu WeasyPrint réussi: {output_path}")
+        return output_path
+
+    def _generate_reportlab(self, vm: schemas.CephaloViewModel, file_path: str):
+        """Fallback ReportLab (Ancienne méthode stable)."""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, KeepTogether
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+        
+        styles = getSampleStyleSheet()
+        config = vm.cabinet_config
+        p_color = colors.HexColor(config.get('primary_color', '#1A365D')) if config else NAVY_BLUE
+        s_color = colors.HexColor(config.get('secondary_color', '#666666')) if config else colors.grey
+        
+        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
+        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=p_color, spaceBefore=15, spaceAfter=10)
+        patient_info_style = ParagraphStyle('PatientInfo', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, leading=14)
+        narrative_style = ParagraphStyle('Narrative', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=15, alignment=TA_JUSTIFY, spaceAfter=6)
+
+        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=4.5*cm, bottomMargin=3.5*cm)
         elements = []
 
-        # --- 1. HEADER (Titre & Patient) ---
-        elements.append(Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA", report_title_style))
-
-        date_display = datetime.now().strftime('%d/%m/%Y')
-        
-        patient_info_style = ParagraphStyle(
-            name='PatientInfo', 
-            parent=self.styles['Normal'], 
-            fontName='Helvetica-Bold', 
-            fontSize=10, 
-            textColor=colors.HexColor('#000000'), 
-            leading=14
-        )
-        
-        info_text = f"<b>Patient(e):</b> {p_nom.upper()} {p_prenom.capitalize()}<br/>"
-        info_text += f"<b>Âge:</b> {p_age} ans<br/>"
-        info_text += f"<b>Date d'analyse:</b> {date_display}"
-        elements.append(Paragraph(info_text, patient_info_style))
+        elements.append(Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA (Fallback)", report_title_style))
+        elements.append(Paragraph(f"<b>Patient(e):</b> {vm.patient_nom.upper()} {vm.patient_prenom.capitalize()}<br/><b>Âge:</b> {vm.patient_age} ans<br/><b>Date:</b> {vm.date_generation}", patient_info_style))
         elements.append(Spacer(1, 0.5*cm))
 
-        # --- 2. MILIEU (Radio Burn-in & Tableau des Déviants) ---
-        used_image_path = image_path or analysis_payload.get('image_path')
-        if used_image_path:
-            local_path = used_image_path.split("8000/")[-1] if "8000/" in used_image_path else used_image_path
-            if os.path.exists(local_path):
-                try:
-                    img = Image(local_path, width=14*cm, height=10*cm, kind='proportional')
-                    img.hAlign = 'CENTER'
-                    elements.append(img)
-                    elements.append(Spacer(1, 0.5*cm))
-                except Exception as e:
-                    logger.error(f"Erreur d'intégration de l'image PDF: {e}")
+        # Image
+        if vm.radio_image_path:
+            img_path = vm.radio_image_path.split("8000/")[-1] if "8000/" in vm.radio_image_path else vm.radio_image_path
+            if os.path.exists(img_path):
+                img = Image(img_path, width=14*cm, height=10*cm, kind='proportional')
+                img.hAlign = 'CENTER'
+                elements.append(img)
+                elements.append(Spacer(1, 0.5*cm))
 
-        elements.append(Paragraph("Analyse des Valeurs Déviantes", section_title_style))
-        
+        # Table
         table_data = [["Métrique", "Valeur", "Norme", "Statut"]]
-        
-        results_data = analysis_payload.get("results") or analysis_payload or {}
-        if not isinstance(results_data, dict):
-            results_data = {}
-        metrics = results_data.get("metrics", {})
-        has_deviants = False
-        
-        for category, measures in metrics.items():
-            for metric_name, data in measures.items():
-                status = data.get('status', 'Normal')
-                if status in ["High", "Low", "Compensated"]:
-                    has_deviants = True
-                    val = str(data.get('value', 'N/A'))
-                    norm = f"{data.get('norm_mean', 0)} ({data.get('norm_min', 0)} - {data.get('norm_max', 0)})"
-                    name_clean = metric_name.replace("_", " ")
-                    table_data.append([name_clean, val, norm, status])
+        for cat_name, measures in [("Dentaire", vm.analysis.metrics.analyse_dentaire), ("Osseuse", vm.analysis.metrics.analyse_osseuse), ("Esthétique", vm.analysis.metrics.analyse_esthetique)]:
+            for metric_name, data in measures:
+                if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
+                    table_data.append([metric_name.replace("_", " "), str(data.valeur), f"{data.norm_mean} ({data.norm_min}-{data.norm_max})", data.status])
 
-        if not has_deviants:
-            table_data.append(["Aucune déviation significative détectée.", "", "", ""])
+        if len(table_data) > 1:
+            t = Table(table_data, colWidths=[6.5*cm, 3*cm, 4.5*cm, 3*cm])
+            t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), p_color), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
+            elements.append(t)
 
-        t = Table(table_data, colWidths=[6.5*cm, 3*cm, 4.5*cm, 3*cm])
-        t_style = [
-            ('BACKGROUND', (0,0), (-1,0), p_color),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('ALIGN', (0,1), (0,-1), 'LEFT'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0,0), (-1,0), 8),
-            ('TOPPADDING', (0,0), (-1,0), 8),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F8FAFC")),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#E2E8F0")),
-            ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 9)
-        ]
-        
-        for row_idx, row in enumerate(table_data[1:], start=1):
-            if len(row) > 1:
-                if row[3] == "High":
-                    t_style.append(('TEXTCOLOR', (3, row_idx), (3, row_idx), colors.red))
-                    t_style.append(('FONTNAME', (3, row_idx), (3, row_idx), 'Helvetica-Bold'))
-                elif row[3] == "Low":
-                    t_style.append(('TEXTCOLOR', (3, row_idx), (3, row_idx), colors.darkorange))
-                    t_style.append(('FONTNAME', (3, row_idx), (3, row_idx), 'Helvetica-Bold'))
-                elif row[3] == "Compensated":
-                    t_style.append(('TEXTCOLOR', (3, row_idx), (3, row_idx), colors.orange))
-                    t_style.append(('FONTNAME', (3, row_idx), (3, row_idx), 'Helvetica-Bold'))
-
-        t.setStyle(TableStyle(t_style))
-        elements.append(t)
-        elements.append(Spacer(1, 0.5*cm))
-
-        # --- 3. BAS (Narrateur SLM - Format Dictionnaire) ---
-        elements.append(Paragraph("Synthèse Clinique IA (SLM)", section_title_style))
-
-        results_for_ai = analysis_payload.get("results") or {}
-        if not isinstance(results_for_ai, dict):
-            results_for_ai = {}
-        ai_diag = analysis_payload.get("ai_diagnostic") or analysis_payload.get("ai_narrative") or results_for_ai.get("ai_diagnostic") or {}
-
-        narrative_style = ParagraphStyle(
-            name='Narrative', 
-            parent=self.styles['Normal'], 
-            fontName='Helvetica', 
-            fontSize=10, 
-            leading=15, 
-            alignment=TA_JUSTIFY, 
-            spaceAfter=6
-        )
-
-        narrative_blocks = []
-        if isinstance(ai_diag, dict) and ai_diag:
-            if ai_diag.get("diagnostic_squelettique"):
-                narrative_blocks.append(Paragraph(f"<b>Squelettique :</b> {ai_diag.get('diagnostic_squelettique')}", narrative_style))
-            if ai_diag.get("analyse_dentaire"):
-                narrative_blocks.append(Paragraph(f"<b>Dentaire :</b> {ai_diag.get('analyse_dentaire')}", narrative_style))
-            if ai_diag.get("strategie_therapeutique"):
-                narrative_blocks.append(Paragraph(f"<b>Stratégie :</b> {ai_diag.get('strategie_therapeutique')}", narrative_style))
+        # Narrative
+        elements.append(Paragraph("Synthèse Clinique IA", section_title_style))
+        diag = vm.analysis.ai_narrative or {}
+        if isinstance(diag, dict):
+            for k, v in diag.items():
+                elements.append(Paragraph(f"<b>{k.replace('_', ' ').capitalize()} :</b> {v}", narrative_style))
         else:
-            fallback_text = str(ai_diag) if ai_diag else "Aucune synthèse clinique générée."
-            narrative_blocks.append(Paragraph(fallback_text, narrative_style))
+            elements.append(Paragraph(str(diag), narrative_style))
 
-        elements.append(KeepTogether(narrative_blocks))
-
-        # Génération avec callbacks pour BaseTemplate
+        # Build
         try:
-            draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
+            draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=vm.doctor_name)
             doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
-            logger.info(f"PDF COM généré avec succès: {file_path}")
             return file_path
         except Exception as e:
             logger.error(f"Échec de la génération du PDF: {e}")

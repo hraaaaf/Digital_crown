@@ -362,11 +362,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
         className="w-full h-auto block select-none pointer-events-none"
         // Déclencher une nouvelle mesure du conteneur après le chargement de l'image
         onLoad={() => {
-          if (containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            // Le ResizeObserver prendra automatiquement la nouvelle dimension,
-            // mais on force une mise à jour immédiate si nécessaire.
-          }
+          // Déclencher une nouvelle mesure du conteneur après le chargement de l'image
         }}
       />
 
