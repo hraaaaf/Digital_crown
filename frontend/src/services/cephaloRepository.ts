@@ -43,7 +43,7 @@ export const cephaloRepository = {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await api.post(`/patients/${patientId}/upload-radio`, formData, {
+      const response = await api.post(`/ia/upload-radio?patient_id=${patientId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       return response.data;
@@ -58,7 +58,7 @@ export const cephaloRepository = {
    */
   async refineAnalysis(analysisId: number, data: AnalysisUpdate): Promise<AnalysisResults> {
     try {
-      const response = await api.put(`/analyses/${analysisId}`, data);
+      const response = await api.put(`/ia/analyses/${analysisId}`, data);
       return response.data;
     } catch (error) {
       console.error(`[CephaloRepository] Erreur refineAnalysis(${analysisId}):`, error);
@@ -71,7 +71,7 @@ export const cephaloRepository = {
    */
   async calibrate(analysisId: number, points: Point[], distanceMm: number) {
     try {
-      const response = await api.post(`/analyses/${analysisId}/calibrate`, {
+      const response = await api.post(`/ia/analyses/${analysisId}/calibrate`, {
         points,
         distance_mm: distanceMm
       });

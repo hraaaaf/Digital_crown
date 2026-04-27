@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Activity, 
-  FileText, 
-  ArrowLeft, 
-  User, 
-  Calendar, 
-  Phone, 
+import {
+  Activity,
+  FileText,
+  ArrowLeft,
+  User,
+  Calendar,
+  Phone,
   Loader2,
-  Info,
-  ClipboardList,
-  History,
   Archive,
   FileDigit
 } from 'lucide-react';
@@ -20,6 +17,7 @@ import { cn } from '../../utils/cn';
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
+import { FlashSummary } from '../../components/clinical/FlashSummary';
 
 interface Patient {
   id: number;
@@ -161,11 +159,7 @@ export const PatientDetails = () => {
       )}>
         
         {!isCompact && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <InfoCard icon={<Info size={22} />} title="État Administratif" content="Dossier validé pour la facturation." color="bg-primary/5 text-primary" style={{ color: 'var(--primary)' }} />
-            <InfoCard icon={<ClipboardList size={22} />} title="Antécédents Ortho" content="Module Céphalométrique activé." color="bg-rose-50 text-rose-600" />
-            <InfoCard icon={<History size={22} />} title="Historique" content="Suivi des consultations archivé." color="bg-emerald-50 text-emerald-600" />
-          </div>
+          <FlashSummary patientId={Number(id)} patientName={fullName} />
         )}
 
         <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
@@ -204,14 +198,4 @@ const TabButton = ({ active, onClick, icon, label }: any) => (
   >
     {icon} {label}
   </button>
-);
-
-const InfoCard = ({ icon, title, content, color, style }: any) => (
-  <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-    <div className={cn("p-4 rounded-2xl flex items-center justify-center", color)} style={style}>{icon}</div>
-    <div>
-      <h3 className="font-black text-slate-800 text-lg tracking-tight">{title}</h3>
-      <p className="text-slate-500 text-xs font-medium mt-1 leading-snug">{content}</p>
-    </div>
-  </div>
 );

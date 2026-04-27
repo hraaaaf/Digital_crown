@@ -101,96 +101,14 @@ class DocumentFactory:
     # ==========================================================================
     
     def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère une ordonnance PDF via WeasyPrint (Elite) ou ReportLab."""
-        if not db or not user_id:
-            return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
-            
-        try:
-            template = self._get_default_template('ordonnance', db, user_id)
-            cabinet = self._get_cabinet_config(user_id, db)
-            
-            # Signature QR
-            from backend.services.qr_service import qr_service
-            doc_id = str(uuid.uuid4())
-            qr_url = qr_service.generate_document_qr(document_id=doc_id, public_id=cabinet.public_id)
-            
-            age = self._calculate_age(patient.date_naissance)
-            context = {
-                'patient': {
-                    'nom': patient.nom.upper() if patient.nom else "PATIENT",
-                    'prenom': patient.prenom.capitalize() if patient.prenom else "",
-                    'age': age if age > 0 else "??",
-                },
-                'praticien': {
-                    'nom_complet': f"Dr. {cabinet.nom_praticien}" if cabinet and cabinet.nom_praticien else (f"Dr. {cabinet.owner.nom_complet}" if (cabinet and cabinet.owner) else "Docteur")
-                },
-                'date_generation': getattr(data, 'doc_date', datetime.now().strftime('%d/%m/%Y')),
-                'titre': "Ordonnance",
-                'medications': data.medications,
-                'page_size': 'A5',
-                'custom': {'qr_code_url': qr_url}
-            }
-            
-            output_path = self._build_output_path(patient, 'ordonnance')
-            if template:
-                template.body_html = "ordonnance_elite.html"
-            
-            return self.template_engine.generate_pdf(template, cabinet, context, output_path)
-        except Exception as e:
-            logger.error(f"Erreur create_ordonnance (WeasyPrint): {e}")
-            return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
+        """Génère une ordonnance PDF via ReportLab (Stable)."""
+        # On force l'utilisation du générateur ReportLab pour garantir la stabilité (Retour arrière v1.0)
+        return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère un certificat médical PDF via WeasyPrint (Elite)."""
-        try:
-            cabinet = self._get_cabinet_config(user_id, db)
-            template = self._get_default_template('certificat', db, user_id)
-            
-            age = self._calculate_age(patient.date_naissance)
-            gender = getattr(patient, 'sexe', 'M')
-            hon = "Mr" if gender in ["Homme", "Garçon", "M"] else "Madame"
-            type_repos = "Arrêt de travail" if getattr(data, 'is_work_stop', False) else "Repos médical"
-            
-            def parse_date(d):
-                if not d: return datetime.now()
-                if isinstance(d, (datetime, date)): return d
-                try: return datetime.strptime(d, '%Y-%m-%d')
-                except: return datetime.now()
-
-            doc_date_obj = parse_date(getattr(data, 'doc_date', None))
-            start_date_obj = parse_date(getattr(data, 'start_date', None))
-            
-            from backend.services.qr_service import qr_service
-            doc_id = str(uuid.uuid4())
-            qr_url = qr_service.generate_document_qr(document_id=doc_id, public_id=cabinet.public_id)
-            
-            context = {
-                'patient': {
-                    'nom': patient.nom.upper() if patient.nom else "PATIENT",
-                    'prenom': patient.prenom.capitalize() if patient.prenom else "",
-                    'age': age if age > 0 else "??",
-                },
-                'praticien': {
-                    'nom_complet': f"Dr. {cabinet.nom_praticien}" if cabinet and cabinet.nom_praticien else (f"Dr. {cabinet.owner.nom_complet}" if (cabinet and cabinet.owner) else "Docteur")
-                },
-                'date_generation': doc_date_obj.strftime('%d/%m/%Y'),
-                'start_date': start_date_obj.strftime('%d/%m/%Y'),
-                'certif_days': getattr(data, 'days', 3),
-                'hon': hon,
-                'type_repos': type_repos,
-                'page_size': 'A5',
-                'custom': {'qr_code_url': qr_url}
-            }
-            
-            output_path = self._build_output_path(patient, 'certificat')
-            if template:
-                template.body_html = "certificat_elite.html"
-            
-            return self.template_engine.generate_pdf(template, cabinet, context, output_path)
-            
-        except Exception as e:
-            logger.error(f"Erreur create_certificat (WeasyPrint): {e}")
-            return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
+        """Génère un certificat médical PDF via ReportLab (Stable)."""
+        # On force l'utilisation du générateur ReportLab pour garantir la stabilité (Retour arrière v1.0)
+        return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
         facture_seq = getattr(data, 'facture_numero', None)

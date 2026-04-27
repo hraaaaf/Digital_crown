@@ -53,6 +53,13 @@ def check_and_update_db():
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS if_ VARCHAR DEFAULT ''"))
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS inpe VARCHAR DEFAULT ''"))
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS contacts_json JSONB DEFAULT '{}'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_note_template TEXT DEFAULT 'Arrêtée la présente note à la somme de {total_words} TTC.'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_devis_template TEXT DEFAULT 'Arrêté le présent devis à la somme de {total_words} TTC.'"))
+            
+            # --- MIGRATIONS PATIENTS ---
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS adresse VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS assurance VARCHAR(50)"))
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS numero_dossier VARCHAR(20)"))
             conn.commit()
             print("Database check completed: All branding and layout columns verified.")
         except Exception as e:

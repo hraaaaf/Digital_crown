@@ -57,7 +57,7 @@ export const AccountingPage = () => {
   const fetchHonoraires = async () => {
     setLoading(true);
     try {
-      let url = `/accounting/honoraires?year=${selectedYear}`;
+      let url = `/documents/accounting/honoraires?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
@@ -78,7 +78,7 @@ export const AccountingPage = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      let url = `/accounting/export-pdf?year=${selectedYear}`;
+      let url = `/documents/accounting/export-pdf?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       

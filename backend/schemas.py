@@ -248,10 +248,15 @@ class HonorairesData(BaseModel):
 
 class LibreData(BaseModel):
     titre: str = Field(default='DOCUMENT MÉDICAL', alias='title')
-    texte: str = Field(default='', alias='content')
+    contenu: str = Field(default='', alias='content')
     doc_date: Optional[datetime.date] = None
     age: Optional[int] = None
     gender: Optional[str] = None
+    custom_patient: Optional[str] = None
+    custom_date: Optional[str] = None
+    hide_patient_header: bool = False
+    page_size: str = "A5"
+    alignment: str = "justify"
     
     model_config = ConfigDict(populate_by_name=True)
 
@@ -805,3 +810,23 @@ class VisionResult(BaseModel):
     metrics: Dict
     status: str
     message: Optional[str] = None
+
+# --- 13. SCHÉMAS AUTHENTIFICATION ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+    role: str
+    nom_complet: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)

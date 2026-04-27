@@ -9,8 +9,10 @@ import {
   Calendar,
   Receipt,
   FlaskConical,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { authService } from '../services/auth';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
@@ -133,6 +135,13 @@ export const Sidebar = () => {
             >
               <FlaskConical size={20} className="group-hover:scale-110 transition-transform" />
               <span className="text-sm font-bold tracking-wide">Activer Lab Mode</span>
+            </button>
+            <button
+               onClick={() => authService.logout()}
+               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group cursor-pointer hover:bg-red-50 text-red-500 mt-2"
+            >
+              <LogOut size={20} className="group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-bold tracking-wide">Déconnexion</span>
             </button>
           </div>
         </nav>

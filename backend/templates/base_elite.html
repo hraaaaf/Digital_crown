@@ -3,21 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page {
-            size: {{ page_size | default('A4') }};
-            margin: {{ margin_top | default('3.6cm') }} 1.5cm {{ margin_bottom | default('3.2cm') }} 1.5cm;
-            
-            @top-center {
-                content: element(header);
-            }
-            @bottom-center {
-                content: element(footer);
-            }
-        }
-
+        /* Fallback statique pour l'IDE, écrasé dynamiquement par le body */
         :root {
-            --primary: {{ primary_color | default('#003380') }};
-            --secondary: {{ secondary_color | default('#64748B') }};
+            --primary: #003380;
+            --secondary: #64748B;
         }
 
         body {
@@ -146,10 +135,28 @@
         }
 
         /* Styles spécifiques pour le contenu */
-        {% block extra_css %}{% endblock %}
     </style>
+    <!-- Bloc Configuration Page - Rendu invisible pour l'IDE -->
+    {{ '<' + 'style' + '>' | safe }}
+        @page {
+            size: {{ page_size | default('A4') }};
+            margin: {{ margin_top | default('3.6cm') }} 1.5cm {{ margin_bottom | default('3.2cm') }} 1.5cm;
+            
+            @top-center {
+                content: element(header);
+            }
+            @bottom-center {
+                content: element(footer);
+            }
+        }
+    {{ '<' + '/style' + '>' | safe }}
+
+    <!-- Bloc Extensions - Rendu invisible pour l'IDE -->
+    {{ '<' + 'style' + '>' | safe }}
+        {% block extra_css %}{% endblock %}
+    {{ '<' + '/style' + '>' | safe }}
 </head>
-<body>
+<body style="--primary: {{ primary_color | default('#003380') }}; --secondary: {{ secondary_color | default('#64748B') }};">
     <div class="header">
         <div class="header-left">
             <p class="doctor-name">{{ config.nom_praticien | default('Dr. Nom Prénom') }}</p>

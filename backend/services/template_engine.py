@@ -28,7 +28,7 @@ class SecureTemplateRenderer:
         'patient', 'patient_nom', 'patient_prenom', 'patient_age',
         'praticien', 'cabinet', 'config', 'date', 'date_generation',
         'content', 'titre', 'medications', 'actes', 'custom',
-        'qr_code_url', 'logo_url'
+        'qr_code_url', 'logo_url', 'draw_legal_ids'
     }
     
     def __init__(self, template_dir: str = "backend/templates"):
@@ -306,7 +306,8 @@ class TemplateEngine:
             'actes': context.get('actes', []),
             'qr_code_url': context.get('custom', {}).get('qr_code_url', ''), # Pour base_elite.html
             'logo_url': f"file://{os.path.abspath(os.path.join(self.static_dir, 'uploads', cabinet.logo_path))}" if cabinet.logo_path else None,
-            'custom': context.get('custom', {})
+            'custom': context.get('custom', {}),
+            'draw_legal_ids': context.get('draw_legal_ids', False)
         }
         
         # 2. Rendre le HTML
@@ -473,6 +474,7 @@ class TemplateEngine:
             content = content.replace('\n', '<br/>')
             
             # Si c'est un certificat et que le contenu est court, on l'étoffe comme le legacy
+            titre = context.get('titre', '')
             if 'CERTIFICAT' in titre.upper() and len(content) < 200:
                  hon = context.get('hon', 'Mr/Mme')
                  start_date = context.get('start_date', date_doc)
@@ -497,7 +499,8 @@ class TemplateEngine:
         
         # Dessin du branding
         bt = BaseTemplate()
-        draw_method = lambda canv, d: bt.draw_static_elements(canv, d, config=cabinet)
+        draw_legal_ids = context.get('draw_legal_ids', False)
+        draw_method = lambda canv, d: bt.draw_static_elements(canv, d, config=cabinet, draw_legal_ids=draw_legal_ids)
         
         doc.build(story, onFirstPage=draw_method, onLaterPages=draw_method)
         return output_path

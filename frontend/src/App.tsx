@@ -21,6 +21,8 @@ import { Settings } from './pages/Settings';
 // --- WIZARD SETUP & WELCOME ---
 import { SetupWizard } from './features/admin/SetupWizard';
 import { WelcomeScreen } from './pages/WelcomeScreen';
+import { LoginPage } from './pages/LoginPage';
+import { authService } from './services/auth';
 
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
@@ -36,8 +38,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
-    checkInitStatus();
-  }, []);
+    if (authService.isAuthenticated()) {
+      checkInitStatus();
+    }
+  }, [authService.isAuthenticated()]);
 
   const checkInitStatus = async () => {
     try {
@@ -57,6 +61,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
+
+  // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
+  if (!authService.isAuthenticated()) {
+    if (location.pathname === '/login') return <>{children}</>;
+    return <Navigate to="/login" replace />;
+  }
 
   if (isLoading) {
     return (
@@ -139,6 +149,7 @@ function App() {
         <Route path="/*" element={
           <ProtectedRoute>
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/setup" element={<SetupWizard />} />
               <Route path="/*" element={<ProtectedRoutes />} />
             </Routes>

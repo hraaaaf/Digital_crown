@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from datetime import datetime, date
 import decimal
@@ -195,8 +196,8 @@ class AccountingGenerator:
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
         elements = [Spacer(1, 0.4*cm), Paragraph(f"NOTE D'HONORAIRES N° {facture_number}" if facture_number else "NOTE D'HONORAIRES", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.5*cm)]
         
-        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=9, textColor=colors.white, alignment=TA_CENTER)
-        table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("MODE DE PAIEMENT", header_style), Paragraph("HONORAIRES (MAD)", header_style)]]
+        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
+        table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PAIEMENT", header_style), Paragraph("HONORAIRES", header_style)]]
         text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_CENTER)
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_LEFT, leading=13)
 
@@ -209,16 +210,25 @@ class AccountingGenerator:
             table_data.append([acte_para, Paragraph(str(dent_display), text_style), Paragraph(getattr(p, 'mode_reglement', 'Espèces'), text_style), Paragraph(f"{p.montant:.2f}", text_style)])
             total += p.montant
 
-        total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=p_color, alignment=TA_CENTER)
-        table_data.append(["", "", Paragraph("<b>TOTAL</b>", total_words_style), Paragraph(f"<b>{total:.2f}</b>", total_words_style)])
+        total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
+        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=12, textColor=p_color, alignment=TA_CENTER)
         
-        t = Table(table_data, colWidths=[5.8*cm, 1.2*cm, 2.4*cm, 2.4*cm])
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
+        
+        # Largeur rÃ©Ã©quilibrÃ©e : 12.8cm au total (5.8 + 1.8 + 2.6 + 2.6)
+        t = Table(table_data, colWidths=[5.8*cm, 1.8*cm, 2.6*cm, 2.6*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
-            ('VALIGN', (0,0), (-1,-1), 'TOP'), 
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), # Centrage vertical pour toutes les lignes
             ('GRID', (0,0), (-1,-2), 0.3, p_color), 
+            ('SPAN', (0, -1), (2, -1)),
+            ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6), # Padding systématique
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,-1), (-1,-1), 10), # Plus de padding pour le total
+            ('TOPPADDING', (0,-1), (-1,-1), 10),
             ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
@@ -260,8 +270,8 @@ class AccountingGenerator:
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
         elements = [Spacer(1, 0.4*cm), Paragraph(f"DEVIS N° {document_number}" if document_number else "DEVIS DENTAIRE", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.5*cm)]
         
-        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=9, textColor=colors.white, alignment=TA_CENTER)
-        table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX UNITAIRE (MAD)", header_style)]]
+        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
+        table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
         text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_CENTER)
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_LEFT, leading=13)
 
@@ -274,16 +284,25 @@ class AccountingGenerator:
             table_data.append([acte_para, Paragraph(str(dent_display), text_style), Paragraph(f"{item.prix_unitaire:.2f}", text_style)])
             total += item.prix_unitaire
 
-        total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=p_color, alignment=TA_CENTER)
-        table_data.append(["", Paragraph("<b>TOTAL</b>", total_words_style), Paragraph(f"<b>{total:.2f}</b>", total_words_style)])
+        total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
+        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=12, textColor=p_color, alignment=TA_CENTER)
         
-        t = Table(table_data, colWidths=[7.8*cm, 1.5*cm, 2.5*cm])
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
+        
+        # Largeur rÃ©Ã©quilibrÃ©e : 12.8cm au total (7.8 + 2.0 + 3.0)
+        t = Table(table_data, colWidths=[7.8*cm, 2.0*cm, 3.0*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
-            ('VALIGN', (0,0), (-1,-1), 'TOP'), 
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-2), 0.3, p_color), 
+            ('SPAN', (0, -1), (1, -1)),
+            ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,-1), (-1,-1), 10),
+            ('TOPPADDING', (0,-1), (-1,-1), 10),
             ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
@@ -313,8 +332,9 @@ class AccountingGenerator:
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None):
         m_top = (config.margin_top if config else 3.6) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
-        doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        # Marges latérales réduites de 1.5cm à 1.0cm pour un tableau plus large
+        doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.cloture_text = cloture_text
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
-        return filepath[filepath.find("static"):].replace("\\", "/")
+        return filepath.replace("\\", "/")

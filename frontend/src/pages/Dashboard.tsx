@@ -45,7 +45,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await api.get('/dashboard/stats');
+        const response = await api.get('/admin/dashboard/stats');
         setStats(response.data);
       } catch (err) {
         console.warn("Route API manquante ou invalide, injection des données de secours.");
@@ -117,8 +117,8 @@ export const Dashboard: React.FC = () => {
           <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:bg-primary group-hover:text-white transition-all duration-300" style={{ color: 'var(--primary)' }}>
             <Users size={28} />
           </div>
-          <h3 className="text-xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Base de Données</h3>
-          <p className="text-slate-500 mt-1 font-medium italic">Gérez vos dossiers patients</p>
+          <h3 className="text-xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Dossiers Patients</h3>
+          <p className="text-slate-500 mt-1 font-medium italic">Gestion de la patientèle</p>
         </Link>
 
         {/* ACTION: AGENDA */}

@@ -2,12 +2,21 @@ import axios from 'axios';
 
 // CTO Rigor: Synchronized Backend endpoint (Port 8000)
 // Using 127.0.0.1 for direct and fast resolution
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Timeout increased to 30s for AI model inference
   // Note: Do NOT set Content-Type header here - let axios auto-detect for FormData
+});
+
+// Interceptor to inject JWT token automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // Interceptor for global error handling and system notification
@@ -27,6 +36,13 @@ api.interceptors.response.use(
         console.table(errorData.detail);
       }
       console.groupEnd();
+      if (error.response.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

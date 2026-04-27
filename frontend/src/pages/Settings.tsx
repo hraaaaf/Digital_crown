@@ -85,7 +85,7 @@ export const Settings = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get('/api/clinics/me');
+        const res = await api.get('/clinics/me');
         if (res.data) {
           // Mapping des noms de champs backend -> frontend avec repli sur chaîne vide
           setProfile({
@@ -141,7 +141,7 @@ export const Settings = () => {
 
     try {
       setSavingProfile(true);
-      const res = await api.post('/api/clinics/me/letterhead', formData, {
+      const res = await api.post('/clinics/me/letterhead', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setProfile(prev => ({ 
@@ -184,7 +184,7 @@ export const Settings = () => {
         footer_phones: contactString,
         contacts_json: contacts
       };
-      await api.put('/api/clinics/me', payload);
+      await api.put('/clinics/me', payload);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -221,7 +221,7 @@ export const Settings = () => {
   };
 
   const handleExportDB = () => {
-    window.open('http://127.0.0.1:8000/admin/export-db', '_blank');
+    window.open('http://127.0.0.1:8000/api/admin/export-db', '_blank');
   };
 
   // --- UI CLASSES ---
@@ -418,7 +418,7 @@ export const Settings = () => {
                              onClick={() => {
                                const newVal = !profile.watermark_enabled;
                                setProfile(p => ({ ...p, watermark_enabled: newVal }));
-                               api.put('/api/clinics/me', { watermark_enabled: newVal });
+                               api.put('/clinics/me', { watermark_enabled: newVal });
                              }}
                              className={cn(
                                "w-12 h-6 rounded-full transition-all relative",
@@ -449,7 +449,7 @@ export const Settings = () => {
                                  onChange={(e) => {
                                    const val = parseFloat(e.target.value);
                                    setProfile(p => ({ ...p, margin_top: val }));
-                                   api.put('/api/clinics/me', { margin_top: val });
+                                   api.put('/clinics/me', { margin_top: val });
                                  }}
                                  className="w-full h-1.5 bg-slate-100 rounded-lg cursor-pointer" 
                                  style={{ accentColor: 'var(--primary)' }}
@@ -468,7 +468,7 @@ export const Settings = () => {
                                  onChange={(e) => {
                                    const val = parseFloat(e.target.value);
                                    setProfile(p => ({ ...p, margin_bottom: val }));
-                                   api.put('/api/clinics/me', { margin_bottom: val });
+                                   api.put('/clinics/me', { margin_bottom: val });
                                  }}
                                  className="w-full h-1.5 bg-slate-100 rounded-lg accent-emerald-600 cursor-pointer" 
                                />
