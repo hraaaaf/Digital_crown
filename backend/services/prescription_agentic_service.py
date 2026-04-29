@@ -9,113 +9,86 @@ from backend.services.ai_advisor import ai_advisor
 
 logger = logging.getLogger(__name__)
 
-# --- BASE DE DONNÉES PHARMACOLOGIQUE MAROC (ÉLITE) ---
-MOROCCAN_DRUG_DB = {
-    "AMOXICILLINE": ["Augmentin", "Clamoxyl", "Amoxyl", "Curam"],
-    "AMOXICILLINE_ACIDE_CLAVULANIQUE": ["Augmentin", "Curam", "Clavulin"],
-    "SPIRAMYCINE_METRONIDAZOLE": ["Bi-Rodogyl", "Rodogyl", "Birodogyl"],
-    "METRONIDAZOLE": ["Flagyl"],
-    "IBUPROFENE": ["Spidifen", "Advil", "Algofène", "Nurofen"],
-    "ACIDE_TIAPROFRENIQUE": ["Surgam"],
-    "PARACETAMOL": ["Doliprane", "Dafalgan", "Efferalgan"],
-    "BETAMETHASONE": ["Celestene", "Betneval"],
-    "CHLORHEXIDINE": ["Eludril", "Hextril", "Givalex"]
-}
+from backend.services.clinical_rules_engine import clinical_rules
+from backend.services.prescription_service import prescription_service
 
 class PrescriptionAgenticService:
     """
     Système de prescription agentique v2.0 "Zero Friction".
-    Orchestre deux agents Gemini pour transformer le diagnostic en plan thérapeutique.
+    Hybride : Agent Chercheur Local-First (Déterministe + Habitudes) + Agent Architecte Gemini (Synthèse).
     """
+    
+    def __init__(self):
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        if self.api_key:
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+        else:
+            self.model = None
+            logger.warning("PrescriptionAgenticService: GEMINI_API_KEY non configurée.")
 
-    def generate_clinical_assessment(self, db: Session, patient_id: int, act_names: List[str]) -> Dict[str, Any]:
+    def generate_clinical_assessment(self, db: Session, patient_id: int, act_names: List[str], doctor_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        AGENT 1 : RECHERCHE SCIENTIFIQUE (Le Chercheur)
-        Analyse le dossier et propose un bilan de cohérence clinique.
+        AGENT 1 : LE CHERCHEUR (Local First - Déterministe + Habitudes)
+        Analyse le dossier et les habitudes du praticien via PrescriptionService.
         """
+        # APPEL AU SERVICE D'INTELLIGENCE (Habitudes + CRE)
+        smart_plan = prescription_service.get_smart_plan(db, doctor_id, patient_id, act_names)
+        
+        # Enrichissement du bilan Markdown
         patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-        if not patient:
-            return {"error": "Patient introuvable"}
+        bilan = f"""
+### Bilan de Sécurité & Intelligence Clinique
+**Source :** {smart_plan['source']}
+**Patient :** {patient.nom} {patient.prenom} ({self._calculate_age(patient.date_naissance)} ans)
+**Actes détectés :** {", ".join(act_names)}
 
-        age = self._calculate_age(patient.date_naissance)
-        context = {
-            "patient": {
-                "nom": patient.nom,
-                "age": age,
-                "genre": patient.genre,
-                "poids": "65kg (estimé)" if age > 15 else "Variable", # Idéalement à ajouter au modèle
-                "antecedents": patient.antecedents_medicaux or "Néant",
-                "allergies": self._extract_allergies(patient.antecedents_medicaux)
-            },
-            "actes_du_jour": act_names,
-            "date": datetime.now().strftime("%Y-%m-%d")
-        }
+**⚠️ Sécurité :**
+{chr(10).join([f"• {r}" for r in smart_plan['safety']['risques']]) if smart_plan['safety']['risques'] else "✅ Aucun risque détecté."}
 
-        prompt = f"""
-        Tu es un expert en pharmacologie clinique dentaire de classe mondiale. 
-        Ta mission est de réaliser un BILAN SCIENTIFIQUE pour le patient suivant :
-        
-        CONTEXTE PATIENT:
-        {json.dumps(context, indent=2)}
-        
-        INSTRUCTIONS:
-        1. Analyse les risques (allergies, interactions avec les antécédents).
-        2. Identifie les molécules recommandées par la littérature (HAS, OMS) pour ces actes.
-        3. Propose une stratégie : Antibioprophylaxie ? Antibiothérapie curative ? Gestion de l'inflammation ?
-        4. Si c'est un enfant, calcule les doses théoriques en mg/kg.
-        
-        Réponds UNIQUEMENT en JSON avec la structure :
-        {{
-          "risques_identifies": ["..."],
-          "recommandations_moleculaires": [
-             {{"molecule": "...", "justification": "...", "priorite": "haute/moyenne"}}
-          ],
-          "strategie_globale": "...",
-          "bilan_markdown": "### Bilan Scientifique... (Rédige un résumé pro en Markdown)"
-        }}
+**💊 Suggestions (Habitudes/Protocoles) :**
+{chr(10).join([f"• {d['name']} ({d['dosage']})" for d in smart_plan['drugs']])}
         """
-
-        try:
-            # Appel à l'agent IA (Gemini via AIAdvisor)
-            response = ai_advisor.client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
-            assessment = self._parse_json_response(response.text)
-            return assessment
-        except Exception as e:
-            logger.error(f"Erreur Agent Chercheur: {e}")
-            return {"error": str(e), "fallback": True}
+        
+        smart_plan["bilan_markdown"] = bilan
+        return smart_plan
 
     def design_treatment_plan(self, assessment: Dict[str, Any], patient_context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        AGENT 2 : L'ARCHITECTE (Plan de Traitement)
-        Transforme le bilan en ordonnance concrète avec le contexte marocain.
+        AGENT 2 : L'ARCHITECTE (Plan de Traitement Synthétisé)
+        Transforme le bilan et les suggestions en ordonnance finale élégante.
         """
+        if not self.model:
+            # Fallback direct si Gemini absent
+            return {
+                "plan_nom": f"Protocole {assessment.get('act_context', 'Standard')}",
+                "prescriptions": assessment.get("drugs", []),
+                "conseils_patient": [assessment.get("strategie_globale", "Suivre les recommandations.")]
+            }
+        
+        # Injection de la pharmacopée marocaine réelle du CRE dans le prompt
+        moroccan_drugs = clinical_rules.MAROC_PHARMACOPEIA
         
         prompt = f"""
         Tu es un médecin chef de cabinet dentaire au Maroc.
-        En te basant sur ce BILAN SCIENTIFIQUE :
+        En te basant sur ce BILAN SCIENTIFIQUE ET HABITUDES :
         {json.dumps(assessment, indent=2)}
         
-        Et ce CONTEXTE PATIENT :
-        {json.dumps(patient_context, indent=2)}
-        
-        Établis un PLAN DE TRAITEMENT précis en utilisant uniquement des médicaments disponibles au Maroc.
-        MÉDICAMENTS DISPONIBLES (Noms commerciaux): {json.dumps(MOROCCAN_DRUG_DB)}
+        Établis un PLAN DE TRAITEMENT final précis.
+        PHARMACOPÉE MAROCAINE RÉFÉRENTE: {json.dumps(moroccan_drugs)}
         
         INSTRUCTIONS:
-        1. Choisis le MEILLEUR nom commercial pour chaque molécule.
-        2. Détermine la forme (Gélules, Comprimés, Sachets, Suspension) selon l'âge.
-        3. Rédige une posologie CLAIRE et SANS AMBIGUÏTÉ (ex: 1 gélule matin et soir pendant 6 jours).
+        1. Utilise les médicaments suggérés en priorité (car ce sont les HABITUDES du docteur).
+        2. Si un médicament suggéré n'a pas de posologie, rédige une posologie CLAIRE (ex: 1 gélule matin et soir pendant 6 jours).
+        3. Assure-toi que la forme est adaptée (ex: Si is_child est true, préférer suspensions).
         4. Ajoute des conseils d'utilisation (ex: au milieu des repas).
         
         Réponds UNIQUEMENT en JSON avec la structure :
         {{
-          "plan_nom": "Protocole ...",
+          "plan_nom": "Nom du protocole",
           "prescriptions": [
              {{
-               "medicament": "NOM COMMERCIAL (ex: Augmentin)",
+               "medicament": "NOM COMMERCIAL",
                "dosage": "...",
                "forme": "...",
                "posologie": "...",
@@ -128,10 +101,7 @@ class PrescriptionAgenticService:
         """
 
         try:
-            response = ai_advisor.client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
+            response = self.model.generate_content(prompt)
             plan = self._parse_json_response(response.text)
             return plan
         except Exception as e:
@@ -143,22 +113,16 @@ class PrescriptionAgenticService:
         today = datetime.now()
         return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
-    def _extract_allergies(self, text: Optional[str]) -> List[str]:
-        if not text: return []
-        # Logique simplifiée pour la démo, l'agent fera mieux
-        text = text.lower()
-        allergies = []
-        if "pénicilline" in text or "amox" in text: allergies.append("Pénicillines")
-        if "atb" in text: allergies.append("Antibiotiques")
-        return allergies
-
     def _parse_json_response(self, text: str) -> Dict:
-        # Nettoyage du markdown si nécessaire
-        clean_text = text.replace("```json", "").replace("```", "").strip()
         try:
-            return json.loads(clean_text)
-        except:
-            # Fallback manuel si le JSON est mal formé
-            return { "error": "JSON malformé", "raw": text }
+            start_idx = text.find('{')
+            end_idx = text.rfind('}')
+            if start_idx != -1 and end_idx != -1:
+                json_str = text[start_idx:end_idx+1]
+                return json.loads(json_str)
+            return json.loads(text)
+        except Exception as e:
+            logger.error(f"Erreur Parsing JSON IA: {e}")
+            return { "error": "Erreur de formatage IA" }
 
 prescription_agentic = PrescriptionAgenticService()

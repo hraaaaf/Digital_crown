@@ -54,7 +54,7 @@ async def get_clinical_assessment(patient_id: int, db: Session = Depends(databas
         last_actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).order_by(models.Acte.date_debut.desc()).limit(3).all()
         act_names = [a.libelle for a in last_actes]
 
-    return prescription_agentic.generate_clinical_assessment(db, patient_id, act_names)
+    return prescription_agentic.generate_clinical_assessment(db, patient_id, act_names, doctor_id=current_user.id)
 
 @prescription_router.post("/agentic/design")
 async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -71,4 +71,13 @@ async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db),
 
 @prescription_router.post("/preferences")
 async def save_prescription_preference(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    return {"status": "success", "message": "Préférence enregistrée"}
+    """
+    Enregistre une habitude de prescription pour le médecin actuel.
+    """
+    act_code = req.get("act_code")
+    drugs = req.get("drugs")
+    if not act_code or not drugs:
+        raise HTTPException(status_code=400, detail="Données de préférence incomplètes")
+        
+    prescription_service.learn_habit(db, current_user.id, act_code, drugs)
+    return {"status": "success", "message": "Habitude enregistrée avec succès"}

@@ -12,7 +12,7 @@ import { LivePreview } from './DocumentStudio/LivePreview';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 
 // Formulaires
-import { PrescriptionForm, type DrugItem } from './DocumentStudio/Forms/PrescriptionForm';
+import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
 import { CertificateForm } from './DocumentStudio/Forms/CertificateForm';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
@@ -190,23 +190,22 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {activeTab === 'ordonnance' && (
-            <PrescriptionForm
+            <PrescriptionAgenticStudio
+              patientId={patientId || '0'}
               drugs={drugs}
-              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Sachets', posologie: '' }])}
-              onRemoveDrug={(id) => setDrugs(drugs.filter(d => d.id !== id))}
-              onUpdateDrug={(id, field, val) => setDrugs(drugs.map(d => d.id === id ? { ...d, [field]: val } : d))}
-              loadingSmart={loadingSmart}
-              smartSuggestion={smartSuggestion}
-              onApplySmart={() => {
-                setDrugs(smartSuggestion.suggestions.map((s: any, idx: number) => ({ id: idx + 1, name: s.nom, dosage: s.dosage, forme: s.forme, posologie: s.posologie })));
-                setSmartSuggestion({ ...smartSuggestion, applied: true });
-              }}
-              onApplyPreset={(p) => {
-                setDrugs(p.drugs.map((d: any, idx: number) => ({ id: Date.now() + idx, name: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie })));
+              setDrugs={setDrugs}
+              onUpdateDrug={(id, field, val) => {
+                setDrugs(drugs.map(d => d.id === id ? { ...d, [field]: val } : d));
                 generator.setHasChanges(true);
               }}
+              onRemoveDrug={(id) => {
+                setDrugs(drugs.filter(d => d.id !== id));
+                generator.setHasChanges(true);
+              }}
+              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '' }])}
               validationErrors={generator.validationErrors}
-              coherenceWarnings={generator.coherenceWarnings}
+              onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
+              hasChanges={generator.hasChanges}
             />
           )}
 
