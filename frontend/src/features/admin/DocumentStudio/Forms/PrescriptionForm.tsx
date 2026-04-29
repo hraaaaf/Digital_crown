@@ -11,6 +11,9 @@ export interface DrugItem {
   posologie: string; 
 }
 
+import type { ValidationError, CoherenceWarning } from '../useDocumentGenerator';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
+
 interface PrescriptionFormProps {
   drugs: DrugItem[];
   onAddDrug: () => void;
@@ -20,6 +23,8 @@ interface PrescriptionFormProps {
   smartSuggestion: any;
   onApplySmart: () => void;
   onApplyPreset: (preset: { label: string, color: string, drugs: any[] }) => void;
+  validationErrors?: ValidationError[];
+  coherenceWarnings?: CoherenceWarning[];
 }
 
 const QUICK_PRESCRIPTIONS = [
@@ -48,10 +53,17 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
   loadingSmart,
   smartSuggestion,
   onApplySmart,
-  onApplyPreset
+  onApplyPreset,
+  validationErrors = [],
+  coherenceWarnings = []
 }) => {
   const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
+
+  // Check for global drug errors
+  const globalDrugError = validationErrors.find(e => e.field === 'drugs');
+  // Check for antibiotic interaction
+  const antibioticWarning = coherenceWarnings.find(w => w.message.includes('antibiotique'));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -112,31 +124,55 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
       </AnimatePresence>
 
       <div className="space-y-4">
+        {/* Global Errors */}
+        {globalDrugError && (
+          <div className="px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
+            <AlertCircle size={14} /> {globalDrugError.message}
+          </div>
+        )}
+        {antibioticWarning && (
+          <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-600 font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
+            <AlertTriangle size={14} /> {antibioticWarning.message}
+          </div>
+        )}
+
         <div className="grid grid-cols-12 gap-4 px-4">
           <div className="col-span-4"><label className={labelClass}>Médicament</label></div>
           <div className="col-span-3"><label className={labelClass}>Dosage</label></div>
           <div className="col-span-4"><label className={labelClass}>Posologie</label></div>
         </div>
         <div className="space-y-4">
-          {drugs.map((drug) => (
-            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={drug.id} className="bg-white/40 p-5 rounded-[2rem] border border-white/60 hover:bg-white/80 transition-all group relative">
-              <div className="grid grid-cols-12 gap-6 items-start">
-                <div className="col-span-4">
-                  <input 
-                    type="text" 
-                    className={cn(inputClass, "font-black text-primary text-base")} 
-                    style={{ color: 'var(--primary)' }} 
-                    placeholder="MÉDICAMENT..." 
-                    value={drug.name} 
-                    onChange={(e) => onUpdateDrug(drug.id, 'name', e.target.value.toUpperCase())} 
-                  />
-                </div>
-                <div className="col-span-3">
-                  <input type="text" className={inputClass} placeholder="Dose (ex: 1g, 500mg...)" value={drug.dosage} onChange={(e) => onUpdateDrug(drug.id, 'dosage', e.target.value)} />
-                </div>
-                <div className="col-span-4">
-                  <input type="text" className={inputClass} placeholder="Posologie (ex: 1x3/jour...)" value={drug.posologie} onChange={(e) => onUpdateDrug(drug.id, 'posologie', e.target.value)} />
-                </div>
+          {drugs.map((drug, idx) => {
+            const fieldError = validationErrors.find(e => e.field === `drug_${idx}`);
+            return (
+              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={drug.id} className={cn(
+                "bg-white/40 p-5 rounded-[2rem] border transition-all group relative",
+                fieldError ? "border-red-200 bg-red-50/20" : "border-white/60 hover:bg-white/80"
+              )}>
+                <div className="grid grid-cols-12 gap-6 items-start">
+                  <div className="col-span-4">
+                    <input 
+                      type="text" 
+                      className={cn(inputClass, "font-black text-primary text-base", fieldError && "border-red-300 focus:ring-red-200")} 
+                      style={{ color: 'var(--primary)' }} 
+                      placeholder="MÉDICAMENT..." 
+                      value={drug.name} 
+                      onChange={(e) => onUpdateDrug(drug.id, 'name', e.target.value.toUpperCase())} 
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input type="text" className={inputClass} placeholder="Dose (ex: 1g, 500mg...)" value={drug.dosage} onChange={(e) => onUpdateDrug(drug.id, 'dosage', e.target.value)} />
+                  </div>
+                  <div className="col-span-4">
+                    <div className="relative">
+                      <input type="text" className={cn(inputClass, fieldError && "border-red-300 focus:ring-red-200")} placeholder="Posologie (ex: 1x3/jour...)" value={drug.posologie} onChange={(e) => onUpdateDrug(drug.id, 'posologie', e.target.value)} />
+                      {fieldError && (
+                        <div className="absolute -bottom-5 left-1 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
+                          <AlertCircle size={10} /> Posologie Requise
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 <div className="col-span-1 flex justify-center pt-3">
                   <button onClick={() => onRemoveDrug(drug.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
                 </div>
@@ -206,8 +242,9 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                 </div>
               </div>
             </motion.div>
-          ))}
-        </div>
+          );
+        })}
+      </div>
         <button onClick={onAddDrug} className="w-full py-4 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-bold mt-2"><Plus size={18} /> Ajouter une prescription</button>
       </div>
     </div>

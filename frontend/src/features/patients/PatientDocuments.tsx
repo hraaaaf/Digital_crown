@@ -184,7 +184,7 @@ export const PatientDocuments = () => {
 
             <div className="grid grid-cols-2 gap-3 relative z-10">
               <a 
-                href={`http://localhost:8000/${doc.url}`} 
+                href={`${api.defaults.baseURL || 'http://localhost:8000/api'}/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`} 
                 target="_blank" 
                 rel="noreferrer" 
                 className="flex items-center justify-center gap-2 py-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
@@ -192,7 +192,7 @@ export const PatientDocuments = () => {
                 <Eye size={16} /> Voir
               </a>
               <a 
-                href={`http://localhost:8000/${doc.url}`} 
+                href={`${api.defaults.baseURL || 'http://localhost:8000/api'}/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`} 
                 download={doc.name}
                 className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-[#003380] to-blue-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
               >

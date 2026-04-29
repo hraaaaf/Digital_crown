@@ -125,6 +125,19 @@ class PatientBase(BaseModel):
             return None
         return v
 
+class PatientUpdate(BaseModel):
+    numero_dossier: Optional[str] = None
+    nom: Optional[str] = None
+    prenom: Optional[str] = None
+    date_naissance: Optional[Union[datetime.datetime, datetime.date, str]] = None
+    sexe: Optional[str] = None
+    email: Optional[EmailStr] = Field(None, validate_default=True)
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    assurance: Optional[str] = None
+    photo_url: Optional[str] = None
+    antecedents_medicaux: Optional[str] = None
+
 class PatientCreate(PatientBase):
     pass
 
@@ -180,6 +193,22 @@ class CephaloAnalysisOut(BaseModel):
     ai_diagnostic: Optional[DiagnosticSLM] = None
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+# --- 7bis. SCHÉMA ANALYSE PANORAMIQUE (DENTEX) ---
+
+class PanoramicAnalysisBase(BaseModel):
+    image_path: str
+    detections_data: Dict[str, Any] = Field(default_factory=dict)
+    report_narrative: Optional[str] = None
+
+class PanoramicAnalysisCreate(PanoramicAnalysisBase):
+    patient_id: int
+
+class PanoramicAnalysisOut(PanoramicAnalysisBase):
+    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==============================================================================

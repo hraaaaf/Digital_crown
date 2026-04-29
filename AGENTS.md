@@ -524,12 +524,11 @@ Ce projet est développé par SANINOVA. Pour toute contribution:
 | **Vision** | `vision_service.py` | PyTorch + CephLD-CCA U-Net | Détection 19 landmarks céphalo + 2 apex |
 | **Géométrie** | `cephalo_engine.py` | Python (math) | Calculs angles, normes COM, projections |
 | **Diagnostic** | `ai_advisor.py` | Ollama/Llama3.2 (SLM) | Diagnostic structuré (squelettique/dentaire/stratégie) |
+| **Intelligence** | `clinical_intelligence.py`| Gemini 1.5 Flash | Résumé flash et analyse de cohérence clinique |
 | **Prescription** | `prescription_service.py`| Arbre décisionnel (Python) | Résolution contextuelle (Acte > Préférence > Sécurité) |
 | **CardExtractor**| `card_extractor.py`      | Gemini 1.5 Flash (Vision)  | Extraction intelligente de cartes de visite (Onboarding) |
 | **DocMaster** | `*.md` | Markdown Sync Agent | Actualisation en temps réel des specs, roadmap et journal d'erreurs |
-| Diagnostic | Analyse IA | Ollama/Llama3.2 (SLM) |
-| Suggérer | Heuristique + API externe | Suggestions ordonnances, actes cliniques |
-| Documents | Generators/*.py | ReportLab | Génération PDF (ordonnances, bilans, devis) |
+| Documents | Generators/*.py | ReportLab (Stable) | Génération PDF (ordonnances, bilans, devis) |
 
 ---
 
@@ -578,11 +577,11 @@ Radiographie JPEG/PNG
 
 ### 🆕 Stabilisation Technique v4.6 (Avril 2026)
 
-1. **Pack "Medical Premium"** : Intégration native des polices Google Fonts (**Outfit** pour la structure et **Inter** pour le corps) via le moteur WeasyPrint, garantissant un rendu "Designer".
+1. **Restauration ReportLab (Stabilité v1.2)** : Abandon du moteur WeasyPrint pour les documents médicaux au profit de la robustesse ReportLab (Paragraph rendering).
 2. **Branding Forcing** : Application stricte de la couleur primaire (`p_color`) sur tout le contenu textuel, supprimant définitivement le noir pour une identité visuelle "Elite".
-3. **Optimisation A5** : Augmentation systématique de **+1pt** sur toutes les polices pour un confort de lecture optimal sur les imprimantes de cabinet.
-4. **Clarté Financière v4.6** : Affichage exclusif du montant total en toutes lettres dans les mentions de clôture légale, éliminant la redondance numérique pour un aspect plus prestigieux.
-5. **Layout Certificat v4.6** : Re-hiérarchisation du contenu (Patient/Date avant le titre) et alignement latéral géométrique précis.
+3. **Correctif d'Encodage** : Standardisation UTF-8 et correction des caractères parasites (`Ã`, `Âge`) dans tous les générateurs PDF.
+4. **Auto-Open UX** : Ouverture automatique des PDF dans un nouvel onglet dès la génération via le hook `useDocumentGenerator`.
+5. **Clinical Intelligence** : Déploiement de l'analyse IA contextuelle dans le Studio Documentaire (Flash Summary).
 
 ---
 
@@ -594,4 +593,4 @@ Radiographie JPEG/PNG
 
 ---
 
-*Document mis à jour le 2026-04-21 pour agents IA - Digital Crown v1.2 (Elite Edition)*
+*Document mis à jour le 2026-04-27 pour agents IA - Digital Crown v1.2 (Stabilization Release)*

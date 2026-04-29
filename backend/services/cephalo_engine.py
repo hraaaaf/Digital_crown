@@ -26,7 +26,11 @@ class CephaloEngine:
             "U1i": ["U1i", "U1_incisal", "11_incisal", "UIe"],
             "U1a": ["U1a", "U1_apex", "11_apex", "UIa"],
             "L1i": ["L1i", "L1_incisal", "41_incisal", "LIe"],
-            "L1a": ["L1a", "L1_apex", "41_apex", "LIa"]
+            "L1a": ["L1a", "L1_apex", "41_apex", "LIa"],
+            "Prn": ["Prn", "Pronasale"],
+            "Pog_soft": ["Pog_soft", "Soft_Pogonion"],
+            "Ls": ["Ls", "Labrale_Superius"],
+            "Li": ["Li", "Labrale_Inferius"]
         }
 
     # --- UTILITAIRES GÉOMÉTRIQUES ---
@@ -192,7 +196,8 @@ class CephaloEngine:
             },
             "metrics": {
                 "analyse_dentaire": {},
-                "analyse_osseuse": {}
+                "analyse_osseuse": {},
+                "analyse_esthetique": {}
             },
             "visual_debug": {"N_prime": None, "A_prime": None, "B_prime": None},
             "t1_projection": {},

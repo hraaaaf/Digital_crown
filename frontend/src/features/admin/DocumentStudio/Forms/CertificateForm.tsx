@@ -1,18 +1,23 @@
 import React from 'react';
 import { cn } from '../../../../utils/cn';
 
+import type { ValidationError } from '../useDocumentGenerator';
+import { AlertCircle } from 'lucide-react';
+
 interface CertificateFormProps {
   certifType: string;
   setCertifType: (type: string) => void;
   certifDays: number;
   setCertifDays: (days: number) => void;
+  validationErrors?: ValidationError[];
 }
 
 export const CertificateForm: React.FC<CertificateFormProps> = ({
   certifType,
   setCertifType,
   certifDays,
-  setCertifDays
+  setCertifDays,
+  validationErrors = []
 }) => {
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
 
@@ -46,7 +51,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
           </div>
           <input 
             type="range" 
-            min="1" 
+            min="0" 
             max="30" 
             step="1" 
             value={certifDays} 
@@ -54,6 +59,11 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
             className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary" 
             style={{ accentColor: 'var(--primary)' }}
           />
+          {validationErrors.find(e => e.field === 'certifDays') && (
+            <div className="mt-4 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2 animate-in slide-in-from-top-2">
+              <AlertCircle size={12} /> Durée Invalide
+            </div>
+          )}
         </div>
       </div>
     </div>

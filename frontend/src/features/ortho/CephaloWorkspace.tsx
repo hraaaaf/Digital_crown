@@ -31,11 +31,13 @@ import {
   Maximize2, Minimize2, Ruler,
 } from 'lucide-react';
 import { CephaloTracingLayer } from './CephaloTracingLayer';
-import type { Landmark } from './CephaloTracingLayer';
+import type { 
+  Landmark, UIMode, StepId, SyncState, ImageFilters, VTOSettings 
+} from './cephaloShared';
 
 import type { 
-  UIMode, StepId, SyncState, DDMState, DiagnosticTexts, ImageFilters, LocalState, 
-  DonneesEtape3, DonneesEtape2, PhotoUpload, PatternVertical, ProfilFacial, SeveriteDDM 
+  DDMState, DiagnosticTexts, LocalState, 
+  DonneesEtape3, DonneesEtape2, PhotoUpload, PatternVertical, ProfilFacial, SeveriteDDM
 } from './cephaloTypes';
 
 import { 
@@ -64,7 +66,7 @@ const buildPayload = (
   mand: number | null, 
   real: number | null, 
   diag: DiagnosticTexts, 
-  projections: any,
+  projections: Record<string, any>,
   ratio: number | null = null
 ) => ({
   landmarks: lms,
@@ -359,14 +361,25 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [isPrinting, setIsPrinting] = useState(false);
   const [magnifierEnabled, setMagnifierEnabled] = useState(false);
   const [autoCalibMessage, setAutoCalibMessage] = useState<string | null>(null);
-
-  //  DDM & Textes Diagnostics 
+  
+  // DDM & Diagnostic State (Source de vérité)
   const [ddm, setDdm] = useState<DDMState>({ maxillaire: '', mandibulaire: '' });
   const [diag, setDiag] = useState<DiagnosticTexts>({
     squelettique: '',
     compensations_dentaires: '',
     plan_therapeutique: '',
   });
+
+  //  VTO & Simulation State
+  const [vtoSettings, setVtoSettings] = useState<VTOSettings>({
+    enabled: false,
+    showGhostFace: true,
+    showSoftTissue: true,
+    u1_offset: { x: 0, y: 0 },
+    l1_offset: { x: 0, y: 0 },
+    mand_offset: { x: 0, y: 0 }
+  });
+
 
   // Mode Performance (pour PC modestes)
   const performanceMode = useMemo(() => {
@@ -489,6 +502,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         situation_a: '',
         situation_b: '',
         profondeur_faciale: '',
+      },
+      esthetique: {
+        ligne_e_ls: '',
+        ligne_e_li: '',
       },
       ddm_clinique: '',
       ddm_cephalo: '',
@@ -873,8 +890,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const ddmMaxClinique = ddm.maxillaire === '' ? null : Number(ddm.maxillaire);
   const ddmMandClinique = ddm.mandibulaire === '' ? null : Number(ddm.mandibulaire);
 
-  const ddmMaxReelle = useMemo(() => calcDDMReelle(ddm.maxillaire, impaActuel), [ddm.maxillaire, impaActuel]);
-  const ddmMandReelle = useMemo(() => calcDDMReelle(ddm.mandibulaire, impaActuel), [ddm.mandibulaire, impaActuel]);
+  const ddmMaxReelle = useMemo(() => calcDDMReelle(ddm.maxillaire, iFrancfortActuel, 107), [ddm.maxillaire, iFrancfortActuel]);
+  const ddmMandReelle = useMemo(() => calcDDMReelle(ddm.mandibulaire, impaActuel, 90), [ddm.mandibulaire, impaActuel]);
   const ddmReelleTotale = useMemo(() => {
     if (ddmMaxReelle === null || ddmMandReelle === null) return null;
     return ddmMaxReelle + ddmMandReelle;
@@ -1262,7 +1279,49 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
               {magnifierEnabled ? <ZoomOut size={13} /> : <ZoomIn size={13} />}
             </button>
           </div>
+
+          <div className="w-px h-4 opacity-20" style={{ background: P.border }} />
+
+          {/* Contrôles Esthétiques & Simulation */}
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={() => setVtoSettings(v => ({ ...v, showSoftTissue: !v.showSoftTissue }))}
+                className="px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                style={{ 
+                  background: vtoSettings.showSoftTissue ? `${P.accentSuccess}15` : 'transparent', 
+                  border: `1px solid ${vtoSettings.showSoftTissue ? P.accentSuccess : P.border}`,
+                  color: vtoSettings.showSoftTissue ? P.accentSuccess : P.textDim 
+                }}
+             >
+                PROFIL
+             </button>
+             <button 
+                onClick={() => setVtoSettings(v => ({ ...v, showGhostFace: !v.showGhostFace }))}
+                className="px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                style={{ 
+                  background: vtoSettings.showGhostFace ? `${P.accent}15` : 'transparent', 
+                  border: `1px solid ${vtoSettings.showGhostFace ? P.accent : P.border}`,
+                  color: vtoSettings.showGhostFace ? P.accent : P.textDim 
+                }}
+             >
+                FACE 3D
+             </button>
+             <button 
+                onClick={() => setVtoSettings(v => ({ ...v, enabled: !v.enabled }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                style={{ 
+                  background: vtoSettings.enabled ? `${P.accentWarning}20` : 'transparent', 
+                  border: `1px solid ${vtoSettings.enabled ? P.accentWarning : P.border}`,
+                  color: vtoSettings.enabled ? P.accentWarning : P.textDim 
+                }}
+             >
+                <Activity size={14} />
+                SIMULATION VTO
+             </button>
+          </div>
+
           <button onClick={() => { setImageSrc(undefined); setLocal({ landmarks: [], version: 0 }); setAnglesData({}); }} className="p-1.5 rounded-lg transition-all" style={{ border: `1px solid ${P.border}`, color: P.textDim }} title="Changer d'image"><RefreshCw size={12} /></button>
+
           
           {/* Réinitialiser apex aux normes COM */}
           <button 
@@ -1402,7 +1461,139 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
             hoveredMetric={null}
             magnifierEnabled={magnifierEnabled}
             performanceMode={performanceMode}
+            vto={vtoSettings}
           />
+
+          {/* Panneau Simulation VTO Elite (Flottant) */}
+          <AnimatePresence>
+            {vtoSettings.enabled && (
+              <motion.div
+                initial={{ opacity: 0, x: 30, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 30, scale: 0.95 }}
+                className="absolute top-24 right-8 w-72 p-5 rounded-3xl shadow-2xl z-40 overflow-hidden"
+                style={{ 
+                  background: `${P.bgPanel}CC`, // Transparence vitreuse
+                  border: `1px solid ${P.accent}40`,
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: `0 20px 50px -12px rgba(0,0,0,0.5), 0 0 20px ${P.accent}20`
+                }}
+              >
+                {/* Effet de lueur en arrière-plan du panel */}
+                <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full blur-[40px] opacity-20" style={{ background: P.accent }} />
+
+                <div className="relative flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${P.accentWarning}20`, border: `1px solid ${P.accentWarning}40` }}>
+                      <Activity size={16} style={{ color: P.accentWarning }} />
+                    </div>
+                    <div>
+                      <span className="block text-sm font-black tracking-tight" style={{ color: P.text }}>STUDIO VTO</span>
+                      <span className="block text-[10px] font-mono opacity-50" style={{ color: P.textMuted }}>PROACTIVE ENGINE v1.2</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => {
+                        // Animation de séquence 0 -> Valeur actuelle
+                        const targetU1 = vtoSettings.u1_offset?.x || 0;
+                        const targetL1 = vtoSettings.l1_offset?.x || 0;
+                        const targetMand = vtoSettings.mand_offset?.x || 0;
+                        
+                        // Reset temporaire pour l'effet visuel
+                        setVtoSettings(v => ({...v, u1_offset: {x:0,y:0}, l1_offset: {x:0,y:0}, mand_offset: {x:0,y:0}}));
+                        
+                        // Lancement différé pour laisser le spring réagir
+                        setTimeout(() => {
+                           setVtoSettings(v => ({...v, u1_offset: {x:targetU1,y:0}, l1_offset: {x:targetL1,y:0}, mand_offset: {x:targetMand,y:0}}));
+                        }, 100);
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                      title="Lancer la séquence de traitement"
+                    >
+                      <Activity size={14} className="animate-pulse" style={{ color: P.accentSuccess }} />
+                    </button>
+                    <button onClick={() => setVtoSettings(v => ({...v, enabled: false}))} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                      <X size={14} style={{ color: P.textDim }} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                   {/* Maxillaire / U1 */}
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: P.textMuted }}>Incisive Supérieure</label>
+                        <span className="text-xs font-mono font-bold" style={{ color: P.accent }}>
+                          {((vtoSettings.u1_offset?.x || 0) * (mmPerPixel || 0.1)).toFixed(1)} <span className="opacity-40">mm</span>
+                        </span>
+                      </div>
+                      <div className="relative h-6 flex items-center">
+                        <div className="absolute inset-0 h-1 my-auto rounded-full opacity-10" style={{ background: P.text }} />
+                        <input 
+                          type="range" min={-60} max={60} step={1}
+                          value={vtoSettings.u1_offset?.x || 0} 
+                          onChange={(e) => setVtoSettings(v => ({ ...v, u1_offset: { x: +e.target.value, y: v.u1_offset?.y || 0 }}))}
+                          className="w-full h-1 cursor-pointer appearance-none bg-transparent" 
+                          style={{ accentColor: P.accent }}
+                        />
+                      </div>
+                   </div>
+
+                   {/* Mandibule / L1 */}
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: P.textMuted }}>Incisive Inférieure</label>
+                        <span className="text-xs font-mono font-bold" style={{ color: P.accentSuccess }}>
+                          {((vtoSettings.l1_offset?.x || 0) * (mmPerPixel || 0.1)).toFixed(1)} <span className="opacity-40">mm</span>
+                        </span>
+                      </div>
+                      <div className="relative h-6 flex items-center">
+                        <div className="absolute inset-0 h-1 my-auto rounded-full opacity-10" style={{ background: P.text }} />
+                        <input 
+                          type="range" min={-60} max={60} step={1}
+                          value={vtoSettings.l1_offset?.x || 0} 
+                          onChange={(e) => setVtoSettings(v => ({ ...v, l1_offset: { x: +e.target.value, y: v.l1_offset?.y || 0 }}))}
+                          className="w-full h-1 cursor-pointer appearance-none bg-transparent" 
+                          style={{ accentColor: P.accentSuccess }}
+                        />
+                      </div>
+                   </div>
+
+                   {/* Chin / Mandibule */}
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: P.textMuted }}>Avancement Mandibulaire</label>
+                        <span className="text-xs font-mono font-bold" style={{ color: P.accentWarning }}>
+                          {((vtoSettings.mand_offset?.x || 0) * (mmPerPixel || 0.1)).toFixed(1)} <span className="opacity-40">mm</span>
+                        </span>
+                      </div>
+                      <div className="relative h-6 flex items-center">
+                        <div className="absolute inset-0 h-1 my-auto rounded-full opacity-10" style={{ background: P.text }} />
+                        <input 
+                          type="range" min={-100} max={100} step={1}
+                          value={vtoSettings.mand_offset?.x || 0} 
+                          onChange={(e) => setVtoSettings(v => ({ ...v, mand_offset: { x: +e.target.value, y: v.mand_offset?.y || 0 }}))}
+                          className="w-full h-1 cursor-pointer appearance-none bg-transparent" 
+                          style={{ accentColor: P.accentWarning }}
+                        />
+                      </div>
+                   </div>
+
+                   <div className="pt-6 border-t" style={{ borderColor: `${P.border}40` }}>
+                      <button 
+                        onClick={() => setVtoSettings(v => ({ ...v, u1_offset: {x:0,y:0}, l1_offset: {x:0,y:0}, mand_offset: {x:0,y:0}}))}
+                        className="w-full py-3 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: `${P.accent}15`, border: `1px solid ${P.accent}40`, color: P.accent }}
+                      >
+                        Réinitialiser l'objectif
+                      </button>
+                   </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           
           {/* Overlay Calibration */}
           {showCalibration && calibrationClickPoints.length < 2 && (

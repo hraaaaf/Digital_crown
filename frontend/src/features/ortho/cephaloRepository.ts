@@ -21,7 +21,7 @@ export const cephaloRepository = {
   async uploadRadio(patientId: number | string, file: File) {
     const form = new FormData();
     form.append('file', file);
-    const res = await api.post(`/patients/${patientId}/upload-radio`, form);
+    const res = await api.post(`/ia/upload-radio?patient_id=${patientId}`, form);
     return res.data;
   },
 
@@ -29,7 +29,7 @@ export const cephaloRepository = {
    * Sauvegarde l'état complet d'une analyse.
    */
   async saveAnalysis(analysisId: number, payload: any) {
-    const res = await api.put(`/analyses/${analysisId}`, payload);
+    const res = await api.put(`/ia/analyses/${analysisId}`, payload);
     return res.data;
   },
 
@@ -37,7 +37,7 @@ export const cephaloRepository = {
    * Applique une calibration mm/pixel sur une analyse.
    */
   async calibrate(analysisId: number, p1: {x: number, y: number}, p2: {x: number, y: number}, distanceMm: number) {
-    const res = await api.post(`/analyses/${analysisId}/calibrate`, {
+    const res = await api.post(`/ia/analyses/${analysisId}/calibrate`, {
       p1, 
       p2, 
       distance_mm: distanceMm

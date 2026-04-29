@@ -142,4 +142,48 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [ ] **Analyse de Rentabilité par Acte** : Visualisation des actes les plus performants.
 - [ ] **Reporting Mensuel Automatisé** : Génération d'un bilan financier PDF avec graphiques WeasyPrint.
 
-*Dernière mise à jour : 2026-04-22 par Antigravity Staff Engineering (v5.0 Ghost Elite Release).*
+## ✅ 14. Stabilisation & Excellence Documentaire v1.2 (TERMINÉ)
+**Statut :** Déployé (v1.2)
+**Spécialiste :** Staff Staff Engineering & PixelMaster
+
+- [x] **Restauration ReportLab** : Retour à la robustesse ReportLab pour les ordonnances et certificats (Stabilité v1.0).
+- [x] **Correctif Accents "Elite"** : Élimination totale des caractères parasites dans tous les générateurs PDF.
+- [x] **Ouverture Auto PDF** : Le document généré s'ouvre désormais automatiquement dans un nouvel onglet pour un feedback immédiat.
+- [x] **Clinical Intelligence v1** : Intégration des routes `ai-diagnostic` et `ai-summary` dans le Studio Documentaire.
+- [x] **Fix Boucle React** : Stabilisation du `DocumentHub` et du hook `useDocumentGenerator` (Zéro latence).
+
+## 👩‍💼 15. Gestion des Rôles : Mode Assistante du Cabinet
+**Statut :** Planifié
+**Priorité :** Élevée
+**Spécialiste :** Architector & PixelMaster
+
+Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le personnel d'accueil et d'assistance, avec un contrôle granulaire des accès (RBAC - Role-Based Access Control).
+
+- [ ] **Sous-comptes Liés** : Création de profils "Assistante" rattachés au compte Maître du médecin (ou de la clinique) avec leurs propres identifiants.
+- [ ] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante mettra en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, plutôt que les statistiques financières.
+- [ ] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès aux données sensibles (Chiffre d'affaires global, diagnostics IA poussés, honoraires spécifiques) selon les permissions accordées par le médecin.
+- [ ] **Workflow de Pré-Saisie** : Capacité pour l'assistante de créer le dossier patient, de remplir le questionnaire médical de base et de scanner les documents (carte d'identité, mutuelle) avant l'entrée en salle de soins.
+- [ ] **Onboarding & Formation Assistée** : Intégration de "Tooltips" dynamiques et d'un mode "Tutoriel" pour aider les nouvelles assistantes à maîtriser rapidement le logiciel (facturation basique, prise de RDV).
+
+---
+
+## 📈 Prochaines Étapes : Vision Elite 2026
+
+### 🛡️ Module 4 IA : Cohérence Clinique (Priorité Haute)
+- [ ] **Cross-Check Intelligent** : Alerte automatique si une ordonnance d'antibiotiques est générée sans acte chirurgical ou endodontique lié dans la séance.
+- [ ] **Détection d'Omissions** : Suggestion d'actes de prévention (Détartrage/Fluor) basée sur l'historique du patient.
+
+### 🎙️ Assistant Vocal "Hands-Free" (R&D)
+- [ ] **Dictée d'Actes** : Saisie vocale des actes sur l'odontogramme pendant l'examen clinique (zéro contact avec la souris).
+- [ ] **Commandes de Studio** : "Antigravity, génère l'ordonnance post-op" via reconnaissance vocale locale.
+
+### 💳 Financia v2 : Digital Trust & Analytics
+- [ ] **Scan to Pay** : Intégration de QR Codes dynamiques sur les factures pour paiement instantané (WhatsApp/Mobile).
+- [ ] **Prédiction de CA** : Analyse prédictive du chiffre d'affaires basée sur le taux d'acceptation des devis en attente.
+
+### 🦷 Odontogramme 3D & Vision Advanced
+- [ ] **IA Overlay** : Superposition automatique des racines détectées sur la radio panoramique directement sur l'odontogramme SVG.
+
+---
+
+*Dernière mise à jour : 27 Avril 2026 par Antigravity Staff Engineering (v1.2 Stabilization Release).*

@@ -53,16 +53,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPES EXPORTÉS
+// TYPES EXPORTÉS (Locaux)
 // ─────────────────────────────────────────────────────────────────────────────
-
-export interface Landmark {
-  id: string;
-  x: number;
-  y: number;
-}
 
 export interface GhostData {
   landmarks: Landmark[];
@@ -74,9 +69,11 @@ export interface GhostData {
 // PROPS
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type TracingUIMode = 'standard' | 'pro';
+
 export interface CephaloTracingLayerProps {
   imageSrc?:      string;
-  imgFilters?:    { brightness: number; contrast: number; invert: boolean };
+  imgFilters?:    ImageFilters;
   landmarks:      Landmark[];
   baseOpacity?:   number;
   ghosts?:        GhostData[];
@@ -97,11 +94,12 @@ export interface CephaloTracingLayerProps {
   isCalibrating?:        boolean;
   calibrationPoints?:    { x: number; y: number }[];
   onAddCalibrationPoint?: (x: number, y: number) => void;
-  uiMode?:         'standard' | 'pro';
+  uiMode?:         TracingUIMode;
   hoveredMetric?:  { key: string; points: string[]; lines: string[] } | null;
   onEmptyAreaClick?: (x: number, y: number) => void;
   magnifierEnabled?: boolean;
   performanceMode?: boolean;
+  vto?:            VTOSettings;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -439,7 +437,9 @@ WedgeZone.displayName = 'WedgeZone';
 // Points tissu mou non interactifs (vision_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SOFT_TISSUE_IDS = new Set(['ul', 'll', 'sn', 'pog_soft', 'prn', 'stpog']);
+const SOFT_TISSUE_IDS = new Set([
+  'ul', 'll', 'sn', 'stpog', 'ls', 'li', 'prn', 'cm', 'g_soft', 'n_soft', 'a_soft', 'st', 'b_soft', 'pog_soft', 'me_soft', 'g-soft', 'n-soft'
+]); 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
@@ -466,6 +466,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   onEmptyAreaClick,
   magnifierEnabled = true,
   performanceMode = false,
+  vto = { enabled: false, showGhostFace: true, showSoftTissue: true }
 }) => {
   if (imageWidth === 0 || imageHeight === 0) return null;
 
@@ -529,8 +530,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
   const getPoint = useCallback((pts: Landmark[], id: string): Landmark | undefined => {
     const pt = pts.find(l => l.id === id || l.id.toLowerCase() === id.toLowerCase());
-    if (pts === landmarks && pt && activeDragPos?.id === pt.id) {
-      return { ...pt, x: activeDragPos.x, y: activeDragPos.y };
+    const adp = activeDragPos;
+    if (pts === landmarks && pt && adp?.id === pt.id) {
+      return { ...pt, x: adp.x, y: adp.y };
     }
     return pt;
   }, [landmarks, activeDragPos]);
@@ -589,16 +591,71 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     overrideColor?: string,
     layerOp      = 1,
   ) => {
-    const po  = getPoint(pts, 'Po');
-    const or_ = getPoint(pts, 'Or');
-    const a   = getPoint(pts, 'A');
-    const b   = getPoint(pts, 'B');
-    const go  = getPoint(pts, 'Go');
-    const me  = getPoint(pts, 'Me');
-    const u1i = getPoint(pts, 'U1_incisal') ?? getPoint(pts, 'U1i');
-    const u1a = getPoint(pts, 'U1_apex')    ?? getPoint(pts, 'U1a');
-    const l1i = getPoint(pts, 'L1_incisal') ?? getPoint(pts, 'L1i');
-    const l1a = getPoint(pts, 'L1_apex')    ?? getPoint(pts, 'L1a');
+    const applyVTO = (points: Landmark[]) => {
+      if (!vto.enabled || isGhost) return points;
+      
+      const u1x = vto.u1_offset?.x || 0;
+      const l1x = vto.l1_offset?.x || 0;
+      const mandX = vto.mand_offset?.x || 0;
+
+      return points.map(pt => {
+        const id = pt.id.toLowerCase();
+        
+        // 1. Déplacement des structures dures (Squelette/Dents)
+        if (id.includes('u1')) return { ...pt, x: pt.x + u1x };
+        if (id.includes('l1')) return { ...pt, x: pt.x + l1x + mandX };
+        if (id === 'b' || id === 'pog' || id === 'me' || id === 'go') return { ...pt, x: pt.x + mandX };
+
+        // 2. Déplacement des tissus mous (Suivi proportionnel)
+        // Lèvre supérieure (Ls) suit U1 à ~75%
+        if (id === 'ls' || id === 'ul' || id === 'st') {
+           return { ...pt, x: pt.x + u1x * 0.75 };
+        }
+        // Lèvre inférieure (Li) suit L1 à ~80% et la mandibule à 100%
+        if (id === 'li' || id === 'll') {
+           return { ...pt, x: pt.x + (l1x * 0.8) + mandX };
+        }
+        // Menton cutané suit la mandibule à 100%
+        if (id === 'b_soft' || id === 'pog_soft' || id === 'me_soft' || id === 'stpog') {
+           return { ...pt, x: pt.x + mandX };
+        }
+        // Sn suit légèrement le maxillaire (25%)
+        if (id === 'sn' || id === 'a_soft') {
+           return { ...pt, x: pt.x + u1x * 0.25 };
+        }
+
+        return pt;
+      });
+    };
+
+
+    const finalPts = applyVTO(pts);
+
+    const po  = getPoint(finalPts, 'Po');
+    const or_ = getPoint(finalPts, 'Or');
+    const a   = getPoint(finalPts, 'A');
+    const b   = getPoint(finalPts, 'B');
+    const go  = getPoint(finalPts, 'Go');
+    const me  = getPoint(finalPts, 'Me');
+    const u1i = getPoint(finalPts, 'U1_incisal') ?? getPoint(finalPts, 'U1i');
+    const u1a = getPoint(finalPts, 'U1_apex')    ?? getPoint(finalPts, 'U1a');
+    const l1i = getPoint(finalPts, 'L1_incisal') ?? getPoint(finalPts, 'L1i');
+    const l1a = getPoint(finalPts, 'L1_apex')    ?? getPoint(finalPts, 'L1a');
+    const gSoft = getPoint(finalPts, 'G_soft') ?? getPoint(finalPts, 'g_soft');
+    const nSoft = getPoint(finalPts, 'N_soft') ?? getPoint(finalPts, 'n_soft');
+    const prn = getPoint(finalPts, 'Prn') ?? getPoint(finalPts, 'prn');
+    const cm = getPoint(finalPts, 'Cm') ?? getPoint(finalPts, 'cm');
+    const sn = getPoint(finalPts, 'Sn') ?? getPoint(finalPts, 'sn');
+    const aSoft = getPoint(finalPts, 'A_soft') ?? getPoint(finalPts, 'a_soft');
+    const ls = getPoint(finalPts, 'Ls') ?? getPoint(finalPts, 'ls') ?? getPoint(finalPts, 'UL') ?? getPoint(finalPts, 'ul');
+    const st = getPoint(finalPts, 'St') ?? getPoint(finalPts, 'st');
+    const li = getPoint(finalPts, 'Li') ?? getPoint(finalPts, 'li') ?? getPoint(finalPts, 'LL') ?? getPoint(finalPts, 'll');
+    const bSoft = getPoint(finalPts, 'B_soft') ?? getPoint(finalPts, 'b_soft');
+    const pogSoft = getPoint(finalPts, 'Pog_soft') ?? getPoint(finalPts, 'pog_soft');
+    const meSoft = getPoint(finalPts, 'Me_soft') ?? getPoint(finalPts, 'me_soft');
+
+
+
 
     const ghostDash = isGhost ? '6,4' : undefined;
 
@@ -678,9 +735,128 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
         {/* Plans de référence */}
         {seg(po, or_, 'fh', P.francfort)}
         {seg(go, me,  'mp', P.mandibule)}
-        {/* Note: Les lignes S-N, N-A, N-B (analyse de Steiner) ont été supprimées
-            pour se concentrer sur l'analyse McNamara et les normes COM */}
         {seg(a,  b,   'ab', P.ab,  { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
+
+        {/* ══ COUCHE ESTHÉTIQUE "GHOST ELITE" ══════════════════════════ */}
+        
+        {/* 1. Spline du Profil Cutané Continu (Lissage Bézier + Ghost Face) */}
+        {vto.showSoftTissue && !isGhost && (
+          (() => {
+            // Liste ordonnée des points du profil
+            const profilePoints = [
+              gSoft, nSoft, prn, cm, sn, aSoft, ls, st, li, bSoft, pogSoft, meSoft
+            ].filter(Boolean) as Landmark[];
+
+            if (profilePoints.length < 2) return null;
+
+            // Construction du chemin SVG
+            let d = `M ${profilePoints[0].x} ${profilePoints[0].y}`;
+            for (let i = 1; i < profilePoints.length; i++) {
+              // Calcul d'un point de controle pour arrondir (Quadratic Bezier)
+              const p0 = profilePoints[i-1];
+              const p1 = profilePoints[i];
+              const midX = (p0.x + p1.x) / 2;
+              const midY = (p0.y + p1.y) / 2;
+              d += ` Q ${p0.x} ${p0.y} ${midX} ${midY}`;
+              if (i === profilePoints.length - 1) {
+                d += ` L ${p1.x} ${p1.y}`;
+              }
+            }
+
+            return (
+              <g>
+                {/* Rendu "Ghost Face" Elite (Volume 3D simulé par Glassmorphism) */}
+                {vto.showGhostFace && (
+                  <motion.path
+                    initial={false}
+                    animate={{ d: `${d} L ${imageWidth} ${profilePoints[profilePoints.length-1].y} L ${imageWidth} ${profilePoints[0].y} Z` }}
+                    transition={{ type: 'spring', stiffness: 100, damping: 25 }}
+                    fill="url(#ghostFaceGradient)"
+                    style={{ filter: !performanceMode ? 'url(#skinGlow)' : 'none', pointerEvents: 'none' }}
+                  />
+                )}
+
+                {/* Ligne de profil brillante avec Morphing Dynamique */}
+                <motion.path
+                  initial={false}
+                  animate={{ d }}
+                  transition={{ type: 'spring', stiffness: 100, damping: 25 }}
+                  fill="none"
+                  stroke="#00f5ff"
+                  strokeWidth="3.2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  opacity="0.95"
+                  style={!performanceMode ? { filter: 'drop-shadow(0 0 10px rgba(0,245,255,0.7))' } : {}}
+                  vectorEffect="non-scaling-stroke"
+                  className="pointer-events-none"
+                />
+              </g>
+            );
+          })()
+        )}
+
+
+
+        {/* 2. Ligne E de Ricketts */}
+        {prn && pogSoft && (
+          <g>
+            <line x1={prn.x} y1={prn.y} x2={pogSoft.x} y2={pogSoft.y}
+              stroke="#ec4899" strokeWidth={isGhost ? "1" : "2"} strokeDasharray={isGhost ? '6,4' : '4,2'}
+              opacity={isGhost ? "0.4" : "0.85"} vectorEffect="non-scaling-stroke" 
+              style={!isGhost && !performanceMode ? { filter: 'drop-shadow(0 0 5px rgba(236,72,153,0.5))' } : {}}
+            />
+            
+            {/* Projections Ls et Li sur la Ligne E */}
+            {!isGhost && ls && li && (
+              (() => {
+                const dx = pogSoft.x - prn.x; const dy = pogSoft.y - prn.y;
+                const lenSq = dx*dx + dy*dy;
+                if (lenSq === 0) return null;
+                
+                // Projection Ls
+                const tLs = ((ls.x - prn.x)*dx + (ls.y - prn.y)*dy) / lenSq;
+                const pLs = { x: prn.x + tLs*dx, y: prn.y + tLs*dy };
+                
+                // Projection Li
+                const tLi = ((li.x - prn.x)*dx + (li.y - prn.y)*dy) / lenSq;
+                const pLi = { x: prn.x + tLi*dx, y: prn.y + tLi*dy };
+
+                return (
+                  <>
+                    <line x1={ls.x} y1={ls.y} x2={pLs.x} y2={pLs.y} stroke="#ec4899" strokeWidth="1.5" opacity="0.9" vectorEffect="non-scaling-stroke" />
+                    <line x1={li.x} y1={li.y} x2={pLi.x} y2={pLi.y} stroke="#ec4899" strokeWidth="1.5" opacity="0.9" vectorEffect="non-scaling-stroke" />
+                    <circle cx={pLs.x} cy={pLs.y} r="2.5" fill="#ec4899" />
+                    <circle cx={pLi.x} cy={pLi.y} r="2.5" fill="#ec4899" />
+                  </>
+                );
+              })()
+            )}
+          </g>
+        )}
+
+        {/* 3. Angle Naso-Labial (Cm - Sn - Ls) */}
+        {!isGhost && cm && sn && ls && (
+          <g>
+            <line x1={cm.x} y1={cm.y} x2={sn.x} y2={sn.y} stroke="#10b981" strokeWidth="1.5" opacity="0.6" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" />
+            <line x1={sn.x} y1={sn.y} x2={ls.x} y2={ls.y} stroke="#10b981" strokeWidth="1.5" opacity="0.6" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" />
+            {(() => {
+              const ang1 = Math.atan2(cm.y - sn.y, cm.x - sn.x);
+              const ang2 = Math.atan2(ls.y - sn.y, ls.x - sn.x);
+              let angle = Math.abs((ang2 - ang1) * 180 / Math.PI);
+              if (angle > 180) angle = 360 - angle;
+              const r = 30;
+              const textPos = { x: sn.x + Math.cos((ang1+ang2)/2) * (r+15), y: sn.y + Math.sin((ang1+ang2)/2) * (r+15) };
+              return (
+                <text x={textPos.x} y={textPos.y} fontSize="10" fontWeight="bold" fill="#10b981" style={{ userSelect: 'none', pointerEvents: 'none' }} textAnchor="middle">
+                  {Math.round(angle)}°
+                </text>
+              );
+            })()}
+          </g>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════ */}
 
         {/* Secteur JAUNE compensation ±10° — en premier = derrière */}
         {wedgeCompPath && (
@@ -838,6 +1014,16 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
               </feMerge>
             </filter>
           )}
+          {/* Définitions VTO Elite */}
+          <linearGradient id="ghostFaceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00f5ff" stopOpacity="0.22" />
+            <stop offset="60%" stopColor="#00f5ff" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#00f5ff" stopOpacity="0" />
+          </linearGradient>
+          <filter id="skinGlow">
+            <feGaussianBlur stdDeviation="15" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
         </defs>
 
         {/* ══ IMAGE DE FOND ═══════════════════════════════════════════

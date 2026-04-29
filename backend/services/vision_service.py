@@ -1,9 +1,10 @@
 import sys
 import os
-import time
-import logging
 import cv2
 import numpy as np
+import time
+import math
+import logging
 
 # --- 0. MONKEY PATCH FOR LEGACY CODE (PILLOW_VERSION) ---
 # Prevents torchvision/CephLD-CCA import crash related to Pillow > 7.0.0
@@ -200,7 +201,6 @@ class VisionEngine:
         if has_u1_apex and has_l1_apex:
             logger.info("VisionEngine: Apex already provided by inference engine (SOTA).")
         else:
-            import math
             logger.info("VisionEngine: Manual calculation of missing COM apexes...")
         
         u1_inc = next((p for p in final_landmarks if p['id'] == 'U1_incisal'), None)
@@ -215,34 +215,42 @@ class VisionEngine:
         
         # === L1_apex PLACEMENT: IMPA = 90° (perpendicular to mandibular plane) ===
         if l1_inc and go and me:
-            # Mandibular plane angle Go→Me
-            mand_angle = math.atan2(me['y'] - go['y'], me['x'] - go['x'])
-            # For IMPA = 90°, tooth axis is perpendicular to mandibular plane
-            # Apex is "under" (downward, increasing Y) relative to incisal
-            tooth_angle = mand_angle + math.pi/2  # +90° to go down towards symphysis
-            
-            if not has_l1_apex:
-                l1_apex_x = l1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
-                l1_apex_y = l1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
-                final_landmarks.append({"id": "L1_apex", "x": round(l1_apex_x, 2), "y": round(l1_apex_y, 2)})
-                logger.info(f"[APEX] L1_apex placed according to IMPA=90° (perpendicular to Go-Me)")
+            dx = me['x'] - go['x']
+            dy = me['y'] - go['y']
+            length = math.hypot(dx, dy)
+            if length > 0:
+                nx, ny = dx / length, dy / length
+                # Direction conditionnelle: l'apex inférieur doit pointer vers le BAS (Y augmente)
+                sign_x = 1 if nx >= 0 else -1
+                perp_x = -ny * sign_x
+                perp_y = nx * sign_x
+                
+                if not has_l1_apex:
+                    l1_apex_x = l1_inc['x'] + TOOTH_LENGTH * perp_x
+                    l1_apex_y = l1_inc['y'] + TOOTH_LENGTH * perp_y
+                    final_landmarks.append({"id": "L1_apex", "x": round(l1_apex_x, 2), "y": round(l1_apex_y, 2)})
+                    logger.info(f"[APEX] L1_apex placed (IMPA=90°) - Orientation agnostic")
         elif l1_inc and not has_l1_apex:
             # Fallback: simple vertical placement
             final_landmarks.append({"id": "L1_apex", "x": l1_inc['x'], "y": l1_inc['y'] + TOOTH_LENGTH})
         
         # === U1_apex PLACEMENT: I/Francfort = 107° ===
         if u1_inc and po and or_:
-            # Francfort plane angle Po→Or
-            fh_angle = math.atan2(or_['y'] - po['y'], or_['x'] - po['x'])
-            # For I/F = 107°, tooth axis makes 107° with Francfort plane
-            # Apex is up and back relative to incisal
-            tooth_angle = fh_angle - math.radians(107)
-            
+            dx = or_['x'] - po['x']
+            dy = or_['y'] - po['y']
+            fh_angle = math.atan2(dy, dx)
+            # L'angle doit s'adapter à la direction du regard (gauche ou droite)
+            # Pour l'incisive supérieure, l'apex doit pointer vers le HAUT (Y diminue) et vers l'ARRIÈRE
+            if dx >= 0:
+                tooth_angle = fh_angle - math.radians(107)
+            else:
+                tooth_angle = fh_angle + math.radians(107)
+                
             if not has_u1_apex:
                 u1_apex_x = u1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
                 u1_apex_y = u1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
                 final_landmarks.append({"id": "U1_apex", "x": round(u1_apex_x, 2), "y": round(u1_apex_y, 2)})
-                logger.info(f"[APEX] U1_apex placed according to I/Francfort=107°")
+                logger.info(f"[APEX] U1_apex placed (I/F=107°) - Orientation agnostic")
         elif u1_inc and not has_u1_apex:
             # Fallback: simple vertical placement upwards
             final_landmarks.append({"id": "U1_apex", "x": u1_inc['x'], "y": max(0, u1_inc['y'] - TOOTH_LENGTH)})

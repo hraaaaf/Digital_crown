@@ -19,7 +19,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ pdfUrl, loading, onClo
   const showSkeleton = loading || (pdfUrl && !iframeReady);
 
   return (
-    <div className="w-[500px] h-full flex flex-col bg-white/80 backdrop-blur-3xl border-l border-slate-200 shadow-2xl relative overflow-hidden animate-in slide-in-from-right duration-500 z-[100]">
+    <div className="w-full h-full flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-2xl relative overflow-hidden rounded-[2.5rem] ring-1 ring-black/5">
 
       {/* TOOLBAR */}
       <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-white/40 backdrop-blur-md">

@@ -1,6 +1,9 @@
 import React from 'react';
 import { cn } from '../../../../utils/cn';
 
+import type { ValidationError } from '../useDocumentGenerator';
+import { AlertCircle } from 'lucide-react';
+
 interface LibreFormProps {
   title: string;
   setTitle: (val: string) => void;
@@ -16,6 +19,7 @@ interface LibreFormProps {
   setPageSize: (val: 'A5' | 'A4') => void;
   alignment: 'left' | 'center' | 'right' | 'justify';
   setAlignment: (val: 'left' | 'center' | 'right' | 'justify') => void;
+  validationErrors?: ValidationError[];
 }
 
 export const LibreForm: React.FC<LibreFormProps> = ({
@@ -25,7 +29,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
   customDate, setCustomDate,
   hideHeader, setHideHeader,
   pageSize, setPageSize,
-  alignment, setAlignment
+  alignment, setAlignment,
+  validationErrors = []
 }) => {
   const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
@@ -35,7 +40,12 @@ export const LibreForm: React.FC<LibreFormProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 mb-2">
         <div className="md:col-span-1">
           <label className={labelClass}>Titre du Document</label>
-          <input type="text" className={cn(inputClass, "font-black")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
+          <input type="text" className={cn(inputClass, "font-black", validationErrors.find(e => e.field === 'title') && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
+          {validationErrors.find(e => e.field === 'title') && (
+            <div className="mt-1 text-[8px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
+              <AlertCircle size={10} /> Titre Requis
+            </div>
+          )}
         </div>
         <div>
           <label className={labelClass}>Destinataire (Édition Dynamique)</label>
@@ -101,13 +111,21 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-[300px]">
+      <div className="flex-1 min-h-[300px] relative">
         <textarea
-          className="w-full h-full p-8 bg-white border border-slate-200 rounded-[2rem] text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner resize-none leading-relaxed"
+          className={cn(
+            "w-full h-full p-8 bg-white border rounded-[2rem] text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner resize-none leading-relaxed",
+            validationErrors.find(e => e.field === 'content') ? "border-red-200" : "border-slate-200"
+          )}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Rédigez votre document ici... Le texte sera automatiquement formaté dans le PDF final."
         />
+        {validationErrors.find(e => e.field === 'content') && (
+          <div className="absolute top-4 right-8 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2 shadow-sm">
+            <AlertCircle size={12} /> Contenu Requis
+          </div>
+        )}
       </div>
     </div>
   );

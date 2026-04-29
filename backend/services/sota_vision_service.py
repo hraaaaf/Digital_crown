@@ -12,13 +12,14 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Mapping des 38 points SOTA vers les IDs cliniques
+# Le modèle utilise la nomenclature CL-Detection (38 points), différente de ISBI 2015.
 SOTA_LANDMARKS_MAPPING = {
     0: "S", 1: "N", 2: "Or", 3: "Po", 4: "A", 5: "B", 6: "Pog", 7: "Me",
-    8: "Gn", 9: "Go", 10: "PNS", 11: "ANS", 12: "Ar", 13: "Co", 14: "PTM", 
-    15: "Ba", 16: "U1_incisal", 17: "U1_apex", 18: "L1_incisal", 19: "L1_apex",
-    20: "U6m", 21: "U6d", 22: "L6m", 23: "L6d", 24: "U3t", 25: "L3t",
-    26: "G_soft", 27: "N_soft", 28: "Prn", 29: "Cm", 30: "Sn", 31: "A_soft",
-    32: "Ls", 33: "St", 34: "Li", 35: "B_soft", 36: "Pog_soft", 37: "Me_soft"
+    8: "Gn", 9: "Go", 10: "L1_incisal", 11: "U1_incisal", 12: "Ls",
+    13: "Li", 14: "Sn", 15: "Pog_soft", 16: "PNS", 17: "ANS", 18: "Ar",
+    19: "L1_apex", 20: "U1_apex", 21: "G_soft", 22: "N_soft", 23: "Prn",
+    24: "Cm", 25: "A_soft", 26: "St", 27: "B_soft", 28: "Co", 29: "PTM", 30: "Ba",
+    31: "U6m", 32: "U6d", 33: "L6m", 34: "L6d", 35: "U3t", 36: "L3t", 37: "Me_soft"
 }
 
 class SOTAVisionEngine:

@@ -101,13 +101,11 @@ class DocumentFactory:
     # ==========================================================================
     
     def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère une ordonnance PDF via ReportLab (Stable)."""
-        # On force l'utilisation du générateur ReportLab pour garantir la stabilité (Retour arrière v1.0)
+        """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
         return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère un certificat médical PDF via ReportLab (Stable)."""
-        # On force l'utilisation du générateur ReportLab pour garantir la stabilité (Retour arrière v1.0)
+        """Génère un certificat médical PDF via ReportLab (Stable v1.2 Ghost Elite)."""
         return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):

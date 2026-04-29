@@ -133,3 +133,34 @@ def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.ge
     """Module 3 — Panneau Conseil Clinique (P2)."""
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
+
+@router.put("/{patient_id}", response_model=schemas.PatientOut)
+def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not db_patient:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+    
+    update_data = patient_update.model_dump(exclude_unset=True) if hasattr(patient_update, 'model_dump') else patient_update.dict(exclude_unset=True)
+    
+    # Check duplicates if name/date changed
+    new_nom = update_data.get('nom', db_patient.nom).upper().strip()
+    new_prenom = update_data.get('prenom', db_patient.prenom).capitalize().strip()
+    new_date = update_data.get('date_naissance', db_patient.date_naissance)
+    
+    if (new_nom != db_patient.nom or 
+        new_prenom != db_patient.prenom or 
+        new_date != db_patient.date_naissance):
+        existing = check_duplicate_patient(db, new_nom, new_prenom, new_date, exclude_id=patient_id)
+        if existing:
+            raise HTTPException(status_code=409, detail="Un autre patient avec le même nom et date de naissance existe déjà")
+
+    # Update normalization
+    if 'nom' in update_data: update_data['nom'] = update_data['nom'].upper().strip()
+    if 'prenom' in update_data: update_data['prenom'] = update_data['prenom'].capitalize().strip()
+    
+    for key, value in update_data.items():
+        setattr(db_patient, key, value)
+    
+    db.commit()
+    db.refresh(db_patient)
+    return db_patient

@@ -74,8 +74,9 @@ export interface CephaloStatsProps {
       age?:              string;
     };
     metrics?: {
-      analyse_osseuse?:  Record<string, MetricData>;
-      analyse_dentaire?: Record<string, MetricData>;
+      analyse_osseuse?:    Record<string, MetricData>;
+      analyse_dentaire?:   Record<string, MetricData>;
+      analyse_esthetique?: Record<string, MetricData>;
     };
     ai_narrative?: {
       diagnostic_squelettique?:  string;
@@ -86,8 +87,9 @@ export interface CephaloStatsProps {
   };
   ghostResults?: {
     metrics?: {
-      analyse_osseuse?:  Record<string, MetricData>;
-      analyse_dentaire?: Record<string, MetricData>;
+      analyse_osseuse?:    Record<string, MetricData>;
+      analyse_dentaire?:   Record<string, MetricData>;
+      analyse_esthetique?: Record<string, MetricData>;
     };
   };
   uiMode?:       'standard' | 'pro';
@@ -119,6 +121,9 @@ const METRIC_META: Record<string, {
   Situation_A:    { label: "Position Point A (mxl.)",   unit: 'mm', points: ['A','N','Po','Or'],                            lines: ['na','fh'],    abbrev: 'sit.A' },
   Situation_B:    { label: "Position Point B (mdb.)",   unit: 'mm', points: ['B','N','Po','Or'],                            lines: ['nb','fh'],    abbrev: 'sit.B' },
   Profondeur_Faciale: { label: 'Profondeur Faciale',   unit: 'mm', points: ['S','N','Po','Or'],                            lines: ['sn','fh'],    abbrev: 'PF'    },
+  // Analyse Esthétique
+  Ligne_E_Ls:     { label: 'Lèvre Sup. / Ligne E',      unit: 'mm', points: ['Prn','Pog_soft','Ls'],                        lines: ['ligne_e'],    abbrev: 'Ls-E'  },
+  Ligne_E_Li:     { label: 'Lèvre Inf. / Ligne E',      unit: 'mm', points: ['Prn','Pog_soft','Li'],                        lines: ['ligne_e'],    abbrev: 'Li-E'  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,9 +380,9 @@ export const CephaloStatsTable: React.FC<CephaloStatsProps> = ({
   const hasGhost     = !!ghostResults;
   const aiNarrative  = results?.ai_narrative;
 
-  // Sections accordéons
   const [openOss,  setOpenOss]  = useState(true);
   const [openDent, setOpenDent] = useState(true);
+  const [openEsth, setOpenEsth] = useState(true);
   const [openNarr, setOpenNarr] = useState(true);
 
   // ── Moteur audio ────────────────────────────────────────────────────────────
@@ -766,7 +771,50 @@ export const CephaloStatsTable: React.FC<CephaloStatsProps> = ({
           </section>
 
           {/* ═══════════════════════════════════════════════════════════
-              III. INTELLIGENCE NARRATIVE (ai_narrative)
+              III. ANALYSE ESTHÉTIQUE
+              ═══════════════════════════════════════════════════════════ */}
+          <section className={cn('rounded-xl overflow-hidden border', isPro ? 'border-white/[0.06]' : 'border-slate-200')}>
+            <SectionHeader
+              title="III. Analyse Esthétique"
+              icon={Activity}
+              metrics={results?.metrics?.analyse_esthetique}
+              color={isPro ? '#ec4899' : '#db2777'}
+              isOpen={openEsth}
+              onToggle={() => setOpenEsth(v => !v)}
+              isPro={isPro}
+            />
+            <AnimatePresence initial={false}>
+              {openEsth && (
+                <motion.div
+                  key="esth-body"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <table className="w-full">
+                    {renderThead(isPro ? 'transparent' : '#db2777')}
+                    <tbody>
+                      {results?.metrics?.analyse_esthetique && Object.keys(results.metrics.analyse_esthetique).length > 0
+                        ? Object.entries(results.metrics.analyse_esthetique).map(([k, d]) =>
+                            renderRow(k, d, ghostResults?.metrics?.analyse_esthetique?.[k])
+                          )
+                        : (
+                          <tr><td colSpan={4} className={cn('py-8 text-center text-sm font-mono italic', isPro ? 'text-gray-700' : 'text-slate-400')}>
+                            En attente des points esthétiques…
+                          </td></tr>
+                        )
+                      }
+                    </tbody>
+                  </table>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════
+              IV. INTELLIGENCE NARRATIVE (ai_narrative)
               ═══════════════════════════════════════════════════════════ */}
           {aiNarrative && (
             <section className={cn('rounded-xl overflow-hidden border', isPro ? 'border-white/[0.06]' : 'border-slate-200')}>
@@ -782,7 +830,7 @@ export const CephaloStatsTable: React.FC<CephaloStatsProps> = ({
                   <Brain size={15} style={{ color: isPro ? '#a855f7' : '#7c3aed' }} />
                   <h3 className="text-xs font-black uppercase tracking-[0.18em]"
                     style={{ color: isPro ? '#a855f7' : '#7c3aed' }}>
-                    III. Synthèse Clinique IA
+                    IV. Synthèse Clinique IA
                   </h3>
                 </div>
                 {openNarr

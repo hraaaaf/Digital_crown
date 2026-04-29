@@ -48,8 +48,8 @@ class CertificatGenerator:
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
 
-        font_name = self.base_template.arabic_font
-        font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        font_name = "Helvetica"
+        font_bold = "Helvetica-Bold"
 
         patient_style = ParagraphStyle(
             name='PatientInfo',
@@ -91,8 +91,9 @@ class CertificatGenerator:
             user_obj = db.query(User).filter(User.id == user_id).first()
 
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        font_name = self.base_template.arabic_font
-        font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        # Forçage Helvetica pour un contraste maximal Gras/Normal
+        font_main = "Helvetica"
+        font_bold = "Helvetica-Bold"
 
         title_style = ParagraphStyle(
             name='TitleA5',
@@ -141,7 +142,7 @@ class CertificatGenerator:
         body_style = ParagraphStyle(
             name='CertifBody',
             parent=self.styles['Normal'],
-            fontName=font_name,
+            fontName=font_main,
             fontSize=11,
             textColor=p_color,
             alignment=TA_JUSTIFY,

@@ -9,12 +9,14 @@ import {
   Phone,
   Loader2,
   Archive,
-  FileDigit
+  FileDigit,
+  Target
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
+import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
@@ -29,7 +31,7 @@ interface Patient {
   assurance: string;
 }
 
-type TabType = 'analysis' | 'admin' | 'archives';
+type TabType = 'radiology' | 'admin' | 'archives';
 
 export const PatientDetails = () => {
   const { id } = useParams();
@@ -41,6 +43,7 @@ export const PatientDetails = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingDoc, setEditingDoc] = useState<any>(null);
+  const [radioTab, setRadioTab] = useState<'cephalo' | 'panoramic'>('cephalo');
 
   useEffect(() => {
     const handleEditDoc = (e: any) => {
@@ -146,7 +149,7 @@ export const PatientDetails = () => {
           </div>
 
           <div className="flex gap-10 border-b border-transparent -mb-[1px]">
-            <TabButton active={activeTab === 'analysis'} onClick={() => handleTabChange('analysis')} icon={<Activity size={18} />} label="Céphalométrie" />
+            <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
           </div>
@@ -163,12 +166,41 @@ export const PatientDetails = () => {
         )}
 
         <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
-          {activeTab === 'analysis' && (
-            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[85vh]">
-              <CephaloWorkspace 
-                patientId={Number(id)} 
-                patientName={fullName}
-              />
+          {activeTab === 'radiology' && (
+            <div className="space-y-6">
+              {/* Ghost Elite Toggle */}
+              <div className="flex justify-center">
+                <div className="inline-flex bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
+                  <button 
+                    onClick={() => setRadioTab('cephalo')}
+                    className={cn(
+                      "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
+                      radioTab === 'cephalo' ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    <Activity size={16} />
+                    Céphalométrie COM
+                  </button>
+                  <button 
+                    onClick={() => setRadioTab('panoramic')}
+                    className={cn(
+                      "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
+                      radioTab === 'panoramic' ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    <Target size={16} />
+                    Panoramique DENTEX
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[85vh]">
+                {radioTab === 'cephalo' ? (
+                  <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                ) : (
+                  <PanoramicStudio patientId={Number(id)} patientName={fullName} />
+                )}
+              </div>
             </div>
           )}
           

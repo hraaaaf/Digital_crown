@@ -45,7 +45,7 @@ interface UseDocumentGeneratorParams {
 }
 
 // --- Validation stricte (Phase 3) ---
-interface ValidationError {
+export interface ValidationError {
   field: string;
   message: string;
 }
@@ -110,7 +110,7 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
 }
 
 // --- Analyse de cohérence IA (Phase 4) ---
-interface CoherenceWarning {
+export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
   message: string;
 }
@@ -290,9 +290,19 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       const payload = buildPayload();
       const res = await api.post(`/documents/generate?archive=${archive}&preview=${isPreview}&force=${force}`, payload);
       if (res.data.pdf_url) {
-        const fullUrl = `${api.defaults.baseURL || 'http://localhost:8000'}/${res.data.pdf_url}#view=FitH&t=${Date.now()}`;
+        const baseUrl = api.defaults.baseURL || 'http://localhost:8000/api';
+        const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
+        const fullUrl = `${baseUrl}/${cleanPdfPath}#view=FitH&t=${Date.now()}`;
         setPdfUrl(fullUrl);
         
+        // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
+        if (res.data.warnings && res.data.warnings.length > 0) {
+          console.log("🩺 [Clinical Intelligence] Alertes de cohérence détectées:", res.data.warnings);
+          setCoherenceWarnings(res.data.warnings);
+        } else {
+          setCoherenceWarnings([]);
+        }
+
         // Si ce n'est pas une preview et pas une impression directe, on ouvre le PDF
         if (!isPreview && !print) {
           window.open(fullUrl, '_blank');

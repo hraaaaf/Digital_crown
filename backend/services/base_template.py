@@ -111,14 +111,10 @@ class BaseTemplate:
         font_name = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         
         # Gauche : FR
-        canvas.setFillColor(p_color)
         curr_y = y_pos
         for i, line in enumerate(fr_lines):
-            # Utiliser Helvetica pour le français si la police arabe n'est pas multi-langue
-            # Mais ici on garde Helvetica pour le FR pour la clarté, sauf si demandé autrement
+            canvas.setFillColor(p_color)
             canvas.setFont('Helvetica-Bold' if i == 0 else 'Helvetica', 12 if i == 0 else 10)
-            if i == 1:
-                canvas.setFillColor(s_color)
             canvas.drawString(1.5*cm, curr_y, line)
             curr_y -= 0.55*cm
 
@@ -126,10 +122,7 @@ class BaseTemplate:
         canvas.setFont(font_name, 13 if font_name != 'Helvetica' else 11)
         curr_y = y_pos
         for i, line in enumerate(ar_lines):
-            if i == 1:
-                canvas.setFillColor(s_color)
-            else:
-                canvas.setFillColor(p_color)
+            canvas.setFillColor(p_color)
             prepared_text = self._prepare_arabic(line)
             canvas.drawRightString(p_width - 1.5*cm, curr_y, prepared_text)
             curr_y -= 0.60*cm

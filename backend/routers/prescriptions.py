@@ -32,6 +32,43 @@ async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.g
 def search_clinical_acts(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return db.query(models.ClinicalActCatalog).filter(models.ClinicalActCatalog.name.ilike(f"%{q.strip()}%")).order_by(models.ClinicalActCatalog.usage_count.desc()).limit(20).all()
 
+from backend.services.prescription_agentic_service import prescription_agentic
+
+# --- AGENTIC PRESCRIPTION (V2.0) ---
+
+@prescription_router.get("/agentic/assessment/{patient_id}")
+async def get_clinical_assessment(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Étape 1 : Agent Chercheur.
+    Analyse le dossier et les actes prévus pour générer un bilan scientifique.
+    """
+    # Récupérer les actes récents ou prévus
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    rdvs = db.query(models.Appointment).filter(
+        models.Appointment.patient_id == patient_id, 
+        models.Appointment.datetime_start >= today
+    ).all()
+    act_names = [r.motif for r in rdvs if r.motif]
+    if not act_names:
+        # Fallback sur les derniers actes réalisés si pas de RDV aujourd'hui
+        last_actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).order_by(models.Acte.date_debut.desc()).limit(3).all()
+        act_names = [a.libelle for a in last_actes]
+
+    return prescription_agentic.generate_clinical_assessment(db, patient_id, act_names)
+
+@prescription_router.post("/agentic/design")
+async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Étape 2 : Agent Architecte.
+    Transforme le bilan en plan de traitement concret (Noms commerciaux Maroc).
+    """
+    assessment = req.get("assessment")
+    patient_context = req.get("patient_context")
+    if not assessment or not patient_context:
+        raise HTTPException(status_code=400, detail="Bilan ou contexte patient manquant")
+        
+    return prescription_agentic.design_treatment_plan(assessment, patient_context)
+
 @prescription_router.post("/preferences")
 async def save_prescription_preference(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return {"status": "success", "message": "Préférence enregistrée"}

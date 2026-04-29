@@ -97,6 +97,7 @@ class Patient(Base):
     
     dossier: Mapped["DossierClinique"] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
     actes: Mapped[List["Acte"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+    panoramic_analyses: Mapped[List["PanoramicAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     analyses: Mapped[List["CephaloAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     documents: Mapped[List["DocumentArchive"]] = relationship("DocumentArchive", back_populates="patient", cascade="all, delete-orphan")
     appointments: Mapped[List["Appointment"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
@@ -164,6 +165,21 @@ class CephaloAnalysis(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     patient: Mapped["Patient"] = relationship(back_populates="analyses")
+
+class PanoramicAnalysis(Base):
+    """Stockage des analyses radiographiques panoramiques (DENTEX IA)."""
+    __tablename__ = "panoramic_analyses"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    
+    image_path: Mapped[str] = mapped_column(String, nullable=False)
+    detections_data: Mapped[dict] = mapped_column(JSON, default=dict) # Stockage structuré DENTEX
+    report_narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="panoramic_analyses")
 
 # ==============================================================================
 # --- PHASE 2 : SMART ORDONNANCE MODELS ---

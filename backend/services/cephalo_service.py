@@ -25,17 +25,30 @@ class CephaloService:
         Vision -> Géométrie -> Initialisation Bilan -> Persistance.
         """
         # 1. Inférence Vision (Points anatomiques)
+        logger.info(f"Analyse Vision pour le patient {patient_id}...")
         vision_result = vision_engine.predict_landmarks(file_path)
+        if not vision_result or "landmarks" not in vision_result:
+            logger.error("VisionEngine a retourné un résultat invalide ou vide.")
+            raise ValueError("L'IA n'a détecté aucun point sur cette image.")
+            
         pts = vision_result["landmarks"]
+        logger.info(f"{len(pts)} points détectés par le moteur {vision_result['mode_inference']}")
         points_dict = {p['id']: (p['x'], p['y']) for p in pts}
 
         # 2. Calibration Automatique 2.0 (Phase 4)
         from backend.services.calibration_service import calibration_service
+        logger.info("Tentative de calibration automatique...")
         auto_ratio = calibration_service.detect_mm_per_pixel(file_path)
         mm_ratio = auto_ratio if auto_ratio else 0.1 
+        logger.info(f"Ratio retenu : {mm_ratio} mm/px (Auto: {auto_ratio is not None})")
         
         # 3. Calcul des métriques Géométriques -> CephaloAnalysisResult
-        result = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_ratio)
+        logger.info("Calcul des métriques géométriques...")
+        try:
+            result = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_ratio)
+        except Exception as ce_err:
+            logger.error(f"Échec du moteur géométrique: {ce_err}")
+            raise ValueError(f"Erreur lors du calcul des angles : {ce_err}")
         
         final_data_dict = result.model_dump()
         final_data_dict["vision_metadata"] = {
@@ -45,7 +58,7 @@ class CephaloService:
         }
 
         # 4. Persistance via Repository
-        analysis = self.repo.create(patient_id, file_path, pts, final_data_dict, mm_per_pixel=mm_ratio)
+        analysis = self.repo.create(patient_id, db_path, pts, final_data_dict, mm_per_pixel=mm_ratio)
         
         if auto_ratio:
             analysis.is_calibrated = True

@@ -1,10 +1,6 @@
-import type { Landmark } from './CephaloTracingLayer';
-export type { Landmark };
-import type { CVMStage } from './cephaloUtils';
-
-export type UIMode = 'light' | 'dark';
-export type StepId = 1 | 2 | 3 | 4;
-export type SyncState = 'idle' | 'syncing' | 'success' | 'error';
+import type { 
+  Landmark, CVMStage, UIMode, StepId, SyncState, ImageFilters, VTOSettings 
+} from './cephaloShared';
 
 export interface DDMState {
   maxillaire: number | '';
@@ -15,12 +11,6 @@ export interface DiagnosticTexts {
   squelettique: string;
   compensations_dentaires: string;
   plan_therapeutique: string;
-}
-
-export interface ImageFilters {
-  brightness: number;
-  contrast: number;
-  invert: boolean;
 }
 
 export interface LocalState {
@@ -93,3 +83,4 @@ export interface PhotoUpload {
   preview: string | null;
   label: string;
 }
+

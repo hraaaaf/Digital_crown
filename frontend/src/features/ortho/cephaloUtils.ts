@@ -1,4 +1,4 @@
-import type { Landmark } from './CephaloTracingLayer';
+import type { Landmark, CVMStage } from './cephaloShared';
 
 /**
  * Calcule la DDM Réelle selon la convention COM.
@@ -20,7 +20,6 @@ export function calcDDMCephalo(impa: number | null): number | null {
 /**
  * Calcule le stade CVM estimé selon Baccetti basé sur l'âge et le sexe.
  */
-export type CVMStage = 'CS1' | 'CS2' | 'CS3' | 'CS4' | 'CS5' | 'CS6';
 
 export function estimateCVM(age: number | '', sexe: 'M' | 'F'): CVMStage | '' {
   if (age === '') return '';
@@ -117,17 +116,39 @@ export function initializeDefaultApexes(landmarks: Landmark[]): Landmark[] {
   const TOOTH_LENGTH = 85; 
   
   if (l1i && go && me) {
-    const mandAngle = Math.atan2(me.y - go.y, me.x - go.x);
-    const toothAngle = mandAngle - Math.PI / 2;
-    const l1a = { id: 'L1_apex', x: Math.round((l1i.x + TOOTH_LENGTH * Math.cos(toothAngle)) * 100) / 100, y: Math.round((l1i.y + TOOTH_LENGTH * Math.sin(toothAngle)) * 100) / 100 };
-    const idx = newLandmarks.findIndex(l => l.id === 'L1_apex');
-    if (idx >= 0) newLandmarks[idx] = l1a; else newLandmarks.push(l1a);
+    const dx = me.x - go.x;
+    const dy = me.y - go.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 0) {
+      const nx = dx / len;
+      const ny = dy / len;
+      const signX = nx >= 0 ? 1 : -1;
+      const perpX = -ny * signX;
+      const perpY = nx * signX;
+      
+      const l1a = { 
+        id: 'L1_apex', 
+        x: Math.round((l1i.x + TOOTH_LENGTH * perpX) * 100) / 100, 
+        y: Math.round((l1i.y + TOOTH_LENGTH * perpY) * 100) / 100 
+      };
+      const idx = newLandmarks.findIndex(l => l.id === 'L1_apex');
+      if (idx >= 0) newLandmarks[idx] = l1a; else newLandmarks.push(l1a);
+    }
   }
   
   if (u1i && po && or_) {
-    const fhAngle = Math.atan2(or_.y - po.y, or_.x - po.x);
-    const toothAngle = fhAngle - (107 * Math.PI / 180);
-    const u1a = { id: 'U1_apex', x: Math.round((u1i.x + TOOTH_LENGTH * Math.cos(toothAngle)) * 100) / 100, y: Math.round((u1i.y + TOOTH_LENGTH * Math.sin(toothAngle)) * 100) / 100 };
+    const dx = or_.x - po.x;
+    const dy = or_.y - po.y;
+    const fhAngle = Math.atan2(dy, dx);
+    const toothAngle = dx >= 0 
+      ? fhAngle - (107 * Math.PI / 180) 
+      : fhAngle + (107 * Math.PI / 180);
+      
+    const u1a = { 
+      id: 'U1_apex', 
+      x: Math.round((u1i.x + TOOTH_LENGTH * Math.cos(toothAngle)) * 100) / 100, 
+      y: Math.round((u1i.y + TOOTH_LENGTH * Math.sin(toothAngle)) * 100) / 100 
+    };
     const idx = newLandmarks.findIndex(l => l.id === 'U1_apex');
     if (idx >= 0) newLandmarks[idx] = u1a; else newLandmarks.push(u1a);
   }

@@ -22,13 +22,14 @@ class CephaloRepository:
         """Récupère toutes les analyses d'un patient."""
         return self.db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).all()
 
-    def create(self, patient_id: int, image_path: str, landmarks: List[Dict], results: Dict) -> models.CephaloAnalysis:
+    def create(self, patient_id: int, image_path: str, landmarks: List[Dict], results: Dict, mm_per_pixel: float = 0.1) -> models.CephaloAnalysis:
         """Crée une nouvelle analyse en base de données."""
         db_analysis = models.CephaloAnalysis(
             patient_id=patient_id,
             image_original_path=image_path,
             landmarks_data=landmarks,
-            angles_data=results
+            angles_data=results,
+            mm_per_pixel=mm_per_pixel
         )
         self.db.add(db_analysis)
         self.db.commit()

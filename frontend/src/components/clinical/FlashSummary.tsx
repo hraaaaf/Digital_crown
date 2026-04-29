@@ -43,7 +43,7 @@ export const FlashSummary: React.FC<{ patientId: number; patientName: string }> 
         {patientName} – Résumé Clinique
       </h3>
       <p className="text-sm mb-2">
-        <span className="font-medium">Dernière visite :</span> {data.last_visit.acte} ({data.last_visit.days_ago} jours)
+        <span className="font-medium">Dernière visite :</span> {data.last_visit ? `${data.last_visit.acte} (${data.last_visit.days_ago} jours)` : 'Aucune visite enregistrée'}
       </p>
       <p className="text-sm mb-2">
         <span className="font-medium">Synthèse :</span> {data.clinical_summary}

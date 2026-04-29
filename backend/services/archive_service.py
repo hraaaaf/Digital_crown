@@ -219,7 +219,7 @@ class ArchiveService:
             is_latest_version=True,
             file_hash=file_hash,
             file_size=file_size,
-            file_path=str(storage_path),
+            file_path=str(storage_path.relative_to(BASE_DIR)).replace("\\", "/"),
             title=title or filename,
             description=description,
             tags=tags,

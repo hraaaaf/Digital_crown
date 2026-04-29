@@ -41,6 +41,7 @@ app = FastAPI(
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"❌ Validation Error: {exc.errors()}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 @app.exception_handler(HTTPException)
@@ -75,6 +76,7 @@ app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes
 # --- STATIC FILES ---
 # Placé à la fin pour éviter de masquer des routes d'API
 app.mount("/api/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static_legacy")
 
 @app.get("/")
 def root():

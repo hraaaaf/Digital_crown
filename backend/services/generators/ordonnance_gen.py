@@ -113,43 +113,51 @@ class OrdonnanceGenerator:
         ]
 
         if hasattr(data, 'medications') and data.medications:
+            # Forçage de la police Helvetica pour le corps médical (garantit le contraste Gras/Normal)
+            med_font = "Helvetica"
+            med_font_bold = "Helvetica-Bold"
+
+            # Styles typographiques avec contraste optimal
+            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=11, textColor=p_color)
+            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=10, textColor=p_color, alignment=TA_CENTER)
+            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=10, textColor=p_color, alignment=TA_RIGHT)
+            
+            poso_style = ParagraphStyle(
+                'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=10,
+                textColor=p_color, leftIndent=1.2*cm, spaceBefore=2, spaceAfter=12
+            )
+
             for i, med in enumerate(data.medications, 1):
-                # Récupération sécurisée des données (modèle Pydantic)
                 forme = getattr(med, 'forme', '') or ""
                 dose = getattr(med, 'dosage', '') or ""
                 nom = getattr(med, 'nom', '') or ""
                 posologie = getattr(med, 'posologie', '') or "Selon prescription."
 
-                # Style pour le nom du médicament
-                med_style = ParagraphStyle(
-                    'MedName', parent=self.styles['Normal'],
-                    fontName=font_bold, fontSize=11, textColor=p_color,
-                    spaceBefore=10
-                )
+                # Ligne 1 : Nom (Gauche) | Forme (Centre) | Dosage (Droite) dans un tableau invisible
+                med_line_table = Table([
+                    [
+                        Paragraph(f"{i}- <b>{nom.upper()}</b>", med_name_style),
+                        Paragraph(f"<i>{forme}</i>" if forme else "", med_forme_style),
+                        Paragraph(f"{dose}", med_dose_style)
+                    ]
+                ], colWidths=[6.0*cm, 3.0*cm, 2.8*cm]) # Total: 11.8cm (Largeur utile A5)
                 
-                # Rendu de la ligne principale : NOM + DOSE + FORME
-                med_line = f"{i}- <b>{nom.upper()}</b>"
-                if dose: med_line += f" ({dose})"
-                if forme: med_line += f" - <i>{forme}</i>"
+                med_line_table.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 0),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                    ('TOPPADDING', (0,0), (-1,-1), 10), # Espacement entre chaque médicament
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                ]))
                 
-                elements.append(Paragraph(med_line, med_style))
-
-                # Style pour la posologie (Indentation)
-                poso_style = ParagraphStyle(
-                    'PosoElite',
-                    parent=self.styles['Normal'],
-                    fontName=font_name,
-                    fontSize=10,
-                    textColor=p_color,
-                    leftIndent=0.8 * cm,
-                    spaceBefore=2,
-                    spaceAfter=8,
-                )
+                elements.append(med_line_table)
+                
+                # Ligne 2 : Posologie indentée en dessous
                 elements.append(Paragraph(f"• {posologie}", poso_style))
         else:
             empty_style = ParagraphStyle(
                 'Empty', parent=self.styles['Normal'],
-                fontName=font_name, fontSize=10, textColor=p_color,
+                fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_CENTER
             )
             elements.append(Paragraph("Aucun médicament prescrit.", empty_style))
 

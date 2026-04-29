@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { Brain, AlertCircle, AlertTriangle, Info } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { Brain } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Composants Modulaires
@@ -46,18 +45,6 @@ interface PatientDetails {
   date_naissance?: string;
   genre?: string;
 }
-
-const COHERENCE_ICONS = {
-  info: <Info size={14} className="shrink-0 text-blue-500" />,
-  warning: <AlertTriangle size={14} className="shrink-0 text-amber-500" />,
-  critical: <AlertCircle size={14} className="shrink-0 text-red-500" />,
-};
-
-const COHERENCE_COLORS = {
-  info: 'bg-blue-50 border-blue-200 text-blue-700',
-  warning: 'bg-amber-50 border-amber-200 text-amber-700',
-  critical: 'bg-red-50 border-red-200 text-red-700',
-};
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
@@ -186,10 +173,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
 
       {/* ESPACE DE TRAVAIL */}
-      <div className={cn(
-        'flex-1 h-full flex flex-col p-8 gap-6 transition-all duration-500',
-        sideStudioType === 'PREVIEW' ? 'mr-[500px]' : 'mr-0',
-      )}>
+      <div className="flex-1 h-full flex flex-col p-8 gap-6 overflow-y-auto">
 
         <StudioHeader
           patientName={patientName}
@@ -203,44 +187,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         />
 
         <StudioTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* Erreurs de validation (Phase 3) */}
-        <AnimatePresence>
-          {generator.validationErrors.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="flex flex-col gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl"
-            >
-              {generator.validationErrors.map((err, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm text-red-700 font-medium">
-                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                  {err.message}
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Avertissements de cohérence IA (Phase 4) */}
-        <AnimatePresence>
-          {generator.coherenceWarnings.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="flex flex-col gap-2"
-            >
-              {generator.coherenceWarnings.map((w, i) => (
-                <div key={i} className={cn('flex items-start gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold', COHERENCE_COLORS[w.level])}>
-                  {COHERENCE_ICONS[w.level]}
-                  {w.message}
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {activeTab === 'ordonnance' && (
@@ -259,6 +205,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setDrugs(p.drugs.map((d: any, idx: number) => ({ id: Date.now() + idx, name: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie })));
                 generator.setHasChanges(true);
               }}
+              validationErrors={generator.validationErrors}
+              coherenceWarnings={generator.coherenceWarnings}
             />
           )}
 
@@ -266,6 +214,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <CertificateForm
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
+              validationErrors={generator.validationErrors}
             />
           )}
 
@@ -278,6 +227,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               hideHeader={libreHideHeader} setHideHeader={setLibreHideHeader}
               pageSize={librePageSize} setPageSize={setLibrePageSize}
               alignment={libreAlignment} setAlignment={setLibreAlignment}
+              validationErrors={generator.validationErrors}
             />
           )}
 
@@ -324,6 +274,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setActiveActSearchId(null);
               }}
               calculateTotal={() => items.reduce((s, i) => s + (Number(i.price) || 0), 0)}
+              validationErrors={generator.validationErrors}
+              coherenceWarnings={generator.coherenceWarnings}
             />
           )}
 
@@ -365,12 +317,24 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {/* APERÇU LATÉRAL */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
-          <motion.div initial={{ x: 500 }} animate={{ x: 0 }} exit={{ x: 500 }} className="fixed right-0 top-0 h-full">
+          <motion.div 
+            initial={{ x: 600, opacity: 0 }} 
+            animate={{ x: 0, opacity: 1 }} 
+            exit={{ x: 600, opacity: 0 }} 
+            className="fixed right-6 top-6 bottom-6 w-[550px] z-[200] drop-shadow-2xl"
+          >
             <LivePreview
               pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
-              title={activeTab.toUpperCase()}
+              title={{
+                'ordonnance': 'Ordonnance',
+                'certificat': 'Certificat',
+                'devis': 'Devis Quantitatif',
+                'honoraires': 'Note d\'Honoraires',
+                'libre': 'Document Libre',
+                'ai': 'Rapport IA'
+              }[activeTab] || activeTab.toUpperCase()}
             />
           </motion.div>
         )}

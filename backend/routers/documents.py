@@ -14,6 +14,7 @@ from backend.routers.auth import get_current_user
 from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
 from backend.services.generators.report_gen import ReportGenerator
+from backend.services.clinical_coherence import coherence_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
@@ -35,7 +36,7 @@ def _extract_amount_from_clinical_data(clinical_data: dict) -> float:
     return float(clinical_data.get('total', 0))
 
 @router.post("/generate")
-def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     patient = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
     if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
     
@@ -71,10 +72,15 @@ def generate_document(req: schemas.DocumentRequest, archive: bool = False, previ
             )
             pdf_path = doc.file_path
 
-        clean_path = pdf_path.replace("\\", "/")
-        if "static/" in clean_path:
-            clean_path = clean_path[clean_path.find("static/"):]
-        return {"status": "success", "pdf_url": clean_path}
+        # Analyse de cohérence (Phase 1 & 2)
+        warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db)
+
+        # Nettoyage du chemin pour le frontend
+        pdf_url = pdf_path.replace("\\", "/")
+        if "static/" in pdf_url:
+            pdf_url = pdf_url[pdf_url.find("static/"):]
+        
+        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
     except Exception as e:
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
