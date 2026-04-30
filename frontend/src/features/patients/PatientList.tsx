@@ -10,7 +10,7 @@ export const PatientList = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'>('newest');
+  const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
   const [filterStatus, setFilterStatus] = useState<'all'|'nouveau'|'encours'|'termine'>('all');
 
   // NOUVEAU : État de la modale de suppression
@@ -66,6 +66,12 @@ export const PatientList = () => {
     if (sortOrder === 'oldest') return (a.id || 0) - (b.id || 0);
     if (sortOrder === 'az') return a.nom.localeCompare(b.nom);
     if (sortOrder === 'za') return b.nom.localeCompare(a.nom);
+    if (sortOrder === 'dossier') return (a.numero_dossier || '').localeCompare(b.numero_dossier || '');
+    if (sortOrder === 'created') {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }
     return 0;
   });
 
@@ -116,6 +122,8 @@ export const PatientList = () => {
             <option value="oldest">Plus Anciens</option>
             <option value="az">Alphabétique (A-Z)</option>
             <option value="za">Alphabétique (Z-A)</option>
+            <option value="dossier">N° Dossier</option>
+            <option value="created">Date de création</option>
           </select>
           
           <select 

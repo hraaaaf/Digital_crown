@@ -35,6 +35,7 @@ class PanoramicExpertEngine:
             return {
                 "summary": "Examen dans les limites de la normale.",
                 "narrative": "L'analyse automatique n'a détecté aucune anomalie radiologique significative sur ce cliché panoramique.",
+                "findings_count": 0,
                 "severity": "LOW"
             }
 

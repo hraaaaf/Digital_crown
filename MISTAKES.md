@@ -67,5 +67,21 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[CORRECTION] Raw String or List Join**: Use standard strings or `"\n".join()` for CSS blocks. Never use f-strings if the content contains braces `{}` that aren't Python placeholders.
 - **[LESSON]**: Separate code injection from string interpolation.
 
+### 13. React Lifecycle & Tool Misuse (v1.3)
+- **[ERROR] Hooks defined outside Component body**: During a large `multi_replace`, React hooks (`useState`, `useEffect`) were accidentally placed outside the functional component definition in `AccountingStudio.tsx`. Result: immediate runtime crash (`Invalid hook call`).
+- **[CORRECTION] Strict Structural Re-check**: Always verify that all `use*` calls are within the first lines of the function body. Systematically re-read the component wrapper after massive edits.
+- **[LESSON]**: Large code replacements (over 100 lines) require manual structural validation of the React function wrapper.
+
+### 14. Cephalometric Pipeline & Landmark Mapping
+- **[ERROR] Mapping Mismatch (stpog vs pog_soft)**: The frontend used `stpog` in some places while the geometric engine expected `Pog_soft`. This broke the Ricketts E-line and Naso-Labial analysis.
+- **[ERROR] Non-Interactive Soft Tissue Points**: Landmark points for soft tissue (lips, nose, chin) were explicitly filtered out from the interactive layer in `CephaloTracingLayer.tsx`. This prevented practitioners from refining the AI's detection, making the analysis "fixed" and sometimes inaccurate.
+- **[CORRECTION] Synonym Normalization & Activation**: 1) Unified naming (UL/Ls, LL/Li, stPog/Pog_soft) across backend and frontend. 2) Removed the interaction filter to allow manual adjustment of all 38 points.
+- **[LESSON]**: AI detection is only a starting point; the practitioner must always have the final word on landmark placement to ensure diagnostic accuracy.
+
+### 15. MICCAI 2023 Landmark Mapping Discrepancies
+- **[ERROR] Off-by-one and Name Mismatch**: The system used a generic ISBI-style mapping (S=0, N=1, Or=2, Po=3...) for the CL-Detection 2023 model, but the challenge model shifted many points (e.g., Sn moved to 15, Pronasale to 26). This caused "spaghetti" splines and inaccurate diagnostics.
+- **[CORRECTION] Definitive MICCAI 2023 Mapping**: Re-mapped all 38 points according to the official challenge table. Specifically fixed the soft-tissue sequence (Ls, Li, Sn, Pog') and the nose point (Prn).
+- **[LESSON]**: Deep learning models from specific challenges (MICCAI, ISBI) MUST use their exact original mapping table. Never assume a "standard" order for landmark detection outputs.
+
 ---
-*Last updated: 2026-04-23 (Session v5.7 - Elite Stability)*
+*Last updated: 2026-04-30 (Session v1.3 - Cephalo Ghost Elite Refinement)*

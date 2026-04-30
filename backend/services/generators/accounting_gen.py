@@ -11,13 +11,11 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
-from backend.services.odontogram_drawer import OdontogramDrawer
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
         self.base_output_dir = base_output_dir
         self.base_template = BaseTemplate()
-        self.odontogram_drawer = OdontogramDrawer()
         self.styles = getSampleStyleSheet()
         self._init_styles()
 
@@ -66,7 +64,7 @@ class AccountingGenerator:
             fontSize=10,
             textColor=NAVY_BLUE,
             alignment=TA_LEFT,
-            leading=14 # Augmenté pour la respiration
+            leading=14 
         ))
 
     def _amount_to_words(self, amount):
@@ -99,8 +97,6 @@ class AccountingGenerator:
                 
             return str(int(n))
 
-        # Séparation Dirhams / Centimes
-        # Séparation Dirhams / Centimes (Utilisation de string pour la robustesse)
         d_amount = decimal.Decimal(str(amount)).quantize(decimal.Decimal('0.01'), rounding='ROUND_HALF_UP')
         dirhams = int(d_amount)
         centimes = int((d_amount - dirhams) * 100)
@@ -128,13 +124,7 @@ class AccountingGenerator:
     def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
         """Rendu de la note comptable avec identifiants et clôture épinglée."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
-        
-        # Dessin de l'odontogramme schématique (Désactivé sur demande utilisateur)
-        # if highlighted_teeth:
-        #     p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        #     self.odontogram_drawer.draw(canvas, 1.5*cm, 16.5*cm, highlighted_teeth=highlighted_teeth, p_color=p_color)
             
-        # Clôture épinglée en bas
         if hasattr(doc, 'cloture_text') and doc.cloture_text:
             p_width, p_height = doc.pagesize
             p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
@@ -151,7 +141,6 @@ class AccountingGenerator:
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
         
-        # Police dynamique
         font_name = self.base_template.arabic_font
         font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
 
@@ -180,6 +169,51 @@ class AccountingGenerator:
         ]
         return Table(header_content, colWidths=[7.0*cm, 4.8*cm])
 
+    def _create_installments_table(self, installments, total_honoraires, p_color):
+        """Crée un tableau de suivi des règlements (échéancier)."""
+        if not installments:
+            return None
+            
+        font_bold = "Helvetica-Bold"
+        font_main = "Helvetica"
+        
+        header_style = ParagraphStyle(name='InstHeader', fontName=font_bold, fontSize=9, textColor=colors.white, alignment=TA_CENTER)
+        text_style = ParagraphStyle(name='InstText', fontName=font_main, fontSize=9, textColor=p_color, alignment=TA_CENTER)
+        
+        table_data = [[Paragraph("ÉCHÉANCE / AVANCE", header_style), Paragraph("DATE", header_style), Paragraph("MONTANT (MAD)", header_style)]]
+        
+        total_verse = 0.0
+        for inst in installments:
+            d_str = inst.date.strftime('%d/%m/%Y') if hasattr(inst.date, 'strftime') else str(inst.date)
+            table_data.append([
+                Paragraph(inst.label, text_style),
+                Paragraph(d_str, text_style),
+                Paragraph(f"{inst.amount:.2f}", text_style)
+            ])
+            total_verse += inst.amount
+            
+        reste = total_honoraires - total_verse
+        
+        summary_style = ParagraphStyle(name='InstSummary', fontName=font_bold, fontSize=10, textColor=p_color, alignment=TA_RIGHT)
+        reste_style = ParagraphStyle(name='ResteStyle', fontName=font_bold, fontSize=10, textColor=colors.HexColor("#B45309"), alignment=TA_CENTER) # Amber-700
+        
+        table_data.append([Paragraph("TOTAL VERSÉ", summary_style), "", Paragraph(f"<b>{total_verse:.2f} MAD</b>", text_style)])
+        table_data.append([Paragraph("RESTE À PAYER", summary_style), "", Paragraph(f"<b>{reste:.2f} MAD</b>", reste_style)])
+        
+        t = Table(table_data, colWidths=[5.3*cm, 3.5*cm, 4.0*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), p_color),
+            ('GRID', (0,0), (-1,-3), 0.3, p_color),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('SPAN', (0,-2), (1,-2)),
+            ('SPAN', (0,-1), (1,-1)),
+            ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#FFFBEB")),
+            ('BOX', (0,-1), (-1,-1), 0.3, colors.HexColor("#FDE68A")),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+        ]))
+        return t
+
     def generate_note(self, patient, data, facture_number=None, db=None, user_id=None, **kwargs):
         filepath = self._get_save_path(patient, "NOTE", data, doc_id=facture_number)
         config = None
@@ -188,12 +222,11 @@ class AccountingGenerator:
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
-        # Forçage du contraste Elite
         font_main = "Helvetica"
         font_bold = "Helvetica-Bold"
 
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"NOTE D'HONORAIRES N° {facture_number}" if facture_number else "NOTE D'HONORAIRES", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.5*cm)]
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"NOTE D'HONORAIRES N° {facture_number}" if facture_number else "NOTE D'HONORAIRES", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PAIEMENT", header_style), Paragraph("HONORAIRES", header_style)]]
@@ -214,8 +247,6 @@ class AccountingGenerator:
         
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
         
-        # Largeur rééquilibrée : 12.8cm au total (4.8 + 2.0 + 3.0 + 3.0)
-        # On donne assez d'espace à DENT (2.0cm) et aux titres de droite
         t = Table(table_data, colWidths=[4.8*cm, 2.0*cm, 3.0*cm, 3.0*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
@@ -225,8 +256,6 @@ class AccountingGenerator:
             ('SPAN', (0, -1), (2, -1)),
             ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
             ('BOTTOMPADDING', (0,0), (-1,-1), 8),
             ('TOPPADDING', (0,0), (-1,-1), 8),
             ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
@@ -235,15 +264,18 @@ class AccountingGenerator:
         ]))
         elements.append(t)
         
+        inst_table = self._create_installments_table(getattr(data, 'installments', []), total, p_color)
+        if inst_table:
+            elements.append(Spacer(1, 1.2*cm))
+            elements.append(Paragraph("SUIVI DES RÈGLEMENTS", ParagraphStyle('InstTitle', fontName=font_bold, fontSize=10, textColor=p_color, spaceAfter=8)))
+            elements.append(inst_table)
+
         total_words = self._amount_to_words(total)
-        
-        # Utilisation de la clôture personnalisée (Database-Driven)
         template = config.cloture_note_template if config and hasattr(config, 'cloture_note_template') else None
         if not template:
             template = "Arrêtée la présente note à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
-        # Extraction des dents pour le schéma
         highlighted_teeth = []
         for p in data.payments:
             if hasattr(p, 'dents') and p.dents:
@@ -265,12 +297,11 @@ class AccountingGenerator:
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
-        # Forçage du contraste Elite
         font_main = "Helvetica"
         font_bold = "Helvetica-Bold"
 
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"DEVIS N° {document_number}" if document_number else "DEVIS DENTAIRE", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.5*cm)]
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"DEVIS N° {document_number}" if document_number else "DEVIS DENTAIRE", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
@@ -291,7 +322,6 @@ class AccountingGenerator:
         
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
         
-        # Largeur rééquilibrée : 12.8cm au total (6.8 + 3.0 + 3.0)
         t = Table(table_data, colWidths=[6.8*cm, 3.0*cm, 3.0*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
@@ -301,8 +331,6 @@ class AccountingGenerator:
             ('SPAN', (0, -1), (1, -1)),
             ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
             ('BOTTOMPADDING', (0,0), (-1,-1), 8),
             ('TOPPADDING', (0,0), (-1,-1), 8),
             ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
@@ -311,15 +339,18 @@ class AccountingGenerator:
         ]))
         elements.append(t)
         
+        inst_table = self._create_installments_table(getattr(data, 'installments', []), total, p_color)
+        if inst_table:
+            elements.append(Spacer(1, 1.2*cm))
+            elements.append(Paragraph("ÉCHÉANCIER PRÉVISIONNEL", ParagraphStyle('InstTitle', fontName=font_bold, fontSize=10, textColor=p_color, spaceAfter=8)))
+            elements.append(inst_table)
+
         total_words = self._amount_to_words(total)
-        
-        # Utilisation de la clôture personnalisée (Database-Driven) 
         template = config.cloture_devis_template if config and hasattr(config, 'cloture_devis_template') else None
         if not template:
             template = "Arrêté le présent devis à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
-        # Extraction des dents pour le schéma
         highlighted_teeth = []
         for item in data.items:
             if hasattr(item, 'dents') and item.dents:
@@ -336,7 +367,6 @@ class AccountingGenerator:
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None):
         m_top = (config.margin_top if config else 3.6) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
-        # Marges latérales réduites de 1.5cm à 1.0cm pour un tableau plus large
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.cloture_text = cloture_text
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)

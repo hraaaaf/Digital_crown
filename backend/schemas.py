@@ -220,6 +220,7 @@ class MedicationItem(BaseModel):
     dosage: Optional[str] = ""
     forme: Optional[str] = "Sachets"
     posologie: Optional[str] = ""
+    type: Optional[str] = "MEDICAMENT" # MEDICAMENT ou EXAMEN
 
 class OrdonnanceData(BaseModel):
     medications: List[MedicationItem] = []
@@ -247,11 +248,49 @@ class ToothData(BaseModel):
     surfaces: List[str] = []
     notes: Optional[str] = None
 
+# --- PHASE 5 : PAYMENT TRACKING ---
+
+class InstallmentBase(BaseModel):
+    label: str
+    amount: float
+    due_date: datetime.date
+    paid_date: Optional[datetime.date] = None
+    status: str = "EN_ATTENTE"
+    notes: Optional[str] = None
+
+class InstallmentCreate(InstallmentBase):
+    pass
+
+class InstallmentOut(InstallmentBase):
+    id: int
+    plan_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class InstallmentPlanBase(BaseModel):
+    title: str
+    total_amount: float
+
+class InstallmentPlanCreate(InstallmentPlanBase):
+    patient_id: int
+    installments: List[InstallmentCreate]
+
+class InstallmentPlanOut(InstallmentPlanBase):
+    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    installments: List[InstallmentOut]
+    model_config = ConfigDict(from_attributes=True)
+
 class DevisItem(BaseModel):
     acte: str = ""
     dent: str = ""
     dents: List[Union[int, str]] = []  # Liste des numéros de dents concernées
     prix_unitaire: float = 0.0
+
+class InstallmentItem(BaseModel):
+    date: Optional[datetime.date] = None
+    amount: float = 0.0
+    label: str = "Versement"
 
 class DevisData(BaseModel):
     items: List[DevisItem] = []
@@ -259,6 +298,7 @@ class DevisData(BaseModel):
     teeth_data: List[ToothData] = []  # Données détaillées de l'odontogramme
     age: Optional[int] = None
     gender: Optional[str] = None
+    installments: List[InstallmentItem] = []
 
 class PaymentItem(BaseModel):
     date: Optional[datetime.date] = None
@@ -274,6 +314,7 @@ class HonorairesData(BaseModel):
     teeth_data: List[ToothData] = []  # Données détaillées de l'odontogramme
     age: Optional[int] = None
     gender: Optional[str] = None
+    installments: List[InstallmentItem] = []
 
 class LibreData(BaseModel):
     titre: str = Field(default='DOCUMENT MÉDICAL', alias='title')

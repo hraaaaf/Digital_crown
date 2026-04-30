@@ -164,3 +164,42 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
     db.commit()
     db.refresh(db_patient)
     return db_patient
+
+# --- GÉNÉRATION RAPPORTS (COMPATIBILITÉ) ---
+
+@router.post("/{patient_id}/pdf")
+def generate_cephalo_pdf(
+    patient_id: int, 
+    req: schemas.CephaloPDFRequest, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """Génération du rapport céphalo PDF (Route de compatibilité Ghost Elite)."""
+    from backend.routers.documents import doc_factory
+    from fastapi.responses import FileResponse
+    
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient: 
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+    
+    last_analysis = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.patient_id == patient_id
+    ).order_by(models.CephaloAnalysis.id.desc()).first()
+    
+    if not last_analysis: 
+        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée pour ce patient")
+    
+    analysis_data = {
+        "id": last_analysis.id,
+        "image_path": last_analysis.image_original_path,
+        "results": last_analysis.angles_data or {},
+        "landmarks": last_analysis.landmarks_data
+    }
+    
+    if req.ai_diagnostic: 
+        analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
+    if req.clinical_data: 
+        analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
+    
+    pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
+    return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')

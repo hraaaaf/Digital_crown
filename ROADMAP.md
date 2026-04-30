@@ -31,7 +31,7 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Moteur Déterministe** : Arbre décisionnel (Acte > Poso > Sécurité).
 - [x] **Sécurité Immuable** : Filtrage automatique allergies et pédiatrie 100% sûr.
 - [x] **Bouton One-Click** : Génération instantanée basée sur le contexte clinique.
-- [x] **Override Persistant** (En cours) : Logique de surcharge pour s'adapter aux habitudes du praticien.
+- [x] **Override Persistant** : Logique de surcharge adaptée aux habitudes du praticien.
 
 ---
 
@@ -45,13 +45,15 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🗂️ 5. Évolutions UI - Liste des Patients
-**Statut :** Planifié
-**Priorité :** Moyenne
+## ✅ 5. Évolutions UI - Liste des Patients (MIS À JOUR)
+**Statut :** Partiellement Déployé (v1.3)
+**Priorité :** Haute
 
+- [x] **Tri Intelligent** : Support du tri par N° Dossier et Date de création.
 - [ ] **Mode Vue Grille (Cards)** : Toggle "Table/Grid" pour usage sur tablettes.
 
 ---
+
 ## ✅ 6. Branding Engine v4.0 (Ghost Elite) & Contacts Granulaires (TERMINÉ)
 **Statut :** Déployé (v4.0)
 **Spécialiste :** PixelMaster & Architector
@@ -142,6 +144,8 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [ ] **Analyse de Rentabilité par Acte** : Visualisation des actes les plus performants.
 - [ ] **Reporting Mensuel Automatisé** : Génération d'un bilan financier PDF avec graphiques WeasyPrint.
 
+---
+
 ## ✅ 14. Stabilisation & Excellence Documentaire v1.2 (TERMINÉ)
 **Statut :** Déployé (v1.2)
 **Spécialiste :** Staff Staff Engineering & PixelMaster
@@ -151,6 +155,8 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Ouverture Auto PDF** : Le document généré s'ouvre désormais automatiquement dans un nouvel onglet pour un feedback immédiat.
 - [x] **Clinical Intelligence v1** : Intégration des routes `ai-diagnostic` et `ai-summary` dans le Studio Documentaire.
 - [x] **Fix Boucle React** : Stabilisation du `DocumentHub` et du hook `useDocumentGenerator` (Zéro latence).
+
+---
 
 ## 👩‍💼 15. Gestion des Rôles : Mode Assistante du Cabinet
 **Statut :** Planifié
@@ -167,23 +173,28 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 📈 Prochaines Étapes : Vision Elite 2026
+## ✅ 16. Moteur d'Habitudes & Apprentissage Clinique (TERMINÉ)
+**Statut :** Déployé (v1.3)
+**Spécialiste :** Staff Staff Engineering & Architector
+
+- [x] **Système de Mémoire `DoctorActHabit`** : Tracking automatique de la fréquence d'usage des actes cliniques par praticien.
+- [x] **Raccourcis Dynamiques (Quick Acts)** : La barre d'actions rapides s'adapte en temps réel aux habitudes réelles (Top 8 actes les plus utilisés).
+- [x] **Apprentissage "Au Fil de l'Eau"** : Enregistrement transparent des habitudes lors de la génération de documents financiers (Devis/Notes).
+- [x] **Persistance "One-Click"** : Possibilité d'enregistrer instantanément un nouvel acte personnalisé comme habitude depuis l'interface de saisie.
+
+---
+
+## 🎙️ 17. Assistant Vocal "Hands-Free" & Vision Advanced (Prochaine Étape)
+**Statut :** Planifié
+**Priorité :** Élevée
 
 ### 🛡️ Module 4 IA : Cohérence Clinique (Priorité Haute)
 - [ ] **Cross-Check Intelligent** : Alerte automatique si une ordonnance d'antibiotiques est générée sans acte chirurgical ou endodontique lié dans la séance.
 - [ ] **Détection d'Omissions** : Suggestion d'actes de prévention (Détartrage/Fluor) basée sur l'historique du patient.
-
-### 🎙️ Assistant Vocal "Hands-Free" (R&D)
-- [ ] **Dictée d'Actes** : Saisie vocale des actes sur l'odontogramme pendant l'examen clinique (zéro contact avec la souris).
-- [ ] **Commandes de Studio** : "Antigravity, génère l'ordonnance post-op" via reconnaissance vocale locale.
-
-### 💳 Financia v2 : Digital Trust & Analytics
-- [ ] **Scan to Pay** : Intégration de QR Codes dynamiques sur les factures pour paiement instantané (WhatsApp/Mobile).
-- [ ] **Prédiction de CA** : Analyse prédictive du chiffre d'affaires basée sur le taux d'acceptation des devis en attente.
 
 ### 🦷 Odontogramme 3D & Vision Advanced
 - [ ] **IA Overlay** : Superposition automatique des racines détectées sur la radio panoramique directement sur l'odontogramme SVG.
 
 ---
 
-*Dernière mise à jour : 27 Avril 2026 par Antigravity Staff Engineering (v1.2 Stabilization Release).*
+*Dernière mise à jour : 29 Avril 2026 par Antigravity Staff Engineering (v1.3 Habits & Learning Release).*

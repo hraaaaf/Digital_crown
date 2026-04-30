@@ -80,6 +80,16 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         if "static/" in pdf_url:
             pdf_url = pdf_url[pdf_url.find("static/"):]
         
+        # Apprentissage des habitudes d'actes (Phase 5)
+        if is_financial and not preview:
+            from backend.services.accounting_service import accounting_service
+            if req.type == "devis":
+                for item in req.data.get('items', []):
+                    accounting_service.record_act_usage(db, user_id, item.get('acte'), float(item.get('prix_unitaire', 0)))
+            else: # honoraires/note
+                for p in req.data.get('payments', []):
+                    accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
+
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
     except Exception as e:
         logger.error(f"Erreur Génération : {e}")
@@ -170,5 +180,5 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     if req.ai_diagnostic: analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
     if req.clinical_data: analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
     
-    pdf_path = doc_factory.create_bilan_report(patient, analysis_data, db=db, user_id=current_user.id)
+    pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')

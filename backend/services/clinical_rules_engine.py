@@ -112,6 +112,25 @@ class ClinicalRulesEngine:
         }
     }
 
+    # --- MATRICE D'INTERACTIONS (SÉCURITÉ ÉLITE) ---
+    DRUG_INTERACTIONS = [
+        {
+            "molecules": ["AINS", "CORTICOIDES"],
+            "level": "WARNING",
+            "message": "Association AINS + Corticoïdes : Risque ulcérogène accru."
+        },
+        {
+            "molecules": ["IBUPROFENE", "PREDNISOLONE"],
+            "level": "WARNING",
+            "message": "Association Ibuprofène + Prednisolone : Risque ulcérogène accru."
+        },
+        {
+            "molecules": ["AMOXICILLINE", "METRONIDAZOLE"],
+            "level": "INFO",
+            "message": "Association synergique classique pour les infections parodontales."
+        }
+    ]
+
     def analyze_case(self, patient_data: Dict[str, Any], acts: List[str]) -> Dict[str, Any]:
         """
         Analyse déterministe ELITE du cas patient avec focus Maroc.

@@ -13,4 +13,5 @@ export interface Patient {
   adresse?: string;
   assurance?: AssuranceType;
   antecedents_medicaux?: string;
+  created_at?: string;
 }

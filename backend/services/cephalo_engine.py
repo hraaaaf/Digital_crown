@@ -27,10 +27,10 @@ class CephaloEngine:
             "U1a": ["U1a", "U1_apex", "11_apex", "UIa"],
             "L1i": ["L1i", "L1_incisal", "41_incisal", "LIe"],
             "L1a": ["L1a", "L1_apex", "41_apex", "LIa"],
-            "Prn": ["Prn", "Pronasale"],
-            "Pog_soft": ["Pog_soft", "Soft_Pogonion"],
-            "Ls": ["Ls", "Labrale_Superius"],
-            "Li": ["Li", "Labrale_Inferius"]
+            "Prn": ["Prn", "Pronasale", "Nose_Tip"],
+            "Pog_soft": ["Pog_soft", "Soft_Pogonion", "stPog", "stpog", "Soft_Pog"],
+            "Ls": ["Ls", "Labrale_Superius", "UL", "ul", "Upper_Lip"],
+            "Li": ["Li", "Labrale_Inferius", "LL", "ll", "Lower_Lip"]
         }
 
     # --- UTILITAIRES GÉOMÉTRIQUES ---

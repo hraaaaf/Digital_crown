@@ -55,14 +55,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<any>(null);
-  const [loadingSmart, setLoadingSmart] = useState(false);
 
   // --- ÉTATS FORMULAIRES ---
-  const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '' }]);
+  const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [certifType, setCertifType] = useState('Repos médical');
   const [certifDays, setCertifDays] = useState(3);
   const [items, setItems] = useState<PriceItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
+  const [installments, setInstallments] = useState<any[]>([]);
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -76,7 +76,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS UI ---
   const [showOdontoPanoramique, setShowOdontoPanoramique] = useState(true);
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
-  const [odontogramMode, setOdontogramMode] = useState<'individual' | 'group'>('individual');
+  const [odontogramMode, setOdontogramMode] = useState<'individual' | 'group' | 'ortho'>('individual');
   const [groupSelectedTeeth, setGroupSelectedTeeth] = useState<number[]>([]);
   const [groupTreatmentName, setGroupTreatmentName] = useState('');
   const [groupTreatmentPrice, setGroupTreatmentPrice] = useState<number | ''>('');
@@ -88,6 +88,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     patientId, patientDetails, activeTab, drugs, certifType, certifDays,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    installments,
   });
 
   // --- HYDRATATION ---
@@ -154,11 +155,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (!patientId) return;
     api.get(`/patients/${patientId}`).then(res => setPatientDetails(res.data)).catch(console.error);
     if (activeTab === 'ordonnance') {
-      setLoadingSmart(true);
       api.get(`/prescriptions/smart-suggest/${patientId}`)
         .then(res => setSmartSuggestion(res.data))
-        .catch(console.error)
-        .finally(() => setLoadingSmart(false));
+        .catch(console.error);
     }
   }, [patientId, activeTab]);
 
@@ -202,7 +201,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setDrugs(drugs.filter(d => d.id !== id));
                 generator.setHasChanges(true);
               }}
-              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '' }])}
+              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '', type: 'MEDICAMENT' }])}
               validationErrors={generator.validationErrors}
               onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
               hasChanges={generator.hasChanges}
@@ -234,6 +233,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <AccountingStudio
               patientId={patientId || '0'} items={items} setItems={setItems}
               paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
+              installments={installments} setInstallments={setInstallments}
               showOdontoPanoramique={showOdontoPanoramique} odontogramMode={odontogramMode} setOdontogramMode={setOdontogramMode}
               groupSelectedTeeth={groupSelectedTeeth}
               handleToothDirectClick={(n) => setGroupSelectedTeeth(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}
@@ -266,7 +266,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 const res = await api.get(`/actes/catalog/search?q=${q}`);
                 setActSuggestions(res.data);
               }}
-              activeActSearchId={activeActSearchId} actSuggestions={actSuggestions}
+              activeActSearchId={activeActSearchId}
+              setActiveActSearchId={setActiveActSearchId}
+              actSuggestions={actSuggestions}
               applyActSuggestion={(id, act) => {
                 setItems(items.map(i => i.id === id ? { ...i, description: act.name, price: act.base_price || 0 } : i));
                 setActSuggestions([]);

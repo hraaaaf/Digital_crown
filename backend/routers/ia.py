@@ -87,7 +87,7 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
             patient_id=patient_id,
             image_path=db_path,
             detections_data=vision_data,
-            report_narrative=report_data.get("summary", "")
+            report_narrative=report_data.get("narrative_report", "")
         )
         db.add(db_analysis)
         db.commit()

@@ -14,12 +14,24 @@ logger = logging.getLogger(__name__)
 # Mapping des 38 points SOTA vers les IDs cliniques
 # Le modèle utilise la nomenclature CL-Detection (38 points), différente de ISBI 2015.
 SOTA_LANDMARKS_MAPPING = {
+    # Skeletal / Hard Tissue
     0: "S", 1: "N", 2: "Or", 3: "Po", 4: "A", 5: "B", 6: "Pog", 7: "Me",
-    8: "Gn", 9: "Go", 10: "L1_incisal", 11: "U1_incisal", 12: "Ls",
-    13: "Li", 14: "Sn", 15: "Pog_soft", 16: "PNS", 17: "ANS", 18: "Ar",
-    19: "L1_apex", 20: "U1_apex", 21: "G_soft", 22: "N_soft", 23: "Prn",
-    24: "Cm", 25: "A_soft", 26: "St", 27: "B_soft", 28: "Co", 29: "PTM", 30: "Ba",
-    31: "U6m", 32: "U6d", 33: "L6m", 34: "L6d", 35: "U3t", 36: "L3t", 37: "Me_soft"
+    8: "Gn", 9: "Go", 10: "L1_incisal", 11: "U1_incisal",
+    
+    # Soft Tissue & Transition
+    12: "Ls_soft", 13: "Li_soft", 14: "Sn_soft", 15: "Pog_soft",
+    
+    # Other Skeletal
+    16: "PNS", 17: "ANS", 18: "Ar", 19: "D_point", 20: "U1_apex", 21: "L1_apex",
+    
+    # Refined Points
+    22: "Cm", 23: "Ptm", 24: "Co", 25: "Prn", 26: "Ba", 27: "PT_point", 28: "Bo",
+    
+    # Soft Tissue Profile Refinement
+    29: "Ls2", 30: "Li2", 31: "Gn_soft", 32: "Me_soft", 33: "G_soft", 34: "N_soft",
+    
+    # Dental & Anatomical
+    35: "C_point", 36: "U6", 37: "L6"
 }
 
 class SOTAVisionEngine:

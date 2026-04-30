@@ -3,9 +3,9 @@
 Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à jour systématiquement à chaque modification significative de l'application pour garantir un contexte persistant entre les différentes sessions.
 
 ## 📌 État Actuel du Projet
-- **Version** : 5.0 (Ghost Elite & Secure QR Validation)
-- **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / TailwindCSS 4 / Recharts / WeasyPrint
-- **Dernière M.A.J** : 22 Avril 2026 (Ghost Elite Rebranding & QR Integration)
+- **Version** : 1.4 (Agency Protocol & Memory)
+- **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / Beads + Dolt (Memory) / ReportLab
+- **Dernière M.A.J** : 30 Avril 2026 (Agency Protocol Adoption)
 
 ---
 
@@ -16,7 +16,8 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 - **Moteur Géométrique :** `backend/services/cephalo_engine.py` (Calculs COM V4)
 - **Moteur Vision (ML) :** `backend/services/vision_service.py` (CephLD-CCA / U-Net)
 - **Moteur Diagnostic (LLM) :** `backend/services/ai_advisor.py` (Ollama/Llama 3.2 local)
-- **Générateurs PDF :** `backend/services/generators/` (Migration progressive vers WeasyPrint/Jinja2)
+- **Moteur d'Habitudes :** `backend/services/accounting_service.py` (Apprentissage clinique)
+- **Générateurs PDF :** `backend/services/generators/` (ReportLab / WeasyPrint)
 - **Service QR :** `backend/services/qr_service.py` (Validation sécurisée)
 - **Base de données :** PostgreSQL (config: `backend/database.py`)
 
@@ -36,6 +37,7 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 4. **Design Ghost Elite** : Thème ultra-premium entièrement basé sur des variables CSS (`--primary`, `--secondary`), synchronisé entre le dashboard, la compta et les réglages.
 5. **Visual Insights** : Graphiques de performance (Recharts) intégrés au Studio Comptable pour le suivi des revenus.
 6. **Validation QR** : Signature numérique QR sur les documents (Ordonnances) pour certifier l'authenticité via `qr_service`.
+7. **Agency Protocol (Beads)** : Système de suivi de tâches et de mémoire agentique distribué, garantissant une traçabilité totale via Dolt.
 
 ---
 
@@ -43,8 +45,11 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 
 | Date | Agent / Action | Fichiers Modifiés | Statut |
 |------|----------------|-------------------|--------|
-| 22/04/2026 | **Refonte Ghost Elite (Phase 1-4)** : Suppression des couleurs hardcodées, passage au branding dynamique CSS. Intégration Recharts dans `AccountingPage`. Optimisation UX `AccountingStudio` (Actes Rapides). Implémentation QR Validation & Migration `OrdonnanceGenerator` vers WeasyPrint. | `MainLayout.tsx`, `Dashboard.tsx`, `AccountingPage.tsx`, `Settings.tsx`, `AccountingStudio.tsx`, `qr_service.py`, `ordonnance_gen.py`, `base_elite.html` | ✅ |
-| 23/04/2026 | **Phase 6 : Synchronisation & Rendu "Ghost Elite"** : Intégration des métriques esthétiques (Ricketts), Auto-Calibration IA, et Color-Coding des déviations. Certification PDF v4.6 stable. | `CephaloWorkspace.tsx`, `Step3Clinical.tsx`, `cephalo_gen.py`, `cephaloTypes.ts` | ✅ |
+| 22/04/2026 | **Refonte Ghost Elite (Phase 1-4)** | `MainLayout.tsx`, etc. | ✅ |
+| 23/04/2026 | **Phase 6 : Synchronisation & Rendu "Ghost Elite"** | `CephaloWorkspace.tsx`, etc. | ✅ |
+| 29/04/2026 | **v1.3 : Habits & Learning Engine** : Implémentation du moteur d'apprentissage clinique `DoctorActHabit`. Dynamisation des Quick Acts. Ajout du tri par N° Dossier et Date de création. Automatisation de l'apprentissage lors de la génération de documents. | `models.py`, `accounting_service.py`, `accounting.py`, `documents.py`, `AccountingStudio.tsx`, `PatientList.tsx` | ✅ |
+| 30/04/2026 | **Correction Sérialisation & Optimisation Panoramique SOTA** : Résolution du crash JSON (float32). Injection de CLAHE. Refonte du mapping FDI (Smile Curve). Correction de l'ordre des classes DENTEX. Correction d'une `KeyError` sur les rapports sains. | `sota_panoramic_service.py`, `panoramic_expert_engine.py`, `ia.py` | ✅ |
+| 30/04/2026 | **v1.4 : Adoption Protocole Agency (Beads)** : Intégration de Beads + Dolt pour le suivi structuré des tâches et la persistance de la mémoire agentique. Initialisation de la base `.beads`. | `adopt_beads.ps1`, `.beads/` | ✅ |
 
 ---
 

@@ -42,6 +42,7 @@ interface UseDocumentGeneratorParams {
   docDate: string;
   selectedTeethFromOdontogram: SelectedSurfaceData[];
   smartSuggestion: any;
+  installments: any[];
 }
 
 // --- Validation stricte (Phase 3) ---
@@ -200,6 +201,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       patientId, activeTab, drugs, certifType, certifDays, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
       librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
+      installments,
     } = params;
 
     const payload: any = {
@@ -210,7 +212,13 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
     if (activeTab === 'ordonnance') {
       payload.data = {
-        medications: drugs.map(d => ({ nom: d.name, dosage: d.dosage, forme: d.forme || 'Sachets', posologie: d.posologie })),
+        medications: drugs.map(d => ({ 
+          nom: d.name, 
+          dosage: d.dosage, 
+          forme: d.forme || 'Sachets', 
+          posologie: d.posologie,
+          type: d.type || 'MEDICAMENT'
+        })),
         doc_date: docDate,
       };
     } else if (activeTab === 'certificat') {
@@ -244,8 +252,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         notes: '',
       }));
       payload.data = activeTab === 'devis'
-        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData }
-        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData };
+        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments }
+        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments };
     }
 
     return payload;
@@ -306,6 +314,23 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         // Si ce n'est pas une preview et pas une impression directe, on ouvre le PDF
         if (!isPreview && !print) {
           window.open(fullUrl, '_blank');
+        }
+
+        // --- Apprentissage automatique des habitudes (Phase 2) ---
+        if (activeTab === 'ordonnance' && !isPreview && archive) {
+          try {
+            for (const drug of drugs) {
+              if (drug.name.trim()) {
+                await api.post('/prescriptions/habits/record', {
+                  medication_name: drug.name,
+                  dosage: drug.dosage,
+                  posologie: drug.posologie
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Échec de l'apprentissage des habitudes (silencieux)", e);
+          }
         }
       }
       if (archive && !isPreview) alert('✅ Document archivé !');

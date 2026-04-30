@@ -11,6 +11,7 @@ import { cn } from '../../utils/cn';
 import { Odontogram } from '../../components/odontogram';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
+import { api } from '../../services/api';
 
 interface PriceItem { 
   id: number; 
@@ -21,6 +22,13 @@ interface PriceItem {
   _odontogramKey?: string;
 }
 
+export interface InstallmentItem {
+  id: number;
+  date: string;
+  amount: number;
+  label: string;
+}
+
 interface AccountingStudioProps {
   patientId: string;
   items: PriceItem[];
@@ -28,8 +36,8 @@ interface AccountingStudioProps {
   paymentMode: string;
   setPaymentMode: (mode: string) => void;
   showOdontoPanoramique: boolean;
-  odontogramMode: 'individual' | 'group';
-  setOdontogramMode: (mode: 'individual' | 'group') => void;
+  odontogramMode: 'individual' | 'group' | 'ortho';
+  setOdontogramMode: (mode: 'individual' | 'group' | 'ortho') => void;
   groupSelectedTeeth: number[];
   handleToothDirectClick: (toothNumber: number) => void;
   selectTeethGroup: (group: 'all' | 'maxillaire' | 'mandibule' | 'none') => void;
@@ -44,23 +52,18 @@ interface AccountingStudioProps {
   updateItem: (id: number, field: keyof PriceItem, value: string | number) => void;
   handleActSearch: (query: string, itemId: number) => void;
   activeActSearchId: number | null;
+  setActiveActSearchId: (id: number | null) => void;
   actSuggestions: any[];
   applyActSuggestion: (itemId: number, act: any) => void;
   calculateTotal: () => number;
+  installments: InstallmentItem[];
+  setInstallments: (val: InstallmentItem[]) => void;
   validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
 }
 
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 import { AlertCircle, AlertTriangle } from 'lucide-react';
-
-// Mock of frequent acts for the Elite demo
-const QUICK_ACTS = [
-  { name: 'Consultation', price: 300, category: 'CONSULT' },
-  { name: 'Détartrage', price: 500, category: 'PREV' },
-  { name: 'Composite 1 face', price: 400, category: 'CONS' },
-  { name: 'Extraction simple', price: 600, category: 'CHIR' },
-];
 
 const getCategoryColor = (cat: string) => {
   switch (cat) {
@@ -95,12 +98,50 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     updateItem,
     handleActSearch,
     activeActSearchId,
+    setActiveActSearchId,
     actSuggestions,
     applyActSuggestion,
     calculateTotal,
+    installments,
+    setInstallments,
     validationErrors = [],
     coherenceWarnings = []
   } = props;
+
+  // Dynamics Quick Acts state (Habit-based)
+  const [quickActs, setQuickActs] = React.useState<{ name: string; price: number; category: string }[]>([]);
+
+  React.useEffect(() => {
+    fetchQuickActs();
+  }, []);
+
+  const fetchQuickActs = async () => {
+    try {
+      const res = await api.get('/accounting/frequent-acts');
+      if (res.data && res.data.length > 0) {
+        setQuickActs(res.data);
+      } else {
+        // Elite Default Fallback
+        setQuickActs([
+          { name: 'Consultation', price: 300, category: 'CONS' },
+          { name: 'Détartrage', price: 500, category: 'PREV' },
+          { name: 'Composite 1 face', price: 400, category: 'CONS' },
+          { name: 'Extraction simple', price: 600, category: 'CHIR' },
+        ]);
+      }
+    } catch (err) {
+      console.error("Erreur chargement habitudes acts:", err);
+    }
+  };
+
+  const saveActAsHabit = async (name: string, price: number, category?: string) => {
+    try {
+      await api.post('/accounting/record-act', { name, price, category });
+      fetchQuickActs(); // Refresh shortcuts
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
@@ -145,9 +186,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
 
         <div className="flex flex-wrap gap-2 relative z-10">
-          {QUICK_ACTS.map(act => (
+          {quickActs.map((act, idx) => (
             <button
-              key={act.name}
+              key={`${act.name}-${idx}`}
               onClick={() => {
                 const newId = Date.now();
                 const newItem = { id: newId, description: act.name, price: act.price, dent: '', category: act.category };
@@ -157,7 +198,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                 "group px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-3",
                 act.category === 'CHIR' 
                   ? "bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" 
-                  : "bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
+                  : act.category === 'PROTH'
+                  ? "bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
+                  : act.category === 'CONS'
+                  ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                  : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-600 hover:text-white"
               )}
             >
               <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover:opacity-100" />
@@ -195,9 +240,186 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
             >
               Bridge / PAP
             </button>
+            <button
+              onClick={() => {
+                setOdontogramMode('ortho');
+                if (!groupTreatmentName) setGroupTreatmentName('Traitement Orthodontique');
+              }}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all",
+                odontogramMode === 'ortho' ? "bg-white text-primary shadow-md" : "text-slate-500"
+              )}
+              style={odontogramMode === 'ortho' ? { color: 'var(--primary)' } : {}}
+            >
+              Orthodontie
+            </button>
           </div>
 
-          {odontogramMode === 'individual' ? (
+          {odontogramMode === 'ortho' ? (
+            <div className="space-y-8 py-2">
+               {/* SMART ORTHO DASHBOARD */}
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="md:col-span-1 bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-3 shadow-inner">
+                      <Calculator size={28} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mode</span>
+                    <span className="text-sm font-black text-slate-800">ORTHO ELITE</span>
+                  </div>
+                  
+                  <div className="md:col-span-3 bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white/60 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-8 relative z-10">
+                      <div className="flex-1 w-full">
+                        <div className="flex justify-between items-end mb-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Progression du règlement</span>
+                          <span className="text-xs font-black text-emerald-600">
+                            {groupTreatmentPrice ? Math.round((installments.reduce((s, i) => s + i.amount, 0) / Number(groupTreatmentPrice)) * 100) : 0}%
+                          </span>
+                        </div>
+                        <div className="h-3 w-full bg-slate-200/50 rounded-full overflow-hidden border border-white">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${groupTreatmentPrice ? Math.min(100, (installments.reduce((s, i) => s + i.amount, 0) / Number(groupTreatmentPrice)) * 100) : 0}%` }}
+                            className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-8 border-l border-slate-200 pl-8">
+                        <div className="text-right">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Déjà Réglé</span>
+                          <span className="text-xl font-black text-emerald-600">{installments.reduce((s, i) => s + i.amount, 0).toLocaleString('fr-FR')} <span className="text-[10px] opacity-60 font-bold">MAD</span></span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Reste à percevoir</span>
+                          <span className="text-xl font-black text-amber-500">{(Number(groupTreatmentPrice || 0) - installments.reduce((s, i) => s + i.amount, 0)).toLocaleString('fr-FR')} <span className="text-[10px] opacity-60 font-bold">MAD</span></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+               </div>
+
+               {/* ORTHO CONFIGURATION & GENERATOR */}
+               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <div className="lg:col-span-8 bg-white/40 p-10 rounded-[2.5rem] border border-white/60 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <label className={labelClass}>Libellé du traitement global</label>
+                        <input
+                          type="text"
+                          className={inputClass}
+                          placeholder="Ex: Traitement Ortho - Semestre 1"
+                          value={groupTreatmentName}
+                          onChange={(e) => setGroupTreatmentName(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Total Contrat (MAD)</label>
+                        <input
+                          type="number"
+                          className={cn(inputClass, "font-black text-xl")}
+                          value={groupTreatmentPrice}
+                          onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          style={{ color: 'var(--primary)' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-white/40 flex flex-wrap items-end gap-4">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className={labelClass} style={{ color: '#059669' }}>Avance Initiale immédiate</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            id="ortho-advance"
+                            className={cn(inputClass, "border-emerald-100 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold")}
+                            placeholder="Ex: 2000"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-400 uppercase">MAD</span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => {
+                          if (!groupTreatmentName.trim()) return;
+                          const advance = Number((document.getElementById('ortho-advance') as HTMLInputElement)?.value) || 0;
+                          
+                          // 1. Mise à jour de l'acte principal
+                          const existingMain = props.items.find(i => i.description === groupTreatmentName);
+                          if (existingMain) {
+                            props.updateItem(existingMain.id, 'price', Number(groupTreatmentPrice) || 0);
+                          } else {
+                            props.setItems([{ 
+                              id: Date.now(), 
+                              description: groupTreatmentName, 
+                              dent: '-', 
+                              price: Number(groupTreatmentPrice) || 0 
+                            }, ...props.items]);
+                          }
+
+                          // 2. Ajouter l'avance si présente
+                          if (advance > 0) {
+                            setInstallments([...installments, { 
+                              id: Date.now() + 1, 
+                              date: new Date().toISOString().split('T')[0], 
+                              amount: advance, 
+                              label: 'Avance initiale' 
+                            }]);
+                          }
+                          if (document.getElementById('ortho-advance')) (document.getElementById('ortho-advance') as HTMLInputElement).value = '';
+                        }}
+                        className="px-8 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/20 active:scale-95"
+                      >
+                        <Zap size={20} /> Appliquer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-4 bg-primary/5 p-8 rounded-[2.5rem] border border-primary/10 flex flex-col justify-center items-center text-center space-y-4 group">
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500">
+                      <Zap size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-black uppercase tracking-widest text-primary">Smart Generator</h4>
+                      <p className="text-[9px] font-bold text-slate-500 mt-2 px-4 italic leading-relaxed">Étaler automatiquement le reste à payer sur les mois à venir.</p>
+                    </div>
+                    <div className="flex items-center gap-2 w-full pt-2">
+                       <input 
+                         type="number" 
+                         id="spread-months" 
+                         className="w-16 px-2 py-3 bg-white border border-primary/20 rounded-xl text-center text-xs font-black text-primary outline-none focus:ring-2 focus:ring-primary/20" 
+                         defaultValue={6} 
+                       />
+                       <button
+                         onClick={() => {
+                           const months = Number((document.getElementById('spread-months') as HTMLInputElement)?.value) || 6;
+                           const remaining = Number(groupTreatmentPrice || 0) - installments.reduce((s, i) => s + i.amount, 0);
+                           if (remaining <= 0) return;
+                           
+                           const monthly = Math.round(remaining / months);
+                           const newInst = [];
+                           for (let i = 1; i <= months; i++) {
+                             const d = new Date();
+                             d.setMonth(d.getMonth() + i);
+                             newInst.push({
+                               id: Date.now() + i + Math.random(),
+                               date: d.toISOString().split('T')[0],
+                               amount: monthly,
+                               label: `Mensualité ${installments.filter(inst => inst.label.includes('Mensualité')).length + i}`
+                             });
+                           }
+                           setInstallments([...installments, ...newInst]);
+                         }}
+                         className="flex-1 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-95 transition-all"
+                         style={{ backgroundColor: 'var(--primary)' }}
+                       >
+                         Étaler le Reste
+                       </button>
+                    </div>
+                  </div>
+               </div>
+            </div>
+          ) : odontogramMode === 'individual' ? (
             <div className="flex-1 flex justify-center items-center py-2">
               <div className="w-full max-w-[500px] mx-auto px-4">
                 <Odontogram
@@ -334,26 +556,44 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                            <div className="text-[9px] font-bold text-slate-300 italic">SANINOVA Intelligent Engine</div>
                         </div>
                         <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                          {actSuggestions.map((act) => (
+                          {actSuggestions.length > 0 ? (
+                            actSuggestions.map((act) => (
+                              <button
+                                key={act.id}
+                                onClick={() => applyActSuggestion(item.id, act)}
+                                className="w-full text-left px-6 py-5 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/item"
+                              >
+                                <div className="flex flex-col gap-1">
+                                  <div className="font-black text-slate-800 text-sm group-hover/item:text-primary transition-colors tracking-tight">{act.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter border", getCategoryColor(act.category))}>
+                                      {act.category || 'Général'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>{act.base_price} <span className="text-[10px] opacity-60">MAD</span></div>
+                                  <div className="text-[9px] text-slate-400 font-bold uppercase">Prix Conseillé</div>
+                                </div>
+                              </button>
+                            ))
+                          ) : item.description.length >= 2 ? (
                             <button
-                              key={act.id}
-                              onClick={() => applyActSuggestion(item.id, act)}
-                              className="w-full text-left px-6 py-5 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/item"
+                              onClick={() => {
+                                saveActAsHabit(item.description, item.price);
+                                setActiveActSearchId(null);
+                              }}
+                              className="w-full text-left px-6 py-5 hover:bg-emerald-50 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/item"
                             >
                               <div className="flex flex-col gap-1">
-                                <div className="font-black text-slate-800 text-sm group-hover/item:text-primary transition-colors tracking-tight">{act.name}</div>
-                                <div className="flex items-center gap-2">
-                                  <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter border", getCategoryColor(act.category))}>
-                                    {act.category || 'Général'}
-                                  </span>
-                                </div>
+                                <div className="font-black text-emerald-700 text-sm tracking-tight italic">"{item.description}"</div>
+                                <div className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Nouvel Acte Personnalisé</div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>{act.base_price} <span className="text-[10px] opacity-60">MAD</span></div>
-                                <div className="text-[9px] text-slate-400 font-bold uppercase">Prix Conseillé</div>
+                              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20">
+                                <Plus size={14} /> Enregistrer comme habitude
                               </div>
                             </button>
-                          ))}
+                          ) : null}
                         </div>
                       </div>
                     )}
@@ -403,6 +643,139 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
           <Plus size={20} />
           Ajouter une ligne personnalisée
         </button>
+      </div>
+
+      {/* PAYMENT TRACKER (INSTALLMENTS) - Elite Section */}
+      <div className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white/60 shadow-[0_20px_50px_rgba(0,51,128,0.04)] space-y-6">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-sm">
+              <Calculator size={20} />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block leading-none mb-1">Échéancier</span>
+              <span className="text-xs font-black uppercase tracking-widest text-emerald-600">Suivi des Versements (Ortho)</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: installments.length === 0 ? 'Avance' : `Versement ${installments.length + 1}` }])}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+          >
+            <Plus size={14} /> Ajouter un versement
+          </button>
+        </div>
+
+        {installments.length > 0 && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-12 gap-4 px-6">
+              <div className="col-span-4"><label className={labelClass}>Désignation</label></div>
+              <div className="col-span-4"><label className={labelClass}>Date de règlement</label></div>
+              <div className="col-span-3 text-right"><label className={labelClass}>Montant (MAD)</label></div>
+              <div className="col-span-1"></div>
+            </div>
+            {installments.map((inst) => {
+              const isPast = new Date(inst.date) < new Date(new Date().setHours(0,0,0,0));
+              const isToday = new Date(inst.date).toDateString() === new Date().toDateString();
+              
+              return (
+                <motion.div 
+                  key={inst.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    "grid grid-cols-12 gap-4 items-center p-4 rounded-2xl border shadow-sm group transition-all",
+                    isPast ? "bg-rose-50/30 border-rose-100" : isToday ? "bg-emerald-50/30 border-emerald-100" : "bg-white border-slate-100"
+                  )}
+                >
+                  <div className="col-span-4 flex items-center gap-3">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      isPast ? "bg-rose-400 animate-pulse" : isToday ? "bg-emerald-400" : "bg-slate-300"
+                    )} />
+                    <input
+                      type="text"
+                      className="w-full bg-transparent border-none p-0 text-xs font-bold text-slate-700 focus:ring-0"
+                      value={inst.label}
+                      onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <div className="flex items-center gap-2">
+                       <input
+                        type="date"
+                        className={cn(
+                          "w-full bg-transparent border-none p-0 text-xs font-black focus:ring-0",
+                          isPast ? "text-rose-600" : "text-slate-400"
+                        )}
+                        value={inst.date}
+                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
+                      />
+                      {isPast && <span className="text-[8px] font-black text-rose-500 uppercase px-2 py-0.5 bg-rose-100 rounded-md">Retard</span>}
+                    </div>
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="number"
+                      className="w-full bg-transparent border-none p-0 text-right text-sm font-black text-emerald-600 focus:ring-0"
+                      value={inst.amount}
+                      onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    <button 
+                      onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
+                      className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+
+            {/* REST TO PAY SUMMARY */}
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+               <button
+                 onClick={async () => {
+                   try {
+                     const total = calculateTotal();
+                     await api.post('/accounting/plans', {
+                       patient_id: parseInt(patientId),
+                       title: `Plan de paiement - ${new Date().toLocaleDateString('fr-FR')}`,
+                       total_amount: total,
+                       installments: installments.map(i => ({
+                         label: i.label,
+                         amount: i.amount,
+                         due_date: i.date,
+                         status: 'EN_ATTENTE'
+                       }))
+                     });
+                     alert('✅ Plan de paiement persistant enregistré avec succès !');
+                   } catch (err) {
+                     console.error(err);
+                     alert('❌ Erreur lors de la sauvegarde du plan.');
+                   }
+                 }}
+                 className="px-6 py-3 bg-white border border-emerald-200 text-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-all flex items-center gap-2 shadow-sm active:scale-95"
+               >
+                 <Calculator size={14} />
+                 Enregistrer comme Plan de Suivi
+               </button>
+
+               <div className="bg-emerald-50 px-8 py-5 rounded-[2rem] border border-emerald-100 flex items-center gap-8 shadow-inner">
+                  <div className="text-right">
+                    <span className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest block mb-1">Total Versé</span>
+                    <span className="text-lg font-black text-emerald-700">{installments.reduce((sum, i) => sum + i.amount, 0).toLocaleString('fr-FR')} MAD</span>
+                  </div>
+                  <div className="w-px h-10 bg-emerald-200/50" />
+                  <div className="text-right">
+                    <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block mb-1">Reste à payer</span>
+                    <span className="text-lg font-black text-amber-600">{(calculateTotal() - installments.reduce((sum, i) => sum + i.amount, 0)).toLocaleString('fr-FR')} MAD</span>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FOOTER TOTAL & PAIEMENT ELITE (LIGHT EDITION) */}

@@ -18,6 +18,24 @@ def search_medications(q: str, db: Session = Depends(database.get_db), current_u
 def suggest_protocols(category_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return db.query(models.ClinicalProtocol).filter(models.ClinicalProtocol.category_id == category_id).all()
 
+@prescription_router.get("/habits/suggest")
+def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    return prescription_service.get_personalized_suggestions(db, current_user.id, q)
+
+@prescription_router.get("/habits/details")
+def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    return prescription_service.get_medication_details(db, current_user.id, med_name)
+
+@prescription_router.post("/habits/record")
+def record_medication_habit(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    med_name = req.get("medication_name")
+    dosage = req.get("dosage")
+    posologie = req.get("posologie")
+    if not med_name:
+        raise HTTPException(status_code=400, detail="Nom du médicament manquant")
+    prescription_service.record_medication_usage(db, current_user.id, med_name, dosage, posologie)
+    return {"status": "success"}
+
 @prescription_router.get("/smart-suggest/{patient_id}")
 async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)

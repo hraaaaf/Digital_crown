@@ -118,42 +118,81 @@ class OrdonnanceGenerator:
             med_font_bold = "Helvetica-Bold"
 
             # Styles typographiques avec contraste optimal
-            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=11, textColor=p_color)
-            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=10, textColor=p_color, alignment=TA_CENTER)
-            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=10, textColor=p_color, alignment=TA_RIGHT)
+            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=13, textColor=p_color)
+            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=11, textColor=p_color, alignment=TA_CENTER)
+            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
             
             poso_style = ParagraphStyle(
-                'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=10,
-                textColor=p_color, leftIndent=1.2*cm, spaceBefore=2, spaceAfter=12
+                'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=12,
+                textColor=p_color, leftIndent=1.5*cm, spaceBefore=4, spaceAfter=14,
+                leading=15
+            )
+            
+            warning_style = ParagraphStyle(
+                'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=10,
+                textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=4, spaceAfter=14,
+                italic=True
             )
 
             for i, med in enumerate(data.medications, 1):
                 forme = getattr(med, 'forme', '') or ""
                 dose = getattr(med, 'dosage', '') or ""
                 nom = getattr(med, 'nom', '') or ""
-                posologie = getattr(med, 'posologie', '') or "Selon prescription."
+                posologie = getattr(med, 'posologie', '') or ""
+                m_type = getattr(med, 'type', 'MEDICAMENT')
 
-                # Ligne 1 : Nom (Gauche) | Forme (Centre) | Dosage (Droite) dans un tableau invisible
-                med_line_table = Table([
-                    [
-                        Paragraph(f"{i}- <b>{nom.upper()}</b>", med_name_style),
-                        Paragraph(f"<i>{forme}</i>" if forme else "", med_forme_style),
-                        Paragraph(f"{dose}", med_dose_style)
-                    ]
-                ], colWidths=[6.0*cm, 3.0*cm, 2.8*cm]) # Total: 11.8cm (Largeur utile A5)
+                # Détermination du mode Radio
+                is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
                 
+                # Ligne 1 : Construction dynamique des colonnes
+                cols = []
+                col_widths = []
+                
+                # Nom (toujours présent) - Agrandissement de la zone pour les noms longs
+                cols.append(Paragraph(f"{i}- <b>{nom.upper()}</b>", med_name_style))
+                col_widths.append(7.0*cm) # Plus de place pour le nom
+                
+                # On n'affiche Forme/Dose que si c'est un médicament ET que les champs sont remplis
+                if not is_radio:
+                    if forme:
+                        # Si c'est Bain de bouche, on assure que ça reste élégant
+                        cols.append(Paragraph(f"<i>{forme}</i>", med_forme_style))
+                        col_widths.append(3.0*cm)
+                    else:
+                        col_widths[0] += 1.0*cm
+                        
+                    if dose:
+                        cols.append(Paragraph(f"{dose}", med_dose_style))
+                        col_widths.append(1.8*cm)
+                    else:
+                        col_widths[0] += 0.8*cm
+
+                # Recalcul des largeurs si colonnes manquantes (Total A5 utile = ~11.8cm)
+                total_w = sum(col_widths)
+                if total_w < 11.8*cm:
+                    col_widths[0] += (11.8*cm - total_w)
+
+                med_line_table = Table([cols], colWidths=col_widths)
                 med_line_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
                     ('LEFTPADDING', (0,0), (-1,-1), 0),
                     ('RIGHTPADDING', (0,0), (-1,-1), 0),
-                    ('TOPPADDING', (0,0), (-1,-1), 10), # Espacement entre chaque médicament
+                    ('TOPPADDING', (0,0), (-1,-1), 12),
                     ('BOTTOMPADDING', (0,0), (-1,-1), 2),
                 ]))
                 
                 elements.append(med_line_table)
                 
-                # Ligne 2 : Posologie indentée en dessous
-                elements.append(Paragraph(f"• {posologie}", poso_style))
+                # Ligne 2 : Posologie ou Avertissement Radio (Suppression du point devant)
+                if is_radio:
+                    warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
+                    if posologie:
+                        warning_msg += f" {posologie}"
+                    elements.append(Paragraph(warning_msg, warning_style))
+                elif posologie:
+                    elements.append(Paragraph(f"{posologie}", poso_style)) # Pas de point ici
+                else:
+                    elements.append(Spacer(1, 0.5*cm))
         else:
             empty_style = ParagraphStyle(
                 'Empty', parent=self.styles['Normal'],

@@ -1,5 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend import models
 from backend.services.clinical_rules_engine import clinical_rules
@@ -12,7 +13,7 @@ class PrescriptionService:
     Gère la hiérarchie : Préférences Doc > Protocoles Système > IA.
     """
 
-    def get_smart_plan(self, db: Session, doctor_id: int, patient_id: int, acts: List[str]) -> Dict[str, Any]:
+    def resolve_smart_prescription(self, db: Session, patient_id: int, acts: List[str], doctor_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Génère un plan de prescription intelligent basé sur le contexte.
         """
@@ -101,6 +102,86 @@ class PrescriptionService:
         except Exception as e:
             db.rollback()
             logger.error(f"❌ Erreur apprentissage habitude : {e}")
+            
+    def record_medication_usage(self, db: Session, doctor_id: int, med_name: str, dosage: str = None, posologie: str = None):
+        """
+        Enregistre l'usage d'un médicament pour l'apprentissage futur.
+        """
+        try:
+            med_name = med_name.strip().upper()
+            existing = db.query(models.DoctorMedicationHabit).filter(
+                models.DoctorMedicationHabit.doctor_id == doctor_id,
+                models.DoctorMedicationHabit.medication_name == med_name,
+                models.DoctorMedicationHabit.dosage == dosage,
+                models.DoctorMedicationHabit.posologie == posologie
+            ).first()
+
+            if existing:
+                existing.usage_count += 1
+            else:
+                new_habit = models.DoctorMedicationHabit(
+                    doctor_id=doctor_id,
+                    medication_name=med_name,
+                    dosage=dosage,
+                    posologie=posologie
+                )
+                db.add(new_habit)
+            
+            # Incrémenter aussi le compteur global
+            global_med = db.query(models.Medication).filter(models.Medication.nom == med_name).first()
+            if global_med:
+                global_med.usage_count += 1
+                
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ Erreur record_medication_usage : {e}")
+
+    def get_personalized_suggestions(self, db: Session, doctor_id: int, query: str = "") -> Dict[str, List[str]]:
+        """
+        Retourne des suggestions prioritaires basées sur les habitudes du docteur.
+        """
+        query = query.strip().upper()
+        
+        # 1. Médicaments favoris
+        med_habits = db.query(models.DoctorMedicationHabit.medication_name).filter(
+            models.DoctorMedicationHabit.doctor_id == doctor_id,
+            models.DoctorMedicationHabit.medication_name.ilike(f"{query}%")
+        ).group_by(models.DoctorMedicationHabit.medication_name).order_by(func.sum(models.DoctorMedicationHabit.usage_count).desc()).limit(10).all()
+        
+        meds = [m[0] for m in med_habits]
+        
+        # Compléter avec la base globale si besoin
+        if len(meds) < 5:
+            global_meds = db.query(models.Medication.nom).filter(
+                models.Medication.nom.ilike(f"{query}%"),
+                ~models.Medication.nom.in_(meds)
+            ).order_by(models.Medication.usage_count.desc()).limit(5).all()
+            meds.extend([m[0] for m in global_meds])
+
+        return {
+            "medications": meds,
+            "dosages": [], # Sera rempli dynamiquement selon le médicament sélectionné
+            "posologies": []
+        }
+
+    def get_medication_details(self, db: Session, doctor_id: int, med_name: str) -> Dict[str, List[str]]:
+        """
+        Récupère les dosages et posologies habituels pour un médicament donné.
+        """
+        med_name = med_name.strip().upper()
+        habits = db.query(models.DoctorMedicationHabit).filter(
+            models.DoctorMedicationHabit.doctor_id == doctor_id,
+            models.DoctorMedicationHabit.medication_name == med_name
+        ).order_by(models.DoctorMedicationHabit.usage_count.desc()).all()
+        
+        dosages = list(set([h.dosage for h in habits if h.dosage]))
+        posologies = list(set([h.posologie for h in habits if h.posologie]))
+        
+        return {
+            "dosages": dosages[:5],
+            "posologies": posologies[:5]
+        }
 
     def _calculate_age(self, birth_date) -> int:
         from datetime import date

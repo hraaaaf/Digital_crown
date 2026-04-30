@@ -14,6 +14,10 @@
 - **Système FDI** : Gestion des 32 dents adultes (11-48).
 - **Format de données** : JSON structuré (`teeth_data`).
 - **Lien Clinique** : Les actes sélectionnés sur l'odontogramme sont automatiquement injectés dans les Devis et Notes d'honoraires.
+- **Moteur d'Habitudes (v1.3)** : Table `doctor_act_habits` pour l'apprentissage des actes fréquents. Suggerre automatiquement le "Top 8" dans l'interface.
+
+### 👥 Gestion des Patients
+- **Tri Avancé** : Support du tri par `numero_dossier` (alphanumérique) et `created_at` (temporel) pour faciliter la gestion administrative des flux importants.
 
 ### 🧠 Intelligence Artificielle Cephalo
 - **Vision Engine** : U-Net CephLD-CCA (PyTorch).
