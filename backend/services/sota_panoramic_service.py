@@ -84,15 +84,25 @@ class SOTAPanoramicEngine:
             
             output = outputs[0][0] 
             detections = []
-            # Seuil relevé pour éviter le "bruit" clinique (Elite Standard)
-            conf_threshold = 0.25
+            # Seuils adaptatifs (Elite Standard)
+            # Les lésions périapicales sont souvent plus subtiles aux apex
+            class_thresholds = {
+                "Periapical Lesions": 0.15,
+                "Caries": 0.25,
+                "Deep Caries": 0.25,
+                "Impacted Teeth": 0.25
+            }
             
             for i in range(output.shape[1]):
                 scores = output[4:, i]
                 class_id = np.argmax(scores)
                 confidence = scores[class_id]
+                class_name = self.classes[class_id] if class_id < len(self.classes) else "Inconnu"
                 
-                if confidence > conf_threshold:
+                # Seuil spécifique à la classe ou défaut
+                threshold = class_thresholds.get(class_name, 0.25)
+                
+                if confidence > threshold:
                     xc, yc, wb, hb = output[:4, i]
                     
                     # Coordonnées normalisées réelles (0-1)
@@ -107,7 +117,7 @@ class SOTAPanoramicEngine:
                     y2 = (yc + hb/2 - dh) / r
                     
                     detections.append({
-                        "pathology": self.classes[class_id] if class_id < len(self.classes) else "Inconnu",
+                        "pathology": class_name,
                         "confidence": float(confidence),
                         "tooth": int(tooth_fdi),
                         "bbox": [float(round(x1, 1)), float(round(y1, 1)), float(round(x2, 1)), float(round(y2, 1))]
