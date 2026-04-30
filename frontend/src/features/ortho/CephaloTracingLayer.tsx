@@ -744,8 +744,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           (() => {
             // Liste ordonnée des points du profil (Source SOTA 38 pts)
             // On trie par Y pour garantir une descente anatomique fluide (évite les croisements)
+            const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
+            const li2 = getPoint(finalPts, 'Li2') || getPoint(finalPts, 'li2');
+
             const profilePoints = [
-              gSoft, nSoft, prn, cm, sn, aSoft, ls, st, li, bSoft, pogSoft, meSoft
+              gSoft, nSoft, prn, cm, sn, aSoft, ls, ls2, st, li2, li, bSoft, pogSoft, meSoft
             ].filter(Boolean) as Landmark[];
             
             // Tri vertical strict pour éviter les "nœuds" dans la spline

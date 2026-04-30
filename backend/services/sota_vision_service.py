@@ -116,14 +116,37 @@ class SOTAVisionEngine:
         
         for i in range(self.num_landmarks):
             hm = heatmaps[i]
-            flat_idx = np.argmax(hm)
-            y_pred, x_pred = np.unravel_index(flat_idx, hm.shape)
             
-            final_x = int(x_pred * scale_x)
-            final_y = int(y_pred * scale_y)
+            # Sub-pixel Refinement (Centre de Masse local 3x3)
+            flat_idx = np.argmax(hm)
+            y_max, x_max = np.unravel_index(flat_idx, hm.shape)
+            
+            # Recherche locale pour affiner la position
+            # On prend un voisinage 3x3 pour calculer le barycentre
+            y_start, y_end = max(0, y_max - 1), min(self.target_size, y_max + 2)
+            x_start, x_end = max(0, x_max - 1), min(self.target_size, x_max + 2)
+            
+            patch = hm[y_start:y_end, x_start:x_end]
+            patch_sum = np.sum(patch)
+            
+            if patch_sum > 0:
+                # Coordonnées locales relatives au patch
+                yy, xx = np.indices(patch.shape)
+                y_sub = np.sum(yy * patch) / patch_sum + y_start
+                x_sub = np.sum(xx * patch) / patch_sum + x_start
+            else:
+                y_sub, x_sub = float(y_max), float(x_max)
+            
+            final_x = x_sub * scale_x
+            final_y = y_sub * scale_y
             
             point_id = SOTA_LANDMARKS_MAPPING.get(i, f"P_{i}")
-            final_landmarks.append({"id": point_id, "x": final_x, "y": final_y})
+            final_landmarks.append({
+                "id": point_id, 
+                "x": float(round(final_x, 2)), 
+                "y": float(round(final_y, 2)),
+                "confidence": float(round(np.max(hm), 4))
+            })
             
         exec_time = time.time() - start_time
         return {

@@ -3,9 +3,9 @@
 Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à jour systématiquement à chaque modification significative de l'application pour garantir un contexte persistant entre les différentes sessions.
 
 ## 📌 État Actuel du Projet
-- **Version** : 1.5 (Ghost Elite Panoramic & Cephalo Refined)
+- **Version** : 1.6 (Ghost Elite Refinement & Sub-pixel Precision)
 - **Stack** : FastAPI (Python 3.12) / React 19 (TypeScript) / Beads + Dolt (Memory) / ReportLab
-- **Dernière M.A.J** : 30 Avril 2026 (Panoramic Smile Curve & Landmark Mapping)
+- **Dernière M.A.J** : 30 Avril 2026 (Sub-pixel AI, Steiner & Nasolabial Metrics)
 
 ---
 
@@ -50,6 +50,7 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 | 30/04/2026 | **Correction Sérialisation & Optimisation Panoramique SOTA** : Résolution du crash JSON (float32). Injection de CLAHE. Refonte du mapping FDI (Smile Curve). Correction de l'ordre des classes DENTEX. | `sota_panoramic_service.py`, `panoramic_expert_engine.py` | ✅ |
 | 30/04/2026 | **Ghost Elite Panoramic Refinement** : Implémentation du mapping parabolique (Smile Curve) pour une numérotation FDI précise. Optimisation des seuils de confiance et du prétraitement d'image. | `sota_panoramic_service.py` | ✅ |
 | 30/04/2026 | **Ghost Elite Cephalometric Reconciliation** : Alignement du mapping 38 points MICCAI 2023. Correction de la structure du package backend. | `sota_vision_service.py`, `backend/__init__.py` | ✅ |
+| 30/04/2026 | **Ghost Elite Refinement** : Précision sub-pixel (Centre de Masse local). Ajout des métriques de Steiner (SNA, SNB, ANB) et de l'Angle Nasolabial. Optimisation de la spline du profil (points Ls2, Li2). | `sota_vision_service.py`, `cephalo_engine.py`, `CephaloTracingLayer.tsx` | ✅ |
 
 ---
 

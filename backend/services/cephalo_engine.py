@@ -248,12 +248,36 @@ class CephaloEngine:
         )
         # ---------------------------------------------------------------
 
-        inter_incisif = self._get_clinical_angle(pts["U1a"], pts["U1i"], pts["L1a"], pts["L1i"], invert=False)
-        if inter_incisif is not None and inter_incisif < 90:
-             inter_incisif = round(180 - inter_incisif, 1)
-        payload["metrics"]["analyse_dentaire"]["Inter_Incisif"] = self._evaluate_metric(
-            inter_incisif, 131.0, 13.0, "Angle diminué (Biproalvéolie)", "Angle augmenté (Biproalvéolie diminuée)", "Angle normal", comp_range=(120.0, 142.0)
-        )
+        # --- FLUX 1.D : ANALYSE DE STEINER & TISSUS MOUS ---
+        if pts["S"] and pts["N"]:
+            if pts["A"]:
+                sna = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["A"])
+                payload["metrics"]["analyse_osseuse"]["SNA"] = self._evaluate_metric(
+                    sna, 82.0, 2.0, "Prognathie maxillaire (SNA)", "Rétrognathie maxillaire (SNA)", "Normal"
+                )
+            if pts["B"]:
+                snb = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["B"])
+                payload["metrics"]["analyse_osseuse"]["SNB"] = self._evaluate_metric(
+                    snb, 80.0, 2.0, "Prognathie mandibulaire (SNB)", "Rétrognathie mandibulaire (SNB)", "Normal"
+                )
+            if pts["A"] and pts["B"]:
+                anb = sna - snb if (sna and snb) else None
+                payload["metrics"]["analyse_osseuse"]["ANB"] = self._evaluate_metric(
+                    anb, 2.0, 2.0, "Classe II squelettique (Steiner)", "Classe III squelettique (Steiner)", "Classe I squelettique"
+                )
+
+        # Angle Nasolabial (Prn-Sn-Ls)
+        prn = pts.get("Prn")
+        sn_soft = pts.get("Sn_soft") or pts.get("Sn")
+        ls_soft = pts.get("Ls")
+        if prn and sn_soft and ls_soft:
+            # Angle entre segment Sn-Prn et Sn-Ls
+            nla = self._get_clinical_angle(sn_soft, prn, sn_soft, ls_soft, invert=True)
+            payload["metrics"]["analyse_esthetique"]["Angle_Nasolabial"] = self._evaluate_metric(
+                nla, 102.0, 10.0, "Angle ouvert (Nez relevé)", "Angle fermé (Nez tombant)", "Harmonie nasolabiale"
+            )
+
+        # 1.C. ANALYSE OSSEUSE
 
         # 1.C. ANALYSE OSSEUSE
         fma = self._get_clinical_angle(pts["Go"], pts["Me"], pts["Po"], pts["Or"], invert=False)
