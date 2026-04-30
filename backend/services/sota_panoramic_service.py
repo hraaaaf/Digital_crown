@@ -84,7 +84,8 @@ class SOTAPanoramicEngine:
             
             output = outputs[0][0] 
             detections = []
-            conf_threshold = 0.10
+            # Seuil relevé pour éviter le "bruit" clinique (Elite Standard)
+            conf_threshold = 0.25
             
             for i in range(output.shape[1]):
                 scores = output[4:, i]
@@ -94,10 +95,11 @@ class SOTAPanoramicEngine:
                 if confidence > conf_threshold:
                     xc, yc, wb, hb = output[:4, i]
                     
-                    # Mapping FDI sur coordonnées RÉELLES (sans padding)
-                    x_orig_rel = (xc - dw) / (self.input_size - 2*dw)
-                    y_orig_rel = (yc - dh) / (self.input_size - 2*dh)
-                    tooth_fdi = self._map_fdi_refined(x_orig_rel, y_orig_rel)
+                    # Coordonnées normalisées réelles (0-1)
+                    x_rel = (xc - dw) / (self.input_size - 2*dw)
+                    y_rel = (yc - dh) / (self.input_size - 2*dh)
+                    
+                    tooth_fdi = self._map_fdi_refined(x_rel, y_rel)
                     
                     x1 = (xc - wb/2 - dw) / r
                     y1 = (yc - hb/2 - dh) / r
@@ -123,42 +125,66 @@ class SOTAPanoramicEngine:
             return self._run_simulation()
 
     def _map_fdi_refined(self, x_rel: float, y_rel: float) -> int:
-        # Assurer que x_rel et y_rel sont entre 0 et 1 (protection contre le clipping)
+        """
+        Mapping FDI Elite avec compensation de la 'Smile Curve' (Parabole occlusale).
+        """
         x_rel = max(0, min(1, x_rel))
         y_rel = max(0, min(1, y_rel))
         
-        dist_from_center = abs(x_rel - 0.5) * 2
-        y_sep = 0.54 - (0.08 * dist_from_center) 
-        is_upper = y_rel < y_sep
-        is_right_side = x_rel < 0.5
-        quadrant = (1 if is_right_side else 2) if is_upper else (4 if is_right_side else 3)
+        # 1. Équation de la Smile Curve (Occlusal Plane)
+        # y = a(x-0.5)^2 + k
+        # k est le centre vertical (env 0.52), a est la courbure (positif = bords remontent)
+        curvature = 0.15
+        center_y = 0.52
+        occlusal_y = curvature * (x_rel - 0.5)**2 + center_y
         
-        if dist_from_center < 0.08: tooth_num = 1
-        elif dist_from_center < 0.17: tooth_num = 2
-        elif dist_from_center < 0.28: tooth_num = 3
-        elif dist_from_center < 0.40: tooth_num = 4
-        elif dist_from_center < 0.52: tooth_num = 5
-        elif dist_from_center < 0.68: tooth_num = 6
-        elif dist_from_center < 0.84: tooth_num = 7
-        else: tooth_num = 8
+        is_upper = y_rel < occlusal_y
+        is_right_side = x_rel < 0.5 # Dans une radio, le côté DROIT du patient est à GAUCHE de l'image
+        
+        # Quadrants FDI : 1 (Haut Droit), 2 (Haut Gauche), 3 (Bas Gauche), 4 (Bas Droit)
+        if is_upper:
+            quadrant = 1 if is_right_side else 2
+        else:
+            quadrant = 4 if is_right_side else 3
+            
+        # 2. Distribution X non-linéaire des dents
+        # Les incisives sont centrées et étroites, les molaires sont larges en périphérie
+        dist_from_center = abs(x_rel - 0.5) * 2 # 0 à 1
+        
+        if dist_from_center < 0.07: tooth_num = 1    # Centrales
+        elif dist_from_center < 0.15: tooth_num = 2  # Latérales
+        elif dist_from_center < 0.26: tooth_num = 3  # Canines
+        elif dist_from_center < 0.38: tooth_num = 4  # 1ères Prémos
+        elif dist_from_center < 0.51: tooth_num = 5  # 2èmes Prémos
+        elif dist_from_center < 0.67: tooth_num = 6  # 1ères Molaires
+        elif dist_from_center < 0.83: tooth_num = 7  # 2èmes Molaires
+        else: tooth_num = 8                          # Dents de sagesse
+        
         return quadrant * 10 + tooth_num
 
     def _apply_smart_nms(self, detections: List[Dict]) -> List[Dict]:
         if not detections: return []
+        # Tri par confiance décroissante
         sorted_dets = sorted(detections, key=lambda x: x['confidence'], reverse=True)
         refined = []
+        
         for det in sorted_dets:
             is_duplicate = False
             for r in refined:
+                # Si même dent et même pathologie, on vérifie la proximité
                 if r['tooth'] == det['tooth'] and r['pathology'] == det['pathology']:
                     b1, b2 = det['bbox'], r['bbox']
+                    # Calcul de l'IoU simple ou distance des centres
                     c1 = [(b1[0] + b1[2])/2, (b1[1] + b1[3])/2]
                     c2 = [(b2[0] + b2[2])/2, (b2[1] + b2[3])/2]
                     dist = ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
-                    if dist < 40: 
+                    
+                    # Seuil de proximité dynamique (environ 5% de la largeur image typique)
+                    if dist < 60: 
                         is_duplicate = True
                         break
             if not is_duplicate: refined.append(det)
+            
         return refined
 
     def _run_simulation(self) -> Dict[str, Any]:
