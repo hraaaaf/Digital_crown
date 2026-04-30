@@ -147,17 +147,17 @@ class SOTAPanoramicEngine:
         else:
             quadrant = 4 if is_right_side else 3
             
-        # 2. Distribution X non-linéaire des dents
+        # 2. Distribution X non-linéaire des dents (Calibration Elite v1.5.1)
         # Les incisives sont centrées et étroites, les molaires sont larges en périphérie
         dist_from_center = abs(x_rel - 0.5) * 2 # 0 à 1
         
-        if dist_from_center < 0.07: tooth_num = 1    # Centrales
-        elif dist_from_center < 0.15: tooth_num = 2  # Latérales
-        elif dist_from_center < 0.26: tooth_num = 3  # Canines
-        elif dist_from_center < 0.38: tooth_num = 4  # 1ères Prémos
-        elif dist_from_center < 0.51: tooth_num = 5  # 2èmes Prémos
-        elif dist_from_center < 0.67: tooth_num = 6  # 1ères Molaires
-        elif dist_from_center < 0.83: tooth_num = 7  # 2èmes Molaires
+        if dist_from_center < 0.08: tooth_num = 1    # Centrales
+        elif dist_from_center < 0.16: tooth_num = 2  # Latérales
+        elif dist_from_center < 0.24: tooth_num = 3  # Canines
+        elif dist_from_center < 0.34: tooth_num = 4  # 1ères Prémos
+        elif dist_from_center < 0.44: tooth_num = 5  # 2èmes Prémos
+        elif dist_from_center < 0.58: tooth_num = 6  # 1ères Molaires
+        elif dist_from_center < 0.78: tooth_num = 7  # 2èmes Molaires
         else: tooth_num = 8                          # Dents de sagesse
         
         return quadrant * 10 + tooth_num
