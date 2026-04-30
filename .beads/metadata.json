@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "DigitalCrown",
+  "project_id": "67a86b3d-b961-4c8d-9bf0-b7bed92edae4"
+}
