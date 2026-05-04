@@ -601,9 +601,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                   
                   <div className="col-span-2">
                     <div className="flex items-center justify-center">
-                      <span className="bg-slate-100/50 px-4 py-2.5 rounded-xl font-black text-slate-700 border border-slate-200/50 min-w-[60px] text-center">
-                        {item.dent || '-'}
-                      </span>
+                      <input
+                        type="text"
+                        className={cn(
+                          "w-full bg-slate-100/50 px-2 py-2.5 rounded-xl font-black text-slate-700 border border-slate-200/50 text-center outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all",
+                          !item.dent && "placeholder:text-slate-300"
+                        )}
+                        placeholder="-"
+                        value={item.dent}
+                        onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
+                      />
                     </div>
                   </div>
   

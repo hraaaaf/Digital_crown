@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Building2, 
   Sparkles, 
   ChevronRight,
   ShieldCheck,
   Zap
 } from 'lucide-react';
+import Logo from '../assets/logo.png';
 
 export const WelcomeScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -30,8 +30,8 @@ export const WelcomeScreen: React.FC = () => {
 
       <div className="max-w-4xl w-full relative z-10">
         <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/20 animate-in zoom-in duration-700">
-            <Building2 className="w-10 h-10 text-white" />
+          <div className="w-48 h-48 flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-700">
+            <img src={Logo} className="w-full h-full object-contain" alt="Digital Crown" />
           </div>
           <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">
             Digital Crown <span className="text-primary">v1.1</span>

@@ -1,32 +1,33 @@
 import { 
   Stethoscope, 
   Activity, 
-  Shield, 
-  Layers, 
-  Shapes, 
+  LayoutGrid, 
+  Component, 
   Scissors, 
-  Pin, 
-  Sun, 
-  Smile, 
-  Building2, 
+  Anchor, 
   Sparkles, 
+  Building2, 
   Moon,
   Phone,
   Palette,
   CheckCircle2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Wand2,
+  HeartPulse,
+  Leaf,
+  Layers
 } from 'lucide-react';
 
 export const SPECIALTIES_DICT = [
-  { id: 'soins', fr: 'Soins', ar: 'علاج', icon: Stethoscope },
+  { id: 'soins', fr: 'Soins', ar: 'علاج', icon: HeartPulse },
   { id: 'endo', fr: 'Endodontie', ar: 'علاج العصب', icon: Activity },
-  { id: 'paro', fr: 'Parodontologie', ar: 'أمراض اللثة', icon: Shield },
-  { id: 'ortho', fr: 'Orthodontie', ar: 'تقويم الأسنان', icon: Layers },
-  { id: 'prothese', fr: 'Prothèse', ar: 'تعويض الأسنان', icon: Shapes },
+  { id: 'paro', fr: 'Parodontologie', ar: 'أمراض اللثة', icon: Leaf },
+  { id: 'ortho', fr: 'Orthodontie', ar: 'تقويم الأسنان', icon: LayoutGrid },
+  { id: 'prothese', fr: 'Prothèse', ar: 'تعويض الأسنان', icon: Component },
   { id: 'chirurgie', fr: 'Chirurgie', ar: 'جراحة', icon: Scissors },
-  { id: 'implant', fr: 'Implantologie', ar: 'زراعة الأسنان', icon: Pin },
-  { id: 'blanchiment', fr: 'Blanchiment', ar: 'تبييض الأسنان', icon: Sun },
-  { id: 'esthetique', fr: 'Esthétique', ar: 'تجميل الأسنان', icon: Smile }
+  { id: 'implant', fr: 'Implantologie', ar: 'زراعة الأسنان', icon: Anchor },
+  { id: 'blanchiment', fr: 'Blanchiment', ar: 'تبييض الأسنان', icon: Sparkles },
+  { id: 'esthetique', fr: 'Esthétique', ar: 'تجميل الأسنان', icon: Wand2 }
 ];
 
 export const STEPS = [

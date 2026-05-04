@@ -216,7 +216,8 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                     { label: 'Flacon', icon: '🧪' },
                     { label: 'Bain de bouche', icon: '🧴' },
                     { label: 'Gel buccal', icon: '🧪' },
-                    { label: 'Spray', icon: '💨' }
+                    { label: 'Spray', icon: '💨' },
+                    { label: 'Autre', icon: '📝' }
                   ].map(f => {
                     const isSelected = drug.forme.startsWith(f.label);
                     return (
@@ -240,6 +241,22 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                     );
                   })}
                 </div>
+
+                {drug.forme.startsWith('Autre') && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 px-2 pb-2"
+                  >
+                    <input
+                      type="text"
+                      className={cn(inputClass, "bg-white border-primary/20 text-primary font-bold h-10")}
+                      placeholder="Précisez la forme (ex: Radio, Analyse...)"
+                      value={drug.forme === 'Autre' ? '' : drug.forme.replace('Autre: ', '')}
+                      onChange={(e) => onUpdateDrug(drug.id, 'forme', `Autre: ${e.target.value}`)}
+                    />
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           );

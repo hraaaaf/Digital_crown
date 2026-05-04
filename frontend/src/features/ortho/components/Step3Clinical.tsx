@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Ruler, Activity, Info } from 'lucide-react';
 import type { DonneesEtape3 } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
@@ -50,10 +51,10 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ data, onChange, P 
             <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Osseuse</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
-             <MetricInput label="SNA" value={data.osseuse.situation_a} onChange={(v: string) => updateOsseuse('situation_a', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
-             <MetricInput label="SNB" value={data.osseuse.situation_b} onChange={(v: string) => updateOsseuse('situation_b', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
-             <MetricInput label="ANB" value={data.osseuse.decalage_ab} onChange={(v: string) => updateOsseuse('decalage_ab', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
-             <MetricInput label="Tweed (FMA)" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="25° ± 3" mean={25} tol={3} P={P} />
+              <MetricInput label="SNA" value={data.osseuse.sna} onChange={(v: string) => updateOsseuse('sna', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
+              <MetricInput label="SNB" value={data.osseuse.snb} onChange={(v: string) => updateOsseuse('snb', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
+              <MetricInput label="ANB" value={data.osseuse.anb} onChange={(v: string) => updateOsseuse('anb', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
+              <MetricInput label="Tweed (FMA)" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="25° ± 3" mean={25} tol={3} P={P} />
           </div>
         </div>
 
@@ -63,8 +64,9 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ data, onChange, P 
             <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Esthétique (Ricketts)</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
-             <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
-             <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
+              <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
+              <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
+              <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
           </div>
         </div>
       </div>
@@ -123,14 +125,40 @@ const MetricInput = ({
 }: { 
   label: string, value: any, onChange: (v: string) => void, unit: string, normal: string, P: any, highlight?: boolean, mean?: number, tol?: number 
 }) => {
+  const [shouldPulse, setShouldPulse] = React.useState(false);
+  const prevValue = React.useRef(value);
+
+  React.useEffect(() => {
+    if ((prevValue.current === '' || prevValue.current === null) && value !== '' && value !== null) {
+      setShouldPulse(true);
+      const timer = setTimeout(() => setShouldPulse(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    prevValue.current = value;
+  }, [value]);
+
   const color = (mean !== undefined && tol !== undefined) 
     ? getMetricColor(value, mean, tol, P) 
     : (highlight ? P.accent : P.text);
 
   return (
-    <div className={cn("p-4 rounded-xl border transition-all", highlight ? "ring-2 ring-blue-500/20" : "")} style={{ background: P.bgInput, borderColor: P.border }}>
+    <div className={cn(
+      "p-4 rounded-xl border transition-all duration-500 relative overflow-hidden", 
+      highlight ? "ring-2 ring-blue-500/20" : "",
+      shouldPulse ? "ring-2 ring-emerald-500/50 scale-[1.02] shadow-lg shadow-emerald-500/10" : ""
+    )} style={{ background: P.bgInput, borderColor: shouldPulse ? P.accentSuccess : P.border }}>
+      {shouldPulse && (
+        <motion.div 
+          initial={{ x: '-100%' }}
+          animate={{ x: '100%' }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent pointer-events-none"
+        />
+      )}
       <div className="flex justify-between items-center mb-2">
-        <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>{label}</span>
+        <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: shouldPulse ? P.accentSuccess : P.textMuted }}>
+          {label} {shouldPulse && "✨ IA"}
+        </span>
         <span className="text-[8px] font-bold opacity-50" style={{ color: P.textDim }}>{normal}</span>
       </div>
       <div className="flex items-center gap-1">
@@ -139,7 +167,7 @@ const MetricInput = ({
           value={value} 
           onChange={(e) => onChange(e.target.value)}
           className="w-full bg-transparent font-black text-lg outline-none"
-          style={{ color }}
+          style={{ color: shouldPulse ? P.accentSuccess : color }}
         />
         <span className="text-xs font-bold" style={{ color: P.textDim }}>{unit}</span>
       </div>

@@ -252,17 +252,17 @@ class CephaloEngine:
         if pts["S"] and pts["N"]:
             if pts["A"]:
                 sna = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["A"])
-                payload["metrics"]["analyse_osseuse"]["SNA"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["sna"] = self._evaluate_metric(
                     sna, 82.0, 2.0, "Prognathie maxillaire (SNA)", "Rétrognathie maxillaire (SNA)", "Normal"
                 )
             if pts["B"]:
                 snb = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["B"])
-                payload["metrics"]["analyse_osseuse"]["SNB"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["snb"] = self._evaluate_metric(
                     snb, 80.0, 2.0, "Prognathie mandibulaire (SNB)", "Rétrognathie mandibulaire (SNB)", "Normal"
                 )
             if pts["A"] and pts["B"]:
                 anb = sna - snb if (sna and snb) else None
-                payload["metrics"]["analyse_osseuse"]["ANB"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["anb"] = self._evaluate_metric(
                     anb, 2.0, 2.0, "Classe II squelettique (Steiner)", "Classe III squelettique (Steiner)", "Classe I squelettique"
                 )
 
@@ -273,7 +273,7 @@ class CephaloEngine:
         if prn and sn_soft and ls_soft:
             # Angle entre segment Sn-Prn et Sn-Ls
             nla = self._get_clinical_angle(sn_soft, prn, sn_soft, ls_soft, invert=True)
-            payload["metrics"]["analyse_esthetique"]["Angle_Nasolabial"] = self._evaluate_metric(
+            payload["metrics"]["analyse_esthetique"]["angle_nasolabial"] = self._evaluate_metric(
                 nla, 102.0, 10.0, "Angle ouvert (Nez relevé)", "Angle fermé (Nez tombant)", "Harmonie nasolabiale"
             )
 
@@ -281,7 +281,7 @@ class CephaloEngine:
 
         # 1.C. ANALYSE OSSEUSE
         fma = self._get_clinical_angle(pts["Go"], pts["Me"], pts["Po"], pts["Or"], invert=False)
-        payload["metrics"]["analyse_osseuse"]["Angle_de_Tweed"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["angle_tweed"] = self._evaluate_metric(
             fma, 26.0, 4.0, "Hyperdivergent (Face longue)", "Hypodivergent (Face courte)", "Normodivergent"
         )
 
@@ -297,16 +297,16 @@ class CephaloEngine:
         norm_sit_b = (-1.5, 4.5) if is_child else (0.0, 4.9)
         norm_prof_fac = (61.3, 5.0) if is_child else (70.3, 5.0)
 
-        payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["decalage_ab"] = self._evaluate_metric(
             dec_ab, norm_dec_ab[0], norm_dec_ab[1], "Décalage Classe II", "Décalage Classe III", "Décalage Classe I"
         )
-        payload["metrics"]["analyse_osseuse"]["Situation_A"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["situation_a"] = self._evaluate_metric(
             sit_a, norm_sit_a[0], norm_sit_a[1], "Maxillaire en avant", "Maxillaire en retrait", "Position maxillaire normale"
         )
-        payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["situation_b"] = self._evaluate_metric(
             sit_b, norm_sit_b[0], norm_sit_b[1], "Mandibule en avant", "Mandibule en retrait", "Position mandibulaire normale"
         )
-        payload["metrics"]["analyse_osseuse"]["Profondeur_Faciale"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["profondeur_faciale"] = self._evaluate_metric(
             prof_faciale, norm_prof_fac[0], norm_prof_fac[1], "Profondeur augmentée", "Profondeur diminuée", "Profondeur normale"
         )
 
@@ -370,12 +370,12 @@ class CephaloEngine:
 
             if ls:
                 d_ls = dist_to_line(ls, prn, pog_s)
-                payload["metrics"]["analyse_esthetique"]["Ligne_E_Ls"] = self._evaluate_metric(
+                payload["metrics"]["analyse_esthetique"]["ligne_e_ls"] = self._evaluate_metric(
                     d_ls, -4.0, 2.0, "Lèvre supérieure en avant", "Lèvre supérieure en retrait", "Équilibre labial supérieur"
                 )
             if li:
                 d_li = dist_to_line(li, prn, pog_s)
-                payload["metrics"]["analyse_esthetique"]["Ligne_E_Li"] = self._evaluate_metric(
+                payload["metrics"]["analyse_esthetique"]["ligne_e_li"] = self._evaluate_metric(
                     d_li, -2.0, 2.0, "Lèvre inférieure en avant", "Lèvre inférieure en retrait", "Équilibre labial inférieur"
                 )
 

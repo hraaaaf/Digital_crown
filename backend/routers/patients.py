@@ -40,6 +40,15 @@ def generate_next_dossier_number(db: Session) -> str:
 def get_next_dossier_number(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return {"next_number": generate_next_dossier_number(db)}
 
+@router.get("/check-dossier/{numero}")
+def check_dossier_availability(numero: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    exists = db.query(models.Patient).filter(models.Patient.numero_dossier == numero).first()
+    return {
+        "exists": bool(exists),
+        "patient_id": exists.id if exists else None,
+        "patient_name": f"{exists.nom.upper()} {exists.prenom.capitalize()}" if exists else None
+    }
+
 @router.get("/", response_model=List[schemas.PatientOut])
 def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return db.query(models.Patient).offset(skip).limit(limit).all()

@@ -35,6 +35,8 @@
   --sidebar-bg: white;
   --text-main: #0f172a;
   --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --input-bg: #f1f5f9;
 
   /* Couleurs par défaut si non injectées */
   --primary: #003380;
@@ -51,6 +53,10 @@
   --glass-border: rgba(5, 150, 105, 0.1);
   --card-bg: #fcfdfd;
   --sidebar-bg: #ecfdf5;
+  --text-main: #064e3b;
+  --text-muted: #059669;
+  --border-color: #d1fae5;
+  --input-bg: #f0fdf4;
 }
 
 [data-theme='prestige'] {
@@ -64,6 +70,8 @@
   --sidebar-bg: #020617;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
+  --border-color: #1e293b;
+  --input-bg: #1e293b;
 }
 
 body {

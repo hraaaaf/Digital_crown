@@ -49,8 +49,8 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 | 29/04/2026 | **v1.3 : Habits & Learning Engine** : Implémentation du moteur d'apprentissage clinique `DoctorActHabit`. Dynamisation des Quick Acts. Ajout du tri par N° Dossier et Date de création. Automatisation de l'apprentissage lors de la génération de documents. | `models.py`, `accounting_service.py`, `accounting.py`, `documents.py`, `AccountingStudio.tsx`, `PatientList.tsx` | ✅ |
 | 30/04/2026 | **Correction Sérialisation & Optimisation Panoramique SOTA** : Résolution du crash JSON (float32). Injection de CLAHE. Refonte du mapping FDI (Smile Curve). Correction de l'ordre des classes DENTEX. | `sota_panoramic_service.py`, `panoramic_expert_engine.py` | ✅ |
 | 30/04/2026 | **Ghost Elite Panoramic Refinement** : Implémentation du mapping parabolique (Smile Curve) pour une numérotation FDI précise. Optimisation des seuils de confiance et du prétraitement d'image. | `sota_panoramic_service.py` | ✅ |
-| 30/04/2026 | **Ghost Elite Cephalometric Reconciliation** : Alignement du mapping 38 points MICCAI 2023. Correction de la structure du package backend. | `sota_vision_service.py`, `backend/__init__.py` | ✅ |
 | 30/04/2026 | **Ghost Elite Refinement** : Précision sub-pixel (Centre de Masse local). Ajout des métriques de Steiner (SNA, SNB, ANB) et de l'Angle Nasolabial. Optimisation de la spline du profil (points Ls2, Li2). | `sota_vision_service.py`, `cephalo_engine.py`, `CephaloTracingLayer.tsx` | ✅ |
+| 30/04/2026 | **Elite Calibration v1.5.3** : Rectification du mapping FDI (45->46, 34->35). Boost de contraste CLAHE (4.5) pour la détection apicale et des caries profondes. | `sota_panoramic_service.py` | ✅ |
 
 ---
 
@@ -58,6 +58,9 @@ Ce fichier est le **point de référence vivant** de l'agent IA. Il sera mis à 
 
 - [x] **Smart QR Validation** : Implémenter la signature numérique QR sur les documents.
 - [ ] **Validation Impresseur** : Confirmer l'alignement millimétré du papier en-tête physique vs PDF.
+- [x] **Silent Steiner Fix** : Résolution du crash "undefined ligne_e_ls" via Deep-Merge LocalStorage.
+- [x] **UX Breakthroughs v1.7** : Loupe/Filtres en Pano, Pulse-IA en Step 3, Calibration assistée.
+- [ ] **Apical Focused Filter** : Développer un filtre spécifique (Unsharp Mask/High-Pass) pour les incisives inférieures.
 - [ ] **Morphing T2** : Finalisation du moteur de prédiction de croissance.
 - [ ] **UX "Zero-Friction" Full** : Drag-and-Drop pour la réorganisation des actes dans le Studio.
 - [ ] **Reporting PDF Global** : Migrer tous les générateurs (Certificat, Devis, Note) vers WeasyPrint + QR.

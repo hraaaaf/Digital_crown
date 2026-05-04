@@ -83,5 +83,11 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[CORRECTION] Definitive MICCAI 2023 Mapping**: Re-mapped all 38 points according to the official challenge table. Specifically fixed the soft-tissue sequence (Ls, Li, Sn, Pog') and the nose point (Prn).
 - **[LESSON]**: Deep learning models from specific challenges (MICCAI, ISBI) MUST use their exact original mapping table. Never assume a "standard" order for landmark detection outputs.
 
+### 16. Panoramic AI Mapping & Apical Blindness (v1.5)
+- **[ERROR] Horizontal FDI Compression**: Peripheral teeth (molars) were being identified as premolars (e.g., 45 instead of 46). This was due to linear X-axis thresholds failing to account for the lateral stretching/magnification of panoramic X-rays.
+- **[ERROR] Apical Cécité**: Initial confidence thresholds (0.25) were too strict for subtle periapical lesions on lower incisors, often obscured by the spine's shadow.
+- **[CORRECTION] Elite Calibration & Adaptive Thresholds**: 1) Shifted FDI thresholds (v1.5.3) to favor molars in the periphery. 2) Implemented class-specific thresholds (15% for Periapical Lesions) and boosted CLAHE contrast (4.5) to reveal subtle apical radiolucencies.
+- **[LESSON]**: In panoramic imaging, horizontal tooth numbering must compensate for non-linear lateral stretching. Critical pathologies (Apex) require higher sensitivity than obvious ones (Caries).
+
 ---
-*Last updated: 2026-04-30 (Session v1.3 - Cephalo Ghost Elite Refinement)*
+*Last updated: 2026-04-30 (Session v1.5 - Panoramic Elite Calibration)*

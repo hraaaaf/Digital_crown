@@ -41,6 +41,8 @@ import type {
 } from './types';
 import { LiveDocumentStudio } from './components/LiveDocumentStudio';
 import { CrownGuide } from './components/CrownGuide';
+import { ArabicKeyboard } from './components/ArabicKeyboard';
+import Logo from '../../assets/logo.png';
 
 export const SetupWizard: React.FC = () => {
   const navigate = useNavigate();
@@ -78,9 +80,18 @@ export const SetupWizard: React.FC = () => {
   // État Design & Ambiance
   const [headerOption, setHeaderOption] = useState<HeaderOption>('auto');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('classic');
-  const [selectedFont, setSelectedFont] = useState('inter');
-  const [selectedIdentity, setSelectedIdentity] = useState(BRAND_IDENTITIES[0].id);
-  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'prestige'>('elite');
+  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'prestige'>(() => {
+    return (localStorage.getItem('digitalcrown_theme') as any) || 'elite';
+  });
+  const [selectedIdentity, setSelectedIdentity] = useState<string>(BRAND_IDENTITIES[0].id);
+  const [selectedFont, setSelectedFont] = useState<string>(PREMIUM_FONTS[0].id);
+  const [showArKeyboard, setShowArKeyboard] = useState<{ show: boolean, target: 'identity' | 'custom_spec' }>({ show: false, target: 'identity' });
+
+  // Persistance du thème
+  useEffect(() => {
+    document.body.dataset.theme = selectedTheme;
+    localStorage.setItem('digitalcrown_theme', selectedTheme);
+  }, [selectedTheme]);
 
   // Médias
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -335,14 +346,23 @@ export const SetupWizard: React.FC = () => {
               className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
               placeholder="Dr. Jean Dupont"
             />
-            <input
-              type="text"
-              dir="rtl"
-              value={identity.nomPraticienAR}
-              onChange={e => setIdentity({ ...identity, nomPraticienAR: e.target.value })}
-              className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm font-arabic", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
-              placeholder="د. الإسم الكامل"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                dir="rtl"
+                value={identity.nomPraticienAR}
+                onChange={e => setIdentity({ ...identity, nomPraticienAR: e.target.value })}
+                onFocus={() => setShowArKeyboard({ show: true, target: 'identity' })}
+                className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm font-arabic text-lg", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
+                placeholder="د. الإسم الكامل"
+              />
+              <button 
+                onClick={() => setShowArKeyboard({ show: true, target: 'identity' })}
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+              >
+                <Type size={16} />
+              </button>
+            </div>
           </div>
         </div>
         <div>
@@ -476,26 +496,16 @@ export const SetupWizard: React.FC = () => {
                       dir="rtl"
                       value={customSpecialty.ar}
                       onChange={e => setCustomSpecialty({ ...customSpecialty, ar: e.target.value })}
+                      onFocus={() => setShowArKeyboard({ show: true, target: 'custom_spec' })}
                       className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 font-arabic text-lg"
                       placeholder="Ex: طب أسنان الأطفال"
                     />
-                    <div className="mt-2 flex flex-wrap gap-1 p-2 bg-slate-50 rounded-lg justify-center">
-                      {["ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "خ", "ح", "ج", "د", "ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط", "ئ", "ء", "ؤ", "ر", "لا", "ى", "ة", "َ", "ِ", "ُ", "ْ", "ّ", "ً", "ٍ", "ٌ", "أ", "إ"].map(char => (
-                        <button
-                          key={char}
-                          onClick={() => setCustomSpecialty(prev => ({ ...prev, ar: prev.ar + char }))}
-                          className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded text-sm font-arabic hover:bg-primary hover:text-white transition-all shadow-sm active:scale-90"
-                        >
-                          {char}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setCustomSpecialty(prev => ({ ...prev, ar: prev.ar.slice(0, -1) }))}
-                        className="px-4 h-8 flex items-center justify-center bg-slate-200 rounded text-[10px] font-black uppercase hover:bg-red-100 hover:text-red-600 transition-all active:scale-95"
-                      >
-                        Effacer
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => setShowArKeyboard({ show: true, target: 'custom_spec' })}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+                    >
+                      <Type size={16} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -695,8 +705,8 @@ export const SetupWizard: React.FC = () => {
 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center bg-white overflow-hidden shadow-inner">
-                {logoPreview ? <img src={logoPreview} className="w-full h-full object-contain" alt="Logo" /> : <ImageIcon className="text-slate-300" size={20} />}
+              <div className="w-24 h-12 flex items-center justify-center bg-white overflow-hidden p-1">
+                {logoPreview ? <img src={logoPreview} className="w-full h-full object-contain" alt="Logo" /> : <img src={Logo} className="w-full h-full object-contain opacity-80" alt="Default Logo" />}
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-900">Logo du cabinet</h4>
@@ -925,6 +935,19 @@ export const SetupWizard: React.FC = () => {
         </div>
       </div>
       <CrownGuide message={CROWN_MESSAGES[currentStep]} />
+      {/* CLAVIER ARABE VIRTUEL */}
+      <ArabicKeyboard 
+        show={showArKeyboard.show}
+        value={showArKeyboard.target === 'identity' ? identity.nomPraticienAR : customSpecialty.ar}
+        onChange={(val) => {
+          if (showArKeyboard.target === 'identity') {
+            setIdentity({ ...identity, nomPraticienAR: val });
+          } else {
+            setCustomSpecialty({ ...customSpecialty, ar: val });
+          }
+        }}
+        onClose={() => setShowArKeyboard({ ...showArKeyboard, show: false })}
+      />
     </div>
   );
 };

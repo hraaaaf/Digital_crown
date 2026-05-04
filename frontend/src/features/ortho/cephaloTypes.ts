@@ -1,5 +1,5 @@
 import type { 
-  Landmark, CVMStage, UIMode, StepId, SyncState, ImageFilters, VTOSettings 
+  Landmark, CVMStage
 } from './cephaloShared';
 
 export interface DDMState {
@@ -40,6 +40,9 @@ export interface AnalyseOsseuse {
   situation_a: number | '';
   situation_b: number | '';
   profondeur_faciale: number | '';
+  sna: number | '';
+  snb: number | '';
+  anb: number | '';
 }
 
 export interface ExamenOcclusal {
@@ -52,6 +55,7 @@ export interface ExamenOcclusal {
 export interface AnalyseEsthetique {
   ligne_e_ls: number | '';
   ligne_e_li: number | '';
+  angle_nasolabial: number | '';
 }
 
 export interface DonneesEtape3 {

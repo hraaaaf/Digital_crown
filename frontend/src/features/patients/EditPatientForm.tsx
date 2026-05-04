@@ -13,7 +13,10 @@ import {
   MapPin,
   Activity,
   FileDigit,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  AlertTriangle,
+  UserCheck
 } from 'lucide-react';
 
 
@@ -34,6 +37,8 @@ export const EditPatientForm = () => {
     antecedents_medicaux: ''
   });
   const [numeroError, setNumeroError] = useState('');
+  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
+  const [originalNumero, setOriginalNumero] = useState('');
 
   // Chargement initial des données du patient
   useEffect(() => {
@@ -60,6 +65,7 @@ export const EditPatientForm = () => {
           assurance: patient.assurance || 'AUCUNE',
           antecedents_medicaux: patient.antecedents_medicaux || ''
         });
+        setOriginalNumero(patient.numero_dossier || '');
       } catch (err) {
         console.error("Erreur de récupération:", err);
       } finally {
@@ -68,6 +74,35 @@ export const EditPatientForm = () => {
     };
     fetchPatient();
   }, [id]);
+
+  // Check availability when numero_dossier changes
+  useEffect(() => {
+    if (!formData.numero_dossier || formData.numero_dossier === originalNumero) {
+      setDossierStatus({ status: 'idle' });
+      return;
+    }
+
+    if (formData.numero_dossier.length < 2) {
+      setDossierStatus({ status: 'idle' });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setDossierStatus({ status: 'checking' });
+      try {
+        const res = await api.get(`/patients/check-dossier/${formData.numero_dossier}`);
+        if (res.data.exists && res.data.patient_id !== parseInt(id || '0')) {
+          setDossierStatus({ status: 'taken', owner: res.data.patient_name });
+        } else {
+          setDossierStatus({ status: 'available' });
+        }
+      } catch (err) {
+        setDossierStatus({ status: 'available' });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.numero_dossier, originalNumero, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +168,14 @@ export const EditPatientForm = () => {
           {/* Numéro de dossier - Section spéciale */}
           <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
             <label className={cn(labelClass, "text-[#003380]")}><FileDigit size={12}/> Numéro de Dossier</label>
-            <div className="flex items-center gap-3">
+            <div className="relative">
               <input 
                 type="text" 
-                className={cn(inputClass, "font-mono text-lg tracking-wider", numeroError && "border-red-400 focus:border-red-400")} 
+                className={cn(
+                  inputClass, 
+                  "font-mono text-lg tracking-wider", 
+                  (numeroError || dossierStatus.status === 'taken') && "border-red-400 focus:border-red-400"
+                )} 
                 value={formData.numero_dossier} 
                 onChange={(e) => {
                   setFormData({...formData, numero_dossier: e.target.value.toUpperCase().trim()});
@@ -144,16 +183,28 @@ export const EditPatientForm = () => {
                 }}
                 placeholder="P-XXXXXX"
               />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
+                {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+              </div>
             </div>
-            {numeroError ? (
+            {dossierStatus.status === 'taken' && (
+              <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold uppercase tracking-tight">
+                <AlertTriangle size={14} /> Déjà utilisé par : {dossierStatus.owner}
+              </p>
+            )}
+            {numeroError && !dossierStatus.owner && (
               <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                 <AlertCircle size={14} /> {numeroError}
               </p>
-            ) : (
-              <p className="mt-2 text-xs text-slate-500">
-                ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique
-              </p>
             )}
+            {dossierStatus.status === 'available' && (
+              <p className="mt-2 text-xs text-emerald-600 font-bold">✓ Numéro disponible</p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

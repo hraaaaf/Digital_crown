@@ -475,17 +475,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   //  ÉTAPE 3 - Données Protocole COM
   const [etape3Data, setEtape3Data] = useState<DonneesEtape3>(() => {
     // Chargement depuis localStorage au montage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`digitalcrown_etape3_${patientId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Erreur chargement étape 3:', e);
-        }
-      }
-    }
-    return {
+    const initialState: DonneesEtape3 = {
       age: '',
       cvm: '',
       date_teles: new Date().toISOString().split('T')[0],
@@ -502,10 +492,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         situation_a: '',
         situation_b: '',
         profondeur_faciale: '',
+        sna: '',
+        snb: '',
+        anb: '',
       },
       esthetique: {
         ligne_e_ls: '',
         ligne_e_li: '',
+        angle_nasolabial: '',
       },
       ddm_clinique: '',
       ddm_cephalo: '',
@@ -517,6 +511,26 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       severite_ddm: '',
       subdivision: false,
     };
+
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`digitalcrown_etape3_${patientId}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Deep Merge pour éviter les undefined sur les nouvelles clés
+          return {
+            ...initialState,
+            ...parsed,
+            dentaire: { ...initialState.dentaire, ...(parsed.dentaire || {}) },
+            osseuse: { ...initialState.osseuse, ...(parsed.osseuse || {}) },
+            esthetique: { ...initialState.esthetique, ...(parsed.esthetique || {}) },
+          };
+        } catch (e) {
+          console.error('Erreur chargement étape 3:', e);
+        }
+      }
+    }
+    return initialState;
   });
 
   //  ÉTAPE 2 - Examen Occlusal (déplacé depuis étape 3)
@@ -565,31 +579,44 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const autoFillAnalyses = useCallback(() => {
     if (!anglesData?.metrics) return;
     
+    // Sécurisation des accès aux métriques
     const dentaire = anglesData.metrics.analyse_dentaire || {};
     const osseuse = anglesData.metrics.analyse_osseuse || {};
     const esthetique = anglesData.metrics.analyse_esthetique || {};
     
-    setEtape3Data(prev => ({
-      ...prev,
-      dentaire: {
-        surplomb: dentaire.Surplomb?.valeur ?? prev.dentaire.surplomb,
-        recouvrement: dentaire.Recouvrement?.valeur ?? prev.dentaire.recouvrement,
-        impa: dentaire.IMPA?.valeur ?? prev.dentaire.impa,
-        i_francfort: dentaire.I_Francfort?.valeur ?? prev.dentaire.i_francfort,
-        inter_incisif: dentaire.Inter_Incisif?.valeur ?? prev.dentaire.inter_incisif,
-      },
-      osseuse: {
-        angle_tweed: osseuse.Angle_de_Tweed?.valeur ?? prev.osseuse.angle_tweed,
-        decalage_ab: osseuse.Decalage_A_B?.valeur ?? prev.osseuse.decalage_ab,
-        situation_a: osseuse.Situation_A?.valeur ?? prev.osseuse.situation_a,
-        situation_b: osseuse.Situation_B?.valeur ?? prev.osseuse.situation_b,
-        profondeur_faciale: osseuse.Profondeur_Faciale?.valeur ?? prev.osseuse.profondeur_faciale,
-      },
-      esthetique: {
-        ligne_e_ls: esthetique.Ligne_E_Ls?.valeur ?? prev.esthetique.ligne_e_ls,
-        ligne_e_li: esthetique.Ligne_E_Li?.valeur ?? prev.esthetique.ligne_e_li,
-      },
-    }));
+    setEtape3Data(prev => {
+      // Sécurité ultime: s'assurer que prev et ses sous-objets existent
+      if (!prev) return prev;
+      
+      return {
+        ...prev,
+        dentaire: {
+          ...prev.dentaire,
+          surplomb: dentaire.surplomb?.valeur ?? dentaire.Surplomb?.valeur ?? prev.dentaire?.surplomb ?? '',
+          recouvrement: dentaire.recouvrement?.valeur ?? dentaire.Recouvrement?.valeur ?? prev.dentaire?.recouvrement ?? '',
+          impa: dentaire.impa?.valeur ?? dentaire.IMPA?.valeur ?? prev.dentaire?.impa ?? '',
+          i_francfort: dentaire.i_francfort?.valeur ?? dentaire.I_Francfort?.valeur ?? prev.dentaire?.i_francfort ?? '',
+          inter_incisif: dentaire.inter_incisif?.valeur ?? dentaire.Inter_Incisif?.valeur ?? prev.dentaire?.inter_incisif ?? '',
+        },
+        osseuse: {
+          ...prev.osseuse,
+          angle_tweed: osseuse.angle_tweed?.valeur ?? osseuse.Angle_de_Tweed?.valeur ?? prev.osseuse?.angle_tweed ?? '',
+          decalage_ab: osseuse.decalage_ab?.valeur ?? osseuse.Decalage_A_B?.valeur ?? prev.osseuse?.decalage_ab ?? '',
+          situation_a: osseuse.situation_a?.valeur ?? osseuse.Situation_A?.valeur ?? prev.osseuse?.situation_a ?? '',
+          situation_b: osseuse.situation_b?.valeur ?? osseuse.Situation_B?.valeur ?? prev.osseuse?.situation_b ?? '',
+          profondeur_faciale: osseuse.profondeur_faciale?.valeur ?? osseuse.Profondeur_Faciale?.valeur ?? prev.osseuse?.profondeur_faciale ?? '',
+          sna: osseuse.sna?.valeur ?? prev.osseuse?.sna ?? '',
+          snb: osseuse.snb?.valeur ?? prev.osseuse?.snb ?? '',
+          anb: osseuse.anb?.valeur ?? prev.osseuse?.anb ?? '',
+        },
+        esthetique: {
+          ...prev.esthetique,
+          ligne_e_ls: esthetique.ligne_e_ls?.valeur ?? esthetique.Ligne_E_Ls?.valeur ?? prev.esthetique?.ligne_e_ls ?? '',
+          ligne_e_li: esthetique.ligne_e_li?.valeur ?? esthetique.Ligne_E_Li?.valeur ?? prev.esthetique?.ligne_e_li ?? '',
+          angle_nasolabial: esthetique.angle_nasolabial?.valeur ?? prev.esthetique?.angle_nasolabial ?? '',
+        },
+      };
+    });
   }, [anglesData]);
 
   // Déclencher le pré-remplissage auto quand les données IA arrivent

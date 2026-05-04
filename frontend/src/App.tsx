@@ -139,6 +139,14 @@ const ProtectedRoutes = () => (
 // =============================================================================
 
 function App() {
+  // Application globale du thème (Persistance)
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('digitalcrown_theme');
+    if (savedTheme) {
+      document.body.dataset.theme = savedTheme;
+    }
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

@@ -92,7 +92,7 @@ class LibreGenerator:
         else:
             # Mode standard : Nom, Âge, Dossier
             age = self._calculate_age(patient.date_naissance)
-            left_content = Paragraph(f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans<br/>Dossier N° : {patient.numero_dossier or 'N/A'}", patient_style)
+            left_content = Paragraph(f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans", patient_style)
 
         header_content = [
             [
