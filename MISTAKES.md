@@ -89,5 +89,10 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[CORRECTION] Elite Calibration & Adaptive Thresholds**: 1) Shifted FDI thresholds (v1.5.3) to favor molars in the periphery. 2) Implemented class-specific thresholds (15% for Periapical Lesions) and boosted CLAHE contrast (4.5) to reveal subtle apical radiolucencies.
 - **[LESSON]**: In panoramic imaging, horizontal tooth numbering must compensate for non-linear lateral stretching. Critical pathologies (Apex) require higher sensitivity than obvious ones (Caries).
 
+### 17. Backend Integrity & WatchFiles Safety (v1.6)
+- **[ERROR] Corrupted Imports (`mport os`)**: An accidental keystroke during a file modification corrupted the first line of `panoramic_service.py`. This caused a syntax error that crashed the entire FastAPI backend during a reload triggered by `WatchFiles`.
+- **[CORRECTION] Strict First-Line Validation**: Always perform a final "sanity check" on the very first and last lines of a file after an edit, especially when working on files with many imports.
+- **[LESSON]**: Backend reliability is fragile. A single missing letter in an `import` statement can take down the entire system. Systematic verification of the backend logs after each edit is MANDATORY.
+
 ---
-*Last updated: 2026-04-30 (Session v1.5 - Panoramic Elite Calibration)*
+*Last updated: 2026-05-04 (Session v1.6 - Digital Crown Elite)*

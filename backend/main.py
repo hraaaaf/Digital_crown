@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 
 from backend import models, database
 from backend.seed_templates import run_full_seed
+from backend.services.panoramic_service import panoramic_engine
 
 # --- CONFIGURATION LOGGING ---
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,9 @@ async def lifespan(app: FastAPI):
         models.Base.metadata.create_all(bind=database.engine)
         with database.SessionLocal() as db:
             run_full_seed(db)
+        
+        # Initialisation asynchrone du moteur panoramique (OPG)
+        await panoramic_engine.initialize()
     except Exception as e:
         logger.error(f"❌ Erreur Initialisation : {e}")
     yield

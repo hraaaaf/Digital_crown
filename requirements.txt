@@ -14,6 +14,8 @@ tensorflow
 numpy==1.26.4
 opencv-python-headless
 torch
+ultralytics
+onnxslim
 onnxruntime==1.17.1
 onnxruntime-directml==1.17.1; platform_system == "Windows"
 Pillow

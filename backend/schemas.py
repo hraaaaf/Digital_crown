@@ -900,3 +900,48 @@ class UserOut(BaseModel):
     role: str
     nom_complet: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+# --- 11. ANALYSE PANORAMIQUE (OPG) ---
+
+class BoundingBox(BaseModel):
+    """Coordonnées de la boîte englobante en pixels [x, y, w, h]."""
+    x: float
+    y: float
+    w: float
+    h: float
+    confidence: float
+
+class ToothObject(BaseModel):
+    """Représentation d'une dent individuelle selon la nomenclature FDI."""
+    fdi: int  # 11-48
+    bbox: BoundingBox
+    label: str = "tooth"
+    
+    @field_validator('fdi')
+    @classmethod
+    def validate_fdi(cls, v):
+        # Quadrants 1-4, Dents 1-8
+        valid_fdis = [q*10 + d for q in [1, 2, 3, 4] for d in range(1, 9)]
+        # Dents de lait (optionnel mais bon pour la complétude)
+        valid_fdis += [q*10 + d for q in [5, 6, 7, 8] for d in range(1, 6)]
+        
+        if v not in valid_fdis:
+            raise ValueError(f"Numéro FDI invalide : {v}")
+        return v
+
+class Finding(BaseModel):
+    """Pathologie ou objet clinique détecté (Carie, Implant, Lésion, etc.)."""
+    label: str
+    fdi: Optional[int] = None
+    bbox: BoundingBox
+    clinical_term: str  # Traduction française (ex: "Carie profonde")
+    severity: Literal["low", "medium", "high", "none"] = "none"
+
+class PanoramicAnalysis(BaseModel):
+    """Résultat complet d'une analyse radiographique panoramique."""
+    image_url: str
+    teeth: List[ToothObject]
+    findings: List[Finding]
+    summary_markdown: Optional[str] = None
+    processing_time_ms: float
+    model_version: str = "Loki-Silvres-v1.0"

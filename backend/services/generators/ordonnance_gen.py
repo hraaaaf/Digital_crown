@@ -144,6 +144,9 @@ class OrdonnanceGenerator:
                 # Détermination du mode Radio
                 is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
                 
+                # Nettoyage de la forme si personnalisée
+                display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
+                
                 # Ligne 1 : Construction dynamique des colonnes
                 cols = []
                 col_widths = []
@@ -154,9 +157,9 @@ class OrdonnanceGenerator:
                 
                 # On n'affiche Forme/Dose que si c'est un médicament ET que les champs sont remplis
                 if not is_radio:
-                    if forme:
+                    if display_forme:
                         # Si c'est Bain de bouche, on assure que ça reste élégant
-                        cols.append(Paragraph(f"<i>{forme}</i>", med_forme_style))
+                        cols.append(Paragraph(f"<i>{display_forme}</i>", med_forme_style))
                         col_widths.append(3.0*cm)
                     else:
                         col_widths[0] += 1.0*cm

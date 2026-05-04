@@ -14,7 +14,7 @@ from backend.services.cephalo_engine import cephalo_engine
 from backend.services.ai_advisor import ai_advisor
 from backend.services.cephalo_service import CephaloService
 from backend.services.prescription_service import prescription_service
-from backend.services.panoramic_vision_service import panoramic_vision_engine
+from backend.services.panoramic_service import panoramic_engine
 from backend.services.panoramic_ai_advisor import panoramic_ai_advisor
 
 logger = logging.getLogger(__name__)
@@ -76,11 +76,11 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
     with open(file_location, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     
     try:
-        # 1. Vision Inference (DENTEX Model)
-        vision_data = panoramic_vision_engine.predict_abnormalities(file_location)
+        # 1. Vision Inference (Loki-Silvres Model via PanoramicEngine)
+        vision_data = panoramic_engine.predict(file_location)
         
         # 2. AI Advisor / State Machine (Report Generation)
-        report_data = panoramic_ai_advisor.generate_clinical_report(vision_data)
+        report_data = await panoramic_ai_advisor.generate_report(vision_data)
         
         # 3. Save to DB (Persistence)
         db_analysis = models.PanoramicAnalysis(

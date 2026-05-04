@@ -362,31 +362,40 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     )}
                   >
                     <div className="grid grid-cols-12 gap-6 items-start">
-                      <div className="col-span-1 flex flex-col items-center gap-3 pt-2 border-r border-slate-100 pr-4">
-                         <button 
+                      <div className="col-span-12 mb-4">
+                        <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl w-fit border border-slate-200/50">
+                          <button 
                             onClick={() => {
-                                const newType = drug.type === 'MEDICAMENT' ? 'EXAMEN' : 'MEDICAMENT';
-                                onUpdateDrug(drug.id, 'type', newType);
-                                if (newType === 'EXAMEN') {
-                                    onUpdateDrug(drug.id, 'dosage', '');
-                                    onUpdateDrug(drug.id, 'forme', '');
-                                    onUpdateDrug(drug.id, 'posologie', '');
-                                } else {
-                                    onUpdateDrug(drug.id, 'forme', 'Comprimés');
-                                }
+                              onUpdateDrug(drug.id, 'type', 'MEDICAMENT');
+                              onUpdateDrug(drug.id, 'forme', 'COMPRIMÉS');
                             }}
-                            title={isRadio ? "Mode Examen (Radio/Labo)" : "Mode Médicament"}
                             className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                                isRadio ? "bg-amber-100 text-amber-600 shadow-lg shadow-amber-200/50" : "bg-slate-100 text-slate-400 hover:bg-primary/10 hover:text-primary"
+                              "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                              !isRadio ? "bg-white text-primary shadow-sm ring-1 ring-primary/10" : "text-slate-400 hover:text-slate-600"
                             )}
-                         >
-                            {isRadio ? <AlertCircle size={20} /> : <Pill size={18} />}
-                         </button>
-                         <span className="text-[7px] font-black uppercase text-slate-400">{isRadio ? 'EXAMEN' : 'MÉD.'}</span>
+                          >
+                            <Pill size={14} />
+                            Médicament
+                          </button>
+                          <button 
+                            onClick={() => {
+                              onUpdateDrug(drug.id, 'type', 'EXAMEN');
+                              onUpdateDrug(drug.id, 'dosage', '');
+                              onUpdateDrug(drug.id, 'forme', '');
+                              onUpdateDrug(drug.id, 'posologie', '');
+                            }}
+                            className={cn(
+                              "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                              isRadio ? "bg-white text-amber-600 shadow-sm ring-1 ring-amber-100" : "text-slate-400 hover:text-slate-600"
+                            )}
+                          >
+                            <AlertCircle size={14} />
+                            Radio / Examen
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="col-span-11 grid grid-cols-12 gap-6">
+                      <div className="col-span-12 grid grid-cols-12 gap-6">
                         <div className={cn("relative", isRadio ? "col-span-11" : "col-span-5")}>
                             <input 
                               type="text" 
@@ -415,19 +424,63 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
                             {!isRadio && (
                                 <div className="flex items-center gap-2 mt-1.5">
-                                    <div className="relative group/forme">
-                                        <select 
-                                            className="appearance-none bg-slate-100/80 px-3 py-1.5 rounded-lg text-[9px] font-black text-primary uppercase tracking-widest outline-none border border-transparent focus:border-primary/30 focus:bg-white transition-all cursor-pointer pr-8"
-                                            value={drug.forme} 
-                                            onChange={(e) => onUpdateDrug(drug.id, 'forme', e.target.value)}
-                                        >
-                                            {['COMPRIMÉS', 'SACHETS', 'GÉLULES', 'BAIN DE BOUCHE', 'AMPOULES', 'SIROP', 'POMMADE', 'CRÈME', 'GOUTTES', 'OVULES'].map(f => (
-                                                <option key={f} value={f}>{f}</option>
-                                            ))}
-                                        </select>
-                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-primary/40 group-hover/forme:text-primary transition-colors">
-                                            <ChevronRight size={10} className="rotate-90" />
+                                    <div className="mt-3">
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Forme Galénique</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { label: 'COMPRIMÉS', icon: '💊' },
+                                                { label: 'SACHETS', icon: '📦' },
+                                                { label: 'GÉLULES', icon: '💊' },
+                                                { label: 'BAIN DE BOUCHE', icon: '🧴' },
+                                                { label: 'AMPOULES', icon: '🧪' },
+                                                { label: 'SIROP', icon: '🧪' },
+                                                { label: 'POMMADE', icon: '🧴' },
+                                                { label: 'CRÈME', icon: '🧴' },
+                                                { label: 'GOUTTES', icon: '💧' },
+                                                { label: 'OVULES', icon: '🥚' },
+                                                { label: 'AUTRE', icon: '📝' }
+                                            ].map(f => {
+                                                const isSelected = drug.forme.startsWith(f.label);
+                                                return (
+                                                    <button
+                                                        key={f.label}
+                                                        onClick={() => {
+                                                            if (f.label === 'AUTRE') {
+                                                                onUpdateDrug(drug.id, 'forme', 'AUTRE: ');
+                                                            } else {
+                                                                onUpdateDrug(drug.id, 'forme', f.label);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border flex items-center gap-1.5",
+                                                            isSelected
+                                                                ? "bg-primary text-white border-primary shadow-sm"
+                                                                : "bg-white text-slate-400 border-slate-100 hover:border-primary/30 hover:text-primary"
+                                                        )}
+                                                    >
+                                                        <span className={cn("text-[10px]", isSelected ? "" : "grayscale")}>{f.icon}</span>
+                                                        {f.label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
+
+                                        {drug.forme.startsWith('AUTRE') && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: -5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="mt-3"
+                                            >
+                                                <input 
+                                                    type="text"
+                                                    className="w-full bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 text-[11px] font-bold text-primary outline-none focus:ring-2 focus:ring-primary/10 placeholder:text-primary/30"
+                                                    placeholder="Précisez la forme personnalisée..."
+                                                    value={drug.forme === 'AUTRE' || drug.forme === 'AUTRE: ' ? '' : drug.forme.replace('AUTRE: ', '')}
+                                                    onChange={(e) => onUpdateDrug(drug.id, 'forme', `AUTRE: ${e.target.value.toUpperCase()}`)}
+                                                    autoFocus
+                                                />
+                                            </motion.div>
+                                        )}
                                     </div>
 
                                     <span className="text-slate-200 text-[10px] font-bold">•</span>
