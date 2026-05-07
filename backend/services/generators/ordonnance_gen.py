@@ -211,6 +211,8 @@ class OrdonnanceGenerator:
             rightMargin=1.5 * cm, leftMargin=1.5 * cm,
             topMargin=m_top, bottomMargin=m_bottom,
         )
+        doc.qr_type = 'VALIDATION'
+        doc.doc_id = getattr(data, 'id', 'ORD-TEMP')
         doc.cloture_text = None
 
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)

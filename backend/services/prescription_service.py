@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from backend import models
 from backend.services.clinical_rules_engine import clinical_rules
@@ -181,6 +181,44 @@ class PrescriptionService:
         return {
             "dosages": dosages[:5],
             "posologies": posologies[:5]
+        }
+
+    def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
+        """
+        Récupère les ordonnances types (presets) enregistrées par le docteur.
+        """
+        presets = db.query(models.DoctorPrescriptionPreference).filter(
+            models.DoctorPrescriptionPreference.doctor_id == doctor_id
+        ).order_by(models.DoctorPrescriptionPreference.updated_at.desc()).limit(10).all()
+        
+        return [
+            {
+                "id": p.id,
+                "act_context": p.act_code,
+                "drugs": p.drugs_json
+            } for p in presets
+        ]
+
+    def get_doctor_habits_summary(self, db: Session, doctor_id: int) -> Dict[str, Any]:
+        """
+        Récupère une synthèse des habitudes globales du docteur pour le contexte IA.
+        """
+        # 1. Top médicaments
+        med_habits = db.query(
+            models.DoctorMedicationHabit.medication_name,
+            func.sum(models.DoctorMedicationHabit.usage_count).label("total")
+        ).filter(models.DoctorMedicationHabit.doctor_id == doctor_id
+        ).group_by(models.DoctorMedicationHabit.medication_name
+        ).order_by(desc("total")).limit(5).all()
+
+        # 2. Top Presets (Actes)
+        presets = db.query(models.DoctorPrescriptionPreference.act_code).filter(
+            models.DoctorPrescriptionPreference.doctor_id == doctor_id
+        ).limit(5).all()
+
+        return {
+            "top_medications": [m[0] for m in med_habits],
+            "favorite_acts": [p[0] for p in presets]
         }
 
     def _calculate_age(self, birth_date) -> int:

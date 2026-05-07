@@ -94,25 +94,25 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
     return `${hour.toString().padStart(2, '0')}:00`;
   });
 
-  const getStatusColor = (status: AppointmentStatus) => {
+    const getStatusColor = (status: AppointmentStatus) => {
     switch(status) {
-      case 'PRÉVU': return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200';
+      case 'PRÉVU': return 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20';
       case 'EN_S_ATTENTE': return 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200';
       case 'EN_FAUTEUIL': return 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200';
       case 'TERMINÉ': return 'bg-slate-100 text-slate-500 border-slate-200 opacity-60';
       case 'ANNULÉ': return 'bg-rose-50 text-rose-500 border-rose-200 line-through opacity-70';
-      default: return 'bg-blue-50 text-blue-600 border-blue-100';
+      default: return 'bg-primary/5 text-primary border-primary/10';
     }
   };
 
   const getStatusBadgeColor = (status: AppointmentStatus) => {
     switch(status) {
-      case 'PRÉVU': return 'bg-blue-500';
+      case 'PRÉVU': return 'bg-primary';
       case 'EN_S_ATTENTE': return 'bg-amber-500';
       case 'EN_FAUTEUIL': return 'bg-emerald-500';
       case 'TERMINÉ': return 'bg-slate-400';
       case 'ANNULÉ': return 'bg-rose-500';
-      default: return 'bg-blue-500';
+      default: return 'bg-primary';
     }
   };
 
@@ -142,11 +142,11 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
         <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
-          <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
+          <RefreshCw size={18} className={cn(loading && "animate-spin text-primary")} />
         </button>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+          className="px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2"
         >
           <Plus size={18} /> Nouveau RV
         </button>
@@ -156,8 +156,8 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
       <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
         {loading && appointments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-blue-400">
-            <Loader2 className="animate-spin mb-4" size={40} />
+          <div className="flex flex-col items-center justify-center py-32 text-primary/60">
+            <Loader2 className="animate-spin mb-4 text-primary" size={40} />
             <p className="font-bold tracking-widest uppercase text-xs">Chargement des créneaux...</p>
           </div>
         ) : (

@@ -73,7 +73,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             pdf_path = doc.file_path
 
         # Analyse de cohérence (Phase 1 & 2)
-        warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db)
+        warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
 
         # Nettoyage du chemin pour le frontend
         pdf_url = pdf_path.replace("\\", "/")

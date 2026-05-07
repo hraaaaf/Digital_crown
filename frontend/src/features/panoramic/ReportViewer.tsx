@@ -19,8 +19,8 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ markdown, isGenerati
           </div>
         </div>
         <div className="text-center">
-          <p className="text-indigo-900 font-black text-sm tracking-widest uppercase">OralGPT en cours d'analyse...</p>
-          <p className="text-slate-400 text-[10px] mt-1 font-mono italic">Inférence locale Llama 3.2 • Phase 4</p>
+          <p className="text-indigo-900 font-black text-sm tracking-widest uppercase">Génération du rapport déterministe...</p>
+          <p className="text-slate-400 text-[10px] mt-1 font-mono italic">Moteur Panoramique SOTA • Zéro-Hallucination</p>
         </div>
       </div>
     );
@@ -45,7 +45,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ markdown, isGenerati
           </div>
           <div>
             <span className="block font-black text-slate-800 text-xs tracking-[0.15em] uppercase">Intelligence Clinique</span>
-            <span className="block text-[9px] text-indigo-500 font-bold uppercase tracking-widest">{engineName || "Moteur OralGPT v4.0"}</span>
+            <span className="block text-[9px] text-indigo-500 font-bold uppercase tracking-widest">{engineName || "Générateur Déterministe"}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -81,13 +81,13 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ markdown, isGenerati
           </div>
           <div>
             <p className="text-[11px] font-black text-emerald-900 uppercase tracking-wider">Analyse Certifiée IA</p>
-            <p className="text-[10px] text-emerald-700/80 leading-tight">Vérifié par Loki-Silvres (Détection) & OralGPT (Interprétation)</p>
+            <p className="text-[10px] text-emerald-700/80 leading-tight">Vérifié par Loki-Silvres V8 (Détection SOTA)</p>
           </div>
         </div>
 
         {/* Footer Automatique (Compliance) */}
         <div className="mt-12 pt-6 border-t border-slate-100 text-[9px] text-slate-400 italic leading-relaxed font-medium">
-          Ce rapport est généré par un système d'intelligence artificielle (OralGPT) basé sur les détections du modèle Loki-Silvres. 
+          Ce rapport est généré déterministement basé sur les détections du modèle Loki-Silvres. 
           Il ne remplace en aucun cas l'expertise clinique finale du praticien responsable. Digital Crown - SANINOVA Edition.
         </div>
       </div>

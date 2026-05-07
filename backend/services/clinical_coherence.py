@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from backend.models import Patient, Acte, Medication
 from backend.services.ai_coherence import ai_coherence
+from backend.services.prescription_service import prescription_service
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class ClinicalCoherenceService:
     Analyse la cohérence entre les actes et les prescriptions.
     """
     
-    async def analyze_coherence(self, patient_id: int, doc_type: str, doc_data: Dict[str, Any], db: Session) -> List[Dict[str, Any]]:
+    async def analyze_coherence(self, patient_id: int, doc_type: str, doc_data: Dict[str, Any], db: Session, doctor_id: int = None) -> List[Dict[str, Any]]:
         """
         Analyse globale (Déterministe + IA) et retourne une liste d'alertes.
         """
@@ -29,6 +30,11 @@ class ClinicalCoherenceService:
         try:
             patient = db.query(Patient).filter(Patient.id == patient_id).first()
             if patient:
+                # Récupération des habitudes du docteur si dispo
+                doctor_habits = {}
+                if doctor_id:
+                    doctor_habits = prescription_service.get_doctor_habits_summary(db, doctor_id)
+
                 # Utilisation de date_debut pour le tri
                 recent_acts = db.query(Acte).filter(Acte.patient_id == patient_id).order_by(Acte.date_debut.desc()).limit(10).all()
                 act_list = [a.libelle for a in recent_acts]
@@ -36,7 +42,8 @@ class ClinicalCoherenceService:
                 patient_info = {
                     "age": self._calculate_age(patient.date_naissance) if patient.date_naissance else None,
                     "genre": patient.sexe,
-                    "antecedents": patient.antecedents_medicaux
+                    "antecedents": patient.antecedents_medicaux,
+                    "doctor_habits": doctor_habits
                 }
                 
                 ia_warnings = await ai_coherence.analyze_with_ia(patient_info, doc_type, doc_data, act_list)

@@ -15,7 +15,6 @@ from backend.services.ai_advisor import ai_advisor
 from backend.services.cephalo_service import CephaloService
 from backend.services.prescription_service import prescription_service
 from backend.services.panoramic_service import panoramic_engine
-from backend.services.panoramic_ai_advisor import panoramic_ai_advisor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["IA & Prescriptions"])
@@ -79,15 +78,17 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         # 1. Vision Inference (Loki-Silvres Model via PanoramicEngine)
         vision_data = panoramic_engine.predict(file_location)
         
-        # 2. AI Advisor / State Machine (Report Generation)
-        report_data = await panoramic_ai_advisor.generate_report(vision_data)
+        # 2. Deterministic Report Generation (Zéro-Hallucination)
+        from backend.services.panoramic_report_engine import panoramic_report_engine
+        detections_data = vision_data.get("detections_data", {})
+        report_markdown = panoramic_report_engine.generate_markdown(detections_data)
         
         # 3. Save to DB (Persistence)
         db_analysis = models.PanoramicAnalysis(
             patient_id=patient_id,
             image_path=db_path,
-            detections_data=vision_data,
-            report_narrative=report_data.get("narrative_report", "")
+            detections_data=detections_data, # Schéma validé FullAnalysis
+            report_narrative=report_markdown
         )
         db.add(db_analysis)
         db.commit()
@@ -99,7 +100,7 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
             "patient_id": patient_id,
             "file_url": f"http://localhost:8000/{db_path}",
             "vision": vision_data,
-            "report": report_data,
+            "report_narrative": report_markdown,
             "created_at": db_analysis.created_at
         }
         

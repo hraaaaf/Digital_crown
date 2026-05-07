@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, Loader2, Activity, ShieldAlert, CheckCircle2, 
   History, Sun, Contrast, FlipHorizontal, 
-  RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2
+  RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -34,7 +34,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [result, setResult] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
   const [imgSize, setImgSize] = useState<{w: number, h: number} | null>(null);
-  const [activeDet, setActiveDet] = useState<number | null>(null);
+  const [activeDet, setActiveDet] = useState<string | null>(null);
   const [imgFilters, setImgFilters] = useState<ImageFilters>({ brightness: 100, contrast: 110, invert: false });
   const [magnifier, setMagnifier] = useState<{ x: number, y: number, show: boolean }>({ x: 0, y: 0, show: false });
   const [magnifierEnabled, setMagnifierEnabled] = useState(true);
@@ -50,8 +50,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     const data = {
       id: analysis.id,
       file_url: `http://localhost:8000/${analysis.image_path}`,
-      vision: analysis.detections_data,
-      report: { narrative_report: analysis.report_narrative },
+      vision: { detections_data: analysis.detections_data },
+      report_narrative: analysis.report_narrative,
       created_at: analysis.created_at
     };
     
@@ -118,19 +118,18 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const filterString = `brightness(${imgFilters.brightness}%) contrast(${imgFilters.contrast}%) invert(${imgFilters.invert ? 100 : 0}%)`;
 
   return (
-    <div className="flex flex-col md:flex-row h-full gap-6 bg-slate-50/50 p-6 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-auto min-h-screen lg:h-full gap-4 lg:gap-6 bg-slate-50/50 p-4 lg:p-6 overflow-y-auto lg:overflow-hidden">
       {/* Colonne Gauche : Workspace Visuel */}
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-6 flex items-center justify-between shrink-0">
+      <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-[50vh] lg:min-h-0">
+        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4">
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-              <Activity className="text-indigo-600" />
               Studio Panoramique IA - {patientName}
             </h2>
-            <p className="text-sm text-slate-500 mt-1 font-medium italic">Analyse DENTEX SOTA (Deep Learning Hierarchical Engine)</p>
+            <p className="text-sm text-slate-500 mt-1 font-medium italic">Pipeline Loki-Silvres V8 (Détection SOTA)</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-3 w-full lg:w-auto">
             <button 
               onClick={() => {
                 setCompareMode(!compareMode);
@@ -170,7 +169,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                 fileInputRef.current?.click();
               }}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 flex-1 lg:flex-none"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}
               {loading ? 'Analyse en cours...' : 'Nouvel Examen'}
@@ -186,17 +185,66 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
           ) : (
             <>
               {!result && !loading && (
-                <div className="text-slate-500 font-mono text-sm tracking-widest flex flex-col items-center gap-4">
-                  <Activity size={40} className="text-slate-700 animate-pulse" />
+                <div className="text-slate-400 font-mono text-sm tracking-widest flex flex-col items-center justify-center gap-4 h-full p-12 text-center">
+                  <div className="w-24 h-24 border-2 border-dashed border-slate-700 rounded-2xl flex items-center justify-center opacity-50 mb-2">
+                    <Search size={32} className="text-slate-500" />
+                  </div>
                   AUCUNE RADIOGRAPHIE CHARGÉE
                 </div>
               )}
               
               {loading && (
-                <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="text-indigo-400 font-black tracking-[0.3em] animate-pulse uppercase text-xs">Extraction des Landmarks</p>
-                  <p className="text-slate-500 text-[10px] mt-2 font-mono">Neural Engine v4.3 • SOTA DENTEX</p>
+                <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-lg z-50 flex flex-col items-center justify-center overflow-hidden">
+                  {/* Grille d'arrière-plan technique */}
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+                  
+                  {/* Scanner UI */}
+                  <div className="relative flex flex-col items-center">
+                    <div className="relative w-32 h-32 mb-8">
+                      {/* Cercle extérieur tournant */}
+                      <div className="absolute inset-0 border-2 border-slate-700 rounded-full" />
+                      <div className="absolute inset-0 border-2 border-indigo-500 rounded-full border-t-transparent border-b-transparent animate-spin" style={{ animationDuration: '3s' }} />
+                      <div className="absolute inset-2 border-2 border-indigo-400/30 rounded-full border-l-transparent border-r-transparent animate-spin animate-reverse" style={{ animationDuration: '2s' }} />
+                      
+                      {/* Icône centrale */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Scan size={40} className="text-indigo-400 animate-pulse" />
+                      </div>
+                      
+                      {/* Ligne de balayage */}
+                      <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-400 shadow-[0_0_15px_rgba(129,140,248,0.8)] animate-scan" />
+                    </div>
+
+                    <div className="bg-black/40 backdrop-blur-md border border-white/10 px-8 py-4 rounded-2xl shadow-2xl flex flex-col items-center relative overflow-hidden">
+                      {/* Effet lueur interne */}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+                      
+                      <p className="text-white font-black tracking-[0.3em] uppercase text-[11px] mb-2 flex items-center">
+                        Analyse Structurelle
+                        <span className="inline-flex ml-1 w-3 overflow-hidden animate-pulse">...</span>
+                      </p>
+                      <p className="text-indigo-300/80 text-[9px] font-mono tracking-widest uppercase mb-2">
+                        Extraction des Landmarks
+                      </p>
+                      <p className="text-slate-400 text-[8px] font-mono uppercase tracking-[0.2em] bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/50 whitespace-nowrap">
+                        Neural Engine v8.0 • Zéro-Hallucination
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <style>{`
+                    @keyframes scan {
+                      0%, 100% { top: 0; opacity: 0; }
+                      10%, 90% { opacity: 1; }
+                      50% { top: 100%; }
+                    }
+                    .animate-scan {
+                      animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                    }
+                    .animate-reverse {
+                      animation-direction: reverse;
+                    }
+                  `}</style>
                 </div>
               )}
 
@@ -237,7 +285,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                     )}
                     <XRayCanvas 
                       imgUrl={result.file_url}
-                      detections={result.vision?.detections || []}
+                      visionData={result.vision?.detections_data || null}
                       imgSize={imgSize}
                       onImgLoad={(e) => {
                         setImgSize({
@@ -333,13 +381,13 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                   </AnimatePresence>
 
                   {/* BARRE D'OUTILS IMAGE FLOTTANTE */}
-                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-6 z-40">
+                  <div className="absolute bottom-4 lg:bottom-8 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-md px-4 py-2 lg:px-6 lg:py-3 rounded-2xl border border-white/10 shadow-2xl flex flex-wrap justify-center items-center gap-2 lg:gap-6 z-40 w-[95%] lg:w-auto max-w-md lg:max-w-none">
                     <div className="flex items-center gap-3">
                       <Sun size={16} className="text-amber-400" />
                       <input 
                         type="range" min="50" max="200" value={imgFilters.brightness} 
                         onChange={(e) => setImgFilters(f => ({ ...f, brightness: Number(e.target.value) }))}
-                        className="w-24 accent-amber-400 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                        className="w-16 lg:w-24 accent-amber-400 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                       />
                     </div>
                     <div className="w-[1px] h-6 bg-white/10" />
@@ -348,7 +396,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                       <input 
                         type="range" min="50" max="200" value={imgFilters.contrast} 
                         onChange={(e) => setImgFilters(f => ({ ...f, contrast: Number(e.target.value) }))}
-                        className="w-24 accent-indigo-400 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                        className="w-16 lg:w-24 accent-indigo-400 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                       />
                     </div>
                     <div className="w-[1px] h-6 bg-white/10" />
@@ -391,33 +439,32 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       </div>
 
       {/* Colonne Droite : Intelligence Clinique */}
-      <div className="w-[400px] flex flex-col gap-4 shrink-0 overflow-hidden">
+      <div className="w-full lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200/60 flex-1 overflow-hidden flex flex-col">
           {result ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
               <ReportViewer 
-                markdown={result.report?.narrative_report} 
+                markdown={result.report_narrative} 
                 isGenerating={loading} 
-                engineName={result.report?.engine}
+                engineName="Loki-Silvres V8 (Déterministe)"
               />
 
               <div className="p-8 space-y-8">
-                {result.vision?.detections?.length > 0 && (
+                {result.vision?.detections_data?.teeth?.length > 0 && (
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Activity size={12} className="text-indigo-500" />
                       Cartographie des Anomalies
                     </h4>
                     <div className="grid gap-2">
-                      {result.vision.detections.map((det: any, idx: number) => (
+                      {result.vision.detections_data.teeth.flatMap((t: any) => t.findings.map((f: any, fIdx: number) => ({ tooth: t.fdi_number, pathology: f.label, uid: `finding-${t.fdi_number}-${fIdx}` }))).map((det: any) => (
                         <motion.div 
-                          key={idx} 
-                          onMouseEnter={() => setActiveDet(idx)}
+                          key={det.uid} 
+                          onMouseEnter={() => setActiveDet(det.uid)}
                           onMouseLeave={() => setActiveDet(null)}
                           whileHover={{ x: 8 }}
                           className={cn(
                             "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 cursor-pointer",
-                            activeDet === idx 
+                            activeDet === det.uid 
                               ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100" 
                               : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200"
                           )}
@@ -426,20 +473,20 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                             <div 
                               className={cn(
                                 "w-3 h-3 rounded-full shadow-sm",
-                                activeDet === idx ? "bg-white" : ""
+                                activeDet === det.uid ? "bg-white" : ""
                               )} 
-                              style={activeDet === idx ? {} : { backgroundColor: getPathologyColor(det.pathology) }}
+                              style={activeDet === det.uid ? {} : { backgroundColor: getPathologyColor(det.pathology) }}
                             />
                             <span className="font-black text-sm">Dent {det.tooth}</span>
                           </div>
                           <span 
                             className={cn(
                               "text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg border",
-                              activeDet === idx 
+                              activeDet === det.uid 
                                 ? "bg-white/20 border-white/30 text-white" 
                                 : "bg-slate-50 border-slate-200"
                             )}
-                            style={activeDet === idx ? {} : { color: getPathologyColor(det.pathology) }}
+                            style={activeDet === det.uid ? {} : { color: getPathologyColor(det.pathology) }}
                           >
                             {det.pathology.toUpperCase()}
                           </span>

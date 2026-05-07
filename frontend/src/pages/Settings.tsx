@@ -15,12 +15,16 @@ import {
   Phone,
   Smartphone,
   Instagram,
-  MessageCircle
+  MessageCircle,
+  Users
 } from 'lucide-react';
 import { api } from '../services/api';
 import { cn } from '../utils/cn';
+import { TeamManager } from '../features/admin/TeamManager';
+import { BRAND_IDENTITIES } from '../features/admin/constants';
+import { Palette as PaletteIcon, Moon, Sun, Leaf, Heart } from 'lucide-react';
 
-type Tab = 'profil' | 'ia' | 'securite';
+type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
 
 interface CabinetProfile {
   nom: string;
@@ -35,6 +39,10 @@ interface CabinetProfile {
   ice?: string;
   if?: string;
   contacts_json?: any;
+  selected_theme?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  accent_color?: string;
 }
 
 interface ClinicalNorms {
@@ -98,8 +106,19 @@ export const Settings = () => {
             margin_top: res.data.margin_top ?? 3.6,
             margin_bottom: res.data.margin_bottom ?? 3.2,
             watermark_enabled: res.data.watermark_enabled ?? true,
-            letterhead_path: res.data.letterhead_path || undefined
+            letterhead_path: res.data.letterhead_path || undefined,
+            selected_theme: res.data.selected_theme || 'elite',
+            primary_color: res.data.primary_color || '#003380',
+            secondary_color: res.data.secondary_color || '#1e40af',
+            accent_color: res.data.accent_color || '#60a5fa'
           });
+
+          // Appliquer le thème immédiatement
+          const themeValue = res.data.selected_theme === 'elite' ? '' : res.data.selected_theme;
+          document.documentElement.dataset.theme = themeValue;
+          document.documentElement.style.setProperty('--primary', res.data.primary_color || '#003380');
+          document.documentElement.style.setProperty('--secondary', res.data.secondary_color || '#1e40af');
+          document.documentElement.style.setProperty('--accent', res.data.accent_color || '#60a5fa');
 
           if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
             setContacts(res.data.contacts_json);
@@ -185,6 +204,14 @@ export const Settings = () => {
         contacts_json: contacts
       };
       await api.put('/clinics/me', payload);
+      
+      // Appliquer le thème immédiatement après sauvegarde
+      const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
+      document.documentElement.dataset.theme = themeValue;
+      if (profile.primary_color) document.documentElement.style.setProperty('--primary', profile.primary_color);
+      if (profile.secondary_color) document.documentElement.style.setProperty('--secondary', profile.secondary_color);
+      if (profile.accent_color) document.documentElement.style.setProperty('--accent', profile.accent_color);
+      
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -241,6 +268,8 @@ export const Settings = () => {
         {/* NAVIGATION DES ONGLETS (Verticale) */}
         <div className="w-full md:w-64 shrink-0 flex flex-col gap-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-3 rounded-[2rem] shadow-sm sticky top-28">
           <TabButton active={activeTab === 'profil'} onClick={() => setActiveTab('profil')} icon={<Building size={20}/>} label="Profil Cabinet" />
+          <TabButton active={activeTab === 'branding'} onClick={() => setActiveTab('branding')} icon={<PaletteIcon size={20}/>} label="Design & Ambiance" />
+          <TabButton active={activeTab === 'equipe'} onClick={() => setActiveTab('equipe')} icon={<Users size={20}/>} label="Mon Équipe" />
           <TabButton active={activeTab === 'ia'} onClick={() => setActiveTab('ia')} icon={<Brain size={20}/>} label="IA & Normes" />
           <TabButton active={activeTab === 'securite'} onClick={() => setActiveTab('securite')} icon={<Shield size={20}/>} label="Sécurité & Data" />
         </div>
@@ -488,7 +517,129 @@ export const Settings = () => {
             </div>
           )}
 
-          {/* TAB 2 : IA & NORMES */}
+          {/* TAB 2 : DESIGN & AMBIANCE */}
+          {activeTab === 'branding' && (
+            <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
+              <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
+                  <PaletteIcon size={32} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>Design & Ambiance</h3>
+                  <p className="text-slate-500 text-sm font-medium mt-1">Personnalisez l'atmosphère de votre logiciel et de vos documents.</p>
+                </div>
+              </div>
+
+              {/* 1. SÉLECTION DU THÈME (AMBIANCE) */}
+              <div className="space-y-6">
+                <label className={labelClass}>Thème du Logiciel (Ambiance)</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { id: 'elite', name: 'Ghost Elite', icon: <Sun size={20} />, desc: 'Clair & Pur', color: 'bg-slate-100 text-slate-600' },
+                    { id: 'emerald', name: 'Émeraude Zen', icon: <Leaf size={20} />, desc: 'Serein & Médical', color: 'bg-emerald-50 text-emerald-600' },
+                    { id: 'rose', name: 'Rose Prestige', icon: <Heart size={20} />, desc: 'Luxe & Douceur', color: 'bg-rose-50 text-rose-600' },
+                    { id: 'prestige', name: 'Nuit Intense', icon: <Moon size={20} />, desc: 'Sombre & Premium', color: 'bg-slate-900 text-slate-200' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setProfile({ ...profile, selected_theme: t.id })}
+                      className={cn(
+                        "p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 text-center group",
+                        profile.selected_theme === t.id 
+                          ? "border-primary bg-primary/5 shadow-xl scale-[1.02]" 
+                          : "border-slate-100 bg-white hover:border-slate-200"
+                      )}
+                    >
+                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform", t.color)}>
+                        {t.icon}
+                      </div>
+                      <div>
+                        <span className="block font-black text-sm text-slate-800">{t.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t.desc}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. IDENTITÉ VISUELLE (COULEURS) */}
+              <div className="space-y-6 pt-10 border-t border-slate-100">
+                <label className={labelClass}>Identité Visuelle (Couleurs Signature)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {BRAND_IDENTITIES.map(id => (
+                    <button
+                      key={id.id}
+                      onClick={() => setProfile({ 
+                        ...profile, 
+                        primary_color: id.primary, 
+                        secondary_color: id.secondary, 
+                        accent_color: id.accent 
+                      })}
+                      className={cn(
+                        "p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden",
+                        profile.primary_color === id.primary ? "border-primary bg-white shadow-lg scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <h5 className="text-[11px] font-black uppercase tracking-tighter text-slate-900">{id.name}</h5>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">{id.vibe}</span>
+                        </div>
+                        <div className="flex -space-x-2">
+                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.primary }} />
+                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.secondary }} />
+                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.accent }} />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-medium">{id.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. COULEUR PERSONNALISÉE (DYNAMIQUE) */}
+              <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-200/60 flex flex-col md:flex-row items-center gap-10">
+                <div className="flex-1">
+                  <h4 className="text-lg font-black text-slate-800">Ajustement Manuel</h4>
+                  <p className="text-sm text-slate-500 mt-1 font-medium">Vous pouvez également choisir précisément vos teintes HEX pour une personnalisation totale.</p>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primaire</span>
+                    <input 
+                      type="color" 
+                      value={profile.primary_color} 
+                      onChange={(e) => setProfile({ ...profile, primary_color: e.target.value })}
+                      className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accent</span>
+                    <input 
+                      type="color" 
+                      value={profile.accent_color} 
+                      onChange={(e) => setProfile({ ...profile, accent_color: e.target.value })}
+                      className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-6">
+                <button 
+                  onClick={saveProfile} 
+                  disabled={savingProfile}
+                  className="px-10 py-5 text-white rounded-2xl font-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-70 text-lg hover:scale-[1.02]"
+                  style={{ backgroundColor: 'var(--primary)', boxShadow: '0 15px 35px -12px var(--primary)' }}
+                >
+                  {savingProfile ? <Loader2 className="animate-spin" size={24}/> : (saveSuccess ? <CheckCircle2 size={24} className="text-emerald-400"/> : <Save size={24} />)}
+                  {saveSuccess ? "Ambiance Appliquée !" : "Appliquer l'Ambiance"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3 : IA & NORMES */}
           {activeTab === 'ia' && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="mb-8 pb-6 border-b border-slate-100">
@@ -559,6 +710,11 @@ export const Settings = () => {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* TAB 4 : MON ÉQUIPE */}
+          {activeTab === 'equipe' && (
+            <TeamManager />
           )}
 
         </div>

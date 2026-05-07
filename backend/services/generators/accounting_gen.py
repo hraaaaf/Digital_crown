@@ -122,19 +122,8 @@ class AccountingGenerator:
         return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
     def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
-        """Rendu de la note comptable avec identifiants et clôture épinglée."""
+        """Rendu de la note comptable avec identifiants."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
-            
-        if hasattr(doc, 'cloture_text') and doc.cloture_text:
-            p_width, p_height = doc.pagesize
-            p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-            font_name = self.base_template.arabic_font
-            font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-            
-            style = ParagraphStyle(name='PinnedCloture', fontName=font_bold, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-            p = Paragraph(doc.cloture_text, style)
-            w, h = p.wrap(p_width - 3*cm, 2*cm)
-            p.drawOn(canvas, 1.5*cm, 3.2*cm)
 
     def _create_header(self, patient, data, p_color):
         doc_date = getattr(data, 'doc_date', date.today())
@@ -168,6 +157,21 @@ class AccountingGenerator:
             ]
         ]
         return Table(header_content, colWidths=[7.0*cm, 4.8*cm])
+
+    def _get_dynamic_acte_style(self, base_style, text, max_chars_at_10pt):
+        """Ajuste dynamiquement la taille de la police pour tenir sur une ligne."""
+        text_len = len(text) if text else 0
+        fs = 10.0
+        if text_len > max_chars_at_10pt:
+            # On réduit proportionnellement pour tout faire rentrer, avec une taille minimum de 5.5
+            fs = max(5.5, 10.0 * (max_chars_at_10pt / text_len))
+            
+        return ParagraphStyle(
+            name='DynamicActeText',
+            parent=base_style,
+            fontSize=fs,
+            leading=fs + 3.0
+        )
 
     def _create_installments_table(self, installments, total_honoraires, p_color):
         """Crée un tableau de suivi des règlements (échéancier)."""
@@ -235,7 +239,8 @@ class AccountingGenerator:
 
         total = 0.0
         for p in data.payments:
-            acte_para = Paragraph(p.acte, acte_style)
+            dyn_style = self._get_dynamic_acte_style(acte_style, p.acte, max_chars_at_10pt=24)
+            acte_para = Paragraph(p.acte, dyn_style)
             dent_display = getattr(p, 'dent', '-')
             if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
                 dent_display = ', '.join([str(d) for d in p.dents])
@@ -276,6 +281,13 @@ class AccountingGenerator:
             template = "Arrêtée la présente note à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+        
+        font_name = self.base_template.arabic_font
+        font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
+        elements.append(Spacer(1, 1.0*cm))
+        elements.append(Paragraph(cloture, cloture_style))
+        
         highlighted_teeth = []
         for p in data.payments:
             if hasattr(p, 'dents') and p.dents:
@@ -287,7 +299,7 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)))
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=facture_number)
 
     def generate_devis(self, patient, data, document_number=None, db=None, user_id=None, **kwargs):
         filepath = self._get_save_path(patient, "DEVIS", data, doc_id=document_number)
@@ -310,7 +322,8 @@ class AccountingGenerator:
 
         total = 0.0
         for item in data.items:
-            acte_para = Paragraph(item.acte, acte_style)
+            dyn_style = self._get_dynamic_acte_style(acte_style, item.acte, max_chars_at_10pt=36)
+            acte_para = Paragraph(item.acte, dyn_style)
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
                 dent_display = ', '.join([str(d) for d in item.dents])
@@ -351,6 +364,13 @@ class AccountingGenerator:
             template = "Arrêté le présent devis à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+        
+        font_name = self.base_template.arabic_font
+        font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
+        elements.append(Spacer(1, 1.0*cm))
+        elements.append(Paragraph(cloture, cloture_style))
+        
         highlighted_teeth = []
         for item in data.items:
             if hasattr(item, 'dents') and item.dents:
@@ -362,13 +382,14 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)))
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number)
 
-    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None):
+    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None):
         m_top = (config.margin_top if config else 3.6) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
-        doc.cloture_text = cloture_text
+        doc.doc_id = doc_id
+        doc.qr_type = 'PAYMENT'
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath.replace("\\", "/")

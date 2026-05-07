@@ -1,0 +1,121 @@
+{
+  "act_code": "sinus-lift",
+  "act_names": [
+    "Sinus lift",
+    "Élévation sinusienne",
+    "Greffe sinus",
+    "Comblement sinusien",
+    "Sinus lift voie latérale"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 120,
+  "checklist": [
+    {
+      "id": "cbct",
+      "label": "CBCT préop — hauteur osseuse résiduelle, anatomie sinus",
+      "critical": true
+    },
+    {
+      "id": "orl",
+      "label": "ORL consulté si pathologie sinusienne",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement spécifique sinus + complications",
+      "critical": true
+    },
+    {
+      "id": "hauteur",
+      "label": "Hauteur résiduelle mesurée (< 4mm = voie latérale)",
+      "critical": true
+    },
+    {
+      "id": "materiau",
+      "label": "Substitut osseux + membrane résorbable prêts",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie + incision crestale + décollement lambeau",
+      "tip": "Épinéphrine 1:100000 pour hémostase — lambeau d'épaisseur totale"
+    },
+    {
+      "order": 2,
+      "label": "Ostéotomie fenêtre latérale (fraise diamantée)",
+      "tip": "Irriguer abondamment — ne jamais perforer la membrane"
+    },
+    {
+      "order": 3,
+      "label": "Décollement délicat membrane de Schneider",
+      "tip": "Décolleurs sinusiens courbés — travailler en douceur"
+    },
+    {
+      "order": 4,
+      "label": "Vérification intégrité membrane (pas de perforation)",
+      "tip": "Si perforation : membrane résorbable en patch avant greffe"
+    },
+    {
+      "order": 5,
+      "label": "Remplissage substitut osseux + membrane barrière",
+      "tip": "Beta-TCP ou allogreffe — compaction douce"
+    },
+    {
+      "order": 6,
+      "label": "Suture hermétique + contrôle radio",
+      "tip": "Radio postop — vérifier hauteur greffe et absence air résiduel"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Perforation membrane de Schneider",
+      "mitigation": "Décolleurs atraumatiques — si perforation : patch membrane résorbable"
+    },
+    {
+      "risk": "Sinusite postopératoire",
+      "mitigation": "Antibiotiques + antihistaminique — ORL en urgence si fièvre > 48h"
+    },
+    {
+      "risk": "Résorption du greffon",
+      "mitigation": "Délai 6-9 mois avant implant — vérifier CBCT avant forage"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 7 jours"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "600mg × 3/j — 7 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain bouche × 2/j × 2 semaines"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Pas de mouchage pendant 15 jours — éternuer bouche ouverte"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle — antibiotiques à compléter impérativement"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV J7 ablation fils + CBCT contrôle à 6 mois avant implant"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
 
@@ -35,6 +35,7 @@ class CertificatGenerator:
         return os.path.join(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
+        """Rendu Elite avec signature et QR Code alignés."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
 
     def _create_header(self, patient, data, p_color, config=None):
@@ -69,8 +70,8 @@ class CertificatGenerator:
         )
 
         header_content = [[
-            Paragraph(f"{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans", patient_style),
-            Paragraph(f"Le : <u>{current_date}</u>", style_right),
+            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b><br/>Âge : {age} ans", patient_style),
+            Paragraph(f"Fait le : <b>{current_date}</b>", style_right),
         ]]
 
         header_table = Table(header_content, colWidths=[7.5 * cm, 4.3 * cm])
@@ -91,7 +92,6 @@ class CertificatGenerator:
             user_obj = db.query(User).filter(User.id == user_id).first()
 
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        # Forçage Helvetica pour un contraste maximal Gras/Normal
         font_main = "Helvetica"
         font_bold = "Helvetica-Bold"
 
@@ -103,41 +103,45 @@ class CertificatGenerator:
             textColor=p_color,
             alignment=TA_CENTER,
             spaceAfter=20,
+            leading=22
         )
 
         elements = [
-            Spacer(1, 0.4 * cm),
-            Paragraph("<u>CERTIFICAT MEDICAL</u>", title_style),
             Spacer(1, 0.6 * cm),
+            Paragraph("CERTIFICAT MÉDICAL", title_style),
+            Spacer(1, 1.0 * cm),
             self._create_header(patient, data, p_color, config),
-            Spacer(1, 1.2 * cm),
+            Spacer(1, 1.8 * cm),
         ]
 
         age = self._calculate_age(patient.date_naissance)
-        gender = getattr(patient, 'sexe', 'M')
-        hon = "Mr" if gender in ["Homme", "Garçon", "M"] else "Madame"
+        gender = getattr(patient, 'genre', 'M') # Harmonisation avec schema
+        hon = "Monsieur" if gender in ["Homme", "Garçon", "M"] else "Madame"
 
-        # Le champ `reason` porte le type de certificat choisi dans le formulaire
-        reason = (getattr(data, 'reason', None) or "Repos médical").strip()
-        is_work_stop = getattr(data, 'is_work_stop', False)
-
-        if is_work_stop:
-            type_repos = "un arrêt de travail"
-        elif reason.lower().startswith("repos"):
-            type_repos = "un repos médical"
-        else:
-            # Certificat à motif personnalisé (aptitude sportive, dispense…)
-            type_repos = f"un repos / une dispense pour : {reason}"
-
+        # Phrasage Elite dynamique selon le choix du praticien
+        reason = (getattr(data, 'reason', "Repos médical") or "Repos médical").strip()
         days = getattr(data, 'days', 1)
-        start_date = getattr(data, 'start_date', date.today())
-        if isinstance(start_date, str):
-            try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            except Exception:
-                start_date = date.today()
-
-        start_date_str = start_date.strftime('%d/%m/%Y')
+        observations = getattr(data, 'observations', '').strip()
+        
+        # Mapping intelligent du motif pour un phrasage fluide
+        phrase_motif = f"un repos médical de <b>{days} jours</b>"
+        
+        reason_lower = reason.lower()
+        if "post-opératoire" in reason_lower:
+            phrase_motif = f"un <b>repos post-opératoire</b> de <b>{days} jours</b>"
+        elif "présence" in reason_lower:
+            phrase_motif = "une <b>dispense de présence</b>"
+        elif "aptitude" in reason_lower:
+            phrase_motif = "une <b>aptitude clinique</b>"
+        elif "reprise" in reason_lower:
+            phrase_motif = "une <b>reprise de travail</b>"
+        elif "accompagnement" in reason_lower:
+            phrase_motif = "un <b>accompagnement médical</b>"
+        elif "acte" in reason_lower:
+            phrase_motif = "un repos médical <b>suite à l'acte réalisé</b>"
+        elif reason != "Repos médical":
+            # Si c'est un motif libre non listé
+            phrase_motif = f"un repos médical pour : <b>{reason}</b>"
 
         body_style = ParagraphStyle(
             name='CertifBody',
@@ -149,29 +153,44 @@ class CertificatGenerator:
             leading=18,
         )
 
-        # Récupération sécurisée
-        dr_name = config.nom_praticien if config and config.nom_praticien else "Docteur"
-        
-        # Enchaînement fluide et robuste
+        dr_name = config.nom_praticien if config and config.nom_praticien else "Saninova"
         nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
         
         certif_text = (
-            f"Je, soussigné Dr. {dr_name}, certifie que l'état de santé de "
-            f"{hon} <b>{nom_complet}</b>, âgé(e) de <b>{age} ans</b>, "
-            f"nécessite {type_repos} d'une durée de <b>{days} jours</b>, à partir du <b>{start_date_str}</b>.<br/><br/>"
-            f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
+            f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+            f"{hon} <b>{nom_complet}</b> nécessite {phrase_motif} "
+            f"<b>suite à l'acte professionnel réalisé ce jour</b>.<br/><br/>"
         )
         
+        if observations:
+            certif_text += f"<b>Observations :</b> {observations}<br/><br/>"
+            
+        certif_text += f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
+        
         elements.append(Paragraph(certif_text, body_style))
+        elements.append(Spacer(1, 2.5 * cm))
+
+        # Bloc Signature Elite
+        sig_style = ParagraphStyle(
+            'Signature',
+            parent=self.styles['Normal'],
+            alignment=TA_RIGHT,
+            textColor=p_color,
+            fontName=font_bold,
+            fontSize=10
+        )
+        elements.append(Paragraph(f"Signature du Dr. {dr_name}", sig_style))
 
         m_top = (config.margin_top if config else 3.6) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,
-            rightMargin=1.5 * cm, leftMargin=1.5 * cm,
+            rightMargin=1.8 * cm, leftMargin=1.8 * cm,
             topMargin=m_top, bottomMargin=m_bottom,
         )
+        doc.qr_type = 'VALIDATION'
+        doc.doc_id = getattr(data, 'id', 'CERT-TEMP')
         doc.cloture_text = None
 
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)

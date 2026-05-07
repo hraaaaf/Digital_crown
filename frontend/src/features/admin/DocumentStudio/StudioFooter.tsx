@@ -12,6 +12,7 @@ interface StudioFooterProps {
   aiReport?: string | null;
   onGenerateAI?: () => void;
   loadingAi?: boolean;
+  total?: number;
 }
 
 export const StudioFooter: React.FC<StudioFooterProps> = ({
@@ -24,7 +25,8 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   onSavePreference,
   aiReport,
   onGenerateAI,
-  loadingAi
+  loadingAi,
+  total
 }) => {
   if (activeTab === 'ai') {
     return (
@@ -53,6 +55,17 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           >
             Sauver ce protocole
           </button>
+        )}
+        
+        {(activeTab === 'devis' || activeTab === 'honoraires') && typeof total === 'number' && (
+          <div className="flex items-center gap-4 pl-2 pr-6 border-r border-slate-200">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Document</span>
+              <span className="text-xl font-black text-slate-900 tracking-tighter">
+                {total.toLocaleString('fr-FR')} <span className="text-[10px] opacity-40">MAD</span>
+              </span>
+            </div>
+          </div>
         )}
       </div>
 

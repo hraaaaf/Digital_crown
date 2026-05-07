@@ -39,6 +39,16 @@ class CabinetType(str, enum.Enum):
     PRIVE = "PRIVE"
     CLINIQUE = "CLINIQUE"
 
+class QRCodeType(str, enum.Enum):
+    NONE = "NONE"
+    VALIDATION = "VALIDATION"
+    VCARD = "VCARD"
+    WEBSITE = "WEBSITE"
+    INSTAGRAM = "INSTAGRAM"
+    PAYMENT = "PAYMENT"
+    WHATSAPP = "WHATSAPP"
+    LOCATION = "LOCATION"
+
 # --- 2. BASE DE DÉCLARATION ---
 
 class Base(DeclarativeBase):
@@ -54,6 +64,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.DENTISTE)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     nom_complet: Mapped[Optional[str]] = mapped_column(String(255))
     specialites: Mapped[Optional[str]] = mapped_column(Text)
@@ -61,6 +72,15 @@ class User(Base):
     telephone_fixe: Mapped[Optional[str]] = mapped_column(String(20))
     telephone_mobile: Mapped[Optional[str]] = mapped_column(String(20))
     identifiants_legaux: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    
+    # Hiérarchie : Sous-comptes rattachés à un employeur (Dentiste/Admin)
+    employer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    employer: Mapped[Optional["User"]] = relationship(
+        "User", remote_side="User.id", foreign_keys="User.employer_id",
+        backref="team_members"
+    )
     
     # Multi-tenant : Relations
     cabinet_config: Mapped[Optional["CabinetConfig"]] = relationship(
@@ -74,6 +94,10 @@ class User(Base):
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    def get_employer_id(self) -> int:
+        """Retourne l'ID de l'employeur, ou son propre ID s'il est le compte principal."""
+        return self.employer_id if self.employer_id else self.id
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -384,6 +408,13 @@ class CabinetConfig(Base):
     
     # Gestion des contacts granulaires (Sprint 59)
     contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
+    
+    # QR Code Strategy (Elite v4.0)
+    qr_code_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    qr_code_type: Mapped[QRCodeType] = mapped_column(SQLEnum(QRCodeType), default=QRCodeType.VCARD, nullable=False)
+    qr_code_value: Mapped[Optional[str]] = mapped_column(String(500), nullable=True) # URL ou @handle
+    qr_code_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    qr_code_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Ex: "Suivez-nous sur Instagram"
     
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de {total_words} TTC ({total_amount} MAD).")

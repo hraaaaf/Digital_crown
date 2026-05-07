@@ -48,10 +48,10 @@ interface PatientDetails {
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [activeTab, setActiveTab] = useState<DocumentType>('ordonnance');
+  const [activeTab, setActiveTab] = useState<DocumentType>('certificat');
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
-  const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
+  const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('PREVIEW');
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<any>(null);
@@ -59,8 +59,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [certifType, setCertifType] = useState('Repos médical');
-  const [certifDays, setCertifDays] = useState(3);
-  const [items, setItems] = useState<PriceItem[]>([]);
+  const [certifDays, setCertifDays] = useState(5);
+  const [certifCustomMotif, setCertifCustomMotif] = useState('');
+  const [items, setItems] = useState<PriceItem[]>([
+    { id: 101, description: 'Consultation Spécialisée', dent: '-', price: 300 },
+    { id: 102, description: 'Détartrage et Polissage', dent: 'Haut/Bas', price: 600 },
+    { id: 103, description: 'Traitement de carie - Composite', dent: '26', price: 450 }
+  ]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
   const [installments, setInstallments] = useState<any[]>([]);
 
@@ -85,7 +90,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const generator = useDocumentGenerator({
-    patientId, patientDetails, activeTab, drugs, certifType, certifDays,
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments,
@@ -101,6 +106,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         if (d.medications) setDrugs(d.medications.map((m: any, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
           forme: m.forme || 'Sachets', posologie: m.posologie || '',
+          type: m.type || 'MEDICAMENT'
         })));
       } else if (type === 'certificat') {
         setActiveTab('certificat');
@@ -194,7 +200,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               drugs={drugs}
               setDrugs={setDrugs}
               onUpdateDrug={(id, field, val) => {
-                setDrugs(drugs.map(d => d.id === id ? { ...d, [field]: val } : d));
+                setDrugs(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
                 generator.setHasChanges(true);
               }}
               onRemoveDrug={(id) => {
@@ -205,6 +211,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
               onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
               hasChanges={generator.hasChanges}
+              coherenceWarnings={generator.coherenceWarnings}
             />
           )}
 
@@ -212,6 +219,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <CertificateForm
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
+              certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
               validationErrors={generator.validationErrors}
             />
           )}
@@ -231,6 +239,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
+              isDevis={activeTab === 'devis'}
               patientId={patientId || '0'} items={items} setItems={setItems}
               paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
               installments={installments} setInstallments={setInstallments}
@@ -274,9 +283,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setActSuggestions([]);
                 setActiveActSearchId(null);
               }}
-              calculateTotal={() => items.reduce((s, i) => s + (Number(i.price) || 0), 0)}
               validationErrors={generator.validationErrors}
-              coherenceWarnings={generator.coherenceWarnings}
             />
           )}
 
@@ -312,6 +319,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           aiReport={generator.aiReport}
           onGenerateAI={generator.handleGenerateAI}
           loadingAi={generator.loadingAi}
+          total={items.reduce((acc, i) => acc + (Number(i.price) || 0), 0)}
         />
       </div>
 

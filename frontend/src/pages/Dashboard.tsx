@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
             <Clock size={18} /> Activité Récente
           </h2>
           
-          <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] p-4 shadow-sm">
+          <div className="bg-card backdrop-blur-xl border border-border-main rounded-[2.5rem] p-4 shadow-sm">
             {stats?.recent_patients && stats.recent_patients.length > 0 ? (
               stats.recent_patients.map((patient, index) => {
                 if (!patient || !patient.nom) return null;
@@ -154,11 +154,11 @@ export const Dashboard: React.FC = () => {
                     )}
                   >
                     <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-blue-50/50 text-[#003380] rounded-xl flex items-center justify-center font-black text-xl border border-blue-100/50 group-hover:bg-[#003380] group-hover:text-white transition-all duration-300 shadow-sm">
+                      <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-xl border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm">
                         {(patient.nom || '?').charAt(0)}
                       </div>
                       <div>
-                        <h4 className="font-black text-[#003380] text-lg leading-none">
+                        <h4 className="font-black text-primary text-lg leading-none">
                           {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
                         </h4>
                         <p className="text-xs font-bold text-slate-400 mt-1.5 flex items-center gap-2">
@@ -170,7 +170,7 @@ export const Dashboard: React.FC = () => {
                       <span className="text-xs font-bold text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
                         {patient.time || 'Récemment'}
                       </span>
-                      <ChevronRight size={18} className="text-slate-300 group-hover:text-[#003380] transition-colors" />
+                      <ChevronRight size={18} className="text-text-muted group-hover:text-primary transition-colors" />
                     </div>
                   </Link>
                 );
@@ -189,15 +189,15 @@ export const Dashboard: React.FC = () => {
             <TrendingUp size={18} /> Statistiques
           </h2>
           
-          <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm flex flex-col gap-6">
+          <div className="bg-card backdrop-blur-xl border border-border-main rounded-[2.5rem] p-8 shadow-sm flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-center">
                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Patients</p>
-                <p className="text-3xl font-black text-[#003380]">{stats?.total_patients ?? 0}</p>
+                <p className="text-3xl font-black text-primary">{stats?.total_patients ?? 0}</p>
               </div>
               <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 text-center">
                 <p className="text-[10px] font-black text-blue-500 uppercase mb-1">Analyses</p>
-                <p className="text-3xl font-black text-[#003380]">{stats?.total_analyses ?? 0}</p>
+                <p className="text-3xl font-black text-primary">{stats?.total_analyses ?? 0}</p>
               </div>
             </div>
             
@@ -210,7 +210,7 @@ export const Dashboard: React.FC = () => {
                 {(stats?.weekly_activity || [0,0,0,0,0,0,0]).map((height, i) => (
                   <div key={i} className="w-full bg-slate-100 rounded-t-lg relative overflow-hidden h-full flex items-end">
                     <div 
-                      className="w-full bg-gradient-to-t from-[#003380] to-blue-500 rounded-t-lg transition-all duration-500"
+                      className="w-full bg-gradient-to-t from-primary to-accent rounded-t-lg transition-all duration-500"
                       style={{ height: `${height || 5}%` }}
                     />
                   </div>

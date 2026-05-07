@@ -13,28 +13,48 @@ logger = logging.getLogger(__name__)
 
 # Mapping des labels YOLO (Loki-Silvres / Dentex) vers les termes cliniques français
 PANORAMIC_LABELS_MAPPING = {
-    "Impacted": "Dent incluse",
-    "Caries": "Carie dentaire",
-    "Periapical Lesion": "Lésion périapicale",
-    "Deep Caries": "Carie profonde",
-    "Implant": "Implant dentaire",
-    "Crown": "Couronne / Prothèse",
-    "Endodontic": "Traitement canalaire",
-    "Missing": "Agénésie / Absence",
-    "Restoration": "Obturation / Composite"
+    "Caries": "Carie",
+    "Crown": "Couronne",
+    "Filling": "Obturation",
+    "Implant": "Implant",
+    "Malaligned": "Malposition",
+    "Mandibular Canal": "Canal Mandibulaire",
+    "Missing teeth": "Dent absente",
+    "Periapical lesion": "Lésion périapicale",
+    "Retained root": "Racine résiduelle",
+    "Root Canal Treatment": "Traitement endodontique",
+    "Root Piece": "Fragment radiculaire",
+    "Impacted tooth": "Dent incluse",
+    "Maxillary sinus": "Sinus maxillaire",
+    "Bone Loss": "Perte osseuse",
+    "Fractured teeth": "Dent fracturée",
+    "Permanent Teeth": "Dent permanente",
+    "Supra Eruption": "Égression",
+    "TAD": "Minivis (TAD)",
+    "Abutment": "Pilier implantaire",
+    "Attrition": "Attrition",
+    "Bone defect": "Défaut osseux",
+    "Gingival former": "Vis de cicatrisation",
+    "Metal band": "Bague orthodontique",
+    "Orthodontic brackets": "Bracket orthodontique",
+    "Permanent retainer": "Contention collée",
+    "Post-core": "Inlay-core",
+    "Plating": "Plaque d'ostéosynthèse",
+    "Wire": "Arc orthodontique",
+    "Cyst": "Kyste",
+    "Root resorption": "Résorption radiculaire",
+    "Primary teeth": "Dent temporaire"
 }
 
-# Mapping des indices (si le modèle renvoie des entiers)
-# Basé sur la nomenclature standard Dentex/YOLO
+# Mapping exact extrait des métadonnées du fichier best.pt (31 classes)
 PANORAMIC_INDEX_MAPPING = {
-    0: "Impacted",
-    1: "Caries",
-    2: "Periapical Lesion",
-    3: "Deep Caries",
-    4: "Implant",
-    5: "Crown",
-    6: "Endodontic",
-    7: "Restoration"
+    0: "Caries", 1: "Crown", 2: "Filling", 3: "Implant", 4: "Malaligned", 
+    5: "Mandibular Canal", 6: "Missing teeth", 7: "Periapical lesion", 8: "Retained root", 
+    9: "Root Canal Treatment", 10: "Root Piece", 11: "Impacted tooth", 12: "Maxillary sinus", 
+    13: "Bone Loss", 14: "Fractured teeth", 15: "Permanent Teeth", 16: "Supra Eruption", 
+    17: "TAD", 18: "Abutment", 19: "Attrition", 20: "Bone defect", 21: "Gingival former", 
+    22: "Metal band", 23: "Orthodontic brackets", 24: "Permanent retainer", 25: "Post-core", 
+    26: "Plating", 27: "Wire", 28: "Cyst", 29: "Root resorption", 30: "Primary teeth"
 }
 
 class PanoramicEngine:
@@ -45,10 +65,10 @@ class PanoramicEngine:
     def __init__(self):
         self.session = None
         self.is_ready = False
-        self.input_size = 640  # Standard YOLOv8/v11
+        self.input_size = 1280  # Le modèle Loki-Silvres attend 1280x1280
         
-        # Chemins potentiels
-        self.model_path = os.path.join("backend", "ai_models", "panoramic_model.onnx")
+        # Pointons vers le nouveau modèle optimisé (YOLOv8x-seg à 31 classes)
+        self.model_path = os.path.join("backend", "ai_models", "best.onnx")
         
     async def initialize(self):
         """Initialisation asynchrone appelée au démarrage de FastAPI."""
@@ -127,60 +147,201 @@ class PanoramicEngine:
             img_input, scale, (dw, dh) = self._preprocess(original_img)
             
             # 2. Inférence ONNX
-            start_time = time.time()
+            start_time = time.perf_counter()
             input_name = self.session.get_inputs()[0].name
             outputs = self.session.run(None, {input_name: img_input})
             
-            # YOLOv8/v11 output shape: [1, 4 + num_classes, 8400]
-            # On récupère le premier batch
+            # YOLOv8x-seg output shape: [1, 67, 33600]
             output = outputs[0][0] 
             
-            # 3. Post-processing
-            detections = []
-            conf_threshold = 0.25
+            # Tâche 3.1 : Tranchage du Tenseur et Vectorisation
+            output = output[:35, :] # Ignorer les 32 canaux de masque
+            output = output.T       # (33600, 35)
             
-            # Liste des classes (doit correspondre au modèle Loki-Silvres)
-            classes = list(PANORAMIC_INDEX_MAPPING.values())
+            scores = output[:, 4:35]
+            class_ids = np.argmax(scores, axis=1)
+            confidences = np.max(scores, axis=1)
             
-            # Transposer pour avoir [8400, 4 + num_classes]
-            output = output.transpose()
+            # Thresholding initial
+            conf_threshold = 0.15
+            mask = confidences > conf_threshold
             
-            for row in output:
-                scores = row[4:]
-                class_id = np.argmax(scores)
-                confidence = scores[class_id]
+            filtered_output = output[mask]
+            filtered_class_ids = class_ids[mask]
+            filtered_confidences = confidences[mask]
+            
+            detections_raw = []
+            if len(filtered_output) > 0:
+                boxes_np = filtered_output[:, :4]
+                xc = boxes_np[:, 0]
+                yc = boxes_np[:, 1]
+                w = boxes_np[:, 2]
+                h = boxes_np[:, 3]
                 
-                if confidence > conf_threshold:
-                    xc, yc, wb, hb = row[:4]
+                # Conversion top-left pour cv2.dnn.NMSBoxes
+                x_tl = (xc - w/2 - dw) / scale
+                y_tl = (yc - h/2 - dh) / scale
+                w_scaled = w / scale
+                h_scaled = h / scale
+                
+                bboxes_list = np.column_stack((x_tl, y_tl, w_scaled, h_scaled)).tolist()
+                scores_list = filtered_confidences.tolist()
+                
+                # Tâche 3.1 : Exécution NMSBoxes vectorisée (Class-aware NMS)
+                # On ajoute un grand décalage basé sur la classe pour séparer mathématiquement les classes lors du NMS
+                max_coord = 10000
+                bboxes_shifted = []
+                for i, box in enumerate(bboxes_list):
+                    c = filtered_class_ids[i]
+                    bboxes_shifted.append([box[0] + c * max_coord, box[1] + c * max_coord, box[2], box[3]])
                     
-                    # Conversion vers coordonnées relatives (0-1) dans le canevas 640x640
-                    # Puis conversion vers l'image originale en enlevant le padding
-                    x_rel = (xc - dw) / (self.input_size - 2*dw)
-                    y_rel = (yc - dh) / (self.input_size - 2*dh)
+                indices = cv2.dnn.NMSBoxes(bboxes_shifted, scores_list, conf_threshold, 0.45)
+                indices = indices.flatten() if len(indices) > 0 else []
+                
+                for i in indices:
+                    x, y, bw, bh = bboxes_list[i]
+                    x1, y1 = x, y
+                    x2, y2 = x + bw, y + bh
+                    class_id = filtered_class_ids[i]
+                    conf = scores_list[i]
                     
-                    # Mapping FDI
-                    tooth_fdi = self._map_fdi_refined(x_rel, y_rel)
-                    
-                    # Bounding Box en pixels (format x1, y1, x2, y2)
-                    x1 = (xc - wb/2 - dw) / scale
-                    y1 = (yc - hb/2 - dh) / scale
-                    x2 = (xc + wb/2 - dw) / scale
-                    y2 = (yc + hb/2 - dh) / scale
-                    
-                    detections.append({
-                        "pathology": classes[class_id] if class_id < len(classes) else "unknown",
-                        "confidence": float(confidence),
-                        "tooth": int(tooth_fdi),
+                    detections_raw.append({
+                        "class_id": class_id,
+                        "pathology": PANORAMIC_INDEX_MAPPING.get(class_id, "Unknown"),
+                        "confidence": float(conf),
                         "bbox": [float(round(x1, 1)), float(round(y1, 1)), float(round(x2, 1)), float(round(y2, 1))]
                     })
 
-            # 4. Suppression des doublons (NMS simplifié)
-            final_detections = self._apply_nms(detections)
+            # Tâche 3.2 : Heuristique d'Assignation FDI via Barycentre Dynamique
+            teeth_centers = []
+            for d in detections_raw:
+                bbox = d["bbox"]
+                cx = (bbox[0] + bbox[2]) / 2
+                cy = (bbox[1] + bbox[3]) / 2
+                # Considérer les dents permanentes (15), primaires (30) et quelques ancres fiables
+                if d["class_id"] in [1, 3, 6, 11, 14, 15, 30]:
+                    teeth_centers.append((cx, cy))
             
-            exec_time = time.time() - start_time
+            if teeth_centers:
+                avg_cx = sum(c[0] for c in teeth_centers) / len(teeth_centers)
+                avg_cy = sum(c[1] for c in teeth_centers) / len(teeth_centers)
+            else:
+                avg_cx = original_img.shape[1] / 2
+                avg_cy = original_img.shape[0] / 2
+
+            # Calcul de la largeur moyenne d'une dent (pour la détection des gaps)
+            tooth_widths = [d["bbox"][2] - d["bbox"][0] for d in detections_raw if d["class_id"] in [1, 3, 6, 11, 14, 15, 30]]
+            avg_width = sum(tooth_widths) / len(tooth_widths) if tooth_widths else original_img.shape[1] / 16
+
+            # Tâche 3.2 : Clustering et Assignation FDI Intelligente (Gap-Aware)
+            general_findings = []
+            tooth_items = []
+            
+            for d in detections_raw:
+                if d["class_id"] in [5, 12, 13, 20, 28]: # Canal mand., Sinus, Perte osseuse, Défaut, Kyste
+                    general_findings.append({
+                        "label": PANORAMIC_LABELS_MAPPING.get(d["pathology"], d["pathology"]),
+                        "confidence": d["confidence"],
+                        "bbox": {
+                            "x_min": d["bbox"][0], "y_min": d["bbox"][1],
+                            "x_max": d["bbox"][2], "y_max": d["bbox"][3],
+                            "confidence": d["confidence"]
+                        }
+                    })
+                else:
+                    tooth_items.append(d)
+
+            # Division en quadrants
+            quadrants = {1: [], 2: [], 3: [], 4: []}
+            for d in tooth_items:
+                bbox = d["bbox"]
+                cx = (bbox[0] + bbox[2]) / 2
+                cy = (bbox[1] + bbox[3]) / 2
+                is_upper = cy < avg_cy
+                is_right_side = cx < avg_cx # Droite patient = Gauche image (X petit)
+                q = (1 if is_right_side else 2) if is_upper else (4 if is_right_side else 3)
+                quadrants[q].append({"det": d, "cx": cx})
+
+            teeth_map = {}
+            for q, items in quadrants.items():
+                if not items: continue
+                
+                # Tri depuis la ligne médiane vers l'extérieur
+                # Q1 et Q4 sont à gauche de l'image (X < avg_cx). Pour partir du centre (avg_cx) vers l'extérieur, on doit aller de grand X vers petit X (reverse=True)
+                reverse_sort = True if q in [1, 4] else False
+                items.sort(key=lambda x: x["cx"], reverse=reverse_sort)
+                
+                # Regroupement des détections superposées (ex: Carie + Dent = même cluster)
+                clusters = []
+                for item in items:
+                    placed = False
+                    for cluster in clusters:
+                        if abs(item["cx"] - cluster["cx"]) < avg_width * 0.6:
+                            cluster["items"].append(item["det"])
+                            placed = True
+                            break
+                    if not placed:
+                        clusters.append({"cx": item["cx"], "items": [item["det"]]})
+                
+                # Assignation des numéros avec détection d'espaces (gaps)
+                current_tooth_num = 1
+                prev_cx = avg_cx # Départ au milieu
+                
+                for cluster in clusters:
+                    dist_to_prev = abs(cluster["cx"] - prev_cx)
+                    
+                    if prev_cx != avg_cx: # Sauf pour la première dent
+                        # Combien d'espaces de dents on a franchi ?
+                        gaps = int(round(dist_to_prev / avg_width))
+                        if gaps > 1:
+                            current_tooth_num += (gaps - 1)
+                            
+                    if current_tooth_num > 8:
+                        current_tooth_num = 8
+                        
+                    fdi = q * 10 + current_tooth_num
+                    
+                    if fdi not in teeth_map:
+                        teeth_map[fdi] = {
+                            "fdi_number": fdi,
+                            "bbox": None,
+                            "findings": []
+                        }
+                    
+                    for d in cluster["items"]:
+                        label_fr = PANORAMIC_LABELS_MAPPING.get(d["pathology"], d["pathology"])
+                        finding = {
+                            "label": label_fr,
+                            "confidence": d["confidence"],
+                            "bbox": {
+                                "x_min": d["bbox"][0], "y_min": d["bbox"][1],
+                                "x_max": d["bbox"][2], "y_max": d["bbox"][3],
+                                "confidence": d["confidence"]
+                            }
+                        }
+                        if d["class_id"] in [15, 30]:
+                            teeth_map[fdi]["bbox"] = finding["bbox"]
+                        else:
+                            teeth_map[fdi]["findings"].append(finding)
+                            
+                    prev_cx = cluster["cx"]
+                    current_tooth_num += 1
+
+            # Fallback pour les dents sans bounding box "Permanent Tooth"
+            for fdi, tooth in teeth_map.items():
+                if tooth["bbox"] is None and tooth["findings"]:
+                    tooth["bbox"] = tooth["findings"][0]["bbox"]
+            
+            exec_time = time.perf_counter() - start_time
+            
+            full_analysis = {
+                "teeth": list(teeth_map.values()),
+                "general_findings": general_findings
+            }
+
             return {
                 "status": "SUCCESS",
-                "detections": final_detections,
+                "detections_data": full_analysis,
                 "processing_time_ms": round(exec_time * 1000, 2),
                 "mode_inference": "PRODUCTION_ONNX_LOKI"
             }
@@ -189,67 +350,14 @@ class PanoramicEngine:
             logger.error(f"PanoramicEngine : Erreur d'inférence : {e}")
             return self._run_simulation()
 
-    def _map_fdi_refined(self, x_rel: float, y_rel: float) -> int:
-        """Mapping FDI avec compensation de la courbure occlusale (Smile Curve)."""
-        x_rel = max(0, min(1, x_rel))
-        y_rel = max(0, min(1, y_rel))
-        
-        # Équation simplifiée de la Smile Curve (parabole)
-        curvature = 0.15
-        center_y = 0.52
-        occlusal_y = curvature * (x_rel - 0.5)**2 + center_y
-        
-        is_upper = y_rel < occlusal_y
-        is_right_side = x_rel < 0.5 # Radio inversée : droite patient = gauche image
-        
-        if is_upper:
-            quadrant = 1 if is_right_side else 2
-        else:
-            quadrant = 4 if is_right_side else 3
-            
-        # Distribution horizontale des dents
-        dist = abs(x_rel - 0.5) * 2
-        if dist < 0.08: tooth = 1
-        elif dist < 0.14: tooth = 2
-        elif dist < 0.20: tooth = 3
-        elif dist < 0.28: tooth = 4
-        elif dist < 0.36: tooth = 5
-        elif dist < 0.55: tooth = 6
-        elif dist < 0.75: tooth = 7
-        else: tooth = 8
-        
-        return quadrant * 10 + tooth
-
-    def _apply_nms(self, detections, iou_threshold=0.45):
-        """Non-Maximum Suppression simplifiée par proximité."""
-        if not detections: return []
-        sorted_dets = sorted(detections, key=lambda x: x['confidence'], reverse=True)
-        keep = []
-        
-        for det in sorted_dets:
-            overlap = False
-            for k in keep:
-                if k['tooth'] == det['tooth'] and k['pathology'] == det['pathology']:
-                    # Calcul de distance des centres
-                    b1, b2 = det['bbox'], k['bbox']
-                    c1 = [(b1[0]+b1[2])/2, (b1[1]+b1[3])/2]
-                    c2 = [(b2[0]+b2[2])/2, (b2[1]+b2[3])/2]
-                    dist = ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
-                    if dist < 50: # Seuil de proximité en pixels
-                        overlap = True
-                        break
-            if not overlap:
-                keep.append(det)
-        return keep
-
     def _run_simulation(self):
         """Mode dégradé si le modèle est absent."""
         return {
             "status": "MOCK",
-            "detections": [
-                {"tooth": 18, "pathology": "Impacted", "confidence": 0.95, "bbox": [50, 50, 150, 150]},
-                {"tooth": 36, "pathology": "Caries", "confidence": 0.85, "bbox": [400, 300, 480, 380]}
-            ],
+            "detections_data": {
+                "teeth": [],
+                "general_findings": []
+            },
             "processing_time_ms": 0,
             "mode_inference": "MOCK_EXPERT"
         }

@@ -1,0 +1,115 @@
+{
+  "act_code": "germectomie",
+  "act_names": [
+    "Germectomie",
+    "Ablation germe dentaire",
+    "Germectomie sagesse",
+    "Ablation germe inclus"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "OPG + CBCT — localisation précise du germe",
+      "critical": true
+    },
+    {
+      "id": "age",
+      "label": "Âge optimal : 14-18 ans (germe 2/3 formé)",
+      "critical": false
+    },
+    {
+      "id": "consent",
+      "label": "Consentement parents + patient (mineur)",
+      "critical": true
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie générale ou sédation évaluée",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Repérage 3D du germe (CBCT)",
+      "tip": "Distance nerf, profondeur, angulation"
+    },
+    {
+      "order": 2,
+      "label": "Anesthésie profonde bloc + infiltration",
+      "tip": "Prémédication anxiolytique si patient anxieux"
+    },
+    {
+      "order": 3,
+      "label": "Incision et décollement avec visualisation osseuse",
+      "tip": "Lambeau d'accès adapté à la profondeur du germe"
+    },
+    {
+      "order": 4,
+      "label": "Ostéotomie soigneuse — dégager la couronne",
+      "tip": "Fraise chirurgicale sous irrigation — éviter chaleur"
+    },
+    {
+      "order": 5,
+      "label": "Extraction germe intact si possible",
+      "tip": "Germe non formé = plus friable — cuillère à curette"
+    },
+    {
+      "order": 6,
+      "label": "Curetage + suture + contrôle radio",
+      "tip": "Radio postop pour vérifier l'absence de résidu"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Lésion du nerf alvéolaire",
+      "mitigation": "Étude CBCT rigoureuse — fragmenter si trop proche"
+    },
+    {
+      "risk": "Germe laissé en place (incomplet)",
+      "mitigation": "Radio postop systématique — reprendre si résidu visible"
+    },
+    {
+      "risk": "Infection postopératoire",
+      "mitigation": "Antibioprophylaxie systématique + bains CHX"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 5 jours"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 5 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Chlorhexidine 0,12%",
+      "dose_adult": "Bain de bouche × 2/j — 7 jours"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Compression 30 min — glaçage externe 20 min/heure"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle froide 48h — antibiotiques complets à prendre"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV ablation fils J7 + contrôle radio à 3 mois"
+    }
+  ]
+}

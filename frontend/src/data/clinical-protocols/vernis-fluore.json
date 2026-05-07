@@ -1,0 +1,100 @@
+{
+  "act_code": "vernis-fluore",
+  "act_names": [
+    "Application vernis fluoré",
+    "Vernis fluoré",
+    "Fluoration topique",
+    "Prévention caries fluorure"
+  ],
+  "difficulty": "routine",
+  "duration_min": 20,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée (risque carieux élevé ou enfant)",
+      "critical": false
+    },
+    {
+      "id": "hygiene",
+      "label": "Détartrage + polissage préalable si tartre présent",
+      "critical": false
+    },
+    {
+      "id": "seche",
+      "label": "Surfaces séchées mais non déshydratées",
+      "critical": false
+    },
+    {
+      "id": "produit",
+      "label": "Vernis NaF 5% (Duraphat) ou équivalent prêt",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Détartrage et polissage si nécessaire",
+      "tip": "Surface propre = meilleure pénétration fluorures"
+    },
+    {
+      "order": 2,
+      "label": "Séchage relatif (pas de dessiccation)",
+      "tip": "Air doux — préserver le film salivaire résiduel"
+    },
+    {
+      "order": 3,
+      "label": "Application vernis par quadrant",
+      "tip": "Pinceau fin — commencer par les sillons et faces proximales"
+    },
+    {
+      "order": 4,
+      "label": "Laisser prise initiale 1 minute",
+      "tip": "Ne pas rincer — laisser le vernis durcir avec la salive"
+    },
+    {
+      "order": 5,
+      "label": "Instructions post-application",
+      "tip": "Alimentation molle et liquide pendant 4-6h"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Allergie aux colophanes (composant du vernis)",
+      "mitigation": "Interrogatoire allergies avant application — alternative gel NaF"
+    },
+    {
+      "risk": "Ingestion excessive",
+      "mitigation": "Doses pédiatriques respectées — 0,25ml max enfant < 3 ans"
+    },
+    {
+      "risk": "Coloration temporaire des dents",
+      "mitigation": "Prévenir le patient — disparaît en 24-48h"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "antiseptic",
+      "name": "Vernis NaF 5% (Duraphat / Enamelast)",
+      "dose_adult": "0,25 à 0,5 ml par application"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Vernis NaF 5%",
+      "dose_child": "0,25 ml max < 3 ans"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas manger, boire chaud ni se brosser pendant 4-6h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation normale dès le lendemain"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Brossage habituel reprend le lendemain matin"
+    }
+  ]
+}

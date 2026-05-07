@@ -58,13 +58,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
     expose_headers=["X-Total-Count"],
 )
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -77,6 +77,7 @@ app.include_router(templates.router, prefix="/api/templates", tags=["Templates"]
 app.include_router(prescriptions.prescription_router, prefix="/api/prescriptions", tags=["Prescriptions"])
 app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes Cliniques"])
 app.include_router(accounting.router, prefix="/api/accounting", tags=["Accounting & Payments"])
+app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 
 # --- STATIC FILES ---
 # Placé à la fin pour éviter de masquer des routes d'API

@@ -1,14 +1,18 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
+
+load_dotenv()
 
 # --- PASSWORD HASHING ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # --- CONFIGURATION DE LA CONNEXION (POSTGRESQL) ---
-# On cible la BONNE base (digitalcrown_db)
-# On FORCE le client_encoding=utf8 directement dans l'URL (Fix Nucléaire)
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:admin@localhost/digitalcrown_db?client_encoding=utf8"
+# Priorité à la variable d'environnement DATABASE_URL, sinon fallback sécurisé.
+DEFAULT_DB_URL = "postgresql://postgres:admin@localhost/digitalcrown_db?client_encoding=utf8"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
 
 # --- INITIALISATION DU MOTEUR ---
 engine = create_engine(
@@ -21,6 +25,7 @@ SessionLocal = sessionmaker(
     autoflush=False, 
     bind=engine
 )
+
 
 def get_db():
     db = SessionLocal()
@@ -55,6 +60,13 @@ def check_and_update_db():
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS contacts_json JSONB DEFAULT '{}'"))
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_note_template TEXT DEFAULT 'Arrêtée la présente note à la somme de {total_words} TTC.'"))
             conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_devis_template TEXT DEFAULT 'Arrêté le présent devis à la somme de {total_words} TTC.'"))
+            
+            # --- QR CODE STRATEGY ---
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_enabled BOOLEAN DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_type VARCHAR DEFAULT 'VCARD'"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_value VARCHAR(500)"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_color VARCHAR(7)"))
+            conn.execute(text("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_label VARCHAR(100)"))
             
             # --- MIGRATIONS PATIENTS ---
             conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS adresse VARCHAR(255)"))

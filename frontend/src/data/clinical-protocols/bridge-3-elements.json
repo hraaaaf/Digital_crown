@@ -1,0 +1,110 @@
+{
+  "act_code": "bridge-3-elements",
+  "act_names": [
+    "Bridge 3 éléments",
+    "Pont dentaire",
+    "Bridge céramo-métallique",
+    "Prothèse fixe bridge"
+  ],
+  "difficulty": "complex",
+  "duration_min": 90,
+  "checklist": [
+    {
+      "id": "piliers",
+      "label": "Piliers vérifiés (vitalité, paro, ferrule)",
+      "critical": true
+    },
+    {
+      "id": "edente",
+      "label": "Espace édenté mesuré — largeur pont adaptée",
+      "critical": false
+    },
+    {
+      "id": "antagoniste",
+      "label": "Occlusion antagoniste analysée",
+      "critical": true
+    },
+    {
+      "id": "paro",
+      "label": "Parodonte piliers parfaitement sain",
+      "critical": true
+    },
+    {
+      "id": "patient",
+      "label": "Hygiène sous-pontique expliquée au patient",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Préparation simultanée des 2 piliers",
+      "tip": "Parallélisme absolu — 6° convergence max — dépouilles éliminées"
+    },
+    {
+      "order": 2,
+      "label": "Empreinte globale de précision",
+      "tip": "Rétraction gingivale double fil — chaque pilier accessible"
+    },
+    {
+      "order": 3,
+      "label": "Provisoire bridge — vérification fonctionnelle",
+      "tip": "Provisoire long terme si cicatrisation requise"
+    },
+    {
+      "order": 4,
+      "label": "Essayage armature métal ou zircone",
+      "tip": "Vérifier intégration marginale, contacts, espace pontique"
+    },
+    {
+      "order": 5,
+      "label": "Essayage bridge complet (bisque)",
+      "tip": "Teinte, occlusion, phonétique — accord patient écrit"
+    },
+    {
+      "order": 6,
+      "label": "Scellement définitif + contrôle occlusion",
+      "tip": "Ciment verre ionomère ou composite dual — selon matériau"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Défaut de parallélisme piliers",
+      "mitigation": "Trépied d'axe + radio pendant préparation"
+    },
+    {
+      "risk": "Hygiène sous-pontique négligée",
+      "mitigation": "Enseigner le fil super-floss et la brossette avant pose"
+    },
+    {
+      "risk": "Fracture de la céramique",
+      "mitigation": "Epaisseur céramo adaptée — no thin porcelain — charges occlusales analysées"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml par pilier"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si gêne post-scellement"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Provisoire fragile — alimentation molle et douce"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Apprendre à utiliser le super-floss sous le pont"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Maintenance 6 mois — inspection sous-pontique systématique"
+    }
+  ]
+}

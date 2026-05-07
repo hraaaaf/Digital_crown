@@ -14,13 +14,13 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Synchronisation d'Historique** : Import automatique de 50+ dossiers patients "Legacy" avec extraction des montants via PyPDF2.
 - [x] **Navigation Fluide** : Liens directs entre la comptabilité et le hub de documents du patient.
 
-## ✅ 2. Agenda Clinique (TERMINÉ)
-**Statut :** Déployé (v1.2)
+## 🚧 2. Agenda Clinique (PARTIELLEMENT TERMINÉ)
+**Statut :** Déployé (v1.2) — IA Booking non implémentée
 **Spécialiste :** PixelMaster & Architector
 
 - [x] **Modèle de Données** : Implémentation complète `Appointment` avec gestion des statuts.
 - [x] **Modification Interactive** : Édition des créneaux en direct via modal intelligent.
-- [x] **Smart Booking** : Intégration de l'IA pour suggérer les durées de RDV selon l'historique.
+- [ ] **Smart Booking** : Intégration de l'IA pour suggérer les durées de RDV selon l'historique.
 
 ---
 
@@ -45,7 +45,7 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## ✅ 5. Évolutions UI - Liste des Patients (MIS À JOUR)
+## 🚧 5. Évolutions UI - Liste des Patients
 **Statut :** Partiellement Déployé (v1.3)
 **Priorité :** Haute
 
@@ -104,24 +104,24 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## ✅ 10. Smart QR Validation & Digital Trust (TERMINÉ)
-**Statut :** Déployé (v5.0)
+## 🚧 10. Smart QR Validation & Digital Trust
+**Statut :** En cours — Service backend créé, non intégré aux flux
 **Priorité :** Confort Elite
 **Spécialiste :** Architector & Financia
 
-- [x] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code.
-- [x] **Signature Numérique** : Génération Base64 via `qr_service` intégrée aux flux WeasyPrint.
-- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct (Prochaine étape).
+- [ ] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code. *(Le `qr_service.py` existe mais n'est intégré dans aucun générateur PDF ni exposé côté frontend.)*
+- [ ] **Signature Numérique** : Injection du QR Base64 dans les flux ReportLab/WeasyPrint. *(Non connecté.)*
+- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct (v4.5).
 
 ---
 
-## ✅ 11. Dynamic Theme Engine & Personnalisation Ghost Elite (TERMINÉ)
-**Statut :** Déployé (v5.0)
+## 🚧 11. Dynamic Theme Engine & Personnalisation Ghost Elite
+**Statut :** Partiellement Déployé (v5.0) — Thèmes CSS OK, sélecteur couleur manquant
 **Spécialiste :** PixelMaster
 
 - [x] **Ghost Elite Dashboard** : Refonte totale basée sur les variables CSS (`--primary`, `--secondary`).
-- [x] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire) directement dans les Settings avec persistence BDD.
-- [x] **Visual Insights** : Intégration de graphiques de performance (Recharts) dans le Studio Comptable.
+- [x] **Thèmes Pré-définis** : 3 thèmes fonctionnels via `data-theme` (Elite, Emerald, Prestige) dans `index.css`.
+- [ ] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire) directement dans les Settings avec persistence BDD. *(Aucun ColorPicker implémenté dans `Settings.tsx`.)*
 - [x] **UX Zero-Friction** : Barre d'actions rapides (Quick Acts) et autocomplétion intelligente.
 
 ---
@@ -140,7 +140,7 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 **Statut :** En cours (v5.1)
 **Priorité :** Moyenne
 
-- [x] **Comptabilité Analytique** : Graphiques de revenus (AreaChart) intégrés à la gestion des honoraires.
+- [x] **Comptabilité Analytique** : Graphiques de revenus (Recharts) intégrés à la page Comptabilité.
 - [ ] **Analyse de Rentabilité par Acte** : Visualisation des actes les plus performants.
 - [ ] **Reporting Mensuel Automatisé** : Génération d'un bilan financier PDF avec graphiques WeasyPrint.
 
@@ -158,14 +158,17 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 👩‍💼 15. Gestion des Rôles : Mode Assistante du Cabinet
-**Statut :** Planifié
+## 🚧 15. Gestion des Rôles : Mode Assistante du Cabinet
+**Statut :** En cours (Phase 1 & 2 déployées)
 **Priorité :** Élevée
 **Spécialiste :** Architector & PixelMaster
 
 Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le personnel d'accueil et d'assistance, avec un contrôle granulaire des accès (RBAC - Role-Based Access Control).
 
-- [ ] **Sous-comptes Liés** : Création de profils "Assistante" rattachés au compte Maître du médecin (ou de la clinique) avec leurs propres identifiants.
+- [x] **Sous-comptes Liés** : Création de profils "Assistante" rattachés au compte Maître du médecin via `employer_id` avec CRUD complet (`/api/team/`).
+- [x] **Interface de Gestion d'Équipe** : Onglet "Mon Équipe" dans les Settings pour créer, suspendre et supprimer des sous-comptes.
+- [x] **Suspension d'Accès** : Bouton de suspension instantanée (toggle `is_active`) avec blocage du login.
+- [x] **RBAC Backend** : Dépendance `require_employer()` pour bloquer les opérations de gestion aux sous-comptes.
 - [ ] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante mettra en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, plutôt que les statistiques financières.
 - [ ] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès aux données sensibles (Chiffre d'affaires global, diagnostics IA poussés, honoraires spécifiques) selon les permissions accordées par le médecin.
 - [ ] **Workflow de Pré-Saisie** : Capacité pour l'assistante de créer le dossier patient, de remplir le questionnaire médical de base et de scanner les documents (carte d'identité, mutuelle) avant l'entrée en salle de soins.
@@ -197,4 +200,4 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-*Dernière mise à jour : 29 Avril 2026 par Antigravity Staff Engineering (v1.3 Habits & Learning Release).*
+*Dernière mise à jour : 05 Mai 2026 — Audit de cohérence Roadmap vs Codebase.*

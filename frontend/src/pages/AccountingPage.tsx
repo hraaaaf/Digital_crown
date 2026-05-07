@@ -123,7 +123,7 @@ export const AccountingPage = () => {
       case 'CNSS': return <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black">CNSS</span>;
       case 'MUTUELLE_FAR': return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-[10px] font-black">FAR</span>;
       case 'PRIVEE': return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black">PRIVÉE</span>;
-      default: return <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black">AUCUNE</span>;
+      default: return <span className="px-2 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black">AUCUNE</span>;
     }
   };
 
@@ -154,7 +154,7 @@ export const AccountingPage = () => {
   return (
     <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-8 animate-in fade-in duration-700">
       
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card/80 backdrop-blur-xl border border-border-main p-8 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20" style={{ backgroundColor: 'var(--primary)' }}>
             <Receipt size={28} />
@@ -367,7 +367,7 @@ export const AccountingPage = () => {
                   <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-xs border border-slate-200 group-hover:bg-primary group-hover:text-white transition-all" style={{ color: 'var(--primary)' }}>
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center font-black text-xs border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all" style={{ color: 'var(--primary)' }}>
                           {item.patient_name.charAt(0)}
                         </div>
                         <Link 
@@ -396,7 +396,7 @@ export const AccountingPage = () => {
                           href={`http://localhost:8000/${item.file_url}`} 
                           target="_blank" 
                           rel="noreferrer"
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-primary hover:text-white transition-all border border-blue-100"
+                          className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20"
                         >
                           <Eye size={16} />
                         </a>

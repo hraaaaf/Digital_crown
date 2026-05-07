@@ -23,6 +23,7 @@ import { SetupWizard } from './features/admin/SetupWizard';
 import { WelcomeScreen } from './pages/WelcomeScreen';
 import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/auth';
+import { MarketingDemo } from './components/MarketingDemo';
 
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
@@ -149,6 +150,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <MarketingDemo />
       <Routes>
         {/* Route d'entrée absolue (sans protection) */}
         <Route path="/welcome" element={<WelcomeScreen />} />

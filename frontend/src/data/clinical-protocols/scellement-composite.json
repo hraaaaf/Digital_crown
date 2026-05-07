@@ -1,0 +1,31 @@
+{
+  "act_code": "scellement-composite",
+  "act_names": ["Composite", "Obturation", "Scellement", "Plombage blanc", "Resine"],
+  "difficulty": "routine",
+  "duration_min": 30,
+  "checklist": [
+    { "id": "digue", "label": "Digue obligatoire", "critical": true },
+    { "id": "surface", "label": "Surface parfaitement sèche", "critical": true },
+    { "id": "lampe", "label": "Lampe photopolymérisation vérifiée", "critical": false }
+  ],
+  "steps": [
+    { "order": 1, "label": "Préparation cavité", "tip": "Économie tissulaire (A minima)" },
+    { "order": 2, "label": "Mordançage (Acide)", "tip": "Acide phosphorique 15-30s" },
+    { "order": 3, "label": "Rinçage et séchage doux", "tip": "Ne pas dessécher la dentine" },
+    { "order": 4, "label": "Application adhésif", "tip": "Frotter vigoureusement, étaler à l'air" },
+    { "order": 5, "label": "Stratification composite (2mm max)", "tip": "Polymérisation par couches" },
+    { "order": 6, "label": "Finitions et occlusion", "tip": "Fraises diamantées fines + papier articulé" }
+  ],
+  "pitfalls": [
+    { "risk": "Contamination salivaire", "mitigation": "Reprendre depuis le mordançage" },
+    { "risk": "Sous-contour", "mitigation": "Retirer et refaire la couche" },
+    { "risk": "Douleur post-op", "mitigation": "Vérifier occlusion et points de contact" }
+  ],
+  "drugs": [
+    { "category": "anesthesia", "name": "Articaïne 4% si nécessaire", "dose_adult": "1/2 ou 1 carpule" }
+  ],
+  "patient_instructions": [
+    { "timing": "immediately", "instruction": "Éviter les colorants (café, thé) 48h" },
+    { "timing": "day1", "instruction": "Vérifier la mastication, revenir si gêne" }
+  ]
+}

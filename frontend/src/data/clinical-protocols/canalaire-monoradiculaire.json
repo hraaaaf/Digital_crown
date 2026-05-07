@@ -1,0 +1,115 @@
+{
+  "act_code": "canalaire-monoradiculaire",
+  "act_names": [
+    "Traitement canalaire monoradiculé",
+    "Dévitalisation incisive",
+    "RCT monoradiculaire",
+    "Endodontie incisive canine"
+  ],
+  "difficulty": "routine",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Radio préop : longueur, courbure, calcifications",
+      "critical": true
+    },
+    {
+      "id": "digue",
+      "label": "Digue posée — obligatoire pour l'endodontie",
+      "critical": true
+    },
+    {
+      "id": "apex",
+      "label": "Apex locator calibré et disponible",
+      "critical": false
+    },
+    {
+      "id": "limes",
+      "label": "Séquence limes prête (K-files + NiTi)",
+      "critical": false
+    },
+    {
+      "id": "irrigant",
+      "label": "NaOCl 2,5 à 5,25% préparé",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Accès cavitaire — toit chambre totalement éliminé",
+      "tip": "Fraise boule + Endo Z — accès en ligne droite"
+    },
+    {
+      "order": 2,
+      "label": "Glide path — lime manuelle 10-15 jusqu'à la LT",
+      "tip": "EDTA crémeux si résistance — ne jamais forcer"
+    },
+    {
+      "order": 3,
+      "label": "Mise en forme NiTi Crown-Down",
+      "tip": "Un instrument NiTi cassé = stop et référer"
+    },
+    {
+      "order": 4,
+      "label": "Irrigation abondante NaOCl entre chaque lime",
+      "tip": "Aiguille calibrée 30G — jamais sous pression"
+    },
+    {
+      "order": 5,
+      "label": "Irrigation finale EDTA 17% + activation",
+      "tip": "1 min EDTA puis rinçage NaOCl final"
+    },
+    {
+      "order": 6,
+      "label": "Obturation gutta-percha + ciment AH Plus",
+      "tip": "Condensation latérale ou thermo — vérifier radio finale"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Instrument fracturé",
+      "mitigation": "Pas de forçage — NiTi à usage unique recommandé"
+    },
+    {
+      "risk": "Injection NaOCl sous pression",
+      "mitigation": "Aiguille courte avec orifice latéral — ne jamais forcer"
+    },
+    {
+      "risk": "Sous-instrumentation",
+      "mitigation": "Détermination longueur : apex locator + radio"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml bloc + infiltration"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 2 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Hydroxyde de calcium inter-séances",
+      "dose_adult": "Si traitement en 2 temps"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Légère sensibilité à la pression normale 48h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter de mordre côté traité jusqu'à la couronne"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV couronne ou reconstitution sous 3 mois maximum"
+    }
+  ]
+}

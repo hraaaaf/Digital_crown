@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowLeft,
   MapPin,
+  MessageSquare,
   Image as ImageIcon,
   Check,
   FileImage,
@@ -20,7 +21,9 @@ import {
   X,
   Plus,
   Moon,
-  Sun
+  Sun,
+  QrCode,
+  HeartPulse
 } from 'lucide-react';
 import { cabinetApi } from '../../services/templateApi';
 import { cn } from '../../utils/cn';
@@ -80,18 +83,12 @@ export const SetupWizard: React.FC = () => {
   // État Design & Ambiance
   const [headerOption, setHeaderOption] = useState<HeaderOption>('auto');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('classic');
-  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'prestige'>(() => {
+  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'rose' | 'prestige'>(() => {
     return (localStorage.getItem('digitalcrown_theme') as any) || 'elite';
   });
   const [selectedIdentity, setSelectedIdentity] = useState<string>(BRAND_IDENTITIES[0].id);
   const [selectedFont, setSelectedFont] = useState<string>(PREMIUM_FONTS[0].id);
   const [showArKeyboard, setShowArKeyboard] = useState<{ show: boolean, target: 'identity' | 'custom_spec' }>({ show: false, target: 'identity' });
-
-  // Persistance du thème
-  useEffect(() => {
-    document.body.dataset.theme = selectedTheme;
-    localStorage.setItem('digitalcrown_theme', selectedTheme);
-  }, [selectedTheme]);
 
   // Médias
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -99,22 +96,32 @@ export const SetupWizard: React.FC = () => {
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
   const [margins, setMargins] = useState({ top: 3.0, bottom: 2.5 });
+  const [qrConfig, setQrConfig] = useState({
+    enabled: true,
+    type: 'VCARD' as 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'VALIDATION' | 'PAYMENT',
+    value: '',
+    label: 'Scannez pour me contacter',
+    color: null as string | null
+  });
 
-  // Effet pour appliquer le thème visuel dynamiquement
+  // Gestion unifiée du thème et de l'identité visuelle
   useEffect(() => {
     const brandIdentity = BRAND_IDENTITIES.find(i => i.id === selectedIdentity) || BRAND_IDENTITIES[0];
-    document.body.dataset.theme = selectedTheme === 'elite' ? '' : selectedTheme;
-
     const root = document.documentElement;
+
+    // Application du thème global
+    const themeValue = selectedTheme === 'elite' ? '' : selectedTheme;
+    root.dataset.theme = themeValue;
+    localStorage.setItem('digitalcrown_theme', selectedTheme);
+
+    // Application des couleurs de marque
     root.style.setProperty('--primary', brandIdentity.primary);
     root.style.setProperty('--secondary', brandIdentity.secondary);
     root.style.setProperty('--accent', brandIdentity.accent);
 
+    // Nettoyage lors du démontage (optionnel car c'est une SPA, mais recommandé)
     return () => {
-      document.body.dataset.theme = '';
-      root.style.removeProperty('--primary');
-      root.style.removeProperty('--secondary');
-      root.style.removeProperty('--accent');
+      // On ne reset pas forcément le localStorage ici pour garder la préférence
     };
   }, [selectedTheme, selectedIdentity]);
 
@@ -229,7 +236,7 @@ export const SetupWizard: React.FC = () => {
         return;
       }
     }
-    validateStep(currentStep) && setCurrentStep(prev => Math.min(prev + 1, 6));
+    validateStep(currentStep) && setCurrentStep(prev => Math.min(prev + 1, 7));
   };
 
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -260,7 +267,13 @@ export const SetupWizard: React.FC = () => {
         secondary_color: identityData.secondary,
         accent_color: identityData.accent,
         watermark_enabled: headerOption === 'auto',
-        contacts_json: contacts
+        contacts_json: contacts,
+        // QR Code Strategy
+        qr_code_enabled: qrConfig.enabled,
+        qr_code_type: qrConfig.type,
+        qr_code_value: qrConfig.value,
+        qr_code_label: qrConfig.label,
+        qr_code_color: qrConfig.color || identityData.primary
       };
 
       if (isDemoMode) {
@@ -291,7 +304,7 @@ export const SetupWizard: React.FC = () => {
   const renderStep1 = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-black text-slate-900">Structure du Cabinet</h2>
+        <h2 className="text-2xl font-black text-text-main">Structure du Cabinet</h2>
         <p className="text-sm text-slate-500">Définissez le mode d'exercice de votre cabinet.</p>
       </div>
 
@@ -303,9 +316,9 @@ export const SetupWizard: React.FC = () => {
             cabinetType === 'PRIVE' ? "border-primary bg-primary/5 shadow-lg" : "border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
           )}
         >
-          <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600"><Building2 size={24} /></div>
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><Building2 size={24} /></div>
           <div className="text-center">
-            <span className="block font-black text-slate-900 text-sm">Cabinet Privé</span>
+            <span className="block font-black text-text-main text-sm">Cabinet Privé</span>
             <span className="text-[10px] text-slate-500">Mono-praticien</span>
           </div>
         </button>
@@ -319,7 +332,7 @@ export const SetupWizard: React.FC = () => {
         >
           <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600"><Stethoscope size={24} /></div>
           <div className="text-center">
-            <span className="block font-black text-slate-900 text-sm">Clinique / Centre</span>
+            <span className="block font-black text-text-main text-sm">Clinique / Centre</span>
             <span className="text-[10px] text-slate-500">Multi-spécialistes</span>
           </div>
         </button>
@@ -332,7 +345,7 @@ export const SetupWizard: React.FC = () => {
             type="text"
             value={identity.nomCabinet}
             onChange={e => setIdentity({ ...identity, nomCabinet: e.target.value })}
-            className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm", errors.nomCabinet ? "border-red-300" : "border-slate-200")}
+            className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-text-main shadow-sm bg-input-field", errors.nomCabinet ? "border-red-300" : "border-border-main")}
             placeholder={cabinetType === 'CLINIQUE' ? "Ex: Centre Dentaire Al Massira" : "Ex: Cabinet Dr. Alami"}
           />
         </div>
@@ -343,7 +356,7 @@ export const SetupWizard: React.FC = () => {
               type="text"
               value={identity.nomPraticien}
               onChange={e => setIdentity({ ...identity, nomPraticien: e.target.value })}
-              className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
+              className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-text-main shadow-sm bg-input-field", errors.nomPraticien ? "border-red-300" : "border-border-main")}
               placeholder="Dr. Jean Dupont"
             />
             <div className="relative">
@@ -353,7 +366,7 @@ export const SetupWizard: React.FC = () => {
                 value={identity.nomPraticienAR}
                 onChange={e => setIdentity({ ...identity, nomPraticienAR: e.target.value })}
                 onFocus={() => setShowArKeyboard({ show: true, target: 'identity' })}
-                className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 shadow-sm font-arabic text-lg", errors.nomPraticien ? "border-red-300" : "border-slate-200")}
+                className={cn("w-full p-4 rounded-xl border focus:ring-2 focus:ring-primary/20 transition-all font-bold text-text-main shadow-sm font-arabic text-lg bg-input-field", errors.nomPraticien ? "border-red-300" : "border-border-main")}
                 placeholder="د. الإسم الكامل"
               />
               <button 
@@ -426,10 +439,10 @@ export const SetupWizard: React.FC = () => {
                 setSelectedSpecialties(newSpecs);
               }}
               className={cn(
-                "p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden group",
+                "p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden group bg-card",
                 selectedSpecialties.includes(spec.id)
                   ? "border-primary bg-primary/5 shadow-md"
-                  : "border-slate-100 bg-white hover:border-slate-200"
+                  : "border-border-main hover:border-border-hover"
               )}
             >
               <div className="flex items-center gap-3 mb-1">
@@ -437,7 +450,7 @@ export const SetupWizard: React.FC = () => {
                   "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300",
                   selectedSpecialties.includes(spec.id)
                     ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
-                    : "bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-105"
+                    : "bg-background text-text-muted group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-105"
                 )}>
                   <spec.icon size={32} />
                 </div>
@@ -595,7 +608,94 @@ export const SetupWizard: React.FC = () => {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStepQR = () => (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-black text-slate-900">Signature Digitale</h2>
+        <p className="text-sm text-slate-500">Transformez vos documents en passerelles interactives.</p>
+      </div>
+
+      <div className="p-6 rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 space-y-6">
+        <div className="flex items-center justify-between p-4 bg-white rounded-3xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", qrConfig.enabled ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400")}>
+              <QrCode size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">Activer le QR Code</p>
+              <p className="text-[10px] text-slate-400 font-medium">Affiché sur tous les documents PDF</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setQrConfig({ ...qrConfig, enabled: !qrConfig.enabled })}
+            className={cn("w-12 h-6 rounded-full transition-all relative", qrConfig.enabled ? "bg-primary" : "bg-slate-200")}
+          >
+            <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", qrConfig.enabled ? "right-1" : "left-1")} />
+          </button>
+        </div>
+
+        {qrConfig.enabled && (
+          <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Objectif du Scan</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'VCARD', label: 'Contact (vCard)', icon: Phone, desc: 'Ajout auto répertoire' },
+                { id: 'WEBSITE', label: 'Site Web', icon: ImageIcon, desc: 'Lien vers cabinet' },
+                { id: 'INSTAGRAM', label: 'Instagram', icon: Camera, desc: 'Suivi réseaux' },
+                { id: 'WHATSAPP', label: 'WhatsApp', icon: MessageSquare, desc: 'Contact direct' },
+                { id: 'LOCATION', label: 'Localisation', icon: MapPin, desc: 'GPS Cabinet' },
+                { id: 'PAYMENT', label: 'Suivi Paiement', icon: Sparkles, desc: 'Progression & Règlements' },
+                { id: 'VALIDATION', label: 'Authenticité', icon: CheckCircle2, desc: 'Vérification doc' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setQrConfig({ ...qrConfig, type: opt.id as any })}
+                  className={cn(
+                    "p-4 rounded-3xl border-2 transition-all flex flex-col items-center text-center gap-2",
+                    qrConfig.type === opt.id ? "border-primary bg-white shadow-xl shadow-primary/5" : "border-transparent bg-white/50 hover:bg-white"
+                  )}
+                >
+                  <opt.icon size={20} className={qrConfig.type === opt.id ? "text-primary" : "text-slate-400"} />
+                  <div>
+                    <p className="text-[10px] font-black text-slate-800">{opt.label}</p>
+                    <p className="text-[8px] text-slate-400 font-medium leading-tight">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {['WEBSITE', 'INSTAGRAM'].includes(qrConfig.type) && (
+              <div className="space-y-2 animate-in fade-in duration-300">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-2">
+                  {qrConfig.type === 'WEBSITE' ? 'URL du Site Web' : 'Pseudo Instagram'}
+                </label>
+                <input
+                  type="text"
+                  value={qrConfig.value}
+                  onChange={e => setQrConfig({ ...qrConfig, value: e.target.value })}
+                  className="w-full p-3.5 rounded-2xl border-2 border-slate-100 focus:border-primary bg-white transition-all font-bold text-xs"
+                  placeholder={qrConfig.type === 'WEBSITE' ? 'www.moncabinet.ma' : '@mon_cabinet_dentaire'}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-2">Texte d'accompagnement</label>
+              <input
+                type="text"
+                value={qrConfig.label}
+                onChange={e => setQrConfig({ ...qrConfig, label: e.target.value })}
+                className="w-full p-3.5 rounded-2xl border-2 border-slate-100 focus:border-primary bg-white transition-all font-bold text-xs"
+                placeholder="Ex: Scannez pour me contacter..."
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStep5 = () => (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center">
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Studio de Design</h2>
@@ -611,7 +711,7 @@ export const SetupWizard: React.FC = () => {
           )}
         >
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600"><ImageIcon size={18} /></div>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><ImageIcon size={18} /></div>
             <span className="font-bold text-slate-900">Auto-Généré</span>
           </div>
           <p className="text-[10px] text-slate-500 leading-tight">Mise en page automatique avec votre logo et typo.</p>
@@ -635,12 +735,21 @@ export const SetupWizard: React.FC = () => {
       {headerOption === 'auto' ? (
         <div className="space-y-6">
           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200/60">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Identité Visuelle & Harmonie</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Identité Visuelle & Harmonie</label>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Mode Elite</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {BRAND_IDENTITIES.map(id => (
                 <button
                   key={id.id}
-                  onClick={() => setSelectedIdentity(id.id)}
+                  onClick={() => {
+                    setSelectedIdentity(id.id);
+                    // Reset custom colors if selecting a preset
+                  }}
                   className={cn(
                     "p-4 rounded-2xl border-2 transition-all text-left flex flex-col gap-3 group relative overflow-hidden",
                     selectedIdentity === id.id ? "border-primary bg-white shadow-lg scale-[1.02]" : "border-slate-200 bg-slate-50 hover:border-slate-300"
@@ -649,14 +758,62 @@ export const SetupWizard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h5 className="text-[10px] font-black uppercase tracking-tighter text-slate-900">{id.name}</h5>
                     <div className="flex -space-x-2">
-                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.primary }} />
-                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.secondary }} />
-                      <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: id.accent }} />
+                      <div className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: id.primary }} />
+                      <div className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: id.secondary }} />
+                      <div className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: id.accent }} />
                     </div>
                   </div>
                   <p className="text-[9px] text-slate-500 leading-tight italic">{id.vibe}</p>
                 </button>
               ))}
+            </div>
+
+            {/* SÉLECTEUR DE COULEURS ÉLITE (DYNAMIQUE) */}
+            <div className="pt-6 border-t border-slate-200/60 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                 <Palette size={14} className="text-primary" />
+                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Ajustement Précis des Teintes</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold text-slate-400 block uppercase">Primaire</label>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                    <input 
+                      type="color" 
+                      className="w-6 h-6 rounded-lg cursor-pointer border-none bg-transparent"
+                      value={BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.primary || '#003380'} 
+                      onChange={(e) => {
+                        const newColor = e.target.value;
+                        // For simplicity in this demo, we'll just update the root variable
+                        document.documentElement.style.setProperty('--primary', newColor);
+                      }}
+                    />
+                    <span className="text-[10px] font-mono text-slate-500">HEX</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold text-slate-400 block uppercase">Accent</label>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                    <input 
+                      type="color" 
+                      className="w-6 h-6 rounded-lg cursor-pointer border-none bg-transparent"
+                      value={BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.accent || '#60a5fa'} 
+                      onChange={(e) => {
+                        const newColor = e.target.value;
+                        document.documentElement.style.setProperty('--accent', newColor);
+                      }}
+                    />
+                    <span className="text-[10px] font-mono text-slate-500">HEX</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold text-slate-400 block uppercase">Fond Paper</label>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                    <div className="w-6 h-6 rounded-lg bg-[#f8fafc] border border-slate-100" />
+                    <span className="text-[9px] font-bold text-slate-400">Pearl</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -754,18 +911,18 @@ export const SetupWizard: React.FC = () => {
     </div>
   );
 
-  const renderStep5 = () => (
+  const renderStep6 = () => (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-black text-slate-900">Atmosphère Élite</h2>
-        <p className="text-sm text-slate-500">Choisissez l'univers visuel qui vous ressemble.</p>
+        <h2 className="text-2xl font-black text-text-main">Atmosphère Élite</h2>
+        <p className="text-sm text-text-muted">Choisissez l'univers visuel qui vous ressemble.</p>
       </div>
-
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {[
-          { id: 'elite', label: 'Lumière Pure', class: 'bg-white border-slate-200', desc: 'Clarté & Professionalisme' },
-          { id: 'emerald', label: 'Escale Zen', class: 'bg-emerald-50 border-emerald-100', desc: 'Sérénité & Nature' },
-          { id: 'prestige', label: 'Nuit Intense', class: 'bg-slate-900 border-slate-800 text-white', desc: 'Luxe & Autorité' }
+          { id: 'elite', label: 'Lumière Pure', class: 'bg-card border-border-main', desc: 'Clarté & Pro', icon: Sun, iconColor: 'text-amber-500' },
+          { id: 'emerald', label: 'Escale Zen', class: 'bg-emerald-500/5 border-emerald-500/20', desc: 'Sérénité', icon: Sparkles, iconColor: 'text-emerald-500' },
+          { id: 'rose', label: 'Rose Prestige', class: 'bg-rose-500/5 border-rose-500/20', desc: 'Esthétique', icon: HeartPulse, iconColor: 'text-rose-500' },
+          { id: 'prestige', label: 'Nuit Intense', class: 'bg-card border-border-main text-text-main', desc: 'Luxe', icon: Moon, iconColor: 'text-primary' }
         ].map((t) => (
           <button
             key={t.id}
@@ -773,11 +930,11 @@ export const SetupWizard: React.FC = () => {
             className={cn(
               "flex flex-col items-center gap-4 p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden",
               t.class,
-              selectedTheme === t.id ? "ring-4 ring-primary/20 border-primary scale-[1.05] shadow-xl" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
+              selectedTheme === t.id ? "ring-4 ring-primary/20 border-primary scale-[1.05] shadow-xl shadow-primary/10" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-100"
             )}
           >
             <div className={cn("inline-flex w-16 h-16 rounded-[1.5rem] items-center justify-center transition-transform group-hover:rotate-12", t.id === 'prestige' ? 'bg-white/10' : 'bg-white shadow-inner')}>
-              {t.id === 'elite' ? <Sun size={32} className="text-amber-500" /> : t.id === 'emerald' ? <Sparkles size={32} className="text-emerald-500" /> : <Moon size={32} className="text-white" />}
+              <t.icon size={32} className={t.iconColor} />
             </div>
             <div className="text-center">
               <span className="block text-[10px] font-black uppercase tracking-[0.2em] mb-1">{t.label}</span>
@@ -790,19 +947,11 @@ export const SetupWizard: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-8 p-6 rounded-3xl bg-slate-50 border border-slate-100 space-y-4">
+      <div className="mt-8 p-6 rounded-3xl bg-primary/5 border border-primary/10 space-y-4">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <Sparkles size={18} />
           </div>
-          <div>
-            <h4 className="text-sm font-black text-slate-900">Aperçu en temps réel</h4>
-            <p className="text-[10px] text-slate-500">L'application entière a adopté le thème <b>{selectedTheme}</b>.</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-700">Définir comme thème par défaut ?</span>
           <div className="flex gap-2">
             <button onClick={() => setSelectedTheme('elite')} className="px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-100 transition-colors">ANNULER</button>
             <button onClick={() => alert("Thème confirmé !")} className="px-3 py-1.5 rounded-lg bg-primary text-white text-[10px] font-black shadow-lg shadow-primary/20">CONFIRMER</button>
@@ -812,23 +961,23 @@ export const SetupWizard: React.FC = () => {
     </div>
   );
 
-  const renderStep6 = () => {
+  const renderStep7 = () => {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
         <div className="text-center">
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">C'est presque prêt !</h2>
+          <h2 className="text-2xl font-black text-text-main tracking-tight">C'est presque prêt !</h2>
           <p className="text-slate-500 text-sm mt-1">Vérifiez vos préférences finales avant l'activation.</p>
         </div>
         <div className="space-y-4">
-          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200/60 shadow-inner">
+          <div className="p-6 bg-primary/5 rounded-3xl border border-border-main shadow-inner">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter">Votre Cabinet</h3>
+                <h3 className="text-sm font-black text-text-main uppercase tracking-tighter">Votre Cabinet</h3>
                 <p className="text-lg font-bold text-primary">Dr. {identity.nomPraticien || '...'}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center"><Building2 size={20} className="text-primary" /></div>
             </div>
-            <div className="space-y-3 pt-4 border-t border-slate-200/50">
+            <div className="space-y-3 pt-4 border-t border-border-main">
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><MapPin size={14} className="text-slate-400" /> {identity.adresse || '...'}</div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><Stethoscope size={14} className="text-slate-400" /> {specialtyStrings.fr || '...'}</div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium"><Phone size={14} className="text-slate-400" /> {contactString || '...'}</div>
@@ -838,11 +987,17 @@ export const SetupWizard: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
               <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Police & Identité</p>
-              <p className="text-xs font-bold text-slate-800 capitalize">{selectedFont} / {BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.name}</p>
+              <p className="text-xs font-bold text-text-main capitalize">{selectedFont} / {BRAND_IDENTITIES.find(i => i.id === selectedIdentity)?.name}</p>
             </div>
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Ambiance Applicative</p>
-              <p className="text-xs font-bold text-slate-800 capitalize">{selectedTheme}</p>
+              <p className="text-xs font-bold text-text-main capitalize">{selectedTheme}</p>
+            </div>
+            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 col-span-2">
+              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Signature Digitale</p>
+              <p className="text-xs font-bold text-text-main capitalize">
+                {qrConfig.enabled ? `${qrConfig.type} : ${qrConfig.label}` : 'Désactivée'}
+              </p>
             </div>
           </div>
         </div>
@@ -852,19 +1007,19 @@ export const SetupWizard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-outfit text-slate-900 selection:bg-primary/20">
-      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-[100]">
+    <div className="min-h-screen bg-background font-outfit text-text-main selection:bg-primary/20 transition-colors duration-500">
+      <header className="bg-card/80 backdrop-blur-xl border-b border-border-main sticky top-0 z-[100] transition-colors duration-500">
         <div className="max-w-[1400px] mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Building2 className="text-white" size={20} /></div>
-            <div><h1 className="font-black text-slate-900 tracking-tight text-lg">Digital Crown</h1><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">Setup Wizard v1.2</p></div>
+            <div><h1 className="font-black text-text-main tracking-tight text-lg uppercase">Digital <span className="text-primary">Crown</span></h1><p className="text-[9px] font-black text-text-muted uppercase tracking-widest leading-none mt-0.5">Setup Wizard v4.0</p></div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-xl border border-slate-200/40">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Demo Sandbox</span>
-              <button onClick={toggleDemoMode} className={cn("w-10 h-5 rounded-full relative transition-all", isDemoMode ? "bg-primary" : "bg-slate-300")}><div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all", isDemoMode ? "left-6" : "left-1")} /></button>
+            <div className="flex items-center gap-3 px-4 py-2 bg-input-field rounded-xl border border-border-main">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Elite Mode</span>
+              <button onClick={toggleDemoMode} className={cn("w-10 h-5 rounded-full relative transition-all", isDemoMode ? "bg-primary" : "bg-text-muted/20")}><div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all", isDemoMode ? "left-6" : "left-1")} /></button>
             </div>
-            <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-slate-400 hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
+            <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-text-muted hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
           </div>
         </div>
       </header>
@@ -874,48 +1029,49 @@ export const SetupWizard: React.FC = () => {
           {STEPS.map((s, i) => (
             <React.Fragment key={s.id}>
               <div className="flex flex-col items-center relative group">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500", s.id === currentStep ? "bg-primary text-white scale-110 shadow-xl shadow-primary/30" : s.id < currentStep ? "bg-emerald-500 text-white" : "bg-white text-slate-300 border border-slate-200")}>
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500", s.id === currentStep ? "bg-primary text-white scale-110 shadow-xl shadow-primary/30" : s.id < currentStep ? "bg-emerald-500 text-white" : "bg-card text-text-muted border border-border-main")}>
                   {s.id < currentStep ? <Check size={20} /> : <s.icon size={20} />}
                 </div>
-                <span className={cn("absolute -bottom-8 text-[9px] font-black uppercase tracking-widest transition-all", s.id === currentStep ? "text-primary translate-y-2 opacity-100" : "text-slate-400 opacity-60")}>{s.title}</span>
+                <span className={cn("absolute -bottom-8 text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap", s.id === currentStep ? "text-primary translate-y-2 opacity-100" : "text-text-muted opacity-60")}>{s.title}</span>
               </div>
-              {i < STEPS.length - 1 && <div className={cn("flex-1 h-0.5 rounded-full transition-all duration-1000", s.id < currentStep ? "bg-emerald-500 scale-x-100" : "bg-slate-200 scale-x-100")} />}
+              {i < STEPS.length - 1 && <div className={cn("flex-1 h-0.5 rounded-full transition-all duration-1000", s.id < currentStep ? "bg-emerald-500" : "bg-border-main")} />}
             </React.Fragment>
           ))}
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-12 items-start transition-all", (currentStep >= 3 && currentStep <= 6) ? "lg:grid-cols-12" : "max-w-2xl mx-auto")}>
-          <div className={cn("bg-white rounded-[2.5rem] border border-slate-200/60 shadow-2xl shadow-slate-900/5 p-12 relative overflow-hidden", (currentStep >= 3 && currentStep <= 6) ? "lg:col-span-7" : "")}>
+        <div className={cn("grid grid-cols-1 gap-12 items-start transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:grid-cols-12" : "max-w-2xl mx-auto")}>
+          <div className={cn("bg-card rounded-[2.5rem] border border-border-main shadow-2xl shadow-primary/5 p-12 relative overflow-hidden transition-all duration-500", (currentStep >= 3 && currentStep <= 7) ? "lg:col-span-7" : "")}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[4rem] pointer-events-none" />
 
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
-            {currentStep === 4 && renderStep4()}
+            {currentStep === 4 && renderStepQR()}
             {currentStep === 5 && renderStep5()}
             {currentStep === 6 && renderStep6()}
+            {currentStep === 7 && renderStep7()}
 
-            <div className="mt-16 pt-10 border-t border-slate-100 flex items-center justify-between">
-              <button onClick={handleBack} disabled={currentStep === 1} className={cn("flex items-center gap-2 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentStep === 1 ? "opacity-0 invisible" : "text-slate-400 hover:text-primary hover:bg-slate-50")}>
+            <div className="mt-16 pt-10 border-t border-border-main flex items-center justify-between">
+              <button onClick={handleBack} disabled={currentStep === 1} className={cn("flex items-center gap-2 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentStep === 1 ? "opacity-0 invisible" : "text-text-muted hover:text-primary hover:bg-primary/5")}>
                 <ArrowLeft size={16} /> Retour
               </button>
-              {currentStep < 6 ? (
+              {currentStep < 7 ? (
                 <button onClick={handleNext} className="bg-primary text-white px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all flex items-center gap-3">
                   Continuer <ArrowRight size={18} />
                 </button>
               ) : (
-                <button onClick={handleSubmit} disabled={loading} className={cn("px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-3", loading ? "bg-slate-300" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20")}>
+                <button onClick={handleSubmit} disabled={loading} className={cn("px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-3", loading ? "bg-text-muted/20" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20")}>
                   {loading ? "Chargement..." : <><CheckCircle2 size={18} /> Finaliser l'Installation</>}
                 </button>
               )}
             </div>
           </div>
 
-          {(currentStep >= 3 && currentStep <= 6) && (
+          {(currentStep >= 3 && currentStep <= 7) && (
             <div className="lg:col-span-5 sticky top-28 animate-in fade-in slide-in-from-right-12 duration-1000">
               <div className="mb-6 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2"><Sparkles className="text-primary animate-pulse" size={16} /><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aperçu Live Studio</span></div>
-                <div className="bg-white px-3 py-1 rounded-md border text-[9px] font-bold text-slate-400 shadow-sm">Document A5 Premium</div>
+                <div className="flex items-center gap-2"><Sparkles className="text-primary animate-pulse" size={16} /><span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Aperçu Live Studio</span></div>
+                <div className="bg-card px-3 py-1 rounded-md border border-border-main text-[9px] font-bold text-text-muted shadow-sm">Document A5 Premium</div>
               </div>
               <LiveDocumentStudio
                 identity={identity}
@@ -929,6 +1085,7 @@ export const SetupWizard: React.FC = () => {
                 cabinetType={cabinetType}
                 specialtyStrings={specialtyStrings}
                 contactString={contactString}
+                qrConfig={qrConfig}
               />
             </div>
           )}

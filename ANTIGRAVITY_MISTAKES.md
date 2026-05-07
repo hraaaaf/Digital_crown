@@ -94,5 +94,11 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[CORRECTION] Strict First-Line Validation**: Always perform a final "sanity check" on the very first and last lines of a file after an edit, especially when working on files with many imports.
 - **[LESSON]**: Backend reliability is fragile. A single missing letter in an `import` statement can take down the entire system. Systematic verification of the backend logs after each edit is MANDATORY.
 
+### 18. Build Pollution & Component Integrity (v1.7)
+- **[ERROR] Unused Variables in Refactored UI**: Declaring props or state variables (e.g., `applyGroupTreatment`, `setActiveActSearchId`) without using them. Result: `tsc` build failure in production-ready environments.
+- **[ERROR] Missing Mandatory Props**: Calling complex components like `OdontogramSVG` with only a subset of props, ignoring mandatory ones (`teethSurfaces`, `selectedSurface`).
+- **[CORRECTION] Strict Dependency & Usage Check**: 1) Use every destructured prop or remove it. 2) Systematically check the interface/definition of any child component before calling it. 3) Run `npm run build` locally after any structural UI refactoring.
+- **[LESSON]**: A "Ghost Elite" UI must not only look premium but must also be technically flawless. Every variable declared must have a purpose, and every component contract must be respected.
+
 ---
-*Last updated: 2026-05-04 (Session v1.6 - Digital Crown Elite)*
+*Last updated: 2026-05-05 (Session v1.7 - Digital Crown Elite)*

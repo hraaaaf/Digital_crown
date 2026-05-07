@@ -1,0 +1,115 @@
+{
+  "act_code": "gingivectomie",
+  "act_names": [
+    "Gingivectomie",
+    "Exérèse gingivale",
+    "Gingivoplastie",
+    "Résection gingivale"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée : hyperplasie ou allongement coronaire",
+      "critical": true
+    },
+    {
+      "id": "paro",
+      "label": "Inflammation parodontale contrôlée avant chirurgie",
+      "critical": true
+    },
+    {
+      "id": "keratinise",
+      "label": "Gencive kératinisée suffisante (≥ 3mm)",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Niveau osseux vérifié — pas de poche osseuse",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement + explication esthétique et suites",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Marquage des poches à la sonde (points saignants)",
+      "tip": "Dessiner la future ligne d'incision"
+    },
+    {
+      "order": 2,
+      "label": "Anesthésie locale infiltrative",
+      "tip": "Anesthésie en zone éloignée de la gencive — douleur vive"
+    },
+    {
+      "order": 3,
+      "label": "Incision festonnée biseautée vers l'apex",
+      "tip": "Bistoury 15C — bord tranchant vers l'os"
+    },
+    {
+      "order": 4,
+      "label": "Éviction du tissu réséqué + curetage",
+      "tip": "Éliminer tout épithélium de poche résiduel"
+    },
+    {
+      "order": 5,
+      "label": "Surfaçage radiculaire + irrigation",
+      "tip": "CHX sous-gingival — surface radiculaire propre"
+    },
+    {
+      "order": 6,
+      "label": "Pansement parodontal (Coe-Pak) ou suture",
+      "tip": "Protection mécanique 7 jours"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Récidive rapide",
+      "mitigation": "Contrôle plaque rigoureux — cause hyperplasie traitée (médicaments)"
+    },
+    {
+      "risk": "Résultat inesthétique",
+      "mitigation": "Respecter les festons naturels — ne pas sur-réséquer"
+    },
+    {
+      "risk": "Exposition osseuse",
+      "mitigation": "Ne jamais inciser jusqu'à l'os — réserver au lambeau"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml infiltratif"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 3-5 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain de bouche × 2/j × 10 jours"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Pansement parodontal en place — ne pas le retirer"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle froide — éviter de mordre dans la zone"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV ablation pansement + sutures J7 — contrôle cicatrisation"
+    }
+  ]
+}

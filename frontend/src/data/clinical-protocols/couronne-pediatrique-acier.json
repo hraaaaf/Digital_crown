@@ -1,0 +1,100 @@
+{
+  "act_code": "couronne-pediatrique-acier",
+  "act_names": [
+    "Couronne pédiatrique acier",
+    "Couronne pédodontique",
+    "Couronne acier enfant",
+    "Couronne inox pédiatrique"
+  ],
+  "difficulty": "routine",
+  "duration_min": 35,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Molaire temporaire très délabrée ou post-pulpotomie",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Radio préop — pas de résorption interne pathologique",
+      "critical": true
+    },
+    {
+      "id": "taille",
+      "label": "Taille de couronne sélectionnée sur modèle ou mesure",
+      "critical": false
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie adaptée à l'âge — dose pédiatrique",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie — topique + infiltrative en douceur",
+      "tip": "Technique de distraction — parler pendant l'injection"
+    },
+    {
+      "order": 2,
+      "label": "Préparation coronaire — réduction occlusale 1,5mm",
+      "tip": "Fraise flamme — pas de préparation excessive — dent temporaire fine"
+    },
+    {
+      "order": 3,
+      "label": "Sélection et ajustage de la couronne acier",
+      "tip": "Couronne doit s'engager au-delà du maximum convexité"
+    },
+    {
+      "order": 4,
+      "label": "Sertissage des bords (crimping) pour adaptation cervicale",
+      "tip": "Pince à sertir — adapter à chaque dent"
+    },
+    {
+      "order": 5,
+      "label": "Scellement CVI et retrait excès",
+      "tip": "CVI Glass Ionomer — fluoration continue — déglutition patient"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Gestion comportementale difficile",
+      "mitigation": "Tell-Show-Do — anesthésie topique longue — MEOPA si indiqué"
+    },
+    {
+      "risk": "Couronne trop petite ou trop grande",
+      "mitigation": "Mesurer mésio-distal + vestibulo-lingual avant sélection"
+    },
+    {
+      "risk": "Excès de ciment cervical",
+      "mitigation": "Retirer immédiatement avant prise — sonde fine tout autour"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:200000",
+      "dose_adult": "0,9 ml MAX pour enfant < 20 kg"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol sirop",
+      "dose_adult": "15 mg/kg × 3/j si douleur post-op"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Expliquer à l'enfant et aux parents : couronne = capuchon de protection"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter aliments collants (chewing-gum) — risque de désolidarisation"
+    },
+    {
+      "timing": "week1",
+      "instruction": "La couronne tombera avec la dent temporaire — c'est normal"
+    }
+  ]
+}

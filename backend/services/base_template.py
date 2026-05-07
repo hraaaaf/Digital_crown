@@ -6,6 +6,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from backend.services.qr_service import QRService
 
 # --- DESIGN SYSTEM : SINGLE SOURCE OF TRUTH ---
 NAVY_BLUE = colors.HexColor('#003380')
@@ -85,6 +86,7 @@ class BaseTemplate:
         # 4. RENDU DU MASTER TEMPLATE (LE SEUL, L'UNIQUE)
         # Appelé inconditionnellement pour normaliser le rendu.
         self._draw_auto_header(canvas, config, logo_path, primary_color, secondary_color, accent_color, p_width, p_height)
+        self._draw_qr_code(canvas, doc, config, user, primary_color)
         self._draw_footer(canvas, doc, config, draw_legal_ids, user)
 
         canvas.restoreState()
@@ -203,3 +205,75 @@ class BaseTemplate:
                 canvas.setFont("Helvetica", 7)
                 canvas.setFillColor(colors.HexColor("#777777"))
                 canvas.drawCentredString(p_width/2, 1.0*cm, legal_str)
+
+    def _draw_qr_code(self, canvas, doc, config, user, p_color):
+        """Dessine le QR Code stratégique configuré par le docteur."""
+        qr_enabled = self._get_val(config, 'qr_code_enabled', False)
+        if not qr_enabled: return
+
+        qr_type = self._get_val(config, 'qr_code_type', 'VCARD')
+        qr_value = self._get_val(config, 'qr_code_value', '')
+        qr_color_hex = self._get_val(config, 'qr_code_color') or self._get_val(config, 'primary_color', '#003380')
+        qr_label = self._get_val(config, 'qr_code_label', '')
+
+        # Détermination du contenu du QR
+        qr_data = qr_value
+        if qr_type == 'VCARD' and not qr_value:
+            # Génération automatique de la vCard à partir du profil
+            name = self._get_val(config, 'nom_praticien') or self._get_val(user, 'nom_complet') or "Docteur"
+            phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
+            email = getattr(user, 'email', '')
+            address = self._get_val(config, 'footer_address') or self._get_val(user, 'adresse_complete', '')
+            qr_data = QRService.generate_vcard(name, phone, email, address=address)
+        elif qr_type == 'INSTAGRAM' and qr_value:
+            if not qr_value.startswith('http'):
+                qr_data = f"https://instagram.com/{qr_value.replace('@', '')}"
+        elif qr_type == 'VALIDATION':
+            # Mode validation : pointe vers le portail de vérification (URL de base + ID document)
+            qr_data = f"https://digitalcrown.ai/verify/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
+        elif qr_type == 'PAYMENT':
+            # Suivi de paiement / Progression (nouveau mode Elite v4.2)
+            qr_data = f"https://digitalcrown.ai/track/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
+        elif qr_type == 'WHATSAPP':
+            # Contact direct WhatsApp (v4.2)
+            phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
+            msg = "Bonjour Dr, je souhaite confirmer mon rendez-vous."
+            qr_data = QRService.generate_whatsapp_url(phone, msg)
+        elif qr_type == 'LOCATION':
+            # Localisation Google Maps (v4.2)
+            address = self._get_val(config, 'footer_address') or self._get_val(user, 'adresse_complete', '')
+            qr_data = QRService.generate_maps_url(address)
+        elif qr_type == 'WEBSITE' and qr_value:
+            qr_data = qr_value if qr_value.startswith('http') else f"https://{qr_value}"
+
+        if not qr_data: return
+
+        # Génération du QR avec sceau "Elite" ou Logo réel au centre
+        try:
+            logo_filename = self._get_val(config, 'logo_path')
+            actual_logo_path = None
+            if logo_filename:
+                actual_logo_path = os.path.join(self.base_path, "static", "uploads", logo_filename)
+            
+            # Fallback sur logo par défaut si configuré mais inexistant
+            if actual_logo_path and not os.path.exists(actual_logo_path):
+                actual_logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
+
+            qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path)
+            if qr_bytes:
+                p_width, _ = doc.pagesize
+                qr_size = 1.8*cm
+                # Positionnement : en bas à droite
+                x_pos = p_width - 1.5*cm - qr_size
+                y_pos = 2.6*cm 
+                
+                canvas.drawImage(qr_bytes, x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
+                
+                # Label optionnel
+                if qr_label:
+                    canvas.setFont("Helvetica-Bold", 6)
+                    canvas.setFillColor(colors.HexColor(qr_color_hex))
+                    canvas.drawRightString(p_width - 1.5*cm, y_pos - 0.3*cm, self._prepare_arabic(qr_label))
+        except Exception as e:
+            # On ne bloque pas la génération du PDF pour un QR qui échoue
+            print(f"Erreur rendu QR PDF: {e}")

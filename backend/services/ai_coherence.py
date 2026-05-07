@@ -42,20 +42,22 @@ class AICoherenceService:
                     "type": doc_type,
                     "contenu": doc_data
                 },
-                "actes_recents": recent_acts
+                "actes_recents": recent_acts,
+                "doctor_habits": patient_info.get("doctor_habits", {})
             }
 
             prompt = f"""
-            Tu es un assistant de vigilance clinique expert en odontologie.
-            Analyse le contexte patient et le document en cours pour détecter des RISQUES ou des INCOHÉRENCES.
+            Tu es un assistant de vigilance clinique expert en odontologie (IAmina).
+            Analyse le contexte patient, les habitudes du docteur et le document en cours pour détecter des RISQUES ou des INCOHÉRENCES.
             
             CONTEXTE :
             {json.dumps(context, ensure_ascii=False, indent=2)}
             
             RÈGLES D'ANALYSE :
-            1. CONTRE-INDICATIONS : Détecte si un médicament (AINS, Aspirine, etc.) est prescrit malgré un antécédent à risque (Ulcère, Cardiopathie, Grossesse, Allaitement).
-            2. OMISSIONS : Si un acte invasif (extraction, chirurgie) a été réalisé chez un patient à risque (Valvulopathie, Diabète), vérifie si une couverture adaptée est suggérée.
-            3. COHÉRENCE D'ÂGE : Vérifie si les dosages ou types de documents sont adaptés à l'âge du patient.
+            1. CONTRE-INDICATIONS : Détecte si un médicament est prescrit malgré un antécédent à risque.
+            2. PRIORITÉ HABITUDES : Si le docteur a l'habitude de prescrire certaines molécules pour cet acte, valide leur cohérence. Si une nouvelle molécule inhabituelle est utilisée, signale-le comme "Info" pour vérification.
+            3. OMISSIONS : Si un acte invasif a été réalisé, vérifie si une couverture adaptée est suggérée.
+            4. COHÉRENCE D'ÂGE : Vérifie si les dosages sont adaptés à l'âge.
             
             FORMAT DE RÉPONSE (JSON UNIQUEMENT) :
             [

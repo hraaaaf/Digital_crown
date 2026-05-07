@@ -1,0 +1,99 @@
+{
+  "act_code": "bilan-orthodontique",
+  "act_names": [
+    "Bilan orthodontique",
+    "Consultation orthodontie",
+    "Analyse orthodontique",
+    "Bilan ortho complet"
+  ],
+  "difficulty": "routine",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "teleradio",
+      "label": "Téléradiographie de profil commandée",
+      "critical": true
+    },
+    {
+      "id": "panoramique",
+      "label": "Panoramique dentaire récent (< 6 mois)",
+      "critical": true
+    },
+    {
+      "id": "photos",
+      "label": "Photos intra et extraorales standardisées",
+      "critical": false
+    },
+    {
+      "id": "empreinte",
+      "label": "Modèles d'étude (alginate ou scan intra-oral)",
+      "critical": false
+    },
+    {
+      "id": "croissance",
+      "label": "Évaluation stade de croissance (CVM Baccetti)",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anamnèse : motif, habitudes, antécédents familiaux",
+      "tip": "Respiration buccale, succion, déglutition atypique"
+    },
+    {
+      "order": 2,
+      "label": "Examen clinique extra-oral : profil, symétrie, lèvres",
+      "tip": "Compétence labiale, étage inférieur, angle naso-labial"
+    },
+    {
+      "order": 3,
+      "label": "Examen intra-oral : dents, occlusion, parodonte",
+      "tip": "Surplomb, recouvrement, décalages, DDM"
+    },
+    {
+      "order": 4,
+      "label": "Analyse téléradiographique (Ricketts, Steiner, Tweed)",
+      "tip": "Logiciel de tracé céphalométrique — normes âge et sexe"
+    },
+    {
+      "order": 5,
+      "label": "Analyse modèles : Bolton, DDM, symétrie",
+      "tip": "Bolton ratio pour évaluer les discordances mésio-distales"
+    },
+    {
+      "order": 6,
+      "label": "Diagnostic + plan de traitement écrit remis",
+      "tip": "Options thérapeutiques, durée, coût, risques expliqués"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Erreur de diagnostic DDM",
+      "mitigation": "Mesure clinique ET céphalométrique — corréler les deux"
+    },
+    {
+      "risk": "Stade de croissance sous-estimé",
+      "mitigation": "CVM Baccetti sur téléradio — pas d'âge chronologique seul"
+    },
+    {
+      "risk": "Compliance non évaluée",
+      "mitigation": "Discuter avec patient ET parents — sans compliance = échec"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Recevoir le plan de traitement écrit avec options et durées"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV de décision sous 2-4 semaines — prendre le temps de réfléchir"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Hygiène parfaite requise avant tout appareillage"
+    }
+  ]
+}

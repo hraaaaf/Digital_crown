@@ -1,0 +1,106 @@
+{
+  "act_code": "tenon-fibre-rcr",
+  "act_names": [
+    "Tenon fibré",
+    "Reconstitution corono-radiculaire",
+    "RCR tenon fibre",
+    "Pivot fibré",
+    "Tenon en fibre de verre"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "endo",
+      "label": "Endodontie complète et contrôlée",
+      "critical": true
+    },
+    {
+      "id": "ferrule",
+      "label": "Ferrule dentinaire ≥ 2mm mesuré",
+      "critical": true
+    },
+    {
+      "id": "seche",
+      "label": "Canal sec — éléiminer hydroxyde de calcium",
+      "critical": true
+    },
+    {
+      "id": "tenon",
+      "label": "Tenon fibré calibré sélectionné",
+      "critical": false
+    },
+    {
+      "id": "isolation",
+      "label": "Digue posée",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Désobturation au foret calibré (conserver 5mm apex)",
+      "tip": "Pas de chaleur — vérifier au stop en silicone"
+    },
+    {
+      "order": 2,
+      "label": "Essayage tenon fibré à sec",
+      "tip": "Ajustage parfait — pas de jeu latéral"
+    },
+    {
+      "order": 3,
+      "label": "Conditionnement canal : mordançage + adhésif canal",
+      "tip": "Rinçage EDTA 17% + séchage pointe absorbante"
+    },
+    {
+      "order": 4,
+      "label": "Scellement tenon composite dual (seringue)",
+      "tip": "Injecter du fond du canal vers la couronne — purger les bulles"
+    },
+    {
+      "order": 5,
+      "label": "Reconstitution coronaire composite",
+      "tip": "Stratification normale après prise du composite dual"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Tenon désellement",
+      "mitigation": "Protocole adhésif rigoureux + composite dual de qualité"
+    },
+    {
+      "risk": "Fracture radiculaire verticale",
+      "mitigation": "Jamais de tenon métallique — rigidité adaptée du fibré"
+    },
+    {
+      "risk": "Porosités au scellement",
+      "mitigation": "Injection du fond vers la surface — pas d'air piégé"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si nécessaire"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Provisoire en place — ne pas mordre dur côté traité"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Sensibilité nulle attendue (dent dévitalisée)"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Couronne définitive à poser dans les 4 semaines"
+    }
+  ]
+}

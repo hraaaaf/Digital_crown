@@ -1,0 +1,81 @@
+{
+  "act_code": "radio-bitewing",
+  "act_names": [
+    "Radiographie bitewing",
+    "Cliché mordu",
+    "Rétrobite",
+    "Interproximal bitewing",
+    "Bilan cariologique"
+  ],
+  "difficulty": "routine",
+  "duration_min": 10,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Contrôle cariologique ou paro annuel",
+      "critical": false
+    },
+    {
+      "id": "protection",
+      "label": "Tablier plombé posé",
+      "critical": true
+    },
+    {
+      "id": "capteur",
+      "label": "Capteur bitewing positionné secteur à explorer",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Sélection du secteur (PM/M haut et bas)",
+      "tip": "4 clichés pour bilan complet : 2 droite + 2 gauche"
+    },
+    {
+      "order": 2,
+      "label": "Capteur en bouche, patient mord sur la languette",
+      "tip": "Centrer le capteur au niveau des contacts proximaux"
+    },
+    {
+      "order": 3,
+      "label": "Visée horizontale stricte — 0° angulation verticale",
+      "tip": "Éviter surplomb — les crêtes osseuses doivent être nettes"
+    },
+    {
+      "order": 4,
+      "label": "Exposition minimale",
+      "tip": "Paramètres inférieurs à ceux d'un rétroalvéolaire"
+    },
+    {
+      "order": 5,
+      "label": "Interprétation : caries proximales + niveau osseux",
+      "tip": "Caries sous-crêtales invisibles cliniquement"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Angulation verticale incorrecte",
+      "mitigation": "Porte-film bitewing dédié — ne pas incliner le tube"
+    },
+    {
+      "risk": "Caries manquées",
+      "mitigation": "Bitewing annuel systématique — pas de diagnostic clinique seul"
+    },
+    {
+      "risk": "Surexposition",
+      "mitigation": "Paramètres spécifiques bitewing — moins qu'un rétroalvéolaire"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Résultats communiqués immédiatement"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Bilan bitewing annuel recommandé chez l'adulte à risque carieux"
+    }
+  ]
+}

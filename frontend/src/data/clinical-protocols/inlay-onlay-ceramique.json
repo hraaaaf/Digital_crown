@@ -1,0 +1,111 @@
+{
+  "act_code": "inlay-onlay-ceramique",
+  "act_names": [
+    "Inlay onlay céramique",
+    "Inlay céramique",
+    "Onlay zircone",
+    "Facette occlusale",
+    "Inlay composite indirect"
+  ],
+  "difficulty": "complex",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée : perte substance > 1/2 dent",
+      "critical": true
+    },
+    {
+      "id": "vitalite",
+      "label": "Vitalité pulpaire confirmée (ou dent dévitalisée)",
+      "critical": true
+    },
+    {
+      "id": "empreinte",
+      "label": "Scanner intra-oral ou empreinte polyéther haute précision",
+      "critical": false
+    },
+    {
+      "id": "provisoire",
+      "label": "Inlay provisoire en résine préparé",
+      "critical": false
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte notée avant isolation",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Préparation cavité — dépouille 6°, angles arrondis",
+      "tip": "Pas d'isthmique trop étroit — minimum 2mm de largeur"
+    },
+    {
+      "order": 2,
+      "label": "Protection pulpaire si dentine exposée",
+      "tip": "Liner CVI — jamais de ciment de zinc sous inlay céramique"
+    },
+    {
+      "order": 3,
+      "label": "Empreinte optique ou conventionnelle",
+      "tip": "Contrôler la limite sur scanner ou sur plâtre"
+    },
+    {
+      "order": 4,
+      "label": "Inlay provisoire scellé au Temp-Bond",
+      "tip": "Vérifier contacts proximaux + occlusion provisoire"
+    },
+    {
+      "order": 5,
+      "label": "Essayage inlay définitif à sec",
+      "tip": "Intégration marginale 0 — contacts proximaux au fil"
+    },
+    {
+      "order": 6,
+      "label": "Mordançage + silanisation + collage composite dual",
+      "tip": "Mordançage cavité + traitement HF + silanisation inlay"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Fracture lors de l'insertion",
+      "mitigation": "Essayage à sec d'abord — vérifier orientation sans forcer"
+    },
+    {
+      "risk": "Joint marginal infiltré",
+      "mitigation": "Intégration marginale parfaite — pas de sur-contour"
+    },
+    {
+      "risk": "Sensibilité post-collage",
+      "mitigation": "Protection pulpaire préalable — ne pas dessécher la dentine"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si sensibilité"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Provisoire — éviter aliments collants et durs"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Sensibilité légère normale 1 semaine"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV pose définitive sous 2-3 semaines"
+    }
+  ]
+}

@@ -56,10 +56,10 @@ export const Sidebar = () => {
       `}</style>
 
       {/* SIDEBAR : Clinical Premium Light */}
-      <aside className="w-72 bg-slate-50/50 backdrop-blur-2xl border-r border-slate-200 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col h-screen fixed lg:relative z-[10000] shrink-0">
+      <aside className="w-72 bg-sidebar backdrop-blur-2xl border-r border-border-main shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col h-screen fixed lg:relative z-[10000] shrink-0">
         
         {/* PRODUCT IDENTITY: DIGITAL CROWN LOGO (Centered) */}
-        <div className="p-6 flex items-center justify-center border-b border-slate-200/60 shrink-0 h-28">
+        <div className="p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28">
           <Link 
             to="/dashboard" 
             className="transition-all duration-500 block w-full hover:opacity-80 flex items-center justify-center"
@@ -77,7 +77,7 @@ export const Sidebar = () => {
 
         {/* STACKED NAVIGATION */}
         <nav className="flex-1 p-5 space-y-2 overflow-y-auto custom-scrollbar">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4 mt-2">Navigation</div>
+          <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest px-4 mb-4 mt-2">Navigation</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
           <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />
@@ -158,9 +158,9 @@ const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.Rea
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return cn(
         "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden cursor-pointer mb-1",
-        isActuallyActive 
-          ? "bg-white shadow-sm border border-slate-200/60" 
-          : "text-slate-600 hover:bg-white/80"
+          isActuallyActive 
+          ? "bg-card shadow-sm border border-border-main" 
+          : "text-text-muted hover:bg-card/80"
       );
     }}
     style={({ isActive }) => {

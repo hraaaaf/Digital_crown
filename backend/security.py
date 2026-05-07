@@ -8,7 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "digital_crown_super_secret_key_2026_elite_edition")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    # En production l'absence de secret est critique
+    if os.getenv("ENVIRONMENT") == "production":
+        raise RuntimeError("CRITICAL: SECRET_KEY environment variable is missing!")
+    # Fallback development – à changer avant le déploiement
+    SECRET_KEY = "dev_only_secret_key_change_me"
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 jours
 

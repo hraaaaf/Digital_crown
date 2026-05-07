@@ -1,0 +1,111 @@
+{
+  "act_code": "couronne-sur-implant",
+  "act_names": [
+    "Couronne sur implant",
+    "Prothèse sur implant",
+    "Couronne implanto-portée",
+    "Vissée sur implant",
+    "Scellée sur implant"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "osseointegration",
+      "label": "Ostéointégration confirmée (délai + stabilité ISQ > 65)",
+      "critical": true
+    },
+    {
+      "id": "analogue",
+      "label": "Analogue d'implant et pilier prêts",
+      "critical": true
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte déterminée avant isolation",
+      "critical": true
+    },
+    {
+      "id": "torque",
+      "label": "Clé dynamométrique calibrée (15-35 Ncm selon pilier)",
+      "critical": true
+    },
+    {
+      "id": "empreinte",
+      "label": "Choix empreinte : open tray, pick-up ou scan intra-oral",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Dépose du pilier de cicatrisation",
+      "tip": "Outil spécifique à l'implant — noter couple de dépose"
+    },
+    {
+      "order": 2,
+      "label": "Empreinte implant (open tray ou scan)",
+      "tip": "Déflecteur gingival + scan intra-oral = plus précis"
+    },
+    {
+      "order": 3,
+      "label": "Pose pilier provisoire + provisoire implanaire",
+      "tip": "Profil d'émergence gingival à conditionner"
+    },
+    {
+      "order": 4,
+      "label": "Essayage pilier définitif + couronne à sec",
+      "tip": "Vérifier intégration marginale + contacts proximaux + occlusion"
+    },
+    {
+      "order": 5,
+      "label": "Vissage pilier au couple recommandé",
+      "tip": "Couple fabricant — noter dans le dossier"
+    },
+    {
+      "order": 6,
+      "label": "Scellement ou vissage couronne définitive",
+      "tip": "Scellée : éviter excès sous-gingivaux — vissée : avantage péri-implantaire"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Excès ciment sous-gingival",
+      "mitigation": "Utiliser la technique du fil ou couronne vissée — péri-implantite garantie sinon"
+    },
+    {
+      "risk": "Couple de serrage insuffisant",
+      "mitigation": "Clé dynamométrique obligatoire — noter le couple dans le dossier"
+    },
+    {
+      "risk": "Fracture de la vis de pilier",
+      "mitigation": "Couple adapté + contrôle à 3 mois — retirer avec kit extracteur dédié"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si nécessaire"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain de bouche × 2/j — 1 semaine post-pose"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Légère sensibilité gingivale normale 24-48h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Brossage doux — brosse à implant ou mono-touffe recommandée"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Maintenance implantaire 3-6 mois — jamais négliger"
+    }
+  ]
+}

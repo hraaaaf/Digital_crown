@@ -15,7 +15,8 @@ import {
   Wand2,
   HeartPulse,
   Leaf,
-  Layers
+  Layers,
+  QrCode
 } from 'lucide-react';
 
 export const SPECIALTIES_DICT = [
@@ -34,9 +35,10 @@ export const STEPS = [
   { id: 1, title: "Identité", icon: Building2 },
   { id: 2, title: "Domaines", icon: Stethoscope },
   { id: 3, title: "Contacts", icon: Phone },
-  { id: 4, title: "Design", icon: ImageIcon },
-  { id: 5, title: "Ambiance", icon: Palette },
-  { id: 6, title: "Lancement", icon: CheckCircle2 }
+  { id: 4, title: "Signature", icon: QrCode },
+  { id: 5, title: "Design", icon: ImageIcon },
+  { id: 6, title: "Ambiance", icon: Palette },
+  { id: 7, title: "Lancement", icon: CheckCircle2 }
 ];
 
 // Wait, I should use the correct icons. Let's re-import them or use string names/component references if needed.
@@ -46,9 +48,10 @@ export const CROWN_MESSAGES: Record<number, string> = {
   1: "Bienvenue Docteur. Commençons par définir l'identité de votre cabinet pour personnaliser vos documents.",
   2: "Sélectionnez vos expertises. Je vais les formater automatiquement en Français et en Arabe.",
   3: "Comment vos patients peuvent-ils vous joindre ? Ces infos figureront discrètement en pied de page.",
-  4: "C'est ici que la magie opère. Choisissez un style qui vous ressemble. L'aperçu à droite est vivant !",
-  5: "Dernière touche : l'ambiance de votre logiciel. Ghost Elite est mon préféré pour son élégance.",
-  6: "Tout est prêt. Vérifiez une dernière fois. Je m'occupe de configurer tout votre univers Digital Crown."
+  4: "Donnez une dimension numérique à vos documents. Que doivent voir vos patients en scannant votre QR Code ?",
+  5: "C'est ici que la magie opère. Choisissez un style qui vous ressemble. L'aperçu à droite est vivant !",
+  6: "Dernière touche : l'ambiance de votre logiciel. Ghost Elite est mon préféré pour son élégance.",
+  7: "Tout est prêt. Vérifiez une dernière fois. Je m'occupe de configurer tout votre univers Digital Crown."
 };
 
 export const PREMIUM_FONTS = [
@@ -60,6 +63,8 @@ export const PREMIUM_FONTS = [
 export const DESIGN_VARIANTS = [
   { id: 'classic', name: 'Elite Classic', icon: Building2 },
   { id: 'elite', name: 'Elite Modern', icon: Sparkles },
+  { id: 'sidebar', name: 'Elite Sidebar', icon: LayoutGrid },
+  { id: 'royal', name: 'Royal Centered', icon: Wand2 },
   { id: 'prestige', name: 'Prestige Dark', icon: Moon },
   { id: 'minimal', name: 'Minimal Zen', icon: Layers }
 ];

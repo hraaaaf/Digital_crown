@@ -9,11 +9,9 @@ import {
   Clock,
   ExternalLink
 } from 'lucide-react';
-import { cn } from '../../utils/cn';
-
 interface PanoramicAnalysis {
   id: number;
-  image_path: str;
+  image_path: string;
   detections_data: any;
   report_narrative: string;
   created_at: string;

@@ -22,6 +22,16 @@
   --font-outfit: "Outfit", sans-serif;
   --font-serif: "Playfair Display", serif;
   --font-arabic: "Amiri", serif;
+
+  /* Mappings Sémantiques pour la Réactivité de l'Interface */
+  --color-card: var(--card-bg);
+  --color-sidebar: var(--sidebar-bg);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-color);
+  --color-border-hover: var(--border-hover);
+  --color-input-field: var(--input-bg);
+  --color-background: var(--bg-medical-pearl);
 }
 
 :root {
@@ -36,6 +46,7 @@
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
   --input-bg: #f1f5f9;
 
   /* Couleurs par défaut si non injectées */
@@ -56,7 +67,32 @@
   --text-main: #064e3b;
   --text-muted: #059669;
   --border-color: #d1fae5;
+  --border-hover: #a7f3d0;
   --input-bg: #f0fdf4;
+  
+  --primary: #059669;
+  --secondary: #065f46;
+  --accent: #10b981;
+}
+
+[data-theme='rose'] {
+  /* ROSE PRESTIGE */
+  --bg-medical-pearl: #fff1f2;
+  --bg-gradient-start: #fff1f2;
+  --bg-gradient-end: #ffe4e6;
+  --glass-bg: rgba(255, 241, 242, 0.9);
+  --glass-border: rgba(219, 39, 119, 0.1);
+  --card-bg: #fffbfb;
+  --sidebar-bg: #fff1f2;
+  --text-main: #831843;
+  --text-muted: #db2777;
+  --border-color: #fecdd3;
+  --border-hover: #fda4af;
+  --input-bg: #fff1f2;
+
+  --primary: #db2777;
+  --secondary: #9d174d;
+  --accent: #f472b6;
 }
 
 [data-theme='prestige'] {
@@ -71,7 +107,12 @@
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --border-color: #1e293b;
+  --border-hover: #334155;
   --input-bg: #1e293b;
+
+  --primary: #3b82f6;
+  --secondary: #1d4ed8;
+  --accent: #60a5fa;
 }
 
 body {
@@ -88,7 +129,8 @@ body {
     top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-30deg);
     font-size: 8rem; font-weight: 900;
-    color: rgba(0, 0, 0, 0.02);
+    color: var(--text-main);
+    opacity: 0.02;
     pointer-events: none; white-space: nowrap; z-index: 0;
   }
 }

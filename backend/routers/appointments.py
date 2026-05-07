@@ -60,3 +60,28 @@ def delete_appointment(id: int, db: Session = Depends(database.get_db), current_
     db.delete(db_appt)
     db.commit()
     return {"status": "success"}
+
+@router.post("/bulk", response_model=List[schemas.AppointmentOut])
+def create_bulk_appointments(
+    payload: schemas.AppointmentBulkCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    created_appts = []
+    for item in payload.appointments:
+        db_appt = models.Appointment(
+            patient_name=item.patient_name,
+            patient_id=item.patient_id,
+            datetime_start=item.datetime_start,
+            duration_minutes=item.duration_minutes,
+            notes=item.notes,
+            status=item.status
+        )
+        db.add(db_appt)
+        created_appts.append(db_appt)
+    
+    db.commit()
+    for appt in created_appts:
+        db.refresh(appt)
+        
+    return created_appts

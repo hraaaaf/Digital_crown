@@ -1,0 +1,121 @@
+{
+  "act_code": "apicectomie",
+  "act_names": [
+    "Apicectomie",
+    "Résection apicale",
+    "Chirurgie apicale",
+    "Rétro-obturation",
+    "Chirurgie endodontique"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 75,
+  "checklist": [
+    {
+      "id": "echec_endo",
+      "label": "Échec endodontique confirmé après 6 mois",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "CBCT préop — taille lésion, accessibilité, anatomie",
+      "critical": true
+    },
+    {
+      "id": "retraitement",
+      "label": "Retraitement canalaire orthograde tenté d'abord",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement spécifique chirurgie + complications",
+      "critical": true
+    },
+    {
+      "id": "microscope",
+      "label": "Microscope opératoire ou loupes × 4 disponibles",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie infiltrative + vasoconstricteur (hémostase)",
+      "tip": "Épinéphrine 1:50000 local pour réduire le saignement"
+    },
+    {
+      "order": 2,
+      "label": "Incision sulculaire + décollement lambeau",
+      "tip": "Préserver les papilles — incision relaxante si nécessaire"
+    },
+    {
+      "order": 3,
+      "label": "Ostéotomie — accès à l'apex (fraise boule)",
+      "tip": "Refroidissement constant — éviter nécrose osseuse"
+    },
+    {
+      "order": 4,
+      "label": "Résection apicale 3mm à 90° axis dentaire",
+      "tip": "Inclinaison 0° — pas de biseau — éliminer delta apical"
+    },
+    {
+      "order": 5,
+      "label": "Curetage lésion périapicale + biopsie",
+      "tip": "Envoyer en anapath si kyste suspecté"
+    },
+    {
+      "order": 6,
+      "label": "Rétro-préparation MTA + suture hermétique",
+      "tip": "MTA — matériau de référence pour rétro-obturation"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Lésion sinus maxillaire",
+      "mitigation": "CBCT préop — distance apex/plancher sinusien mesurée"
+    },
+    {
+      "risk": "Lésion nerf mentonnier",
+      "mitigation": "Localisation foramen radio + CBCT — approche avec précaution"
+    },
+    {
+      "risk": "Récidive à long terme",
+      "mitigation": "Rétro-obturation MTA + contrôle radio 1 an + 3 ans"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:50000",
+      "dose_adult": "Locale — hémostase chirurgicale"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 5 jours"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "600mg × 3/j — 5 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain bouche × 2/j × 7 jours"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Glaçage externe 20 min/heure — 6 premières heures"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle froide 48h — prendre antibiotiques complets"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV ablation fils J7 + radio contrôle à 6 mois + 1 an"
+    }
+  ]
+}

@@ -3,12 +3,15 @@ import { Plus, Trash2, Zap, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
 
-export interface DrugItem { 
-  id: number; 
-  name: string; 
-  dosage: string; 
-  forme: string; 
-  posologie: string; 
+export interface DrugItem {
+  id: number;
+  name: string;
+  dosage: string;
+  forme: string;
+  posologie: string;
+  type?: 'MEDICAMENT' | 'EXAMEN';
+  quantite?: number;
+  non_substituable?: boolean;
 }
 
 import type { ValidationError, CoherenceWarning } from '../useDocumentGenerator';

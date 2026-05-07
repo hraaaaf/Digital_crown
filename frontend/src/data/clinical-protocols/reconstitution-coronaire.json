@@ -1,0 +1,106 @@
+{
+  "act_code": "reconstitution-coronaire",
+  "act_names": [
+    "Reconstitution coronaire",
+    "Reconstruction coronaire",
+    "Foulage direct",
+    "Tenon fibré",
+    "RCR résine"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "endo",
+      "label": "Traitement endodontique préalable confirmé",
+      "critical": true
+    },
+    {
+      "id": "ferrule",
+      "label": "Ferrule ≥ 2mm évalué — sinon allongement",
+      "critical": true
+    },
+    {
+      "id": "tenon",
+      "label": "Décision tenon fibré ou foulage direct",
+      "critical": false
+    },
+    {
+      "id": "digue",
+      "label": "Digue posée — isolation parfaite",
+      "critical": true
+    },
+    {
+      "id": "espace",
+      "label": "Espace prothétique mesuré",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Désobturation partielle si tenon",
+      "tip": "Conserver 4-5mm d'obturation apicale"
+    },
+    {
+      "order": 2,
+      "label": "Logement tenon au foret calibré",
+      "tip": "Diamètre tenon + 0,05mm — ne pas fracturer"
+    },
+    {
+      "order": 3,
+      "label": "Scellement tenon fibré au composite dual",
+      "tip": "Vérifier absence de bulles avant photo"
+    },
+    {
+      "order": 4,
+      "label": "Foulage composite haute viscosité",
+      "tip": "Condensation pour éliminer porosités"
+    },
+    {
+      "order": 5,
+      "label": "Polymérisation + façonnage préparation",
+      "tip": "Préparation définitive en même séance si possible"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Ferrule < 2mm",
+      "mitigation": "Allongement coronaire chirurgical ou extraction — discuter"
+    },
+    {
+      "risk": "Fracture radiculaire",
+      "mitigation": "Tenon fibré uniquement — jamais métallique"
+    },
+    {
+      "risk": "Délogement du tenon",
+      "mitigation": "Adhésif méticuleux + composite dual de qualité"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Couronne provisoire — ne pas mâcher côté traité"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle jusqu'à la couronne définitive"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Respecter le RDV prothèse — ne pas reporter"
+    }
+  ]
+}

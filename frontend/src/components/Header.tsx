@@ -46,7 +46,7 @@ export const Header = () => {
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-20">
       
       {/* STATUT SYSTÈME - Adapté Light */}
-      <div className="hidden xl:flex items-center gap-2 bg-white/80 px-4 py-2 rounded-full border border-slate-200 shadow-sm backdrop-blur-md">
+      <div className="hidden xl:flex items-center gap-2 bg-card/80 px-4 py-2 rounded-full border border-border-main shadow-sm backdrop-blur-md">
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Système Opérationnel</span>
       </div>
@@ -60,7 +60,7 @@ export const Header = () => {
         </Link>
         <button className="p-2.5 text-slate-400 hover:text-primary hover:bg-white/80 rounded-xl transition-all relative group">
           <Bell size={20} className="group-hover:scale-110 transition-transform" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full border-2 border-white shadow-sm" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-white shadow-sm" />
         </button>
       </div>
 
@@ -72,7 +72,7 @@ export const Header = () => {
           <p className="text-sm font-black text-primary leading-none tracking-tight">{praticienName}</p>
           <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{cabinetName}</p>
         </div>
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-slate-100 border border-slate-200 flex items-center justify-center text-primary shadow-sm backdrop-blur-md">
+        <div className="w-11 h-11 rounded-xl bg-input-field border border-border-main flex items-center justify-center text-primary shadow-sm backdrop-blur-md">
           <UserCircle size={24} />
         </div>
       </div>

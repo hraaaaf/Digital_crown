@@ -174,6 +174,8 @@ class LibreGenerator:
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         
         doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        doc.qr_type = 'WEBSITE'
+        doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
         doc.cloture_text = "Signature et Cachet"
         
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)

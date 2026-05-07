@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
-import type { DrugItem } from './Forms/PrescriptionForm';
+import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 
 interface PriceItem {
@@ -30,6 +30,7 @@ interface UseDocumentGeneratorParams {
   drugs: DrugItem[];
   certifType: string;
   certifDays: number;
+  certifCustomMotif: string;
   items: PriceItem[];
   paymentMode: PaymentMode;
   libreTitle: string;
@@ -198,7 +199,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
   const buildPayload = useCallback(() => {
     const {
-      patientId, activeTab, drugs, certifType, certifDays, items, paymentMode,
+      patientId, activeTab, drugs, certifType, certifDays, certifCustomMotif, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
       librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
       installments,
@@ -212,17 +213,18 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
     if (activeTab === 'ordonnance') {
       payload.data = {
-        medications: drugs.map(d => ({ 
-          nom: d.name, 
-          dosage: d.dosage, 
-          forme: d.forme || 'Sachets', 
+        medications: drugs.map(d => ({
+          nom: d.name,
+          dosage: d.dosage,
+          forme: d.forme || 'Sachets',
           posologie: d.posologie,
           type: d.type || 'MEDICAMENT'
         })),
         doc_date: docDate,
       };
     } else if (activeTab === 'certificat') {
-      payload.data = { reason: certifType, days: Number(certifDays), start_date: docDate };
+      const reason = certifType === 'Autre' ? certifCustomMotif || 'Repos Post-Opératoire' : certifType;
+      payload.data = { reason, days: Number(certifDays), start_date: docDate };
     } else if (activeTab === 'libre') {
       const birthDate = patientDetails?.date_naissance;
       let age: number | undefined;
@@ -302,7 +304,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
         const fullUrl = `${baseUrl}/${cleanPdfPath}#view=FitH&t=${Date.now()}`;
         setPdfUrl(fullUrl);
-        
+
         // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
         if (res.data.warnings && res.data.warnings.length > 0) {
           console.log("🩺 [Clinical Intelligence] Alertes de cohérence détectées:", res.data.warnings);

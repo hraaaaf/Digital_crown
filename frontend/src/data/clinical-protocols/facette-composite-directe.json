@@ -1,0 +1,110 @@
+{
+  "act_code": "facette-composite-directe",
+  "act_names": [
+    "Facette composite directe",
+    "Facette composite",
+    "Stratification directe",
+    "Restauration esthétique antérieure"
+  ],
+  "difficulty": "complex",
+  "duration_min": 90,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée : dyschromie, fracture, diastème",
+      "critical": false
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte sélectionnée (dentine + émail séparément)",
+      "critical": true
+    },
+    {
+      "id": "cire",
+      "label": "Wax-up diagnostique réalisé",
+      "critical": false
+    },
+    {
+      "id": "isolation",
+      "label": "Digue ou isolation parfaite",
+      "critical": true
+    },
+    {
+      "id": "preparation",
+      "label": "Préparation minimale ou sans préparation décidée",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Wax-up + clé en silicone pour guide de stratification",
+      "tip": "Ne pas improviser — le guide donne la forme finale"
+    },
+    {
+      "order": 2,
+      "label": "Préparation minimale ou aucune (composite additive)",
+      "tip": "Garder l'émail — moins de mordançage = moins de sensibilité"
+    },
+    {
+      "order": 3,
+      "label": "Mordançage + adhésif selon protocole",
+      "tip": "Rinçage 30s, séchage doux — ne pas déshydrater"
+    },
+    {
+      "order": 4,
+      "label": "Stratification dentine (teinte A3 opaque) + émail (A1 transp)",
+      "tip": "Couches fines — pas plus de 1,5mm par incrément"
+    },
+    {
+      "order": 5,
+      "label": "Sculpture + caractérisation surface",
+      "tip": "Reproduire les lobes, mamelons, texture de l'émail naturel"
+    },
+    {
+      "order": 6,
+      "label": "Finition + polissage séquentiel",
+      "tip": "Disques Soflex + pâte diamantée — finir avec disque submicron"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Teinte non harmonieuse",
+      "mitigation": "Test de teinte toujours avant isolation — composite à sec"
+    },
+    {
+      "risk": "Mauvaise forme finale",
+      "mitigation": "Wax-up + clé silicone indispensables pour résultat prévisible"
+    },
+    {
+      "risk": "Fracture précoce",
+      "mitigation": "Équilibration occlusale parfaite — gouttière nocturne si bruxisme"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml si préparation"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 2/j si sensibilité"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Éviter aliments colorants 48h (café, thé, vin, tabac)"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Brossage doux — éviter la brosse électrique la 1ère semaine"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Gouttière de bruxisme si parafonction identifiée — protège l'investissement"
+    }
+  ]
+}

@@ -143,7 +143,7 @@ export const PatientDocuments = () => {
         {docsWithDuplicates.map((doc) => (
           <div key={doc.id} className={cn(
             "group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-hidden",
-            doc.isDuplicate ? "bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]" : "bg-white/70 border border-white hover:shadow-[0_8px_30px_rgb(0,51,128,0.12)]"
+            doc.isDuplicate ? "bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]" : "bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]"
           )}>
             
             {doc.isDuplicate && (
@@ -155,7 +155,7 @@ export const PatientDocuments = () => {
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div className={cn(
                 "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500",
-                doc.isDuplicate ? "bg-rose-100 text-rose-600" : "bg-gradient-to-br from-blue-50 to-white text-primary border border-blue-100 group-hover:bg-primary group-hover:text-white"
+                doc.isDuplicate ? "bg-rose-100 text-rose-600" : "bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white"
               )}>
                 {getDocIcon(doc.type, "w-7 h-7")}
               </div>
@@ -168,7 +168,7 @@ export const PatientDocuments = () => {
                 </button>
                 <span className={cn(
                   "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border",
-                  doc.type.toUpperCase() === 'NOTE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                  doc.type.toUpperCase() === 'NOTE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-primary/10 text-primary border-primary/20"
                 )}>
                   {doc.type}
                 </span>
@@ -176,9 +176,9 @@ export const PatientDocuments = () => {
             </div>
             
             <div className="relative z-10 mb-8">
-              <h3 className="font-black text-slate-800 text-lg truncate pr-4 leading-tight">{doc.name}</h3>
+              <h3 className="font-black text-text-main text-lg truncate pr-4 leading-tight">{doc.name}</h3>
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold mt-2 uppercase tracking-wide">
-                <Calendar size={14} className="text-blue-400" /> Généré le {doc.date}
+                <Calendar size={14} className="text-primary/60" /> Généré le {doc.date}
               </div>
             </div>
 
@@ -194,7 +194,7 @@ export const PatientDocuments = () => {
               <a 
                 href={`${api.defaults.baseURL || 'http://localhost:8000/api'}/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`} 
                 download={doc.name}
-                className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-[#003380] to-blue-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
               >
                 <Download size={16} /> Fichier
               </a>

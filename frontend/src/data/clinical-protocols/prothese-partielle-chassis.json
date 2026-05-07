@@ -1,0 +1,100 @@
+{
+  "act_code": "prothese-partielle-chassis",
+  "act_names": [
+    "Prothèse partielle amovible châssis",
+    "PPA châssis métallique",
+    "Appareil à châssis",
+    "Stellite"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "guide",
+      "label": "Plans guides préparés sur les dents piliers",
+      "critical": true
+    },
+    {
+      "id": "rfe",
+      "label": "Zones de rétention et déflexion planifiées",
+      "critical": false
+    },
+    {
+      "id": "paro",
+      "label": "Parodonte parfaitement sain",
+      "critical": true
+    },
+    {
+      "id": "empreinte",
+      "label": "Empreinte secondaire de haute précision",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Préparation dents piliers (plans guides, cingula)",
+      "tip": "Fraise flamme — parallèle à l'axe d'insertion"
+    },
+    {
+      "order": 2,
+      "label": "Empreinte primaire + modèle d'étude + analyse parallélisme",
+      "tip": "Axe d'insertion unique — pas de sous-dépouilles indésirables"
+    },
+    {
+      "order": 3,
+      "label": "Empreinte secondaire haute précision + mordu",
+      "tip": "Polyéther ou silicone + occlusion en position de référence"
+    },
+    {
+      "order": 4,
+      "label": "Essayage châssis métallique",
+      "tip": "Vérifier ajustage taquets, stabilité, rétention — avant dents"
+    },
+    {
+      "order": 5,
+      "label": "Montage dents + essayage esthétique",
+      "tip": "Teinte, forme, phonétique — accord patient"
+    },
+    {
+      "order": 6,
+      "label": "Pose + équilibration occlusale rigoureuse",
+      "tip": "Papier articulé fin — contacts bilatéraux simultanés"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Châssis instable",
+      "mitigation": "Revoir l'axe d'insertion — refaire si nécessaire"
+    },
+    {
+      "risk": "Fracture d'un crochet",
+      "mitigation": "Alliage CrCo de qualité — contrôle occlusal avant pose"
+    },
+    {
+      "risk": "Atteinte parodontale sur piliers",
+      "mitigation": "Maintenance stricte 3 mois — contrôle plaque autour des crochets"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 2/j si gêne initiale"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Porter 24h puis venir à la retouche obligatoire"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Nettoyage brossette + savon doux — jamais de dentifrice abrasif sur le métal"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Maintenance parodontale 3-4 mois — crochets = zones à risque"
+    }
+  ]
+}

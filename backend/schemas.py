@@ -3,6 +3,16 @@ import datetime
 from typing import Optional, Dict, List, Literal, Any, Tuple, Union
 from enum import Enum
 
+class QRCodeType(str, Enum):
+    NONE = "NONE"
+    VALIDATION = "VALIDATION"
+    VCARD = "VCARD"
+    WEBSITE = "WEBSITE"
+    INSTAGRAM = "INSTAGRAM"
+    PAYMENT = "PAYMENT"
+    WHATSAPP = "WHATSAPP"
+    LOCATION = "LOCATION"
+
 # --- 1. SLM & DIAGNOSTIC INTELLIGENT ---
 
 class DiagnosticSLM(BaseModel):
@@ -143,7 +153,7 @@ class PatientCreate(PatientBase):
 
 class PatientOut(PatientBase):
     id: int
-    numero_dossier: str  # Rendu obligatoire en sortie
+    numero_dossier: Optional[str] = None  # Changé en optionnel pour éviter les erreurs de validation si NULL en BDD
     created_at: datetime.datetime
     dossier: Optional[DossierOut] = None
     model_config = ConfigDict(from_attributes=True)
@@ -183,6 +193,17 @@ class AppointmentOut(AppointmentBase):
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
+class AppointmentImportItem(BaseModel):
+    patient_name: str
+    datetime_start: datetime.datetime
+    duration_minutes: int
+    notes: Optional[str] = None
+    patient_id: Optional[int] = None
+    status: AppointmentStatus = AppointmentStatus.PREVU
+
+class AppointmentBulkCreate(BaseModel):
+    appointments: List[AppointmentImportItem]
+
 # --- 7. SCHÉMA ANALYSE CÉPHALOMÉTRIQUE ---
 
 class CephaloAnalysisOut(BaseModel):
@@ -194,11 +215,32 @@ class CephaloAnalysisOut(BaseModel):
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-# --- 7bis. SCHÉMA ANALYSE PANORAMIQUE (DENTEX) ---
+# --- 7bis. SCHÉMA ANALYSE PANORAMIQUE (DENTEX / LOKI) ---
+
+class BoundingBox(BaseModel):
+    x_min: float
+    y_min: float
+    x_max: float
+    y_max: float
+    confidence: float
+
+class Finding(BaseModel):
+    label: str
+    confidence: float
+    bbox: Optional[BoundingBox] = None
+
+class ToothObject(BaseModel):
+    fdi_number: Optional[int] = Field(None, description="Numérotation FDI (11-48)")
+    bbox: BoundingBox
+    findings: List[Finding] = Field(default_factory=list)
+
+class FullAnalysis(BaseModel):
+    teeth: List[ToothObject] = Field(default_factory=list)
+    general_findings: List[Finding] = Field(default_factory=list)
 
 class PanoramicAnalysisBase(BaseModel):
     image_path: str
-    detections_data: Dict[str, Any] = Field(default_factory=dict)
+    detections_data: FullAnalysis = Field(default_factory=FullAnalysis)
     report_narrative: Optional[str] = None
 
 class PanoramicAnalysisCreate(PanoramicAnalysisBase):
@@ -788,6 +830,13 @@ class CabinetConfigBase(BaseModel):
     margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
     contacts_json: Optional[Dict] = Field(default_factory=dict)
     
+    # QR Code Strategy (Elite v4.0)
+    qr_code_enabled: bool = Field(default=False)
+    qr_code_type: QRCodeType = Field(default=QRCodeType.VCARD)
+    qr_code_value: Optional[str] = Field(default=None, max_length=500)
+    qr_code_color: Optional[str] = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    qr_code_label: Optional[str] = Field(default=None, max_length=100)
+    
     # Templates de clôture (Accounting)
     cloture_note_template: str = Field(default="Arrêtée la présente note à la somme de {total_words} TTC.")
     cloture_devis_template: str = Field(default="Arrêté le présent devis à la somme de {total_words} TTC.")
@@ -899,6 +948,36 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     nom_complet: Optional[str] = None
+    is_active: bool = True
+    employer_id: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
+
+# --- 14. GESTION D'ÉQUIPE (SOUS-COMPTES ASSISTANTES) ---
+
+class TeamMemberCreate(BaseModel):
+    """Création d'un sous-compte assistante rattaché au praticien connecté."""
+    email: EmailStr
+    password: str = Field(min_length=4, description="Mot de passe provisoire (4 caractères minimum)")
+    nom_complet: str = Field(min_length=2, description="Nom complet de l'assistante")
+    telephone_mobile: Optional[str] = None
+
+class TeamMemberUpdate(BaseModel):
+    """Mise à jour d'un sous-compte existant."""
+    nom_complet: Optional[str] = None
+    email: Optional[EmailStr] = None
+    telephone_mobile: Optional[str] = None
+    is_active: Optional[bool] = None
+    new_password: Optional[str] = Field(None, min_length=4)
+
+class TeamMemberOut(BaseModel):
+    """Représentation d'un membre de l'équipe (lecture)."""
+    id: int
+    email: str
+    role: str
+    nom_complet: Optional[str] = None
+    telephone_mobile: Optional[str] = None
+    is_active: bool
+    created_at: Optional[datetime.datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 # --- 11. ANALYSE PANORAMIQUE (OPG) ---

@@ -26,6 +26,10 @@ def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), c
 def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     return prescription_service.get_medication_details(db, current_user.id, med_name)
 
+@prescription_router.get("/habits/presets")
+def get_prescription_presets(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    return prescription_service.get_doctor_presets(db, current_user.id)
+
 @prescription_router.post("/habits/record")
 def record_medication_habit(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     med_name = req.get("medication_name")
@@ -34,6 +38,16 @@ def record_medication_habit(req: dict, db: Session = Depends(database.get_db), c
     if not med_name:
         raise HTTPException(status_code=400, detail="Nom du médicament manquant")
     prescription_service.record_medication_usage(db, current_user.id, med_name, dosage, posologie)
+    return {"status": "success"}
+
+@prescription_router.post("/habits/record-batch")
+def record_medication_habits_batch(req: List[dict], db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    for item in req:
+        med_name = item.get("medication_name")
+        dosage = item.get("dosage")
+        posologie = item.get("posologie")
+        if med_name:
+            prescription_service.record_medication_usage(db, current_user.id, med_name, dosage, posologie)
     return {"status": "success"}
 
 @prescription_router.get("/smart-suggest/{patient_id}")
