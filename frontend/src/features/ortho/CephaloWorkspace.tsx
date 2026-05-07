@@ -20,7 +20,6 @@
 import React, {
   useState, useCallback, useMemo, useRef, useEffect,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight, X,
@@ -50,6 +49,9 @@ import { cephaloRepository } from './cephaloRepository';
 import { Step2Occlusal } from './components/Step2Occlusal';
 import { Step3Clinical } from './components/Step3Clinical';
 import { Step4Documents } from './components/Step4Documents';
+import { StepTab } from './components/StepTab';
+import { SyncBadge } from './components/SyncBadge';
+import { Step2BlockerModal } from './components/Step2BlockerModal';
 
 
 export interface CephaloWorkspaceProps {
@@ -135,182 +137,9 @@ const REQUIRED_LANDMARKS = [
 
 
 
-const StepTab: React.FC<{
-  id: StepId; label: string; isActive: boolean; isCompleted: boolean;
-  hasError?: boolean; onClick: () => void; P: Palette;
-}> = ({ id, label, isActive, isCompleted, hasError, onClick, P }) => (
-  <motion.button
-    whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}
-    onClick={onClick}
-    className="relative px-4 py-3 rounded-lg transition-all"
-    style={{
-      background: isActive ? `${P.accent}15` : 'transparent',
-      border: `1px solid ${isActive ? P.accent : P.border}`,
-      color: isActive ? P.accent : P.textMuted,
-    }}
-  >
-    <div className="flex items-center gap-2 text-xs font-mono font-semibold tracking-wide">
-      {isCompleted && !isActive && !hasError && <CheckCircle2 size={12} style={{ color: P.accentSuccess }} />}
-      {hasError && !isActive && <AlertCircle size={12} style={{ color: P.accentError }} />}
-      <span className="opacity-40">{id}.</span>
-      <span>{label}</span>
-    </div>
-    {isActive && (
-      <motion.div
-        layoutId="step-active"
-        className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-        style={{ background: `linear-gradient(90deg, ${P.accent}, ${P.accentSuccess})` }}
-      />
-    )}
-  </motion.button>
-);
+// StepTab, SyncBadge imported from ./components/
 
-const SyncBadge: React.FC<{ state: SyncState; P: Palette }> = ({ state, P }) => {
-  if (state === 'idle') return null;
-  const cfg = {
-    syncing: { color: P.accent, icon: <Loader2 size={12} className="animate-spin" />, label: 'Synchronisation…' },
-    success: { color: P.accentSuccess, icon: <CheckCircle2 size={12} />, label: 'Synchronisé' },
-    error: { color: P.accentError, icon: <AlertCircle size={12} />, label: 'Erreur sync' },
-  }[state];
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-      className="absolute bottom-4 right-4 z-30 px-3 py-2 rounded-lg text-xs font-mono flex items-center gap-2 pointer-events-none"
-      style={{ background: `${cfg.color}15`, border: `1px solid ${cfg.color}40`, color: cfg.color }}
-    >
-      {cfg.icon}{cfg.label}
-    </motion.div>
-  );
-};
-
-// 
-// MODAL BLOCAGE ÉTAPE 2
-// 
-const Step2BlockerModal: React.FC<{
-  type: 'calibration' | 'apex' | null;
-  onClose: () => void;
-  onStartCalibration: () => void;
-  P: Palette;
-}> = ({ type, onClose, onStartCalibration, P }) => {
-  if (!type) return null;
-  const isCalibration = type === 'calibration';
-  
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="max-w-md w-full rounded-2xl p-6"
-        style={{ 
-          background: P.bgPanel,
-          border: `1px solid ${P.border}`,
-          boxShadow: P.shadowLg
-        }}
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div 
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: isCalibration ? `${P.accentWarning}15` : `${P.accent}15` }}
-          >
-            {isCalibration ? (
-              <Ruler size={24} style={{ color: P.accentWarning }} />
-            ) : (
-              <Activity size={24} style={{ color: P.accent }} />
-            )}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold" style={{ color: P.text }}>
-              {isCalibration ? 'Calibration requise' : 'Repositionnement nécessaire'}
-            </h3>
-            <p className="text-xs" style={{ color: P.textMuted }}>
-              Étape préliminaire obligatoire
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3 mb-6">
-          <p className="text-sm leading-relaxed" style={{ color: P.textMuted }}>
-            {isCalibration 
-              ? "Avant de procéder à l'analyse des moulages, vous devez calibrer l'échelle de la radiographie en sélectionnant deux points de référence dont vous connaissez la distance réelle."
-              : "Les apex des incisives ont été placés automatiquement par l'IA. Pour une analyse précise, vous devez les repositionner manuellement à la racine des dents."}
-          </p>
-          
-          <div 
-            className="rounded-xl p-4 text-xs space-y-3"
-            style={{ background: P.bgCard, border: `1px solid ${P.border}` }}
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: P.accent, color: 'white' }}>1</span>
-              <span style={{ color: P.textMuted }}>
-                {isCalibration 
-                  ? 'Cliquez sur "Calibrer maintenant" puis sélectionnez deux points distincts sur l\'image (ex: bords d\'une dent connue)'
-                  : 'Sélectionnez et déplacez U1_apex (apex incisive supérieure) à la racine de la dent'}
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: P.accent, color: 'white' }}>2</span>
-              <span style={{ color: P.textMuted }}>
-                {isCalibration 
-                  ? 'Entrez la distance réelle entre ces deux points en millimètres'
-                  : 'Sélectionnez et déplacez L1_apex (apex incisive inférieure) à la racine de la dent'}
-              </span>
-            </div>
-            {!isCalibration && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: P.accent, color: 'white' }}>3</span>
-                <span style={{ color: P.textMuted }}>
-                  Validez la position des apex pour débloquer l'accès aux moulages
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
-            style={{ 
-              background: 'transparent',
-              border: `1px solid ${P.border}`,
-              color: P.textMuted
-            }}
-          >
-            Plus tard
-          </button>
-          {isCalibration ? (
-            <button
-              onClick={() => {
-                onClose();
-                onStartCalibration();
-              }}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-              style={{ 
-                background: P.accentWarning,
-                color: 'white'
-              }}
-            >
-              Calibrer maintenant
-            </button>
-          ) : (
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-              style={{ 
-                background: P.accent,
-                color: 'white'
-              }}
-            >
-              J'ai compris
-            </button>
-          )}
-        </div>
-      </motion.div>
-    </div>,
-    document.body
-  );
-};
+// Step2BlockerModal imported from ./components/Step2BlockerModal
 
 // 
 // COMPOSANT PRINCIPAL
