@@ -3,7 +3,7 @@ import { Image as ImageIcon, FileImage, Type, Palette, Upload, MousePointer2 } f
 import { cn } from '../../../../utils/cn';
 import { BRAND_IDENTITIES, PREMIUM_FONTS, DESIGN_VARIANTS } from '../../constants';
 import type { HeaderOption, TemplateOption } from '../../types';
-import Logo from '../../../../../assets/logo.png';
+import Logo from '../../../../assets/logo.png';
 
 interface Props {
   headerOption: HeaderOption;
