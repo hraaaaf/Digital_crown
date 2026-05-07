@@ -48,10 +48,10 @@ interface PatientDetails {
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [activeTab, setActiveTab] = useState<DocumentType>('certificat');
+  const [activeTab, setActiveTab] = useState<DocumentType>('ordonnance');
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
-  const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('PREVIEW');
+  const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<any>(null);
@@ -77,6 +77,32 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [libreHideHeader, setLibreHideHeader] = useState(false);
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
+
+  // --- GARDES NAVIGATION ---
+  const [pendingTab, setPendingTab] = useState<DocumentType | null>(null);
+
+  // Garde sur changement d'onglet (1.3)
+  const handleTabChange = (newTab: DocumentType) => {
+    const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
+      items.some(i => i.description.trim()) && newTab !== activeTab;
+    if (hasUnsaved) {
+      setPendingTab(newTab);
+    } else {
+      setActiveTab(newTab);
+    }
+  };
+
+  // Garde fermeture navigateur (1.6)
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if ((activeTab === 'devis' || activeTab === 'honoraires') && items.some(i => i.description.trim())) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [activeTab, items]);
 
   // --- ÉTATS UI ---
   const [showOdontoPanoramique, setShowOdontoPanoramique] = useState(true);
@@ -191,7 +217,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
         />
 
-        <StudioTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <StudioTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {activeTab === 'ordonnance' && (
@@ -217,10 +243,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {activeTab === 'certificat' && (
             <CertificateForm
+              patientId={patientId || ""}
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
               certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
-              validationErrors={generator.validationErrors}
             />
           )}
 
@@ -241,6 +267,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <AccountingStudio
               isDevis={activeTab === 'devis'}
               patientId={patientId || '0'} items={items} setItems={setItems}
+              coherenceWarnings={generator.coherenceWarnings}
               paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
               installments={installments} setInstallments={setInstallments}
               showOdontoPanoramique={showOdontoPanoramique} odontogramMode={odontogramMode} setOdontogramMode={setOdontogramMode}
@@ -322,6 +349,59 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           total={items.reduce((acc, i) => acc + (Number(i.price) || 0), 0)}
         />
       </div>
+
+      {/* MODALE — Garde changement d'onglet (1.3) */}
+      {pendingTab && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPendingTab(null)} />
+          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Les actes saisis seront effacés.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingTab(null)}
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
+              >Annuler</button>
+              <button
+                onClick={() => { setActiveTab(pendingTab); setPendingTab(null); }}
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-primary transition-all"
+                style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
+              >Continuer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE — Doublon détecté (remplace window.confirm) */}
+      {generator.showDuplicateModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={generator.cancelDuplicate} />
+          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 text-lg">⚠️</div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Doublon détecté</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Un document similaire existe déjà pour ce patient.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={generator.cancelDuplicate}
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
+              >Annuler</button>
+              <button
+                onClick={generator.confirmDuplicate}
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-orange-500 text-white hover:bg-orange-600 transition-all"
+              >Forcer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* APERÇU LATÉRAL */}
       <AnimatePresence>

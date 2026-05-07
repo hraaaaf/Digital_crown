@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { MainLayout } from './components/Layout/MainLayout';
 import { cabinetApi } from './services/templateApi';
@@ -24,6 +25,7 @@ import { WelcomeScreen } from './pages/WelcomeScreen';
 import { LoginPage } from './pages/LoginPage';
 import { authService } from './services/auth';
 import { MarketingDemo } from './components/MarketingDemo';
+import { EliteLibrary } from './features/clinical-ref/EliteLibrary';
 
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
@@ -128,6 +130,8 @@ const ProtectedRoutes = () => (
 
       {/* ROUTE PARAMÈTRES */}
       <Route path="/settings" element={<Settings />} />
+
+      <Route path="/bibliotheque" element={<EliteLibrary />} />
       
       {/* Route par défaut */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -150,6 +154,14 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: { borderRadius: '16px', fontWeight: 700, fontSize: '13px' },
+          success: { duration: 3000 },
+          error: { duration: 5000 },
+        }}
+      />
       <MarketingDemo />
       <Routes>
         {/* Route d'entrée absolue (sans protection) */}

@@ -12,11 +12,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import { useClinicalRef } from '../clinical-ref/useClinicalRef';
+import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
+import { Brain } from 'lucide-react';
 import { Odontogram } from '../../components/odontogram';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
 import { api } from '../../services/api';
-import type { ValidationError } from './DocumentStudio/useDocumentGenerator';
+import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 
 interface PriceItem { 
   id: number; 
@@ -65,6 +68,7 @@ interface AccountingStudioProps {
   installments: InstallmentItem[];
   setInstallments: (val: InstallmentItem[]) => void;
   validationErrors?: ValidationError[];
+  coherenceWarnings?: CoherenceWarning[];
 }
 
 const getCategoryColor = (cat: string) => {
@@ -106,12 +110,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     applyActSuggestion,
     installments,
     setInstallments,
-    validationErrors = []
+    validationErrors = [],
+    coherenceWarnings = [],
   } = props;
 
   // Zen-Elite state: Collapsible Odontogram
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
+  
+  const [activeGuideAct, setActiveGuideAct] = useState<string | null>(null);
+  const protocol = useClinicalRef(activeGuideAct || undefined);
 
   useEffect(() => {
     fetchQuickActs();
@@ -155,12 +163,28 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-32">
 
-      {/* Global Alerts Center */}
+      {/* Erreurs de validation */}
       {validationErrors.length > 0 && (
         <div className="space-y-2">
           {validationErrors.map((err, idx) => (
             <div key={idx} className="px-6 py-3 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-600 font-bold flex items-center gap-3 animate-in slide-in-from-top-2">
               <AlertCircle size={16} /> {err.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Alertes de cohérence (1.2) */}
+      {coherenceWarnings.length > 0 && (
+        <div className="space-y-2">
+          {coherenceWarnings.map((w, idx) => (
+            <div key={idx} className={cn(
+              "px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-3 animate-in slide-in-from-top-2",
+              w.level === 'warning' ? "bg-amber-50 border border-amber-200 text-amber-700"
+                : w.level === 'critical' ? "bg-red-50 border border-red-200 text-red-600"
+                : "bg-blue-50 border border-blue-200 text-blue-600"
+            )}>
+              <AlertCircle size={16} className="shrink-0" /> {w.message}
             </div>
           ))}
         </div>
@@ -230,8 +254,13 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                     type="text"
                     className={cn(inputClass, "pl-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 transition-colors")}
                     value={item.description}
-                    onChange={(e) => handleActSearch(e.target.value, item.id)}
-                    onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
+                    onChange={(e) => {
+                      const isLast = idx === items.length - 1;
+                      const wasEmpty = !item.description.trim();
+                      handleActSearch(e.target.value, item.id);
+                      if (isLast && wasEmpty && e.target.value.trim()) addEmptyRow();
+                    }}
+                    onBlur={() => setTimeout(() => setActiveActSearchId(null), 150)}
                     placeholder="Désignation du soin..."
                   />
                   {activeActSearchId === item.id && actSuggestions.length > 0 && (
@@ -239,6 +268,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                       {actSuggestions.map((act) => (
                         <button
                           key={act.id}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => applyActSuggestion(item.id, act)}
                           className="w-full text-left px-6 py-4 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/suggest"
                         >
@@ -271,12 +301,22 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">MAD</span>
                 </div>
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="p-3 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 size={18} />
-                </button>
+                
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={() => setActiveGuideAct(item.description)}
+                    className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                    title="Guide Clinique"
+                  >
+                    <Brain size={18} />
+                  </button>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -450,6 +490,13 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </motion.div>
       )}
 
+      {protocol && (
+        <ClinicalRefSidebar 
+          protocol={protocol} 
+          isOpen={!!activeGuideAct} 
+          onClose={() => setActiveGuideAct(null)} 
+        />
+      )}
     </div>
   );
 };

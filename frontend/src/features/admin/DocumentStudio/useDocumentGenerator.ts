@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
@@ -97,6 +98,9 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
         errors.push({ field: `item_price_${i}`, message: `Acte "${item.description}" : montant (${price} MAD) dépasse la limite autorisée.` });
       }
     });
+    if (activeTab === 'honoraires' && !params.paymentMode) {
+      errors.push({ field: 'paymentMode', message: 'Le mode de règlement est requis pour une Note d\'Honoraires.' });
+    }
   }
 
   if (activeTab === 'libre') {
@@ -159,6 +163,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   const [hasChanges, setHasChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [coherenceWarnings, setCoherenceWarnings] = useState<CoherenceWarning[]>([]);
+  const [duplicateArgs, setDuplicateArgs] = useState<{ archive: boolean; print: boolean } | null>(null);
 
   const { patientId, activeTab, drugs, smartSuggestion } = params;
 
@@ -169,32 +174,62 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   // Impression automatique après génération PDF
   useEffect(() => {
     if (!pendingPrint || !pdfUrl || activeTab === 'ai') return;
-    const timer = setTimeout(async () => {
+    
+    const printTimer = setTimeout(async () => {
       try {
-        const response = await fetch(pdfUrl);
+        // Nettoyage de l'URL pour le fetch (retrait du fragment #view=...)
+        const fetchUrl = pdfUrl.split('#')[0];
+        
+        console.log("🖨️ Tentative d'impression directe :", fetchUrl);
+        
+        const response = await fetch(fetchUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
         const blob = await response.blob();
         const localBlobUrl = URL.createObjectURL(blob);
+        
+        // Création d'un iframe caché pour l'impression
         const printFrame = document.createElement('iframe');
-        printFrame.style.display = 'none';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
         printFrame.src = localBlobUrl;
+        
         document.body.appendChild(printFrame);
+        
         printFrame.onload = () => {
-          if (printFrame.contentWindow) {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
+          try {
+            if (printFrame.contentWindow) {
+              printFrame.contentWindow.focus();
+              printFrame.contentWindow.print();
+            }
+          } catch (e) {
+            console.error("Erreur print iframe:", e);
+            // Fallback : ouverture dans un nouvel onglet si l'iframe échoue
+            window.open(pdfUrl, '_blank');
+          } finally {
+            setPendingPrint(false);
+            // Nettoyage après un délai raisonnable
+            setTimeout(() => {
+              if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+              }
+              URL.revokeObjectURL(localBlobUrl);
+            }, 5000);
           }
-          setPendingPrint(false);
-          setTimeout(() => {
-            document.body.removeChild(printFrame);
-            URL.revokeObjectURL(localBlobUrl);
-          }, 10000);
         };
       } catch (error) {
-        console.error('Erreur impression :', error);
+        console.error('Erreur globale impression :', error);
         setPendingPrint(false);
+        window.open(pdfUrl, '_blank');
+        toast('Impression lancée dans un nouvel onglet.', { icon: '🖨️' });
       }
-    }, 1000);
-    return () => clearTimeout(timer);
+    }, 500); // Délai réduit pour plus de réactivité
+    
+    return () => clearTimeout(printTimer);
   }, [pdfUrl, pendingPrint, activeTab]);
 
   const buildPayload = useCallback(() => {
@@ -285,7 +320,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       setCoherenceWarnings(warnings);
       const criticals = warnings.filter(w => w.level === 'critical');
       if (criticals.length > 0) {
-        alert('⚠️ Problème critique détecté :\n' + criticals.map(w => `• ${w.message}`).join('\n'));
+        criticals.forEach(w => toast.error(w.message, { duration: 6000 }));
         return;
       }
     } else {
@@ -335,14 +370,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
       }
-      if (archive && !isPreview) alert('✅ Document archivé !');
+      if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');
     } catch (e: any) {
       if (e.response?.data?.detail?.includes('DOUBLE_DETECTED')) {
-        if (window.confirm('⚠️ Doublon détecté. Forcer la création ?')) {
-          handleGenerate(archive, print, false, true);
-        }
+        setDuplicateArgs({ archive, print });
       } else {
-        alert('Erreur : ' + (e.response?.data?.detail || 'Impossible de générer le document.'));
+        toast.error('Erreur : ' + (e.response?.data?.detail || 'Impossible de générer le document.'), { duration: 6000 });
       }
     } finally {
       setLoading(false);
@@ -373,11 +406,18 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         drugs: drugs.map(d => ({ nom: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie })),
       });
       setHasChanges(false);
-      alert('Protocole personnalisé enregistré !');
+      toast.success('Protocole personnalisé enregistré !');
     } catch (err) {
       console.error('Erreur sauvegarde pref:', err);
     }
   }, []);
+
+  const confirmDuplicate = useCallback(() => {
+    if (!duplicateArgs) return;
+    const { archive, print } = duplicateArgs;
+    setDuplicateArgs(null);
+    handleGenerate(archive, print, false, true);
+  }, [duplicateArgs, handleGenerate]);
 
   return {
     pdfUrl,
@@ -390,6 +430,9 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     setHasChanges,
     validationErrors,
     coherenceWarnings,
+    showDuplicateModal: duplicateArgs !== null,
+    confirmDuplicate,
+    cancelDuplicate: () => setDuplicateArgs(null),
     handleGenerate,
     handleGenerateAI,
     handleSavePreference,
