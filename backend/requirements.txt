@@ -25,13 +25,10 @@ flatbuffers==25.12.19
 fonttools==4.61.1
 fsspec==2026.2.0
 gast==0.7.0
-google-ai-generativelanguage==0.6.15
 google-api-core==2.30.0
 google-api-python-client==2.190.0
 google-auth==2.49.0.dev0
 google-auth-httplib2==0.3.0
-google-genai==2.0.0
-google-pasta==0.2.0
 googleapis-common-protos==1.72.0
 greenlet==3.3.1
 grpcio==1.78.0
