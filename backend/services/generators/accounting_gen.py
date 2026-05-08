@@ -121,9 +121,9 @@ class AccountingGenerator:
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
         return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
-    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
+    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None, cloture_text=None):
         """Rendu de la note comptable avec identifiants."""
-        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
+        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user, cloture_text=cloture_text)
 
     def _create_header(self, patient, data, p_color):
         doc_date = getattr(data, 'doc_date', date.today())
@@ -289,9 +289,7 @@ class AccountingGenerator:
         
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        # On utilise le Flowable épinglé au lieu d'un paragraphe simple (v4.9)
-        elements.append(PinnedCloture(cloture, cloture_style))
+        # Mention gérée en direct
         
         highlighted_teeth = []
         for p in data.payments:
@@ -377,9 +375,7 @@ class AccountingGenerator:
         
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        # On utilise le Flowable épinglé au lieu d'un paragraphe simple (v4.9)
-        elements.append(PinnedCloture(cloture, cloture_style))
+        # Mention gérée en direct
         
         highlighted_teeth = []
         for item in data.items:
@@ -401,6 +397,6 @@ class AccountingGenerator:
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id
         doc.qr_type = 'PAYMENT'
-        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
+        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth, cloture_text=cloture_text)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath.replace("\\", "/")

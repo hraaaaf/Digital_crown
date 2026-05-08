@@ -68,7 +68,7 @@ class BaseTemplate:
             return obj.get(key, default)
         return getattr(obj, key, default)
 
-    def draw_static_elements(self, canvas, doc, config=None, draw_legal_ids=False, user=None):
+    def draw_static_elements(self, canvas, doc, config=None, draw_legal_ids=False, user=None, cloture_text=None):
         """
         Dessine les éléments statiques du Template Mère.
         Supporte : Filigrane, et Header/Footer Premium dynamique.
@@ -112,7 +112,7 @@ class BaseTemplate:
         # Appelé inconditionnellement pour normaliser le rendu.
         self._draw_auto_header(canvas, config, logo_path, primary_color, secondary_color, accent_color, p_width, p_height)
         self._draw_qr_code(canvas, doc, config, user, primary_color)
-        self._draw_footer(canvas, doc, config, draw_legal_ids, user)
+        self._draw_footer(canvas, doc, config, draw_legal_ids, user, cloture_text=cloture_text)
 
         canvas.restoreState()
 
@@ -154,7 +154,7 @@ class BaseTemplate:
             canvas.drawRightString(p_width - 1.5*cm, curr_y, prepared_text)
             curr_y -= 0.60*cm
 
-    def _draw_footer(self, canvas, doc, config, draw_legal_ids=False, user=None):
+    def _draw_footer(self, canvas, doc, config, draw_legal_ids=False, user=None, cloture_text=None):
         """Pied de page premium avec adresse et identifiants légaux."""
         p_width, _ = doc.pagesize
         
@@ -230,6 +230,20 @@ class BaseTemplate:
                 canvas.setFont("Helvetica", 7)
                 canvas.setFillColor(colors.HexColor("#777777"))
                 canvas.drawCentredString(p_width/2, 1.0*cm, legal_str)
+
+        # 4. Phrase de clôture épinglée (v5.6 - Rendu Direct sur Canvas)
+        if cloture_text:
+            p_color = self._get_val(config, 'primary_color', '#003380')
+            font_name = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+            font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+            
+            from reportlab.platypus import Paragraph
+            from reportlab.lib.styles import ParagraphStyle
+            cloture_style = ParagraphStyle(name='CanvasCloture', fontName=font_bold, fontSize=10, textColor=colors.HexColor(p_color))
+            p = Paragraph(cloture_text, cloture_style)
+            # On dessine à 1.3cm du bas, 1.5cm de la gauche
+            w, h = p.wrap(9.5 * cm, 2 * cm)
+            p.drawOn(canvas, 1.5 * cm, 1.3 * cm)
 
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         """Dessine le QR Code stratégique configuré par le docteur."""
