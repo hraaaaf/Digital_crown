@@ -42,6 +42,22 @@ interface DocumentHubProps {
   };
 }
 
+interface GenericClinicalData {
+  medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }[];
+  reason?: string;
+  days?: number;
+  title?: string;
+  content?: string;
+  custom_patient?: string;
+  custom_date?: string;
+  hide_patient_header?: boolean;
+  page_size?: 'A5' | 'A4';
+  alignment?: 'left' | 'center' | 'right' | 'justify';
+  items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  doc_date?: string;
+}
+
 interface PatientDetails {
   id: number;
   nom: string;
@@ -126,7 +142,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   useEffect(() => {
     if (editData?.clinical_data) {
       const type = editData.type.toLowerCase();
-      const d = editData.clinical_data;
+      const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveTab('ordonnance');
@@ -313,10 +329,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                   const apiMatches = res.data || [];
                   
                   // Merge and deduplicate by name
-                  const merged = [...localMatches];
+                  const merged: { id: string | number; name: string; base_price: number; category: string; isLocal?: boolean }[] = [...localMatches];
                   apiMatches.forEach((a: { name: string; base_price: number; category: string; id: string | number }) => {
                     if (!merged.find(m => m.name.toLowerCase() === a.name.toLowerCase())) {
-                      merged.push(a);
+                      merged.push({ ...a, isLocal: false });
                     }
                   });
                   
