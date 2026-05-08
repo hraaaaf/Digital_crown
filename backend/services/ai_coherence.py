@@ -2,36 +2,34 @@
 import os
 import json
 import logging
-from typing import Dict, List, Any, Optional
-import google.generativeai as genai
+from typing import Dict, List, Any
+from google import genai
 
 logger = logging.getLogger(__name__)
 
 class AICoherenceService:
     """
     Module 4 : Intelligence Sémantique & Vigilance Clinique.
-    Utilise Gemini 1.5 Flash pour valider la cohérence entre le profil médical
+    Utilise Gemini 2.0 Flash pour valider la cohérence entre le profil médical
     et le document en cours de génération.
     """
-    
+
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
-        if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key:
+            self.client = genai.Client(api_key=api_key)
         else:
-            self.model = None
+            self.client = None
             logger.warning("AICoherenceService: GEMINI_API_KEY non configurée.")
 
     async def analyze_with_ia(self, patient_info: Dict[str, Any], doc_type: str, doc_data: Dict[str, Any], recent_acts: List[str]) -> List[Dict[str, Any]]:
         """
         Analyse sémantique via Gemini pour détecter des contre-indications ou omissions.
         """
-        if not self.model:
+        if not self.client:
             return []
 
         try:
-            # Préparation du contexte pour l'IA
             context = {
                 "patient": {
                     "age": patient_info.get("age"),
@@ -49,16 +47,16 @@ class AICoherenceService:
             prompt = f"""
             Tu es un assistant de vigilance clinique expert en odontologie (IAmina).
             Analyse le contexte patient, les habitudes du docteur et le document en cours pour détecter des RISQUES ou des INCOHÉRENCES.
-            
+
             CONTEXTE :
             {json.dumps(context, ensure_ascii=False, indent=2)}
-            
+
             RÈGLES D'ANALYSE :
             1. CONTRE-INDICATIONS : Détecte si un médicament est prescrit malgré un antécédent à risque.
             2. PRIORITÉ HABITUDES : Si le docteur a l'habitude de prescrire certaines molécules pour cet acte, valide leur cohérence. Si une nouvelle molécule inhabituelle est utilisée, signale-le comme "Info" pour vérification.
             3. OMISSIONS : Si un acte invasif a été réalisé, vérifie si une couverture adaptée est suggérée.
             4. COHÉRENCE D'ÂGE : Vérifie si les dosages sont adaptés à l'âge.
-            
+
             FORMAT DE RÉPONSE (JSON UNIQUEMENT) :
             [
               {{
@@ -66,22 +64,23 @@ class AICoherenceService:
                 "message": "Description concise du risque ou de l'incohérence"
               }}
             ]
-            
+
             RÈGLES DE SORTIE :
             - Si aucun risque n'est détecté, renvoie une liste vide [].
             - Réponds uniquement par le JSON brut.
             - Sois précis et professionnel dans tes messages.
             """
 
-            response = await self.model.generate_content_async(prompt)
+            response = await self.client.aio.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
             text = response.text.replace('```json', '').replace('```', '').strip()
-            
-            # Nettoyage si Gemini ajoute du texte autour
+
             if "[" in text and "]" in text:
                 text = text[text.find("["):text.rfind("]")+1]
-            
-            warnings = json.loads(text)
-            return warnings
+
+            return json.loads(text)
         except Exception as e:
             logger.error(f"Erreur Analyse IA Coherence: {e}")
             return []
