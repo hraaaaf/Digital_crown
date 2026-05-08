@@ -131,12 +131,19 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [activeActSearchId, setActiveActSearchId] = useState<number | null>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
-  const generator = useDocumentGenerator({
+  const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments,
-  });
+  }), [
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
+    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
+    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    installments,
+  ]);
+
+  const generator = useDocumentGenerator(generatorParams);
 
   // --- HYDRATATION ---
   useEffect(() => {
@@ -213,12 +220,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [patientId, activeTab]);
 
-  // --- AUTO-PREVIEW ---
   useEffect(() => {
     if (sideStudioType !== 'PREVIEW' || activeTab === 'ai') return;
     const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
-  }, [sideStudioType, drugs, items, certifType, certifDays, paymentMode, libreTitle, libreContent, docDate, activeTab, generator]);
+  }, [
+    sideStudioType, drugs, items, certifType, certifDays, paymentMode, 
+    libreTitle, libreContent, docDate, activeTab, 
+    generator.handleGenerate // Seule la fonction stable est nécessaire
+  ]);
 
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
