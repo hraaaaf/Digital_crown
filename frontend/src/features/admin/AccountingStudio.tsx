@@ -162,7 +162,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-32">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
 
       {/* Erreurs de validation */}
       {validationErrors.length > 0 && (

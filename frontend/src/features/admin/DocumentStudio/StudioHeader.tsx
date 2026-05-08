@@ -24,16 +24,16 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onToggleOdonto
 }) => {
   return (
-    <div className="sticky top-0 z-[60] -mt-2 -mx-2 mb-4 p-4 bg-white/40 backdrop-blur-3xl rounded-3xl border border-white/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 transition-all duration-300 shadow-sm">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
-          <Eye size={24} />
+    <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-3 bg-white/40 backdrop-blur-3xl rounded-2xl border border-white/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
+          <Eye size={20} />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
+          <h2 className="text-lg font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
             Studio Documentaire
           </h2>
-          <p className="text-slate-500 mt-1.5 text-[11px] font-medium uppercase tracking-widest flex items-center gap-2">
+          <p className="text-slate-500 mt-1 text-[10px] font-medium uppercase tracking-widest flex items-center gap-2">
             Patient : <span className="font-black text-slate-800 tracking-tight">{patientName}</span>
           </p>
         </div>

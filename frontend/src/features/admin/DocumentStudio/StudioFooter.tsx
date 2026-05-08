@@ -45,56 +45,56 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 bg-slate-50/80 backdrop-blur-xl rounded-[2rem] border border-slate-100 mt-6 shadow-sm relative overflow-hidden">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden">
       
       <div className="flex items-center gap-3">
         {activeTab === 'ordonnance' && hasChanges && onSavePreference && (
           <button 
             onClick={onSavePreference}
-            className="px-5 py-3 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all"
+            className="px-4 py-2 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all"
           >
             Sauver ce protocole
           </button>
         )}
         
         {(activeTab === 'devis' || activeTab === 'honoraires') && typeof total === 'number' && (
-          <div className="flex items-center gap-4 pl-2 pr-6 border-r border-slate-200">
+          <div className="flex items-center gap-3 pl-2 pr-4 border-r border-slate-200">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Document</span>
-              <span className="text-xl font-black text-slate-900 tracking-tighter">
-                {total.toLocaleString('fr-FR')} <span className="text-[10px] opacity-40">MAD</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-tight">Total Document</span>
+              <span className="text-lg font-black text-slate-900 tracking-tighter leading-tight">
+                {total.toLocaleString('fr-FR')} <span className="text-[9px] opacity-40">MAD</span>
               </span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <button 
           onClick={() => onGenerate(true, false, false, false)}
           disabled={loading}
-          className="group flex items-center gap-3 px-6 py-4 bg-white text-slate-600 border border-slate-200 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm active:scale-95 disabled:opacity-50"
+          className="group flex items-center gap-2 px-4 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm active:scale-95 disabled:opacity-50"
         >
-          <Archive size={18} className="group-hover:scale-110 transition-transform" />
-          Archiver en Dossier
+          <Archive size={16} className="group-hover:scale-110 transition-transform" />
+          Archive
         </button>
 
         <button 
           onClick={() => onGenerate(false, true, false, false)}
           disabled={loading}
-          className="group flex items-center gap-3 px-6 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50"
+          className="group flex items-center gap-2 px-4 py-3 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} className="group-hover:rotate-12 transition-transform" />}
-          Imprimer Directement
+          {loading ? <Loader2 className="animate-spin" size={16} /> : <Printer size={16} className="group-hover:rotate-12 transition-transform" />}
+          Imprimer
         </button>
 
         <button 
           onClick={() => onGenerate(false, false, false, false)}
           disabled={loading}
-          className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-2xl shadow-primary/30 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50"
+          className="group flex items-center gap-3 px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-2xl shadow-primary/30 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50"
           style={{ backgroundColor: 'var(--primary)' }}
         >
-          {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} className="group-hover:scale-110 transition-transform" />}
+          {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
           Générer PDF
         </button>
       </div>

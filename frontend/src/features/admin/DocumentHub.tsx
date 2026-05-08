@@ -35,7 +35,11 @@ interface PriceItem {
 interface DocumentHubProps {
   patientId: string | undefined;
   patientName: string;
-  editData?: any;
+  editData?: {
+    type: string;
+    clinical_data: Record<string, unknown>;
+    id?: number;
+  };
 }
 
 interface PatientDetails {
@@ -54,7 +58,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
   // --- ÉTATS IA ---
-  const [smartSuggestion, setSmartSuggestion] = useState<any>(null);
+  const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
@@ -63,7 +67,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
   const [items, setItems] = useState<PriceItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
-  const [installments, setInstallments] = useState<any[]>([]);
+  const [installments, setInstallments] = useState<{ id: number; date: string; amount: number; label: string }[]>([]);
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -107,7 +111,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [groupSelectedTeeth, setGroupSelectedTeeth] = useState<number[]>([]);
   const [groupTreatmentName, setGroupTreatmentName] = useState('');
   const [groupTreatmentPrice, setGroupTreatmentPrice] = useState<number | ''>('');
-  const [actSuggestions, setActSuggestions] = useState<any[]>([]);
+  const [actSuggestions, setActSuggestions] = useState<{ id: string | number; name: string; base_price: number; category: string; isLocal?: boolean }[]>([]);
   const [activeActSearchId, setActiveActSearchId] = useState<number | null>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
@@ -124,8 +128,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data;
       if (type === 'ordonnance') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveTab('ordonnance');
-        if (d.medications) setDrugs(d.medications.map((m: any, idx: number) => ({
+        if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
           forme: m.forme || 'Sachets', posologie: m.posologie || '',
           type: m.type || 'MEDICAMENT'
@@ -146,7 +151,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       } else {
         setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
-        setItems(srcItems.map((i: any, idx: number) => ({
+        setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
           id: Date.now() + idx, description: i.acte, dent: i.dent,
           price: i.montant || i.prix_unitaire, toothNumbers: i.dents,
         })));
@@ -161,7 +166,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
       const surviving = prev.filter(i => !i._odontogramKey || activeKeys.has(i._odontogramKey));
       const existingKeys = new Set(surviving.map(i => i._odontogramKey).filter(Boolean));
-      const newItems: any[] = [];
+      const newItems: PriceItem[] = [];
       teeth.forEach(t => {
         t.treatments.forEach(tr => {
           const k = `${t.toothNumber}::${tr.id}`;
@@ -174,7 +179,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           }
         });
       });
-      return [...surviving, ...newItems];
+      return [...surviving, ...newItems as PriceItem[]];
     });
   }, []);
 
@@ -194,13 +199,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (sideStudioType !== 'PREVIEW' || activeTab === 'ai') return;
     const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
-  }, [sideStudioType, drugs, items, certifType, certifDays, paymentMode, libreTitle, libreContent, docDate, activeTab]);
+  }, [sideStudioType, drugs, items, certifType, certifDays, paymentMode, libreTitle, libreContent, docDate, activeTab, generator]);
 
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
 
       {/* ESPACE DE TRAVAIL */}
-      <div className="flex-1 h-full flex flex-col p-8 gap-6 overflow-y-auto">
+      <div className="flex-1 h-full flex flex-col px-8 pt-6 pb-2 gap-3 overflow-y-auto">
 
         <StudioHeader
           patientName={patientName}
@@ -297,10 +302,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setActiveActSearchId(id);
                 
                 // 1. Search in Treatment Templates (Odontogram acts)
-                const localMatches = TREATMENT_TEMPLATES.filter((t: any) => 
+                const localMatches = TREATMENT_TEMPLATES.filter((t: { name: string; category: string; id: string }) => 
                   t.name.toLowerCase().includes(q.toLowerCase()) || 
                   t.category.toLowerCase().includes(q.toLowerCase())
-                ).map((t: any) => ({ id: t.id, name: t.name, base_price: 0, category: t.category, isLocal: true }));
+                ).map((t: { id: string; name: string; category: string }) => ({ id: t.id, name: t.name, base_price: 0, category: t.category, isLocal: true }));
 
                 // 2. Search in API
                 try {
@@ -309,14 +314,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                   
                   // Merge and deduplicate by name
                   const merged = [...localMatches];
-                  apiMatches.forEach((a: any) => {
+                  apiMatches.forEach((a: { name: string; base_price: number; category: string; id: string | number }) => {
                     if (!merged.find(m => m.name.toLowerCase() === a.name.toLowerCase())) {
                       merged.push(a);
                     }
                   });
                   
                   setActSuggestions(merged.slice(0, 10));
-                } catch (err) {
+                } catch {
                   setActSuggestions(localMatches.slice(0, 10));
                 }
               }}

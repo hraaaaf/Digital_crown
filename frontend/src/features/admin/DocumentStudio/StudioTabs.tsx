@@ -9,7 +9,7 @@ interface StudioTabsProps {
 
 export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange }) => {
   return (
-    <div className="flex bg-slate-200/50 p-1.5 rounded-2xl gap-1 overflow-x-auto shrink-0 relative z-50">
+    <div className="flex bg-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto shrink-0 relative z-50">
       <TabButton 
         active={activeTab === 'ordonnance'} 
         onClick={() => onTabChange('ordonnance')} 
@@ -54,7 +54,7 @@ const TabButton = ({ active, onClick, icon, label }: { active: boolean, onClick:
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+      "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
       active 
         ? "bg-white text-primary shadow-lg shadow-black/5" 
         : "text-slate-500 hover:text-primary hover:bg-white/40"
