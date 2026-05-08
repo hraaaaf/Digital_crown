@@ -31,9 +31,9 @@ class PinnedCloture(Flowable):
         p = Paragraph(self.text, self.style)
         # Largeur réduite (9.5cm) pour laisser la place au QR Code à droite (Master Elite Fix)
         w, h = p.wrap(9.5 * cm, 4 * cm)
-        # Calcul de la compensation : on veut x_abs=1.5cm et y_abs=2.0cm (v5.4 - "Quelques mm du footer")
+        # Calcul de la compensation : on veut x_abs=1.5cm et y_abs=1.3cm (v5.5 - "Ajustement ultime au plus bas")
         # Comme drawOn est appelé après une translation à (x,y), on soustrait ces valeurs.
-        p.drawOn(canvas, 1.5 * cm - x, 2.0 * cm - y)
+        p.drawOn(canvas, 1.5 * cm - x, 1.3 * cm - y)
         canvas.restoreState()
 
 class BaseTemplate:
