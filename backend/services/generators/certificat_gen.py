@@ -216,8 +216,8 @@ class CertificatGenerator:
         )
         elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
-        # Forçage d'une marge supérieure minimale calibrée sur la référence (5.5cm + 0.4cm spacer = 5.9cm)
-        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
+        # Forçage d'une marge supérieure minimale de sécurité (v5.0)
+        m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
         doc = SimpleDocTemplate(

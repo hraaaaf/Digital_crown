@@ -385,8 +385,8 @@ class AccountingGenerator:
         return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number)
 
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None):
-        # Utilisation des marges configurées ou valeurs par défaut standards (v4.9)
-        m_top = (config.margin_top if config and config.margin_top is not None else 3.6) * cm
+        # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
+        m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
         m_bottom = (config.margin_bottom if config and config.margin_bottom is not None else 3.2) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id

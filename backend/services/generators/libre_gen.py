@@ -170,8 +170,8 @@ class LibreGenerator:
         page_format = getattr(data, 'page_size', 'A5').upper()
         page_size = A4 if page_format == 'A4' else A5
 
-        # Forçage d'une marge supérieure minimale (v4.6)
-        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
+        # Forçage d'une marge supérieure minimale de sécurité (v5.0)
+        m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         
         doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
