@@ -214,9 +214,9 @@ class OrdonnanceGenerator:
         )
         elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
-        # Forçage d'une marge supérieure minimale (v4.6)
-        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
-        m_bottom = (config.margin_bottom if config else 3.2) * cm
+        # Utilisation des marges configurées ou valeurs par défaut standards (v4.9)
+        m_top = (config.margin_top if config and config.margin_top is not None else 3.6) * cm
+        m_bottom = (config.margin_bottom if config and config.margin_bottom is not None else 3.2) * cm
 
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,

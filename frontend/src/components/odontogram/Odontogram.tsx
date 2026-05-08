@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Stethoscope, Save, RotateCcw, FileText, AlertCircle, X, Check, Clock, User, Baby } from 'lucide-react';
+import { Stethoscope, Save, RotateCcw, FileText, AlertCircle, X, Check, Clock, User, Baby, Zap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { OdontogramSVG } from './OdontogramSVG';
 import type { 
@@ -65,6 +65,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   PREVENTION: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   PARODONTOLOGIE: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', dot: 'bg-pink-500' },
   ESTHETIQUE: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', dot: 'bg-cyan-500' },
+  ORTHODONTIE: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', dot: 'bg-indigo-500' },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -75,6 +76,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   PREVENTION: 'Prévention',
   PARODONTOLOGIE: 'Parodontologie',
   ESTHETIQUE: 'Esthétique',
+  ORTHODONTIE: 'Orthodontie',
 };
 
 // Mapping traitement vers état de surface
@@ -99,6 +101,8 @@ const getSurfaceStateFromTreatment = (treatment: ToothTreatment): SurfaceState =
     case 'PREVENTION':
       if (treatment.name.includes('Sceau')) return 'SEALANT';
       return 'HEALTHY';
+    case 'ORTHODONTIE':
+      return 'SELECTED';
     default:
       return 'SELECTED';
   }
@@ -190,9 +194,11 @@ const SurfacePopover: React.FC<SurfacePopoverProps> = ({
 
       {/* Content */}
       <div className="p-4 max-h-[350px] overflow-y-auto">
-        {/* Catégories */}
+        {/* Catégories (Filtrées pour ne garder que celles avec des actes unitaires) */}
         <div className="flex gap-1.5 mb-3 overflow-x-auto pb-2 scrollbar-thin">
-          {Object.keys(TREATMENTS_BY_CATEGORY).map(category => (
+          {Object.keys(TREATMENTS_BY_CATEGORY).filter(cat => 
+            TREATMENTS_BY_CATEGORY[cat].some(t => t.scope === 'UNITAIRE')
+          ).map(category => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
@@ -207,9 +213,12 @@ const SurfacePopover: React.FC<SurfacePopoverProps> = ({
           ))}
         </div>
 
-        {/* Traitements rapides */}
+        {/* Traitements unitaires rapides */}
         <div className="space-y-1.5 mb-4">
-          {TREATMENTS_BY_CATEGORY[activeCategory]?.slice(0, 6).map(template => {
+          {TREATMENTS_BY_CATEGORY[activeCategory]
+            ?.filter(t => t.scope === 'UNITAIRE')
+            ?.slice(0, 8)
+            .map(template => {
             const isSelected = selectedTreatments.find(t => t.id === template.id);
             const colors = CATEGORY_COLORS[template.category];
             
@@ -331,6 +340,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   const [activeTooth, setActiveTooth] = useState<number | null>(null);
   const [activeSurface, setActiveSurface] = useState<'M' | 'D' | 'O' | 'V' | 'P' | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showGlobalSelector, setShowGlobalSelector] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -523,6 +533,14 @@ export const Odontogram: React.FC<OdontogramProps> = ({
           {!readOnly && (
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowGlobalSelector(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl font-medium hover:bg-indigo-100 transition-all"
+                title="Actes globaux (Ortho, Détartrage...)"
+              >
+                <Zap className="w-4 h-4" />
+                Actes Globaux
+              </button>
+              <button
                 onClick={handleReset}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Réinitialiser"
@@ -652,6 +670,81 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             onConfirm={handleConfirmPopover}
             onCancel={handleCancelPopover}
           />
+        )}
+      </AnimatePresence>
+      {/* Modal Actes Globaux */}
+      <AnimatePresence>
+        {showGlobalSelector && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-indigo-600 to-violet-700 px-6 py-4 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Zap className="w-5 h-5" />
+                  <div>
+                    <h3 className="font-bold">Actes Globaux & Spécialisés</h3>
+                    <p className="text-xs text-indigo-100">Ortho, Prothèse amovible, Prévention</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowGlobalSelector(false)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 max-h-[70vh] overflow-y-auto">
+                {Object.keys(TREATMENTS_BY_CATEGORY)
+                  .filter(cat => TREATMENTS_BY_CATEGORY[cat].some(t => t.scope !== 'UNITAIRE'))
+                  .map(category => (
+                    <div key={category} className="mb-6">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${CATEGORY_COLORS[category]?.dot || 'bg-slate-400'}`} />
+                        {CATEGORY_LABELS[category]}
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {TREATMENTS_BY_CATEGORY[category]
+                          .filter(t => t.scope !== 'UNITAIRE')
+                          .map(template => {
+                            const isSelected = selectedSurfaces.some(s => s.toothNumber === 0 && s.treatments.some(tr => tr.id === template.id));
+                            return (
+                              <button
+                                key={template.id}
+                                onClick={() => {
+                                  const newData: SelectedSurfaceData = {
+                                    toothNumber: 0, // 0 = Global
+                                    surface: 'ALL',
+                                    treatments: [{ ...template, price: 0 }],
+                                  };
+                                  setSelectedSurfaces(prev => [...prev, newData]);
+                                  setShowGlobalSelector(false);
+                                }}
+                                className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-left transition-all border border-transparent hover:border-slate-200"
+                              >
+                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-indigo-600">
+                                  <Check className="w-5 h-5 opacity-20" />
+                                </div>
+                                <span className="font-semibold text-slate-700 text-sm">{template.name}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setShowGlobalSelector(false)}
+                  className="px-6 py-2.5 bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

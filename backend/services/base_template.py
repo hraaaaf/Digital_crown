@@ -15,19 +15,26 @@ NAVY_BLUE = colors.HexColor('#003380')
 class PinnedCloture(Flowable):
     """
     Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
-    Utilise des coordonnées absolues par rapport au canvas pour rester au dessus du footer.
+    Compense la translation du canvas pour un positionnement absolu (Master Elite Fix).
     """
     def __init__(self, text, style):
         Flowable.__init__(self)
         self.text = text
         self.style = style
 
-    def draw(self):
+    def wrap(self, availWidth, availHeight):
+        # On ne prend pas de place dans le flux pour ne pas décaler le reste
+        return (0, 0)
+
+    def drawOn(self, canvas, x, y, _debug=0, **kwargs):
+        canvas.saveState()
         p = Paragraph(self.text, self.style)
-        # Largeur utile (A5=14.8cm - 2.0cm marges = 12.8cm)
-        w, h = p.wrap(12.8 * cm, 4 * cm)
-        # On dessine à 2.7cm du bas (trait footer à 2.5cm)
-        p.drawOn(self.canv, 1.0 * cm, 2.7 * cm)
+        # Largeur réduite (9.5cm) pour laisser la place au QR Code à droite (Master Elite Fix)
+        w, h = p.wrap(9.5 * cm, 4 * cm)
+        # Calcul de la compensation : on veut x_abs=1.5cm et y_abs=2.8cm
+        # Comme drawOn est appelé après une translation à (x,y), on soustrait ces valeurs.
+        p.drawOn(canvas, 1.5 * cm - x, 2.8 * cm - y)
+        canvas.restoreState()
 
 class BaseTemplate:
     def __init__(self):

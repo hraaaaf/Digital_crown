@@ -23,6 +23,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   PREVENTION: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
   PARODONTOLOGIE: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' },
   ESTHETIQUE: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700' },
+  ORTHODONTIE: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700' },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -33,6 +34,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   PREVENTION: 'Prévention',
   PARODONTOLOGIE: 'Parodontologie',
   ESTHETIQUE: 'Esthétique',
+  ORTHODONTIE: 'Orthodontie',
 };
 
 const SURFACES: { code: ToothSurface; label: string }[] = [
@@ -63,22 +65,26 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   const isMolar = [6, 7, 8].includes(toothNumber % 10);
   const isAnterior = [1, 2, 3].includes(toothNumber % 10);
 
-  // Suggestions selon la dent
+  // Suggestions intelligentes unitaires (v4.8)
   const suggestedTreatments = useMemo(() => {
+    const unitaireTemplates = TREATMENT_TEMPLATES.filter(t => t.scope === 'UNITAIRE');
+    
     if (isAnterior) {
-      return TREATMENT_TEMPLATES.filter(t => 
+      return unitaireTemplates.filter(t => 
         t.category === 'ESTHETIQUE' || 
         t.id.startsWith('comp-') ||
-        t.id === 'endo-1'
+        t.id === 'endo-mono'
       );
     } else if (isMolar) {
-      return TREATMENT_TEMPLATES.filter(t =>
-        t.id.includes('molar') ||
-        t.category === 'CHIRURGIE' ||
-        t.id.startsWith('endo-')
+      return unitaireTemplates.filter(t =>
+        t.id.includes('ext') ||
+        t.id.startsWith('prost-') ||
+        t.id.startsWith('endo-pluri')
       );
     }
-    return TREATMENT_TEMPLATES.slice(0, 6);
+    return unitaireTemplates.filter(t => 
+      ['comp-1', 'comp-2', 'endo-mono'].includes(t.id)
+    );
   }, [isAnterior, isMolar]);
 
   const toggleTreatment = (template: Omit<ToothTreatment, 'price'>) => {
@@ -166,9 +172,11 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               </div>
             </div>
 
-            {/* Category tabs */}
+            {/* Category tabs (Filtered for unitaire scope) */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-              {Object.keys(TREATMENTS_BY_CATEGORY).map(category => (
+              {Object.keys(TREATMENTS_BY_CATEGORY).filter(cat => 
+                TREATMENTS_BY_CATEGORY[cat].some(t => t.scope === 'UNITAIRE')
+              ).map(category => (
                 <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
@@ -183,9 +191,11 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               ))}
             </div>
 
-            {/* Treatments list with price input */}
+            {/* Treatments list with price input (Filtered for unitaire scope) */}
             <div className="space-y-3">
-              {TREATMENTS_BY_CATEGORY[activeCategory]?.map(template => {
+              {TREATMENTS_BY_CATEGORY[activeCategory]
+                ?.filter(t => t.scope === 'UNITAIRE')
+                ?.map(template => {
                 const isSelected = selectedTreatments.find(t => t.id === template.id);
                 const currentPrice = treatmentPrices[template.id] || 0;
                 const colors = CATEGORY_COLORS[template.category];

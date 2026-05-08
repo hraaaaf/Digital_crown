@@ -153,12 +153,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         })));
       } else if (type === 'certificat') {
         setActiveTab('certificat');
-        setCertifType(d.reason);
-        setCertifDays(d.days);
+        setCertifType(d.reason || 'Certificat de Repos');
+        setCertifDays(d.days || 0);
       } else if (type === 'libre') {
         setActiveTab('libre');
-        setLibreTitle(d.title);
-        setLibreContent(d.content);
+        setLibreTitle(d.title || 'Note Médicale');
+        setLibreContent(d.content || '');
         setLibreCustomPatient(d.custom_patient || '');
         setLibreCustomDate(d.custom_date || '');
         setLibreHideHeader(d.hide_patient_header || false);
@@ -168,8 +168,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
         setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, description: i.acte, dent: i.dent,
-          price: i.montant || i.prix_unitaire, toothNumbers: i.dents,
+          id: Date.now() + idx, 
+          description: i.acte || '', 
+          dent: i.dent || '0',
+          price: i.montant ?? i.prix_unitaire ?? 0, 
+          toothNumbers: i.dents || [],
         })));
       }
       if (d.doc_date) setDocDate(d.doc_date);

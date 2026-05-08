@@ -142,6 +142,7 @@ export interface ToothTreatment {
   duration?: number;
   anesthesia?: boolean;
   requiresXray?: boolean;
+  scope?: 'UNITAIRE' | 'MULTIDENTS' | 'GLOBAL';
 }
 
 // Données de sélection avec surface spécifique
@@ -181,71 +182,82 @@ export type OdontogramMode =
   | 'PLAN_TREATMENT'
   | 'SELECT_FOR_DOCUMENT';
 
-// Bibliothèque de traitements SANS PRIX PRÉDÉFINIS
+// Bibliothèque de traitements SANS PRIX PRÉDÉFINIS (Catalogue Elite v4.7)
 export const TREATMENT_TEMPLATES: Omit<ToothTreatment, 'price'>[] = [
-  // Conservatrice
-  { id: 'comp-1', name: 'Composite 1 surface', category: 'CONSERVATRICE', suggestedSurfaces: ['O'], anesthesia: true },
-  { id: 'comp-2', name: 'Composite 2 surfaces', category: 'CONSERVATRICE', suggestedSurfaces: ['MO', 'DO'], anesthesia: true },
-  { id: 'comp-3', name: 'Composite 3 surfaces (MOD)', category: 'CONSERVATRICE', suggestedSurfaces: ['MOD'], anesthesia: true },
-  { id: 'comp-4', name: 'Composite 4/5 surfaces', category: 'CONSERVATRICE', suggestedSurfaces: ['ALL'], anesthesia: true },
-  { id: 'amalg-1', name: 'Amalgame 1 surface', category: 'CONSERVATRICE', suggestedSurfaces: ['O'], anesthesia: true },
-  { id: 'amalg-2', name: 'Amalgame 2 surfaces', category: 'CONSERVATRICE', suggestedSurfaces: ['MO'], anesthesia: true },
+  // --- CONSERVATRICE ---
+  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['O'], anesthesia: true, duration: 20 },
+  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['MO', 'DO'], anesthesia: true, duration: 30 },
+  { id: 'comp-3', name: 'Composite 3 faces (MOD)', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['MOD'], anesthesia: true, duration: 40 },
+  { id: 'comp-4', name: 'Restauration angle / 4-5 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['ALL'], anesthesia: true, duration: 50 },
+  { id: 'inlay-c', name: 'Inlay/Onlay Céramique', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
+  { id: 'inlay-m', name: 'Inlay/Onlay Composite', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
+  { id: 'coiff-p', name: 'Coiffage pulpaire direct', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true },
+  { id: 'rest-prov', name: 'Obturation provisoire', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 15 },
   
-  // Endodontie
-  { id: 'endo-1', name: 'Traitement canalaire', category: 'ENDODONTIE', anesthesia: true, duration: 60 },
-  { id: 'endo-2', name: 'Reprise endodontie', category: 'ENDODONTIE', anesthesia: true, duration: 90 },
-  { id: 'endo-3', name: 'Pulpotomie', category: 'ENDODONTIE', anesthesia: true },
-  { id: 'endo-4', name: 'Pulpectomie', category: 'ENDODONTIE', anesthesia: true },
+  // --- ENDODONTIE ---
+  { id: 'endo-mono', name: 'Traitement canalaire (Monoradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
+  { id: 'endo-bi', name: 'Traitement canalaire (Biradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 60 },
+  { id: 'endo-pluri', name: 'Traitement canalaire (Pluriradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 90 },
+  { id: 'endo-ret', name: 'Reprise de traitement (Désobturation)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 90 },
+  { id: 'endo-pulpot', name: 'Pulpotomie thérapeutique', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
+  { id: 'endo-pulpect', name: 'Pulpectomie d\'urgence', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
+  { id: 'endo-apex', name: 'Apexification / Apexogénèse', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true },
   
-  // Chirurgie
-  { id: 'chir-1', name: 'Extraction simple', category: 'CHIRURGIE', anesthesia: true, duration: 20 },
-  { id: 'chir-2', name: 'Extraction chirurgicale', category: 'CHIRURGIE', anesthesia: true, duration: 45 },
-  { id: 'chir-3', name: 'Extraction 3ème molaire', category: 'CHIRURGIE', anesthesia: true, duration: 60, requiresXray: true },
-  { id: 'chir-4', name: 'Séparation radiculaire', category: 'CHIRURGIE', anesthesia: true, duration: 45 },
-  { id: 'chir-5', name: 'Apicoectomie', category: 'CHIRURGIE', anesthesia: true, duration: 60, requiresXray: true },
-  { id: 'chir-6', name: 'Résection radiculaire', category: 'CHIRURGIE', anesthesia: true, duration: 45 },
-  { id: 'chir-7', name: 'Curetage parodontal', category: 'CHIRURGIE', anesthesia: true, duration: 30 },
-  { id: 'chir-8', name: 'Gingivectomie', category: 'CHIRURGIE', anesthesia: true, duration: 30 },
+  // --- CHIRURGIE ---
+  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 20 },
+  { id: 'chir-ext-c', name: 'Extraction complexe / Alvéolectomie', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
+  { id: 'chir-ext-sag', name: 'Extraction dent de sagesse incluse', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
+  { id: 'chir-ext-lait', name: 'Extraction dent de lait', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 15 },
+  { id: 'chir-fren', name: 'Frénectomie (Linguale/Labiale)', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
+  { id: 'chir-apico', name: 'Apicoectomie + Obturation a retro', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
+  { id: 'chir-abces', name: 'Incision et Drainage d\'abcès', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 20 },
+  { id: 'chir-kyste', name: 'Exérèse de kyste / lésion', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
+  { id: 'chir-sinus', name: 'Sinus Lift (Comblement sinusien)', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 90, requiresXray: true },
+  { id: 'chir-greffe', name: 'Greffe osseuse pré-implantaire', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
   
-  // Prothèse fixe
-  { id: 'prost-1', name: 'Couronne Céramo-métallique', category: 'PROTHESE', duration: 60 },
-  { id: 'prost-2', name: 'Couronne Zircone', category: 'PROTHESE', duration: 60 },
-  { id: 'prost-3', name: 'Couronne E-Max', category: 'PROTHESE', duration: 60 },
-  { id: 'prost-4', name: 'Couronne métallique', category: 'PROTHESE', duration: 60 },
-  { id: 'prost-5', name: 'Inlay/Onlay Céramique', category: 'PROTHESE', duration: 45 },
-  { id: 'prost-6', name: 'Inlay/Onlay Composite', category: 'PROTHESE', duration: 45 },
-  { id: 'prost-7', name: 'Bridge', category: 'PROTHESE', duration: 120 },
+  // --- IMPLANTOLOGIE ---
+  { id: 'imp-pose', name: 'Pose d\'implant (Pilier titane)', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 45, requiresXray: true },
+  { id: 'imp-cicat', name: 'Pose de vis de cicatrisation', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
+  { id: 'imp-cour', name: 'Couronne sur implant (Transvissée)', category: 'PROTHESE', scope: 'UNITAIRE', requiresXray: true, duration: 60 },
+  { id: 'imp-bridge', name: 'Bridge sur implants', category: 'PROTHESE', scope: 'MULTIDENTS', requiresXray: true, duration: 120 },
   
-  // Prothèse amovible
-  { id: 'prost-a1', name: 'Partielle supérieure', category: 'PROTHESE' },
-  { id: 'prost-a2', name: 'Partielle inférieure', category: 'PROTHESE' },
-  { id: 'prost-a3', name: 'Complète supérieure', category: 'PROTHESE' },
-  { id: 'prost-a4', name: 'Complète inférieure', category: 'PROTHESE' },
+  // --- PROTHÈSE FIXE ---
+  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'prost-emax', name: 'Couronne E-Max (Disilicate)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'prost-met', name: 'Couronne coulée métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'prost-prov', name: 'Couronne provisoire (Résine)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 30 },
+  { id: 'prost-ic', name: 'Inlay-Core (Tenon radiculaire)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 45 },
+  { id: 'prost-br-3', name: 'Bridge 3 éléments', category: 'PROTHESE', scope: 'MULTIDENTS', duration: 120 },
+  { id: 'prost-br-sup', name: 'Élément de bridge suppl.', category: 'PROTHESE', scope: 'MULTIDENTS' },
   
-  // Implants
-  { id: 'imp-1', name: 'Pose d\'implant', category: 'CHIRURGIE', duration: 45, requiresXray: true },
-  { id: 'imp-2', name: 'Implant + Couronne', category: 'PROTHESE', requiresXray: true },
-  { id: 'imp-3', name: 'Sinus lift', category: 'CHIRURGIE', duration: 60, requiresXray: true },
-  { id: 'imp-4', name: 'Greffe osseuse', category: 'CHIRURGIE', duration: 45 },
+  // --- PROTHÈSE AMOVIBLE ---
+  { id: 'prost-am-p', name: 'Appareil partiel résine', category: 'PROTHESE', scope: 'GLOBAL' },
+  { id: 'prost-am-s', name: 'Stellite (Châssis métallique)', category: 'PROTHESE', scope: 'GLOBAL' },
+  { id: 'prost-am-c', name: 'Appareil complet (Dentier)', category: 'PROTHESE', scope: 'GLOBAL' },
+  { id: 'prost-am-rep', name: 'Réparation / Adjonction de dent', category: 'PROTHESE', scope: 'GLOBAL' },
+  { id: 'prost-am-reb', name: 'Rebasage de prothèse', category: 'PROTHESE', scope: 'GLOBAL' },
   
-  // Prévention
-  { id: 'prev-1', name: 'Détartrage', category: 'PREVENTION', duration: 30 },
-  { id: 'prev-2', name: 'Détartrage + Prophylaxie', category: 'PREVENTION', duration: 45 },
-  { id: 'prev-3', name: 'Sceaugment (Sceau de fissure)', category: 'PREVENTION', duration: 15 },
-  { id: 'prev-4', name: 'Fluorisation', category: 'PREVENTION', duration: 10 },
+  // --- PRÉVENTION & PARO ---
+  { id: 'prev-det', name: 'Détartrage complet (Supra-gingival)', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
+  { id: 'prev-surf', name: 'Surfaçage radiculaire (Par quadrant)', category: 'PARODONTOLOGIE', scope: 'GLOBAL', anesthesia: true, duration: 45 },
+  { id: 'prev-seal', name: 'Scellement de sillons (Sealant)', category: 'PREVENTION', scope: 'UNITAIRE', duration: 15 },
+  { id: 'prev-fluor', name: 'Application de vernis fluoré', category: 'PREVENTION', scope: 'GLOBAL', duration: 15 },
+  { id: 'prev-bb', name: 'Bilan Bucco-Dentaire', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
   
-  // Esthétique
-  { id: 'est-1', name: 'Blanchiment dentaire', category: 'ESTHETIQUE', duration: 60 },
-  { id: 'est-2', name: 'Facette Céramique', category: 'ESTHETIQUE' },
-  { id: 'est-3', name: 'Facette Composite', category: 'ESTHETIQUE', duration: 45 },
+  // --- ORTHODONTIE ---
+  { id: 'ortho-bag-m', name: 'Appareil Multi-bagues Métal', category: 'ORTHODONTIE', scope: 'GLOBAL' },
+  { id: 'ortho-bag-c', name: 'Appareil Multi-bagues Céramique', category: 'ORTHODONTIE', scope: 'GLOBAL' },
+  { id: 'ortho-align', name: 'Traitement par Aligneurs (Invisalign)', category: 'ORTHODONTIE', scope: 'GLOBAL' },
+  { id: 'ortho-cont', name: 'Fil de contention / Gouttière', category: 'ORTHODONTIE', scope: 'GLOBAL' },
+  { id: 'ortho-cons', name: 'Consultation Orthodontique', category: 'ORTHODONTIE', scope: 'GLOBAL', duration: 30 },
+  { id: 'ortho-disj', name: 'Disjoncteur maxillaire', category: 'ORTHODONTIE', scope: 'GLOBAL' },
   
-  // Parodontologie
-  { id: 'paro-1', name: 'Surfaçage radiculaire', category: 'PARODONTOLOGIE', anesthesia: true, duration: 45 },
-  { id: 'paro-2', name: 'Gingivoplastie', category: 'PARODONTOLOGIE', anesthesia: true },
-  
-  // Consultation
-  { id: 'consult-1', name: 'Consultation', category: 'PREVENTION' },
-  { id: 'consult-2', name: 'Consultation spécialisée', category: 'PREVENTION' },
+  // --- ESTHÉTIQUE ---
+  { id: 'est-blan-f', name: 'Blanchiment au fauteuil', category: 'ESTHETIQUE', scope: 'GLOBAL', duration: 60 },
+  { id: 'est-blan-g', name: 'Gouttières de blanchiment (Home)', category: 'ESTHETIQUE', scope: 'GLOBAL' },
+  { id: 'est-fac-c', name: 'Facette Céramique (Veneer)', category: 'ESTHETIQUE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'est-fac-comp', name: 'Facette Composite (Directe)', category: 'ESTHETIQUE', scope: 'UNITAIRE', duration: 45 },
 ];
 
 // Regroupement par catégorie

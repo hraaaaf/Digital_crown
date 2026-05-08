@@ -17,8 +17,13 @@ DEFAULT_DB_URL = "postgresql://postgres:admin@localhost/digitalcrown_db?client_e
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
 
 # --- INITIALISATION DU MOTEUR ---
+# Augmentation du pool pour supporter la charge Ghost Elite v4.2
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL
+    SQLALCHEMY_DATABASE_URL,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
 )
 
 SessionLocal = sessionmaker(
