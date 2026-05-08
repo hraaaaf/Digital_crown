@@ -1,0 +1,111 @@
+{
+  "act_code": "surfacage-radiculaire-quadrant",
+  "act_names": [
+    "Surfaçage radiculaire",
+    "Curetage parodontal",
+    "Détartrage surfaçage",
+    "Curetage sous-gingival",
+    "SRP"
+  ],
+  "difficulty": "complex",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "sondage",
+      "label": "Sondage documenté — poches > 4mm identifiées",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Radio interproximales récentes (< 6 mois)",
+      "critical": false
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie locale planifiée (surfaçage profond douloureux)",
+      "critical": false
+    },
+    {
+      "id": "antibio",
+      "label": "Antibioprophylaxie évaluée si paro agressive",
+      "critical": false
+    },
+    {
+      "id": "sextant",
+      "label": "Traitement par sextant planifié",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie locale sextant concerné",
+      "tip": "Articaïne 4% infiltrative — surfaçage profond = douloureux"
+    },
+    {
+      "order": 2,
+      "label": "Détartrage sous-gingival curettes gracey",
+      "tip": "Curette 13/14 molaires, 11/12 faces mésiales"
+    },
+    {
+      "order": 3,
+      "label": "Surfaçage radiculaire — surface lisse et dure",
+      "tip": "Mouvements longs vers la couronne — vérifier au sondage"
+    },
+    {
+      "order": 4,
+      "label": "Irrigation NaOCl 0,5% ou CHX sous-gingivale",
+      "tip": "Réduire la charge bactérienne résiduelle"
+    },
+    {
+      "order": 5,
+      "label": "Contrôle final au sondage",
+      "tip": "Réduction de poche attendue : 1-2mm à 6 semaines"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Poche résiduelle > 5mm à 6 semaines",
+      "mitigation": "Chirurgie à lambeau d'assainissement à envisager"
+    },
+    {
+      "risk": "Sensibilité dentaire post-surfaçage",
+      "mitigation": "Vernis fluoré + dentifrice désensibilisant — prévenirle patient"
+    },
+    {
+      "risk": "Récession post-traitement",
+      "mitigation": "Normale et attendue — réduira avec contraction gingivale"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml par sextant"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12% sous-gingival",
+      "dose_adult": "Irrigation locale en fin de séance"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline + Métronidazole",
+      "dose_adult": "Si paro agressive : 500mg Amox + 250mg Metro × 3/j × 7j"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Sensibilité dentaire normale 1-2 semaines après surfaçage"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Bains CHX 0,12% × 2/j pendant 2 semaines"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV réévaluation parodontale à 6-8 semaines obligatoire"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{% extends "base_elite.html" %}
+
+{% block extra_css %}
+    .document-content {
+        margin-top: 0.5cm;
+    }
+
+    .patient-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 1.5cm;
+        color: var(--primary);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .patient-name {
+        font-weight: 900;
+        font-size: 11pt;
+    }
+
+    .doc-date {
+        font-weight: 700;
+        font-size: 11pt;
+    }
+
+    .medications-list {
+        margin-top: 1cm;
+    }
+
+    .medication-item {
+        margin-bottom: 25pt;
+        page-break-inside: avoid;
+    }
+
+    .medication-header {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 900;
+        font-size: 11pt;
+        color: var(--primary);
+        text-transform: uppercase;
+        margin-bottom: 6pt;
+    }
+
+    .med-name {
+        text-decoration: underline;
+    }
+
+    .med-specs {
+        text-transform: none;
+        font-size: 10pt;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    .medication-posology {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 10pt;
+        color: var(--primary);
+        margin-left: 1.2cm;
+        line-height: 1.6;
+    }
+{% endblock %}
+
+{% block content %}
+    <h1 class="document-title" style="text-decoration: underline; text-underline-offset: 6px;">{{ titre | default('ORDONNANCE') }}</h1>
+
+    <div class="document-content">
+        <div class="patient-header">
+            <div class="patient-name">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}, {{ patient_age }} ans</div>
+            <div class="doc-date">Le : <u>{{ date_generation }}</u></div>
+        </div>
+
+        <div class="medications-list">
+            {% for med in medications %}
+            <div class="medication-item">
+                <div class="medication-header">
+                    <span class="med-number">{{ loop.index }}-</span>
+                    <span class="med-name">{{ med.nom.upper() }}</span>
+                    {% if med.dosage or med.forme %}
+                    <span class="med-specs"> — {{ med.dosage }} ({{ med.forme }})</span>
+                    {% endif %}
+                </div>
+                <div class="medication-posology">
+                    {{ med.posologie }}
+                </div>
+            </div>
+            {% else %}
+            <p style="color: var(--primary); font-style: italic;">Aucun médicament prescrit.</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

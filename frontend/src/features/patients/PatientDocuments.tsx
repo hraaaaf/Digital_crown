@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../../services/api';
+import { api, API_BASE } from '../../services/api';
 import { 
   FileText, 
   Eye, 
@@ -8,22 +8,26 @@ import {
   Loader2, 
   Calendar, 
   Download,
-  Filter,
+  Archive,
   ArchiveX,
   Pill,
   Calculator,
   FileBadge,
-  Receipt
+  Receipt,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-// NOUVELLE INTERFACE ALIGNÉE AVEC LE BACKEND
+// INTERFACE ALIGNÉE AVEC LE BACKEND
 interface DocumentInfo {
   id: string;
   name: string;
   type: string;
   date: string;
   url: string;
+  clinical_data?: any;
+  isDuplicate?: boolean;
 }
 
 export const PatientDocuments = () => {
@@ -35,7 +39,6 @@ export const PatientDocuments = () => {
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        // Nouvelle Route Backend : Scanne le disque dur
         const res = await api.get(`/patients/${id}/documents`);
         setDocs(res.data);
       } catch (err) {
@@ -47,11 +50,25 @@ export const PatientDocuments = () => {
     fetchDocs();
   }, [id]);
 
-  const filteredDocs = docs.filter(d => 
-    d.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.date.includes(searchTerm)
-  );
+  const handleDelete = async (docId: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
+      try {
+        await api.post(`/documents/${docId}/trash`);
+        setDocs(docs.filter(d => d.id !== docId));
+      } catch (err) {
+        console.error("Erreur suppression:", err);
+        alert("Erreur lors de la suppression.");
+      }
+    }
+  };
+
+  const handleEdit = (doc: DocumentInfo) => {
+    if (!doc.clinical_data) {
+      alert("Ce document ne possède pas de données structurées pour être régénéré.");
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('edit_document', { detail: doc }));
+  };
 
   const getDocIcon = (type: string, className: string) => {
     switch (type.toUpperCase()) {
@@ -63,68 +80,111 @@ export const PatientDocuments = () => {
     }
   };
 
-  if (loading) return (
-    <div className="py-20 flex flex-col items-center justify-center gap-4">
-      <Loader2 className="animate-spin text-[#003380]" size={40} />
-      <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Ouverture du coffre-fort...</p>
-    </div>
+  // Logique de filtrage et détection de doublons
+  const filtered = docs.filter(d => 
+    d.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.date.includes(searchTerm)
   );
 
+  const getActsSignature = (data: any) => {
+    if (!data) return null;
+    const items = data.items || data.payments || [];
+    if (items.length === 0) return null;
+    const acts = items.map((i: any) => `${(i.acte || i.description || '').trim().toLowerCase()}:${String(i.dent || '0').trim().toLowerCase()}`).sort();
+    return acts.join('|');
+  };
+
+  const signatures = new Set<string>();
+  const docsWithDuplicates = filtered.map(doc => {
+    let isDuplicate = false;
+    const sig = getActsSignature(doc.clinical_data);
+    if (sig) {
+      const fullSig = `${doc.type}-${sig}`;
+      if (signatures.has(fullSig)) {
+        isDuplicate = true;
+      } else {
+        signatures.add(fullSig);
+      }
+    }
+    return { ...doc, isDuplicate };
+  });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 gap-4">
+        <Loader2 className="animate-spin text-primary" size={40} />
+        <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Chargement de la bibliothèque...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 p-2">
+    <div className="space-y-6 animate-in fade-in duration-700 h-full flex flex-col">
       
-      {/* BARRE DE RECHERCHE ARCHIVES */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#003380] transition-colors" size={18} />
+      <div className="flex items-center gap-4 bg-white/40 backdrop-blur-md p-3 rounded-2xl border border-white/60 shadow-sm shrink-0">
+        <div className="relative group flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Filtrer par type (Note, Devis...)" 
-            className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-[#003380]/5 outline-none transition-all placeholder:text-slate-400"
+            placeholder="Rechercher dans l'historique..." 
+            className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-[#003380] rounded-xl border border-blue-100 shadow-sm">
-          <Filter size={16} />
-          <span className="text-xs font-black uppercase tracking-widest">{filteredDocs.length} Documents</span>
+        <div className="flex items-center gap-2 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 shadow-sm text-primary">
+          <Archive size={18} />
+          <span className="text-xs font-black uppercase tracking-widest">{filtered.length} Documents</span>
         </div>
       </div>
 
-      {/* GRILLE DE DOCUMENTS PREMIUM */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredDocs.map((doc) => (
-          <div key={doc.id} className="group bg-white/70 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,51,128,0.12)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-hidden">
+        {docsWithDuplicates.map((doc) => (
+          <div key={doc.id} className={cn(
+            "group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-hidden",
+            doc.isDuplicate ? "bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]" : "bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]"
+          )}>
             
-            {/* Effet visuel de fond pour le type de doc */}
-            <div className="absolute -right-4 -top-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-               {getDocIcon(doc.type, "w-[120px] h-[120px]")}
-            </div>
+            {doc.isDuplicate && (
+              <div className="absolute top-0 inset-x-0 bg-rose-500 text-white text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 shadow-md">
+                Doublon de contenu détecté
+              </div>
+            )}
 
             <div className="flex justify-between items-start mb-6 relative z-10">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-white text-[#003380] rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm group-hover:bg-[#003380] group-hover:text-white transition-colors duration-500">
+              <div className={cn(
+                "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500",
+                doc.isDuplicate ? "bg-rose-100 text-rose-600" : "bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white"
+              )}>
                 {getDocIcon(doc.type, "w-7 h-7")}
               </div>
-              <span className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border",
-                doc.type.toUpperCase() === 'NOTE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
-              )}>
-                {doc.type}
-              </span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleEdit(doc)} className="p-1.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-600 hover:text-white transition-all shadow-sm">
+                  <Edit size={14} />
+                </button>
+                <button onClick={() => handleDelete(doc.id)} className="p-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white transition-all shadow-sm">
+                  <Trash2 size={14} />
+                </button>
+                <span className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border",
+                  doc.type.toUpperCase() === 'NOTE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-primary/10 text-primary border-primary/20"
+                )}>
+                  {doc.type}
+                </span>
+              </div>
             </div>
             
             <div className="relative z-10 mb-8">
-              <h3 className="font-black text-slate-800 text-lg truncate pr-4 leading-tight" title={doc.name}>{doc.name}</h3>
+              <h3 className="font-black text-text-main text-lg truncate pr-4 leading-tight">{doc.name}</h3>
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold mt-2 uppercase tracking-wide">
-                <Calendar size={14} className="text-blue-400" /> 
-                Généré le {doc.date}
+                <Calendar size={14} className="text-primary/60" /> Généré le {doc.date}
               </div>
             </div>
 
-            {/* ACTIONS RAPIDES */}
             <div className="grid grid-cols-2 gap-3 relative z-10">
               <a 
-                href={`http://localhost:8000/${doc.url}`} 
+                href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
                 target="_blank" 
                 rel="noreferrer" 
                 className="flex items-center justify-center gap-2 py-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
@@ -132,9 +192,9 @@ export const PatientDocuments = () => {
                 <Eye size={16} /> Voir
               </a>
               <a 
-                href={`http://localhost:8000/${doc.url}`} 
+                href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
                 download={doc.name}
-                className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-[#003380] to-blue-900 hover:shadow-lg text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
               >
                 <Download size={16} /> Fichier
               </a>
@@ -142,8 +202,7 @@ export const PatientDocuments = () => {
           </div>
         ))}
 
-        {/* EMPTY STATE ARCHIVES */}
-        {filteredDocs.length === 0 && (
+        {filtered.length === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2.5rem] bg-slate-50 border border-slate-100 mb-6 text-slate-300 shadow-inner">
               <ArchiveX size={40} />

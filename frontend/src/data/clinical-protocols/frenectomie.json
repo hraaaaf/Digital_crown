@@ -1,0 +1,101 @@
+{
+  "act_code": "frenectomie",
+  "act_names": [
+    "Frénectomie",
+    "Frénotomie",
+    "Frénectomie labiale",
+    "Frénectomie linguale",
+    "Section frein"
+  ],
+  "difficulty": "routine",
+  "duration_min": 25,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée (diastème, ankyloglossie, récession)",
+      "critical": true
+    },
+    {
+      "id": "age",
+      "label": "Âge optimal évalué (frein labial : après éruption incisives définitives)",
+      "critical": false
+    },
+    {
+      "id": "consent",
+      "label": "Consentement + explication cicatrice et suites",
+      "critical": false
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie topique + infiltrative prête",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie topique + infiltration locale du frein",
+      "tip": "Éviter injecter dans le frein lui-même — péri-freinale"
+    },
+    {
+      "order": 2,
+      "label": "Clampage du frein à l'hémostat courbé",
+      "tip": "Repère visuel pour la ligne d'incision"
+    },
+    {
+      "order": 3,
+      "label": "Incision horizontale à la bistoury ou laser",
+      "tip": "Laser Er:YAG : hémostase simultanée — idéal pédiatrique"
+    },
+    {
+      "order": 4,
+      "label": "Dissection frein jusqu'à l'os (frein labial médian)",
+      "tip": "Éliminer l'insertion osseuse si diastème"
+    },
+    {
+      "order": 5,
+      "label": "Suture ou cicatrisation dirigée (laser)",
+      "tip": "Résorbable 5-0 — points simples espacés"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Récidive du diastème",
+      "mitigation": "Traitement orthodontique en parallèle — frénectomie seule insuffisante"
+    },
+    {
+      "risk": "Cicatrice inesthétique",
+      "mitigation": "Suture soigneuse + protection cicatrice post-op"
+    },
+    {
+      "risk": "Ankyloglossie sous-traitée",
+      "mitigation": "Réévaluation orthophonique et fonctionnelle post-op"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "0,5 à 1 ml péri-freinale"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j — 48h"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Compresse si saignement — pression légère 10 min"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle froide 24h — gel cicatrisant si prescrit"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV contrôle + ablation fils à J7-10 — exercices langue si linguale"
+    }
+  ]
+}

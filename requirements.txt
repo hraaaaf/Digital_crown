@@ -1,4 +1,4 @@
-﻿# --- Core Framework & Web ---
+# --- Core Framework & Web ---
 fastapi==0.110.0
 uvicorn[standard]==0.27.1
 python-multipart==0.0.9
@@ -6,6 +6,7 @@ python-multipart==0.0.9
 # --- Database & ORM ---
 sqlalchemy==2.0.28
 pydantic[email]==2.6.3
+pydantic-settings==2.2.1
 psycopg2-binary==2.9.9
 
 # --- AI & Vision (Stable for Win/3.12) ---
@@ -14,9 +15,14 @@ tensorflow
 numpy==1.26.4
 opencv-python-headless
 torch
+ultralytics
+onnxslim
+onnxruntime==1.17.1
+onnxruntime-directml==1.17.1; platform_system == "Windows"
 Pillow
 
 # --- Security & File Validation ---
 python-magic==0.4.27
 python-magic-bin==0.4.14; platform_system == "Windows"
 passlib[bcrypt]==1.7.4
+qrcode==7.4.2

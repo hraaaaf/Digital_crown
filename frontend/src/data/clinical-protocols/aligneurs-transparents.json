@@ -1,0 +1,90 @@
+{
+  "act_code": "aligneurs-transparents",
+  "act_names": [
+    "Aligneurs transparents",
+    "Gouttières orthodontiques",
+    "Invisalign",
+    "Aligner",
+    "Orthodontie invisible"
+  ],
+  "difficulty": "routine",
+  "duration_min": 30,
+  "checklist": [
+    {
+      "id": "scan",
+      "label": "Scan intra-oral de précision réalisé",
+      "critical": true
+    },
+    {
+      "id": "clincheck",
+      "label": "ClinCheck validé par praticien et patient",
+      "critical": true
+    },
+    {
+      "id": "attachements",
+      "label": "Attachements collés si nécessaire",
+      "critical": false
+    },
+    {
+      "id": "ipr",
+      "label": "IPR (stripping) planifié et exécuté",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Scan intra-oral complet + photos standardisées",
+      "tip": "Qualité scan = qualité des gouttières — refaire si doute"
+    },
+    {
+      "order": 2,
+      "label": "Validation du plan ClinCheck 3D avec le patient",
+      "tip": "Montrer résultat attendu — obtenir accord signé"
+    },
+    {
+      "order": 3,
+      "label": "Collage des attachements selon plan numérique",
+      "tip": "Gabarit de collage fourni — isoler et graver les surfaces"
+    },
+    {
+      "order": 4,
+      "label": "IPR selon séquence planifiée",
+      "tip": "Disques IPR + jauges — noter et mesurer à chaque séance"
+    },
+    {
+      "order": 5,
+      "label": "Remise du 1er jeu et instructions de port",
+      "tip": "22h/jour minimum — changer tous les 7-14 jours selon plan"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Compliance insuffisante",
+      "mitigation": "< 22h/jour = aucune efficacité — expliquer avant de commencer"
+    },
+    {
+      "risk": "Tracking impossible",
+      "mitigation": "Réévaluer — refinements si nécessaire — pression sur attachements"
+    },
+    {
+      "risk": "Perte ou casse d'une gouttière",
+      "mitigation": "Conserver la précédente — reprendre la série — contacter le labo"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "22h/jour minimum — retirer uniquement pour manger et se brosser"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Légère gêne normale 2-3 jours à chaque changement de gouttière"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV contrôle 6-8 semaines — nettoyer gouttières à l'eau froide"
+    }
+  ]
+}

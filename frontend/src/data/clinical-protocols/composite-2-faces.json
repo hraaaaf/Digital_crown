@@ -1,0 +1,110 @@
+{
+  "act_code": "composite-2-faces",
+  "act_names": [
+    "Restauration composite 2 faces",
+    "Composite 2 faces",
+    "Obturation bi-proximale",
+    "Carie interproximale"
+  ],
+  "difficulty": "routine",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "digue",
+      "label": "Digue posée obligatoirement",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Cliché rétroalvéolaire interprété",
+      "critical": false
+    },
+    {
+      "id": "matrice",
+      "label": "Matrice et coin interdentaire prêts",
+      "critical": false
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte choisie dent humide",
+      "critical": false
+    },
+    {
+      "id": "lampe",
+      "label": "Lampe photo vérifiée >600mW/cm²",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Éviction carie + préparation cavité",
+      "tip": "Conserver maximum tissu sain"
+    },
+    {
+      "order": 2,
+      "label": "Pose matrice et coin interdentaire",
+      "tip": "Palodent pour point de contact optimal"
+    },
+    {
+      "order": 3,
+      "label": "Mordançage + rinçage + adhésif",
+      "tip": "Mordançage sélectif émail recommandé"
+    },
+    {
+      "order": 4,
+      "label": "Composite en incréments 2mm max",
+      "tip": "Premier incrément cervical, obliques ensuite"
+    },
+    {
+      "order": 5,
+      "label": "Polymérisation 20s par incrément",
+      "tip": "Lampe perpendiculaire à la surface"
+    },
+    {
+      "order": 6,
+      "label": "Retrait matrice + finition + occlusion",
+      "tip": "Vérifier point de contact et papier articulé"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Point de contact absent",
+      "mitigation": "Matrice précontourée + coin interdentaire adapté"
+    },
+    {
+      "risk": "Contamination cervicale",
+      "mitigation": "Contrôle visuel avant photo — reprendre si suspect"
+    },
+    {
+      "risk": "Sensibilité post-op",
+      "mitigation": "Vérifier occlusion, éliminer contacts prématurés"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml si nécessaire"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si douleur"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Attendre 1h avant de manger"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter aliments durs et colorants 48h"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Consulter si douleur à la mastication > 3 jours"
+    }
+  ]
+}

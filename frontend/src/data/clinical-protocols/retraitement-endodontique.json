@@ -1,0 +1,115 @@
+{
+  "act_code": "retraitement-endodontique",
+  "act_names": [
+    "Retraitement endodontique",
+    "Reprise canalaire",
+    "Dévitalisation reprise",
+    "Retraitement canalaire"
+  ],
+  "difficulty": "complex",
+  "duration_min": 120,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Radio préop + CBCT si anatomie complexe",
+      "critical": true
+    },
+    {
+      "id": "digue",
+      "label": "Digue obligatoire",
+      "critical": true
+    },
+    {
+      "id": "cause",
+      "label": "Cause d'échec identifiée (canal manqué, perforation)",
+      "critical": true
+    },
+    {
+      "id": "instruments",
+      "label": "Instruments désobturation NiTi (ProTaper Retreatment)",
+      "critical": false
+    },
+    {
+      "id": "solvant",
+      "label": "Solvant gutta (Xylène/Endosolv) prêt",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Dépose couronne/pont si nécessaire",
+      "tip": "Décider avant d'ouvrir — accès coronaire direct"
+    },
+    {
+      "order": 2,
+      "label": "Désobturation NiTi + solvant gutta",
+      "tip": "ProTaper Retreatment D1-D2-D3 ou Reciproc"
+    },
+    {
+      "order": 3,
+      "label": "Retrait gutta résiduelle à la lime manuelle",
+      "tip": "Lima 10-15 manuelle pour éliminer résidus apicaux"
+    },
+    {
+      "order": 4,
+      "label": "Reprendre la mise en forme complète",
+      "tip": "Recalibrer la longueur de travail — apex locator"
+    },
+    {
+      "order": 5,
+      "label": "Irrigation abondante NaOCl + EDTA activation",
+      "tip": "Bactéries résistantes — double le temps d'irrigation"
+    },
+    {
+      "order": 6,
+      "label": "Obturation définitive + radio de contrôle",
+      "tip": "Comparer avec radio initiale — amélioration documentée"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Instrument NiTi fractué dans canal obturé",
+      "mitigation": "Bypass si possible — scope ou référer en endodontie spécialisée"
+    },
+    {
+      "risk": "Perforation latérale ancienne",
+      "mitigation": "Détecter au CBCT — réparer au MTA si accessible"
+    },
+    {
+      "risk": "Canal manqué confirmé",
+      "mitigation": "Accès coronaire re-fait — transillumination + microscope"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 à 3,6 ml"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène + Paracétamol alternés",
+      "dose_adult": "400mg Ibu + 1g Para — toutes les 4h"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline + Métronidazole",
+      "dose_adult": "Si abcès persistant — 3g Amox + 500mg Metro/j × 7j"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Douleur post-op possible 3-5 jours — normale"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Antalgiques réguliers toutes les 6h sans attendre la douleur"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Radio de contrôle à 6 mois — pronostic réévalué"
+    }
+  ]
+}

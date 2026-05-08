@@ -1,0 +1,85 @@
+{
+  "act_code": "radio-retroalveolaire",
+  "act_names": [
+    "Radio rétroalvéolaire",
+    "Radiographie rétroalvéolaire",
+    "Cliché rétro",
+    "Radiographie dentaire"
+  ],
+  "difficulty": "routine",
+  "duration_min": 10,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication clinique précise documentée",
+      "critical": false
+    },
+    {
+      "id": "protection",
+      "label": "Tablier plombé posé sur le patient",
+      "critical": true
+    },
+    {
+      "id": "technique",
+      "label": "Technique du plan parallèle choisie",
+      "critical": false
+    },
+    {
+      "id": "capteur",
+      "label": "Capteur ou film positionné correctement",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Positionnement capteur/film en bouche",
+      "tip": "Porte-film Rinn — parallèle à l'axe dentaire"
+    },
+    {
+      "order": 2,
+      "label": "Visée du tube : 90° au film et à la dent",
+      "tip": "Règle du plan parallèle — éviter élongation/raccourcissement"
+    },
+    {
+      "order": 3,
+      "label": "Déclenchement exposition",
+      "tip": "Patient apnée — temps d'exposition minimal"
+    },
+    {
+      "order": 4,
+      "label": "Développement (numérique = immédiat)",
+      "tip": "Contrôle qualité avant interprétation"
+    },
+    {
+      "order": 5,
+      "label": "Interprétation et annotation dossier",
+      "tip": "Documenter : date, dent, indication, résultat"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Élongation ou raccourcissement",
+      "mitigation": "Technique plan parallèle + porte-film — pas de bissectrice"
+    },
+    {
+      "risk": "Flou cinétique",
+      "mitigation": "Stabiliser le capteur, demander immobilité stricte"
+    },
+    {
+      "risk": "Sous- ou surexposition",
+      "mitigation": "Régler les paramètres selon épaisseur et zone anatomique"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Radio disponible immédiatement pour interprétation"
+    },
+    {
+      "timing": "immediately",
+      "instruction": "Résultats expliqués lors de la consultation"
+    }
+  ]
+}

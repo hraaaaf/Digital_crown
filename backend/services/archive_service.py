@@ -10,13 +10,16 @@ from typing import List, Optional, Tuple, BinaryIO
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
+import shutil
 
 from backend import models
 from backend.models import DocumentType, DocumentStatus
 from backend.schemas import ConflictResolution
 
 # Configuration
-ARCHIVE_BASE_DIR = Path("static/archives")
+BASE_DIR = Path(__file__).parent.parent
+ARCHIVE_BASE_DIR = BASE_DIR / "static" / "archives"
+LEGACY_DOCS_DIR = BASE_DIR / "static" / "documents"
 TRASH_RETENTION_DAYS = 365  # 1 an
 THUMBNAIL_SIZE = (300, 400)
 
@@ -58,7 +61,8 @@ class ArchiveService:
         return path / filename
     
     def check_conflicts(self, patient_id: int, file_hash: str, 
-                       filename: str, doc_type: DocumentType) -> dict:
+                       filename: str, doc_type: DocumentType, 
+                       clinical_data: Optional[dict] = None) -> dict:
         """
         Vérifie les conflits potentiels avant archivage.
         Retourne : has_conflict, existing_doc, conflict_reason, suggested_action
@@ -102,27 +106,25 @@ class ArchiveService:
                 "message": f"Un document '{filename}' existe déjà pour aujourd'hui"
             }
         
-        # 3. Vérifier si un document similaire existe (même type, même patient)
-        similar_doc = self.db.query(models.DocumentArchive).filter(
-            and_(
-                models.DocumentArchive.patient_id == patient_id,
-                models.DocumentArchive.document_type == doc_type,
-                models.DocumentArchive.is_latest_version == True,
-                models.DocumentArchive.status == DocumentStatus.ACTIF
-            )
-        ).order_by(desc(models.DocumentArchive.created_at)).first()
-        
-        if similar_doc:
-            # Si créé dans les dernières 24h, suggérer version
-            time_diff = datetime.now() - similar_doc.created_at
-            if time_diff < timedelta(hours=24):
-                return {
-                    "has_conflict": False,  # Pas un vrai conflit, juste une info
-                    "existing_document": similar_doc,
-                    "conflict_reason": "recent_similar",
-                    "suggested_action": ConflictResolution.CREATE_VERSION,
-                    "message": "Un document similaire a été créé récemment"
-                }
+        # 4. Vérifier Doublon de CONTENU (Mêmes actes, même montant)
+        if clinical_data:
+            existing_by_content = self.db.query(models.DocumentArchive).filter(
+                and_(
+                    models.DocumentArchive.patient_id == patient_id,
+                    models.DocumentArchive.document_type == doc_type,
+                    models.DocumentArchive.status == DocumentStatus.ACTIF
+                )
+            ).all()
+            
+            for doc in existing_by_content:
+                if doc.clinical_data == clinical_data:
+                    return {
+                        "has_conflict": True,
+                        "existing_document": doc,
+                        "conflict_reason": "duplicate_content",
+                        "suggested_action": ConflictResolution.CANCEL,
+                        "message": "Une note identique existe déjà pour ce patient (mêmes actes)."
+                    }
         
         return {"has_conflict": False}
     
@@ -146,10 +148,15 @@ class ArchiveService:
         file_hash = self._calculate_file_hash(file_content)
         file_size = len(file_content)
         
-        # Vérifier les conflits sauf si on force
-        conflict = self.check_conflicts(patient_id, file_hash, filename, doc_type)
+        # Vérifier les conflits (Hash, Nom, ou Contenu clinique)
+        conflict = self.check_conflicts(patient_id, file_hash, filename, doc_type, clinical_data=clinical_data)
         
         if conflict["has_conflict"]:
+            # Si c'est un doublon de contenu et que l'utilisateur n'a pas forcé
+            if conflict["conflict_reason"] == "duplicate_content" and on_conflict == ConflictResolution.CANCEL:
+                raise ValueError("DOUBLE_DETECTED: " + conflict["message"])
+            
+            # Autres types de conflits (nom, hash) gérés via le comportement par défaut
             if on_conflict == ConflictResolution.CANCEL:
                 raise ValueError(conflict["message"])
             
@@ -190,6 +197,16 @@ class ArchiveService:
         with open(storage_path, 'wb') as f:
             f.write(file_content)
         
+        # --- DOUBLE EXPORT : RESTAURATION DOSSIERS HISTORIQUES (static/documents/YYYY/MM) ---
+        if doc_type in [DocumentType.NOTE_HONORAIRES, DocumentType.DEVIS, DocumentType.ORDONNANCE, DocumentType.CERTIFICAT]:
+            today = datetime.now()
+            legacy_dir = LEGACY_DOCS_DIR / str(today.year) / f"{today.month:02d}"
+            legacy_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Consiste à utiliser le même nommage que l'ancien générateur
+            legacy_path = legacy_dir / storage_path.name
+            shutil.copy2(storage_path, legacy_path)
+
         # Créer l'entrée en base
         doc = models.DocumentArchive(
             patient_id=patient_id,
@@ -202,7 +219,7 @@ class ArchiveService:
             is_latest_version=True,
             file_hash=file_hash,
             file_size=file_size,
-            file_path=str(storage_path),
+            file_path=str(storage_path.relative_to(BASE_DIR)).replace("\\", "/"),
             title=title or filename,
             description=description,
             tags=tags,
@@ -317,9 +334,13 @@ class ArchiveService:
                         search_query: Optional[str] = None,
                         date_from: Optional[datetime] = None,
                         date_to: Optional[datetime] = None,
-                        page: int = 1, page_size: int = 20) -> Tuple[List[models.DocumentArchive], int]:
+                        page: int = 1, page_size: int = 20,
+                        employer_id: Optional[int] = None) -> Tuple[List[models.DocumentArchive], int]:
         """Recherche avancée de documents."""
         query = self.db.query(models.DocumentArchive)
+        
+        if employer_id:
+            query = query.join(models.Patient).filter(models.Patient.employer_id == employer_id)
         
         # Filtres
         if patient_id:

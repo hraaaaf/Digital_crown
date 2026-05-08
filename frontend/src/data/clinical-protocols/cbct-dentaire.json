@@ -1,0 +1,86 @@
+{
+  "act_code": "cbct-dentaire",
+  "act_names": [
+    "CBCT dentaire",
+    "Cone Beam",
+    "Scanner dentaire",
+    "Tomographie volumétrique",
+    "3D dentaire"
+  ],
+  "difficulty": "complex",
+  "duration_min": 20,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication CBCT justifiée (implant, ortho, endo)",
+      "critical": true
+    },
+    {
+      "id": "prescription",
+      "label": "Prescription médicale établie",
+      "critical": true
+    },
+    {
+      "id": "contre_indic",
+      "label": "Femme enceinte exclue — dosimétrie vérifiée",
+      "critical": true
+    },
+    {
+      "id": "champ",
+      "label": "Volume d'acquisition limité au secteur d'intérêt",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Vérification indication et prescription",
+      "tip": "Principe ALARA — champ limité au strict nécessaire"
+    },
+    {
+      "order": 2,
+      "label": "Retrait prothèses, bijoux, appareils",
+      "tip": "Artefacts métalliques dégradent l'image 3D"
+    },
+    {
+      "order": 3,
+      "label": "Positionnement patient, stabilisation tête",
+      "tip": "Immobilité absolue — moindre mouvement = artefacts"
+    },
+    {
+      "order": 4,
+      "label": "Acquisition rotation 360° (selon appareil)",
+      "tip": "Durée 8-20 secondes selon résolution choisie"
+    },
+    {
+      "order": 5,
+      "label": "Reconstruction 3D + analyse multiplanaire",
+      "tip": "Coupes axiale, coronale, sagittale + rendu 3D"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Dose radiation excessive",
+      "mitigation": "Principe ALARA — champ réduit, résolution adaptée à l'indication"
+    },
+    {
+      "risk": "Artefacts métalliques",
+      "mitigation": "Retrait strict de tout métal amovible avant acquisition"
+    },
+    {
+      "risk": "Interprétation incomplète",
+      "mitigation": "Lecture systématique multiplanaire — ne pas se limiter au 3D"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Résultat disponible pour analyse sous 24-48h"
+    },
+    {
+      "timing": "immediately",
+      "instruction": "Conserver le CD/fichier DICOM — propriété du patient"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "act_code": "examen-buccodentaire",
+  "act_names": [
+    "Examen bucco-dentaire",
+    "Bilan dentaire initial",
+    "Consultation initiale",
+    "Bilan buccodentaire"
+  ],
+  "difficulty": "routine",
+  "duration_min": 30,
+  "checklist": [
+    {
+      "id": "anamnese",
+      "label": "Anamnèse médicale complète (traitements, allergies)",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Bilan radiographique décidé (rétro + panoramique)",
+      "critical": false
+    },
+    {
+      "id": "paro",
+      "label": "Sondage parodontal prévu",
+      "critical": false
+    },
+    {
+      "id": "cancero",
+      "label": "Examen muqueuses et dépistage lésions suspectes",
+      "critical": true
+    },
+    {
+      "id": "occlusion",
+      "label": "Analyse occlusion et parafonctions",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Recueil anamnèse médicale et dentaire",
+      "tip": "Anticoagulants, bisphosphonates, immunodépression"
+    },
+    {
+      "order": 2,
+      "label": "Examen exobuccal : ATM, chaînes ganglionnaires",
+      "tip": "Palpation bidigitale, recherche asymétrie"
+    },
+    {
+      "order": 3,
+      "label": "Examen endobuccal : muqueuses, langue, plancher",
+      "tip": "Dépistage systématique cancer — tout laisser suspect"
+    },
+    {
+      "order": 4,
+      "label": "Examen dentaire : caries, usures, fractures",
+      "tip": "Sonde exploratrice + miroir + éclairage direct"
+    },
+    {
+      "order": 5,
+      "label": "Sondage parodontal 6 points par dent",
+      "tip": "Documenter dans le dossier — valeur médico-légale"
+    },
+    {
+      "order": 6,
+      "label": "Plan de traitement priorisé + devis",
+      "tip": "Urgences d'abord, puis prothèse, puis ortho"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Lésion suspecte sous-estimée",
+      "mitigation": "Biopsie si doute — jamais de surveillance prolongée sans diagnostic"
+    },
+    {
+      "risk": "Anamnèse incomplète",
+      "mitigation": "Formulaire écrit signé par le patient à chaque visite"
+    },
+    {
+      "risk": "Parodontite ignorée",
+      "mitigation": "Sondage systématique — pas de prothèse sur paro non traité"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Recevoir le plan de traitement écrit avec priorités"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Prendre RDV pour urgences identifiées sous 2 semaines"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Bilan radiographique complet si non fait aujourd'hui"
+    }
+  ]
+}

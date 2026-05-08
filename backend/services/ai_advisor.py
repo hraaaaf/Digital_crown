@@ -2,21 +2,22 @@ import logging
 import json
 import requests
 from typing import Dict, Optional, Any
+from backend import schemas
 
 logger = logging.getLogger(__name__)
 
 class AIAdvisor:
     """
-    Service d'Intelligence Clinique (SLM).
-    Interface le Moteur Géométrique avec un LLM local (Llama-3/Mistral) pour la synthèse COM et la Pharmacologie.
-    Produit exclusivement des diagnostics structurés (Structured JSON Output).
+    Clinical Intelligence Service (SLM).
+    Interfaces the Geometric Engine with a local LLM (Llama-3/Mistral) for COM synthesis and Pharmacology.
+    Produces strictly structured diagnostic reports (Structured JSON Output).
     """
     
     def __init__(self, llm_endpoint: str = "http://localhost:11434/api/generate"):
         self.llm_endpoint = llm_endpoint
         self.model_name = "llama3.2" 
         
-        # Ingénierie du Prompt - Verrouillage du Rôle et de la Sortie
+        # Prompt Engineering - Role and Output Locking
         self.system_prompt = """
         Tu es un Expert Orthodontiste Senior au sein du Centre d'Orthodontie Moderne (COM).
         Ta mission est de rédiger une synthèse diagnostique basée sur les métriques céphalométriques fournies.
@@ -37,49 +38,48 @@ class AIAdvisor:
         }
         """
 
-    def generate_diagnostic(self, metrics: Dict, age: Optional[int] = None, cvm_stage: Optional[str] = None, use_slm: bool = False) -> Dict[str, str]:
+    def generate_diagnostic(self, result: schemas.CephaloAnalysisResult, use_slm: bool = False) -> Dict[str, str]:
         """
-        Ingère le dictionnaire de métriques et génère le diagnostic.
-        
-        Mode par défaut (use_slm=False): utilise le moteur heuristique expert (rapide, déterministe, normes COM).
-        Mode SLM (use_slm=True): tente d'appeler Ollama avec timeout court (3s), fallback heuristique si échec.
-        
-        RECOMMANDATION: Laisser use_slm=False pour la production. Le SLM (llama3.2) peut générer des erreurs cliniques.
+        Ingests typed analysis results and generates the diagnostic report.
         """
-        # 1. Préparation du contexte patient
-        patient_context = f"Âge: {age if age else 'Adulte'}. "
-        if cvm_stage:
-            patient_context += f"Stade de maturation osseuse (CVM): {cvm_stage}."
+        metrics = result.metrics
+        age = result.analysis_metadata.cohort # "Enfant (9 ans)" or "Adulte"
+        
+        # 1. Patient context preparation
+        patient_context = f"Profil: {age}. "
 
-        # 2. Filtrage intelligent : Isolation des données pertinentes (Z-score élevé ou Compensations)
+        # 2. Smart filtering: Isolate relevant data (High Z-score or Compensations)
         clinical_data = {
             "Contexte": patient_context,
             "Deviations_Severes_Ou_Compensees": {}
         }
         
-        osseuse = metrics.get("analyse_osseuse", {})
-        dentaire = metrics.get("analyse_dentaire", {})
+        osseuse = metrics.analyse_osseuse
+        dentaire = metrics.analyse_dentaire
         
         for category, measures in [("Squelettique", osseuse), ("Dentaire", dentaire)]:
-            for name, data in measures.items():
-                if data.get("z_score", 0) >= 1.0 or data.get("status") in ["High", "Low", "Compensated"]:
+            # Dynamic extraction from Pydantic model
+            for name, measure in measures:
+                if not isinstance(measure, schemas.MeasureData):
+                    continue
+                if measure.z_score >= 1.0 or measure.status in ["High", "Low", "Compensated"]:
                     clinical_data["Deviations_Severes_Ou_Compensees"][name] = {
-                        "Valeur": data.get("value"),
-                        "Norme": f"[{data.get('norm_min')} - {data.get('norm_max')}]",
-                        "Statut": data.get("status"),
-                        "Interprétation_Moteur": data.get("interpretation")
+                        "Valeur": measure.valeur,
+                        "Norme": f"[{measure.norm_min} - {measure.norm_max}]",
+                        "Statut": measure.status,
+                        "Interprétation_Moteur": measure.interpretation
                     }
 
-        # Mode par défaut: heuristique expert (rapide, fiable, normes COM)
+        # Default mode: expert heuristic (fast, reliable, COM standards)
         if not use_slm:
-            logger.info("AI Advisor: Mode heuristique actif (normes COM âge-spécifiques)")
+            logger.info("AI Advisor: Heuristic mode active (COM standards)")
             return self._heuristic_fallback(osseuse, dentaire, age)
         
-        # Mode SLM: tentative avec timeout court (3s), fallback si échec
+        # SLM Mode: attempt with extended timeout (5s), fallback on failure
         prompt = f"Analyse ces données cliniques et génère le JSON attendu :\n{json.dumps(clinical_data, ensure_ascii=False, indent=2)}"
         
         try:
-            logger.info("AI Advisor: Tentative SLM (timeout 3s)...")
+            logger.info("AI Advisor: SLM Attempt (5s timeout)...")
             response = requests.post(
                 self.llm_endpoint,
                 json={
@@ -90,33 +90,33 @@ class AIAdvisor:
                     "stream": False,
                     "options": {"temperature": 0.1}
                 },
-                timeout=3.0  # Timeout court pour ne pas bloquer l'UI
+                timeout=5.0  # Timeout adapted for Elite Edition
             )
             response.raise_for_status()
             
             raw_text = response.json().get("response", "{}")
             parsed = self._parse_json_safe(raw_text)
             
-            # Vérification de cohérence minimale
+            # Minimal consistency check
             if parsed.get("diagnostic_squelettique") and len(parsed["diagnostic_squelettique"]) > 20:
-                logger.info("AI Advisor: SLM a répondu correctement")
+                logger.info("AI Advisor: SLM responded correctly")
                 return parsed
             else:
-                logger.warning("AI Advisor: SLM réponse invalide, fallback heuristique")
+                logger.warning("AI Advisor: SLM invalid response, heuristic fallback (incomplete data analysis)")
                 return self._heuristic_fallback(osseuse, dentaire, age)
 
         except requests.exceptions.Timeout:
-            logger.warning("AI Advisor: SLM timeout (3s), fallback heuristique")
+            logger.warning("AI Advisor: SLM timeout (5s), heuristic fallback (expert mode active)")
             return self._heuristic_fallback(osseuse, dentaire, age)
         except requests.exceptions.ConnectionError:
-            logger.warning("AI Advisor: SLM non disponible (Ollama éteint?), fallback heuristique")
+            logger.warning("AI Advisor: SLM offline (Ollama unavailable), heuristic fallback (expert mode active)")
             return self._heuristic_fallback(osseuse, dentaire, age)
         except Exception as e:
-            logger.warning(f"AI Advisor: Erreur SLM ({e}), fallback heuristique")
+            logger.warning(f"AI Advisor: SLM critical error ({e}), heuristic fallback (expert mode active)")
             return self._heuristic_fallback(osseuse, dentaire, age)
 
     def _parse_json_safe(self, text: str) -> Dict[str, str]:
-        """Garantit que la sortie est toujours un JSON valide conforme au schéma."""
+        """Ensures output is always a valid JSON matching the schema."""
         try:
             data = json.loads(text)
             return {
@@ -125,57 +125,57 @@ class AIAdvisor:
                 "strategie_therapeutique": data.get("strategie_therapeutique", "Stratégie non générée.")
             }
         except json.JSONDecodeError:
-            logger.error("AI Advisor : Échec du parsing JSON de la réponse LLM.")
+            logger.error("AI Advisor: LLM response JSON parsing failure.")
             return {
                 "diagnostic_squelettique": "Erreur de formatage IA.",
                 "analyse_dentaire": "Erreur de formatage IA.",
                 "strategie_therapeutique": "Veuillez vérifier les tracés manuellement."
             }
 
-    def _heuristic_fallback(self, osseuse: Dict, dentaire: Dict, age: Optional[int]) -> Dict[str, str]:
+    def _heuristic_fallback(self, osseuse: schemas.SkeletalAnalysis, dentaire: schemas.DentalAnalysis, cohort: str) -> Dict[str, str]:
         """
-        Moteur de règles déterministe expert en cas de panne du SLM.
-        Génère un bilan complet basé sur les normes COM (Centre d'Orthodontie Moderne).
-        Utilise les normes âge-spécifiques (9 ans vs Adulte) selon la fiche COM.
+        Deterministic expert rule engine for SLM failure.
+        Generates a complete report based on COM (Modern Orthodontics Center) standards.
+        Uses age-specific norms (9 years old vs Adult) according to the COM sheet.
         """
-        # --- NORMES COM SELON L'ÂGE (d'après la fiche COM) ---
-        is_child = age is not None and age <= 12
+        # --- COM NORMS BY COHORT ---
+        is_child = "Enfant" in cohort
         
-        # Normes A'B' (Décalage maxillo-mandibulaire)
-        # 9 ans: +4.2 ± 3.2 | Adulte: +2.3 ± 3.1
+        # A'B' Norms (Maxillo-mandibular discrepancy)
+        # 9yo: +4.2 ± 3.2 | Adult: +2.3 ± 3.1
         NORM_AB_MEAN = 4.2 if is_child else 2.3
         NORM_AB_DEV = 3.2 if is_child else 3.1
-        NORM_AB_MAX = NORM_AB_MEAN + NORM_AB_DEV  # Seuil supérieur Classe II
-        NORM_AB_MIN = NORM_AB_MEAN - NORM_AB_DEV  # Seuil inférieur Classe III
+        NORM_AB_MAX = NORM_AB_MEAN + NORM_AB_DEV  # Class II Upper threshold
+        NORM_AB_MIN = NORM_AB_MEAN - NORM_AB_DEV  # Class III Lower threshold
         
-        # Normes Situation A (Maxillaire)
-        # 9 ans: +2.8 ± 3.3 | Adulte: +2.3 ± 3.0
+        # Position A Norms (Maxilla)
+        # 9yo: +2.8 ± 3.3 | Adult: +2.3 ± 3.0
         NORM_A_MEAN = 2.8 if is_child else 2.3
         NORM_A_DEV = 3.3 if is_child else 3.0
         
-        # Normes Situation B (Mandibule)
-        # 9 ans: -1.5 ± 4.5 | Adulte: 0.0 ± 4.9
+        # Position B Norms (Mandible)
+        # 9yo: -1.5 ± 4.5 | Adult: 0.0 ± 4.9
         NORM_B_MEAN = -1.5 if is_child else 0.0
         NORM_B_DEV = 4.5 if is_child else 4.9
         
-        # --- ANALYSE SQUELETTIQUE ---
-        ab_data = osseuse.get("Decalage_A_B", {})
-        tweed_data = osseuse.get("Angle_de_Tweed", {})
-        sit_a_data = osseuse.get("Situation_A", {})
-        sit_b_data = osseuse.get("Situation_B", {})
+        # --- SKELETAL ANALYSIS ---
+        ab_data = osseuse.Decalage_A_B
+        tweed_data = osseuse.Angle_de_Tweed
+        sit_a_data = osseuse.Situation_A
+        sit_b_data = osseuse.Situation_B
         
-        ab_status = ab_data.get("status", "Normal")
-        ab_value = ab_data.get("value", NORM_AB_MEAN)
-        tweed_status = tweed_data.get("status", "Normal")
-        tweed_value = tweed_data.get("value", 26)
-        sit_a_value = sit_a_data.get("value", NORM_A_MEAN)
-        sit_b_value = sit_b_data.get("value", NORM_B_MEAN)
+        ab_status = ab_data.status
+        ab_value = ab_data.valeur if ab_data.valeur is not None else NORM_AB_MEAN
+        tweed_status = tweed_data.status
+        tweed_value = tweed_data.valeur if tweed_data.valeur is not None else 26
+        sit_a_value = sit_a_data.valeur if sit_a_data.valeur is not None else NORM_A_MEAN
+        sit_b_value = sit_b_data.valeur if sit_b_data.valeur is not None else NORM_B_MEAN
         
-        # Diagnostic squelettique détaillé
+        # Detailed skeletal diagnostic
         diag_os_parts = []
         
-        # Classification sagittale avec seuils âge-spécifiques
-        # Classe II: > norme + écart-type | Classe III: < norme - écart-type
+        # Sagittal classification with age-specific thresholds
+        # Class II: > norm + standard deviation | Class III: < norm - standard deviation
         if ab_status == "High":
             severe_cl2 = NORM_AB_MEAN + 2 * NORM_AB_DEV  # +2 SD
             if ab_value and ab_value > severe_cl2:
@@ -191,7 +191,7 @@ class AIAdvisor:
         else:
             diag_os_parts.append(f"Structure de Classe I normosquelettique (A-B = {ab_value} mm).")
         
-        # Position des bases avec valeurs numériques (normes âge-spécifiques)
+        # Base positions with numerical values (age-specific norms)
         sit_a_seuil_sup = NORM_A_MEAN + NORM_A_DEV
         sit_a_seuil_inf = NORM_A_MEAN - NORM_A_DEV
         sit_b_seuil_sup = NORM_B_MEAN + NORM_B_DEV
@@ -207,7 +207,7 @@ class AIAdvisor:
         elif sit_b_value < sit_b_seuil_inf:
             diag_os_parts.append(f"Mandibule rétrognathique (B à {sit_b_value} mm < {sit_b_seuil_inf:.1f}).")
         
-        # Type vertical
+        # Vertical type
         if tweed_status == "High":
             diag_os_parts.append(f"Typologie hyperdivergente (Tweed = {tweed_value}°) - face longue avec risque d'ouverture.")
         elif tweed_status == "Low":
@@ -217,21 +217,31 @@ class AIAdvisor:
         
         diag_os = " ".join(diag_os_parts)
         
-        # --- ANALYSE DENTAIRE ---
-        impa_data = dentaire.get("IMPA", {})
-        if_data = dentaire.get("I_Francfort", {})
-        inter_data = dentaire.get("Inter_Incisif", {})
-        surplomb_data = dentaire.get("Surplomb", {})
-        recouv_data = dentaire.get("Recouvrement", {})
+        # --- DENTAL ANALYSIS ---
+        impa_data = dentaire.IMPA
+        if_data = dentaire.I_Francfort
+        inter_data = dentaire.Inter_Incisif
+        surplomb_data = dentaire.Surplomb
+        recouv_data = dentaire.Recouvrement
         
-        impa_status = impa_data.get("status", "Normal")
-        impa_value = impa_data.get("value", 90)
-        if_status = if_data.get("status", "Normal")
-        if_value = if_data.get("value", 107)
+        impa_status = impa_data.status
+        impa_value = impa_data.valeur if impa_data.valeur is not None else 90
+        if_status = if_data.status
+        if_value = if_data.valeur if if_data.valeur is not None else 107
         
         diag_dent_parts = []
         
-        # Analyse IMPA
+        # Soft tissue Aesthetic analysis
+        esthetique = getattr(metrics, "analyse_esthetique", None)
+        if esthetique:
+            e_ls = esthetique.Ligne_E_Ls
+            e_li = esthetique.Ligne_E_Li
+            if e_ls.status != "Normoposition":
+                diag_dent_parts.append(f"Profil : {e_ls.interpretation} ({e_ls.valeur:.1f} mm vs -4mm).")
+            if e_li.status != "Normoposition":
+                diag_dent_parts.append(f"{e_li.interpretation} ({e_li.valeur:.1f} mm vs -2mm).")
+        
+        # IMPA Analysis
         if impa_status == "High":
             diag_dent_parts.append(f"Proalvéolie mandibulaire (IMPA = {impa_value}°) - incisive inférieure vestibuloversée.")
         elif impa_status == "Low":
@@ -239,41 +249,41 @@ class AIAdvisor:
         else:
             diag_dent_parts.append(f"Normoalvéolie mandibulaire (IMPA = {impa_value}°).")
         
-        # Analyse I/Francfort
+        # I/Francfort Analysis
         if if_status == "High":
             diag_dent_parts.append(f"Proalvéolie maxillaire (I/F = {if_value}°).")
         elif if_status == "Low":
             diag_dent_parts.append(f"Rétroalvéolie maxillaire (I/F = {if_value}°).")
         
         # Compensations
-        if impa_data.get("plage_compensation") and impa_status == "Compensated":
+        if impa_data.plage_compensation and impa_status == "Compensated":
             diag_dent_parts.append("Compensation dento-alvéolaire physiologique détectée.")
         
-        # Surplomb/Recouvrement
-        if surplomb_data.get("value") and surplomb_data.get("value", 0) > 3:
+        # Overjet/Overbite
+        if surplomb_data.valeur and surplomb_data.valeur > 3:
             diag_dent_parts.append("Surplomb (overjet) augmenté.")
-        if recouv_data.get("value") and recouv_data.get("value", 0) > 3:
+        if recouv_data.valeur and recouv_data.valeur > 3:
             diag_dent_parts.append("Supraclusion (deep bite).")
         
         diag_dent = " ".join(diag_dent_parts) if diag_dent_parts else "Dentition en normoalvéolie avec bon rapport incisif."
         
-        # --- STRATÉGIE THÉRAPEUTIQUE (ADAPTÉE À L'ÂGE) ---
+        # --- THERAPEUTIC STRATEGY (AGE-ADAPTED) ---
         strat_parts = []
         
-        # Seuils sévérité selon âge
-        SEVERE_CL2_THRESHOLD = 7.4 if is_child else 8.0  # Adulte > 8mm, Enfant > 7.4mm
-        SEVERE_CL3_THRESHOLD = -6.0 if is_child else -4.9  # Enfant <-6mm, Adulte <-4.9mm
+        # Severity thresholds by age
+        SEVERE_CL2_THRESHOLD = 7.4 if is_child else 8.0  # Adult > 8mm, Child > 7.4mm
+        SEVERE_CL3_THRESHOLD = -6.0 if is_child else -4.9  # Child <-6mm, Adult <-4.9mm
         
-        # Objectifs principaux
+        # Main goals
         strat_parts.append("OBJECTIFS COM :")
         
-        # Contexte âge pour le plan
+        # Age context for the plan
         if is_child:
             strat_parts.append(f"Patient pédiatrique ({age} ans) - Croissance modulable.")
         else:
             strat_parts.append("Patient adulte - Approche compensatoire ou chirurgicale.")
         
-        # Selon la classe
+        # By Class
         if ab_status == "High":
             if is_child:
                 strat_parts.append("1. Correction orthopédique de la Classe II par propulsion mandibulaire")
@@ -299,19 +309,19 @@ class AIAdvisor:
         else:
             strat_parts.append("1. Conservation de la Classe I")
         
-        # Selon le type vertical
+        # By vertical type
         if tweed_status == "High":
             strat_parts.append("3. Contrôle vertical strict (ancrage squelettique, pas d'extractions en maxillaire)")
         elif tweed_status == "Low":
             strat_parts.append("3. Extractions possibles pour favoriser l'ouverture")
         
-        # Selon l'alvéolie
+        # By alveolie
         if impa_status == "High":
             strat_parts.append("4. Rétroclinaison incisive mandibulaire (à discuter selon profil)")
         elif impa_status == "Low":
             strat_parts.append("4. Proclinaison incisive mandibulaire pour gagner de l'espace")
         
-        # Moyens adaptés à l'âge
+        # Age-adapted means
         strat_parts.append("")
         strat_parts.append("MOYENS :")
         
@@ -328,22 +338,28 @@ class AIAdvisor:
             else:
                 strat_parts.append("- Mini-vis d'ancrage (2 à 4) pour contrôle vertical strict")
         
-        # Durée adaptée à l'âge
-        if is_child:
-            strat_parts.append("- Durée estimée : 12-24 mois (selon phase de croissance)")
-        else:
-            strat_parts.append("- Durée estimée : 18-30 mois")
-        
+        # Aesthetic Objective
+        if esthetique:
+            if esthetique.Ligne_E_Ls.status != "Normoposition" or esthetique.Ligne_E_Li.status != "Normoposition":
+                strat_parts.append("")
+                strat_parts.append("OBJECTIF ESTHÉTIQUE :")
+                if esthetique.Ligne_E_Ls.status == "High" or esthetique.Ligne_E_Li.status == "High":
+                    strat_parts.append("- Recul labial par ingression et rétroclinaison incisive pour harmoniser le profil.")
+                elif esthetique.Ligne_E_Ls.status == "Low":
+                    strat_parts.append("- Soutien labial par version vestibulaire contrôlée.")
+
         strat = "\n".join(strat_parts)
         
+        # Prepare elite diagnostic even in fallback mode
         return {
             "diagnostic_squelettique": diag_os,
             "analyse_dentaire": diag_dent,
-            "strategie_therapeutique": strat
+            "strategie_therapeutique": strat,
+            "is_fallback": True # UI marker
         }
 
     def generate_prescription(self, acte: str, age: int = 30) -> list:
-        """Génère un protocole médicamenteux via le SLM local."""
+        """Generates a medical protocol via local SLM."""
         prompt = f"""
         Tu es un chirurgien-dentiste. Génère une ordonnance standard pour l'acte suivant : "{acte}". Le patient a {age} ans.
         Règles :
@@ -360,8 +376,8 @@ class AIAdvisor:
             response.raise_for_status()
             return json.loads(response.json().get("response", "[]"))
         except Exception as e:
-            logger.error(f"Erreur SLM Prescription: {e}")
-            return [] # Fallback vide, le médecin remplira à la main
+            logger.error(f"AI Advisor Prescription Error: {e}")
+            return [] # Empty fallback, doctor will fill manually
 
-# Instance singleton pour le backend
+# Backend singleton instance
 ai_advisor = AIAdvisor()

@@ -88,31 +88,39 @@ export interface CabinetConfig {
   id: string;
   public_id: string;
   owner_id: number;
+  nom_cabinet: string;
   logo_url?: string;
   header_lines_fr: string[];
   header_lines_ar: string[];
   footer_address: string;
   footer_phones: string;
   primary_color: string;
+  secondary_color: string;
+  accent_color: string;
   font_fr: string;
   font_ar: string;
   watermark_enabled: boolean;
   watermark_opacity: number;
+  selected_theme: string;
   is_initialized: boolean;
   created_at: string;
   updated_at: string;
 }
 
 export interface CabinetConfigCreate {
+  nom_cabinet: string;
   header_lines_fr: string[];
   header_lines_ar: string[];
   footer_address: string;
   footer_phones: string;
   primary_color?: string;
+  secondary_color?: string;
+  accent_color?: string;
   font_fr?: string;
   font_ar?: string;
   watermark_enabled?: boolean;
   watermark_opacity?: number;
+  selected_theme?: string;
 }
 
 export interface CabinetInitStatus {
@@ -172,4 +180,22 @@ export interface TemplatePreviewRequest {
     date?: string;
     titre?: string;
   };
+}
+export interface LetterheadUploadResponse {
+  letterhead_url: string;
+  hide_default_header: boolean;
+  hide_default_footer: boolean;
+  message: string;
+}
+
+export interface CardExtractionResult {
+  nom_cabinet: string | null;
+  nom_praticien: string | null;
+  nom_praticien_ar: string | null;
+  adresse: string | null;
+  specialites: string[] | null;
+  telephone_fixe: string | null;
+  telephone_mobile: string | null;
+  email: string | null;
+  error?: string;
 }

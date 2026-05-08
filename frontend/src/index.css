@@ -1,42 +1,145 @@
 @import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
 @theme {
-  /* Palette Médicale Pro - Mode Sombre */
-  --color-medical-dark: #070e1d;    /* Bleu nuit ultra profond (Fondation Dark Mode) */
-  --color-medical-pearl: #f8fafc;   /* Gris perle (Historique) */
-  --color-medical-accent: #3b82f6;  /* Bleu soin (Actions) */
+  /* Palette Médicale Pro - Pilotée par Variables CSS */
+  --color-medical-dark: #070e1d;
+  --color-medical-pearl: var(--bg-medical-pearl);
+  
+  /* CES COULEURS DEVIENNENT DYNAMIQUES */
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
   
   /* Variables Glassmorphism Premium */
-  --color-glass-bg: rgba(255, 255, 255, 0.03);
-  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
   --blur-glass-md: 12px;
   --blur-glass-xl: 24px;
   
   --font-sans: "Inter", system-ui, sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-arabic: "Amiri", serif;
+
+  /* Mappings Sémantiques pour la Réactivité de l'Interface */
+  --color-card: var(--card-bg);
+  --color-sidebar: var(--sidebar-bg);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-color);
+  --color-border-hover: var(--border-hover);
+  --color-input-field: var(--input-bg);
+  --color-background: var(--bg-medical-pearl);
 }
 
-@layer components {
-  /* Filigrane inspiré de la note d'honoraires - Adapté Dark Mode */
-  .document-watermark {
-    position: relative;
-  }
+:root {
+  /* GHOST ELITE (Structure) */
+  --bg-medical-pearl: #f8fafc;
+  --bg-gradient-start: #f8fafc;
+  --bg-gradient-end: #eff6ff;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --card-bg: white;
+  --sidebar-bg: white;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --input-bg: #f1f5f9;
+
+  /* Couleurs par défaut si non injectées */
+  --primary: #003380;
+  --secondary: #1e40af;
+  --accent: #60a5fa;
+}
+
+[data-theme='emerald'] {
+  /* ESCALE ZEN */
+  --bg-medical-pearl: #f0fdf4;
+  --bg-gradient-start: #f0fdf4;
+  --bg-gradient-end: #dcfce7;
+  --glass-bg: rgba(240, 253, 244, 0.9);
+  --glass-border: rgba(5, 150, 105, 0.1);
+  --card-bg: #fcfdfd;
+  --sidebar-bg: #ecfdf5;
+  --text-main: #064e3b;
+  --text-muted: #059669;
+  --border-color: #d1fae5;
+  --border-hover: #a7f3d0;
+  --input-bg: #f0fdf4;
   
-  .document-watermark::before {
-    content: "DIGITAL CROWN";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-30deg);
-    font-size: 8rem;
-    font-weight: 900;
-    color: rgba(255, 255, 255, 0.02); /* Ultra léger, adapté au fond sombre */
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 0;
-  }
+  --primary: #059669;
+  --secondary: #065f46;
+  --accent: #10b981;
+}
+
+[data-theme='rose'] {
+  /* ROSE PRESTIGE */
+  --bg-medical-pearl: #fff1f2;
+  --bg-gradient-start: #fff1f2;
+  --bg-gradient-end: #ffe4e6;
+  --glass-bg: rgba(255, 241, 242, 0.9);
+  --glass-border: rgba(219, 39, 119, 0.1);
+  --card-bg: #fffbfb;
+  --sidebar-bg: #fff1f2;
+  --text-main: #831843;
+  --text-muted: #db2777;
+  --border-color: #fecdd3;
+  --border-hover: #fda4af;
+  --input-bg: #fff1f2;
+
+  --primary: #db2777;
+  --secondary: #9d174d;
+  --accent: #f472b6;
+}
+
+[data-theme='prestige'] {
+  /* NUIT INTENSE (Sombre Premium) */
+  --bg-medical-pearl: #020617;
+  --bg-gradient-start: #020617;
+  --bg-gradient-end: #0f172a;
+  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --card-bg: #0f172a;
+  --sidebar-bg: #020617;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #1e293b;
+  --border-hover: #334155;
+  --input-bg: #1e293b;
+
+  --primary: #3b82f6;
+  --secondary: #1d4ed8;
+  --accent: #60a5fa;
 }
 
 body {
-  /* Le fond global est sombre, le MainLayout gère l'immersion */
-  @apply bg-medical-dark text-slate-200 antialiased;
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  color: var(--text-main);
+  @apply antialiased min-h-screen transition-colors duration-500;
 }
+
+@layer components {
+  .document-watermark { position: relative; }
+  .document-watermark::before {
+    content: "DIGITAL CROWN";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 8rem; font-weight: 900;
+    color: var(--text-main);
+    opacity: 0.02;
+    pointer-events: none; white-space: nowrap; z-index: 0;
+  }
+}
+
+.font-arabic { font-family: "Amiri", serif; }
+.font-outfit { font-family: "Outfit", sans-serif; }
+
+/* Scrollbar Premium */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+[data-theme='prestige'] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }

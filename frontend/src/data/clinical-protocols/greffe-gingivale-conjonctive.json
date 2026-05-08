@@ -1,0 +1,121 @@
+{
+  "act_code": "greffe-gingivale-conjonctive",
+  "act_names": [
+    "Greffe gingivale conjonctive",
+    "Greffe conjonctive enfouie",
+    "Greffe tissu conjonctif",
+    "CTG",
+    "Greffe gingivale"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 90,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Récession classe Miller I ou II confirmée",
+      "critical": true
+    },
+    {
+      "id": "site_donneur",
+      "label": "Site palatin évalué (épaisseur ≥ 3mm)",
+      "critical": true
+    },
+    {
+      "id": "tabac",
+      "label": "Tabac : avertir — succès réduit de 50%",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement bisite (palais + récession)",
+      "critical": true
+    },
+    {
+      "id": "instruments",
+      "label": "Kit microchirurgie parodontale disponible",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie site receveur + site donneur palatin",
+      "tip": "Épinéphrine 1:100000 pour hémostase palatine"
+    },
+    {
+      "order": 2,
+      "label": "Préparation site receveur — envelope ou tunnel",
+      "tip": "Technique tunnel supérieure pour vascularisation"
+    },
+    {
+      "order": 3,
+      "label": "Prélèvement greffon conjonctif au palais",
+      "tip": "2-3mm sous la crête — conserver épithélium palatin"
+    },
+    {
+      "order": 4,
+      "label": "Protection palais — plaque thermoformée ou compresse",
+      "tip": "Compression 5 min — éviter déhiscence palatine"
+    },
+    {
+      "order": 5,
+      "label": "Positionnement greffon sous le lambeau",
+      "tip": "Greffon 2mm coronaire à la CEJ — suture à l'os si possible"
+    },
+    {
+      "order": 6,
+      "label": "Sutures site receveur — soie 6-0 ou résorbable 5-0",
+      "tip": "Points matelassiers horizontaux pour plaquer le greffon"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Nécrose du greffon",
+      "mitigation": "Épaisseur > 1mm, vascularisation site receveur préservée"
+    },
+    {
+      "risk": "Hémorragie palatine",
+      "mitigation": "Compression + sutures + plaque palatine thermoformée"
+    },
+    {
+      "risk": "Récidive récession",
+      "mitigation": "Contrôle étiologique (brossage traumatique, bruxisme)"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml (receveur + donneur)"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "600mg × 3/j — 7 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain de bouche × 2/j × 3 semaines — PAS de brossage zone"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 5 jours"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Glace externe 20 min/heure — 6 premières heures"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation liquide froide 48h — antibiotiques à compléter"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV contrôle J7 — PAS de brossage site receveur 4 semaines"
+    }
+  ]
+}

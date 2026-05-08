@@ -1,0 +1,100 @@
+{
+  "act_code": "dentine-hypersensible",
+  "act_names": [
+    "Dentine hypersensible",
+    "Hypersensibilité dentinaire",
+    "Sensibilité dentaire",
+    "Dents sensibles au froid"
+  ],
+  "difficulty": "routine",
+  "duration_min": 20,
+  "checklist": [
+    {
+      "id": "diagnostic",
+      "label": "Carie et fissure exclues (radio + sonde)",
+      "critical": true
+    },
+    {
+      "id": "localisation",
+      "label": "Dents sensibles identifiées précisément",
+      "critical": false
+    },
+    {
+      "id": "cause",
+      "label": "Cause identifiée : récession, érosion, bruxisme",
+      "critical": false
+    },
+    {
+      "id": "produit",
+      "label": "Agent désensibilisant prêt",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Diagnostic différentiel (sonde, radio, tests thermiques)",
+      "tip": "Éliminer carie cervicale et fissure"
+    },
+    {
+      "order": 2,
+      "label": "Nettoyage surfaces exposées",
+      "tip": "Polissage doux — pas de pâte abrasive"
+    },
+    {
+      "order": 3,
+      "label": "Application désensibilisant (NaF 5% ou oxalate)",
+      "tip": "Duraphat ou Bifluorid 12 selon protocole"
+    },
+    {
+      "order": 4,
+      "label": "Résine obturante si tubules largement ouverts",
+      "tip": "Seal&Protect ou Gluma Comfort Bond"
+    },
+    {
+      "order": 5,
+      "label": "Conseils hygiène et alimentation",
+      "tip": "Brosse souple + dentifrice Sensodyne quotidien"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Carie cervicale manquée",
+      "mitigation": "Toujours radiographier avant traitement désensibilisant"
+    },
+    {
+      "risk": "Récidive rapide",
+      "mitigation": "Traiter la cause : gouttière bruxisme, conseils diète acide"
+    },
+    {
+      "risk": "Fissure occultée",
+      "mitigation": "Transillumination + mordant révélateur si doute"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "antiseptic",
+      "name": "Vernis fluoré 5% NaF (Duraphat)",
+      "dose_adult": "Application locale 2 à 4 fois/an"
+    },
+    {
+      "category": "analgesic",
+      "name": "Dentifrice Sensodyne Repair",
+      "dose_adult": "Usage quotidien à domicile"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas manger ni rincer pendant 30 minutes"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Brosse souple uniquement + dentifrice désensibilisant"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Éviter aliments très chauds, froids et acides 1 semaine"
+    }
+  ]
+}

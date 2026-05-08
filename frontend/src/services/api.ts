@@ -1,29 +1,54 @@
 import axios from 'axios';
 
-// Rigueur CTO : Point de terminaison Backend synchronisé (Port 8000)
-// Utilisation de 127.0.0.1 pour une résolution directe et rapide
-const API_BASE_URL = 'http://127.0.0.1:8000';
+export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000, // Timeout augmenté à 30s pour l'inférence du modèle IA
-  // Note: Do NOT set Content-Type header here - let axios auto-detect for FormData
+  baseURL: `${API_BASE}/api`,
+  timeout: 30000,
 });
 
-// Intercepteur pour gestion d'erreurs globale et notification système
+// Token injector
+api.interceptors.request.use((config) => {
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  } catch { /* ignore */ }
+  return config;
+});
+
+let _refreshing: Promise<boolean> | null = null;
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const original = error.config;
+
     if (!error.response) {
-      // Cas critique : Le serveur Backend ne répond pas du tout
-      console.error("ERREUR CRITIQUE : Le serveur Backend est hors ligne sur " + API_BASE_URL);
-    } else {
-      // Erreur retournée par l'API (4xx, 5xx)
-      console.error(
-        `Erreur API [${error.response.status}]:`, 
-        error.response.data || error.message
-      );
+      console.error('CRITICAL: Backend offline at', API_BASE);
+      return Promise.reject(error);
     }
+
+    const { status, data, config: cfg } = error.response;
+    console.group(`API Error [${status}]`);
+    console.error('Path:', cfg?.url);
+    console.error('Details:', data?.detail || data || error.message);
+    if (data?.detail && Array.isArray(data.detail)) console.table(data.detail);
+    console.groupEnd();
+
+    // Auto-refresh on 401 (once per request, skip the /auth/ endpoints)
+    if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
+      original._retried = true;
+      if (!_refreshing) {
+        // Import lazily to avoid circular dependency
+        _refreshing = import('./auth').then(m => m.authService.refresh()).finally(() => { _refreshing = null; });
+      }
+      const ok = await _refreshing;
+      if (ok) return api(original);
+      // Refresh failed → force logout
+      try { localStorage.removeItem('token'); sessionStorage.removeItem('token'); } catch { /* ignore */ }
+      if (window.location.pathname !== '/login') window.location.href = '/login';
+    }
+
     return Promise.reject(error);
   }
 );

@@ -1,0 +1,120 @@
+{
+  "act_code": "chirurgie-lambeau-widman",
+  "act_names": [
+    "Chirurgie à lambeau",
+    "Lambeau de Widman modifié",
+    "Chirurgie parodontale",
+    "Chirurgie d'assainissement"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 90,
+  "checklist": [
+    {
+      "id": "surfacage",
+      "label": "Surfaçage radiculaire préalable et réévaluation à 6 semaines",
+      "critical": true
+    },
+    {
+      "id": "poches",
+      "label": "Poches résiduelles > 5mm malgré traitement initial",
+      "critical": true
+    },
+    {
+      "id": "tabac",
+      "label": "Tabac réduit ou sevré — expliquer impact pronostic",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement chirurgie parodontale avec risques",
+      "critical": true
+    },
+    {
+      "id": "systemic",
+      "label": "Bilan systémique : diabète, immunosuppression contrôlés",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie locale sextant concerné",
+      "tip": "Bloc + infiltrations papillaires"
+    },
+    {
+      "order": 2,
+      "label": "Incision intra-sulculaire + incisions de décharge",
+      "tip": "Lambeau d'épaisseur totale — préserver les papilles"
+    },
+    {
+      "order": 3,
+      "label": "Décollement et réclinaison du lambeau",
+      "tip": "Exposer la totalité du défaut osseux"
+    },
+    {
+      "order": 4,
+      "label": "Surfaçage radiculaire direct sous vision",
+      "tip": "Curettes Gracey + pièce à main — surface dure et lisse"
+    },
+    {
+      "order": 5,
+      "label": "Décision régénération osseuse si défaut favorable",
+      "tip": "RTG + greffe osseuse si poche intra-osseuse"
+    },
+    {
+      "order": 6,
+      "label": "Sutures en points de matelassiers + contrôle",
+      "tip": "Soie 4-0 — repositionnement coronal systématique"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Récession post-chirurgicale marquée",
+      "mitigation": "Prévenir impérativement le patient — attendue et normale"
+    },
+    {
+      "risk": "Infection postopératoire",
+      "mitigation": "Antibioprophylaxie + bains CHX stricts"
+    },
+    {
+      "risk": "Blessure nerf mentonnier (sextant inférieur)",
+      "mitigation": "Localisation du foramen mentonnier avant incision de décharge"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 7 jours"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "600mg × 3/j — 7 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "× 2/j × 3 semaines — PAS de brossage zone opérée"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Glace externe 20 min/heure — 8 premières heures"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle 5 jours — antibiotiques complets"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV J7 ablation fils + contrôle cicatrisation — maintenance 3 mois"
+    }
+  ]
+}

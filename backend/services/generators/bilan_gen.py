@@ -108,6 +108,8 @@ class BilanPDFGenerator(BaseTemplate):
         file_path = os.path.join(self.output_dir, filename)
 
         doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=4.5*cm, bottomMargin=3.5*cm)
+        doc.qr_type = 'VALIDATION'
+        doc.doc_id = f"BILAN-{p_nom[:3].upper()}-{datetime.now().strftime('%m%H%M')}"
         elements = []
 
         # ==============================================================================

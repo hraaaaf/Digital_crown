@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Save, User, Phone, Mail, Activity, CheckCircle2, AlertTriangle, UserCheck, FolderOpen, Search, FileDigit, RefreshCw } from 'lucide-react';
+import { Save, User, Phone, Mail, Activity, AlertTriangle, UserCheck, FileDigit, RefreshCw, Search, FolderOpen, CheckCircle2 } from 'lucide-react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types';
 import { cn } from '../../utils/cn';
@@ -29,14 +29,11 @@ export const AddPatientForm = () => {
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
   const [forceCreate, setForceCreate] = useState(false);
 
-  // Récupérer les paramètres de recherche pour pré-remplissage
   const prefillNom = searchParams.get('nom') || '';
   const prefillPrenom = searchParams.get('prenom') || '';
 
-  // État pour la gestion du numéro de dossier
-  const [hasExistingNumber, setHasExistingNumber] = useState(false);
-  const [nextAutoNumber, setNextAutoNumber] = useState<string>('');
-  const [loadingNumber, setLoadingNumber] = useState(false);
+  // État pour la validation du numéro de dossier
+  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
 
   const [formData, setFormData] = useState<Patient & { antecedents_medicaux?: string }>({
     numero_dossier: '',
@@ -47,6 +44,7 @@ export const AddPatientForm = () => {
     telephone: '',
     email: '',
     adresse: '',
+    assurance: 'AUCUNE',
     antecedents_medicaux: ''
   });
 
@@ -56,31 +54,39 @@ export const AddPatientForm = () => {
   }, []);
 
   const fetchNextDossierNumber = async () => {
-    setLoadingNumber(true);
     try {
       const response = await api.get('/patients/next-dossier-number');
-      setNextAutoNumber(response.data.next_number);
-      // Si c'est un nouveau patient, pré-remplir avec le numéro auto
-      if (!hasExistingNumber) {
+      if (!formData.numero_dossier) {
         setFormData(prev => ({ ...prev, numero_dossier: response.data.next_number }));
       }
     } catch (err) {
       console.error("Erreur lors de la récupération du prochain numéro:", err);
-    } finally {
-      setLoadingNumber(false);
     }
   };
 
-  const handleToggleExistingNumber = (hasNumber: boolean) => {
-    setHasExistingNumber(hasNumber);
-    if (hasNumber) {
-      // L'utilisateur a un numéro existant, vider le champ pour qu'il le saisisse
-      setFormData(prev => ({ ...prev, numero_dossier: '' }));
-    } else {
-      // Nouveau patient, utiliser le numéro auto
-      setFormData(prev => ({ ...prev, numero_dossier: nextAutoNumber }));
+  // Check availability when numero_dossier changes
+  useEffect(() => {
+    if (!formData.numero_dossier || formData.numero_dossier.length < 2) {
+      setDossierStatus({ status: 'idle' });
+      return;
     }
-  };
+
+    const timer = setTimeout(async () => {
+      setDossierStatus({ status: 'checking' });
+      try {
+        const res = await api.get(`/patients/check-dossier/${formData.numero_dossier}`);
+        if (res.data.exists) {
+          setDossierStatus({ status: 'taken', owner: res.data.patient_name });
+        } else {
+          setDossierStatus({ status: 'available' });
+        }
+      } catch (err) {
+        setDossierStatus({ status: 'available' }); // Fallback silent
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.numero_dossier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -106,7 +112,16 @@ export const AddPatientForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!formData.nom) newErrors.nom = "Le nom est requis.";
     if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";
-    if (!formData.date_naissance) newErrors.date_naissance = "La date de naissance est obligatoire.";
+    if (!formData.date_naissance) {
+      newErrors.date_naissance = "La date de naissance est obligatoire.";
+    } else {
+      const bDate = new Date(formData.date_naissance);
+      const minDate = new Date('1900-01-01');
+      const maxDate = new Date();
+      if (isNaN(bDate.getTime()) || bDate < minDate || bDate > maxDate) {
+        newErrors.date_naissance = "Date invalide (doit être entre 1900 et aujourd'hui).";
+      }
+    }
     // Téléphone, email et adresse sont optionnels
     
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -250,88 +265,44 @@ export const AddPatientForm = () => {
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
-            {/* Toggle Nouveau / Ancien patient */}
-            <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => handleToggleExistingNumber(false)}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-                  !hasExistingNumber 
-                    ? "bg-[#003380] text-white shadow-lg shadow-blue-900/20" 
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                )}
-              >
-                <User className="w-4 h-4" />
-                Nouveau patient
-              </button>
-              <button
-                type="button"
-                onClick={() => handleToggleExistingNumber(true)}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-                  hasExistingNumber 
-                    ? "bg-[#003380] text-white shadow-lg shadow-blue-900/20" 
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                )}
-              >
-                <FolderOpen className="w-4 h-4" />
-                Dossier existant
-              </button>
-            </div>
-
-            {/* Champ Numéro de dossier */}
+            {/* Champ Numéro de dossier Unique */}
             <div className="relative">
-              <label className={labelClass}>
-                {hasExistingNumber ? "Numéro de dossier existant *" : "Numéro attribué automatiquement"}
-              </label>
+              <label className={labelClass}>Numéro de dossier (Code Patient)</label>
               <div className="relative">
                 <FileDigit className={cn(
                   "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5",
-                  hasExistingNumber ? "text-[#003380]" : "text-slate-400"
+                  dossierStatus.status === 'taken' ? "text-red-500" : "text-[#003380]"
                 )} />
                 <input 
                   type="text" 
                   name="numero_dossier" 
                   value={formData.numero_dossier || ''} 
                   onChange={handleNumeroDossierChange}
-                  disabled={!hasExistingNumber || loadingNumber}
-                  readOnly={!hasExistingNumber}
                   className={cn(
                     inputClass, 
                     "pl-14 font-mono text-lg tracking-wider",
-                    !hasExistingNumber && "bg-slate-100/50 text-slate-500",
-                    errors.numero_dossier && "border-red-400 focus:border-red-400 focus:ring-red-100"
+                    dossierStatus.status === 'taken' && "border-red-400 focus:ring-red-100",
+                    dossierStatus.status === 'available' && "border-emerald-400 focus:ring-emerald-100"
                   )}
                   placeholder="P-XXXXXX"
                 />
-                {!hasExistingNumber && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
-                      Auto
-                    </span>
-                  </div>
-                )}
-                {hasExistingNumber && (
-                  <button
-                    type="button"
-                    onClick={fetchNextDossierNumber}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-[#003380] hover:bg-blue-50 rounded-lg transition-all"
-                    title="Rafraîchir le prochain numéro disponible"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", loadingNumber && "animate-spin")} />
-                  </button>
-                )}
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
+                  {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                  {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+                </div>
               </div>
-              {errors.numero_dossier && (
-                <span className="text-red-500 text-xs mt-1 ml-1">{errors.numero_dossier}</span>
+              
+              {dossierStatus.status === 'taken' && (
+                <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
+                </p>
               )}
-              <p className="text-xs text-slate-500 mt-2 ml-1">
-                {hasExistingNumber 
-                  ? "Saisissez le numéro de dossier physique du patient"
-                  : `Le numéro suivant sera attribué : ${nextAutoNumber}`
-                }
-              </p>
+              {dossierStatus.status === 'available' && (
+                <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                  <UserCheck size={12} /> Numéro disponible
+                </p>
+              )}
             </div>
 
             {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
@@ -395,6 +366,22 @@ export const AddPatientForm = () => {
                 >
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Assurance / Couverture Médicale</label>
+                <select 
+                  name="assurance" 
+                  value={formData.assurance} 
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="AUCUNE">Aucune (Privé)</option>
+                  <option value="CNOPS">CNOPS</option>
+                  <option value="CNSS">CNSS</option>
+                  <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
+                  <option value="PRIVEE">Assurance Privée</option>
                 </select>
               </div>
             </div>

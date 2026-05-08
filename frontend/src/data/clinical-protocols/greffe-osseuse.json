@@ -1,0 +1,116 @@
+{
+  "act_code": "greffe-osseuse",
+  "act_names": [
+    "Greffe osseuse",
+    "Comblement alvéolaire",
+    "Régénération osseuse guidée",
+    "ROG",
+    "Greffe os substitut"
+  ],
+  "difficulty": "specialist",
+  "duration_min": 75,
+  "checklist": [
+    {
+      "id": "cbct",
+      "label": "CBCT — volume osseux déficitaire quantifié",
+      "critical": true
+    },
+    {
+      "id": "materiau",
+      "label": "Substitut osseux choisi (autogène, allogreffe, xénogreffe)",
+      "critical": false
+    },
+    {
+      "id": "membrane",
+      "label": "Membrane barrière résorbable ou non résorbable disponible",
+      "critical": false
+    },
+    {
+      "id": "consent",
+      "label": "Consentement site donneur + complications",
+      "critical": true
+    },
+    {
+      "id": "systemic",
+      "label": "Biphosphonates IV exclus — bisphosphonates oraux à évaluer",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Incision crestale + décollement pleine épaisseur",
+      "tip": "Pas de tension — lambeau large pour fermeture hermétique"
+    },
+    {
+      "order": 2,
+      "label": "Préparation du site receveur (perforations corticales)",
+      "tip": "Décorticalisation — active vascularisation et facteurs de croissance"
+    },
+    {
+      "order": 3,
+      "label": "Positionnement et fixation substitut osseux",
+      "tip": "Fixation par vis ou membrane si nécessaire — volume stable"
+    },
+    {
+      "order": 4,
+      "label": "Pose membrane barrière sur le greffon",
+      "tip": "Couvrir 2-3mm au-delà du bord greffon — aucune exposition"
+    },
+    {
+      "order": 5,
+      "label": "Suture hermétique sans tension",
+      "tip": "Points en U + points simples — lame 15C — fermeture parfaite"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Exposition de la membrane",
+      "mitigation": "Pas de tension à la suture — lambeau suffisamment décollé"
+    },
+    {
+      "risk": "Résorption greffon",
+      "mitigation": "Membrane barrière de qualité + délai respecté (4-6 mois)"
+    },
+    {
+      "risk": "Infection",
+      "mitigation": "Antibioprophylaxie + CHX strict — surveiller fièvre 48h"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 7 jours"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "600mg × 3/j — 7 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "CHX 0,12%",
+      "dose_adult": "Bain bouche × 2/j × 3 semaines"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Glace externe 20 min/heure — 8 premières heures"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation liquide froide 48h — antibiotiques complets"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV ablation fils J10 + CBCT contrôle à 4-6 mois"
+    }
+  ]
+}

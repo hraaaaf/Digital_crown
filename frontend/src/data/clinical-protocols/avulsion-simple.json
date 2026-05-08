@@ -1,0 +1,106 @@
+{
+  "act_code": "avulsion-simple",
+  "act_names": [
+    "Avulsion simple",
+    "Extraction simple",
+    "Avulsion dent cariée",
+    "Extraction dentaire simple",
+    "Extraction dent déchaussée"
+  ],
+  "difficulty": "routine",
+  "duration_min": 20,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Radio préop vérifiée (morphologie, proximités)",
+      "critical": false
+    },
+    {
+      "id": "consent",
+      "label": "Consentement éclairé signé",
+      "critical": false
+    },
+    {
+      "id": "anamnese",
+      "label": "Anticoagulants et bisphosphonates vérifiés",
+      "critical": true
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie infiltrative + tronculaire si molaire",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie locale — attendre 3-5 min",
+      "tip": "Tester avant d'inciser — piquer loin de l'inflammation"
+    },
+    {
+      "order": 2,
+      "label": "Syndesmotomie circonférentielle",
+      "tip": "Couper toutes les fibres gingivales — réduire la résistance"
+    },
+    {
+      "order": 3,
+      "label": "Luxation progressive à l'élévateur",
+      "tip": "Appuis osseux uniquement — jamais sur dent adjacente"
+    },
+    {
+      "order": 4,
+      "label": "Extraction aux forceps — mouvements doux",
+      "tip": "Rotation pour monoradiculées, bascule vestibulo-linguale"
+    },
+    {
+      "order": 5,
+      "label": "Curetage alvéolaire + hémostase",
+      "tip": "Retirer granulome si présent — compresse 20 min"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Fracture radiculaire",
+      "mitigation": "Radiographie systématique — élévateur avant forceps"
+    },
+    {
+      "risk": "Hémorragie prolongée",
+      "mitigation": "Compresse 30 min + suture + acide tranexamique local si nécessaire"
+    },
+    {
+      "risk": "Douleur insuffisamment contrôlée",
+      "mitigation": "Ajouter bloc nerveux si infiltration insuffisante"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml infiltration"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 2 jours"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 3j si contexte infectieux"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Compression compresse 20-30 min — ne pas parler"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Pas de rinçage, pas d'alcool, pas de tabac 24h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Glace externe 20 min/heure — alimentation froide et molle"
+    }
+  ]
+}

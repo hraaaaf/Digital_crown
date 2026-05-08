@@ -440,6 +440,37 @@ existing = query.filter(
 
 ---
 
+### 🆕 Onboarding "Zero-Friction" v4.0 (`frontend/src/features/admin/SetupWizard.tsx`)
+
+**Fonctionnement**:
+Le Wizard v4.0 est un studio de design immersif permettant d'initialiser le cabinet avec un rendu WYSIWYG instantané.
+
+**Breakthroughs Techniques**:
+1. **Dynamic Branding Engine** : Synchronisation temps réel entre le frontend (CSS Variables) et le backend (ReportLab Context).
+2. **Architecture Découpée** : `LiveDocumentStudio` mémoïsé pour des performances fluides lors de la saisie (0 lag).
+3. **Pied de page Rigoureux** : Centrage géométrique (10.5cm) et typographie premium sur tous les documents.
+4. **Bilinguisme Intégral** : Support natif du nom du praticien et des spécialités en arabe avec moteur de prévisualisation dédié.
+5. **Icônes Premium** : Agrandissement à 32px pour une interaction tactile optimisée et un visuel "Elite".
+
+---
+
+## 10. Moteur PDF v4.0 (ReportLab Dynamic)
+
+Le système a abandonné les styles statiques au profit d'une injection de contexte via `CabinetConfig`.
+
+**Flux de Génération**:
+1. `DocumentFactory` reçoit `db` et `user_id`.
+2. Elle récupère la `CabinetConfig` du praticien.
+3. Elle injecte la `primary_color`, les logos et les en-têtes bilingues dans les générateurs.
+4. `BaseTemplate` dessine dynamiquement les éléments statiques (Header/Footer).
+
+**Règles d'Or**:
+- Tout nouveau document DOIT hériter de `BaseTemplate`.
+- Les couleurs ne doivent JAMAIS être hardcodées (utiliser `p_color` de la config).
+- L'alignement central doit toujours utiliser `10.5*cm` (A4 standard).
+
+---
+
 ## 10. Dépannage courant
 
 ### Erreur "Module not found" sur backend
@@ -490,11 +521,32 @@ Ce projet est développé par SANINOVA. Pour toute contribution:
 
 | Agent IA | Fichier | Technologie | Rôle |
 |----------|---------|-------------|------|
-| **Vision** | `vision_service.py` | PyTorch + CephLD-CCA U-Net | Détection 19 landmarks céphalo + 2 apex |
-| **Géométrie** | `cephalo_engine.py` | Python (math) | Calculs angles, normes COM, projections |
+| **Vision** | `vision_service.py` | SOTA ONNX (38 pts) / PyTorch | Détection 38 landmarks (SOTA) ou 19 landmarks (Standard) |
+| **Géométrie** | `cephalo_engine.py` | Python (math) | Calculs angles, normes COM, projections (Synonym Mapping v4.3) |
 | **Diagnostic** | `ai_advisor.py` | Ollama/Llama3.2 (SLM) | Diagnostic structuré (squelettique/dentaire/stratégie) |
-| **Suggérer** | `ai_advisor.py` | Heuristique + API externe | Suggestions ordonnances, actes cliniques |
-| **Documents** | `generators/*.py` | ReportLab | Génération PDF (ordonnances, bilans, devis) |
+| **Intelligence** | `clinical_intelligence.py`| Gemini 1.5 Flash | Résumé flash et analyse de cohérence clinique |
+| **Prescription** | `prescription_service.py`| Arbre décisionnel (Python) | Résolution contextuelle (Acte > Préférence > Sécurité) |
+| **CardExtractor**| `card_extractor.py`      | Gemini 1.5 Flash (Vision)  | Extraction intelligente de cartes de visite (Onboarding) |
+| **DocMaster** | `*.md` | Markdown Sync Agent | Actualisation en temps réel des specs, roadmap et journal d'erreurs |
+| Documents | Generators/*.py | ReportLab (Stable) | Génération PDF (ordonnances, bilans, devis) |
+
+---
+
+## 👥 Équipe Virtuelle de Sub-Agents
+
+Pour toute intervention, l'agent doit se référer aux spécialités suivantes (voir `TEAM.md`) :
+- **Architector** (Backend/BDD) : Priorité à l'intégrité SQL et FastAPI.
+- **PixelMaster** (Frontend) : Priorité au design Ghost Elite (React 19).
+- **DataPhysicist** (Maths/IA) : Priorité à la précision Cephalo.
+- **Financia** (Compta/Docs) : Priorité à la traçabilité financière.
+
+---
+
+## 🛡️ Règles de Sécurité Documentaire (Anti-Doublon)
+
+1. **Doublon de Contenu** : Avant d'archiver, le système compare les `clinical_data`. Si une note identique existe (mêmes actes/montant), l'archivage est bloqué.
+2. **Forçage** : L'utilisateur doit explicitement approuver via `force=True` pour enregistrer un doublon réel.
+3. **Extraction** : En cas de perte de données, utiliser `PyPDF2` pour reconstruire les métadonnées depuis les fichiers physiques.
 
 **Architecture**:
 ```
@@ -520,3 +572,71 @@ Radiographie JPEG/PNG
          ↓
     Rapport céphalo PDF
 ```
+
+---
+
+### 🆕 Apprentissage & Habitudes v1.3 (Avril 2026)
+
+1. **Habits Engine (Auto-Learning)** : Déploiement de `DoctorActHabit` permettant au système d'apprendre les actes fréquents du praticien sans saisie manuelle préalable.
+2. **Dynamic Quick Acts** : Remplacement des raccourcis statiques par une barre prédictive basée sur la fréquence d'usage réelle.
+3. **Save-as-Habit UI** : Intégration d'un bouton de persistance rapide dans le Studio Documentaire pour enregistrer de nouveaux actes personnalisés.
+4. **Tri Administratif Avancé** : Support du tri par N° Dossier et Date de création dans la liste des patients.
+
+---
+
+### 🛡️ Smart QR Validation (En cours de Brainstorming)
+
+- **Agent QR** : `qr_service.py` (Projeté)
+- **Rôle** : Génération de signatures numériques infalsifiables.
+- **Usage** : Validation de l'authenticité des ordonnances et paiements express via QR Code sécurisé.
+
+---
+
+*Document mis à jour le 29 Avril 2026 pour agents IA - Digital Crown v1.3 (Cephalo Ghost Elite Release)*
+
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+## Beads Issue Tracker
+
+This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+
+### Quick Reference
+
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>         # Complete work
+```
+
+### Rules
+
+- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+- Run `bd prime` for detailed command reference and session close protocol
+- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+
+## Session Completion
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd dolt push
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
+<!-- END BEADS INTEGRATION -->

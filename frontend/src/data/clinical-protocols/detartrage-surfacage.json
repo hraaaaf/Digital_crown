@@ -1,0 +1,32 @@
+{
+  "act_code": "detartrage-surfacage",
+  "act_names": ["Détartrage", "Surfaçage", "Parodontie", "Nettoyage profond", "Maintenance paro"],
+  "difficulty": "routine",
+  "duration_min": 30,
+  "checklist": [
+    { "id": "paro", "label": "Sondage paro documenté", "critical": true },
+    { "id": "radio", "label": "Radio inter-proximales", "critical": false },
+    { "id": "valve", "label": "Prophylaxie si valvulopathie", "critical": true }
+  ],
+  "steps": [
+    { "order": 1, "label": "Détartrage sus-gingival", "tip": "Ultrasons (inserts fins)" },
+    { "order": 2, "label": "Détartrage sous-gingival par sextants", "tip": "Curettes de Gracy" },
+    { "order": 3, "label": "Surfaçage radiculaire", "tip": "Rendre la surface lisse et dure" },
+    { "order": 4, "label": "Irrigation des poches", "tip": "CHX ou Bétadine diluée" },
+    { "order": 5, "label": "Polissage", "tip": "Pâte à polir fine" },
+    { "order": 6, "label": "Instructions hygiène", "tip": "Brossettes, fil dentaire" }
+  ],
+  "pitfalls": [
+    { "risk": "Saignement excessif", "mitigation": "Noter et ré-évaluer à 6 semaines" },
+    { "risk": "Poche résiduelle > 5mm", "mitigation": "Envisager chirurgie paro ou référer" },
+    { "risk": "Dent mobile", "mitigation": "Pronostic réservé à documenter" }
+  ],
+  "drugs": [
+    { "category": "antibiotic", "name": "Amoxicilline+Métronidazole", "dose_adult": "Protocole AAP si paro agressive" }
+  ],
+  "patient_instructions": [
+    { "timing": "week1", "instruction": "Sensibilité au froid normale 2 semaines" },
+    { "timing": "week1", "instruction": "Bain de bouche CHX 0.12% x2/j x1 sem" },
+    { "timing": "immediately", "instruction": "RV contrôle obligatoire à 6-8 semaines" }
+  ]
+}

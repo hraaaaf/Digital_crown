@@ -1,0 +1,101 @@
+{
+  "act_code": "avulsion-dent-lacteale",
+  "act_names": [
+    "Avulsion dent lactéale",
+    "Extraction dent de lait",
+    "Avulsion dent temporaire",
+    "Extraction dent lactéale",
+    "Extraction dent bébé"
+  ],
+  "difficulty": "routine",
+  "duration_min": 15,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée : carie sévère, mobilité physiologique ou ankylose",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Radio — vérifier germe dent permanente sous-jacent",
+      "critical": true
+    },
+    {
+      "id": "age",
+      "label": "Âge et stade d'évolution évalués",
+      "critical": false
+    },
+    {
+      "id": "anxiete",
+      "label": "Gestion comportementale planifiée",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie topique + infiltration douce",
+      "tip": "Gel anesthésique 4 min — injection très lente avec seringue fine"
+    },
+    {
+      "order": 2,
+      "label": "Vérification profondeur anesthésie — attendre 3 min",
+      "tip": "Tester avec sonde — enfant détendu = moins douloureux"
+    },
+    {
+      "order": 3,
+      "label": "Syndesmotomie légère",
+      "tip": "Dents temporaires = peu de fibres — syndesmotome doux"
+    },
+    {
+      "order": 4,
+      "label": "Forceps adapté aux temporaires (plus petits)",
+      "tip": "Forceps 150S ou 151S — prise sur le collet sans glissement"
+    },
+    {
+      "order": 5,
+      "label": "Mouvements rotatifs doux + extraction",
+      "tip": "Dent lactéale = racines résorbées — peu de résistance"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Lésion du germe permanent",
+      "mitigation": "Radio préop — direction d'extraction opposée au germe"
+    },
+    {
+      "risk": "Fracture radiculaire (résorption irrégulière)",
+      "mitigation": "Ne pas forcer — prévenir les parents avant"
+    },
+    {
+      "risk": "Traumatisme psychologique",
+      "mitigation": "Tell-Show-Do — récompense — jamais de surprise"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:200000",
+      "dose_adult": "0,5 à 0,9 ml MAX selon poids"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol sirop enfant",
+      "dose_adult": "15 mg/kg × 3/j si douleur"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Compresse 10 min — enfant peut mordre sur une compresse froide"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle froide — pas d'aliments chauds ni durs 24h"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Dent permanente eruption dans les mois qui suivent — surveiller"
+    }
+  ]
+}

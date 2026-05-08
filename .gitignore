@@ -50,3 +50,10 @@ Thumbs.db
 # ========================================
 notes.txt
 arborescence.txt
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+
+# Rate limit persistence
+backend/utils/.rate_limit_store.json

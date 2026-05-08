@@ -1,0 +1,105 @@
+{
+  "act_code": "pulpotomie-urgence",
+  "act_names": [
+    "Pulpotomie urgence",
+    "Pulpotomie dent permanente",
+    "Urgence pulpaire",
+    "Ouverture chambre pulpaire"
+  ],
+  "difficulty": "routine",
+  "duration_min": 30,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Radio préopératoire analysée (longueur, courbures)",
+      "critical": true
+    },
+    {
+      "id": "digue",
+      "label": "Digue posée si possible",
+      "critical": false
+    },
+    {
+      "id": "anesthesie",
+      "label": "Anesthésie profonde vérifiée avant fraisage",
+      "critical": true
+    },
+    {
+      "id": "outils",
+      "label": "Fraises stériles et instruments endodontiques prêts",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie — vérifier profondeur avant d'ouvrir",
+      "tip": "Anesthésie intrapulpaire si douleur persiste à l'ouverture"
+    },
+    {
+      "order": 2,
+      "label": "Accès cavitaire — toit de chambre retiré totalement",
+      "tip": "Fraise boule en acier + fraise Endo Z pour finition"
+    },
+    {
+      "order": 3,
+      "label": "Amputation pulpaire — curette ou fraise boule",
+      "tip": "Tissu pulpaire retiré jusqu'aux orifices canalaires"
+    },
+    {
+      "order": 4,
+      "label": "Hémostase — NaOCl 2,5% sur coton",
+      "tip": "Si saignement excessif → signe d'atteinte radiculaire"
+    },
+    {
+      "order": 5,
+      "label": "Obturation provisoire temporaire",
+      "tip": "CVI + coton + Cavit — RDV endodontique complet planifié"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Anesthésie insuffisante",
+      "mitigation": "Anesthésie intrapulpaire directe en complément"
+    },
+    {
+      "risk": "Perforation de chambre",
+      "mitigation": "Repérage radio préop + fraise adaptée à la morphologie"
+    },
+    {
+      "risk": "Soulagement incomplet",
+      "mitigation": "Si douleur persiste → traitement canalaire complet urgent"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 à 3,6 ml + intrapulpaire si nécessaire"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 3 jours"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 5j si signes infectieux"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Soulagement attendu dans les 2-4 heures"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Prise antalgique régulière sans attendre la douleur"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV pour traitement endodontique complet OBLIGATOIRE sous 2 semaines"
+    }
+  ]
+}

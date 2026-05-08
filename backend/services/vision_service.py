@@ -1,43 +1,46 @@
 import sys
 import os
-import time
-import logging
 import cv2
 import numpy as np
+import time
+import math
+import logging
 
-# --- 0. MONKEY PATCH POUR LE CODE LEGACY (PILLOW_VERSION) ---
-# Empêche le crash de l'import torchvision/CephLD-CCA lié à Pillow > 7.0.0
+# --- 0. MONKEY PATCH FOR LEGACY CODE (PILLOW_VERSION) ---
+# Prevents torchvision/CephLD-CCA import crash related to Pillow > 7.0.0
 import PIL
 if not hasattr(PIL, 'PILLOW_VERSION'):
     PIL.PILLOW_VERSION = PIL.__version__
 # ------------------------------------------------------------
 
-# --- 1. INJECTION DYNAMIQUE DU CHEMIN (HACK NAMESPACE) ---
-# Résolution du problème d'imports absolus du repository de recherche 'CephLD-CCA'
+# --- 1. DYNAMIC PATH INJECTION (NAMESPACE HACK) ---
+# Resolving absolute import issues from the 'CephLD-CCA' research repository
 current_dir = os.path.dirname(os.path.abspath(__file__))
 repo_path = os.path.abspath(os.path.join(current_dir, "..", "ai_models", "cephld_cca"))
 
 if repo_path not in sys.path:
     sys.path.insert(0, repo_path)
 
-# --- 2. IMPORTATIONS SÉCURISÉES ---
-# Gestion gracieuse de PyTorch pour éviter un crash serveur si l'environnement n'est pas prêt
+from .sota_vision_service import sota_vision_engine
+
+# --- 2. SECURE IMPORTS ---
+# Graceful PyTorch handling to avoid server crash if environment is not ready
 try:
     import torch
 except ImportError:
     torch = None
 
 try:
-    # L'importation s'appuie désormais sur le sys.path injecté et le patch Pillow
+    # Import now relies on injected sys.path and Pillow patch
     from models.unet_w_cartesian_se import U_Net_w_Cartesian_SE
 except ImportError as e:
     U_Net_w_Cartesian_SE = None
-    logging.getLogger(__name__).warning(f"ATTENTION : Impossible d'importer U_Net_w_Cartesian_SE : {e}")
+    logging.getLogger(__name__).warning(f"WARNING: Could not import U_Net_w_Cartesian_SE: {e}")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- NOMENCLATURE DES 19 POINTS (Standard ISBI 2015 officiel) ---
+# --- 19 LANDMARKS NOMENCLATURE (Official ISBI 2015 Standard) ---
 CEPH_LANDMARKS_MAPPING = {
     0: "S", 1: "N", 2: "Or", 3: "Po", 4: "A", 5: "B", 6: "Pog", 7: "Me",
     8: "Gn", 9: "Go", 10: "L1_incisal", 11: "U1_incisal", 12: "UL",
@@ -46,8 +49,8 @@ CEPH_LANDMARKS_MAPPING = {
 
 class VisionEngine:
     """
-    Moteur d'Inférence Deep Learning PyTorch pour la détection de points céphalométriques.
-    Implémentation Singleton pour l'architecture CephLD-CCA (U-Net + Cartesian SE).
+    PyTorch Deep Learning Inference Engine for cephalometric landmark detection.
+    Singleton implementation for CephLD-CCA architecture (U-Net + Cartesian SE).
     """
 
     def __init__(self):
@@ -56,71 +59,71 @@ class VisionEngine:
         self.model = None
         self.is_ready = False
         
-        # Configuration agnostique du device (GPU si dispo, sinon CPU)
+        # Agnostic device configuration (GPU if available, else CPU)
         if torch is not None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = "cpu"
             
-        # Chemin vers les poids du modèle PyTorch
+        # Path to PyTorch model weights
         self.weights_path = os.path.join(repo_path, "ceph_weights.pth")
         
         self._initialize_engine()
 
     def _initialize_engine(self):
-        """Charge le modèle PyTorch en mémoire au démarrage du serveur Uvicorn."""
+        """Loads the PyTorch model into memory at Uvicorn server startup."""
         if torch is None:
-            logger.error("CRITIQUE : PyTorch n'est pas installé. L'inférence vision basculera en mode MOCK.")
+            logger.error("CRITICAL: PyTorch is not installed. Vision inference will fallback to MOCK mode.")
             return
 
         if U_Net_w_Cartesian_SE is None:
-            logger.error("CRITIQUE : Classe du modèle introuvable. Vérifiez les dépendances internes du repo. Mode MOCK activé.")
+            logger.error("CRITICAL: Model class not found. Check internal repo dependencies. MOCK mode enabled.")
             return
 
         if not os.path.exists(self.weights_path):
-            logger.error(f"CRITIQUE : Poids du modèle introuvables à {self.weights_path}. Mode MOCK activé.")
+            logger.error(f"CRITICAL: Model weights not found at {self.weights_path}. MOCK mode enabled.")
             return
 
         try:
-            logger.info(f"VisionEngine : Chargement du modèle PyTorch sur [{self.device.type.upper()}]...")
+            logger.info(f"VisionEngine: Loading PyTorch model on [{self.device.type.upper()}]...")
             start_time = time.time()
             
-            # Instanciation du modèle : 1 canal en entrée (grayscale), 19 canaux en sortie (heatmaps)
+            # Model instantiation: 1 input channel (grayscale), 19 output channels (heatmaps)
             self.model = U_Net_w_Cartesian_SE(img_ch=1, output_ch=self.num_landmarks)
             
-            # Chargement strict des poids avec map_location pour éviter les crashs CUDA -> CPU
+            # Strict weight loading with map_location to avoid CUDA -> CPU crashes
             state_dict = torch.load(self.weights_path, map_location=self.device)
             self.model.load_state_dict(state_dict)
             
             self.model.to(self.device)
-            self.model.eval() # Verrouillage en mode inférence (désactive le dropout/batchnorm training)
+            self.model.eval() # Locked in inference mode (disables dropout/batchnorm training)
             
             self.is_ready = True
-            logger.info(f"VisionEngine : Modèle PyTorch chargé avec succès en {time.time() - start_time:.2f}s.")
+            logger.info(f"VisionEngine: PyTorch model loaded successfully in {time.time() - start_time:.2f}s.")
             
         except Exception as e:
-            logger.error(f"Échec critique du chargement du modèle Vision PyTorch : {e}")
+            logger.error(f"Critical failure loading PyTorch Vision model: {e}")
 
     def predict_landmarks(self, file_location: str) -> dict:
         """
-        Exécute la pipeline complète : Lecture -> Tensor -> U-Net -> Heatmaps -> Coordonnées Absolues.
+        Executes full pipeline: Read -> Tensor -> U-Net -> Heatmaps -> Absolute Coordinates.
         
-        Retourne un dictionnaire contenant:
-        - landmarks: Liste des points détectés
-        - mode_inference: "PRODUCTION" ou "MOCK" 
-        - warning: Message d'avertissement si mode MOCK
-        - processing_time_ms: Temps de traitement
+        Returns a dictionary containing:
+        - landmarks: List of detected points
+        - mode_inference: "PRODUCTION" or "MOCK" 
+        - warning: Warning message if MOCK mode
+        - processing_time_ms: Processing time
         """
         start_time = time.time()
         
-        # 1. Pre-processing : Lecture OpenCV stricte en niveaux de gris
+        # 1. Pre-processing: Strict OpenCV grayscale reading
         img = cv2.imread(file_location, cv2.IMREAD_GRAYSCALE)
         if img is None:
-            raise ValueError(f"Impossible de lire l'image à l'emplacement : {file_location}")
+            raise ValueError(f"Could not read image at: {file_location}")
             
         orig_h, orig_w = img.shape
         
-        # 2. Facteurs d'échelle pour le Post-processing
+        # 2. Scale factors for Post-processing
         scale_x = orig_w / float(self.target_size)
         scale_y = orig_h / float(self.target_size)
 
@@ -128,44 +131,58 @@ class VisionEngine:
         mode_inference = "PRODUCTION"
         warning_msg = None
 
-        # 3. Mode Inférence Réelle PyTorch
-        if self.is_ready and self.model is not None and torch is not None:
+        # 3. SOTA Inference Mode (ONNX) - Priority as it is ultra-fast on CPU
+        if sota_vision_engine.is_ready:
+            try:
+                res = sota_vision_engine.predict_landmarks(file_location)
+                if res and res.get("landmarks"):
+                    # Retrieve SOTA points (which already include apex if available)
+                    final_landmarks = res["landmarks"]
+                    mode_inference = res["mode_inference"]
+                    # Continue to check if we need to add missing COM apexes
+                else:
+                    logger.warning("SOTA returned an empty list, falling back to PyTorch")
+            except Exception as e:
+                logger.error(f"SOTA engine failure, falling back to PyTorch: {e}")
+
+        # 4. Real PyTorch Inference Mode (Legacy)
+        if not final_landmarks and self.is_ready and self.model is not None and torch is not None:
             
-            # Redimensionnement et normalisation
+            # Resizing and normalization
             img_resized = cv2.resize(img, (self.target_size, self.target_size))
             img_normalized = img_resized.astype(np.float32) / 255.0
             
-            # Conversion en Tensor format (Batch=1, Channels=1, Height=512, Width=512)
+            # Tensor conversion (Batch=1, Channels=1, Height=512, Width=512)
             input_tensor = torch.tensor(img_normalized).unsqueeze(0).unsqueeze(0).to(self.device)
             
-            # Inférence sans calcul de gradients pour la performance
+            # Inference without gradients for performance
             with torch.no_grad():
-                output_tensor = self.model(input_tensor) # Sortie attendue : (1, 19, 512, 512)
+                output_tensor = self.model(input_tensor) # Expected output: (1, 19, 512, 512)
                 
-            # Rapatriement sur CPU et conversion Numpy pour le post-processing
-            heatmaps = output_tensor.squeeze(0).cpu().numpy() # Shape : (19, 512, 512)
+            # Bring back to CPU and Numpy conversion for post-processing
+            heatmaps = output_tensor.squeeze(0).cpu().numpy() # Shape: (19, 512, 512)
             
-            # 4. Post-processing : Extraction des pics d'activation
+            # 4. Post-processing: Activation peaks extraction
             for idx in range(self.num_landmarks):
                 heatmap = heatmaps[idx]
                 
-                # argmax retourne l'index 1D du pixel le plus chaud de la matrice 512x512
+                # argmax returns the 1D index of the hottest pixel in the 512x512 matrix
                 flat_idx = np.argmax(heatmap)
                 y_pred = flat_idx // self.target_size
                 x_pred = flat_idx % self.target_size
                 
-                # Remise à l'échelle pour correspondre à la radiographie native
+                # Rescaling to match native radiograph size
                 final_x = int(x_pred * scale_x)
                 final_y = int(y_pred * scale_y)
                 
                 point_id = CEPH_LANDMARKS_MAPPING.get(idx, f"P_{idx}")
                 final_landmarks.append({"id": point_id, "x": final_x, "y": final_y})
                 
-        # 5. Mode Mock (Fallback de sécurité pour la robustesse de l'API)
-        else:
+        # 5. Mock Mode (Safety Fallback for API robustness)
+        elif not final_landmarks:
             mode_inference = "MOCK"
-            warning_msg = "Modèle IA non disponible - Points placés aléatoirement pour démonstration"
-            logger.warning(f"VisionEngine : {warning_msg}")
+            warning_msg = "AI model unavailable - Random points placed for demonstration"
+            logger.warning(f"VisionEngine: {warning_msg}")
             
             for idx in range(self.num_landmarks):
                 final_x = int(np.random.randint(0, self.target_size) * scale_x)
@@ -173,12 +190,18 @@ class VisionEngine:
                 point_id = CEPH_LANDMARKS_MAPPING.get(idx, f"P_{idx}")
                 final_landmarks.append({"id": point_id, "x": final_x, "y": final_y})
 
-        # --- INJECTION DES APEX DENTAIRES (Normes COM par défaut) ---
-        # L'apex est placé pour respecter :
-        # - IMPA = 90° : axe L1 perpendiculaire au plan mandibulaire (Go→Me)
-        # - I/Francfort = 107° : axe U1 à 107° du plan Francfort (Po→Or)
+        # --- DENTAL APEX INJECTION (Default COM Norms) ---
+        # Apex is placed to respect:
+        # - IMPA = 90°: L1 axis perpendicular to mandibular plane (Go→Me)
+        # - I/Francfort = 107°: U1 axis at 107° from Francfort plane (Po→Or)
         
-        import math
+        has_u1_apex = any(p['id'] == 'U1_apex' for p in final_landmarks)
+        has_l1_apex = any(p['id'] == 'L1_apex' for p in final_landmarks)
+
+        if has_u1_apex and has_l1_apex:
+            logger.info("VisionEngine: Apex already provided by inference engine (SOTA).")
+        else:
+            logger.info("VisionEngine: Manual calculation of missing COM apexes...")
         
         u1_inc = next((p for p in final_landmarks if p['id'] == 'U1_incisal'), None)
         l1_inc = next((p for p in final_landmarks if p['id'] == 'L1_incisal'), None)
@@ -187,47 +210,53 @@ class VisionEngine:
         po = next((p for p in final_landmarks if p['id'] == 'Po'), None)
         or_ = next((p for p in final_landmarks if p['id'] == 'Or'), None)
         
-        # Longueur standard de la dent (distance incisal → apex)
+        # Standard tooth length (incisal → apex distance)
         TOOTH_LENGTH = 85  # pixels
         
-        # === PLACEMENT L1_apex : IMPA = 90° (perpendiculaire au plan mandibulaire) ===
+        # === L1_apex PLACEMENT: IMPA = 90° (perpendicular to mandibular plane) ===
         if l1_inc and go and me:
-            # Angle du plan mandibulaire Go→Me
-            mand_angle = math.atan2(me['y'] - go['y'], me['x'] - go['x'])
-            # Pour IMPA = 90°, l'axe de la dent est perpendiculaire au plan mandibulaire
-            # L'apex est "derrière" (vers le bas) par rapport à l'incisal
-            tooth_angle = mand_angle - math.pi/2  # -90° pour être perpendiculaire
-            
-            l1_apex_x = l1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
-            l1_apex_y = l1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
-            
-            final_landmarks.append({"id": "L1_apex", "x": round(l1_apex_x, 2), "y": round(l1_apex_y, 2)})
-            logger.info(f"[APEX] L1_apex placé selon IMPA=90° (perpendiculaire à Go-Me)")
-        elif l1_inc:
-            # Fallback : placement vertical simple
+            dx = me['x'] - go['x']
+            dy = me['y'] - go['y']
+            length = math.hypot(dx, dy)
+            if length > 0:
+                nx, ny = dx / length, dy / length
+                # Direction conditionnelle: l'apex inférieur doit pointer vers le BAS (Y augmente)
+                sign_x = 1 if nx >= 0 else -1
+                perp_x = -ny * sign_x
+                perp_y = nx * sign_x
+                
+                if not has_l1_apex:
+                    l1_apex_x = l1_inc['x'] + TOOTH_LENGTH * perp_x
+                    l1_apex_y = l1_inc['y'] + TOOTH_LENGTH * perp_y
+                    final_landmarks.append({"id": "L1_apex", "x": round(l1_apex_x, 2), "y": round(l1_apex_y, 2)})
+                    logger.info(f"[APEX] L1_apex placed (IMPA=90°) - Orientation agnostic")
+        elif l1_inc and not has_l1_apex:
+            # Fallback: simple vertical placement
             final_landmarks.append({"id": "L1_apex", "x": l1_inc['x'], "y": l1_inc['y'] + TOOTH_LENGTH})
         
-        # === PLACEMENT U1_apex : I/Francfort = 107° ===
+        # === U1_apex PLACEMENT: I/Francfort = 107° ===
         if u1_inc and po and or_:
-            # Angle du plan de Francfort Po→Or
-            fh_angle = math.atan2(or_['y'] - po['y'], or_['x'] - po['x'])
-            # Pour I/F = 107°, l'axe de la dent fait 107° avec le plan Francfort
-            # L'apex est vers le haut et l'arrière par rapport à l'incisal
-            # 107° = angle entre axe dent et plan Francfort
-            # Donc angle de l'axe = angle_Francfort - 107°
-            tooth_angle = fh_angle - math.radians(107)
-            
-            u1_apex_x = u1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
-            u1_apex_y = u1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
-            
-            final_landmarks.append({"id": "U1_apex", "x": round(u1_apex_x, 2), "y": round(u1_apex_y, 2)})
-            logger.info(f"[APEX] U1_apex placé selon I/Francfort=107°")
-        elif u1_inc:
-            # Fallback : placement vertical simple vers le haut
+            dx = or_['x'] - po['x']
+            dy = or_['y'] - po['y']
+            fh_angle = math.atan2(dy, dx)
+            # L'angle doit s'adapter à la direction du regard (gauche ou droite)
+            # Pour l'incisive supérieure, l'apex doit pointer vers le HAUT (Y diminue) et vers l'ARRIÈRE
+            if dx >= 0:
+                tooth_angle = fh_angle - math.radians(107)
+            else:
+                tooth_angle = fh_angle + math.radians(107)
+                
+            if not has_u1_apex:
+                u1_apex_x = u1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
+                u1_apex_y = u1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
+                final_landmarks.append({"id": "U1_apex", "x": round(u1_apex_x, 2), "y": round(u1_apex_y, 2)})
+                logger.info(f"[APEX] U1_apex placed (I/F=107°) - Orientation agnostic")
+        elif u1_inc and not has_u1_apex:
+            # Fallback: simple vertical placement upwards
             final_landmarks.append({"id": "U1_apex", "x": u1_inc['x'], "y": max(0, u1_inc['y'] - TOOTH_LENGTH)})
 
         exec_time = time.time() - start_time
-        logger.info(f"Inférence Vision terminée en {exec_time:.3f}s. Mode: {mode_inference}. Matrice native : {orig_w}x{orig_h}")
+        logger.info(f"Vision Inference finished in {exec_time:.3f}s. Mode: {mode_inference}. Native matrix: {orig_w}x{orig_h}")
         
         return {
             "landmarks": final_landmarks,
@@ -236,5 +265,5 @@ class VisionEngine:
             "processing_time_ms": round(exec_time * 1000, 2)
         }
 
-# Instanciation du Singleton
+# Singleton Instantiation
 vision_engine = VisionEngine()

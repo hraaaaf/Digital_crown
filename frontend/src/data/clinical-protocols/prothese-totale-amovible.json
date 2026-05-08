@@ -1,0 +1,105 @@
+{
+  "act_code": "prothese-totale-amovible",
+  "act_names": [
+    "Prothèse totale amovible",
+    "PAC",
+    "Dentier complet",
+    "Prothèse complète"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "edenture",
+      "label": "Édentement total confirmé ou imminent",
+      "critical": false
+    },
+    {
+      "id": "cicatric",
+      "label": "Cicatrisation alvéolaire complète (3 mois post-avulsion)",
+      "critical": true
+    },
+    {
+      "id": "muqueuse",
+      "label": "Muqueuses saines, fermes, non inflammées",
+      "critical": true
+    },
+    {
+      "id": "rapport",
+      "label": "DVO (Dimension Verticale d'Occlusion) mesurée",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Empreinte primaire + PEI (porte-empreinte individuel)",
+      "tip": "Alginate + traçage bords — enregistrer le fond du vestibule"
+    },
+    {
+      "order": 2,
+      "label": "Empreinte secondaire + joints périphériques",
+      "tip": "Polyéther + bords thermoplastiques — étanchéité parfaite"
+    },
+    {
+      "order": 3,
+      "label": "Enregistrement DVO + rapport intermaxillaire",
+      "tip": "Méthode phonétique + esthétique + déglutition"
+    },
+    {
+      "order": 4,
+      "label": "Essayage cire + contrôle phonétique et esthétique",
+      "tip": "Accord patient signé sur teinte, forme, ligne médiane"
+    },
+    {
+      "order": 5,
+      "label": "Pose prothèse définitive + équilibration",
+      "tip": "Occluseur équilibré bilatéralement — contacts simultanés"
+    },
+    {
+      "order": 6,
+      "label": "RDV retouches J3, J7, J14 planifiés",
+      "tip": "Prévenir : adaptation muqueuse = retouches inévitables"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Perte de rétention",
+      "mitigation": "Vérifier joints périphériques + surface d'appui — évoquer implants"
+    },
+    {
+      "risk": "DVO incorrecte",
+      "mitigation": "Réévaluation systématique à chaque RDV — DVO trop haute = masséters douloureux"
+    },
+    {
+      "risk": "Rejet psychologique",
+      "mitigation": "Préparer le patient avant — les premières semaines sont difficiles"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "antiseptic",
+      "name": "Bain CHX 0,12%",
+      "dose_adult": "Si candidose sous prothèse — 2/j × 2 semaines"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 2/j si ulcérations initiales"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Porter 24h sans enlever — venir à la retouche J3"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle — apprendre à mastiquer bilatéralement"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Enlever la nuit après la 1ère semaine — tremper dans eau froide"
+    }
+  ]
+}

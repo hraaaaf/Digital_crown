@@ -1,0 +1,35 @@
+{
+  "act_code": "pose-implant",
+  "act_names": ["Pose implant", "Implantologie", "Chirurgie implantaire", "Vis de cicatrisation"],
+  "difficulty": "specialist",
+  "duration_min": 90,
+  "checklist": [
+    { "id": "cbct", "label": "CBCT analysé", "critical": true },
+    { "id": "guide", "label": "Guide chirurgical validé", "critical": false },
+    { "id": "torque", "label": "Torque-mètre calibré", "critical": false },
+    { "id": "membrane", "label": "Membrane/Greffon disponible", "critical": false },
+    { "id": "consent", "label": "Consentement éclairé spécifique", "critical": true }
+  ],
+  "steps": [
+    { "order": 1, "label": "Incision et lambeau", "tip": "Respecter la vascularisation" },
+    { "order": 2, "label": "Séquence forage (Pilote -> Final)", "tip": "Irrigation stérile froide abondante" },
+    { "order": 3, "label": "Pose de l'implant", "tip": "Vérifier le couple de serrage (>= 35 N.cm)" },
+    { "order": 4, "label": "Gestion des tissus mous/durs", "tip": "Greffe si nécessaire" },
+    { "order": 5, "label": "Fermeture (Sutures)", "tip": "Points sans tension" },
+    { "order": 6, "label": "Contrôle radio post-op", "tip": "Vérifier l'axe et la profondeur" }
+  ],
+  "pitfalls": [
+    { "risk": "ISQ < 60", "mitigation": "Sous-enfouissement, 3 mois sans charge" },
+    { "risk": "Nerf mentonnier", "mitigation": "Distance de sécurité de 2mm impérative" },
+    { "risk": "Fenestration", "mitigation": "Membrane + greffon osseux" }
+  ],
+  "drugs": [
+    { "category": "antibiotic", "name": "Amoxicilline", "dose_adult": "2g 1h pré-op + 500mg x3/j x5j" },
+    { "category": "antiseptic", "name": "CHX 0.12%", "dose_adult": "Bains de bouche" }
+  ],
+  "patient_instructions": [
+    { "timing": "week1", "instruction": "Pas de prothèse provisoire 2 semaines" },
+    { "timing": "week1", "instruction": "Diète molle 6 semaines" },
+    { "timing": "immediately", "instruction": "Zéro tabac (risque d'échec x3)" }
+  ]
+}

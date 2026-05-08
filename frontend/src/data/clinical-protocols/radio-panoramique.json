@@ -1,0 +1,86 @@
+{
+  "act_code": "radio-panoramique",
+  "act_names": [
+    "Radiographie panoramique",
+    "Panoramique dentaire",
+    "OPG",
+    "Orthopantomogramme",
+    "Radio panoramique"
+  ],
+  "difficulty": "routine",
+  "duration_min": 15,
+  "checklist": [
+    {
+      "id": "indication",
+      "label": "Indication validée (bilan initial, chirurgie, ortho)",
+      "critical": false
+    },
+    {
+      "id": "protection",
+      "label": "Tablier plombé thyroïde posé",
+      "critical": true
+    },
+    {
+      "id": "bijoux",
+      "label": "Bijoux et prothèses amovibles retirés",
+      "critical": true
+    },
+    {
+      "id": "position",
+      "label": "Positionnement patient vérifié (mordant centré)",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Retrait prothèses et bijoux métalliques",
+      "tip": "Toute opacité parasite nuit à l'interprétation"
+    },
+    {
+      "order": 2,
+      "label": "Positionnement patient debout/assis",
+      "tip": "Plan de Francfort horizontal — morsure sur le guide"
+    },
+    {
+      "order": 3,
+      "label": "Vérification centrage (vue de face + profil)",
+      "tip": "Symétrie mandibulaire dans le capteur"
+    },
+    {
+      "order": 4,
+      "label": "Exposition + rotation automatique du bras",
+      "tip": "Patient immobile — avaler la salive avant"
+    },
+    {
+      "order": 5,
+      "label": "Interprétation systématique",
+      "tip": "Dents, os, sinus, ATM, parties molles — tout lire"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Artefacts métalliques",
+      "mitigation": "Retirer TOUS les bijoux et obturations provisoires amovibles"
+    },
+    {
+      "risk": "Flou par mouvement",
+      "mitigation": "Briefer le patient avant — tenir la poignée fermement"
+    },
+    {
+      "risk": "Interprétation partielle",
+      "mitigation": "Lecture systématique : dents → os → sinus → ATM → parties molles"
+    }
+  ],
+  "drugs": [],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Résultat interprété immédiatement après l'acquisition"
+    },
+    {
+      "timing": "immediately",
+      "instruction": "Conserver le fichier numérique dans le dossier"
+    }
+  ]
+}

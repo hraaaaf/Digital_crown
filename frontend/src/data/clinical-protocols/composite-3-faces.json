@@ -1,0 +1,110 @@
+{
+  "act_code": "composite-3-faces",
+  "act_names": [
+    "Restauration composite 3 faces",
+    "Composite MOD",
+    "Obturation étendue",
+    "Composite multi-faces"
+  ],
+  "difficulty": "complex",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "digue",
+      "label": "Digue obligatoire — aucun compromis",
+      "critical": true
+    },
+    {
+      "id": "radio",
+      "label": "Extension carie vérifiée (radio)",
+      "critical": false
+    },
+    {
+      "id": "pulpe",
+      "label": "Vitalité pulpaire confirmée",
+      "critical": true
+    },
+    {
+      "id": "matrice",
+      "label": "Sectional matrix system prêt",
+      "critical": false
+    },
+    {
+      "id": "volume",
+      "label": "Stock composite suffisant (teinte + opaque)",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Éviction totale + préparation MOD",
+      "tip": "Tester vitalité si doute avant anesthésie"
+    },
+    {
+      "order": 2,
+      "label": "Liner CVI si dentine résiduelle < 1mm",
+      "tip": "Protection pulpaire indispensable"
+    },
+    {
+      "order": 3,
+      "label": "Pose matrice Sectional + anneaux",
+      "tip": "Étanchéité cervicale avant mordançage"
+    },
+    {
+      "order": 4,
+      "label": "Mordançage total + adhésif",
+      "tip": "Contrôler chaque surface avant photo"
+    },
+    {
+      "order": 5,
+      "label": "Stratification oblique — incréments 2mm",
+      "tip": "Photopolymériser chaque couche"
+    },
+    {
+      "order": 6,
+      "label": "Retrait matrice + sculpture + équilibration",
+      "tip": "Contacts statique ET dynamique vérifiés"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Fracture cuspidienne future",
+      "mitigation": "Inlay-onlay si > 2/3 de la dent détruite"
+    },
+    {
+      "risk": "Retrait matrice difficile",
+      "mitigation": "Lame fine — ne jamais forcer"
+    },
+    {
+      "risk": "Pulpite réversible",
+      "mitigation": "Liner CVI si dentine < 1mm, réévaluer à 6 semaines"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 à 3,6 ml selon arcades"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 2 jours"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Éviter mastication côté traité 2h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation molle 24h, éviter colorants 48h"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Rappel si sensibilité au froid > 2 semaines"
+    }
+  ]
+}

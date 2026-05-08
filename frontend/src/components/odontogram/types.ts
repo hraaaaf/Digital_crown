@@ -328,37 +328,37 @@ export const SURFACE_LABELS: Record<string, string> = {
 // Noms des dents en français (système FDI)
 export const TOOTH_NAMES: Record<ToothNumberFDI, string> = {
   // Quadrant 1 - Haut droit (18→11)
-  18: '3ème molaire (18)', 17: '2ème molaire (17)', 16: '1ère molaire (16)',
-  15: '2ème prémolaire (15)', 14: '1ère prémolaire (14)', 13: 'Canine (13)',
-  12: 'Incisive latérale (12)', 11: 'Incisive centrale (11)',
+  18: '3ème molaire', 17: '2ème molaire', 16: '1ère molaire',
+  15: '2ème prémolaire', 14: '1ère prémolaire', 13: 'Canine',
+  12: 'Incisive latérale', 11: 'Incisive centrale',
   // Quadrant 2 - Haut gauche (21→28)
-  21: 'Incisive centrale (21)', 22: 'Incisive latérale (22)', 23: 'Canine (23)',
-  24: '1ère prémolaire (24)', 25: '2ème prémolaire (25)', 26: '1ère molaire (26)',
-  27: '2ème molaire (27)', 28: '3ème molaire (28)',
+  21: 'Incisive centrale', 22: 'Incisive latérale', 23: 'Canine',
+  24: '1ère prémolaire', 25: '2ème prémolaire', 26: '1ère molaire',
+  27: '2ème molaire', 28: '3ème molaire',
   // Quadrant 3 - Bas gauche (38→31)
-  38: '3ème molaire (38)', 37: '2ème molaire (37)', 36: '1ère molaire (36)',
-  35: '2ème prémolaire (35)', 34: '1ère prémolaire (34)', 33: 'Canine (33)',
-  32: 'Incisive latérale (32)', 31: 'Incisive centrale (31)',
+  38: '3ème molaire', 37: '2ème molaire', 36: '1ère molaire',
+  35: '2ème prémolaire', 34: '1ère prémolaire', 33: 'Canine',
+  32: 'Incisive latérale', 31: 'Incisive centrale',
   // Quadrant 4 - Bas droit (41→48)
-  41: 'Incisive centrale (41)', 42: 'Incisive latérale (42)', 43: 'Canine (43)',
-  44: '1ère prémolaire (44)', 45: '2ème prémolaire (45)', 46: '1ère molaire (46)',
-  47: '2ème molaire (47)', 48: '3ème molaire (48)',
+  41: 'Incisive centrale', 42: 'Incisive latérale', 43: 'Canine',
+  44: '1ère prémolaire', 45: '2ème prémolaire', 46: '1ère molaire',
+  47: '2ème molaire', 48: '3ème molaire',
 };
 
 // Noms des dents de lait (pédiatrique)
 export const PEDIATRIC_TOOTH_NAMES: Record<PediatricToothNumber, string> = {
   // Quadrant 5 - Haut droit
-  55: '2ème molaire (55)', 54: '1ère molaire (54)', 53: 'Canine (53)',
-  52: 'Incisive latérale (52)', 51: 'Incisive centrale (51)',
+  55: '2ème molaire', 54: '1ère molaire', 53: 'Canine',
+  52: 'Incisive latérale', 51: 'Incisive centrale',
   // Quadrant 6 - Haut gauche
-  61: 'Incisive centrale (61)', 62: 'Incisive latérale (62)', 63: 'Canine (63)',
-  64: '1ère molaire (64)', 65: '2ème molaire (65)',
+  61: 'Incisive centrale', 62: 'Incisive latérale', 63: 'Canine',
+  64: '1ère molaire', 65: '2ème molaire',
   // Quadrant 7 - Bas gauche
-  75: '2ème molaire (75)', 74: '1ère molaire (74)', 73: 'Canine (73)',
-  72: 'Incisive latérale (72)', 71: 'Incisive centrale (71)',
+  75: '2ème molaire', 74: '1ère molaire', 73: 'Canine',
+  72: 'Incisive latérale', 71: 'Incisive centrale',
   // Quadrant 8 - Bas droit
-  81: 'Incisive centrale (81)', 82: 'Incisive latérale (82)', 83: 'Canine (83)',
-  84: '1ère molaire (84)', 85: '2ème molaire (85)',
+  81: 'Incisive centrale', 82: 'Incisive latérale', 83: 'Canine',
+  84: '1ère molaire', 85: '2ème molaire',
 };
 
 // Ordre d'affichage des dents

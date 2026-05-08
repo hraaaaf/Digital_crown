@@ -1,0 +1,106 @@
+{
+  "act_code": "coiffage-pulpaire",
+  "act_names": [
+    "Coiffage pulpaire direct",
+    "Coiffage pulpaire",
+    "Protection pulpaire directe",
+    "MTA coiffage",
+    "Biodentine pulpe"
+  ],
+  "difficulty": "routine",
+  "duration_min": 35,
+  "checklist": [
+    {
+      "id": "digue",
+      "label": "Digue posée — contamination = échec garanti",
+      "critical": true
+    },
+    {
+      "id": "exposition",
+      "label": "Exposition punctiforme < 1mm confirmée",
+      "critical": true
+    },
+    {
+      "id": "hemostase",
+      "label": "Hémostase NaOCl 2,5% — saignement contrôlé",
+      "critical": true
+    },
+    {
+      "id": "materiaux",
+      "label": "MTA ou Biodentine frais préparé",
+      "critical": false
+    },
+    {
+      "id": "temps",
+      "label": "Durée exposition < 1h depuis ouverture",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Éviction carie totale sous digue",
+      "tip": "Fraise carbure neuve — aucun résidu carieux"
+    },
+    {
+      "order": 2,
+      "label": "Hémostase NaOCl 2,5% — coton 3-5 min",
+      "tip": "Si saignement incontrôlable → pulpectomie"
+    },
+    {
+      "order": 3,
+      "label": "Application MTA/Biodentine sur exposition",
+      "tip": "Couche 1,5-2mm — ne pas comprimer"
+    },
+    {
+      "order": 4,
+      "label": "Attente prise initiale Biodentine (12 min)",
+      "tip": "Humidifier légèrement — ne pas dessécher"
+    },
+    {
+      "order": 5,
+      "label": "Restauration composite définitive en même séance",
+      "tip": "Biodentine autorise la restauration directe"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Contamination salivaire",
+      "mitigation": "Annuler et replanifier — jamais de coiffage en champ impur"
+    },
+    {
+      "risk": "Saignement incontrôlable",
+      "mitigation": "Pulpotomie partielle ou totale selon extension réelle"
+    },
+    {
+      "risk": "Échec à 6 mois",
+      "mitigation": "Radio de contrôle obligatoire : calcification ou résorption interne"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% SANS épinéphrine",
+      "dose_adult": "1,8 ml — éviter vaso pour évaluer saignement"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j pendant 48h"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Éviter mastication côté traité 48h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Légère sensibilité thermique normale 2-3 jours"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV contrôle 6 semaines + radio 6 mois obligatoire"
+    }
+  ]
+}

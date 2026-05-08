@@ -1,0 +1,111 @@
+{
+  "act_code": "couronne-ceramique-zircone",
+  "act_names": [
+    "Couronne tout céramique",
+    "Couronne zircone",
+    "Couronne e.max",
+    "Couronne céramique",
+    "Prothèse céramique unitaire"
+  ],
+  "difficulty": "complex",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "dent",
+      "label": "Dent dévitalisée ou vitalité confirmée avant taille",
+      "critical": true
+    },
+    {
+      "id": "paro",
+      "label": "Parodonte sain — pas d'inflammation gingivale",
+      "critical": true
+    },
+    {
+      "id": "empreinte",
+      "label": "Scanner intra-oral ou empreinte silicone haute précision",
+      "critical": false
+    },
+    {
+      "id": "provisoire",
+      "label": "Couronne provisoire prête (PMMA ou bis-acryl)",
+      "critical": false
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte déterminée avant pose digue ou anesthésie",
+      "critical": true
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Détermination teinte (Vita Classical ou 3D-Master)",
+      "tip": "Toujours avant digue — dent hydratée, sans stress"
+    },
+    {
+      "order": 2,
+      "label": "Préparation coronaire sous anesthésie",
+      "tip": "Chamfer 0,5-0,8mm, épaulement 1-1,2mm — pas de sous-dépouilles"
+    },
+    {
+      "order": 3,
+      "label": "Rétraction gingivale + empreinte ou scan",
+      "tip": "Fil rétracteur double (0 + 1) — 5 min minimum"
+    },
+    {
+      "order": 4,
+      "label": "Provisoire direct en résine bis-acryl",
+      "tip": "Ajustage occlusal — esthétique validée par le patient"
+    },
+    {
+      "order": 5,
+      "label": "Essayage couronne définitive (bisque)",
+      "tip": "Vérifier teinte, contour, contacts proximaux, occlusion"
+    },
+    {
+      "order": 6,
+      "label": "Scellement résine composite dual + retrait excès",
+      "tip": "Polymérisation partielle + curetage excès + photo complète"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Fracture zircone",
+      "mitigation": "Épaisseur > 0,5mm — no metal contact — contrôle occlusal précis"
+    },
+    {
+      "risk": "Sensibilité post-scellement",
+      "mitigation": "Vérifier occlusion à 72h — contacts prématurés fréquents"
+    },
+    {
+      "risk": "Limite sous-gingivale inaccessible",
+      "mitigation": "Allongement coronaire chirurgical avant préparation"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml infiltratif"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 3/j si sensibilité post-pose"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Provisoire fragile — éviter aliments durs et collants"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Flossing doux — ne pas retirer le fil en tirant"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV scellement définitif sous 3-4 semaines"
+    }
+  ]
+}

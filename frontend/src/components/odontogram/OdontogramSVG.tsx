@@ -148,8 +148,8 @@ const Hotzone: React.FC<HotzoneProps> = ({
         cy={cy}
         r={r}
         fill="none"
-        stroke="#3b82f6"
         strokeWidth={1.5}
+        className="stroke-primary"
         initial={{ opacity: 0.8, scale: 1 }}
         animate={{ opacity: 0, scale: 1.5 }}
         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
@@ -162,10 +162,10 @@ const Hotzone: React.FC<HotzoneProps> = ({
       cx={cx}
       cy={cy}
       r={r * 0.5}
-      fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}
-      stroke={isSelected ? '#3b82f6' : 'transparent'}
       strokeWidth={1.5}
-      className={isReadOnly ? 'cursor-default' : 'cursor-pointer'}
+      className={`transition-colors duration-300 ${isReadOnly ? 'cursor-default' : 'cursor-pointer'} ${
+        isSelected ? 'fill-primary/20 stroke-primary' : 'fill-transparent stroke-transparent'
+      }`}
       onClick={onClick}
       onMouseEnter={() => onHover('active')}
       onMouseLeave={() => onHover(null)}
@@ -219,9 +219,9 @@ const TreatmentBadge: React.FC<TreatmentBadgeProps> = ({
           cy={cy}
           r={r * 1.3}
           fill="none"
-          stroke="#3b82f6"
           strokeWidth={1.5}
           strokeDasharray="2 2"
+          className="stroke-primary"
         />
       )}
     </motion.g>
@@ -359,15 +359,8 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
       <img
         src={backgroundImage}
         alt={`Schéma dentaire ${type === 'ADULT' ? 'adulte' : 'pédiatrique'}`}
-        className="w-full h-auto block select-none pointer-events-none"
-        // Déclencher une nouvelle mesure du conteneur après le chargement de l'image
-        onLoad={() => {
-          if (containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            // Le ResizeObserver prendra automatiquement la nouvelle dimension,
-            // mais on force une mise à jour immédiate si nécessaire.
-          }
-        }}
+        className="w-full h-auto block select-none pointer-events-none opacity-0"
+        onLoad={() => {}}
       />
 
       {/*
@@ -390,7 +383,39 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
               <feGaussianBlur stdDeviation="1" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
+            
+            {/* Filtre d'extraction des lignes pour le masque (transforme le blanc en noir, et le foncé en blanc) */}
+            <filter id="extractLines">
+              <feColorMatrix type="matrix" values="
+                0.33 0.33 0.33 0 0
+                0.33 0.33 0.33 0 0
+                0.33 0.33 0.33 0 0
+                0 0 0 1 0" />
+              <feComponentTransfer>
+                <feFuncR type="linear" slope="-3" intercept="2.8" />
+                <feFuncG type="linear" slope="-3" intercept="2.8" />
+                <feFuncB type="linear" slope="-3" intercept="2.8" />
+              </feComponentTransfer>
+            </filter>
+
+            <mask id="blueprint-mask">
+              <image 
+                href={backgroundImage} 
+                width="100%" 
+                height="100%" 
+                filter="url(#extractLines)"
+                preserveAspectRatio="none"
+              />
+            </mask>
           </defs>
+
+          {/* Calque magique SVG : Fond 100% transparent et lignes de la couleur primaire ! */}
+          <rect 
+            width="100%" 
+            height="100%" 
+            className="fill-primary opacity-90 transition-colors duration-500"
+            mask="url(#blueprint-mask)" 
+          />
 
           {/* ── Cercles de multi-sélection groupée (bridge / PAP / totale) ── */}
           {multiSelectedTeeth.length > 0 && teethList.map((toothNumber) => {
@@ -488,8 +513,9 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                   textAnchor="middle"
                   fontSize={fontSize}
                   fontWeight="600"
-                  fill={selectedTooth === toothNumber ? '#3b82f6' : '#64748b'}
-                  className="select-none pointer-events-none"
+                  className={`select-none pointer-events-none transition-colors ${
+                    selectedTooth === toothNumber ? 'fill-primary' : 'fill-slate-500'
+                  }`}
                   style={{ paintOrder: 'stroke', stroke: 'white', strokeWidth: 3 }}
                 >
                   {toothNumber.toString()}
@@ -508,15 +534,10 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             exit={{ opacity: 0, y: 10 }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-gray-200 z-20 pointer-events-none"
           >
-            <p className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              Dent {hoveredTooth}
+            <p className="text-sm font-black text-primary whitespace-nowrap">
               {type === 'ADULT'
-                ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI]
-                  ? ` — ${TOOTH_NAMES[hoveredTooth as ToothNumberFDI]}`
-                  : ''
-                : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]
-                ? ` — ${PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]}`
-                : ''}
+                ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI] || `Dent ${hoveredTooth}`
+                : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber] || `Dent ${hoveredTooth}`}
             </p>
           </motion.div>
         )}

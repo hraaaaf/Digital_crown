@@ -1,0 +1,121 @@
+{
+  "act_code": "avulsion-sagesse-incluse",
+  "act_names": [
+    "Avulsion dent de sagesse incluse",
+    "Extraction dent de sagesse",
+    "Sagesse incluse",
+    "Germectomie sagesse",
+    "Avulsion 8 incluse"
+  ],
+  "difficulty": "complex",
+  "duration_min": 60,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Panoramique + CBCT si proximité nerf alvéolaire",
+      "critical": true
+    },
+    {
+      "id": "proximity",
+      "label": "Distance nerf alvéolaire inférieur évaluée",
+      "critical": true
+    },
+    {
+      "id": "consent",
+      "label": "Consentement spécifique nerf + infection + hémorragie",
+      "critical": true
+    },
+    {
+      "id": "medic",
+      "label": "Anticoagulants et immunosuppresseurs vérifiés",
+      "critical": true
+    },
+    {
+      "id": "trousse",
+      "label": "Trousse chirurgicale complète (élévateurs, syndesmotome, fraises)",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Anesthésie bloc inféroalvéolaire + buccal",
+      "tip": "Vérifier profondeur — 5 min d'attente minimum"
+    },
+    {
+      "order": 2,
+      "label": "Incision en baïonnette + décollement lambeau",
+      "tip": "Conserver la papille — incision nette à l'os"
+    },
+    {
+      "order": 3,
+      "label": "Ostéotomie à la fraise sous irrigation froide",
+      "tip": "Dégager la couronne — créer voie de sortie"
+    },
+    {
+      "order": 4,
+      "label": "Sectionnement radiculaire si nécessaire",
+      "tip": "Mieux vaut sectionner que forcer près du nerf"
+    },
+    {
+      "order": 5,
+      "label": "Élévation + extraction fragmentée",
+      "tip": "Mouvements doux, appui osseux — vérifier intégrité nerf"
+    },
+    {
+      "order": 6,
+      "label": "Curetage, rinçage + suture hermétique",
+      "tip": "Surjet simple résorbable — contrôle à J7"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Lésion nerf alvéolaire inférieur",
+      "mitigation": "CBCT préop si contact — technique fragmentée prudente"
+    },
+    {
+      "risk": "Communication bucco-sinusienne (sagesse sup)",
+      "mitigation": "Ne jamais pousser apicalement — référer si risque"
+    },
+    {
+      "risk": "Alvéolite sèche (dry socket)",
+      "mitigation": "Antibioprophylaxie chez fumeurs — compresse Alvogyl si alvéolite"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "3,6 ml bloc + infiltration"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j × 5j (antibioprophylaxie recommandée)"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 5 jours"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Bain chlorhexidine 0,12%",
+      "dose_adult": "2 fois/j × 7 jours post-op"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Compression 30 min — glace externe 20 min/heure"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Alimentation liquide et froide 48h — pas de tabac 15 jours"
+    },
+    {
+      "timing": "week1",
+      "instruction": "RDV ablation fils à J7 — signaler engourdissement lèvre/menton"
+    }
+  ]
+}

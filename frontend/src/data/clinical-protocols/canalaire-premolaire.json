@@ -1,0 +1,115 @@
+{
+  "act_code": "canalaire-premolaire",
+  "act_names": [
+    "Traitement canalaire prémolaire",
+    "Endodontie prémolaire",
+    "RCT prémolaire",
+    "Dévitalisation prémolaire"
+  ],
+  "difficulty": "complex",
+  "duration_min": 75,
+  "checklist": [
+    {
+      "id": "radio",
+      "label": "Radio préop : 2 canaux à identifier (35% PM sup)",
+      "critical": true
+    },
+    {
+      "id": "digue",
+      "label": "Digue posée — obligatoire",
+      "critical": true
+    },
+    {
+      "id": "apex",
+      "label": "Apex locator calibré",
+      "critical": false
+    },
+    {
+      "id": "cbct",
+      "label": "CBCT envisagé si anatomie complexe",
+      "critical": false
+    },
+    {
+      "id": "limes",
+      "label": "2 séquences NiTi distinctes pour 2 canaux",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Accès cavitaire — forme ovale (PM à 2 canaux)",
+      "tip": "Ne pas centrer — chercher les 2 orifices avec sonde DG16"
+    },
+    {
+      "order": 2,
+      "label": "Repérage des 2 canaux à la sonde DG16",
+      "tip": "PM sup : 35% ont 2 canaux (vestibulaire + palatin)"
+    },
+    {
+      "order": 3,
+      "label": "Glide path indépendant de chaque canal",
+      "tip": "Lime 10 manuelle — ne pas croiser les canaux"
+    },
+    {
+      "order": 4,
+      "label": "Mise en forme NiTi séquentielle",
+      "tip": "Alterner irrigation NaOCl entre chaque lime"
+    },
+    {
+      "order": 5,
+      "label": "Irrigation finale EDTA + NaOCl",
+      "tip": "Activation ultrasonique recommandée"
+    },
+    {
+      "order": 6,
+      "label": "Obturation — 2 cônes maîtres distincts",
+      "tip": "Radio de contrôle — vérifier longueur des 2 obturations"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Canal manqué",
+      "mitigation": "Transillumination + DG16 + CBCT si doute — échec à long terme"
+    },
+    {
+      "risk": "Bouchon dentinaire",
+      "mitigation": "Recapitulation lime 10 entre chaque NiTi — garder le glide path"
+    },
+    {
+      "risk": "Perforation inter-radiculaire",
+      "mitigation": "Repérage anatomique radio avant accès cavitaire"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml bloc + infiltration vestibulaire"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg × 3/j — 48h"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Hydroxyde de calcium",
+      "dose_adult": "Inter-séances si nécrose infectée"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Sensibilité modérée à la pression normale 48-72h"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Antalgique régulier sans attendre la douleur"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Ne pas reporter la couronne — prémolaire fragile sans protection"
+    }
+  ]
+}

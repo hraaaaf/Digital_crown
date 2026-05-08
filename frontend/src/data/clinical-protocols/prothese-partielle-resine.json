@@ -1,0 +1,95 @@
+{
+  "act_code": "prothese-partielle-resine",
+  "act_names": [
+    "Prothèse partielle amovible résine",
+    "PPA résine",
+    "Appareil dentaire amovible résine",
+    "Dentier partiel résine"
+  ],
+  "difficulty": "complex",
+  "duration_min": 45,
+  "checklist": [
+    {
+      "id": "empreinte",
+      "label": "Dents piliers préparées + empreinte primaire",
+      "critical": false
+    },
+    {
+      "id": "paro",
+      "label": "Parodonte sain sur les dents résiduelles",
+      "critical": true
+    },
+    {
+      "id": "ro",
+      "label": "Radio des dents piliers — pronostic évalué",
+      "critical": false
+    },
+    {
+      "id": "rapport",
+      "label": "Rapport intermaxillaire + teinte notés",
+      "critical": false
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "label": "Empreinte primaire alginate + empreinte secondaire",
+      "tip": "Porte-empreinte individuel + plâtre dur"
+    },
+    {
+      "order": 2,
+      "label": "Enregistrement rapport intermaxillaire (occlusion)",
+      "tip": "Bourrelets en cire — vérifier dimension verticale"
+    },
+    {
+      "order": 3,
+      "label": "Essayage châssis résine sur modèle + montage dents",
+      "tip": "Vérifier sustentation, stabilité, rétention"
+    },
+    {
+      "order": 4,
+      "label": "Essayage esthétique cire + phonétique",
+      "tip": "Accord patient écrit sur teinte et forme"
+    },
+    {
+      "order": 5,
+      "label": "Pose prothèse définitive + réglage occlusal",
+      "tip": "Papier articulé — équilibration bilatérale"
+    }
+  ],
+  "pitfalls": [
+    {
+      "risk": "Instabilité de la prothèse",
+      "mitigation": "Revoir points d'appui et crochets — surfaçage dents piliers si nécessaire"
+    },
+    {
+      "risk": "Blessures muqueuses",
+      "mitigation": "RDV retouche J3 puis J7 — ne jamais laisser un patient se débrouiller"
+    },
+    {
+      "risk": "Rejet de la prothèse",
+      "mitigation": "Suivi rapproché — adaptation progressive — explication réaliste des limitations"
+    }
+  ],
+  "drugs": [
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g × 2/j si ulcérations muqueuses"
+    }
+  ],
+  "patient_instructions": [
+    {
+      "timing": "immediately",
+      "instruction": "Porter la prothèse 24h sans l'enlever (pour repérer les pressions)"
+    },
+    {
+      "timing": "day1",
+      "instruction": "RDV retouche obligatoire à J3 — ne pas s'automutiler"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Nettoyer la prothèse hors de la bouche — ne pas dormir avec si possible"
+    }
+  ]
+}

@@ -22,18 +22,32 @@ class ActeType(str, enum.Enum):
     ORTHO_SEMESTRE = "ORTHO_SEMESTRE"
     ORTHO_CONTENTION = "ORTHO_CONTENTION"
 
-class DocumentType(str, enum.Enum):
-    ORDONNANCE = "ordonnance"
-    CERTIFICAT = "certificat"
-    DEVIS = "devis"
-    NOTE_HONORAIRES = "note_honoraires"
-    LIBRE = "libre"
-    BILAN = "bilan"
 
 class PaiementStatut(str, enum.Enum):
     EN_ATTENTE = "EN_ATTENTE"
     PAYE = "PAYE"
     PARTIEL = "PARTIEL"
+
+class AppointmentStatus(str, enum.Enum):
+    PREVU = "PRÉVU"
+    EN_SALLE_ATTENTE = "EN_S_ATTENTE" 
+    EN_FAUTEUIL = "EN_FAUTEUIL"
+    TERMINE = "TERMINÉ"
+    ANNULE = "ANNULÉ"
+ 
+class CabinetType(str, enum.Enum):
+    PRIVE = "PRIVE"
+    CLINIQUE = "CLINIQUE"
+
+class QRCodeType(str, enum.Enum):
+    NONE = "NONE"
+    VALIDATION = "VALIDATION"
+    VCARD = "VCARD"
+    WEBSITE = "WEBSITE"
+    INSTAGRAM = "INSTAGRAM"
+    PAYMENT = "PAYMENT"
+    WHATSAPP = "WHATSAPP"
+    LOCATION = "LOCATION"
 
 # --- 2. BASE DE DÉCLARATION ---
 
@@ -50,6 +64,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.DENTISTE)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     nom_complet: Mapped[Optional[str]] = mapped_column(String(255))
     specialites: Mapped[Optional[str]] = mapped_column(Text)
@@ -57,6 +72,15 @@ class User(Base):
     telephone_fixe: Mapped[Optional[str]] = mapped_column(String(20))
     telephone_mobile: Mapped[Optional[str]] = mapped_column(String(20))
     identifiants_legaux: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    
+    # Hiérarchie : Sous-comptes rattachés à un employeur (Dentiste/Admin)
+    employer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    employer: Mapped[Optional["User"]] = relationship(
+        "User", remote_side="User.id", foreign_keys="User.employer_id",
+        backref="team_members"
+    )
     
     # Multi-tenant : Relations
     cabinet_config: Mapped[Optional["CabinetConfig"]] = relationship(
@@ -71,6 +95,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
+    def get_employer_id(self) -> int:
+        """Retourne l'ID de l'employeur, ou son propre ID s'il est le compte principal."""
+        return self.employer_id if self.employer_id else self.id
+
 class Patient(Base):
     __tablename__ = "patients"
     
@@ -80,20 +108,47 @@ class Patient(Base):
     prenom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     date_naissance: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     sexe: Mapped[str] = mapped_column(String(10), nullable=False)
-
+    
+    # Multi-tenant : Lien vers le cabinet (Dentiste propriétaire)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     telephone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     photo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     adresse: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    assurance: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # CNOPS, CNSS, MUTUELLE_FAR, PRIVEE, AUCUNE
     antecedents_medicaux: Mapped[str | None] = mapped_column(String, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     dossier: Mapped["DossierClinique"] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
     actes: Mapped[List["Acte"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+    panoramic_analyses: Mapped[List["PanoramicAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     analyses: Mapped[List["CephaloAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     documents: Mapped[List["DocumentArchive"]] = relationship("DocumentArchive", back_populates="patient", cascade="all, delete-orphan")
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
+    patient_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True) # Utilisé si patient_id est nul (rdv rapide)
+    
+    datetime_start: Mapped[datetime] = mapped_column(DateTime, index=True, nullable=False)
+    duration_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    
+    motif: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Multi-tenant
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    # Relation inversée
+    patient: Mapped[Optional["Patient"]] = relationship(back_populates="appointments")
 
 class DossierClinique(Base):
     __tablename__ = "dossiers_cliniques"
@@ -139,6 +194,21 @@ class CephaloAnalysis(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     patient: Mapped["Patient"] = relationship(back_populates="analyses")
+
+class PanoramicAnalysis(Base):
+    """Stockage des analyses radiographiques panoramiques (DENTEX IA)."""
+    __tablename__ = "panoramic_analyses"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    
+    image_path: Mapped[str] = mapped_column(String, nullable=False)
+    detections_data: Mapped[dict] = mapped_column(JSON, default=dict) # Stockage structuré DENTEX
+    report_narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="panoramic_analyses")
 
 # ==============================================================================
 # --- PHASE 2 : SMART ORDONNANCE MODELS ---
@@ -204,6 +274,7 @@ class DocumentType(str, enum.Enum):
     PHOTO_CLINIQUE = "PHOTO_CLINIQUE"
     RADIOGRAPHIE = "RADIOGRAPHIE"
     MOULAGE = "MOULAGE"
+    BILAN = "BILAN"
     AUTRE = "AUTRE"
 
 class DocumentStatus(str, enum.Enum):
@@ -296,6 +367,10 @@ class CabinetConfig(Base):
         default=lambda: uuid.uuid4().hex[:16]
     )
     
+    nom_cabinet: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    nom_praticien: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    nom_praticien_ar: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    
     # Logo : chemin relatif isolé par clinic_id
     logo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
@@ -310,17 +385,45 @@ class CabinetConfig(Base):
     footer_address: Mapped[str] = mapped_column(Text, nullable=False, default="")
     footer_phones: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     
+    # Identifiants légaux (Copie dans config pour accès rapide PDF)
+    ice: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    if_: Mapped[str] = mapped_column(String(50), nullable=True, default="")  # 'if' est réservé
+    inpe: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    
     # Paramètres globaux de style
     primary_color: Mapped[str] = mapped_column(String(7), default="#003380", nullable=False)
+    secondary_color: Mapped[str] = mapped_column(String(7), default="#1e40af", nullable=False)
+    accent_color: Mapped[str] = mapped_column(String(7), default="#60a5fa", nullable=False)
     font_fr: Mapped[str] = mapped_column(String(50), default="Helvetica")
     font_ar: Mapped[str] = mapped_column(String(50), default="Amiri")
     
     # Options watermark
-    watermark_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    watermark_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     watermark_opacity: Mapped[float] = mapped_column(default=0.10)
+    
+    # Marges personnalisées (utile pour le mode Letterhead)
+    margin_top: Mapped[float] = mapped_column(Float, default=3.6, nullable=False)
+    margin_bottom: Mapped[float] = mapped_column(Float, default=3.2, nullable=False)
     
     # État
     is_initialized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    selected_theme: Mapped[str] = mapped_column(String(20), default="elite", nullable=False)
+    selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
+    cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
+    
+    # Gestion des contacts granulaires (Sprint 59)
+    contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
+    
+    # QR Code Strategy (Elite v4.0)
+    qr_code_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    qr_code_type: Mapped[QRCodeType] = mapped_column(SQLEnum(QRCodeType), default=QRCodeType.VCARD, nullable=False)
+    qr_code_value: Mapped[Optional[str]] = mapped_column(String(500), nullable=True) # URL ou @handle
+    qr_code_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    qr_code_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Ex: "Suivez-nous sur Instagram"
+    
+    # Templates de clôture personnalisables (Accounting)
+    cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de {total_words} TTC ({total_amount} MAD).")
+    cloture_devis_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêté le présent devis à la somme de {total_words} TTC ({total_amount} MAD).")
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
@@ -362,3 +465,128 @@ class DocumentTemplate(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+class DoctorPrescriptionPreference(Base):
+    """
+    Surcharges personnalisées des protocoles d'ordonnance par médecin.
+    Permet une logique de priorité : Préférence Doc > Protocole Système.
+    """
+    __tablename__ = "doctor_prescription_preferences"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    act_code: Mapped[str] = mapped_column(String, index=True, nullable=False) # ex: EXTRACTION_SIMPLE
+    
+    # Stocke la liste des médicaments [ {name, dosage, forme, posologie}, ... ]
+    drugs_json: Mapped[Dict] = mapped_column(JSON, nullable=False)
+    
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relations
+    doctor: Mapped["User"] = relationship("User")
+
+class DoctorMedicationHabit(Base):
+    """
+    Système de mémoire "Habits v2".
+    Enregistre la fréquence d'utilisation des médicaments, dosages et posologies par praticien.
+    """
+    __tablename__ = "doctor_medication_habits"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    medication_name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    dosage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    posologie: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    usage_count: Mapped[int] = mapped_column(Integer, default=1)
+    last_used: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+class DoctorActHabit(Base):
+    """
+    Système de mémoire des actes fréquents.
+    Enregistre la fréquence d'utilisation des actes cliniques par praticien.
+    """
+    __tablename__ = "doctor_act_habits"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    act_name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    base_price: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    usage_count: Mapped[int] = mapped_column(Integer, default=1)
+    last_used: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+# ==============================================================================
+# --- PHASE 5 : PAYMENT TRACKING & INSTALLMENTS ---
+# ==============================================================================
+
+class InstallmentPlan(Base):
+    """
+    Plan de paiement global (ex: Traitement Ortho, Implantologie).
+    Regroupe plusieurs échéances.
+    """
+    __tablename__ = "installment_plans"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False) # Ex: Traitement Ortho 2024
+    total_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relations
+    patient: Mapped["Patient"] = relationship()
+    installments: Mapped[List["Installment"]] = relationship(
+        back_populates="plan", 
+        cascade="all, delete-orphan",
+        order_by="Installment.due_date"
+    )
+
+class Installment(Base):
+    """
+    Échéance individuelle au sein d'un plan.
+    """
+    __tablename__ = "installments"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("installment_plans.id", ondelete="CASCADE"), nullable=False)
+    
+    label: Mapped[str] = mapped_column(String(255), nullable=False) # Ex: Avance, Versement 1
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    due_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    paid_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    status: Mapped[str] = mapped_column(String(20), default="EN_ATTENTE") # EN_ATTENTE, PAYE, PARTIEL
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    plan: Mapped["InstallmentPlan"] = relationship(back_populates="installments")
+
+# ==============================================================================
+# --- OBSERVABILITY : AUDIT LOGS ---
+# ==============================================================================
+
+class AuditLog(Base):
+    """
+    Journal d'audit pour la tracabilite des actions sensibles.
+    """
+    __tablename__ = "audit_logs"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    employer_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    
+    action: Mapped[str] = mapped_column(String(100), index=True) # DELETE, UPDATE, LOGIN_FAIL, ACCESS_DENIED
+    resource_type: Mapped[str] = mapped_column(String(50), index=True) # Patient, Analysis, User
+    resource_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    severity: Mapped[str] = mapped_column(String(20), default="INFO") # INFO, WARNING, CRITICAL
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    user: Mapped[Optional["User"]] = relationship("User")
