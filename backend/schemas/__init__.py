@@ -146,6 +146,7 @@ from .cabinet import (
 
 from .auth import (
     Token,
+    RefreshRequest,
     TokenData,
     UserLogin,
     UserOut,
@@ -205,6 +206,6 @@ __all__ = [
     "DocumentTemplateBase", "DocumentTemplateCreate", "DocumentTemplateUpdate",
     "DocumentTemplateOut", "DocumentTemplateList", "TemplatePreviewRequest",
     # auth
-    "Token", "TokenData", "UserLogin", "UserOut",
+    "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
 ]

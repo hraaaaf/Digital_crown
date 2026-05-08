@@ -1,8 +1,9 @@
+import pytest
+pytestmark = pytest.mark.skip(reason="Legacy test — requires live PostgreSQL DB, not part of isolated test suite")
+
 import os
 import sys
 from datetime import datetime
-
-# Ajout du chemin pour importer les modules du backend
 sys.path.append(os.getcwd())
 
 from backend.database import SessionLocal
