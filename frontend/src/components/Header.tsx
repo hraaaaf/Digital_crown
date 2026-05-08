@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Bell, UserCircle, Settings, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cabinetApi } from '../services/templateApi';
+import { safeStorage } from '../hooks/useLocalStorage';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
   const [praticienName, setPraticienName] = useState('Dr. Benmoussa');
-  const isDemoMode = localStorage.getItem('appMode') === 'demo';
+  const isDemoMode = safeStorage.get('appMode') === 'demo';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +38,7 @@ export const Header = () => {
   }, [isDemoMode]);
 
   const handleLogout = () => {
-    localStorage.removeItem('appMode');
+    safeStorage.remove('appMode');
     sessionStorage.removeItem('demoConfig');
     window.location.href = '/welcome'; 
   };

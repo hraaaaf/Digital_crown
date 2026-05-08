@@ -2,13 +2,14 @@ import React, { useEffect } from 'react';
 import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
 import { cabinetApi } from '../../services/templateApi';
+import { safeStorage } from '../../hooks/useLocalStorage';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
-  const isDemoMode = localStorage.getItem('appMode') === 'demo';
+  const isDemoMode = safeStorage.get('appMode') === 'demo';
 
   // Rigueur CTO : Application du thème persisté au chargement
   useEffect(() => {
@@ -53,7 +54,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [isDemoMode]);
 
   const handleExitDemo = () => {
-    localStorage.removeItem('appMode');
+    safeStorage.remove('appMode');
     window.location.href = '/welcome';
   };
 

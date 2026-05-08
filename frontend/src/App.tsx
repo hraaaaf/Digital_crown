@@ -1,31 +1,34 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { MainLayout } from './components/Layout/MainLayout';
 import { cabinetApi } from './services/templateApi';
+import { safeStorage } from './hooks/useLocalStorage';
 
-// --- PAGES DASHBOARD & LISTES ---
+// Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
-import { AddPatientForm } from './features/patients/AddPatientForm';
-import { PatientList } from './features/patients/PatientList';
-
-// --- LE NOUVEAU HUB PATIENT ---
-import { PatientDetails } from './features/patients/PatientDetails';
-import { AgendaPage } from './pages/AgendaPage';
-import { AccountingPage } from './pages/AccountingPage';
-
-// --- ADMINISTRATION & ARCHIVES ---
-import { EditPatientForm } from './features/patients/EditPatientForm';
-import { PatientDocuments } from './features/patients/PatientDocuments';
-import { Settings } from './pages/Settings';
-
-// --- WIZARD SETUP & WELCOME ---
-import { SetupWizard } from './features/admin/SetupWizard';
-import { WelcomeScreen } from './pages/WelcomeScreen';
 import { LoginPage } from './pages/LoginPage';
+import { WelcomeScreen } from './pages/WelcomeScreen';
 import { authService } from './services/auth';
 import { MarketingDemo } from './components/MarketingDemo';
-import { EliteLibrary } from './features/clinical-ref/EliteLibrary';
+
+// Chargés à la demande
+const PatientList     = lazy(() => import('./features/patients/PatientList').then(m => ({ default: m.PatientList })));
+const PatientDetails  = lazy(() => import('./features/patients/PatientDetails').then(m => ({ default: m.PatientDetails })));
+const AddPatientForm  = lazy(() => import('./features/patients/AddPatientForm').then(m => ({ default: m.AddPatientForm })));
+const EditPatientForm = lazy(() => import('./features/patients/EditPatientForm').then(m => ({ default: m.EditPatientForm })));
+const PatientDocuments = lazy(() => import('./features/patients/PatientDocuments').then(m => ({ default: m.PatientDocuments })));
+const AgendaPage      = lazy(() => import('./pages/AgendaPage').then(m => ({ default: m.AgendaPage })));
+const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
+const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
+const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-full min-h-[60vh]">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--primary)' }} />
+  </div>
+);
 
 // ==============================================================================
 // COMPOSANT DE PROTECTION DES ROUTES
@@ -53,9 +56,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       
       // AUTO-BYPASS : Si le cabinet est déjà initialisé (ancien compte), 
       // on active le mode réel par défaut pour éviter l'écran de bienvenue.
-      if (status.is_initialized && !localStorage.getItem('appMode')) {
-        console.log("Installation existante détectée. Activation du mode réel.");
-        localStorage.setItem('appMode', 'prod');
+      if (status.is_initialized && !safeStorage.get('appMode')) {
+        safeStorage.set('appMode', 'prod');
       }
     } catch (error) {
       console.error('Erreur vérification statut:', error);
@@ -83,7 +85,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // Force le choix du mode s'il n'existe pas
-  const appMode = localStorage.getItem('appMode');
+  const appMode = safeStorage.get('appMode');
   if (!appMode && location.pathname !== '/welcome') {
     return <Navigate to="/welcome" replace />;
   }
@@ -110,32 +112,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
 const ProtectedRoutes = () => (
   <MainLayout>
-    <Routes>
-      {/* Redirection de la racine vers le dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/agenda" element={<AgendaPage />} />
-      <Route path="/accounting" element={<AccountingPage />} />
-
-      {/* Routes Patients */}
-      <Route path="/patients" element={<PatientList />} />
-      <Route path="/patients/new" element={<AddPatientForm />} />
-
-      {/* ROUTE UNIQUE : Le Super-Composant PatientDetails gère tout */}
-      <Route path="/patients/:id" element={<PatientDetails />} />
-      <Route path="/patients/:id/archives" element={<PatientDocuments />} />
-      
-      {/* ROUTE DE MODIFICATION */}
-      <Route path="/patients/:id/edit" element={<EditPatientForm />} />
-
-      {/* ROUTE PARAMÈTRES */}
-      <Route path="/settings" element={<Settings />} />
-
-      <Route path="/bibliotheque" element={<EliteLibrary />} />
-      
-      {/* Route par défaut */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/agenda" element={<AgendaPage />} />
+        <Route path="/accounting" element={<AccountingPage />} />
+        <Route path="/patients" element={<PatientList />} />
+        <Route path="/patients/new" element={<AddPatientForm />} />
+        <Route path="/patients/:id" element={<PatientDetails />} />
+        <Route path="/patients/:id/archives" element={<PatientDocuments />} />
+        <Route path="/patients/:id/edit" element={<EditPatientForm />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/bibliotheque" element={<EliteLibrary />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   </MainLayout>
 );
 
@@ -170,11 +162,13 @@ function App() {
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/setup" element={<SetupWizard />} />
-              <Route path="/*" element={<ProtectedRoutes />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/setup" element={<SetupWizard />} />
+                <Route path="/*" element={<ProtectedRoutes />} />
+              </Routes>
+            </Suspense>
           </ProtectedRoute>
         } />
       </Routes>

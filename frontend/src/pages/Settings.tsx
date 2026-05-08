@@ -457,12 +457,22 @@ export const Settings = () => {
 
                           <div>
                             <label className={labelClass}>Étiquette sous le QR (Optionnel)</label>
-                            <input 
-                              type="text" 
-                              value={profile.qr_code_label} 
+                            <input
+                              type="text"
+                              value={profile.qr_code_label}
                               onChange={(e) => setProfile(p => ({ ...p, qr_code_label: e.target.value }))}
                               className={inputClass}
                               placeholder="Ex: Scannez pour nous suivre"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex-1">Couleur du QR</label>
+                            <input
+                              type="color"
+                              value={profile.qr_code_color || profile.primary_color || '#003380'}
+                              onChange={(e) => setProfile(p => ({ ...p, qr_code_color: e.target.value }))}
+                              className="w-10 h-10 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
                             />
                           </div>
                         </div>
