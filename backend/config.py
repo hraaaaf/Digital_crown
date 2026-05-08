@@ -1,0 +1,31 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    # App Settings
+    APP_NAME: str = "Digital Crown API"
+    DEBUG: bool = False
+    SECRET_KEY: str = "SET_A_REAL_SECRET_KEY_IN_ENV"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 heures (journée de travail)
+    
+    # Database
+    DATABASE_URL: str = "sqlite:///./digital_crown.db"
+    
+    # Security
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    RATE_LIMIT_LOGIN: str = "10/minute"
+    
+    # IA & Models
+    GEMINI_API_KEY: str = ""
+    OLLAMA_URL: str = "http://localhost:11434"
+    
+    # Storage
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+settings = Settings()

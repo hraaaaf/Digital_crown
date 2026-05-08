@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { api } from '../../../services/api';
+import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 
@@ -276,12 +276,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         page_size: librePageSize, alignment: libreAlignment,
       };
     } else {
-      const commonItems = items.map(i => ({
-        acte: i.description, dent: i.dent || '0', dents: i.toothNumbers || [],
-        prix_unitaire: parseFloat(i.price.toString()),
-        montant: parseFloat(i.price.toString()),
-        date: docDate, mode_reglement: paymentMode,
-      }));
+      const commonItems = items
+        .filter(i => i.description.trim() !== '')
+        .map(i => ({
+          acte: i.description, dent: i.dent || '0', dents: i.toothNumbers || [],
+          prix_unitaire: parseFloat(i.price.toString()),
+          montant: parseFloat(i.price.toString()),
+          date: docDate, mode_reglement: paymentMode,
+        }));
       const robustTeethData = selectedTeethFromOdontogram.map(t => ({
         tooth_number: t.toothNumber,
         treatments: t.treatments.map(tr => ({ code: tr.code || 'ACT', name: tr.name, price: tr.price || 0 })),
@@ -335,7 +337,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       const payload = buildPayload();
       const res = await api.post(`/documents/generate?archive=${archive}&preview=${isPreview}&force=${force}`, payload);
       if (res.data.pdf_url) {
-        const baseUrl = api.defaults.baseURL || 'http://localhost:8000/api';
+        const baseUrl = `${API_BASE}/api`;
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
         const fullUrl = `${baseUrl}/${cleanPdfPath}#view=FitH&t=${Date.now()}`;
         setPdfUrl(fullUrl);

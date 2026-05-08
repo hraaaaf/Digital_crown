@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE } from './api';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = `${API_BASE}/api`;
 
 export const authService = {
   async login(email: string, password: string, rememberMe: boolean = true) {
@@ -9,11 +10,9 @@ export const authService = {
     params.append('password', password);
 
     const response = await axios.post(`${API_URL}/auth/login`, params, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-    
+
     if (response.data.access_token) {
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem('token', response.data.access_token);
@@ -34,15 +33,12 @@ export const authService = {
   async getCurrentUser() {
     const token = this.getToken();
     if (!token) return null;
-
     try {
       const response = await axios.get(`${API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
-    } catch (error) {
+    } catch {
       this.logout();
       return null;
     }
@@ -50,5 +46,5 @@ export const authService = {
 
   isAuthenticated() {
     return !!this.getToken();
-  }
+  },
 };

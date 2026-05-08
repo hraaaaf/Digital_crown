@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { API_BASE } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, Loader2, Activity, ShieldAlert, CheckCircle2, 
@@ -49,7 +50,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const handleSelectHistory = (analysis: any) => {
     const data = {
       id: analysis.id,
-      file_url: `http://localhost:8000/${analysis.image_path}`,
+      file_url: `${API_BASE}/${analysis.image_path}`,
       vision: { detections_data: analysis.detections_data },
       report_narrative: analysis.report_narrative,
       created_at: analysis.created_at
@@ -450,48 +451,51 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               />
 
               <div className="p-8 space-y-8">
-                {result.vision?.detections_data?.teeth?.length > 0 && (
+                {result.vision?.detections_data?.detections?.length > 0 && (
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                       Cartographie des Anomalies
                     </h4>
                     <div className="grid gap-2">
-                      {result.vision.detections_data.teeth.flatMap((t: any) => t.findings.map((f: any, fIdx: number) => ({ tooth: t.fdi_number, pathology: f.label, uid: `finding-${t.fdi_number}-${fIdx}` }))).map((det: any) => (
-                        <motion.div 
-                          key={det.uid} 
-                          onMouseEnter={() => setActiveDet(det.uid)}
-                          onMouseLeave={() => setActiveDet(null)}
-                          whileHover={{ x: 8 }}
-                          className={cn(
-                            "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 cursor-pointer",
-                            activeDet === det.uid 
-                              ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100" 
-                              : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className={cn(
-                                "w-3 h-3 rounded-full shadow-sm",
-                                activeDet === det.uid ? "bg-white" : ""
-                              )} 
-                              style={activeDet === det.uid ? {} : { backgroundColor: getPathologyColor(det.pathology) }}
-                            />
-                            <span className="font-black text-sm">Dent {det.tooth}</span>
-                          </div>
-                          <span 
+                      {result.vision.detections_data.detections.map((det: any, idx: number) => {
+                        const uid = `det-${idx}`;
+                        return (
+                          <motion.div 
+                            key={uid} 
+                            onMouseEnter={() => setActiveDet(uid)}
+                            onMouseLeave={() => setActiveDet(null)}
+                            whileHover={{ x: 8 }}
                             className={cn(
-                              "text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg border",
-                              activeDet === det.uid 
-                                ? "bg-white/20 border-white/30 text-white" 
-                                : "bg-slate-50 border-slate-200"
+                              "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 cursor-pointer",
+                              activeDet === uid 
+                                ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100" 
+                                : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200"
                             )}
-                            style={activeDet === det.uid ? {} : { color: getPathologyColor(det.pathology) }}
                           >
-                            {det.pathology.toUpperCase()}
-                          </span>
-                        </motion.div>
-                      ))}
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className={cn(
+                                  "w-3 h-3 rounded-full shadow-sm",
+                                  activeDet === uid ? "bg-white" : ""
+                                )} 
+                                style={activeDet === uid ? {} : { backgroundColor: getPathologyColor(det.label) }}
+                              />
+                              <span className="font-black text-sm">Dent {det.fdi}</span>
+                            </div>
+                            <span 
+                              className={cn(
+                                "text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg border",
+                                activeDet === uid 
+                                  ? "bg-white/20 border-white/30 text-white" 
+                                  : "bg-slate-50 border-slate-200"
+                              )}
+                              style={activeDet === uid ? {} : { color: getPathologyColor(det.label) }}
+                            >
+                              {det.label.toUpperCase()}
+                            </span>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

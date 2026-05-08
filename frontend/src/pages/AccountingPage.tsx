@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../services/api';
 import { Link } from 'react-router-dom';
 import { 
   Receipt, 
@@ -393,7 +394,7 @@ export const AccountingPage = () => {
                     <td className="px-8 py-5">
                       <div className="flex items-center justify-center gap-2">
                         <a 
-                          href={`http://localhost:8000/${item.file_url}`} 
+                          href={`${API_BASE}/${item.file_url}`}
                           target="_blank" 
                           rel="noreferrer"
                           className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20"
@@ -408,7 +409,7 @@ export const AccountingPage = () => {
                           <Edit size={16} />
                         </Link>
                         <a 
-                          href={`http://localhost:8000/${item.file_url}`} 
+                          href={`${API_BASE}/${item.file_url}`}
                           download
                           className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200"
                         >

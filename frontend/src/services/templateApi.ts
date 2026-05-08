@@ -2,6 +2,7 @@
 // SERVICES API MULTI-TENANT (Phase SaaS)
 // ==============================================================================
 import axios from 'axios';
+import { API_BASE } from './api';
 import type {
   CabinetConfig,
   CabinetConfigCreate,
@@ -15,15 +16,9 @@ import type {
   CardExtractionResult,
 } from '../types/template';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// Instance axios avec intercepteur pour le token
-// Les routes backend commencent déjà par /api/ (ex: /api/clinics/)
 const api = axios.create({
-  baseURL: `${API_URL}`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Intercepteur pour ajouter le JWT token

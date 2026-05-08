@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../services/api';
 import { 
   Shield, 
   Database, 
@@ -16,7 +17,10 @@ import {
   Smartphone,
   Instagram,
   MessageCircle,
-  Users
+  Users,
+  QrCode,
+  Link,
+  MapPin
 } from 'lucide-react';
 import { api } from '../services/api';
 import { cn } from '../utils/cn';
@@ -43,15 +47,14 @@ interface CabinetProfile {
   primary_color?: string;
   secondary_color?: string;
   accent_color?: string;
+  qr_code_enabled?: boolean;
+  qr_code_type?: 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'WHATSAPP' | 'LOCATION' | 'VALIDATION' | 'PAYMENT';
+  qr_code_value?: string;
+  qr_code_color?: string;
+  qr_code_label?: string;
 }
 
-interface ClinicalNorms {
-  sna: number;
-  snb: number;
-  anb: number;
-  impa: number;
-  fma: number;
-}
+
 
 export const Settings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profil');
@@ -66,7 +69,12 @@ export const Settings = () => {
     if: '',
     margin_top: 3.6,
     margin_bottom: 3.2,
-    watermark_enabled: true
+    watermark_enabled: true,
+    qr_code_enabled: false,
+    qr_code_type: 'VCARD',
+    qr_code_value: '',
+    qr_code_color: '',
+    qr_code_label: ''
   });
   const [contacts, setContacts] = useState<any>({
     fixe: { enabled: true, value: '' },
@@ -78,13 +86,7 @@ export const Settings = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // États Tab 2 : IA & Normes (LocalStorage)
-  const defaultNorms: ClinicalNorms = { sna: 82, snb: 80, anb: 2, impa: 90, fma: 26 };
-  const [norms, setNorms] = useState<ClinicalNorms>(() => {
-    const saved = localStorage.getItem('clinical_norms');
-    return saved ? JSON.parse(saved) : defaultNorms;
-  });
-
+  // États Tab 2 : IA & Système (LocalStorage)
   const [performanceMode, setPerformanceMode] = useState<boolean>(() => {
     return localStorage.getItem('performance_mode') === 'true';
   });
@@ -110,7 +112,12 @@ export const Settings = () => {
             selected_theme: res.data.selected_theme || 'elite',
             primary_color: res.data.primary_color || '#003380',
             secondary_color: res.data.secondary_color || '#1e40af',
-            accent_color: res.data.accent_color || '#60a5fa'
+            accent_color: res.data.accent_color || '#60a5fa',
+            qr_code_enabled: res.data.qr_code_enabled ?? false,
+            qr_code_type: res.data.qr_code_type || 'VCARD',
+            qr_code_value: res.data.qr_code_value || '',
+            qr_code_color: res.data.qr_code_color || '',
+            qr_code_label: res.data.qr_code_label || ''
           });
 
           // Appliquer le thème immédiatement
@@ -235,12 +242,6 @@ export const Settings = () => {
     }));
   };
 
-  const handleNormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newNorms = { ...norms, [e.target.name]: Number(e.target.value) };
-    setNorms(newNorms);
-    localStorage.setItem('clinical_norms', JSON.stringify(newNorms));
-  };
-
   const togglePerformanceMode = () => {
     const newVal = !performanceMode;
     setPerformanceMode(newVal);
@@ -248,7 +249,7 @@ export const Settings = () => {
   };
 
   const handleExportDB = () => {
-    window.open('http://127.0.0.1:8000/api/admin/export-db', '_blank');
+    window.open(`${API_BASE}/api/admin/export-db`, '_blank');
   };
 
   // --- UI CLASSES ---
@@ -270,7 +271,7 @@ export const Settings = () => {
           <TabButton active={activeTab === 'profil'} onClick={() => setActiveTab('profil')} icon={<Building size={20}/>} label="Profil Cabinet" />
           <TabButton active={activeTab === 'branding'} onClick={() => setActiveTab('branding')} icon={<PaletteIcon size={20}/>} label="Design & Ambiance" />
           <TabButton active={activeTab === 'equipe'} onClick={() => setActiveTab('equipe')} icon={<Users size={20}/>} label="Mon Équipe" />
-          <TabButton active={activeTab === 'ia'} onClick={() => setActiveTab('ia')} icon={<Brain size={20}/>} label="IA & Normes" />
+          <TabButton active={activeTab === 'ia'} onClick={() => setActiveTab('ia')} icon={<Brain size={20}/>} label="Optimisation" />
           <TabButton active={activeTab === 'securite'} onClick={() => setActiveTab('securite')} icon={<Shield size={20}/>} label="Sécurité & Data" />
         </div>
 
@@ -381,16 +382,111 @@ export const Settings = () => {
                     </div>
                   </div>
 
-                  <div className="md:col-span-2 mt-6 flex justify-end">
-                    <button 
-                      onClick={saveProfile} 
-                      disabled={savingProfile}
-                      className="px-8 py-4 text-white rounded-xl font-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-70"
-                      style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}
-                    >
-                      {savingProfile ? <Loader2 className="animate-spin" size={20}/> : (saveSuccess ? <CheckCircle2 size={20} className="text-emerald-400"/> : <Save size={20} />)}
-                      {saveSuccess ? "Sauvegardé !" : "Sauvegarder les modifications"}
-                    </button>
+
+                  {/* SECTION STRATÉGIE QR CODE */}
+                  <div className="md:col-span-2 mt-12 py-8 border-t border-slate-100">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner border border-indigo-100">
+                        <QrCode size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-black text-slate-800">Stratégie QR Code</h3>
+                        <p className="text-slate-500 text-sm font-medium">Ajoutez un code QR intelligent à vos documents pour faciliter le contact ou la validation.</p>
+                      </div>
+                      <button 
+                        onClick={() => setProfile(p => ({ ...p, qr_code_enabled: !p.qr_code_enabled }))}
+                        className={cn(
+                          "w-14 h-7 rounded-full transition-all relative flex items-center px-1",
+                          profile.qr_code_enabled ? "bg-indigo-600" : "bg-slate-200"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 bg-white rounded-full transition-all shadow-md",
+                          profile.qr_code_enabled ? "translate-x-7" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
+
+                    {profile.qr_code_enabled && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-top-4 duration-300">
+                        <div className="space-y-6">
+                          <div>
+                            <label className={labelClass}>Type de Contenu</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { id: 'VCARD', label: 'Carte Visite', icon: <UserCircle size={14}/> },
+                                { id: 'WEBSITE', label: 'Site Web', icon: <Link size={14}/> },
+                                { id: 'INSTAGRAM', label: 'Instagram', icon: <Instagram size={14}/> },
+                                { id: 'WHATSAPP', label: 'WhatsApp', icon: <MessageCircle size={14}/> },
+                                { id: 'LOCATION', label: 'Localisation', icon: <MapPin size={14}/> },
+                                { id: 'VALIDATION', label: 'Vérification', icon: <Shield size={14}/> },
+                                { id: 'PAYMENT', label: 'Paiement', icon: <Smartphone size={14}/> },
+                              ].map(t => (
+                                <button
+                                  key={t.id}
+                                  onClick={() => setProfile(p => ({ ...p, qr_code_type: t.id as any }))}
+                                  className={cn(
+                                    "flex items-center gap-2 px-4 py-3 rounded-xl border font-bold text-xs transition-all",
+                                    profile.qr_code_type === t.id 
+                                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm" 
+                                      : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
+                                  )}
+                                >
+                                  {t.icon} {t.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {(profile.qr_code_type !== 'VCARD' && profile.qr_code_type !== 'VALIDATION' && profile.qr_code_type !== 'PAYMENT') && (
+                            <div>
+                              <label className={labelClass}>Valeur (URL ou Handle)</label>
+                              <input 
+                                type="text" 
+                                value={profile.qr_code_value} 
+                                onChange={(e) => setProfile(p => ({ ...p, qr_code_value: e.target.value }))}
+                                className={inputClass}
+                                placeholder={
+                                  profile.qr_code_type === 'INSTAGRAM' ? '@votre_compte' :
+                                  profile.qr_code_type === 'WHATSAPP' ? 'Numéro avec indicatif...' :
+                                  'https://...'
+                                }
+                              />
+                            </div>
+                          )}
+
+                          <div>
+                            <label className={labelClass}>Étiquette sous le QR (Optionnel)</label>
+                            <input 
+                              type="text" 
+                              value={profile.qr_code_label} 
+                              onChange={(e) => setProfile(p => ({ ...p, qr_code_label: e.target.value }))}
+                              className={inputClass}
+                              placeholder="Ex: Scannez pour nous suivre"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="bg-indigo-50/50 rounded-3xl p-8 border border-indigo-100 flex flex-col items-center justify-center text-center">
+                          <div className="w-32 h-32 bg-white rounded-2xl shadow-xl flex items-center justify-center mb-6 border border-indigo-50">
+                            <QrCode size={80} className="text-indigo-600" />
+                          </div>
+                          <h4 className="font-black text-indigo-900">Aperçu Stratégique</h4>
+                          <p className="text-[10px] text-indigo-600/70 font-bold uppercase tracking-wider mt-2">
+                            Mode : {profile.qr_code_type}
+                          </p>
+                          <div className="mt-6 p-4 bg-white/60 rounded-xl border border-indigo-100 text-[10px] font-medium text-indigo-800 leading-relaxed max-w-[240px]">
+                            {profile.qr_code_type === 'VCARD' && "Le QR contiendra vos coordonnées complètes (Nom, Tél, Email, Adresse) pour ajout direct aux contacts."}
+                            {profile.qr_code_type === 'WEBSITE' && "Le QR dirigera vos patients vers votre site web officiel ou portail de prise de rendez-vous."}
+                            {profile.qr_code_type === 'INSTAGRAM' && "Le QR ouvrira directement votre profil Instagram pour booster votre visibilité sociale."}
+                            {profile.qr_code_type === 'WHATSAPP' && "Permet au patient de vous envoyer un message WhatsApp instantané."}
+                            {profile.qr_code_type === 'LOCATION' && "Ouvre Google Maps sur l'adresse exacte de votre cabinet."}
+                            {profile.qr_code_type === 'VALIDATION' && "Insère une signature numérique sécurisée permettant de vérifier l'authenticité de l'ordonnance."}
+                            {profile.qr_code_type === 'PAYMENT' && "Permet de suivre l'état des paiements et des échéances."}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* SECTION DESIGN & IMPRESSION (LETTERHEAD) */}
@@ -417,7 +513,7 @@ export const Settings = () => {
                           >
                              {profile.letterhead_path ? (
                                <img 
-                                 src={profile.letterhead_path.startsWith('http') ? profile.letterhead_path : `http://localhost:8000/static/uploads/${profile.letterhead_path}`} 
+                                 src={profile.letterhead_path.startsWith('http') ? profile.letterhead_path : `${API_BASE}/static/uploads/${profile.letterhead_path}`}
                                  className="h-full object-contain p-4" 
                                  alt="Letterhead" 
                                 />
@@ -511,6 +607,18 @@ export const Settings = () => {
                          </div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="md:col-span-2 mt-12 flex justify-end">
+                    <button 
+                      onClick={saveProfile} 
+                      disabled={savingProfile}
+                      className="px-10 py-5 text-white rounded-2xl font-black transition-all shadow-2xl flex items-center gap-4 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ backgroundColor: 'var(--primary)', boxShadow: '0 15px 35px -12px var(--primary)' }}
+                    >
+                      {savingProfile ? <Loader2 className="animate-spin" size={24}/> : (saveSuccess ? <CheckCircle2 size={24} className="text-emerald-400"/> : <Save size={24} />)}
+                      {saveSuccess ? "Profil Mis à Jour !" : "Sauvegarder le Profil"}
+                    </button>
                   </div>
                 </div>
               )}
@@ -639,24 +747,15 @@ export const Settings = () => {
             </div>
           )}
 
-          {/* TAB 3 : IA & NORMES */}
+          {/* TAB 3 : OPTIMISATION & SYSTÈME */}
           {activeTab === 'ia' && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="mb-8 pb-6 border-b border-slate-100">
-                <h3 className="text-2xl font-black flex items-center gap-3"><Brain style={{ color: 'var(--primary)' }} /> Normes Céphalométriques</h3>
-                <p className="text-slate-500 text-sm font-medium mt-2">Définissez vos standards cliniques pour l'analyse IA. Les alertes du tableau de bord se baseront sur ces valeurs.</p>
+                <h3 className="text-2xl font-black flex items-center gap-3"><Brain style={{ color: 'var(--primary)' }} /> Intelligence & Système</h3>
+                <p className="text-slate-500 text-sm font-medium mt-2">Configurez les paramètres de performance et l'intelligence globale du système.</p>
               </div>
 
-              <div className="space-y-8 max-w-2xl">
-                <NormSlider label="Angle SNA (°)" name="sna" value={norms.sna} min={70} max={95} onChange={handleNormChange} norm="82°" />
-                <NormSlider label="Angle SNB (°)" name="snb" value={norms.snb} min={70} max={95} onChange={handleNormChange} norm="80°" />
-                <NormSlider label="Angle ANB (°)" name="anb" value={norms.anb} min={-5} max={10} onChange={handleNormChange} norm="2°" />
-                <NormSlider label="I / Mandibulaire - IMPA (°)" name="impa" value={norms.impa} min={70} max={110} onChange={handleNormChange} norm="90°" />
-                <NormSlider label="Angle de Tweed - FMA (°)" name="fma" value={norms.fma} min={15} max={40} onChange={handleNormChange} norm="26°" />
-              </div>
-
-              <div className="mt-12 pt-8 border-t border-slate-100">
-                <h3 className="text-xl font-black flex items-center gap-3 mb-6" style={{ color: 'var(--primary)' }}>Optimisation du Système</h3>
+              <div className="space-y-8">
                 <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 flex items-center justify-between gap-8">
                   <div className="flex-1">
                     <h4 className="font-black text-slate-800">Mode Performance (PC Modestes)</h4>
@@ -742,26 +841,4 @@ const TabButton = ({ active, onClick, icon, label }: { active: boolean, onClick:
   >
     {icon} <span>{label}</span>
   </button>
-);
-
-const NormSlider = ({ label, name, value, min, max, onChange, norm }: any) => (
-  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-    <div className="flex justify-between items-center mb-4">
-      <label className="font-black text-slate-700">{label}</label>
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Standard : {norm}</span>
-        <span className="text-xl font-black bg-white px-3 py-1 rounded-lg shadow-sm border border-slate-200 w-16 text-center" style={{ color: 'var(--primary)' }}>{value}</span>
-      </div>
-    </div>
-    <input 
-      type="range" 
-      name={name}
-      min={min} 
-      max={max} 
-      value={value} 
-      onChange={onChange}
-      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-      style={{ accentColor: 'var(--primary)' }}
-    />
-  </div>
 );
