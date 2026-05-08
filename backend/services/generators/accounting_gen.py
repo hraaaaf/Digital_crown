@@ -121,9 +121,9 @@ class AccountingGenerator:
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
         return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
-    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None, cloture_text=None):
+    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
         """Rendu de la note comptable avec identifiants."""
-        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user, cloture_text=cloture_text)
+        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
 
     def _create_header(self, patient, data, p_color):
         doc_date = getattr(data, 'doc_date', date.today())
@@ -282,14 +282,11 @@ class AccountingGenerator:
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
         
-        # Ajout direct dans les éléments pour visibilité immédiate (v5.3)
-        cloture_style_normal = ParagraphStyle(name='ClotureNormal', fontName=font_bold, fontSize=11, textColor=p_color, spaceBefore=15, leading=14)
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(cloture, cloture_style_normal))
-        
+        # Phrase de clôture épinglée au bas de la page (v5.7)
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        # Mention gérée en direct
+        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
+        elements.append(PinnedCloture(cloture, cloture_style))
         
         highlighted_teeth = []
         for p in data.payments:
@@ -365,17 +362,13 @@ class AccountingGenerator:
         template = config.cloture_devis_template if config and hasattr(config, 'cloture_devis_template') else None
         if not template:
             template = "Arrêté le présent devis à la somme de {total_words} TTC."
-            
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
 
-        # Ajout direct dans les éléments pour visibilité immédiate (v5.3)
-        cloture_style_normal = ParagraphStyle(name='ClotureNormal', fontName=font_bold, fontSize=11, textColor=p_color, spaceBefore=15, leading=14)
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(cloture, cloture_style_normal))
-        
+        # Phrase de clôture épinglée au bas de la page (v5.7)
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        # Mention gérée en direct
+        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
+        elements.append(PinnedCloture(cloture, cloture_style))
         
         highlighted_teeth = []
         for item in data.items:
@@ -397,6 +390,6 @@ class AccountingGenerator:
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id
         doc.qr_type = 'PAYMENT'
-        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth, cloture_text=cloture_text)
+        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath.replace("\\", "/")
