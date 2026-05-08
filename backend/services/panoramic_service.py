@@ -3,6 +3,7 @@ import time
 import logging
 import cv2
 import numpy as np
+from typing import List, Dict, Any
 
 try:
     import onnxruntime as ort
@@ -11,356 +12,221 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Mapping des labels YOLO (Loki-Silvres / Dentex) vers les termes cliniques français
-PANORAMIC_LABELS_MAPPING = {
-    "Caries": "Carie",
-    "Crown": "Couronne",
-    "Filling": "Obturation",
-    "Implant": "Implant",
-    "Malaligned": "Malposition",
-    "Mandibular Canal": "Canal Mandibulaire",
-    "Missing teeth": "Dent absente",
-    "Periapical lesion": "Lésion périapicale",
-    "Retained root": "Racine résiduelle",
-    "Root Canal Treatment": "Traitement endodontique",
-    "Root Piece": "Fragment radiculaire",
-    "Impacted tooth": "Dent incluse",
-    "Maxillary sinus": "Sinus maxillaire",
-    "Bone Loss": "Perte osseuse",
-    "Fractured teeth": "Dent fracturée",
-    "Permanent Teeth": "Dent permanente",
-    "Supra Eruption": "Égression",
-    "TAD": "Minivis (TAD)",
-    "Abutment": "Pilier implantaire",
-    "Attrition": "Attrition",
-    "Bone defect": "Défaut osseux",
-    "Gingival former": "Vis de cicatrisation",
-    "Metal band": "Bague orthodontique",
-    "Orthodontic brackets": "Bracket orthodontique",
-    "Permanent retainer": "Contention collée",
-    "Post-core": "Inlay-core",
-    "Plating": "Plaque d'ostéosynthèse",
-    "Wire": "Arc orthodontique",
-    "Cyst": "Kyste",
-    "Root resorption": "Résorption radiculaire",
-    "Primary teeth": "Dent temporaire"
-}
-
-# Mapping exact extrait des métadonnées du fichier best.pt (31 classes)
-PANORAMIC_INDEX_MAPPING = {
-    0: "Caries", 1: "Crown", 2: "Filling", 3: "Implant", 4: "Malaligned", 
-    5: "Mandibular Canal", 6: "Missing teeth", 7: "Periapical lesion", 8: "Retained root", 
-    9: "Root Canal Treatment", 10: "Root Piece", 11: "Impacted tooth", 12: "Maxillary sinus", 
-    13: "Bone Loss", 14: "Fractured teeth", 15: "Permanent Teeth", 16: "Supra Eruption", 
-    17: "TAD", 18: "Abutment", 19: "Attrition", 20: "Bone defect", 21: "Gingival former", 
-    22: "Metal band", 23: "Orthodontic brackets", 24: "Permanent retainer", 25: "Post-core", 
-    26: "Plating", 27: "Wire", 28: "Cyst", 29: "Root resorption", 30: "Primary teeth"
-}
-
 class PanoramicEngine:
     """
-    Moteur d'inférence ONNX pour les radiographies panoramiques (OPG).
-    Utilise le modèle Loki-Silvres converti pour une performance CPU optimale.
+    Moteur Vision ELITE SOTA (v1.8) pour radiographies panoramiques (OPG).
+    Utilise le modèle YOLO11x optimisé avec compensation de la Smile Curve (v4.3).
     """
     def __init__(self):
         self.session = None
         self.is_ready = False
-        self.input_size = 1280  # Le modèle Loki-Silvres attend 1280x1280
+        self.input_size = 1280
         
-        # Pointons vers le nouveau modèle optimisé (YOLOv8x-seg à 31 classes)
-        self.model_path = os.path.join("backend", "ai_models", "best.onnx")
-        
+        # Pointons vers le modèle ELITE SOTA (YOLO11x - 4 classes critiques)
+        # 0: Caries, 1: Deep Caries, 2: Periapical Lesions, 3: Impacted Teeth
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.model_path = os.path.join(base_dir, "ai_models", "panoramic_model.onnx")
+        self.classes = ["Carie", "Carie Profonde", "Lésion Périapicale", "Dent Incluse"]
+
     async def initialize(self):
-        """Initialisation asynchrone appelée au démarrage de FastAPI."""
+        """Initialisation appelée au démarrage de FastAPI."""
         if ort is None:
             logger.error("PanoramicEngine : ONNX Runtime n'est pas installé.")
             return
 
         if not os.path.exists(self.model_path):
-            logger.warning(f"PanoramicEngine : Modèle {self.model_path} introuvable. Inférence désactivée.")
+            logger.warning(f"PanoramicEngine : Modèle ELITE {self.model_path} introuvable. Inférence simulation active.")
             return
 
         try:
-            logger.info(f"PanoramicEngine : Initialisation du runtime ONNX sur {self.model_path}...")
-            start_time = time.time()
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = 4
             
-            # Configuration des providers (DirectML pour accélération Windows si dispo, sinon CPU)
+            # Providers (Accélération Windows DML si dispo)
             available_providers = ort.get_available_providers()
-            providers = []
-            if 'DmlExecutionProvider' in available_providers:
-                providers.append('DmlExecutionProvider')
-            providers.append('CPUExecutionProvider')
-
-            # Chargement de la session
-            self.session = ort.InferenceSession(self.model_path, providers=providers)
-            self.is_ready = True
+            providers = ['DmlExecutionProvider', 'CPUExecutionProvider'] if 'DmlExecutionProvider' in available_providers else ['CPUExecutionProvider']
             
-            logger.info(f"PanoramicEngine : Modèle chargé avec succès en {time.time() - start_time:.2f}s (Provider: {self.session.get_providers()[0]})")
+            self.session = ort.InferenceSession(self.model_path, sess_options=opts, providers=providers)
+            self.is_ready = True
+            logger.info(f"✅ Moteur Panoramique ELITE activé : {self.model_path} ({self.session.get_providers()[0]})")
         except Exception as e:
-            logger.error(f"PanoramicEngine : Échec de l'initialisation : {e}")
+            logger.error(f"❌ Échec initialisation ONNX : {e}")
 
-    def _preprocess(self, img):
-        """
-        Pré-processing de l'image (Letterboxing + Normalisation).
-        Préserve l'aspect ratio en ajoutant des bandes (padding).
-        """
-        h, w = img.shape[:2]
-        
-        # Calcul du scale pour conserver le ratio
-        scale = min(self.input_size / h, self.input_size / w)
-        nh, nw = int(h * scale), int(w * scale)
-        
-        img_resized = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
-        
-        # Création d'un canevas carré (gris neutre YOLO = 114)
-        canvas = np.full((self.input_size, self.input_size, 3), 114, dtype=np.uint8)
-        
-        # Centrage de l'image redimensionnée
-        top = (self.input_size - nh) // 2
-        left = (self.input_size - nw) // 2
-        canvas[top:top+nh, left:left+nw] = img_resized
-        
-        # Conversion BGR (OpenCV) -> RGB
-        img_rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-        
-        # Normalisation 0.0 - 1.0
-        img_norm = img_rgb.astype(np.float32) / 255.0
-        
-        # HWC -> NCHW (Format attendu par ONNX)
-        img_input = np.transpose(img_norm, (2, 0, 1))[np.newaxis, :]
-        
-        return img_input, scale, (left, top)
+    def _letterbox(self, img: np.ndarray, new_shape=(1280, 1280)) -> tuple:
+        shape = img.shape[:2] # [h, w]
+        r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+        new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
+        dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
+        dw /= 2
+        dh /= 2
+        if shape[::-1] != new_unpad:
+            img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
+        top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+        left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+        img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
+        return img, r, (dw, dh)
+
+    def _apply_clahe(self, img: np.ndarray) -> np.ndarray:
+        """Optimisation du contraste pour révéler les lésions apicales subtiles."""
+        try:
+            if len(img.shape) == 3:
+                lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+                l, a, b = cv2.split(lab)
+                clahe = cv2.createCLAHE(clipLimit=4.5, tileGridSize=(12, 12))
+                cl = clahe.apply(l)
+                img = cv2.merge((cl, a, b))
+                return cv2.cvtColor(img, cv2.COLOR_LAB2BGR)
+            return img
+        except: return img
 
     def predict(self, image_path: str) -> dict:
         """
-        Pipeline complet : Lecture -> Pré-processing -> Inférence ONNX -> Post-processing -> FDI Mapping.
+        Pipeline Elite : CLAHE -> Letterbox -> YOLO11x -> FDI Mapping (Smile Curve).
         """
         if not self.is_ready:
-            logger.warning("PanoramicEngine : Session ONNX non initialisée. Retour mode simulation.")
+            logger.warning("PanoramicEngine : Mode simulation actif.")
             return self._run_simulation()
 
         try:
-            # 1. Chargement et Pré-processing
             original_img = cv2.imread(image_path)
             if original_img is None: raise ValueError("Image illisible")
             
-            img_input, scale, (dw, dh) = self._preprocess(original_img)
+            # Pré-processing Elite
+            processed_img = self._apply_clahe(original_img)
+            processed_img = cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB)
+            img_padded, r, (dw, dh) = self._letterbox(processed_img, (self.input_size, self.input_size))
             
-            # 2. Inférence ONNX
+            img_in = img_padded.astype(np.float32) / 255.0
+            img_in = np.transpose(img_in, (2, 0, 1))[np.newaxis, :]
+
+            # Inférence
             start_time = time.perf_counter()
             input_name = self.session.get_inputs()[0].name
-            outputs = self.session.run(None, {input_name: img_input})
+            outputs = self.session.run(None, {input_name: img_in})
             
-            # YOLOv8x-seg output shape: [1, 67, 33600]
+            # YOLO output: [1, 8, 33600]
             output = outputs[0][0] 
+            detections = []
             
-            # Tâche 3.1 : Tranchage du Tenseur et Vectorisation
-            output = output[:35, :] # Ignorer les 32 canaux de masque
-            output = output.T       # (33600, 35)
-            
-            scores = output[:, 4:35]
-            class_ids = np.argmax(scores, axis=1)
-            confidences = np.max(scores, axis=1)
-            
-            # Thresholding initial
-            conf_threshold = 0.15
-            mask = confidences > conf_threshold
-            
-            filtered_output = output[mask]
-            filtered_class_ids = class_ids[mask]
-            filtered_confidences = confidences[mask]
-            
-            detections_raw = []
-            if len(filtered_output) > 0:
-                boxes_np = filtered_output[:, :4]
-                xc = boxes_np[:, 0]
-                yc = boxes_np[:, 1]
-                w = boxes_np[:, 2]
-                h = boxes_np[:, 3]
-                
-                # Conversion top-left pour cv2.dnn.NMSBoxes
-                x_tl = (xc - w/2 - dw) / scale
-                y_tl = (yc - h/2 - dh) / scale
-                w_scaled = w / scale
-                h_scaled = h / scale
-                
-                bboxes_list = np.column_stack((x_tl, y_tl, w_scaled, h_scaled)).tolist()
-                scores_list = filtered_confidences.tolist()
-                
-                # Tâche 3.1 : Exécution NMSBoxes vectorisée (Class-aware NMS)
-                # On ajoute un grand décalage basé sur la classe pour séparer mathématiquement les classes lors du NMS
-                max_coord = 10000
-                bboxes_shifted = []
-                for i, box in enumerate(bboxes_list):
-                    c = filtered_class_ids[i]
-                    bboxes_shifted.append([box[0] + c * max_coord, box[1] + c * max_coord, box[2], box[3]])
-                    
-                indices = cv2.dnn.NMSBoxes(bboxes_shifted, scores_list, conf_threshold, 0.45)
-                indices = indices.flatten() if len(indices) > 0 else []
-                
-                for i in indices:
-                    x, y, bw, bh = bboxes_list[i]
-                    x1, y1 = x, y
-                    x2, y2 = x + bw, y + bh
-                    class_id = filtered_class_ids[i]
-                    conf = scores_list[i]
-                    
-                    detections_raw.append({
-                        "class_id": class_id,
-                        "pathology": PANORAMIC_INDEX_MAPPING.get(class_id, "Unknown"),
-                        "confidence": float(conf),
-                        "bbox": [float(round(x1, 1)), float(round(y1, 1)), float(round(x2, 1)), float(round(y2, 1))]
-                    })
-
-            # Tâche 3.2 : Heuristique d'Assignation FDI via Barycentre Dynamique
-            teeth_centers = []
-            for d in detections_raw:
-                bbox = d["bbox"]
-                cx = (bbox[0] + bbox[2]) / 2
-                cy = (bbox[1] + bbox[3]) / 2
-                # Considérer les dents permanentes (15), primaires (30) et quelques ancres fiables
-                if d["class_id"] in [1, 3, 6, 11, 14, 15, 30]:
-                    teeth_centers.append((cx, cy))
-            
-            if teeth_centers:
-                avg_cx = sum(c[0] for c in teeth_centers) / len(teeth_centers)
-                avg_cy = sum(c[1] for c in teeth_centers) / len(teeth_centers)
-            else:
-                avg_cx = original_img.shape[1] / 2
-                avg_cy = original_img.shape[0] / 2
-
-            # Calcul de la largeur moyenne d'une dent (pour la détection des gaps)
-            tooth_widths = [d["bbox"][2] - d["bbox"][0] for d in detections_raw if d["class_id"] in [1, 3, 6, 11, 14, 15, 30]]
-            avg_width = sum(tooth_widths) / len(tooth_widths) if tooth_widths else original_img.shape[1] / 16
-
-            # Tâche 3.2 : Clustering et Assignation FDI Intelligente (Gap-Aware)
-            general_findings = []
-            tooth_items = []
-            
-            for d in detections_raw:
-                if d["class_id"] in [5, 12, 13, 20, 28]: # Canal mand., Sinus, Perte osseuse, Défaut, Kyste
-                    general_findings.append({
-                        "label": PANORAMIC_LABELS_MAPPING.get(d["pathology"], d["pathology"]),
-                        "confidence": d["confidence"],
-                        "bbox": {
-                            "x_min": d["bbox"][0], "y_min": d["bbox"][1],
-                            "x_max": d["bbox"][2], "y_max": d["bbox"][3],
-                            "confidence": d["confidence"]
-                        }
-                    })
-                else:
-                    tooth_items.append(d)
-
-            # Division en quadrants
-            quadrants = {1: [], 2: [], 3: [], 4: []}
-            for d in tooth_items:
-                bbox = d["bbox"]
-                cx = (bbox[0] + bbox[2]) / 2
-                cy = (bbox[1] + bbox[3]) / 2
-                is_upper = cy < avg_cy
-                is_right_side = cx < avg_cx # Droite patient = Gauche image (X petit)
-                q = (1 if is_right_side else 2) if is_upper else (4 if is_right_side else 3)
-                quadrants[q].append({"det": d, "cx": cx})
-
-            teeth_map = {}
-            for q, items in quadrants.items():
-                if not items: continue
-                
-                # Tri depuis la ligne médiane vers l'extérieur
-                # Q1 et Q4 sont à gauche de l'image (X < avg_cx). Pour partir du centre (avg_cx) vers l'extérieur, on doit aller de grand X vers petit X (reverse=True)
-                reverse_sort = True if q in [1, 4] else False
-                items.sort(key=lambda x: x["cx"], reverse=reverse_sort)
-                
-                # Regroupement des détections superposées (ex: Carie + Dent = même cluster)
-                clusters = []
-                for item in items:
-                    placed = False
-                    for cluster in clusters:
-                        if abs(item["cx"] - cluster["cx"]) < avg_width * 0.6:
-                            cluster["items"].append(item["det"])
-                            placed = True
-                            break
-                    if not placed:
-                        clusters.append({"cx": item["cx"], "items": [item["det"]]})
-                
-                # Assignation des numéros avec détection d'espaces (gaps)
-                current_tooth_num = 1
-                prev_cx = avg_cx # Départ au milieu
-                
-                for cluster in clusters:
-                    dist_to_prev = abs(cluster["cx"] - prev_cx)
-                    
-                    if prev_cx != avg_cx: # Sauf pour la première dent
-                        # Combien d'espaces de dents on a franchi ?
-                        gaps = int(round(dist_to_prev / avg_width))
-                        if gaps > 1:
-                            current_tooth_num += (gaps - 1)
-                            
-                    if current_tooth_num > 8:
-                        current_tooth_num = 8
-                        
-                    fdi = q * 10 + current_tooth_num
-                    
-                    if fdi not in teeth_map:
-                        teeth_map[fdi] = {
-                            "fdi_number": fdi,
-                            "bbox": None,
-                            "findings": []
-                        }
-                    
-                    for d in cluster["items"]:
-                        label_fr = PANORAMIC_LABELS_MAPPING.get(d["pathology"], d["pathology"])
-                        finding = {
-                            "label": label_fr,
-                            "confidence": d["confidence"],
-                            "bbox": {
-                                "x_min": d["bbox"][0], "y_min": d["bbox"][1],
-                                "x_max": d["bbox"][2], "y_max": d["bbox"][3],
-                                "confidence": d["confidence"]
-                            }
-                        }
-                        if d["class_id"] in [15, 30]:
-                            teeth_map[fdi]["bbox"] = finding["bbox"]
-                        else:
-                            teeth_map[fdi]["findings"].append(finding)
-                            
-                    prev_cx = cluster["cx"]
-                    current_tooth_num += 1
-
-            # Fallback pour les dents sans bounding box "Permanent Tooth"
-            for fdi, tooth in teeth_map.items():
-                if tooth["bbox"] is None and tooth["findings"]:
-                    tooth["bbox"] = tooth["findings"][0]["bbox"]
-            
-            exec_time = time.perf_counter() - start_time
-            
-            full_analysis = {
-                "teeth": list(teeth_map.values()),
-                "general_findings": general_findings
+            # Seuils adaptatifs Elite
+            class_thresholds = {
+                "Lésion Périapicale": 0.12, # Très sensible pour les apex
+                "Carie": 0.22,
+                "Carie Profonde": 0.22,
+                "Dent Incluse": 0.30
             }
+            
+            for i in range(output.shape[1]):
+                scores = output[4:, i]
+                class_id = np.argmax(scores)
+                confidence = scores[class_id]
+                class_name = self.classes[class_id] if class_id < len(self.classes) else "Inconnu"
+                
+                threshold = class_thresholds.get(class_name, 0.25)
+                
+                if confidence > threshold:
+                    xc, yc, wb, hb = output[:4, i]
+                    
+                    # Mapping FDI via Smile Curve (normalisé 0-1)
+                    x_rel = (xc - dw) / (self.input_size - 2*dw)
+                    y_rel = (yc - dh) / (self.input_size - 2*dh)
+                    tooth_fdi = self._map_fdi_elite(x_rel, y_rel)
+                    
+                    # Coordonnées image originale
+                    x1 = (xc - wb/2 - dw) / r
+                    y1 = (yc - hb/2 - dh) / r
+                    x2 = (xc + wb/2 - dw) / r
+                    y2 = (yc + hb/2 - dh) / r
+                    
+                    detections.append({
+                        "pathology": class_name,
+                        "label": class_name,
+                        "confidence": float(confidence),
+                        "tooth": int(tooth_fdi),
+                        "fdi": int(tooth_fdi),
+                        "bbox": {
+                            "x_min": float(round(x1, 1)),
+                            "y_min": float(round(y1, 1)),
+                            "x_max": float(round(x2, 1)),
+                            "y_max": float(round(y2, 1)),
+                            "confidence": float(confidence)
+                        }
+                    })
+
+            # NMS Intelligent
+            refined_detections = self._apply_nms(detections)
+            exec_time = time.perf_counter() - start_time
 
             return {
                 "status": "SUCCESS",
-                "detections_data": full_analysis,
-                "processing_time_ms": round(exec_time * 1000, 2),
-                "mode_inference": "PRODUCTION_ONNX_LOKI"
+                "mode_inference": "PRODUCTION_ELITE_YOLO11x",
+                "detections_data": {
+                    "detections": refined_detections,
+                    "summary": f"{len(refined_detections)} anomalies identifiées"
+                },
+                "processing_time_ms": round(exec_time * 1000, 2)
             }
             
         except Exception as e:
-            logger.error(f"PanoramicEngine : Erreur d'inférence : {e}")
+            logger.error(f"PanoramicEngine Error : {e}")
             return self._run_simulation()
 
-    def _run_simulation(self):
-        """Mode dégradé si le modèle est absent."""
+    def _map_fdi_elite(self, x_rel: float, y_rel: float) -> int:
+        """Mapping FDI avec compensation de la Smile Curve (v4.3)."""
+        x_rel = max(0, min(1, x_rel))
+        y_rel = max(0, min(1, y_rel))
+        
+        # Courbure occlusale (Parabole)
+        curvature = 0.15
+        center_y = 0.52
+        occlusal_y = curvature * (x_rel - 0.5)**2 + center_y
+        
+        is_upper = y_rel < occlusal_y
+        is_right_side = x_rel < 0.5 # Droite patient = Gauche image
+        
+        quadrant = (1 if is_right_side else 2) if is_upper else (4 if is_right_side else 3)
+            
+        # Distribution X calibrée
+        dist_from_center = abs(x_rel - 0.5) * 2 
+        if dist_from_center < 0.08: tooth_num = 1
+        elif dist_from_center < 0.15: tooth_num = 2
+        elif dist_from_center < 0.22: tooth_num = 3
+        elif dist_from_center < 0.30: tooth_num = 4
+        elif dist_from_center < 0.38: tooth_num = 5
+        elif dist_from_center < 0.55: tooth_num = 6
+        elif dist_from_center < 0.75: tooth_num = 7
+        else: tooth_num = 8
+        
+        return quadrant * 10 + tooth_num
+
+    def _apply_nms(self, detections: List[Dict]) -> List[Dict]:
+        if not detections: return []
+        sorted_dets = sorted(detections, key=lambda x: x['confidence'], reverse=True)
+        refined = []
+        for det in sorted_dets:
+            is_duplicate = False
+            for r in refined:
+                if r['fdi'] == det['fdi'] and r['pathology'] == det['pathology']:
+                    b1, b2 = det['bbox'], r['bbox']
+                    c1 = [(b1['x_min'] + b1['x_max'])/2, (b1['y_min'] + b1['y_max'])/2]
+                    c2 = [(b2['x_min'] + b2['x_max'])/2, (b2['y_min'] + b2['y_max'])/2]
+                    dist = ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
+                    if dist < 50: 
+                        is_duplicate = True
+                        break
+            if not is_duplicate: refined.append(det)
+        return refined
+
+    def _run_simulation(self) -> dict:
         return {
             "status": "MOCK",
+            "mode_inference": "SIMULATION_EXPERT",
             "detections_data": {
-                "teeth": [],
-                "general_findings": []
-            },
-            "processing_time_ms": 0,
-            "mode_inference": "MOCK_EXPERT"
+                "detections": [
+                    {"fdi": 18, "pathology": "Dent Incluse", "label": "Dent Incluse", "confidence": 0.95, "bbox": {"x_min": 50, "y_min": 50, "x_max": 200, "y_max": 200, "confidence": 0.95}},
+                    {"fdi": 36, "pathology": "Carie", "label": "Carie", "confidence": 0.85, "bbox": {"x_min": 600, "y_min": 400, "x_max": 750, "y_max": 550, "confidence": 0.85}}
+                ]
+            }
         }
 
-# Instance Singleton
 panoramic_engine = PanoramicEngine()

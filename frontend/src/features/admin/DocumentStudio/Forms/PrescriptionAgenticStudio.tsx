@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, Sparkles, CheckCircle2, AlertCircle, Zap, RefreshCcw, ChevronRight,
-  ShieldCheck, Stethoscope, Pill, Trash2, Plus, Microscope, ChevronDown,
+  Brain, CheckCircle2, AlertCircle, Zap, RefreshCcw, ChevronRight,
+  ShieldCheck, Stethoscope, Pill, Trash2, Plus, Microscope,
   Package, Droplets, FlaskConical, Wind, BadgeMinus, Hash,
 } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
@@ -63,7 +63,7 @@ function useDebounce<T extends (...args: any[]) => void>(fn: T, delay: number): 
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
   patientId, drugs, setDrugs, onUpdateDrug, onRemoveDrug, onAddDrug,
-  validationErrors, onSaveHabit, hasChanges, coherenceWarnings = [],
+  validationErrors, onSaveHabit, coherenceWarnings = [],
 }) => {
   const [step, setStep] = useState<'IDLE' | 'RESEARCH' | 'ASSESSMENT' | 'PLANNING'>('IDLE');
   const [assessment, setAssessment] = useState<any>(null);
@@ -74,24 +74,27 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [suggestions, setSuggestions] = useState<{ medications: string[]; dosages: string[]; posologies: string[] }>({
     medications: [], dosages: [], posologies: [],
   });
-  const [suggestLoading, setSuggestLoading] = useState(false);
   const [formeDropdownCoords, setFormeDropdownCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [presets, setPresets] = useState<any[]>([]);
   const [showPresets, setShowPresets] = useState(true);
 
-  const runClinicalResearch = async () => {
-    setLoading(true);
-    setStep('RESEARCH');
-    try {
-      const res = await api.get(`/prescriptions/agentic/assessment/${patientId}`);
-      setAssessment(res.data);
-      setStep('ASSESSMENT');
-    } catch {
-      setStep('IDLE');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // --- SILENT CLINICAL ASSESSMENT (Phase 2) ---
+  useEffect(() => {
+    if (!patientId) return;
+    
+    const silentResearch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/prescriptions/agentic/assessment/${patientId}`);
+        setAssessment(res.data);
+      } catch (err) {
+        console.error('Silent AI Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    silentResearch();
+  }, [patientId]);
 
   const designTreatmentPlan = async () => {
     setLoading(true);
@@ -116,7 +119,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   // --- Autocomplete avec debounce (250ms) ---
   const fetchSuggestions = useCallback(async (id: number, field: string, val: string) => {
-    setSuggestLoading(true);
     try {
       if (field === 'name' && val.length >= 1) {
         const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(val)}`);
@@ -128,8 +130,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           setSuggestions({ medications: [], ...res.data });
         }
       }
-    } finally {
-      setSuggestLoading(false);
+    } catch (err) {
+      console.error('Fetch suggestions error:', err);
     }
   }, [drugs]);
   
@@ -249,80 +251,112 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   return (
     <div className="space-y-6">
-      {/* HEADER ELITE */}
-      <div className="flex items-center justify-between bg-white/40 p-5 rounded-[2.5rem] border border-white/60 backdrop-blur-2xl shadow-xl shadow-primary/5">
-        <div className="flex items-center gap-4">
+      {/* HEADER ELITE CONDENSÉ */}
+      <div className="flex items-center justify-between bg-white/40 p-4 rounded-[2rem] border border-white/60 backdrop-blur-2xl shadow-lg shadow-primary/5">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-blue-600 text-white rounded-2xl flex items-center justify-center relative z-10 shadow-lg shadow-primary/30">
-              <Brain size={24} className={loading ? 'animate-pulse' : ''} />
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 text-white rounded-xl flex items-center justify-center relative z-10 shadow-md shadow-primary/30">
+              <Brain size={20} className={loading ? 'animate-pulse' : ''} />
             </div>
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest leading-none mb-1 flex items-center gap-2">
-              IAmina Clinical Intelligence
-              <span className="bg-primary/10 text-primary text-[8px] px-2 py-0.5 rounded-full">v4.7</span>
+            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] leading-none mb-1 flex items-center gap-2">
+              IAmina Intelligence
+              <span className="bg-primary/10 text-primary text-[7px] px-1.5 py-0.5 rounded-full">v4.8</span>
             </h3>
-            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* COHERENCE BADGE */}
+        <div className="flex items-center gap-3">
+          {/* COHERENCE BADGE COMPACT */}
           <div className={cn(
-            "px-4 py-2 rounded-2xl border transition-all flex items-center gap-2",
+            "px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2",
             coherenceWarnings.length === 0 
-              ? "bg-emerald-50 border-emerald-100 text-emerald-600" 
-              : "bg-amber-50 border-amber-100 text-amber-600 animate-pulse"
+              ? "bg-emerald-50/50 border-emerald-100 text-emerald-600" 
+              : "bg-amber-50/50 border-amber-100 text-amber-600 animate-pulse"
           )}>
-            {coherenceWarnings.length === 0 ? (
-              <ShieldCheck size={14} />
-            ) : (
-              <AlertCircle size={14} />
-            )}
-            <span className="text-[9px] font-black uppercase tracking-widest">
-              {coherenceWarnings.length === 0 ? "Cohérence Validée" : "Audit Requis"}
+            <ShieldCheck size={12} className={coherenceWarnings.length > 0 ? "hidden" : ""} />
+            <AlertCircle size={12} className={coherenceWarnings.length === 0 ? "hidden" : ""} />
+            <span className="text-[8px] font-black uppercase tracking-widest">
+              {coherenceWarnings.length === 0 ? "Cohérence OK" : "Audit Requis"}
             </span>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3">
-          {hasChanges && onSaveHabit && assessment?.act_context && (
+        <div className="flex items-center gap-2">
+          {loading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 text-primary rounded-xl">
+              <RefreshCcw size={12} className="animate-spin" />
+              <span className="text-[8px] font-black uppercase tracking-widest">Analyse en cours...</span>
+            </div>
+          )}
+          
+          <button
+            onClick={() => { setStep('IDLE'); setAssessment(null); }}
+            className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition-all"
+          >
+            <RefreshCcw size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* COMMAND BAR & SPEED-PILLS (Phase 3) */}
+      <div className="space-y-4">
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
+            <Zap size={18} />
+          </div>
+          <input
+            type="text"
+            className="w-full bg-white/60 border border-white/80 backdrop-blur-xl rounded-[2rem] pl-16 pr-8 py-5 text-sm font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300"
+            placeholder="Saisie Rapide : Taper un médicament, un dosage ou une posologie... (Ex: Augmentin 1g sachet 2x/j)"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                const val = e.currentTarget.value;
+                const newDrug: DrugItem = {
+                  id: Date.now(),
+                  name: val.split(' ')[0].toUpperCase(),
+                  dosage: val.split(' ')[1] || '',
+                  forme: 'COMPRIMÉS',
+                  posologie: val.split(' ').slice(2).join(' ') || '',
+                  type: 'MEDICAMENT',
+                  quantite: 1
+                };
+                setDrugs([newDrug, ...drugs]);
+                e.currentTarget.value = '';
+                setStep('PLANNING');
+              }
+            }}
+          />
+          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded-lg">↵ ENTER POUR AJOUTER</span>
+          </div>
+        </div>
+
+        {/* SPEED-PILLS : Favoris du Docteur */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide px-2">
+          {['DOLIPRANE 1G', 'AUGMENTIN 1G', 'ANTADYS 100MG', 'SOLUPRED 20MG', 'HEXTRIL'].map(fav => (
             <button
-              onClick={() => onSaveHabit(assessment.act_context, drugs)}
-              className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-200 transition-all flex items-center gap-2"
+              key={fav}
+              onClick={() => {
+                const [name, dose] = fav.split(' ');
+                setDrugs([{
+                  id: Date.now(),
+                  name,
+                  dosage: dose || '',
+                  forme: fav.includes('HEXTRIL') ? 'BAIN DE BOUCHE' : 'COMPRIMÉS',
+                  posologie: '',
+                  type: 'MEDICAMENT',
+                  quantite: 1
+                }, ...drugs]);
+                setStep('PLANNING');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white/40 border border-white/60 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-primary hover:text-white hover:border-primary transition-all whitespace-nowrap shadow-sm group"
             >
-              <CheckCircle2 size={12} /> Mémoriser comme standard
+              <Pill size={10} className="group-hover:rotate-12 transition-transform" />
+              {fav}
             </button>
-          )}
-          {step === 'IDLE' && (
-            <>
-              <button
-                onClick={() => {
-                  setDrugs([{ id: Date.now(), name: '', dosage: '', forme: 'COMPRIMÉS', posologie: '', type: 'MEDICAMENT', quantite: 1, non_substituable: false }]);
-                  setStep('PLANNING');
-                }}
-                className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2"
-              >
-                <Plus size={14} /> Rédaction Libre
-              </button>
-              <button
-                onClick={runClinicalResearch}
-                className="px-6 py-2.5 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                <Sparkles size={14} /> Analyser le Cas
-              </button>
-            </>
-          )}
-          {(step === 'ASSESSMENT' || step === 'PLANNING') && (
-            <button
-              onClick={() => { setStep('IDLE'); setAssessment(null); }}
-              className="p-2.5 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition-all"
-              title="Réinitialiser"
-            >
-              <RefreshCcw size={16} />
-            </button>
-          )}
+          ))}
         </div>
       </div>
 
@@ -498,207 +532,131 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className={cn(
-                      'bg-white/60 p-5 rounded-[2.5rem] border transition-all group relative backdrop-blur-xl',
-                      fieldError ? 'border-red-200 bg-red-50/20' : 'border-white/80 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/30',
-                      isRadio && 'border-amber-100 bg-amber-50/10',
+                      'bg-white/60 p-4 rounded-[1.8rem] border transition-all group relative backdrop-blur-xl',
+                      fieldError ? 'border-red-200 bg-red-50/10' : 'border-white/80 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20',
+                      isRadio && 'border-amber-100 bg-amber-50/5',
                     )}
                   >
-                    {/* Toggle Médicament / Radio */}
-                    <div className="flex items-center gap-3 bg-slate-100/50 p-1.5 rounded-2xl w-fit border border-slate-200/50 shadow-inner mb-5">
-                      <button
-                        type="button"
-                        onClick={() => { onUpdateDrug(drug.id, 'type', 'MEDICAMENT'); if (!drug.forme) onUpdateDrug(drug.id, 'forme', 'COMPRIMÉS'); }}
-                        className={cn(
-                          'px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2.5',
-                          !isRadio ? 'bg-white text-primary shadow-md shadow-primary/10 ring-1 ring-primary/5' : 'text-slate-400 hover:text-slate-500 hover:bg-slate-200/50',
-                        )}
-                      >
-                        <Pill size={14} className={!isRadio ? 'text-primary' : 'text-slate-400'} style={!isRadio ? { color: 'var(--primary)' } : {}} />
-                        Médicament
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { onUpdateDrug(drug.id, 'type', 'EXAMEN'); onUpdateDrug(drug.id, 'dosage', ''); onUpdateDrug(drug.id, 'forme', ''); onUpdateDrug(drug.id, 'posologie', ''); }}
-                        className={cn(
-                          'px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2.5',
-                          isRadio ? 'bg-white text-amber-600 shadow-md shadow-amber-200/20 ring-1 ring-amber-100' : 'text-slate-400 hover:text-slate-500 hover:bg-slate-200/50',
-                        )}
-                      >
-                        <Microscope size={14} className={isRadio ? 'text-amber-500' : 'text-slate-400'} />
-                        Radio / Examen
-                      </button>
-                    </div>
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      {/* Toggle Compact */}
+                      <div className="col-span-12 lg:col-span-2 flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-fit border border-slate-200/30">
+                        <button
+                          type="button"
+                          onClick={() => { onUpdateDrug(drug.id, 'type', 'MEDICAMENT'); if (!drug.forme) onUpdateDrug(drug.id, 'forme', 'COMPRIMÉS'); }}
+                          className={cn(
+                            'p-2 rounded-lg transition-all',
+                            !isRadio ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-500',
+                          )}
+                          title="Médicament"
+                        >
+                          <Pill size={14} style={!isRadio ? { color: 'var(--primary)' } : {}} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { onUpdateDrug(drug.id, 'type', 'EXAMEN'); onUpdateDrug(drug.id, 'dosage', ''); onUpdateDrug(drug.id, 'forme', ''); onUpdateDrug(drug.id, 'posologie', ''); }}
+                          className={cn(
+                            'p-2 rounded-lg transition-all',
+                            isRadio ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-500',
+                          )}
+                          title="Radio / Examen"
+                        >
+                          <Microscope size={14} />
+                        </button>
+                      </div>
 
-                    <div className="grid grid-cols-12 gap-4 items-start">
-                      {/* Nom */}
-                      <div className={cn('relative', isRadio ? 'col-span-12' : 'col-span-12 lg:col-span-5')}>
-                        <input
-                          type="text"
-                          className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-lg uppercase placeholder:text-slate-200 tracking-tight"
-                          placeholder={isRadio ? "NOM DE L'EXAMEN / RADIOGRAPHIE..." : 'MÉDICAMENT...'}
-                          value={drug.name}
-                          onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
-                          onFocus={() => { if (drug.name.length >= 1) handleSearch(drug.id, 'name', drug.name); }}
-                          onKeyDown={e => handleKeyDown(e, drug.id, 'name')}
-                        />
+                      {/* Nom & Forme/Dose */}
+                      <div className={cn('relative', isRadio ? 'col-span-12 lg:col-span-10' : 'col-span-12 lg:col-span-4')}>
+                        <div className="space-y-1">
+                          <input
+                            type="text"
+                            className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-200 tracking-tight"
+                            placeholder={isRadio ? "NOM DE L'EXAMEN..." : 'MÉDICAMENT...'}
+                            value={drug.name}
+                            onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
+                            onFocus={() => { if (drug.name.length >= 1) handleSearch(drug.id, 'name', drug.name); }}
+                            onKeyDown={e => handleKeyDown(e, drug.id, 'name')}
+                          />
+
+                          {!isRadio && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={e => handleFormeOpen(e, drug.id)}
+                                className="bg-slate-100/50 px-2 py-1 rounded-lg text-[8px] font-black text-primary uppercase tracking-widest border border-transparent hover:bg-white hover:border-primary/20 transition-all flex items-center gap-1.5"
+                                style={{ color: 'var(--primary)' }}
+                              >
+                                {getFormeIcon(drug.forme)}
+                                {drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}
+                              </button>
+                              
+                              <div className="flex items-center gap-1 bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
+                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Dose :</span>
+                                <input
+                                  type="text"
+                                  className="w-20 bg-transparent border-none p-0 focus:ring-0 text-[9px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-200"
+                                  placeholder="500MG..."
+                                  value={drug.dosage}
+                                  onFocus={() => handleSearch(drug.id, 'dosage', drug.dosage)}
+                                  onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Autocomplete nom */}
                         <AnimatePresence>
                           {activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0 && (
                             <motion.div
                               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                              className="absolute left-0 top-full mt-2 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden py-2"
+                              className="absolute left-0 top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
                             >
-                              {suggestLoading && <div className="px-5 py-2 text-[10px] font-black text-slate-300 uppercase">Recherche...</div>}
                               {suggestions.medications.map((m, i) => (
                                 <button
                                   key={m}
                                   onClick={() => applySuggestion(drug.id, 'name', m)}
                                   className={cn(
-                                    'w-full px-5 py-2.5 text-left text-xs font-black text-slate-600 transition-colors flex items-center justify-between group/item',
+                                    'w-full px-4 py-2 text-left text-[10px] font-black text-slate-600 transition-colors flex items-center justify-between',
                                     i === highlightedIdx ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 hover:text-primary',
                                   )}
                                 >
                                   {m}
-                                  <ChevronRight size={14} className="opacity-0 group-hover/item:opacity-100 transition-all" />
+                                  <ChevronRight size={12} className="opacity-40" />
                                 </button>
                               ))}
                             </motion.div>
                           )}
                         </AnimatePresence>
-
-                        {!isRadio && (
-                          <div className="flex items-center gap-3 mt-4">
-                            {/* Dropdown Forme */}
-                            <div className="relative flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={e => handleFormeOpen(e, drug.id)}
-                                className="bg-slate-100/50 px-4 py-2.5 rounded-xl text-[10px] font-black text-primary uppercase tracking-widest border border-transparent hover:bg-white hover:border-primary/20 transition-all flex items-center gap-2 shadow-sm min-w-[150px] justify-between"
-                                style={{ color: 'var(--primary)' }}
-                              >
-                                <span className="flex items-center gap-2">
-                                  {getFormeIcon(drug.forme)}
-                                  {drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}
-                                </span>
-                                <ChevronDown size={12} className={cn('transition-transform duration-200 text-primary/40', activeSearchId?.id === drug.id && activeSearchId?.field === 'forme_dropdown' && 'rotate-180')} />
-                              </button>
-                            </div>
-
-                            {/* Dosage */}
-                            <div className="relative flex-1 bg-white/50 px-4 py-2.5 rounded-xl border border-slate-100 focus-within:border-primary/30 focus-within:bg-white transition-all shadow-sm">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest shrink-0">Dose :</span>
-                                <input
-                                  type="text"
-                                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-[11px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-200"
-                                  placeholder="100MG, 1G..."
-                                  value={drug.dosage}
-                                  onFocus={() => handleSearch(drug.id, 'dosage', drug.dosage)}
-                                  onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
-                                  onKeyDown={e => handleKeyDown(e, drug.id, 'dosage')}
-                                />
-                              </div>
-                              <AnimatePresence>
-                                {activeSearchId?.id === drug.id && activeSearchId?.field === 'dosage' && suggestions.dosages.length > 0 && (
-                                  <motion.div
-                                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                                    className="absolute left-0 top-full mt-2 bg-white border border-slate-100 rounded-xl shadow-2xl z-50 py-2 min-w-[120px]"
-                                  >
-                                    {suggestions.dosages.map((d, i) => (
-                                      <button key={d} onClick={() => applySuggestion(drug.id, 'dosage', d)}
-                                        className={cn('w-full px-4 py-1.5 text-left text-[10px] font-black transition-colors', i === highlightedIdx ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-primary/5 hover:text-primary')}
-                                      >{d}</button>
-                                    ))}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Champ "Autre" personnalisé */}
-                        {!isRadio && drug.forme.startsWith('AUTRE') && (
-                          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-3">
-                            <input
-                              type="text"
-                              autoFocus
-                              className="w-full bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-[11px] font-bold text-primary outline-none focus:ring-2 focus:ring-primary/10 placeholder:text-primary/30"
-                              placeholder="Précisez la forme personnalisée..."
-                              value={drug.forme === 'AUTRE' || drug.forme === 'AUTRE: ' ? '' : drug.forme.replace('AUTRE: ', '')}
-                              onChange={e => onUpdateDrug(drug.id, 'forme', `AUTRE: ${e.target.value.toUpperCase()}`)}
-                            />
-                          </motion.div>
-                        )}
                       </div>
-                      {/* Posologie ou Note Examen */}
-                      {!isRadio ? (
-                        <div className="col-span-12 lg:col-span-7 relative">
-                          <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 group-hover:bg-white transition-all focus-within:shadow-lg focus-within:shadow-primary/5 h-full">
-                            <textarea
-                              rows={1}
-                              className="w-full bg-transparent border-none p-0 text-[12px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-relaxed"
-                              placeholder="Posologie habituelle..."
-                              value={drug.posologie}
-                              onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
-                              onKeyDown={e => {
-                                handleKeyDown(e, drug.id, 'posologie');
-                                if (e.key === 'Enter' && !e.shiftKey && highlightedIdx < 0) { e.preventDefault(); onAddDrug(); }
-                              }}
-                              onChange={e => {
-                                handleSearch(drug.id, 'posologie', e.target.value);
-                                e.target.style.height = 'auto';
-                                e.target.style.height = `${e.target.scrollHeight}px`;
-                              }}
-                              style={{ minHeight: '20px' }}
-                            />
-                            <AnimatePresence>
-                              {activeSearchId?.id === drug.id && activeSearchId?.field === 'posologie' && suggestions.posologies.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                  {suggestions.posologies.slice(0, 4).map(p => (
-                                    <button
-                                      key={p}
-                                      onClick={() => applySuggestion(drug.id, 'posologie', p)}
-                                      className="px-2.5 py-1 bg-primary/5 border border-primary/10 rounded-lg text-[9px] font-black text-primary uppercase hover:bg-primary/10 transition-all active:scale-90"
-                                    >
-                                      {p}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                          {fieldError && (
-                            <div className="mt-2 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
-                              <AlertCircle size={10} /> {fieldError.message}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="col-span-12 mt-2">
-                          <div className="flex items-center gap-3 p-3 bg-amber-50/50 rounded-xl border border-amber-100 text-amber-700">
-                            <Microscope size={16} />
-                            <span className="text-[10px] font-bold">MODE EXAMEN — Aucun dosage requis. Un avertissement de radioprotection sera ajouté au document.</span>
-                          </div>
-                          <input
-                            type="text"
-                            className="mt-2 w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-400 italic focus:ring-0 placeholder:text-slate-200"
-                            placeholder="Note optionnelle pour le radiologue..."
+
+                      {/* Posologie */}
+                      <div className={cn('relative h-full', isRadio ? 'hidden' : 'col-span-12 lg:col-span-5')}>
+                        <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 group-hover:bg-white transition-all focus-within:shadow-md focus-within:shadow-primary/5">
+                          <textarea
+                            rows={1}
+                            className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
+                            placeholder="Posologie..."
                             value={drug.posologie}
-                            onChange={e => onUpdateDrug(drug.id, 'posologie', e.target.value)}
+                            onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
+                            onChange={e => {
+                              handleSearch(drug.id, 'posologie', e.target.value);
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
                           />
                         </div>
+                      </div>
 
-                      )}
+                      {/* Actions */}
+                      <div className="col-span-12 lg:col-span-1 flex justify-end">
+                        <button
+                          onClick={() => onRemoveDrug(drug.id)}
+                          className="p-2 text-slate-200 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Supprimer */}
-                    <button
-                      onClick={() => onRemoveDrug(drug.id)}
-                      className="absolute top-4 right-4 p-2 text-slate-200 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 size={18} />
-                    </button>
                   </motion.div>
                 );
               })}

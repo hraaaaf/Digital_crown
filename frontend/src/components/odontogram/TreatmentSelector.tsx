@@ -130,8 +130,8 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               {toothNumber}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{toothName}</h2>
-              <p className="text-blue-100 text-sm">Quadrant {quadrant} • Saisissez les prix en MAD</p>
+              <h2 className="text-2xl font-black tracking-tight">{toothName}</h2>
+              <p className="text-blue-100 text-[10px] font-black uppercase tracking-widest opacity-70">Quadrant {quadrant} • Saisissez les prix en MAD</p>
             </div>
           </div>
           <button onClick={onCancel} className="p-2 hover:bg-white/20 rounded-xl transition-colors">

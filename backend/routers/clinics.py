@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from backend import models, schemas, database
+from backend.routers.auth import get_current_user
 from backend.services.card_extractor import card_extractor
 
 router = APIRouter()
@@ -113,9 +114,10 @@ def create_clinic(
 
 
 @router.get("/me")
-def get_my_clinic(db: Session = Depends(get_db)):
+def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Récupérer la configuration du cabinet."""
-    config = db.query(models.CabinetConfig).first()
+    employer_id = current_user.get_employer_id()
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
@@ -126,10 +128,12 @@ def get_my_clinic(db: Session = Depends(get_db)):
 @router.put("/me")
 def update_my_clinic(
     config_update: schemas.CabinetConfigUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """Mettre à jour la configuration du cabinet."""
-    config = db.query(models.CabinetConfig).first()
+    employer_id = current_user.get_employer_id()
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non trouvé")
@@ -174,14 +178,16 @@ def update_my_clinic(
 @router.post("/me/logo")
 async def upload_clinic_logo(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """Uploader le logo du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou SVG")
     
-    config = db.query(models.CabinetConfig).first()
+    employer_id = current_user.get_employer_id()
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
@@ -211,32 +217,21 @@ async def upload_clinic_letterhead(
     hide_footer: bool = True,
     margins_top: float = 3.6,
     margins_bottom: float = 3.2,
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """Uploader le papier en-tête (Letterhead) du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
     if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400, 
-            detail="Format non supporté. Utilisez PNG, JPG ou PDF"
-        )
+        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou PDF")
     
-    file_size = 0
-    chunk_size = 1024 * 1024
-    chunks = []
+    # Check size
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5Mo)")
     
-    while True:
-        chunk = await file.read(chunk_size)
-        if not chunk:
-            break
-        file_size += len(chunk)
-        chunks.append(chunk)
-        if file_size > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5Mo)")
-    
-    file_content = b"".join(chunks)
-    
-    config = db.query(models.CabinetConfig).first()
+    employer_id = current_user.get_employer_id()
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
@@ -252,7 +247,7 @@ async def upload_clinic_letterhead(
     file_path = os.path.join(clinic_dir, unique_name)
     
     with open(file_path, "wb") as buffer:
-        buffer.write(file_content)
+        buffer.write(content)
     
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.letterhead_path = relative_path

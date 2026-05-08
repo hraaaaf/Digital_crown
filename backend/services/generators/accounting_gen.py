@@ -5,12 +5,29 @@ import decimal
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Flowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
 from backend.services.base_template import BaseTemplate, NAVY_BLUE
+
+class PinnedCloture(Flowable):
+    """
+    Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
+    Utilise des coordonnées absolues par rapport au canvas pour rester au dessus du footer.
+    """
+    def __init__(self, text, style):
+        Flowable.__init__(self)
+        self.text = text
+        self.style = style
+
+    def draw(self):
+        p = Paragraph(self.text, self.style)
+        # Largeur utile (A5=14.8cm - 2.0cm marges = 12.8cm)
+        w, h = p.wrap(12.8 * cm, 4 * cm)
+        # On dessine à 2.7cm du bas (trait footer à 2.5cm)
+        p.drawOn(self.canv, 1.0 * cm, 2.7 * cm)
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -152,8 +169,8 @@ class AccountingGenerator:
         
         header_content = [
             [
-                Paragraph(f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans", patient_style), 
-                Paragraph(f"Le : {current_date}", style_right)
+                Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style), 
+                Paragraph(f"Le : <u>{current_date}</u>", style_right)
             ]
         ]
         return Table(header_content, colWidths=[7.0*cm, 4.8*cm])
@@ -230,7 +247,7 @@ class AccountingGenerator:
         font_bold = "Helvetica-Bold"
 
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"NOTE D'HONORAIRES N° {facture_number}" if facture_number else "NOTE D'HONORAIRES", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>NOTE D'HONORAIRES N° {facture_number}</b></u>" if facture_number else "<u><b>NOTE D'HONORAIRES</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PAIEMENT", header_style), Paragraph("HONORAIRES", header_style)]]
@@ -285,8 +302,8 @@ class AccountingGenerator:
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
         cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        elements.append(Spacer(1, 1.0*cm))
-        elements.append(Paragraph(cloture, cloture_style))
+        # On utilise le Flowable épinglé au lieu d'un paragraphe simple (v4.9)
+        elements.append(PinnedCloture(cloture, cloture_style))
         
         highlighted_teeth = []
         for p in data.payments:
@@ -313,7 +330,7 @@ class AccountingGenerator:
         font_bold = "Helvetica-Bold"
 
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"DEVIS N° {document_number}" if document_number else "DEVIS DENTAIRE", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
@@ -368,8 +385,8 @@ class AccountingGenerator:
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
         cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        elements.append(Spacer(1, 1.0*cm))
-        elements.append(Paragraph(cloture, cloture_style))
+        # On utilise le Flowable épinglé au lieu d'un paragraphe simple (v4.9)
+        elements.append(PinnedCloture(cloture, cloture_style))
         
         highlighted_teeth = []
         for item in data.items:
@@ -385,7 +402,8 @@ class AccountingGenerator:
         return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number)
 
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None):
-        m_top = (config.margin_top if config else 3.6) * cm
+        # Forçage d'une marge supérieure minimale (v4.6)
+        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id

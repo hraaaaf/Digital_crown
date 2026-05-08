@@ -9,7 +9,8 @@ import {
   Calendar,
   Receipt,
   FlaskConical,
-  LogOut
+  LogOut,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
@@ -83,6 +84,7 @@ export const Sidebar = () => {
           <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />
           <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />
           <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />
+          <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* ACTIVE PATIENT NAVIGATION */}
           {currentPatientId && (

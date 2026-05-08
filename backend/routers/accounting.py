@@ -5,12 +5,14 @@ from datetime import datetime
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Accounting & Payments"])
 
 @router.post("/plans", response_model=schemas.InstallmentPlanOut)
 def create_installment_plan(plan: schemas.InstallmentPlanCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Crée un nouveau plan de paiement avec ses échéances."""
+    assert_patient_access(plan.patient_id, current_user, db)
     new_plan = models.InstallmentPlan(
         patient_id=plan.patient_id,
         title=plan.title,
@@ -37,6 +39,7 @@ def create_installment_plan(plan: schemas.InstallmentPlanCreate, db: Session = D
 @router.get("/plans/patient/{patient_id}", response_model=List[schemas.InstallmentPlanOut])
 def get_patient_plans(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Récupère tous les plans de paiement d'un patient."""
+    assert_patient_access(patient_id, current_user, db)
     return db.query(models.InstallmentPlan).filter(models.InstallmentPlan.patient_id == patient_id).all()
 
 @router.put("/installments/{installment_id}", response_model=schemas.InstallmentOut)
@@ -45,6 +48,8 @@ def update_installment(installment_id: int, updates: dict, db: Session = Depends
     inst = db.query(models.Installment).filter(models.Installment.id == installment_id).first()
     if not inst:
         raise HTTPException(status_code=404, detail="Échéance introuvable")
+    
+    assert_patient_access(inst.plan.patient_id, current_user, db)
     
     for key, value in updates.items():
         if hasattr(inst, key):
@@ -62,6 +67,8 @@ def delete_installment_plan(plan_id: int, db: Session = Depends(database.get_db)
     plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == plan_id).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan introuvable")
+    
+    assert_patient_access(plan.patient_id, current_user, db)
     
     db.delete(plan)
     db.commit()

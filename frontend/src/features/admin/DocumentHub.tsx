@@ -18,7 +18,7 @@ import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
 
 // Types
-import type { SelectedSurfaceData } from '../../components/odontogram/types';
+import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
 
 type DocumentType = 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre' | 'ai';
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
@@ -61,11 +61,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [certifType, setCertifType] = useState('Repos médical');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const [items, setItems] = useState<PriceItem[]>([
-    { id: 101, description: 'Consultation Spécialisée', dent: '-', price: 300 },
-    { id: 102, description: 'Détartrage et Polissage', dent: 'Haut/Bas', price: 600 },
-    { id: 103, description: 'Traitement de carie - Composite', dent: '26', price: 450 }
-  ]);
+  const [items, setItems] = useState<PriceItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
   const [installments, setInstallments] = useState<any[]>([]);
 
@@ -299,8 +295,30 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
                 if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
                 setActiveActSearchId(id);
-                const res = await api.get(`/actes/catalog/search?q=${q}`);
-                setActSuggestions(res.data);
+                
+                // 1. Search in Treatment Templates (Odontogram acts)
+                const localMatches = TREATMENT_TEMPLATES.filter((t: any) => 
+                  t.name.toLowerCase().includes(q.toLowerCase()) || 
+                  t.category.toLowerCase().includes(q.toLowerCase())
+                ).map((t: any) => ({ id: t.id, name: t.name, base_price: 0, category: t.category, isLocal: true }));
+
+                // 2. Search in API
+                try {
+                  const res = await api.get(`/actes/catalog/search?q=${q}`);
+                  const apiMatches = res.data || [];
+                  
+                  // Merge and deduplicate by name
+                  const merged = [...localMatches];
+                  apiMatches.forEach((a: any) => {
+                    if (!merged.find(m => m.name.toLowerCase() === a.name.toLowerCase())) {
+                      merged.push(a);
+                    }
+                  });
+                  
+                  setActSuggestions(merged.slice(0, 10));
+                } catch (err) {
+                  setActSuggestions(localMatches.slice(0, 10));
+                }
               }}
               activeActSearchId={activeActSearchId}
               setActiveActSearchId={setActiveActSearchId}

@@ -5,65 +5,55 @@ logger = logging.getLogger(__name__)
 
 class PanoramicReportEngine:
     """
-    Générateur de rapport Markdown purement déterministe.
-    Remplace les LLM (Ollama/Groq) pour garantir le Zéro-Hallucination (Medico-Legal 100%).
-    Consommation RAM: ~0 Mo. Temps d'exécution: < 1ms.
+    Générateur de rapport Panoramique ELITE (v1.8).
+    Consomme une liste plate de détections et génère un bilan structuré.
     """
-    def generate_markdown(self, analysis_data: dict) -> str:
+    def generate_markdown(self, detections_data: dict) -> str:
         try:
-            teeth = analysis_data.get("teeth", [])
-            general = analysis_data.get("general_findings", [])
+            detections = detections_data.get("detections", [])
             
             lines = []
-            lines.append("# Rapport d'Analyse Panoramique Assistée par IA")
+            lines.append("# Rapport d'Analyse Panoramique Elite IA")
             lines.append(f"*Généré automatiquement le {datetime.datetime.now().strftime('%d/%m/%Y à %H:%M')}*")
             lines.append("\n---")
             
-            # 1. Bilan Odontologique Détaillé
-            lines.append("\n## 1. Bilan Odontologique")
-            
-            # Filtrer les dents ayant des pathologies/soins (les dents 100% saines sont ignorées pour la clarté)
-            teeth_with_findings = [t for t in teeth if len(t.get("findings", [])) > 0]
-            
-            if not teeth_with_findings:
-                lines.append("- *Aucune lésion carieuse, inclusion ou soin antérieur identifié.*")
+            if not detections:
+                lines.append("\n## Bilan Clinique")
+                lines.append("- *Aucune anomalie significative détectée sur cet examen.*")
+                lines.append("- *L'intégrité des structures osseuses et dentaires semble respectée.*")
             else:
-                # Tri strict par numéro FDI
-                teeth_with_findings.sort(key=lambda x: x["fdi_number"])
+                # Groupement par dent pour un rapport plus lisible
+                teeth_map = {}
+                for d in detections:
+                    fdi = d.get("fdi") or d.get("tooth")
+                    if fdi not in teeth_map:
+                        teeth_map[fdi] = []
+                    teeth_map[fdi].append(d)
                 
-                for t in teeth_with_findings:
-                    fdi = t["fdi_number"]
-                    findings = t["findings"]
-                    
+                lines.append("\n## 1. Anomalies Dentaires Identifiées")
+                # Tri par numéro FDI
+                sorted_fdi = sorted(teeth_map.keys())
+                
+                for fdi in sorted_fdi:
+                    findings = teeth_map[fdi]
                     finding_texts = []
                     for f in findings:
-                        # Conversion de la probabilité en pourcentage
                         conf = round(f.get("confidence", 0) * 100)
-                        label = f.get('label', 'Anomalie')
+                        label = f.get("label", f.get("pathology", "Anomalie"))
                         finding_texts.append(f"{label} ({conf}%)")
                     
                     lines.append(f"- **Dent {fdi}** : {', '.join(finding_texts)}")
-            
-            # 2. Observations Structurelles (Sinus, Os, Kystes)
-            lines.append("\n## 2. Observations Structurelles & Anatomiques")
-            if general:
-                for g in general:
-                    conf = round(g.get("confidence", 0) * 100)
-                    lines.append(f"- **{g.get('label', 'Élément anatomique')}** détecté avec certitude à {conf}%.")
-            else:
-                lines.append("- *Aucune anomalie osseuse, parodontale ou kystique majeure isolée.*")
-            
-            # 3. Disclaimer Médico-Légal
+                
+            # Disclaimer Médico-Légal
             lines.append("\n---\n")
             lines.append("> ⚠️ **Avis de responsabilité médico-légale**")
-            lines.append("> *Ce rapport est généré déterministement par le réseau de neurones convolutifs (CNN) Loki-Silvres V8.*")
-            lines.append("> *Il constitue un outil de dépistage visuel (Computer-Aided Detection) et ne remplace en aucun cas l'examen clinique et le jugement souverain du chirurgien-dentiste.*")
+            lines.append("> *Ce diagnostic est une assistance à la détection par IA (CAD - Computer-Aided Detection).*")
+            lines.append("> *Le chirurgien-dentiste reste seul souverain dans l'interprétation finale et la décision thérapeutique.*")
             
             return "\n".join(lines)
             
         except Exception as e:
-            logger.error(f"Erreur lors de la génération déterministe du rapport : {e}")
-            return "## Rapport Indisponible\nErreur lors du traitement des données."
+            logger.error(f"Erreur Report Engine : {e}")
+            return "## Rapport Indisponible\nErreur lors de la génération du bilan."
 
-# Instance Singleton prête à être exportée
 panoramic_report_engine = PanoramicReportEngine()

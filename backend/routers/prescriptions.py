@@ -5,6 +5,7 @@ from datetime import datetime
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 from backend.services.prescription_service import prescription_service
 
 prescription_router = APIRouter(tags=["Prescriptions"])
@@ -52,6 +53,7 @@ def record_medication_habits_batch(req: List[dict], db: Session = Depends(databa
 
 @prescription_router.get("/smart-suggest/{patient_id}")
 async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     rdvs = db.query(models.Appointment).filter(
         models.Appointment.patient_id == patient_id, 
@@ -74,6 +76,7 @@ async def get_clinical_assessment(patient_id: int, db: Session = Depends(databas
     Étape 1 : Agent Chercheur.
     Analyse le dossier et les actes prévus pour générer un bilan scientifique.
     """
+    assert_patient_access(patient_id, current_user, db)
     # Récupérer les actes récents ou prévus
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     rdvs = db.query(models.Appointment).filter(
@@ -113,3 +116,58 @@ async def save_prescription_preference(req: dict, db: Session = Depends(database
         
     prescription_service.learn_habit(db, current_user.id, act_code, drugs)
     return {"status": "success", "message": "Habitude enregistrée avec succès"}
+
+@prescription_router.get("/certif-suggest/{patient_id}")
+async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Analyse les actes récents pour suggérer un type de certificat.
+    """
+    assert_patient_access(patient_id, current_user, db)
+    
+    # Récupérer l'acte ou le RDV le plus récent (aujourd'hui)
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # 1. Chercher un acte réalisé aujourd'hui
+    last_act = db.query(models.Acte).filter(
+        models.Acte.patient_id == patient_id,
+        models.Acte.date_debut >= today
+    ).order_by(models.Acte.date_debut.desc()).first()
+    
+    # 2. Chercher un RDV aujourd'hui
+    last_rdv = db.query(models.Appointment).filter(
+        models.Appointment.patient_id == patient_id,
+        models.Appointment.datetime_start >= today
+    ).order_by(models.Appointment.datetime_start.desc()).first()
+    
+    motif_text = (last_act.libelle if last_act else (last_rdv.motif if last_rdv else "")).lower()
+    
+    suggestion = {
+        "type": "Certificat de Présence",
+        "days": 1,
+        "confidence": "low",
+        "reason": "Pas d'acte chirurgical récent détecté."
+    }
+    
+    if any(k in motif_text for k in ["extraction", "chirurgie", "implant", "lambeau", "resection"]):
+        suggestion = {
+            "type": "Repos Post-Opératoire",
+            "days": 3,
+            "confidence": "high",
+            "reason": f"Suite à l'acte : {motif_text.title()}"
+        }
+    elif any(k in motif_text for k in ["ortho", "bagues", "appareil", "ajustement"]):
+        suggestion = {
+            "type": "Suite d'Intervention",
+            "days": 1,
+            "confidence": "medium",
+            "reason": "Suite à un réglage orthodontique."
+        }
+    elif any(k in motif_text for k in ["examen", "aptitude", "sport"]):
+        suggestion = {
+            "type": "Certificat d'aptitude",
+            "days": 1,
+            "confidence": "medium",
+            "reason": "Examen clinique réalisé."
+        }
+        
+    return suggestion

@@ -1,28 +1,47 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
-import type { ValidationError } from '../useDocumentGenerator';
-import { AlertCircle, CheckCircle2, Clock, Edit3 } from 'lucide-react';
+import { CheckCircle2, Clock, Edit3, Sparkles } from 'lucide-react';
+import { api } from '../../../../services/api';
 
 interface CertificateFormProps {
+  patientId: string;
   certifType: string;
   setCertifType: (type: string) => void;
   certifDays: number;
   setCertifDays: (days: number) => void;
   certifCustomMotif: string;
   setCertifCustomMotif: (v: string) => void;
-  validationErrors?: ValidationError[];
 }
 
 export const CertificateForm: React.FC<CertificateFormProps> = ({
+  patientId,
   certifType,
   setCertifType,
   certifDays,
   setCertifDays,
   certifCustomMotif,
   setCertifCustomMotif,
-  validationErrors = []
 }) => {
+  const [suggestion, setSuggestion] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (!patientId) return;
+    const fetchSuggestion = async () => {
+      try {
+        const res = await api.get(`/prescriptions/certif-suggest/${patientId}`);
+        setSuggestion(res.data);
+        // Si confiance haute, on applique directement (Zero Friction)
+        if (res.data.confidence === 'high') {
+          setCertifType(res.data.type);
+          setCertifDays(res.data.days);
+        }
+      } catch (err) {
+        console.error('Certif Suggest Error:', err);
+      }
+    };
+    fetchSuggestion();
+  }, [patientId, setCertifType, setCertifDays]);
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
@@ -34,47 +53,57 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     { id: 'Autre', label: 'Autre motif', icon: <Edit3 size={14} /> },
   ];
 
+
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl mx-auto py-12">
-      <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-12 shadow-[0_20px_50px_rgba(0,51,128,0.04)] relative overflow-hidden">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl mx-auto py-8">
+      <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-10 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
 
-        <div className="relative z-10 space-y-12">
+        <div className="relative z-10 space-y-10">
           {/* TYPE DE CERTIFICAT */}
           <div>
-            <label className={labelClass}>Motif Clinique (Post-Acte)</label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center justify-between mb-4">
+              <label className={labelClass + " mb-0"}>Motif Clinique</label>
+              {suggestion && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                    suggestion.confidence === 'high' ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200" : "bg-primary/5 text-primary border border-primary/10"
+                  )}
+                >
+                  <Sparkles size={10} className="animate-pulse" />
+                  {suggestion.reason}
+                </motion.div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {certifTypes.map((type) => (
-                <motion.button
+                <button
                   key={type.id}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
                   onClick={() => setCertifType(type.id)}
                   className={cn(
-                    "flex items-center justify-center gap-3 px-6 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
+                    "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
                     certifType === type.id
                       ? "bg-primary text-white border-primary shadow-xl shadow-primary/20"
-                      : "bg-white text-slate-500 border-slate-100 hover:border-primary/30 hover:bg-slate-50/50"
+                      : "bg-white text-slate-500 border-slate-100 hover:border-primary/30"
                   )}
                   style={certifType === type.id ? { backgroundColor: 'var(--primary)' } : {}}
                 >
                   <span className={cn(certifType === type.id ? "text-white" : "text-primary/40")}>{type.icon}</span>
                   {type.label}
-                </motion.button>
+                </button>
               ))}
             </div>
 
             {certifType === 'Autre' && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6"
-              >
-                <label className={labelClass}>Précisez le motif</label>
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
                 <input
                   type="text"
                   className={inputClass}
-                  placeholder="Ex : Douleur post-extraction, Traitement parodontal..."
+                  placeholder="Saisissez le motif personnalisé..."
                   value={certifCustomMotif}
                   onChange={(e) => setCertifCustomMotif(e.target.value)}
                   autoFocus
@@ -84,24 +113,18 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
           </div>
 
           {/* DURÉE */}
-          <div className="pt-6 border-t border-slate-100/50">
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <label className={labelClass + " mb-1"}>Durée du repos</label>
-                <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'interventions faciales.</p>
+          {certifType !== 'Certificat de Présence' && (
+            <div className="pt-8 border-t border-slate-100/50">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <label className={labelClass + " mb-1"}>Durée du repos</label>
+                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'interventions faciales.</p>
+                </div>
+                <span className="text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
+                  {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
+                </span>
               </div>
-              <motion.span
-                key={certifDays}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-3xl font-black text-primary tracking-tighter"
-                style={{ color: 'var(--primary)' }}
-              >
-                {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
-              </motion.span>
-            </div>
 
-            <div className="relative h-12 flex items-center">
               <input
                 type="range"
                 min="1"
@@ -113,17 +136,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 style={{ accentColor: 'var(--primary)' }}
               />
             </div>
-
-            {validationErrors.find(e => e.field === 'certifDays') && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 px-6 py-4 bg-rose-50 border border-rose-100 rounded-[1.2rem] text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-3"
-              >
-                <AlertCircle size={14} /> {validationErrors.find(e => e.field === 'certifDays')?.message}
-              </motion.div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 

@@ -9,21 +9,15 @@ interface BoundingBox {
   confidence: number;
 }
 
-interface Finding {
+interface EliteDetection {
   label: string;
+  fdi: number;
+  bbox: BoundingBox;
   confidence: number;
-  bbox: BoundingBox;
-}
-
-interface ToothObject {
-  fdi_number: number;
-  bbox: BoundingBox;
-  findings: Finding[];
 }
 
 interface FullAnalysis {
-  teeth: ToothObject[];
-  general_findings: Finding[];
+  detections: EliteDetection[];
 }
 
 interface XRayCanvasProps {
@@ -48,42 +42,15 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
   
   // Aplatir toutes les boîtes à dessiner pour faciliter le mapping SVG
   const displayItems = useMemo(() => {
-    if (!visionData) return [];
-    let items: Array<{ id: string, label: string, fdi?: number, bbox: BoundingBox, isParent: boolean }> = [];
+    if (!visionData || !visionData.detections) return [];
     
-    // Ajouter les dents et leurs pathologies
-    visionData.teeth.forEach((tooth) => {
-      // Boîte globale de la dent
-      items.push({
-        id: `tooth-${tooth.fdi_number}`,
-        label: `Dent ${tooth.fdi_number}`,
-        fdi: tooth.fdi_number,
-        bbox: tooth.bbox,
-        isParent: true
-      });
-      // Boîtes des pathologies internes
-      tooth.findings.forEach((finding, fIdx) => {
-        items.push({
-          id: `finding-${tooth.fdi_number}-${fIdx}`,
-          label: finding.label,
-          fdi: tooth.fdi_number,
-          bbox: finding.bbox,
-          isParent: false
-        });
-      });
-    });
-
-    // Ajouter les findings généraux
-    visionData.general_findings.forEach((gf, gIdx) => {
-      items.push({
-        id: `general-${gIdx}`,
-        label: gf.label,
-        bbox: gf.bbox,
-        isParent: false
-      });
-    });
-
-    return items;
+    return visionData.detections.map((det, idx) => ({
+      id: `det-${idx}`,
+      label: det.label,
+      fdi: det.fdi,
+      bbox: det.bbox,
+      isParent: false
+    }));
   }, [visionData]);
 
   const getClinicalColor = (label: string, isParent: boolean) => {

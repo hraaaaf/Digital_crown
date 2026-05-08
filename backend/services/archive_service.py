@@ -334,9 +334,13 @@ class ArchiveService:
                         search_query: Optional[str] = None,
                         date_from: Optional[datetime] = None,
                         date_to: Optional[datetime] = None,
-                        page: int = 1, page_size: int = 20) -> Tuple[List[models.DocumentArchive], int]:
+                        page: int = 1, page_size: int = 20,
+                        employer_id: Optional[int] = None) -> Tuple[List[models.DocumentArchive], int]:
         """Recherche avancée de documents."""
         query = self.db.query(models.DocumentArchive)
+        
+        if employer_id:
+            query = query.join(models.Patient).filter(models.Patient.employer_id == employer_id)
         
         # Filtres
         if patient_id:

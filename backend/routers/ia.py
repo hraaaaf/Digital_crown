@@ -10,6 +10,7 @@ import logging
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 from backend.services.cephalo_engine import cephalo_engine
 from backend.services.ai_advisor import ai_advisor
 from backend.services.cephalo_service import CephaloService
@@ -26,8 +27,14 @@ os.makedirs(RADIO_DIR, exist_ok=True)
 
 @router.post("/upload-radio")
 async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
+    
+    # Limite de taille : 10 Mo
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
+        
     ext = os.path.splitext(file.filename)[1] or ".jpg"
     unique_filename = f"{uuid.uuid4()}{ext}"
     file_location = os.path.join(RADIO_DIR, unique_filename)
@@ -36,7 +43,7 @@ async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Sessio
     try:
         service = CephaloService(db)
         result = service.process_new_radio(patient_id, file_location, db_path)
-        result["file_url"] = f"http://localhost:8000/{db_path}"
+        result["file_url"] = f"{os.getenv("BACKEND_URL", "http://localhost:8000")}/{db_path}"
         return result
     except Exception as e:
         if os.path.exists(file_location): os.remove(file_location)
@@ -48,22 +55,33 @@ def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), curre
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
     return analysis
 
 @router.put("/analyses/{analysis_id}")
 def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
+    if not analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
     try:
         service = CephaloService(db)
         return service.refine_analysis(analysis_id=analysis_id, landmarks=req.landmarks, clinical_data=req.clinical_data, ai_diagnostic=req.ai_diagnostic, mm_per_pixel=req.mm_per_pixel, mcnamara_projections=req.mcnmara_projections.model_dump() if req.mcnmara_projections else None)
+    except HTTPException as e:
+        raise e
     except Exception as e: 
         logger.exception(f"Erreur critique lors de l'update analyse: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload-panoramic")
 async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
     
+    # Limite de taille : 10 Mo
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
+        
     PANORAMIC_DIR = os.path.join(BASE_DIR, "static", "uploads", "panoramic")
     os.makedirs(PANORAMIC_DIR, exist_ok=True)
     
@@ -98,7 +116,7 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         result = {
             "id": db_analysis.id,
             "patient_id": patient_id,
-            "file_url": f"http://localhost:8000/{db_path}",
+            "file_url": f"{os.getenv("BACKEND_URL", "http://localhost:8000")}/{db_path}",
             "vision": vision_data,
             "report_narrative": report_markdown,
             "created_at": db_analysis.created_at
@@ -114,34 +132,34 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
 @router.get("/patients/{patient_id}/panoramic-analyses", response_model=List[schemas.PanoramicAnalysisOut])
 def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Récupère l'historique des analyses panoramiques d'un patient."""
+    assert_patient_access(patient_id, current_user, db)
     analyses = db.query(models.PanoramicAnalysis).filter(
         models.PanoramicAnalysis.patient_id == patient_id
     ).order_by(models.PanoramicAnalysis.created_at.desc()).all()
     return analyses
 
 @router.post("/analyses/{analysis_id}/calibrate")
-def calibrate_analysis(analysis_id: int, req: Dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Calibrage manuel mm/pixel."""
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
+    if not analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
     try:
         service = CephaloService(db)
-        # Extraction des données du corps de la requête
-        p1 = req.get("p1")
-        p2 = req.get("p2")
-        dist_mm = req.get("distance_mm", 10.0)
         
-        if not p1 or not p2:
-            raise HTTPException(status_code=400, detail="Points de calibration manquants")
-            
         import math
-        dist_px = math.sqrt((p2['x'] - p1['x'])**2 + (p2['y'] - p1['y'])**2)
-        if dist_px == 0: raise HTTPException(status_code=400, detail="Distance nulle entre les points")
+        dist_px = math.sqrt((req.p2.x - req.p1.x)**2 + (req.p2.y - req.p1.y)**2)
+        if dist_px < 5: # On demande au moins 5 pixels de distance pour la précision
+            raise HTTPException(status_code=400, detail="Les points de calibration sont trop proches (min 5px)")
         
-        mm_per_pixel = dist_mm / dist_px
+        mm_per_pixel = req.distance_mm / dist_px
+        
+        # Validation "Métier" : Un ratio réaliste pour une radio dentaire
+        # Typiquement entre 0.05 et 0.5 mm/pixel. On est large avec [0.01, 2.0].
+        if mm_per_pixel < 0.01 or mm_per_pixel > 2.0:
+            raise HTTPException(status_code=400, detail=f"Ratio mm/pixel aberrant ({mm_per_pixel:.4f}). Verifiez vos points.")
         
         # Mise à jour de l'analyse avec le nouveau ratio
-        analysis = service.repo.get_by_id(analysis_id)
-        if not analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
-        
         analysis.mm_per_pixel = mm_per_pixel
         analysis.is_calibrated = True
         db.commit()
@@ -151,6 +169,8 @@ def calibrate_analysis(analysis_id: int, req: Dict, db: Session = Depends(databa
             "mm_per_pixel": mm_per_pixel,
             "is_calibrated": True
         }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Erreur critique lors du calibrage: {e}")
         raise HTTPException(status_code=500, detail=str(e))

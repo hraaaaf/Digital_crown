@@ -108,7 +108,9 @@ class Patient(Base):
     prenom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     date_naissance: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     sexe: Mapped[str] = mapped_column(String(10), nullable=False)
-
+    
+    # Multi-tenant : Lien vers le cabinet (Dentiste propriétaire)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     telephone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
@@ -139,6 +141,9 @@ class Appointment(Base):
     motif: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Multi-tenant
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
@@ -559,3 +564,29 @@ class Installment(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     plan: Mapped["InstallmentPlan"] = relationship(back_populates="installments")
+
+# ==============================================================================
+# --- OBSERVABILITY : AUDIT LOGS ---
+# ==============================================================================
+
+class AuditLog(Base):
+    """
+    Journal d'audit pour la tracabilite des actions sensibles.
+    """
+    __tablename__ = "audit_logs"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    employer_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    
+    action: Mapped[str] = mapped_column(String(100), index=True) # DELETE, UPDATE, LOGIN_FAIL, ACCESS_DENIED
+    resource_type: Mapped[str] = mapped_column(String(50), index=True) # Patient, Analysis, User
+    resource_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    severity: Mapped[str] = mapped_column(String(20), default="INFO") # INFO, WARNING, CRITICAL
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    user: Mapped[Optional["User"]] = relationship("User")

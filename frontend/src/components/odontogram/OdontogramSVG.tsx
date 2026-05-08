@@ -534,15 +534,10 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             exit={{ opacity: 0, y: 10 }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-gray-200 z-20 pointer-events-none"
           >
-            <p className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              Dent {hoveredTooth}
+            <p className="text-sm font-black text-primary whitespace-nowrap">
               {type === 'ADULT'
-                ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI]
-                  ? ` — ${TOOTH_NAMES[hoveredTooth as ToothNumberFDI]}`
-                  : ''
-                : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]
-                ? ` — ${PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]}`
-                : ''}
+                ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI] || `Dent ${hoveredTooth}`
+                : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber] || `Dent ${hoveredTooth}`}
             </p>
           </motion.div>
         )}

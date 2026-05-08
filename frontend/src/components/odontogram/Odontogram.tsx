@@ -7,6 +7,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Stethoscope, Save, RotateCcw, FileText, AlertCircle, X, Check, Clock, User, Baby } from 'lucide-react';
+import { cn } from '../../utils/cn';
 import { OdontogramSVG } from './OdontogramSVG';
 import type { 
   ToothTreatment, 
@@ -39,6 +40,7 @@ interface OdontogramProps {
   showLegend?: boolean;
   compact?: boolean;
   className?: string;
+  naked?: boolean;
 }
 
 interface SurfacePopoverProps {
@@ -318,6 +320,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   showLegend = true,
   compact = false,
   className = '',
+  naked = false,
 }) => {
   const [odontogramType, setOdontogramType] = useState<OdontogramType>(defaultType);
   const [teethSurfaces, setTeethSurfaces] = useState<Record<number, ToothSurfaceState>>(
@@ -470,9 +473,14 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   // Les noms des dents sont gérés dans le composant SVG
 
   return (
-    <div className={`bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden ${className}`}>
+    <div className={cn(
+      "overflow-hidden transition-all duration-500",
+      naked ? "bg-transparent shadow-none border-none" : "bg-white rounded-3xl shadow-lg border border-gray-100",
+      className
+    )}>
       {/* Header avec Toggle Adulte/Enfant */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+      {!naked && (
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
             <Stethoscope className="w-5 h-5 text-slate-600" />
@@ -536,9 +544,10 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 </button>
               )}
             </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Error */}
       <AnimatePresence>

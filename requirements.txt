@@ -6,6 +6,7 @@ python-multipart==0.0.9
 # --- Database & ORM ---
 sqlalchemy==2.0.28
 pydantic[email]==2.6.3
+pydantic-settings==2.2.1
 psycopg2-binary==2.9.9
 
 # --- AI & Vision (Stable for Win/3.12) ---

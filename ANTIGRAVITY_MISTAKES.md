@@ -78,6 +78,15 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[CORRECTION] Synonym Normalization & Activation**: 1) Unified naming (UL/Ls, LL/Li, stPog/Pog_soft) across backend and frontend. 2) Removed the interaction filter to allow manual adjustment of all 38 points.
 - **[LESSON]**: AI detection is only a starting point; the practitioner must always have the final word on landmark placement to ensure diagnostic accuracy.
 
+### 🆕 [2026-05-07] - Import JSON & Typage strict (VerbatimModuleSyntax)
+- **Erreur** : `Uncaught SyntaxError: The requested module does not provide an export named 'ClinicalProtocol'`.
+- **Cause** : Sous Vite/TypeScript avec `verbatimModuleSyntax`, l'import d'une interface doit obligatoirement utiliser `import type`. De plus, les imports JSON ne peuvent pas être directement typés à l'importation.
+- **Solution** : Utiliser `import data from './file.json'` suivi d'un cast `data as ClinicalProtocol` dans la liste exportée. Toujours utiliser `import type { ... }` pour les interfaces pures pour éviter les erreurs au runtime.
+
+### 🆕 [2026-05-07] - Expansion Elite Library
+- **Architecture** : Le système est passé de 5 à 10 protocoles. La modularisation via `ClinicalRefContent.tsx` a permis une expansion sans duplication de code UI.
+- **Règle d'or** : Toute nouvelle catégorie ajoutée dans les données JSON doit être répertoriée dans le moteur de détection de `EliteLibrary.tsx` (ex: `ORTHODONTIE`, `ESTHETIQUE`).
+
 ### 15. MICCAI 2023 Landmark Mapping Discrepancies
 - **[ERROR] Off-by-one and Name Mismatch**: The system used a generic ISBI-style mapping (S=0, N=1, Or=2, Po=3...) for the CL-Detection 2023 model, but the challenge model shifted many points (e.g., Sn moved to 15, Pronasale to 26). This caused "spaghetti" splines and inaccurate diagnostics.
 - **[CORRECTION] Definitive MICCAI 2023 Mapping**: Re-mapped all 38 points according to the official challenge table. Specifically fixed the soft-tissue sequence (Ls, Li, Sn, Pog') and the nose point (Prn).
@@ -101,4 +110,4 @@ This document lists technical and ergonomic pitfalls identified during the devel
 - **[LESSON]**: A "Ghost Elite" UI must not only look premium but must also be technically flawless. Every variable declared must have a purpose, and every component contract must be respected.
 
 ---
-*Last updated: 2026-05-05 (Session v1.7 - Digital Crown Elite)*
+*Last updated: 2026-05-07 (Session v1.8 - Clinical Library Elite Expansion)*

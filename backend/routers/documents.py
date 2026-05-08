@@ -5,12 +5,14 @@ from sqlalchemy import func, desc, and_
 from typing import List, Optional, Dict
 from datetime import date, datetime
 import os
+import pathlib
 import time
 import json
 import logging
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
 from backend.services.generators.report_gen import ReportGenerator
@@ -37,8 +39,8 @@ def _extract_amount_from_clinical_data(clinical_data: dict) -> float:
 
 @router.post("/generate")
 async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(req.patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
     
     user_id = current_user.id
     try:
@@ -97,6 +99,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
 async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file: UploadFile = File(...), title: Optional[str] = None, on_conflict: schemas.ConflictResolution = schemas.ConflictResolution.CREATE_VERSION, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     content = await file.read()
     archive_service = get_archive_service(db)
     doc, is_new = archive_service.archive_document(patient_id=patient_id, file_content=content, filename=file.filename, doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict)
@@ -104,44 +107,82 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
 
 @router.get("/", response_model=schemas.DocumentListResponse)
 def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.DocumentType] = None, search: Optional[str] = None, page: int = 1, page_size: int = 20, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if patient_id:
+        assert_patient_access(patient_id, current_user, db)
+    
     archive_service = get_archive_service(db)
-    docs, total = archive_service.search_documents(patient_id=patient_id, doc_type=doc_type, search_query=search, page=page, page_size=page_size)
+    docs, total = archive_service.search_documents(
+        patient_id=patient_id, 
+        doc_type=doc_type, 
+        search_query=search, 
+        page=page, 
+        page_size=page_size,
+        employer_id=current_user.get_employer_id()
+    )
     return {"total": total, "page": page, "page_size": page_size, "documents": docs}
 
 @router.get("/{document_id}/download")
 def download_document(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     if str(document_id).startswith("legacy:"):
         parts = str(document_id).split(":")
-        patient = db.query(models.Patient).filter(models.Patient.id == int(parts[1])).first()
+        patient_id = int(parts[1])
+        assert_patient_access(patient_id, current_user, db)
+        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
         folder = f"{patient.id}_{patient.nom.upper()}_{patient.prenom.capitalize()}"
-        file_path = os.path.join(BASE_DIR, "static", "patients", folder, "Documents", parts[2])
-        return FileResponse(path=file_path, filename=parts[2])
+        filename = os.path.basename(parts[2])
+        safe_root = pathlib.Path(BASE_DIR, "static", "patients", folder, "Documents").resolve()
+        file_path = (safe_root / filename).resolve()
+        if not str(file_path).startswith(str(safe_root)):
+            raise HTTPException(status_code=400, detail="Chemin de fichier invalide")
+        return FileResponse(path=str(file_path), filename=filename)
+    
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    assert_patient_access(doc.patient_id, current_user, db)
     return FileResponse(path=doc.file_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    doc_id = int(document_id)
+    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+    if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    assert_patient_access(doc.patient_id, current_user, db)
+    
     archive_service = get_archive_service(db)
-    doc = archive_service.move_to_trash(int(document_id))
+    doc = archive_service.move_to_trash(doc_id)
     return {"message": "Mis à la corbeille", "id": doc.id}
 
 @router.post("/{document_id}/restore")
 def restore_from_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    doc_id = int(document_id)
+    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+    if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    assert_patient_access(doc.patient_id, current_user, db)
+    
     archive_service = get_archive_service(db)
-    doc = archive_service.restore_from_trash(int(document_id))
+    doc = archive_service.restore_from_trash(doc_id)
     return {"message": "Restauré", "id": doc.id}
 
 @router.delete("/{document_id}")
 def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     if not confirm: raise HTTPException(status_code=400, detail="Confirmation requise")
+    doc_id = int(document_id)
+    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+    if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    assert_patient_access(doc.patient_id, current_user, db)
+    
     archive_service = get_archive_service(db)
-    if archive_service.permanent_delete(int(document_id)): return {"status": "deleted"}
+    if archive_service.permanent_delete(doc_id): return {"status": "deleted"}
     raise HTTPException(status_code=500, detail="Erreur suppression")
 
 @router.get("/accounting/honoraires", response_model=schemas.HonoraireListResponse)
 def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    query = db.query(models.DocumentArchive).join(models.Patient).filter(models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES, models.DocumentArchive.status == models.DocumentStatus.ACTIF)
+    user_employer_id = current_user.get_employer_id()
+    query = db.query(models.DocumentArchive).join(models.Patient).filter(
+        models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES, 
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        models.Patient.employer_id == user_employer_id
+    )
     if patient_id: query = query.filter(models.DocumentArchive.patient_id == patient_id)
     if assurance: query = query.filter(models.Patient.assurance == assurance)
     if year: query = query.filter(func.extract('year', models.DocumentArchive.created_at) == year)
@@ -164,15 +205,16 @@ def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[
 
 @router.get("/stats/dashboard")
 def get_document_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    total_docs = db.query(models.DocumentArchive).count()
-    total_size = db.query(func.sum(models.DocumentArchive.file_size)).scalar() or 0
-    by_type = db.query(models.DocumentArchive.document_type, func.count(models.DocumentArchive.id)).group_by(models.DocumentArchive.document_type).all()
+    user_employer_id = current_user.get_employer_id()
+    total_docs = db.query(models.DocumentArchive).join(models.Patient).filter(models.Patient.employer_id == user_employer_id).count()
+    total_size = db.query(func.sum(models.DocumentArchive.file_size)).join(models.Patient).filter(models.Patient.employer_id == user_employer_id).scalar() or 0
+    by_type = db.query(models.DocumentArchive.document_type, func.count(models.DocumentArchive.id)).join(models.Patient).filter(models.Patient.employer_id == user_employer_id).group_by(models.DocumentArchive.document_type).all()
     return {"total_documents": total_docs, "total_size_mb": round(total_size / (1024*1024), 2), "by_type": {t.value: c for t, c in by_type}}
 
 @router.post("/patients/{patient_id}/report")
 def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
     last_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.id.desc()).first()
     if not last_analysis: raise HTTPException(status_code=404, detail="Aucune analyse")
     

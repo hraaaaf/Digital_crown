@@ -69,7 +69,7 @@ class OrdonnanceGenerator:
         )
 
         header_content = [[
-            Paragraph(f"{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans", patient_style),
+            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style),
             Paragraph(f"Le : <u>{current_date}</u>", style_right),
         ]]
 
@@ -106,7 +106,7 @@ class OrdonnanceGenerator:
 
         elements = [
             Spacer(1, 0.4 * cm),
-            Paragraph("<u>ORDONNANCE</u>", title_style),
+            Paragraph("<u><b>ORDONNANCE</b></u>", title_style),
             Spacer(1, 0.6 * cm),
             self._create_header(patient, data, p_color, config),
             Spacer(1, 1.2 * cm),
@@ -203,7 +203,8 @@ class OrdonnanceGenerator:
             )
             elements.append(Paragraph("Aucun médicament prescrit.", empty_style))
 
-        m_top = (config.margin_top if config else 3.6) * cm
+        # Forçage d'une marge supérieure minimale (v4.6)
+        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
         doc = SimpleDocTemplate(

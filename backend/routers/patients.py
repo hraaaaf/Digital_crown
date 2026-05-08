@@ -7,6 +7,7 @@ import os
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Patients"])
 
@@ -51,7 +52,10 @@ def check_dossier_availability(numero: str, db: Session = Depends(database.get_d
 
 @router.get("/", response_model=List[schemas.PatientOut])
 def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.Patient).offset(skip).limit(limit).all()
+    user_employer_id = current_user.get_employer_id()
+    return db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id).offset(skip).limit(limit).all()
+
+from backend.services.audit_service import audit_service
 
 @router.post("/", response_model=schemas.PatientOut)
 def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -62,27 +66,43 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     patient_data = patient.model_dump() if hasattr(patient, 'model_dump') else patient.dict()
     patient_data['nom'] = patient_data['nom'].upper().strip()
     patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
+    
+    employer_id = current_user.get_employer_id()
+    patient_data['employer_id'] = employer_id
+    
     if not patient_data.get('numero_dossier'):
         patient_data['numero_dossier'] = generate_next_dossier_number(db)
     
     db_patient = models.Patient(**patient_data)
     db.add(db_patient); db.flush()
     db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=False))
+    
+    # Audit log
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="CREATE",
+        resource_type="Patient",
+        resource_id=str(db_patient.id),
+        details=f"Creation du patient {db_patient.nom} {db_patient.prenom} (Dossier: {db_patient.numero_dossier})"
+    )
+    
     db.commit(); db.refresh(db_patient)
     return db_patient
 
 @router.get("/{patient_id}", response_model=schemas.PatientOut)
 def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
     return patient
 
 # --- CLINICAL INTELLIGENCE ---
 
 @router.get("/{patient_id}/documents")
 def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: raise HTTPException(status_code=404, detail="Patient introuvable")
 
     # 1. BDD
     docs = db.query(models.DocumentArchive).filter(
@@ -117,6 +137,7 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 
 @router.get("/{patient_id}/appointment-intel")
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     # Logique originale restaurée
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
     return {
@@ -127,6 +148,7 @@ def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), c
 
 @router.get("/{patient_id}/analyses", response_model=List[schemas.CephaloAnalysisOut])
 def get_patient_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     return db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).all()
 
 # --- CLINICAL INTELLIGENCE V2.0 ---
@@ -134,20 +156,21 @@ def get_patient_analyses(patient_id: int, db: Session = Depends(database.get_db)
 @router.get("/{patient_id}/ai-summary")
 def get_patient_ai_summary(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Module 2 — Résumé Flash Patient (P0)."""
+    assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_patient_summary(db, patient_id)
 
 @router.get("/{patient_id}/ai-diagnostic")
 def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """Module 3 — Panneau Conseil Clinique (P2)."""
+    assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
     db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not db_patient:
-        raise HTTPException(status_code=404, detail="Patient introuvable")
     
     update_data = patient_update.model_dump(exclude_unset=True) if hasattr(patient_update, 'model_dump') else patient_update.dict(exclude_unset=True)
     
@@ -170,6 +193,17 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
     for key, value in update_data.items():
         setattr(db_patient, key, value)
     
+    # Audit log
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="UPDATE",
+        resource_type="Patient",
+        resource_id=str(patient_id),
+        details=f"Mise a jour des donnees du patient {patient_id}. Champs modifies: {list(update_data.keys())}"
+    )
+    
     db.commit()
     db.refresh(db_patient)
     return db_patient
@@ -187,9 +221,8 @@ def generate_cephalo_pdf(
     from backend.routers.documents import doc_factory
     from fastapi.responses import FileResponse
     
+    assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient: 
-        raise HTTPException(status_code=404, detail="Patient introuvable")
     
     last_analysis = db.query(models.CephaloAnalysis).filter(
         models.CephaloAnalysis.patient_id == patient_id

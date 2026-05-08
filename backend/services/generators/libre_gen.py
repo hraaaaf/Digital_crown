@@ -92,7 +92,7 @@ class LibreGenerator:
         else:
             # Mode standard : Nom, Âge, Dossier
             age = self._calculate_age(patient.date_naissance)
-            left_content = Paragraph(f"Nom : {patient.nom.upper()} {patient.prenom.capitalize()}<br/>Âge : {age} ans", patient_style)
+            left_content = Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.upper()}</b><br/>Âge : {age} ans", patient_style)
 
         header_content = [
             [
@@ -170,7 +170,8 @@ class LibreGenerator:
         page_format = getattr(data, 'page_size', 'A5').upper()
         page_size = A4 if page_format == 'A4' else A5
 
-        m_top = (config.margin_top if config else 3.6) * cm
+        # Forçage d'une marge supérieure minimale (v4.6)
+        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         
         doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)

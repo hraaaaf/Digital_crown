@@ -34,6 +34,11 @@ Le projet Digital Crown est maintenu par une équipe d'agents IA spécialisés, 
 - **Spécialité** : Technical writing, Markdown synchronization.
 - **Mission** : Tenir à jour la Roadmap, les Specs et le Journal des Erreurs. Il assure qu'aucune régression fonctionnelle ou ergonomique (ex: contrastes) ne soit oubliée.
 
+### ✍️ Scriptor
+**Rôle** : Clinical Copywriter & Protocol Designer
+- **Spécialité** : Rédaction médicale, protocoles de soins, standardisation Elite.
+- **Mission** : Concevoir des modèles de prescriptions et de documents qui "tiennent la route". Il assure que chaque mot utilisé reflète le prestige et le sérieux de la pratique clinique.
+
 ---
 
 ### 🚀 Flux de Travail Team AI

@@ -6,6 +6,7 @@ from datetime import datetime
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Appointments"])
 
@@ -16,7 +17,8 @@ def get_appointments(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    query = db.query(models.Appointment)
+    user_employer_id = current_user.get_employer_id()
+    query = db.query(models.Appointment).filter(models.Appointment.employer_id == user_employer_id)
     if start_date:
         query = query.filter(models.Appointment.datetime_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00")))
     if end_date:
@@ -29,7 +31,12 @@ def create_appointment(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    db_appt = models.Appointment(**appt.model_dump())
+    if appt.patient_id:
+        assert_patient_access(appt.patient_id, current_user, db)
+        
+    appt_data = appt.model_dump()
+    appt_data['employer_id'] = current_user.get_employer_id()
+    db_appt = models.Appointment(**appt_data)
     db.add(db_appt)
     db.commit()
     db.refresh(db_appt)
@@ -42,7 +49,11 @@ def update_appointment(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    db_appt = db.query(models.Appointment).filter(models.Appointment.id == id).first()
+    user_employer_id = current_user.get_employer_id()
+    db_appt = db.query(models.Appointment).filter(
+        models.Appointment.id == id,
+        models.Appointment.employer_id == user_employer_id
+    ).first()
     if not db_appt: raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     
     update_data = appt_update.model_dump(exclude_unset=True)
@@ -55,7 +66,11 @@ def update_appointment(
 
 @router.delete("/{id}")
 def delete_appointment(id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    db_appt = db.query(models.Appointment).filter(models.Appointment.id == id).first()
+    user_employer_id = current_user.get_employer_id()
+    db_appt = db.query(models.Appointment).filter(
+        models.Appointment.id == id,
+        models.Appointment.employer_id == user_employer_id
+    ).first()
     if not db_appt: raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     db.delete(db_appt)
     db.commit()
@@ -68,14 +83,19 @@ def create_bulk_appointments(
     current_user: models.User = Depends(get_current_user)
 ):
     created_appts = []
+    user_employer_id = current_user.get_employer_id()
     for item in payload.appointments:
+        if item.patient_id:
+            assert_patient_access(item.patient_id, current_user, db)
+            
         db_appt = models.Appointment(
             patient_name=item.patient_name,
             patient_id=item.patient_id,
             datetime_start=item.datetime_start,
             duration_minutes=item.duration_minutes,
             notes=item.notes,
-            status=item.status
+            status=item.status,
+            employer_id=user_employer_id
         )
         db.add(db_appt)
         created_appts.append(db_appt)

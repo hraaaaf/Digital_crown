@@ -70,8 +70,8 @@ class CertificatGenerator:
         )
 
         header_content = [[
-            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b><br/>Âge : {age} ans", patient_style),
-            Paragraph(f"Fait le : <b>{current_date}</b>", style_right),
+            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style),
+            Paragraph(f"Le : <u>{current_date}</u>", style_right),
         ]]
 
         header_table = Table(header_content, colWidths=[7.5 * cm, 4.3 * cm])
@@ -107,41 +107,86 @@ class CertificatGenerator:
         )
 
         elements = [
-            Spacer(1, 0.6 * cm),
-            Paragraph("CERTIFICAT MÉDICAL", title_style),
+            # Offset initial réduit pour un meilleur équilibre vertical (v4.0)
+            Spacer(1, 0.4 * cm),
+            Paragraph("<u><b>CERTIFICAT MEDICAL</b></u>", title_style),
             Spacer(1, 1.0 * cm),
             self._create_header(patient, data, p_color, config),
             Spacer(1, 1.8 * cm),
         ]
 
         age = self._calculate_age(patient.date_naissance)
-        gender = getattr(patient, 'genre', 'M') # Harmonisation avec schema
-        hon = "Monsieur" if gender in ["Homme", "Garçon", "M"] else "Madame"
+        is_minor = age < 16
+        gender = getattr(patient, 'genre', 'M')
+        is_male = gender in ["Homme", "Garçon", "M"]
+        
+        # Honorifiques Pédiatriques vs Adultes
+        if is_minor:
+            hon = "l'enfant"
+            pres = "présent" if is_male else "présente"
+            int_ = "l'intéressé(e)" # Pour les mineurs on peut rester neutre ou accorder
+            work_term = "scolaire"
+            reprise_term = "une reprise des cours"
+        else:
+            hon = "Monsieur" if is_male else "Madame"
+            pres = "présent" if is_male else "présente"
+            int_ = "l'intéressé" if is_male else "l'intéressée"
+            work_term = "professionnelle"
+            reprise_term = "une reprise de travail"
+        
+        # Déterminer la spécialité (Ortho vs Dentaire)
+        is_ortho = False
+        if hasattr(patient, 'dossier') and patient.dossier:
+            is_ortho = patient.dossier.is_ortho_active
 
         # Phrasage Elite dynamique selon le choix du praticien
         reason = (getattr(data, 'reason', "Repos médical") or "Repos médical").strip()
         days = getattr(data, 'days', 1)
         observations = getattr(data, 'observations', '').strip()
-        
-        # Mapping intelligent du motif pour un phrasage fluide
-        phrase_motif = f"un repos médical de <b>{days} jours</b>"
-        
         reason_lower = reason.lower()
+        dr_name = config.nom_praticien if config and config.nom_praticien else "BENMOUSSA Achraf"
+        nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
+        
+        # Initialisation par défaut
+        certif_text = ""
+        
         if "post-opératoire" in reason_lower:
-            phrase_motif = f"un <b>repos post-opératoire</b> de <b>{days} jours</b>"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b> nécessite un <b>repos {work_term} de {days} jours</b> à compter de ce jour, "
+                f"suite à une intervention chirurgicale buccale.<br/><br/>"
+            )
+        elif "intervention" in reason_lower:
+            spec = "orthodontique" if is_ortho else "dentaire"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b> nécessite des <b>soins de suite d'intervention</b> "
+                f"{spec} pour une période de <b>{days} jours</b>.<br/><br/>"
+            )
         elif "présence" in reason_lower:
-            phrase_motif = "une <b>dispense de présence</b>"
+            spec = "orthodontiques" if is_ortho else "dentaires"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> a été "
+                f"<b>{pres} au cabinet</b> ce jour pour recevoir des soins {spec} professionnels.<br/><br/>"
+            )
         elif "aptitude" in reason_lower:
-            phrase_motif = "une <b>aptitude clinique</b>"
+            spec = "vie scolaire" if is_minor else "traitement/activité"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que {hon} <b>{nom_complet}</b> "
+                f"nécessite une <b>aptitude clinique</b> pour la poursuite de sa {spec} suite à l'examen réalisé ce jour.<br/><br/>"
+            )
         elif "reprise" in reason_lower:
-            phrase_motif = "une <b>reprise de travail</b>"
-        elif "accompagnement" in reason_lower:
-            phrase_motif = "un <b>accompagnement médical</b>"
-        elif "acte" in reason_lower:
-            phrase_motif = "un repos médical <b>suite à l'acte réalisé</b>"
-        elif reason != "Repos médical":
-            # Si c'est un motif libre non listé
-            phrase_motif = f"un repos médical pour : <b>{reason}</b>"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> est en état "
+                f"d'assurer <b>{reprise_term}</b> suite à l'acte professionnel réalisé ce jour.<br/><br/>"
+            )
+        else:
+            phrase_motif = f"<b>{reason}</b>" if reason else "un repos médical"
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b> nécessite {phrase_motif} "
+                f"pour une durée de <b>{days} jours</b>.<br/><br/>"
+            )
 
         body_style = ParagraphStyle(
             name='CertifBody',
@@ -153,35 +198,16 @@ class CertificatGenerator:
             leading=18,
         )
 
-        dr_name = config.nom_praticien if config and config.nom_praticien else "Saninova"
-        nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
-        
-        certif_text = (
-            f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-            f"{hon} <b>{nom_complet}</b> nécessite {phrase_motif} "
-            f"<b>suite à l'acte professionnel réalisé ce jour</b>.<br/><br/>"
-        )
-        
         if observations:
             certif_text += f"<b>Observations :</b> {observations}<br/><br/>"
             
-        certif_text += f"Ce certificat est délivré à l'intéressé(e) pour servir et faire valoir ce que de droit."
+        certif_text += f"Ce certificat est délivré à {int_} pour servir et faire valoir ce que de droit."
         
         elements.append(Paragraph(certif_text, body_style))
         elements.append(Spacer(1, 2.5 * cm))
 
-        # Bloc Signature Elite
-        sig_style = ParagraphStyle(
-            'Signature',
-            parent=self.styles['Normal'],
-            alignment=TA_RIGHT,
-            textColor=p_color,
-            fontName=font_bold,
-            fontSize=10
-        )
-        elements.append(Paragraph(f"Signature du Dr. {dr_name}", sig_style))
-
-        m_top = (config.margin_top if config else 3.6) * cm
+        # Forçage d'une marge supérieure minimale calibrée sur la référence (5.5cm + 0.4cm spacer = 5.9cm)
+        m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
         doc = SimpleDocTemplate(

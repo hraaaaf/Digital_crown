@@ -146,7 +146,7 @@ class PrescriptionService:
         # 1. Médicaments favoris
         med_habits = db.query(models.DoctorMedicationHabit.medication_name).filter(
             models.DoctorMedicationHabit.doctor_id == doctor_id,
-            models.DoctorMedicationHabit.medication_name.ilike(f"{query}%")
+            models.DoctorMedicationHabit.medication_name.ilike(f"%{query}%")
         ).group_by(models.DoctorMedicationHabit.medication_name).order_by(func.sum(models.DoctorMedicationHabit.usage_count).desc()).limit(10).all()
         
         meds = [m[0] for m in med_habits]
@@ -154,9 +154,9 @@ class PrescriptionService:
         # Compléter avec la base globale si besoin
         if len(meds) < 5:
             global_meds = db.query(models.Medication.nom).filter(
-                models.Medication.nom.ilike(f"{query}%"),
+                models.Medication.nom.ilike(f"%{query}%"),
                 ~models.Medication.nom.in_(meds)
-            ).order_by(models.Medication.usage_count.desc()).limit(5).all()
+            ).order_by(models.Medication.usage_count.desc()).limit(10).all()
             meds.extend([m[0] for m in global_meds])
 
         return {
@@ -168,8 +168,11 @@ class PrescriptionService:
     def get_medication_details(self, db: Session, doctor_id: int, med_name: str) -> Dict[str, List[str]]:
         """
         Récupère les dosages et posologies habituels pour un médicament donné.
+        Fallback sur le dictionnaire global si pas d'habitudes.
         """
         med_name = med_name.strip().upper()
+        
+        # 1. Rechercher dans les habitudes
         habits = db.query(models.DoctorMedicationHabit).filter(
             models.DoctorMedicationHabit.doctor_id == doctor_id,
             models.DoctorMedicationHabit.medication_name == med_name
@@ -177,6 +180,15 @@ class PrescriptionService:
         
         dosages = list(set([h.dosage for h in habits if h.dosage]))
         posologies = list(set([h.posologie for h in habits if h.posologie]))
+        
+        # 2. Si vide, chercher dans le dictionnaire global
+        if not dosages:
+            global_meds = db.query(models.Medication).filter(
+                models.Medication.nom == med_name
+            ).all()
+            dosages = list(set([m.dosage for m in global_meds if m.dosage]))
+            # Si on n'a pas encore de posologie habituelle pour ce méd, on laisse vide 
+            # ou on pourrait suggérer une posologie par défaut si elle existait en BDD.
         
         return {
             "dosages": dosages[:5],

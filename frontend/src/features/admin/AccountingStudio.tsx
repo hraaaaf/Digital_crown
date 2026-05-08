@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { 
   Calculator, 
   Plus, 
@@ -219,141 +220,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
       </div>
 
-      {/* 2. LISTE DES SOINS */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Détail des actes</h3>
-          <button
-            onClick={addEmptyRow}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/20 transition-all"
-            style={{ color: 'var(--primary)' }}
-          >
-            <Plus size={14} /> Ajouter un acte
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="group flex items-center gap-4 bg-white/50 hover:bg-white backdrop-blur-sm p-5 rounded-[2rem] border border-white/60 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300"
-              >
-                <div className="w-10 h-10 bg-slate-100/50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-all font-black text-xs">
-                  {idx + 1}
-                </div>
-                <div className="flex-1 relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-primary transition-colors">
-                    <Search size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    className={cn(inputClass, "pl-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 transition-colors")}
-                    value={item.description}
-                    onChange={(e) => {
-                      const isLast = idx === items.length - 1;
-                      const wasEmpty = !item.description.trim();
-                      handleActSearch(e.target.value, item.id);
-                      if (isLast && wasEmpty && e.target.value.trim()) addEmptyRow();
-                    }}
-                    onBlur={() => setTimeout(() => setActiveActSearchId(null), 150)}
-                    placeholder="Désignation du soin..."
-                  />
-                  {activeActSearchId === item.id && actSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[1.5rem] shadow-2xl mt-3 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                      {actSuggestions.map((act) => (
-                        <button
-                          key={act.id}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => applyActSuggestion(item.id, act)}
-                          className="w-full text-left px-6 py-4 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/suggest"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-black text-sm group-hover/suggest:text-primary transition-colors">{act.name}</span>
-                            <span className="text-[8px] font-black uppercase text-slate-300 tracking-widest">{act.category}</span>
-                          </div>
-                          <span className="text-sm font-black" style={{ color: 'var(--primary)' }}>{act.base_price} MAD</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="w-24">
-                  <input
-                    type="text"
-                    className={cn(inputClass, "text-center px-2 border-transparent bg-transparent shadow-none hover:bg-slate-50/50")}
-                    value={item.dent}
-                    onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
-                    placeholder="Dent"
-                  />
-                </div>
-                <div className="w-36 relative">
-                  <input
-                    type="number"
-                    className={cn(inputClass, "text-right pr-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 text-primary")}
-                    style={{ color: 'var(--primary)' }}
-                    value={item.price}
-                    onChange={(e) => updateItem(item.id, 'price', e.target.value)}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">MAD</span>
-                </div>
-                
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={() => setActiveGuideAct(item.description)}
-                    className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-                    title="Guide Clinique"
-                  >
-                    <Brain size={18} />
-                  </button>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* 2.5 MODE DE RÈGLEMENT (Intégré) */}
-      {!isDevis && (
-        <div className="p-6 bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
-              <Banknote size={18} />
-            </div>
-            <div>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Règlement</span>
-              <span className="text-xs font-black text-slate-700">Mode de paiement principal</span>
-            </div>
-          </div>
-          <div className="flex bg-slate-200/50 p-1 rounded-xl gap-1">
-            {['Espèces', 'Chèque', 'TPE', 'Virement'].map(m => (
-              <button
-                key={m}
-                onClick={() => setPaymentMode(m as any)}
-                className={cn(
-                  "px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                  paymentMode === m ? "bg-white shadow-md text-primary" : "text-slate-400 hover:text-slate-600"
-                )}
-                style={paymentMode === m ? { color: 'var(--primary)' } : {}}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 3. ASSISTANT CLINIQUE (Compact & Harmonisé) */}
+      {/* 2. ASSISTANT CLINIQUE (Sélecteur de Dents) */}
       {showOdontoPanoramique && (
         <motion.div 
           layout
@@ -368,7 +235,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                 <Calculator size={16} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest block text-slate-500">
-                {odontogramMode === 'ortho' ? 'Configuration Orthodontique' : 'Sélecteur de Dents'}
+                {odontogramMode === 'ortho' ? 'Configuration Globale' : 'Sélecteur de Dents / Odontogramme'}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -400,7 +267,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                       )}
                       style={odontogramMode === mode ? { color: 'var(--primary)' } : {}}
                     >
-                      {mode === 'individual' ? 'Unitaire' : mode === 'group' ? 'Bridge' : 'Ortho'}
+                      {mode === 'individual' ? 'Unitaire' : mode === 'group' ? 'Multi-Dents' : 'Global'}
                     </button>
                   ))}
                 </div>
@@ -451,37 +318,81 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex justify-center animate-in fade-in zoom-in-95 duration-700">
-                    <div className="w-full max-w-[420px] transform scale-90 origin-top transition-transform duration-500">
-                      {odontogramMode === 'individual' ? (
+                  <div className="animate-in fade-in zoom-in-95 duration-500 max-w-xl mx-auto">
+                    {odontogramMode === 'individual' ? (
+                      <div className="transform scale-90 origin-top transition-transform duration-500">
                         <Odontogram 
                           patientId={parseInt(patientId, 10)} 
-                          mode="SELECT_FOR_DOCUMENT" 
-                          onChange={(teeth) => {
-                            handleTeethFromOdontogram(teeth);
-                            if (teeth.length > 0) setIsOdontoOpen(false);
-                          }} 
-                          compact={true} 
+                          mode="SELECT_FOR_DOCUMENT"
+                          onChange={handleTeethFromOdontogram}
+                          compact={true}
+                          naked={true}
                         />
-                      ) : (
-                        <div className="space-y-6">
-                           <OdontogramSVG 
-                             type="ADULT" 
-                             teethSurfaces={{}}
-                             selectedTooth={null}
-                             selectedSurface={null}
-                             onSurfaceClick={() => {}}
-                             multiSelectedTeeth={groupSelectedTeeth} 
-                             onToothDirectClick={handleToothDirectClick} 
-                           />
-                           <div className="flex justify-center gap-2">
-                             {['maxillaire', 'mandibule', 'none'].map(g => (
-                               <button key={g} onClick={() => selectTeethGroup(g as any)} className="px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border border-slate-100 bg-white hover:bg-slate-50 transition-all">{g}</button>
-                             ))}
-                           </div>
+                      </div>
+                    ) : (
+                      <div className="animate-in fade-in duration-500">
+                        <div className="transform scale-90 origin-top transition-transform duration-500">
+                          <OdontogramSVG 
+                            type="ADULT" 
+                            teethSurfaces={{}}
+                            selectedTooth={null}
+                            selectedSurface={null}
+                            onSurfaceClick={() => {}}
+                            multiSelectedTeeth={groupSelectedTeeth} 
+                            onToothDirectClick={handleToothDirectClick} 
+                            showNumbers={false}
+                          />
                         </div>
-                      )}
-                    </div>
+                        <div className="flex justify-center gap-2 mt-[-60px] pb-6">
+                          {(['maxillaire', 'mandibule', 'none'] as const).map(g => (
+                            <button 
+                              key={g} 
+                              onClick={() => selectTeethGroup(g)} 
+                              className="px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm hover:shadow-md hover:text-primary transition-all text-slate-400"
+                            >
+                              {g === 'none' ? 'Effacer' : g}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                     )}
+                    {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 p-5 bg-white/80 rounded-2xl border border-primary/20 shadow-xl shadow-primary/5 flex flex-col lg:flex-row items-center gap-4"
+                      >
+                        <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <input 
+                            type="text" 
+                            className={cn(inputClass, "py-3 text-xs")} 
+                            placeholder="Acte pour ce groupe..." 
+                            value={groupTreatmentName}
+                            onChange={(e) => setGroupTreatmentName(e.target.value)}
+                          />
+                          <div className="relative">
+                            <input 
+                              type="number" 
+                              className={cn(inputClass, "py-3 text-xs pr-12 font-black text-primary")} 
+                              style={{ color: 'var(--primary)' }}
+                              placeholder="Prix total..." 
+                              value={groupTreatmentPrice}
+                              onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300 uppercase">MAD</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            applyGroupTreatment();
+                            setIsOdontoOpen(false);
+                          }}
+                          className="w-full lg:w-auto px-8 py-3.5 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                        >
+                          Appliquer au groupe
+                        </button>
+                      </motion.div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -489,6 +400,153 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
           </AnimatePresence>
         </motion.div>
       )}
+
+      {/* 2. LISTE DES SOINS */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Détail des actes</h3>
+          <button
+            onClick={addEmptyRow}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/20 transition-all"
+            style={{ color: 'var(--primary)' }}
+          >
+            <Plus size={14} /> Ajouter un acte
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {items.map((item, idx) => (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="group flex items-center gap-4 bg-white/50 hover:bg-white backdrop-blur-sm p-5 rounded-[2rem] border border-white/60 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300"
+              >
+                <div className="w-10 h-10 bg-slate-100/50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-all font-black text-xs">
+                  {idx + 1}
+                </div>
+                <div className="flex-1 relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-primary transition-colors">
+                    <Search size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    className={cn(inputClass, "pl-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 transition-colors")}
+                    value={item.description}
+                    onChange={(e) => {
+                      const isLast = idx === items.length - 1;
+                      const wasEmpty = !item.description.trim();
+                      handleActSearch(e.target.value, item.id);
+                      
+                      // Smart Add: Only add if last, previously empty, now filled, AND no empty row follows
+                      const hasNextEmpty = items[idx + 1] && !items[idx + 1].description.trim();
+                      if (isLast && wasEmpty && e.target.value.trim() && !hasNextEmpty) {
+                        addEmptyRow();
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setActiveActSearchId(null), 150)}
+                    placeholder="Désignation du soin..."
+                  />
+                  {activeActSearchId === item.id && actSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[1.5rem] shadow-2xl mt-3 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      {actSuggestions.map((act) => (
+                        <button
+                          key={act.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => applyActSuggestion(item.id, act)}
+                          className="w-full text-left px-6 py-4 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/suggest"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-black text-sm group-hover/suggest:text-primary transition-colors">{act.name}</span>
+                            <span className="text-[8px] font-black uppercase text-slate-300 tracking-widest">{act.category}</span>
+                          </div>
+                          <span className="text-sm font-black" style={{ color: 'var(--primary)' }}>{act.base_price} MAD</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="w-24">
+                  <input
+                    type="text"
+                    className={cn(inputClass, "text-center px-2 border-transparent bg-transparent shadow-none hover:bg-slate-50/50")}
+                    value={item.dent}
+                    onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
+                    placeholder="Dent"
+                  />
+                </div>
+                <div className="w-36 relative">
+                  <input
+                    type="number"
+                    className={cn(inputClass, "text-right pr-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 text-primary")}
+                    style={{ color: 'var(--primary)' }}
+                    value={item.price}
+                    onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">MAD</span>
+                </div>
+                
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={() => {
+                      if (!item.description.trim()) {
+                        toast.error("Veuillez saisir un acte pour consulter le guide.");
+                        return;
+                      }
+                      setActiveGuideAct(item.description);
+                      toast.success(`Chargement du guide : ${item.description.substring(0, 20)}...`, { icon: '🧠', duration: 2000 });
+                    }}
+                    className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group/brain relative"
+                    title="Guide Clinique IA"
+                  >
+                    <Brain size={18} className={cn(activeGuideAct === item.description ? "text-primary animate-pulse" : "")} />
+                  </button>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* 2.5 MODE DE RÈGLEMENT (Intégré) */}
+      {!isDevis && (
+        <div className="p-6 bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
+              <Banknote size={18} />
+            </div>
+            <div>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Règlement</span>
+              <span className="text-xs font-black text-slate-700">Mode de paiement principal</span>
+            </div>
+          </div>
+          <div className="flex bg-slate-200/50 p-1 rounded-xl gap-1">
+            {['Espèces', 'Chèque', 'TPE', 'Virement'].map(m => (
+              <button
+                key={m}
+                onClick={() => setPaymentMode(m as any)}
+                className={cn(
+                  "px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                  paymentMode === m ? "bg-white shadow-md text-primary" : "text-slate-400 hover:text-slate-600"
+                )}
+                style={paymentMode === m ? { color: 'var(--primary)' } : {}}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {protocol && (
         <ClinicalRefSidebar 

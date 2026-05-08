@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 
 from backend import models, database
 from backend.seed_templates import run_full_seed
+from backend.seed_user import seed_admin_user
 from backend.services.panoramic_service import panoramic_engine
 
 # --- CONFIGURATION LOGGING ---
@@ -23,18 +24,21 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 # --- LIFESPAN ---
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🚀 Démarrage de Digital Crown API...")
+    logger.info("Demarrage de Digital Crown API...")
     try:
         models.Base.metadata.create_all(bind=database.engine)
         with database.SessionLocal() as db:
             run_full_seed(db)
         
+        # S'assure que l'admin par defaut existe
+        seed_admin_user()
+        
         # Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
     except Exception as e:
-        logger.error(f"❌ Erreur Initialisation : {e}")
+        logger.error(f"Erreur Initialisation : {e}")
     yield
-    logger.info("🛑 Arrêt de l'API...")
+    logger.info("Arret de l'API...")
 
 app = FastAPI(
     title="Digital Crown API - SANINOVA Edition",
@@ -45,7 +49,7 @@ app = FastAPI(
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"❌ Validation Error: {exc.errors()}")
+    logger.error(f"Validation Error: {str(exc.errors())}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 @app.exception_handler(HTTPException)

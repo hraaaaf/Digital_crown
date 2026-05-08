@@ -3,6 +3,8 @@ import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar,
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
+import { useClinicalRef } from '../clinical-ref/useClinicalRef';
+import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
 
 interface Patient {
   id: number;
@@ -46,6 +48,17 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [dateValue, setDateValue] = useState('');
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
+  
+  const protocol = useClinicalRef(selectedAct?.name || actSearch);
+  const [showClinicalRef, setShowClinicalRef] = useState(false);
+
+  useEffect(() => {
+    if (protocol) {
+      setShowClinicalRef(true);
+    } else {
+      setShowClinicalRef(false);
+    }
+  }, [protocol]);
 
 
   useEffect(() => {
@@ -474,6 +487,14 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
         </form>
       </div>
+
+      {protocol && (
+        <ClinicalRefSidebar 
+          protocol={protocol} 
+          isOpen={showClinicalRef} 
+          onClose={() => setShowClinicalRef(false)} 
+        />
+      )}
     </div>
   );
 };
