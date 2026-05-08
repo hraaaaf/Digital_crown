@@ -282,6 +282,11 @@ class AccountingGenerator:
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
         
+        # Ajout direct dans les éléments pour visibilité immédiate (v5.3)
+        cloture_style_normal = ParagraphStyle(name='ClotureNormal', fontName=font_bold, fontSize=11, textColor=p_color, spaceBefore=15, leading=14)
+        elements.append(Spacer(1, 0.5*cm))
+        elements.append(Paragraph(cloture, cloture_style_normal))
+        
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
         cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
@@ -364,6 +369,11 @@ class AccountingGenerator:
             template = "Arrêté le présent devis à la somme de {total_words} TTC."
             
         cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+
+        # Ajout direct dans les éléments pour visibilité immédiate (v5.3)
+        cloture_style_normal = ParagraphStyle(name='ClotureNormal', fontName=font_bold, fontSize=11, textColor=p_color, spaceBefore=15, leading=14)
+        elements.append(Spacer(1, 0.5*cm))
+        elements.append(Paragraph(cloture, cloture_style_normal))
         
         font_name = self.base_template.arabic_font
         font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
