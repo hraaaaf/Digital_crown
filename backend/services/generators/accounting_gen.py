@@ -10,24 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
-
-class PinnedCloture(Flowable):
-    """
-    Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
-    Utilise des coordonnées absolues par rapport au canvas pour rester au dessus du footer.
-    """
-    def __init__(self, text, style):
-        Flowable.__init__(self)
-        self.text = text
-        self.style = style
-
-    def draw(self):
-        p = Paragraph(self.text, self.style)
-        # Largeur utile (A5=14.8cm - 2.0cm marges = 12.8cm)
-        w, h = p.wrap(12.8 * cm, 4 * cm)
-        # On dessine à 2.7cm du bas (trait footer à 2.5cm)
-        p.drawOn(self.canv, 1.0 * cm, 2.7 * cm)
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):

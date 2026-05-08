@@ -8,7 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 
 
 class CertificatGenerator:
@@ -204,7 +204,17 @@ class CertificatGenerator:
         certif_text += f"Ce certificat est délivré à {int_} pour servir et faire valoir ce que de droit."
         
         elements.append(Paragraph(certif_text, body_style))
-        elements.append(Spacer(1, 2.5 * cm))
+
+        # Clôture ancrée en bas
+        cloture_style = ParagraphStyle(
+            name='CertifCloture', 
+            parent=self.styles['Normal'], 
+            fontName=font_bold, 
+            fontSize=10, 
+            textColor=p_color, 
+            alignment=TA_CENTER
+        )
+        elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
         # Forçage d'une marge supérieure minimale calibrée sur la référence (5.5cm + 0.4cm spacer = 5.9cm)
         m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm

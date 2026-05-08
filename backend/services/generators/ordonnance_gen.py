@@ -8,7 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 
 
 class OrdonnanceGenerator:
@@ -202,6 +202,17 @@ class OrdonnanceGenerator:
                 fontName=font_name, fontSize=10, textColor=p_color, alignment=TA_CENTER
             )
             elements.append(Paragraph("Aucun médicament prescrit.", empty_style))
+
+        # Clôture ancrée en bas (Signature)
+        cloture_style = ParagraphStyle(
+            name='OrdoCloture', 
+            parent=self.styles['Normal'], 
+            fontName=font_bold, 
+            fontSize=10, 
+            textColor=p_color, 
+            alignment=TA_CENTER
+        )
+        elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
         # Forçage d'une marge supérieure minimale (v4.6)
         m_top = (max(config.margin_top, 5.5) if config and config.margin_top else 5.5) * cm

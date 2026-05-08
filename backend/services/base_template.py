@@ -7,9 +7,27 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from backend.services.qr_service import QRService
+from reportlab.platypus import Paragraph, Flowable
 
 # --- DESIGN SYSTEM : SINGLE SOURCE OF TRUTH ---
 NAVY_BLUE = colors.HexColor('#003380')
+
+class PinnedCloture(Flowable):
+    """
+    Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
+    Utilise des coordonnées absolues par rapport au canvas pour rester au dessus du footer.
+    """
+    def __init__(self, text, style):
+        Flowable.__init__(self)
+        self.text = text
+        self.style = style
+
+    def draw(self):
+        p = Paragraph(self.text, self.style)
+        # Largeur utile (A5=14.8cm - 2.0cm marges = 12.8cm)
+        w, h = p.wrap(12.8 * cm, 4 * cm)
+        # On dessine à 2.7cm du bas (trait footer à 2.5cm)
+        p.drawOn(self.canv, 1.0 * cm, 2.7 * cm)
 
 class BaseTemplate:
     def __init__(self):

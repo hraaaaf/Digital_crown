@@ -30,6 +30,19 @@ import { Palette as PaletteIcon, Moon, Sun, Leaf, Heart } from 'lucide-react';
 
 type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
 
+interface ContactInfo {
+  enabled: boolean;
+  value: string;
+}
+
+interface ContactsJson {
+  fixe: ContactInfo;
+  mobile: ContactInfo;
+  whatsapp: ContactInfo;
+  instagram: ContactInfo;
+  [key: string]: ContactInfo;
+}
+
 interface CabinetProfile {
   nom: string;
   adresse: string;
@@ -42,7 +55,7 @@ interface CabinetProfile {
   watermark_enabled?: boolean;
   ice?: string;
   if?: string;
-  contacts_json?: any;
+  contacts_json?: ContactsJson;
   selected_theme?: string;
   primary_color?: string;
   secondary_color?: string;
@@ -76,7 +89,7 @@ export const Settings = () => {
     qr_code_color: '',
     qr_code_label: ''
   });
-  const [contacts, setContacts] = useState<any>({
+  const [contacts, setContacts] = useState<ContactsJson>({
     fixe: { enabled: true, value: '' },
     mobile: { enabled: false, value: '' },
     whatsapp: { enabled: false, value: '' },
@@ -128,15 +141,15 @@ export const Settings = () => {
           document.documentElement.style.setProperty('--accent', res.data.accent_color || '#60a5fa');
 
           if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
-            setContacts(res.data.contacts_json);
+            setContacts(res.data.contacts_json as ContactsJson);
           } else if (res.data.footer_phones) {
-            setContacts((prev: any) => ({
+            setContacts((prev) => ({
                 ...prev,
                 fixe: { enabled: true, value: res.data.footer_phones }
             }));
           }
         }
-      } catch (err) {
+      } catch {
         console.warn("Route /api/clinics/me indisponible. Mock activé.");
         setProfile({
           nom: "Centre d'Orthodontie Moderne",
@@ -229,14 +242,14 @@ export const Settings = () => {
   };
 
   const toggleContact = (type: string) => {
-    setContacts((prev: any) => ({
+    setContacts((prev) => ({
       ...prev,
       [type]: { ...prev[type], enabled: !prev[type].enabled }
     }));
   };
 
   const updateContactValue = (type: string, val: string) => {
-    setContacts((prev: any) => ({
+    setContacts((prev) => ({
       ...prev,
       [type]: { ...prev[type], value: val }
     }));
@@ -276,12 +289,31 @@ export const Settings = () => {
         </div>
 
         {/* CONTENU DES ONGLETS */}
-        <div className="flex-1 bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-[0_8px_40px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-10 min-h-[500px]">
+        <div className="flex-1 bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-[0_8px_40px_rgba(0,0,0,0.04)] rounded-[2.5rem] overflow-hidden flex flex-col min-h-[600px]">
           
-          {/* TAB 1 : PROFIL CABINET */}
-          {activeTab === 'profil' && (
-            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-              <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+          {/* HEADER D'ACTION COLLANT (Elite v4.9) */}
+          <div className="sticky top-0 z-20 bg-white/40 backdrop-blur-md border-b border-slate-100 px-10 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Configuration Active</span>
+            </div>
+            
+            <button 
+              onClick={saveProfile} 
+              disabled={savingProfile}
+              className="px-6 py-3 text-white rounded-xl font-black transition-all shadow-lg flex items-center gap-3 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98] text-xs"
+              style={{ backgroundColor: 'var(--primary)', boxShadow: '0 8px 20px -6px var(--primary)' }}
+            >
+              {savingProfile ? <Loader2 className="animate-spin" size={16}/> : (saveSuccess ? <CheckCircle2 size={16} className="text-emerald-400"/> : <Save size={16} />)}
+              {saveSuccess ? "Modifications Enregistrées" : "Enregistrer les réglages"}
+            </button>
+          </div>
+
+          <div className="p-10 flex-1 overflow-y-auto">
+            {/* TAB 1 : PROFIL CABINET */}
+            {activeTab === 'profil' && (
+              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
                 <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
                   <UserCircle size={32} />
                 </div>
@@ -304,28 +336,28 @@ export const Settings = () => {
                       onChange={handleProfileChange} 
                       className={inputClass} 
                       placeholder="Ex: Dr. Benmoussa" 
-                      style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)', borderColor: 'rgba(var(--primary-rgb), 0.2)' } as any}
+                      style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)', borderColor: 'rgba(var(--primary-rgb), 0.2)' } as React.CSSProperties}
                     />
                   </div>
                   <div className="md:col-span-2">
                     <label className={labelClass}>Adresse complète</label>
-                    <input type="text" name="adresse" value={profile.adresse} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any} />
+                    <input type="text" name="adresse" value={profile.adresse} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
                   <div>
                     <label className={labelClass}>Téléphone</label>
-                    <input type="text" name="telephone" value={profile.telephone} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any} />
+                    <input type="text" name="telephone" value={profile.telephone} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
                   <div>
                     <label className={labelClass}>Numéro INPE</label>
-                    <input type="text" name="inpe" value={profile.inpe} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any} />
+                    <input type="text" name="inpe" value={profile.inpe} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
                   <div>
                     <label className={labelClass}>Identifiant Commun Entreprise (ICE)</label>
-                    <input type="text" name="ice" value={profile.ice} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 001234..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any} />
+                    <input type="text" name="ice" value={profile.ice} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 001234..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
                   <div>
                     <label className={labelClass}>Identifiant Fiscal (IF)</label>
-                    <input type="text" name="if" value={profile.if} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 56789..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any} />
+                    <input type="text" name="if" value={profile.if} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 56789..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
 
                   {/* SECTION CONTACTS DYNAMIQUE */}
@@ -374,7 +406,7 @@ export const Settings = () => {
                                 "w-full bg-slate-50 px-3 py-2 rounded-lg text-xs font-bold outline-none border border-transparent focus:border-primary/50 transition-all",
                                 !c.enabled && "opacity-50 grayscale cursor-not-allowed"
                               )}
-                              style={{ borderColor: c.enabled ? 'var(--primary)' : undefined } as any}
+                              style={{ borderColor: c.enabled ? 'var(--primary)' : undefined } as React.CSSProperties}
                             />
                           </div>
                         );
@@ -424,7 +456,7 @@ export const Settings = () => {
                               ].map(t => (
                                 <button
                                   key={t.id}
-                                  onClick={() => setProfile(p => ({ ...p, qr_code_type: t.id as any }))}
+                                  onClick={() => setProfile(p => ({ ...p, qr_code_type: t.id as 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'WHATSAPP' | 'LOCATION' | 'VALIDATION' | 'PAYMENT' }))}
                                   className={cn(
                                     "flex items-center gap-2 px-4 py-3 rounded-xl border font-bold text-xs transition-all",
                                     profile.qr_code_type === t.id 
@@ -618,18 +650,6 @@ export const Settings = () => {
                       </div>
                     </div>
                   </div>
-
-                  <div className="md:col-span-2 mt-12 flex justify-end">
-                    <button 
-                      onClick={saveProfile} 
-                      disabled={savingProfile}
-                      className="px-10 py-5 text-white rounded-2xl font-black transition-all shadow-2xl flex items-center gap-4 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: 'var(--primary)', boxShadow: '0 15px 35px -12px var(--primary)' }}
-                    >
-                      {savingProfile ? <Loader2 className="animate-spin" size={24}/> : (saveSuccess ? <CheckCircle2 size={24} className="text-emerald-400"/> : <Save size={24} />)}
-                      {saveSuccess ? "Profil Mis à Jour !" : "Sauvegarder le Profil"}
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -742,18 +762,6 @@ export const Settings = () => {
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end pt-6">
-                <button 
-                  onClick={saveProfile} 
-                  disabled={savingProfile}
-                  className="px-10 py-5 text-white rounded-2xl font-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-70 text-lg hover:scale-[1.02]"
-                  style={{ backgroundColor: 'var(--primary)', boxShadow: '0 15px 35px -12px var(--primary)' }}
-                >
-                  {savingProfile ? <Loader2 className="animate-spin" size={24}/> : (saveSuccess ? <CheckCircle2 size={24} className="text-emerald-400"/> : <Save size={24} />)}
-                  {saveSuccess ? "Ambiance Appliquée !" : "Appliquer l'Ambiance"}
-                </button>
-              </div>
             </div>
           )}
 
@@ -826,6 +834,7 @@ export const Settings = () => {
             <TeamManager />
           )}
 
+          </div>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 
 class LibreGenerator:
     def __init__(self, output_dir="static/documents"):
@@ -35,19 +35,8 @@ class LibreGenerator:
         return os.path.join(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
-        """Rendu Elite avec identifiants légaux et clôture épinglée - IDENTIQUE À ACCOUNTING."""
+        """Rendu Elite avec identifiants légaux - IDENTIQUE À ACCOUNTING."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
-        
-        p_width, p_height = doc.pagesize
-        p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        font_name = self.base_template.arabic_font
-        
-        if hasattr(doc, 'cloture_text') and doc.cloture_text:
-            canvas.saveState()
-            canvas.setFont(font_name, 10)
-            canvas.setFillColor(p_color)
-            canvas.drawCentredString(p_width/2, 3.2*cm, "Signature et Cachet")
-            canvas.restoreState()
 
     def _create_header(self, patient, data, p_color, config=None):
         """En-tête flexible : Supporte les surcharges utilisateur."""
@@ -166,6 +155,17 @@ class LibreGenerator:
             Paragraph(contenu_html, body_style)
         ]
 
+        cloture_text = "Signature et Cachet"
+        cloture_style = ParagraphStyle(
+            name='LibreCloture', 
+            parent=self.styles['Normal'], 
+            fontName=font_bold, 
+            fontSize=10, 
+            textColor=p_color, 
+            alignment=TA_CENTER
+        )
+        elements.append(PinnedCloture(cloture_text, cloture_style))
+
         # Gestion du format de page (A4 vs A5)
         page_format = getattr(data, 'page_size', 'A5').upper()
         page_size = A4 if page_format == 'A4' else A5
@@ -177,7 +177,7 @@ class LibreGenerator:
         doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.qr_type = 'WEBSITE'
         doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
-        doc.cloture_text = "Signature et Cachet"
+        doc.cloture_text = cloture_text
         
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
