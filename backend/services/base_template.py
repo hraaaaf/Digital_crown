@@ -200,8 +200,9 @@ class BaseTemplate:
             curr_y -= 0.60*cm
 
     def _draw_footer(self, canvas, doc, config, draw_legal_ids=False, user=None):
-        """Pied de page premium avec adresse et identifiants légaux."""
+        """Pied de page premium Architecture 2 Colonnes (70% Texte / 30% QR)."""
         p_width, _ = doc.pagesize
+        left_margin = 1.5 * cm
         
         # Couleurs
         p_color = self._get_val(config, 'primary_color', '#003380')
@@ -210,25 +211,21 @@ class BaseTemplate:
         # Trait de séparation
         canvas.setStrokeColor(colors.HexColor(p_color))
         canvas.setLineWidth(0.5)
-        canvas.line(1.5*cm, 2.5*cm, p_width - 1.5*cm, 2.5*cm)
+        canvas.line(left_margin, 2.5*cm, p_width - left_margin, 2.5*cm)
         
-        # Adresse et Téléphone
+        # Colonne Gauche (Texte) : Centrée dans les 70% d'espace libre
         font_name = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
-        canvas.setFont(font_name, 9)
-        canvas.setFillColor(colors.HexColor(p_color))
+        center_text_x = (p_width / 2) - 1.0 * cm
         
-        # Nettoyage profond
-        def _clean(val):
-            return str(val).strip() if val else ""
-
         address = self._get_val(config, 'footer_address')
         if not address:
             address = self._get_val(user, "adresse_complete") or "Votre adresse de cabinet"
             
-        center_x = p_width / 2
-        canvas.drawCentredString(center_x, 2.0*cm, self._prepare_arabic(address))
+        canvas.setFont(font_name, 9)
+        canvas.setFillColor(colors.HexColor(p_color))
+        canvas.drawCentredString(center_text_x, 2.0*cm, self._prepare_arabic(address))
         
-        # Gestion des contacts granulaires (Sprint 59)
+        # Contacts
         contacts_to_show = []
         c_json = self._get_val(config, 'contacts_json')
         if c_json:
@@ -238,7 +235,6 @@ class BaseTemplate:
                 if isinstance(info, dict) and info.get("enabled") and info.get("value"):
                     contacts_to_show.append(f"{labels[key]} : {info['value'].strip()}")
         
-        # Fallback sur footer_phones si contacts_json vide
         if not contacts_to_show:
             phones = self._get_val(config, 'footer_phones')
             if not phones:
@@ -249,9 +245,9 @@ class BaseTemplate:
         
         canvas.setFont(font_name, 8)
         canvas.setFillColor(colors.HexColor(s_color))
-        canvas.drawCentredString(center_x, 1.5*cm, self._prepare_arabic(contact_str))
+        canvas.drawCentredString(center_text_x, 1.5*cm, self._prepare_arabic(contact_str))
         
-        # Identifiants Légaux (ICE, IF, INPE) pour documents financiers
+        # Identifiants Légaux
         if draw_legal_ids:
             identifiants = []
             if config:
@@ -263,7 +259,6 @@ class BaseTemplate:
                 if c_inpe: identifiants.append(f"INP : {c_inpe}")
                 if c_if: identifiants.append(f"IF : {c_if}")
             
-            # Fallback sur l'utilisateur si non trouvé dans config
             if not identifiants and getattr(user, "identifiants_legaux", None):
                 ids = user.identifiants_legaux
                 if ids.get("ice"): identifiants.append(f"ICE : {str(ids['ice']).strip()}")
@@ -274,7 +269,7 @@ class BaseTemplate:
                 legal_str = "  |  ".join(identifiants)
                 canvas.setFont("Helvetica", 7)
                 canvas.setFillColor(colors.HexColor("#777777"))
-                canvas.drawCentredString(p_width/2, 1.1*cm, legal_str)
+                canvas.drawCentredString(center_text_x, 1.1*cm, legal_str)
 
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         """Dessine le QR Code stratégique configuré par le docteur."""
@@ -333,18 +328,19 @@ class BaseTemplate:
             if qr_bytes:
                 p_width, _ = doc.pagesize
                 qr_size = 1.6 * cm
-                # Positionnement : en bas à droite, DANS le footer (en dessous du trait de 2.5 cm)
-                x_pos = p_width - 1.2 * cm - qr_size
-                y_pos = 0.6 * cm
+                # Colonne Droite (Action/Interaction) : Ancré en bas à droite
+                x_pos = p_width - 1.5 * cm - qr_size
+                y_pos = 0.8 * cm
 
                 # ImageReader est obligatoire pour que ReportLab accepte un BytesIO
                 canvas.drawImage(ImageReader(qr_bytes), x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
 
-                # Label optionnel
+                # Label "Scannez pour nous écrire" : placé proprement sous ou à gauche du QR
                 if qr_label:
                     canvas.setFont("Helvetica-Bold", 6)
-                    canvas.setFillColor(colors.HexColor(qr_color_hex))
-                    canvas.drawRightString(p_width - 1.2 * cm, y_pos - 0.25 * cm, self._prepare_arabic(qr_label))
+                    canvas.setFillColor(colors.HexColor("#334155"))  # Slate-700
+                    # On centre le label exactement au milieu du QR Code, en dessous
+                    canvas.drawCentredString(x_pos + (qr_size / 2), y_pos - 0.3 * cm, self._prepare_arabic(qr_label))
         except Exception as e:
             # Ne jamais bloquer la génération du PDF pour un QR défaillant
             import logging

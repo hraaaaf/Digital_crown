@@ -136,9 +136,10 @@ class AccountingGenerator:
 
         p_width, _ = doc.pagesize
         left_x   = 1.5 * cm
+        # L'espace à droite est désormais libéré grâce au nouveau placement du QR Code
         usable_w = p_width - 3.0 * cm
         font_name = 'Helvetica-Bold'
-        font_size = 9
+        font_size = 8.5
 
         canvas.saveState()
         canvas.setFont(font_name, font_size)
@@ -156,8 +157,8 @@ class AccountingGenerator:
             remaining = remaining[cut:].strip()
         lines.append(remaining)
 
-        # 3.4 cm du bas physique de la page (au-dessus du trait footer à 2.5 cm)
-        y_start = 3.4 * cm
+        # Positionné au-dessus du trait de footer (2.5cm) et en-dessous du contenu (marge de 5cm)
+        y_start = 3.2 * cm
         line_h  = font_size * 0.04 * cm + 0.4 * cm
         for i, line in enumerate(lines):
             canvas.drawString(left_x, y_start - i * line_h, line)
@@ -318,15 +319,21 @@ class AccountingGenerator:
         
         template = config.cloture_note_template if config and hasattr(config, 'cloture_note_template') else None
         if not template:
-            template = "Arrêtée la présente note d'honoraires à la somme de : {total_words}, soit {total_amount} MAD TTC."
+            template = "Arrêtée la présente note d'honoraires à la somme de : {total_words} TTC."
             
         # Nettoyage des caractères de contrôle ou erreurs d'encodage (v5.9)
         template = template.replace('Arrte', 'Arrêté').replace('prsente', 'présente')
+        
+        # Forcer la suppression du montant en chiffres même si le template vient de la base de données
+        import re
+        template = re.sub(r',?\s*soit\s+\{total_amount\}.*?(?=\.)', ' TTC', template)
+        template = template.replace('{total_amount}', '')
+        
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
         # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
         if len(cloture) < 20:
-            cloture = f"Arrêtée la présente note d'honoraires à la somme de : {total_words_elite}, soit {total:.2f} MAD TTC."
+            cloture = f"Arrêtée la présente note d'honoraires à la somme de : {total_words_elite} TTC."
         
         highlighted_teeth = []
         for p in data.payments:
@@ -403,15 +410,21 @@ class AccountingGenerator:
         
         template = config.cloture_devis_template if config and hasattr(config, 'cloture_devis_template') else None
         if not template:
-            template = "Arrêté le présent devis à la somme de : {total_words}, soit {total_amount} MAD TTC."
+            template = "Arrêté le présent devis à la somme de : {total_words} TTC."
             
         # Nettoyage encoding (v5.9)
         template = template.replace('Arrte', 'Arrêté').replace('prsente', 'présente')
+        
+        # Forcer la suppression du montant en chiffres même si le template vient de la base de données
+        import re
+        template = re.sub(r',?\s*soit\s+\{total_amount\}.*?(?=\.)', ' TTC', template)
+        template = template.replace('{total_amount}', '')
+        
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
         # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
         if len(cloture) < 20:
-            cloture = f"Arrêté le présent devis à la somme de : {total_words_elite}, soit {total:.2f} MAD TTC."
+            cloture = f"Arrêté le présent devis à la somme de : {total_words_elite} TTC."
         
         highlighted_teeth = []
         for item in data.items:
@@ -429,7 +442,8 @@ class AccountingGenerator:
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None, p_color=None):
         # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
-        m_bottom = (config.margin_bottom if config and config.margin_bottom is not None else 3.2) * cm
+        # La marge inférieure est forcée à au moins 5.0 cm pour protéger la zone du QR Code et de la Clôture
+        m_bottom = (max(config.margin_bottom, 5.0) if config and config.margin_bottom is not None else 5.0) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id
         doc.qr_type = 'PAYMENT'

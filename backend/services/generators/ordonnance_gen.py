@@ -216,7 +216,7 @@ class OrdonnanceGenerator:
 
         # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
-        m_bottom = (config.margin_bottom if config and config.margin_bottom is not None else 3.2) * cm
+        m_bottom = (max(config.margin_bottom, 4.5) if config and config.margin_bottom is not None else 4.5) * cm
 
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,
