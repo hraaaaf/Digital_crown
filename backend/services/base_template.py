@@ -7,7 +7,8 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from backend.services.qr_service import QRService
-from reportlab.platypus import Paragraph, Flowable
+from reportlab.platypus import Flowable
+from reportlab.lib.utils import ImageReader
 
 # --- DESIGN SYSTEM : SINGLE SOURCE OF TRUTH ---
 NAVY_BLUE = colors.HexColor('#003380')
@@ -15,7 +16,7 @@ NAVY_BLUE = colors.HexColor('#003380')
 class PinnedCloture(Flowable):
     """
     Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
-    Compense la translation du canvas pour un positionnement absolu (Master Elite Fix).
+    Utilise drawString direct pour garantir la visibilité (pas de clipping par Paragraph).
     """
     def __init__(self, text, style):
         Flowable.__init__(self)
@@ -23,17 +24,62 @@ class PinnedCloture(Flowable):
         self.style = style
 
     def wrap(self, availWidth, availHeight):
-        # On prend une hauteur minimale pour forcer le rendu (Master Elite v5.7)
+        # Hauteur minimale pour forcer le passage en fin de flow
         return (availWidth, 0.2 * cm)
 
+    @staticmethod
+    def _strip_tags(text: str) -> str:
+        """Supprime les balises HTML ReportLab (<b>, <u>, etc.) pour drawString."""
+        import re
+        return re.sub(r'<[^>]+>', '', text)
+
     def drawOn(self, canvas, x, y, _debug=0, **kwargs):
+        if not self.text:
+            return
+
         canvas.saveState()
-        p = Paragraph(self.text, self.style)
-        # Largeur optimale pour ne pas gêner le QR Code
-        w, h = p.wrap(9.5 * cm, 4 * cm)
-        # Positionnement juste au-dessus de la ligne de pied de page (2.5cm)
-        p.drawOn(canvas, 1.5 * cm - x, 2.7 * cm - y)
+        # Annulation de la translation du doc.build → référentiel absolu page
+        canvas.translate(-x, -y)
+
+        clean_text = self._strip_tags(self.text)
+
+        # Style depuis self.style
+        font_name  = getattr(self.style, 'fontName',  'Helvetica-Bold')
+        font_size  = getattr(self.style, 'fontSize',  9)
+        text_color = getattr(self.style, 'textColor', NAVY_BLUE)
+
+        canvas.setFont(font_name, font_size)
+        canvas.setFillColor(text_color)
+
+        # Largeur utile A5 (148mm − 2×15mm marges) = 118mm ≈ 11.8 cm
+        usable_w = 11.8 * cm
+        left_x   = 1.5 * cm
+
+        # Découpage manuel si texte trop long (wrap simple par caractères)
+        avg_char_w = font_size * 0.55   # estimation largeur moy. caractère
+        max_chars  = int(usable_w / avg_char_w)
+
+        lines = []
+        remaining = clean_text
+        while len(remaining) > max_chars:
+            # Coupe au dernier espace avant max_chars
+            cut = remaining[:max_chars].rfind(' ')
+            if cut == -1:
+                cut = max_chars
+            lines.append(remaining[:cut])
+            remaining = remaining[cut:].strip()
+        lines.append(remaining)
+
+        # Y de départ : 4.4 cm du bas = bien au-dessus du trait footer (2.5 cm)
+        y_start = 4.4 * cm
+        line_h  = font_size * 0.045 * cm + 0.38 * cm   # ~leading
+
+        for i, line in enumerate(lines):
+            canvas.drawString(left_x, y_start - i * line_h, line)
+
         canvas.restoreState()
+
+
 
 class BaseTemplate:
     def __init__(self):
@@ -228,7 +274,7 @@ class BaseTemplate:
                 legal_str = "  |  ".join(identifiants)
                 canvas.setFont("Helvetica", 7)
                 canvas.setFillColor(colors.HexColor("#777777"))
-                canvas.drawCentredString(p_width/2, 1.0*cm, legal_str)
+                canvas.drawCentredString(p_width/2, 1.1*cm, legal_str)
 
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         """Dessine le QR Code stratégique configuré par le docteur."""
@@ -286,18 +332,20 @@ class BaseTemplate:
             qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path)
             if qr_bytes:
                 p_width, _ = doc.pagesize
-                qr_size = 1.8*cm
-                # Positionnement : en bas à droite
-                x_pos = p_width - 1.5*cm - qr_size
-                y_pos = 2.6*cm 
-                
-                canvas.drawImage(qr_bytes, x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
-                
+                qr_size = 1.6 * cm
+                # Positionnement : en bas à droite, DANS le footer (en dessous du trait de 2.5 cm)
+                x_pos = p_width - 1.2 * cm - qr_size
+                y_pos = 0.6 * cm
+
+                # ImageReader est obligatoire pour que ReportLab accepte un BytesIO
+                canvas.drawImage(ImageReader(qr_bytes), x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')
+
                 # Label optionnel
                 if qr_label:
                     canvas.setFont("Helvetica-Bold", 6)
                     canvas.setFillColor(colors.HexColor(qr_color_hex))
-                    canvas.drawRightString(p_width - 1.5*cm, y_pos - 0.3*cm, self._prepare_arabic(qr_label))
+                    canvas.drawRightString(p_width - 1.2 * cm, y_pos - 0.25 * cm, self._prepare_arabic(qr_label))
         except Exception as e:
-            # On ne bloque pas la génération du PDF pour un QR qui échoue
-            print(f"Erreur rendu QR PDF: {e}")
+            # Ne jamais bloquer la génération du PDF pour un QR défaillant
+            import logging
+            logging.getLogger(__name__).warning(f"QR Code ignoré (erreur rendu): {e}")

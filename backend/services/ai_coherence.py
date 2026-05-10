@@ -79,11 +79,21 @@ Si aucun risque, renvoie []. JSON brut uniquement, aucun texte autour."""
                 return json.loads(text)
 
         except (httpx.ConnectError, httpx.ConnectTimeout):
-            # Cas fréquent : Ollama n'est pas lancé
-            logger.warning("AICoherenceService: Ollama est hors-ligne. Analyse IA ignorée.")
+            # Ollama n'est pas lancé
+            logger.warning("AICoherenceService: Ollama hors-ligne. Analyse IA ignorée.")
+            return []
+        except httpx.HTTPStatusError as e:
+            # 404 = modèle non installé localement (ex: llama3.2 absent)
+            if e.response.status_code == 404:
+                logger.warning(
+                    f"AICoherenceService: Modèle '{MODEL}' introuvable dans Ollama. "
+                    f"Exécuter : ollama pull {MODEL}"
+                )
+            else:
+                logger.warning(f"AICoherenceService: Réponse HTTP inattendue ({e.response.status_code}). Analyse ignorée.")
             return []
         except Exception as e:
-            logger.error(f"Erreur Analyse IA Coherence: {e}")
+            logger.error(f"AICoherenceService: Erreur inattendue: {e}")
             return []
 
 # Instance singleton

@@ -351,7 +351,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 }, ...drugs]);
                 setStep('PLANNING');
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-white/40 border border-white/60 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-primary hover:text-white hover:border-primary transition-all whitespace-nowrap shadow-sm group"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black text-slate-600 uppercase hover:bg-primary hover:text-white hover:border-primary transition-all whitespace-nowrap shadow-sm group"
             >
               <Pill size={10} className="group-hover:rotate-12 transition-transform" />
               {fav}
@@ -569,7 +569,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                         <div className="space-y-1">
                           <input
                             type="text"
-                            className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-200 tracking-tight"
+                            className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-400 tracking-tight"
                             placeholder={isRadio ? "NOM DE L'EXAMEN..." : 'MÉDICAMENT...'}
                             value={drug.name}
                             onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
@@ -590,10 +590,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                               </button>
                               
                               <div className="flex items-center gap-1 bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Dose :</span>
+                                <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Dose :</span>
                                 <input
                                   type="text"
-                                  className="w-20 bg-transparent border-none p-0 focus:ring-0 text-[9px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-200"
+                                  className="w-20 bg-transparent border-none p-0 focus:ring-0 text-[9px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-400"
                                   placeholder="500MG..."
                                   value={drug.dosage}
                                   onFocus={() => handleSearch(drug.id, 'dosage', drug.dosage)}
@@ -634,7 +634,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                         <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 group-hover:bg-white transition-all focus-within:shadow-md focus-within:shadow-primary/5">
                           <textarea
                             rows={1}
-                            className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
+                            className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-400 leading-tight"
                             placeholder="Posologie..."
                             value={drug.posologie}
                             onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
@@ -674,7 +674,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               <button
                 onClick={handleBatchSave}
                 disabled={savingHabits}
-                className="px-8 py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
+                className="ml-auto px-8 py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
+                title="Action globale : enregistre vos habitudes en base de données"
               >
                 <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
                 {savingHabits ? 'Mémorisation...' : 'Mémoriser mes habitudes'}

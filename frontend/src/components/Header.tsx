@@ -46,13 +46,7 @@ export const Header = () => {
   return (
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-20">
       
-      {/* STATUT SYSTÈME - Adapté Light */}
-      <div className="hidden xl:flex items-center gap-2 bg-card/80 px-4 py-2 rounded-full border border-border-main shadow-sm backdrop-blur-md">
-        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Système Opérationnel</span>
-      </div>
 
-      <div className="hidden md:block w-px h-6 bg-slate-200 mx-2" />
 
       {/* SETTINGS & NOTIFS - Slate vers Navy */}
       <div className="flex items-center gap-2">

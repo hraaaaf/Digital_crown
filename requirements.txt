@@ -26,3 +26,5 @@ python-magic==0.4.27
 python-magic-bin==0.4.14; platform_system == "Windows"
 passlib[bcrypt]==1.7.4
 qrcode==7.4.2
+arabic-reshaper
+python-bidi

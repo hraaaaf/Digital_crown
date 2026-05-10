@@ -12,7 +12,10 @@ import {
   TrendingUp,
   ShieldCheck,
   Edit,
-  Trash2
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  BarChart2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -38,12 +41,55 @@ interface HonoraireItem {
   file_url: string;
 }
 
+// --- Groupe les notes par patient_id + date (clé composite) ---
+interface GroupedItem {
+  key: string;
+  patient_id: number;
+  patient_name: string;
+  assurance: string;
+  date: string;
+  total: number;
+  notes: HonoraireItem[];
+}
+
+const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
+  const map = new Map<string, GroupedItem>();
+  items.forEach(item => {
+    const dateKey = new Date(item.date).toLocaleDateString('fr-FR');
+    const key = `${item.patient_id}_${dateKey}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        patient_id: item.patient_id,
+        patient_name: item.patient_name,
+        assurance: item.assurance,
+        date: item.date,
+        total: 0,
+        notes: [],
+      });
+    }
+    const group = map.get(key)!;
+    group.total += item.amount;
+    group.notes.push(item);
+  });
+  return Array.from(map.values());
+};
+
 export const AccountingPage = () => {
   const [items, setItems] = useState<HonoraireItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
-  
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssurance, setSelectedAssurance] = useState('ALL');
@@ -197,62 +243,58 @@ export const AccountingPage = () => {
 
       {/* SECTION INSIGHTS FINANCIERS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Graphique d'évolution */}
-        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm h-[350px] flex flex-col">
+        {/* Graphique d'évolution avec empty state conditionnel */}
+        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution des Recettes</h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variation sur la période sélectionnée</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variation sur la période sélectionnée</p>
             </div>
           </div>
-          
-          <div className="flex-1 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
-                  dy={10}
-                />
-                <YAxis 
-                  hide 
-                />
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{payload[0].payload.date}</p>
-                          <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
-                            {payload[0].value?.toLocaleString('fr-FR')} MAD
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="var(--primary)" 
-                  strokeWidth={4}
-                  fillOpacity={1} 
-                  fill="url(#colorAmount)" 
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
+          {/* Optimisation : n'instancie recharts que si ≥ 2 points de données */}
+          {chartData.length >= 2 ? (
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
+                  <YAxis hide />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+                            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{payload[0].payload.date}</p>
+                            <p className="text-sm font-black" style={{ color: 'var(--primary)' }}>
+                              {payload[0].value?.toLocaleString('fr-FR')} MAD
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={4} fillOpacity={1} fill="url(#colorAmount)" animationDuration={1500} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-40 bg-slate-50 border border-dashed border-slate-200 rounded-2xl gap-3">
+              <BarChart2 size={28} className="text-slate-300" />
+              <span className="text-slate-500 font-medium text-sm text-center max-w-xs">
+                {chartData.length === 0
+                  ? 'Aucun encaissement sur la période sélectionnée.'
+                  : 'Données insuffisantes pour tracer l\'évolution (min. 2 dates distinctes).'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Mini Stats Grid */}
@@ -355,77 +397,110 @@ export const AccountingPage = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Patient</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Assurance</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Libellé</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Montant</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Actions</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Patient</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Assurance</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Date</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Notes</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-primary/5 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center font-black text-xs border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all" style={{ color: 'var(--primary)' }}>
-                          {item.patient_name.charAt(0)}
-                        </div>
-                        <Link 
-                          to={`/patients/${item.patient_id}?tab=admin`}
-                          className="font-bold text-slate-800 tracking-tight hover:text-primary hover:underline transition-colors"
-                        >
-                          {item.patient_name}
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      {getAssuranceBadge(item.assurance)}
-                    </td>
-                    <td className="px-8 py-5 text-sm text-slate-500 font-medium">
-                      {new Date(item.date).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-slate-600 truncate max-w-[200px] block">{item.title}</span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <span className="font-black" style={{ color: 'var(--primary)' }}>{item.amount.toLocaleString('fr-FR')} MAD</span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center justify-center gap-2">
-                        <a 
-                          href={`${API_BASE}/${item.file_url}`}
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20"
-                        >
-                          <Eye size={16} />
-                        </a>
-                        <Link 
-                          to={`/patients/${item.patient_id}/edit`}
-                          className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
-                          title="Attribuer Assurance"
-                        >
-                          <Edit size={16} />
-                        </Link>
-                        <a 
-                          href={`${API_BASE}/${item.file_url}`}
-                          download
-                          className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200"
-                        >
-                          <Download size={16} />
-                        </a>
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {groupByPatientDate(filteredItems).map((group) => {
+                  const isExpanded = expandedGroups.has(group.key);
+                  const hasMultiple = group.notes.length > 1;
+                  return (
+                    <>
+                      {/* Ligne principale (groupe) */}
+                      <tr
+                        key={group.key}
+                        className={`border-b border-slate-100 transition-colors group ${
+                          hasMultiple ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-primary/5'
+                        }`}
+                        onClick={() => hasMultiple && toggleGroup(group.key)}
+                      >
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-3">
+                            {hasMultiple && (
+                              <span className="text-slate-400 group-hover:text-primary transition-colors">
+                                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              </span>
+                            )}
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center font-black text-xs border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all" style={{ color: 'var(--primary)' }}>
+                              {group.patient_name.charAt(0)}
+                            </div>
+                            <Link
+                              to={`/patients/${group.patient_id}?tab=admin`}
+                              className="font-bold text-slate-800 tracking-tight hover:text-primary hover:underline transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {group.patient_name}
+                            </Link>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">{getAssuranceBadge(group.assurance)}</td>
+                        <td className="px-8 py-5 text-sm text-slate-500 font-medium">
+                          {new Date(group.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-8 py-5">
+                          {hasMultiple ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-lg text-[10px] font-black" style={{ color: 'var(--primary)' }}>
+                              {group.notes.length} notes
+                            </span>
+                          ) : (
+                            <span className="text-sm font-bold text-slate-600 truncate max-w-[200px] block">{group.notes[0].title}</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <span className="font-black" style={{ color: 'var(--primary)' }}>{group.total.toLocaleString('fr-FR')} MAD</span>
+                        </td>
+                        <td className="px-8 py-5">
+                          {!hasMultiple && (
+                            <div className="flex items-center justify-center gap-2">
+                              <a href={`${API_BASE}/${group.notes[0].file_url}`} target="_blank" rel="noreferrer" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20">
+                                <Eye size={16} />
+                              </a>
+                              <Link to={`/patients/${group.patient_id}/edit`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Attribuer Assurance" onClick={e => e.stopPropagation()}>
+                                <Edit size={16} />
+                              </Link>
+                              <a href={`${API_BASE}/${group.notes[0].file_url}`} download className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200">
+                                <Download size={16} />
+                              </a>
+                              <button onClick={e => { e.stopPropagation(); handleDelete(group.notes[0].id); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* Lignes de détail accordéon (multi-notes) */}
+                      {hasMultiple && isExpanded && group.notes.map(note => (
+                        <tr key={note.id} className="bg-slate-50/60 border-b border-slate-100/60 hover:bg-primary/5 transition-colors">
+                          <td className="pl-20 pr-8 py-3" colSpan={3}>
+                            <span className="text-sm font-bold text-slate-600 truncate max-w-[240px] block">{note.title}</span>
+                          </td>
+                          <td className="px-8 py-3 text-right" colSpan={2}>
+                            <span className="text-sm font-black text-slate-700">{note.amount.toLocaleString('fr-FR')} MAD</span>
+                          </td>
+                          <td className="px-8 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <a href={`${API_BASE}/${note.file_url}`} target="_blank" rel="noreferrer" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20">
+                                <Eye size={14} />
+                              </a>
+                              <a href={`${API_BASE}/${note.file_url}`} download className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200">
+                                <Download size={14} />
+                              </a>
+                              <button onClick={() => handleDelete(note.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -708,7 +708,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                         {TREATMENTS_BY_CATEGORY[category]
                           .filter(t => t.scope !== 'UNITAIRE')
                           .map(template => {
-                            const isSelected = selectedSurfaces.some(s => s.toothNumber === 0 && s.treatments.some(tr => tr.id === template.id));
                             return (
                               <button
                                 key={template.id}

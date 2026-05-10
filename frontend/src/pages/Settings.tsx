@@ -133,12 +133,12 @@ export const Settings = () => {
             qr_code_label: res.data.qr_code_label || ''
           });
 
-          // Appliquer le thème immédiatement
+          // Appliquer le thème immédiatement (Standardisation sur body)
           const themeValue = res.data.selected_theme === 'elite' ? '' : res.data.selected_theme;
-          document.documentElement.dataset.theme = themeValue;
-          document.documentElement.style.setProperty('--primary', res.data.primary_color || '#003380');
-          document.documentElement.style.setProperty('--secondary', res.data.secondary_color || '#1e40af');
-          document.documentElement.style.setProperty('--accent', res.data.accent_color || '#60a5fa');
+          document.body.dataset.theme = themeValue;
+          if (res.data.primary_color) document.documentElement.style.setProperty('--primary', res.data.primary_color);
+          if (res.data.secondary_color) document.documentElement.style.setProperty('--secondary', res.data.secondary_color);
+          if (res.data.accent_color) document.documentElement.style.setProperty('--accent', res.data.accent_color);
 
           if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
             setContacts(res.data.contacts_json as ContactsJson);
@@ -168,6 +168,18 @@ export const Settings = () => {
     };
     fetchProfile();
   }, []);
+
+  // --- EFFET : Live Preview Design ---
+  useEffect(() => {
+    if (loadingProfile) return;
+    
+    const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
+    document.body.dataset.theme = themeValue;
+    
+    if (profile.primary_color) document.documentElement.style.setProperty('--primary', profile.primary_color);
+    if (profile.secondary_color) document.documentElement.style.setProperty('--secondary', profile.secondary_color);
+    if (profile.accent_color) document.documentElement.style.setProperty('--accent', profile.accent_color);
+  }, [profile.selected_theme, profile.primary_color, profile.secondary_color, profile.accent_color, loadingProfile]);
 
   const handleLetterheadUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -218,16 +230,22 @@ export const Settings = () => {
     const contactString = parts.join(' | ');
 
     try {
-      const payload = {
+      const payload: any = {
         ...profile,
         footer_phones: contactString,
         contacts_json: contacts
       };
+
+      // Prevent Pydantic validation errors (422) on empty strings for optional fields
+      if (!payload.qr_code_color) payload.qr_code_color = null;
+      if (!payload.qr_code_value) payload.qr_code_value = null;
+      if (!payload.qr_code_label) payload.qr_code_label = null;
+
       await api.put('/clinics/me', payload);
       
-      // Appliquer le thème immédiatement après sauvegarde
+      // Appliquer le thème immédiatement après sauvegarde (Standardisation sur body)
       const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
-      document.documentElement.dataset.theme = themeValue;
+      document.body.dataset.theme = themeValue;
       if (profile.primary_color) document.documentElement.style.setProperty('--primary', profile.primary_color);
       if (profile.secondary_color) document.documentElement.style.setProperty('--secondary', profile.secondary_color);
       if (profile.accent_color) document.documentElement.style.setProperty('--accent', profile.accent_color);
@@ -295,16 +313,19 @@ export const Settings = () => {
           <div className="sticky top-0 z-20 bg-white/40 backdrop-blur-md border-b border-slate-100 px-10 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Configuration Active</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Configuration Active</span>
             </div>
             
             <button 
               onClick={saveProfile} 
               disabled={savingProfile}
-              className="px-6 py-3 text-white rounded-xl font-black transition-all shadow-lg flex items-center gap-3 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98] text-xs"
-              style={{ backgroundColor: 'var(--primary)', boxShadow: '0 8px 20px -6px var(--primary)' }}
+              className={cn(
+                "px-6 py-3 text-white rounded-xl font-black transition-all shadow-lg flex items-center gap-3 disabled:opacity-70 text-xs",
+                saveSuccess ? "scale-105" : "hover:scale-[1.02] active:scale-[0.98]"
+              )}
+              style={saveSuccess ? { backgroundColor: '#10b981', boxShadow: '0 8px 20px -6px rgba(16, 185, 129, 0.5)' } : { backgroundColor: 'var(--primary)', boxShadow: '0 8px 20px -6px var(--primary)' }}
             >
-              {savingProfile ? <Loader2 className="animate-spin" size={16}/> : (saveSuccess ? <CheckCircle2 size={16} className="text-emerald-400"/> : <Save size={16} />)}
+              {savingProfile ? <Loader2 className="animate-spin" size={16}/> : (saveSuccess ? <CheckCircle2 size={16} className="text-white"/> : <Save size={16} />)}
               {saveSuccess ? "Modifications Enregistrées" : "Enregistrer les réglages"}
             </button>
           </div>
@@ -345,7 +366,13 @@ export const Settings = () => {
                   </div>
                   <div>
                     <label className={labelClass}>Téléphone</label>
-                    <input type="text" name="telephone" value={profile.telephone} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
+                    <div className="w-full px-5 py-4 bg-blue-50/60 border border-blue-100 rounded-xl text-sm font-medium text-slate-500 flex items-center gap-3">
+                      <Phone size={16} className="text-blue-400 shrink-0" />
+                      <span>
+                        Gérez vos numéros de contact dans la section{' '}
+                        <strong className="text-slate-700">Contacts &amp; Visibilité</strong>{' '}ci-dessous — fixe, mobile et WhatsApp séparément.
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <label className={labelClass}>Numéro INPE</label>

@@ -161,16 +161,15 @@ export const Dashboard: React.FC = () => {
                         <h4 className="font-black text-primary text-lg leading-none">
                           {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
                         </h4>
-                        <p className="text-xs font-bold text-slate-400 mt-1.5 flex items-center gap-2">
+                        <p className="text-xs font-bold text-slate-500 mt-1.5 flex items-center gap-2">
                           <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}
+                          <span className="text-slate-300">·</span>
+                          <span>{patient.time || 'Récemment'}</span>
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-bold text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
-                        {patient.time || 'Récemment'}
-                      </span>
-                      <ChevronRight size={18} className="text-text-muted group-hover:text-primary transition-colors" />
+                    <div className="flex items-center">
+                      <ChevronRight size={18} className="text-slate-300 group-hover:text-primary transition-colors group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </Link>
                 );
@@ -205,7 +204,7 @@ export const Dashboard: React.FC = () => {
 
             {/* GRAPHIQUE D'ACTIVITÉ SÉCURISÉ */}
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Activité Hebdomadaire</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Activité Hebdomadaire</p>
               <div className="h-32 flex items-end justify-between gap-2">
                 {(stats?.weekly_activity || [0,0,0,0,0,0,0]).map((height, i) => (
                   <div key={i} className="w-full bg-slate-100 rounded-t-lg relative overflow-hidden h-full flex items-end">

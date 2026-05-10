@@ -123,7 +123,7 @@ class CabinetConfigBase(BaseModel):
     qr_code_enabled: bool = Field(default=False)
     qr_code_type: QRCodeType = Field(default=QRCodeType.VCARD)
     qr_code_value: Optional[str] = Field(default=None, max_length=500)
-    qr_code_color: Optional[str] = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    qr_code_color: Optional[str] = Field(default=None, pattern=r"^(?:#[0-9A-Fa-f]{6})?$")
     qr_code_label: Optional[str] = Field(default=None, max_length=100)
     cloture_note_template: str = Field(default="Arrêtée la présente note à la somme de {total_words} TTC.")
     cloture_devis_template: str = Field(default="Arrêté le présent devis à la somme de {total_words} TTC.")

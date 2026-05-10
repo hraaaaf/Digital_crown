@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
+from backend.services.base_template import BaseTemplate, NAVY_BLUE
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -121,9 +121,47 @@ class AccountingGenerator:
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
         return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
-    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None):
-        """Rendu de la note comptable avec identifiants."""
+    def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None, cloture_text=None, p_color=None):
+        """Rendu canvas : header/footer statiques + clôture en coordonnées absolues de page."""
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
+        if cloture_text:
+            self._draw_cloture_absolute(canvas, doc, cloture_text, p_color or NAVY_BLUE)
+
+    def _draw_cloture_absolute(self, canvas, doc, text, p_color):
+        """Dessine la clôture en coordonnées absolues de page (comme le footer)."""
+        import re
+        clean = re.sub(r'<[^>]+>', '', text).strip()
+        if not clean:
+            return
+
+        p_width, _ = doc.pagesize
+        left_x   = 1.5 * cm
+        usable_w = p_width - 3.0 * cm
+        font_name = 'Helvetica-Bold'
+        font_size = 9
+
+        canvas.saveState()
+        canvas.setFont(font_name, font_size)
+        canvas.setFillColor(p_color)
+
+        # Word-wrap manuel
+        avg_char_w = font_size * 0.55
+        max_chars  = max(1, int(usable_w / avg_char_w))
+        lines, remaining = [], clean
+        while len(remaining) > max_chars:
+            cut = remaining[:max_chars].rfind(' ')
+            if cut <= 0:
+                cut = max_chars
+            lines.append(remaining[:cut])
+            remaining = remaining[cut:].strip()
+        lines.append(remaining)
+
+        # 3.4 cm du bas physique de la page (au-dessus du trait footer à 2.5 cm)
+        y_start = 3.4 * cm
+        line_h  = font_size * 0.04 * cm + 0.4 * cm
+        for i, line in enumerate(lines):
+            canvas.drawString(left_x, y_start - i * line_h, line)
+        canvas.restoreState()
 
     def _create_header(self, patient, data, p_color):
         doc_date = getattr(data, 'doc_date', date.today())
@@ -276,17 +314,19 @@ class AccountingGenerator:
             elements.append(inst_table)
 
         total_words = self._amount_to_words(total)
+        total_words_elite = f"<b>{total_words.upper()}</b>"
+        
         template = config.cloture_note_template if config and hasattr(config, 'cloture_note_template') else None
         if not template:
-            template = "Arrêtée la présente note à la somme de {total_words} TTC."
+            template = "Arrêtée la présente note d'honoraires à la somme de : {total_words}, soit {total_amount} MAD TTC."
             
-        cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
+        # Nettoyage des caractères de contrôle ou erreurs d'encodage (v5.9)
+        template = template.replace('Arrte', 'Arrêté').replace('prsente', 'présente')
+        cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
-        # Phrase de clôture épinglée au bas de la page (v5.7)
-        font_name = self.base_template.arabic_font
-        font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        elements.append(PinnedCloture(cloture, cloture_style))
+        # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
+        if len(cloture) < 20:
+            cloture = f"Arrêtée la présente note d'honoraires à la somme de : {total_words_elite}, soit {total:.2f} MAD TTC."
         
         highlighted_teeth = []
         for p in data.payments:
@@ -294,12 +334,12 @@ class AccountingGenerator:
                 highlighted_teeth.extend([int(d) for d in p.dents])
             elif hasattr(p, 'dent') and p.dent and str(p.dent).isdigit():
                 highlighted_teeth.append(int(p.dent))
-                
+
         user_obj = None
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=facture_number)
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=facture_number, p_color=p_color)
 
     def generate_devis(self, patient, data, document_number=None, db=None, user_id=None, **kwargs):
         filepath = self._get_save_path(patient, "DEVIS", data, doc_id=document_number)
@@ -359,16 +399,19 @@ class AccountingGenerator:
             elements.append(inst_table)
 
         total_words = self._amount_to_words(total)
+        total_words_elite = f"<b>{total_words.upper()}</b>"
+        
         template = config.cloture_devis_template if config and hasattr(config, 'cloture_devis_template') else None
         if not template:
-            template = "Arrêté le présent devis à la somme de {total_words} TTC."
-        cloture = template.format(total_words=total_words, total_amount=f"{total:.2f}")
-
-        # Phrase de clôture épinglée au bas de la page (v5.7)
-        font_name = self.base_template.arabic_font
-        font_bold_local = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
-        cloture_style = ParagraphStyle(name='PinnedCloture', fontName=font_bold_local, fontSize=10, textColor=p_color, alignment=TA_LEFT)
-        elements.append(PinnedCloture(cloture, cloture_style))
+            template = "Arrêté le présent devis à la somme de : {total_words}, soit {total_amount} MAD TTC."
+            
+        # Nettoyage encoding (v5.9)
+        template = template.replace('Arrte', 'Arrêté').replace('prsente', 'présente')
+        cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
+        
+        # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
+        if len(cloture) < 20:
+            cloture = f"Arrêté le présent devis à la somme de : {total_words_elite}, soit {total:.2f} MAD TTC."
         
         highlighted_teeth = []
         for item in data.items:
@@ -381,15 +424,19 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number)
+        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number, p_color=p_color)
 
-    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None):
+    def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None, p_color=None):
         # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
         m_bottom = (config.margin_bottom if config and config.margin_bottom is not None else 3.2) * cm
         doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id
         doc.qr_type = 'PAYMENT'
-        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user, highlighted_teeth=highlighted_teeth)
+        draw_method = lambda canv, d: self._draw_canvas(
+            canv, d,
+            config=config, user=user, highlighted_teeth=highlighted_teeth,
+            cloture_text=cloture_text, p_color=p_color
+        )
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath.replace("\\", "/")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Star, Search, Clock, ChevronRight, X, Brain } from 'lucide-react';
 import { CLINICAL_PROTOCOLS } from '../../data/clinical-protocols';
@@ -11,14 +11,22 @@ export const EliteLibrary: React.FC = () => {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState<ClinicalProtocol | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedTerm, setDebouncedTerm] = useState('');
 
-  // Load favorites from localStorage
+  // Chargement des favoris depuis localStorage
   useEffect(() => {
     const saved = localStorage.getItem('elite_library_favorites');
     if (saved) {
       setFavorites(JSON.parse(saved));
     }
   }, []);
+
+  // Debounce 300ms pour fluidifier la frappe sans bloquer le thread principal
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedTerm(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const toggleFavorite = (e: React.MouseEvent, code: string) => {
     e.stopPropagation();
@@ -72,12 +80,18 @@ export const EliteLibrary: React.FC = () => {
     return '';
   };
 
-  const filteredProtocols = CLINICAL_PROTOCOLS.filter(p => {
-    const category = getCategory(p.act_code.toLowerCase());
-    const matchesCategory = activeCategory === 'Tous' || category === activeCategory;
-    const matchesFav = !showOnlyFavorites || favorites.includes(p.act_code);
-    return matchesCategory && matchesFav;
-  });
+  const filteredProtocols = useMemo(() => {
+    return CLINICAL_PROTOCOLS.filter(p => {
+      const category = getCategory(p.act_code.toLowerCase());
+      const matchesCategory = activeCategory === 'Tous' || category === activeCategory;
+      const matchesFav = !showOnlyFavorites || favorites.includes(p.act_code);
+      const matchesSearch = !debouncedTerm || (
+        p.act_names.some(n => n.toLowerCase().includes(debouncedTerm.toLowerCase())) ||
+        p.act_code.toLowerCase().includes(debouncedTerm.toLowerCase())
+      );
+      return matchesCategory && matchesFav && matchesSearch;
+    });
+  }, [activeCategory, showOnlyFavorites, favorites, debouncedTerm]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-700">
@@ -89,8 +103,31 @@ export const EliteLibrary: React.FC = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Bibliothèque Elite</h1>
-            <p className="text-slate-400 font-bold text-sm tracking-wide">Protocoles cliniques certifiés (Statiques)</p>
+            <p className="text-slate-500 font-bold text-sm tracking-wide">Protocoles cliniques certifiés (Statiques)</p>
           </div>
+        </div>
+
+        {/* BARRE DE RECHERCHE — debounce 300ms, filtrage mémoisé */}
+        <div className="relative w-full md:w-80">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="search"
+            id="library-search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Rechercher un protocole..."
+            className="w-full pl-10 pr-4 py-3 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium outline-none focus:ring-4 transition-all shadow-sm"
+            style={{ ['--tw-ring-color' as string]: 'rgba(var(--primary-rgb), 0.08)' }}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              aria-label="Effacer la recherche"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3 bg-white/50 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 shadow-sm">
@@ -163,7 +200,7 @@ export const EliteLibrary: React.FC = () => {
                   onClick={(e) => toggleFavorite(e, protocol.act_code)}
                   className={cn(
                     "p-2 rounded-xl transition-all",
-                    favorites.includes(protocol.act_code) ? "text-amber-500 bg-amber-50" : "text-slate-200 hover:text-amber-500 hover:bg-amber-50"
+                    favorites.includes(protocol.act_code) ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"
                   )}
                  >
                    <Star size={20} fill={favorites.includes(protocol.act_code) ? "currentColor" : "none"} />
