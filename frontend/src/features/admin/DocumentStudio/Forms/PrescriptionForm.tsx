@@ -255,7 +255,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                       type="text"
                       className={cn(inputClass, "bg-white border-primary/20 text-primary font-bold h-10")}
                       placeholder="Précisez la forme (ex: Radio, Analyse...)"
-                      value={drug.forme === 'Autre' ? '' : drug.forme.replace('Autre: ', '')}
+                      value={drug.forme.includes(':') ? drug.forme.split(':')[1].trim() : ''}
                       onChange={(e) => onUpdateDrug(drug.id, 'forme', `Autre: ${e.target.value}`)}
                     />
                   </motion.div>

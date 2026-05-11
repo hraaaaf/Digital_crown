@@ -3,6 +3,7 @@ import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
 import { cabinetApi } from '../../services/templateApi';
 import { safeStorage } from '../../hooks/useLocalStorage';
+import { TourLauncher } from '../GuidedTour/TourLauncher';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -71,6 +72,9 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <Header />
+
+        {/* Guide Interactif — toujours disponible */}
+        <TourLauncher />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
           {isDemoMode && (

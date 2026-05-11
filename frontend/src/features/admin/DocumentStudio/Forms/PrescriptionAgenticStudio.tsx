@@ -589,6 +589,16 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                 {drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}
                               </button>
                               
+                              {drug.forme.startsWith('AUTRE') && (
+                                <input
+                                  type="text"
+                                  className="w-24 bg-white/50 border border-slate-200 px-2 py-1 rounded-lg focus:ring-0 text-[9px] font-black text-slate-700 uppercase tracking-widest placeholder:text-slate-400 focus:border-primary/40 transition-colors"
+                                  placeholder="PRÉCISER..."
+                                  value={drug.forme.includes(':') ? drug.forme.split(':')[1].trim() : ''}
+                                  onChange={e => onUpdateDrug(drug.id, 'forme', `AUTRE: ${e.target.value}`)}
+                                />
+                              )}
+                              
                               <div className="flex items-center gap-1 bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
                                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Dose :</span>
                                 <input

@@ -21,11 +21,13 @@ export interface PanoramicResult {
   processing_time_ms: number;
 }
 
-// Les classes cibles Ghost Elite
+// Les classes cibles Ghost Elite (31 classes)
 const CLASSES = [
-  "Carie", "Carie Profonde", "Lésion Périapicale", "Dent Incluse",
-  // Futures classes
-  "Traitement Endodontique", "Implant", "Couronne", "Perte Osseuse", "Tartre"
+  "Caries", "Crown", "Filling", "Implant", "Malaligned", "Mandibular Canal", "Missing teeth",
+  "Periapical lesion", "Retained root", "Root Canal Treatment", "Root Piece", "impacted tooth",
+  "maxillary sinus", "Bone Loss", "Fracture teeth", "Permanent Teeth", "Supra Eruption", "TAD",
+  "abutment", "attrition", "bone defect", "gingival former", "metal band", "orthodontic brackets",
+  "permanent retainer", "post - core", "plating", "wire", "Cyst", "Root resorption", "Primary teeth"
 ];
 
 let session: ort.InferenceSession | null = null;

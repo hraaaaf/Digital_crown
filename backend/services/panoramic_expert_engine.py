@@ -11,32 +11,50 @@ class PanoramicExpertEngine:
     """
     
     def __init__(self):
-        # Arbre de nomenclature clinique (20+ catégories)
+        # Arbre de nomenclature clinique (Modèle 31 classes)
         self.categories = {
             # A. Pathologies Dentaires et Parodontales
-            "Carie": {"fr": "Atteinte carieuse", "group": "Pathologies Dentaires"},
-            "Carie Profonde": {"fr": "Carie profonde avec risque de proximité pulpaire", "group": "Pathologies Dentaires"},
-            "Lésion Périapicale": {"fr": "Image radioclaire périapicale (suspicion de kyste/granulome)", "group": "Pathologies Dentaires"},
-            "Dent Incluse": {"fr": "Dent incluse/enclavée", "group": "Positionnement"},
-            "Agénésie": {"fr": "Agénésie dentaire", "group": "Positionnement"},
-            "Alvéolyse": {"fr": "Perte osseuse parodontale (Alvéolyse)", "group": "Parodonte"},
-            "Tartre": {"fr": "Spicules de tartre sous-gingival", "group": "Parodonte"},
-            "Élargissement Desmodontal": {"fr": "Élargissement de l'espace desmodontal", "group": "Parodonte"},
+            "Caries": {"fr": "Atteinte carieuse", "group": "Pathologies Dentaires"},
+            "Deep Caries": {"fr": "Carie profonde avec risque de proximité pulpaire", "group": "Pathologies Dentaires"},
+            "Periapical lesion": {"fr": "Image radioclaire périapicale (suspicion de kyste/granulome)", "group": "Pathologies Dentaires"},
+            "impacted tooth": {"fr": "Dent incluse/enclavée", "group": "Positionnement"},
+            "Impacted": {"fr": "Dent incluse/enclavée", "group": "Positionnement"},
+            "Missing teeth": {"fr": "Agénésie ou dent manquante", "group": "Positionnement"},
+            "Malaligned": {"fr": "Malposition dentaire / Version", "group": "Positionnement"},
+            "Supra Eruption": {"fr": "Égression / Sur-éruption", "group": "Positionnement"},
+            "Bone Loss": {"fr": "Perte osseuse parodontale (Alvéolyse)", "group": "Parodonte"},
+            "bone defect": {"fr": "Défaut osseux angulaire", "group": "Parodonte"},
+            "attrition": {"fr": "Usure dentaire / Attrition", "group": "Pathologies Dentaires"},
+            "Fracture teeth": {"fr": "Fracture coronaire ou radiculaire", "group": "Pathologies Dentaires"},
+            "Root resorption": {"fr": "Résorption radiculaire", "group": "Pathologies Dentaires"},
+            "Retained root": {"fr": "Reste radiculaire", "group": "Pathologies Dentaires"},
+            "Root Piece": {"fr": "Fragment apical ou radiculaire", "group": "Pathologies Dentaires"},
+            "Cyst": {"fr": "Lésion kystique maxillo-mandibulaire", "group": "Pathologies Dentaires"},
 
             # B. Actes Iatrogènes et Restaurations Existantes
-            "Soin Conservateur": {"fr": "Restauration coronaire (Composite/Amalgame)", "group": "Restaurations"},
-            "Obturation Endodontique": {"fr": "Traitement endodontique", "group": "Endodontie"},
-            "Sous-obturation": {"fr": "Sous-obturation canalaire", "group": "Endodontie"},
-            "Couronne": {"fr": "Restauration prothétique périphérique (Couronne/Bridge)", "group": "Prothèses"},
+            "Filling": {"fr": "Restauration coronaire (Composite/Amalgame)", "group": "Restaurations"},
+            "Root Canal Treatment": {"fr": "Traitement endodontique", "group": "Endodontie"},
+            "post - core": {"fr": "Inlay-core ou tenon radiculaire", "group": "Endodontie"},
+            "Crown": {"fr": "Restauration prothétique périphérique (Couronne/Bridge)", "group": "Prothèses"},
             "Implant": {"fr": "Implant dentaire", "group": "Implantologie"},
-            "Péri-implantite": {"fr": "Cratérisation osseuse péri-implantaire", "group": "Implantologie"},
+            "abutment": {"fr": "Pilier implantaire", "group": "Implantologie"},
+            "gingival former": {"fr": "Vis de cicatrisation", "group": "Implantologie"},
+            
+            # Orthodontie et Chirurgie
+            "TAD": {"fr": "Mini-vis d'ancrage orthodontique (TAD)", "group": "Orthodontie"},
+            "orthodontic brackets": {"fr": "Attaches orthodontiques (Brackets)", "group": "Orthodontie"},
+            "metal band": {"fr": "Bague orthodontique", "group": "Orthodontie"},
+            "permanent retainer": {"fr": "Fil de contention", "group": "Orthodontie"},
+            "wire": {"fr": "Arc orthodontique", "group": "Orthodontie"},
+            "plating": {"fr": "Matériel d'ostéosynthèse (Plaque/Vis)", "group": "Chirurgie"},
 
             # C. Structures Osseuses et Articulaires
-            "Lésion Osseuse": {"fr": "Lésion ostéolytique/ostéocondensante maxillo-mandibulaire", "group": "Osseux"},
-            "Opacité Sinusienne": {"fr": "Opacité du sinus maxillaire", "group": "Sinus"},
-            "Dépassement Sinusien": {"fr": "Proximité/Dépassement de matériel dans le sinus", "group": "Sinus"},
-            "Asymétrie ATM": {"fr": "Asymétrie ou remaniement condylien (ATM)", "group": "ATM"},
-            "Proximité Nerf": {"fr": "Proximité radiculaire avec le canal alvéolaire inférieur", "group": "Nerf"}
+            "Mandibular Canal": {"fr": "Proximité avec le canal alvéolaire inférieur", "group": "Nerf"},
+            "maxillary sinus": {"fr": "Visualisation du plancher sinusal", "group": "Sinus"},
+            
+            # Classes génériques / Anatomiques
+            "Permanent Teeth": {"fr": "Dentition permanente", "group": "Autre"},
+            "Primary teeth": {"fr": "Dentition lactéale", "group": "Autre"}
         }
 
     def _build_clinical_phrase(self, detection: Dict) -> str:

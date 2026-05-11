@@ -134,7 +134,7 @@ export const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* SECTION PATIENTS RÉCENTS */}
-        <section className="space-y-5">
+        <section data-tour="dashboard-agenda" className="space-y-5">
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
             <Clock size={18} /> Activité Récente
           </h2>
@@ -183,7 +183,7 @@ export const Dashboard: React.FC = () => {
         </section>
 
         {/* SECTION KPI & DATA VIZ */}
-        <section className="space-y-5">
+        <section data-tour="dashboard-stats" className="space-y-5">
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
             <TrendingUp size={18} /> Statistiques
           </h2>
