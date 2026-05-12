@@ -172,7 +172,6 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [ ] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante mettra en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, plutôt que les statistiques financières.
 - [ ] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès aux données sensibles (Chiffre d'affaires global, diagnostics IA poussés, honoraires spécifiques) selon les permissions accordées par le médecin.
 - [ ] **Workflow de Pré-Saisie** : Capacité pour l'assistante de créer le dossier patient, de remplir le questionnaire médical de base et de scanner les documents (carte d'identité, mutuelle) avant l'entrée en salle de soins.
-- [ ] **Onboarding & Formation Assistée** : Intégration de "Tooltips" dynamiques et d'un mode "Tutoriel" pour aider les nouvelles assistantes à maîtriser rapidement le logiciel (facturation basique, prise de RDV).
 
 ---
 
@@ -187,7 +186,18 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 🎙️ 17. Assistant Vocal "Hands-Free" & Vision Advanced (Prochaine Étape)
+## ✅ 17. Bibliothèque Clinique v2 & Mode Soin Immersif (TERMINÉ)
+**Statut :** Déployé (v2.0) — Digital Crown Edition
+**Spécialiste :** Antigravity Staff Engineering
+
+- [x] **Portage "Digital Crown"** : Interface premium avec glassmorphism, navigation par rail et thèmes dynamiques (Elite, Prestige, Emerald).
+- [x] **Mode Soin Immersif** : Vue plein écran à haut contraste optimisée pour l'usage au fauteuil avec checklist critique et navigation clavier.
+- [x] **Command Palette (⌘K)** : Recherche ultra-rapide par code acte ou spécialité avec navigation clavier totale.
+- [x] **Architecture "App-Shell"** : Défilement interne indépendant pour une ergonomie fluide sur tablettes et écrans larges.
+
+---
+
+## 🎙️ 18. Assistant Vocal "Hands-Free" & Vision Advanced (Prochaine Étape)
 **Statut :** Planifié
 **Priorité :** Élevée
 
@@ -195,21 +205,16 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [ ] **Cross-Check Intelligent** : Alerte automatique si une ordonnance d'antibiotiques est générée sans acte chirurgical ou endodontique lié dans la séance.
 - [ ] **Détection d'Omissions** : Suggestion d'actes de prévention (Détartrage/Fluor) basée sur l'historique du patient.
 
-### 🦷 Odontogramme 3D & Vision Advanced
-- [ ] **IA Overlay** : Superposition automatique des racines détectées sur la radio panoramique directement sur l'odontogramme SVG.
+---
+
+## 🦷 19. Analyseur Radio Panoramique IA (PanoVision Engine)
+**Statut :** Planifié / Architecture Validée
+**Priorité :** Haute
+
+- [ ] **PanoDetect (YOLOv8)** : Détection automatique des pathologies (caries, kystes, implants) par quadrant FDI.
+- [ ] **PanoReport** : Génération de rapports annotés avec overlay radio dans le dossier patient.
 
 ---
 
-## ✅ 18. Hub Panoramique ELITE & Clinical Insights (TERMINÉ)
-**Statut :** Déployé (v1.3)
-**Spécialiste :** Staff Engineering & PixelMaster
-
-- [x] **Panoramic Hub v2.0** : Interface de diagnostic panoramique interactive avec taxonomie par spécialité (Conservatrice, Endo, Paro, Chirurgie, Prothèse, ATM).
-- [x] **Gestion des Zones** : Prise en charge native des bridges et des alvéolyses multi-dents avec calcul de plage FDI automatique (même entre quadrants).
-- [x] **Elite Tips v1.2** : Système de micro-conseils cliniques en haut à gauche avec auto-disparition ultra-rapide (2s) pour zéro distraction.
-- [x] **Moteur de Rapport Hybride** : Fusion déterministe IA + Expertise humaine dans un PDF structuré par secteur (FDI).
-
----
-
-*Dernière mise à jour : 12 Mai 2026 — Elite Panoramic Release.*
+*Dernière mise à jour : 12 Mai 2026 — Elite Library & Soin Mode Release.*
 
