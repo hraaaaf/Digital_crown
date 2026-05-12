@@ -88,11 +88,28 @@ def check_and_update_db():
         
         safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS employer_id INTEGER DEFAULT 1")
         
+        def add_column(table, column, type, default):
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {type} DEFAULT {default}"))
+                conn.commit()
+                print(f"Added column {column} to {table}")
+            except Exception:
+                pass # Already exists or other error
+
+        add_column("document_archives", "payment_status", "VARCHAR(20)", "'EN_ATTENTE'")
+        add_column("document_archives", "is_accounted", "BOOLEAN", "1")
+        add_column("document_archives", "is_collected", "BOOLEAN", "0")
+        add_column("document_archives", "is_latest_version", "BOOLEAN", "1")
+        add_column("document_archives", "status", "VARCHAR(20)", "'ACTIF'")
+        
+        add_column("actes", "is_accounted", "BOOLEAN", "0")
+        add_column("actes", "is_collected", "BOOLEAN", "0")
+        
         try:
             conn.commit()
             print("Database check completed.")
-        except:
-            pass
+        except Exception as e:
+            print(f"Migration commit error: {e}")
 
 # Exécuter au chargement du module
 check_and_update_db()

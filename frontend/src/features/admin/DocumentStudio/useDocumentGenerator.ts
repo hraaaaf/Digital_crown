@@ -45,6 +45,9 @@ interface UseDocumentGeneratorParams {
   selectedTeethFromOdontogram: SelectedSurfaceData[];
   smartSuggestion: any;
   installments: any[];
+  isAccounted?: boolean;
+  paymentStatus?: string;
+  isGlobalNote?: boolean;
 }
 
 // --- Validation stricte (Phase 3) ---
@@ -237,13 +240,15 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       patientId, activeTab, drugs, certifType, certifDays, certifCustomMotif, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
       librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
-      installments,
+      installments, isAccounted, paymentStatus, isGlobalNote,
     } = params;
 
     const payload: any = {
       type: activeTab === 'honoraires' ? 'note' : activeTab,
       patient_id: parseInt(patientId!, 10),
       data: {},
+      is_accounted: isAccounted ?? true,
+      payment_status: paymentStatus ?? "EN_ATTENTE",
     };
 
     if (activeTab === 'ordonnance') {
@@ -291,8 +296,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         notes: '',
       }));
       payload.data = activeTab === 'devis'
-        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments }
-        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments };
+        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote }
+        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote };
     }
 
     return payload;

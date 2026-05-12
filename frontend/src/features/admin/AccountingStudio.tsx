@@ -68,6 +68,12 @@ interface AccountingStudioProps {
   applyActSuggestion: (itemId: number, act: any) => void;
   installments: InstallmentItem[];
   setInstallments: (val: InstallmentItem[]) => void;
+  isAccounted: boolean;
+  setIsAccounted: (val: boolean) => void;
+  paymentStatus: string;
+  setPaymentStatus: (val: string) => void;
+  isGlobalNote: boolean;
+  setIsGlobalNote: (val: boolean) => void;
   validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
 }
@@ -111,6 +117,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     applyActSuggestion,
     installments,
     setInstallments,
+    isAccounted,
+    setIsAccounted,
+    paymentStatus,
+    setPaymentStatus,
+    isGlobalNote,
+    setIsGlobalNote,
     validationErrors = [],
     coherenceWarnings = [],
   } = props;
@@ -517,36 +529,171 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
       </div>
 
-      {/* 2.5 MODE DE RÈGLEMENT (Intégré) */}
+      {/* 2.6 TRÉSORERIE & COMPTABILITÉ (Elite Hub) */}
       {!isDevis && (
-        <div className="p-6 bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
-              <Banknote size={18} />
+        <div className="p-8 bg-slate-900/5 backdrop-blur-3xl rounded-[2.5rem] border border-slate-200/50 shadow-inner space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-600/10 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100/50">
+                <Calculator size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Ghost Treasury Hub</h4>
+                <p className="text-[10px] text-slate-400 font-bold">Intégration comptable & workflow d'encaissement</p>
+              </div>
             </div>
-            <div>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Règlement</span>
-              <span className="text-xs font-black text-slate-700">Mode de paiement principal</span>
+            
+            <div className="flex items-center gap-6">
+               <div className="flex flex-col items-end gap-1">
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intégrer CA</span>
+                  <button 
+                   onClick={() => {
+                     if (isAccounted) {
+                       if (window.confirm("En désactivant l'intégration CA, cette note ne sera pas comptabilisée dans vos statistiques financières. Confirmer ?")) {
+                         setIsAccounted(false);
+                         toast.success("Note exclue de la comptabilité.");
+                       }
+                     } else {
+                       setIsAccounted(true);
+                       toast.success("Note intégrée à la comptabilité.");
+                     }
+                   }}
+                   className={cn(
+                     "relative w-12 h-6 rounded-full transition-all duration-500",
+                     isAccounted ? "bg-emerald-500" : "bg-slate-300"
+                   )}
+                  >
+                   <div className={cn(
+                     "absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-500",
+                     isAccounted ? "left-7" : "left-1"
+                   )} />
+                 </button>
+               </div>
             </div>
           </div>
-          <div className="flex bg-slate-200/50 p-1 rounded-xl gap-1">
-            {['Espèces', 'Chèque', 'TPE', 'Virement'].map(m => (
-              <button
-                key={m}
-                onClick={() => setPaymentMode(m as any)}
-                className={cn(
-                  "px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                  paymentMode === m ? "bg-white shadow-md text-primary" : "text-slate-400 hover:text-slate-600"
-                )}
-                style={paymentMode === m ? { color: 'var(--primary)' } : {}}
-              >
-                {m}
-              </button>
-            ))}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* Statut de Paiement */}
+            <div className="space-y-3">
+              <label className={labelClass}>Statut d'Encaissement</label>
+              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+                {[
+                  { id: 'EN_ATTENTE', label: 'En Attente', color: 'text-amber-600' },
+                  { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600' },
+                  { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600' }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setPaymentStatus(s.id)}
+                    className={cn(
+                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      paymentStatus === s.id ? "bg-white shadow-lg " + s.color : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Note Globale / Échelonné */}
+            <div className="space-y-3">
+              <label className={labelClass}>Type de Note</label>
+              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+                <button
+                  onClick={() => setIsGlobalNote(false)}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    !isGlobalNote ? "bg-white shadow-lg text-indigo-600" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => setIsGlobalNote(true)}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    isGlobalNote ? "bg-white shadow-lg text-purple-600" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Global / Échelonné
+                </button>
+              </div>
+            </div>
           </div>
+
+          {isGlobalNote && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100/50 border-dashed"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                  <Banknote size={14} /> Plan de financement activé
+                </span>
+                <button 
+                  onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: `Versement ${installments.length + 1}` }])}
+                  className="text-[9px] font-black text-indigo-600 hover:underline uppercase tracking-widest"
+                >
+                  + Ajouter échéance
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                {installments.map((inst, idx) => (
+                  <div key={inst.id} className="grid grid-cols-12 gap-3 items-center">
+                    <div className="col-span-5">
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-bold outline-none"
+                        value={inst.label}
+                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <input 
+                        type="date" 
+                        className="w-full px-3 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-bold outline-none"
+                        value={inst.date}
+                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
+                      />
+                    </div>
+                    <div className="col-span-3 relative">
+                      <input 
+                        type="number" 
+                        className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-black text-indigo-600 outline-none pr-8"
+                        value={inst.amount}
+                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-indigo-300">MAD</span>
+                    </div>
+                    <div className="col-span-1">
+                      <button 
+                        onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
+                        className="p-2 text-rose-400 hover:bg-rose-50 rounded-lg transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="pt-4 border-t border-indigo-100/50 flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Planifié</span>
+                  <span className={cn(
+                    "text-sm font-black",
+                    installments.reduce((s, i) => s + i.amount, 0) === items.reduce((s, i) => s + i.price, 0) ? "text-emerald-600" : "text-amber-600"
+                  )}>
+                    {installments.reduce((s, i) => s + i.amount, 0)} / {items.reduce((s, i) => s + i.price, 0)} MAD
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
         </div>
       )}
-
 
       {protocol && (
         <ClinicalRefSidebar 

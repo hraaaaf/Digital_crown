@@ -26,10 +26,14 @@ export const Sidebar = () => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [showTip, setShowTip] = useState(false);
   const [currentTip, setCurrentTip] = useState("");
-
+  const [tipsEnabled, setTipsEnabled] = useState(localStorage.getItem('clinical_tips_enabled') !== 'false');
+  
   // Cycle tips with Slingshot physics
   useEffect(() => {
     const triggerTip = () => {
+      // Respect user preference globally
+      if (localStorage.getItem('clinical_tips_enabled') === 'false') return;
+
       // 1. Tension / Anticipation
       setIsFlipping(true); 
       
@@ -60,19 +64,23 @@ export const Sidebar = () => {
     };
   }, []);
   
-  // CTO Rigor: Global event listener for AI animation
+  // CTO Rigor: Global event listener for AI animation & Settings changes
   useEffect(() => {
     const handleAiStart = () => setIsAiActive(true);
     const handleAiEnd = () => setIsAiActive(false);
+    const handlePrefChange = () => setTipsEnabled(localStorage.getItem('clinical_tips_enabled') !== 'false');
     
     window.addEventListener('ai-generation-start', handleAiStart);
     window.addEventListener('ai-generation-end', handleAiEnd);
+    window.addEventListener('clinical-tips-changed', handlePrefChange);
     
     return () => {
       window.removeEventListener('ai-generation-start', handleAiStart);
       window.removeEventListener('ai-generation-end', handleAiEnd);
+      window.removeEventListener('clinical-tips-changed', handlePrefChange);
     };
   }, []);
+
 
   const pathParts = location.pathname.split('/');
   const isInPatientDossier = Boolean(pathParts[1] === 'patients' && pathParts[2] && pathParts[2] !== 'new');
@@ -118,10 +126,11 @@ export const Sidebar = () => {
               alt="Digital Crown AI" 
               className={cn(
                 "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
-                isAiActive && "animate-logo-pulse-light",
-                isFlipping && "animate-tooth-slingshot"
+                (isAiActive && tipsEnabled) && "animate-logo-pulse-light",
+                (isFlipping && tipsEnabled) && "animate-tooth-slingshot"
               )} 
             />
+
           </Link>
           
           {/* Elite Clinical Tips Module */}

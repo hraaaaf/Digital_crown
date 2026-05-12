@@ -140,6 +140,8 @@ class DocumentRequest(BaseModel):
     type: Literal["ordonnance", "certificat", "devis", "note", "honoraires", "libre"]
     patient_id: int
     data: Dict
+    is_accounted: bool = True
+    payment_status: Optional[str] = "EN_ATTENTE" # EN_ATTENTE, PAYE, PARTIEL
 
 
 # --- SMART ORDONNANCE ---
@@ -342,6 +344,7 @@ class HonoraireItem(BaseModel):
     title: str
     amount: float
     file_url: str
+    payment_status: Optional[str] = "EN_ATTENTE"
 
 
 class HonoraireListResponse(BaseModel):

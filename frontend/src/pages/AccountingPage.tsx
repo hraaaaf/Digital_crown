@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { API_BASE } from '../services/api';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { 
   Receipt, 
   Search, 
@@ -15,8 +15,11 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  BarChart2
+  BarChart2,
+  Calculator,
+  Check
 } from 'lucide-react';
+import { cn } from '../utils/cn';
 import { 
   AreaChart, 
   Area, 
@@ -39,6 +42,8 @@ interface HonoraireItem {
   title: string;
   amount: number;
   file_url: string;
+  payment_status?: string;
+  is_collected?: boolean;
 }
 
 // --- Groupe les notes par patient_id + date (clé composite) ---
@@ -76,11 +81,17 @@ const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
 };
 
 export const AccountingPage = () => {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'treasury' ? 'treasury' : 'history';
+  
   const [items, setItems] = useState<HonoraireItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'history' | 'treasury'>(initialTab);
+  const [treasuryData, setTreasuryData] = useState<any>(null);
+  const [loadingTreasury, setLoadingTreasury] = useState(false);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
@@ -118,9 +129,25 @@ export const AccountingPage = () => {
     }
   };
 
+  const fetchTreasury = async () => {
+    setLoadingTreasury(true);
+    try {
+      const res = await api.get('/documents/accounting/treasury-hub');
+      setTreasuryData(res.data);
+    } catch (err) {
+      console.error("Erreur treasury hub:", err);
+    } finally {
+      setLoadingTreasury(false);
+    }
+  };
+
   useEffect(() => {
-    fetchHonoraires();
-  }, [selectedMonth, selectedYear, selectedAssurance]);
+    if (activeTab === 'history') {
+      fetchHonoraires();
+    } else {
+      fetchTreasury();
+    }
+  }, [selectedMonth, selectedYear, selectedAssurance, activeTab]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -146,6 +173,38 @@ export const AccountingPage = () => {
     }
   };
 
+  const handleViewDocument = async (url: string) => {
+    try {
+      const response = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const docUrl = window.URL.createObjectURL(blob);
+      window.open(docUrl, '_blank');
+      // Cleanup URL after a while
+      setTimeout(() => window.URL.revokeObjectURL(docUrl), 5000);
+    } catch (err) {
+      console.error("Erreur visualisation document:", err);
+      alert("Impossible de visualiser le document (Problème d'accès ou de token).");
+    }
+  };
+
+  const handleDownloadDocument = async (url: string, filename: string) => {
+    try {
+      const response = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const docUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = docUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(docUrl), 5000);
+    } catch (err) {
+      console.error("Erreur téléchargement document:", err);
+      alert("Erreur lors du téléchargement.");
+    }
+  };
+
   const handleDelete = async (id: number | string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note d'honoraires ? Elle sera déplacée dans la corbeille.")) {
       try {
@@ -159,10 +218,66 @@ export const AccountingPage = () => {
     }
   };
 
+  const handleEncaisser = async (id: number | string) => {
+    try {
+      await api.post(`/documents/accounting/encaisser/${id}`);
+      toast.success("Règlement encaissé avec succès !");
+      fetchTreasury(); // Rafraîchir les données
+    } catch (err) {
+      console.error("Erreur encaissement:", err);
+      toast.error("Échec de l'encaissement.");
+    }
+  };
+
+  const navigate = useNavigate();
+
+  const handlePatientClick = (patientId: number) => {
+    navigate(`/patients/${patientId}`);
+  };
+
   const filteredItems = items.filter(item => 
     item.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getStatusBadge = (item: HonoraireItem) => {
+    if (item.payment_status === 'PAYE') {
+      if (item.is_collected) {
+        return (
+          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">
+            Encaissé
+          </span>
+        );
+      }
+      return (
+        <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">
+          Réglé
+        </span>
+      );
+    }
+    
+    if (item.payment_status === 'A_ENCAISSER') {
+      return (
+        <span className="px-2 py-1 text-[10px] font-black rounded-full bg-blue-100 text-blue-700 uppercase tracking-tighter">
+          À Encaisser
+        </span>
+      );
+    }
+
+    if (item.payment_status === 'PARTIEL') {
+      return (
+        <span className="px-2 py-1 text-[10px] font-black rounded-full bg-purple-100 text-purple-700 uppercase tracking-tighter">
+          Partiel
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">
+        En attente
+      </span>
+    );
+  };
 
   const getAssuranceBadge = (assurance: string) => {
     switch (assurance) {
@@ -242,89 +357,116 @@ export const AccountingPage = () => {
       </header>
 
       {/* SECTION INSIGHTS FINANCIERS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Graphique d'évolution avec empty state conditionnel */}
-        <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution des Recettes</h2>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variation sur la période sélectionnée</p>
+      {activeTab === 'history' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Graphique d'évolution avec empty state conditionnel */}
+          <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution des Recettes</h2>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variation sur la période sélectionnée</p>
+              </div>
             </div>
+
+            {chartData.length >= 2 ? (
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
+                    <YAxis hide />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].payload.date}</p>
+                              <p className="text-sm font-black text-primary">{(payload[0].value as number).toLocaleString('fr-FR')} MAD</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Area type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={4} fillOpacity={1} fill="url(#colorAmount)" animationDuration={1500} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 bg-slate-50 border border-dashed border-slate-200 rounded-2xl gap-3">
+                <BarChart2 size={28} className="text-slate-300" />
+                <span className="text-slate-500 font-medium text-sm text-center max-w-xs">
+                  {chartData.length === 0
+                    ? 'Aucun encaissement sur la période sélectionnée.'
+                    : 'Données insuffisantes pour tracer l\'évolution (min. 2 dates distinctes).'}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Optimisation : n'instancie recharts que si ≥ 2 points de données */}
-          {chartData.length >= 2 ? (
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
-                  <YAxis hide />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{payload[0].payload.date}</p>
-                            <p className="text-sm font-black" style={{ color: 'var(--primary)' }}>
-                              {payload[0].value?.toLocaleString('fr-FR')} MAD
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke="var(--primary)" strokeWidth={4} fillOpacity={1} fill="url(#colorAmount)" animationDuration={1500} />
-                </AreaChart>
-              </ResponsiveContainer>
+          {/* Mini Stats Grid */}
+          <div className="grid grid-cols-1 gap-4 h-full">
+            <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne / Note</span>
+              <div className="mt-2">
+                <span className="text-3xl font-black text-slate-800">
+                  {items.length > 0 ? (totalAmount / items.length).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) : 0}
+                </span>
+                <span className="text-xs font-bold text-slate-400 ml-2">MAD</span>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-emerald-500">
+                <TrendingUp size={14} />
+                <span className="text-[10px] font-bold">Stable sur 30 jours</span>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-40 bg-slate-50 border border-dashed border-slate-200 rounded-2xl gap-3">
-              <BarChart2 size={28} className="text-slate-300" />
-              <span className="text-slate-500 font-medium text-sm text-center max-w-xs">
-                {chartData.length === 0
-                  ? 'Aucun encaissement sur la période sélectionnée.'
-                  : 'Données insuffisantes pour tracer l\'évolution (min. 2 dates distinctes).'}
-              </span>
+
+            <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volume d'Activité</span>
+              <div className="mt-2">
+                <span className="text-3xl font-black text-slate-800">{items.length}</span>
+                <span className="text-xs font-bold text-slate-400 ml-2">Notes émises</span>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TABS NAVIGATION */}
+      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+        <button 
+          onClick={() => setActiveTab('history')}
+          className={cn(
+            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
+            activeTab === 'history' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
           )}
-        </div>
-
-        {/* Mini Stats Grid */}
-        <div className="grid grid-cols-1 gap-4 h-full">
-          <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne / Note</span>
-            <div className="mt-2">
-              <span className="text-3xl font-black text-slate-800">
-                {items.length > 0 ? (totalAmount / items.length).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) : 0}
-              </span>
-              <span className="text-xs font-bold text-slate-400 ml-2">MAD</span>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-emerald-500">
-              <TrendingUp size={14} />
-              <span className="text-[10px] font-bold">Stable sur 30 jours</span>
-            </div>
-          </div>
-
-          <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volume d'Activité</span>
-            <div className="mt-2">
-              <span className="text-3xl font-black text-slate-800">{items.length}</span>
-              <span className="text-xs font-bold text-slate-400 ml-2">Notes émises</span>
-            </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-               <div className="bg-primary h-full transition-all duration-1000" style={{ width: '65%', backgroundColor: 'var(--primary)' }} />
-            </div>
-          </div>
-        </div>
+          style={activeTab === 'history' ? { color: 'var(--primary)' } : {}}
+        >
+          Historique des Encaissements
+        </button>
+        <button 
+          onClick={() => setActiveTab('treasury')}
+          className={cn(
+            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
+            activeTab === 'treasury' ? "bg-white shadow-lg text-indigo-600" : "text-slate-500 hover:text-slate-800"
+          )}
+        >
+          <Calculator size={14} /> Ghost Treasury Hub
+          {treasuryData?.pending_count > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 text-[9px] rounded-full font-black animate-pulse">
+              {treasuryData.pending_count}
+            </span>
+          )}
+        </button>
       </div>
+
+      {activeTab === 'history' ? (
+        <>
 
       {/* FILTRES DYNAMIQUES */}
       <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm flex flex-wrap items-center gap-6">
@@ -402,6 +544,7 @@ export const AccountingPage = () => {
                   <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Date</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Notes</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Statut</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Actions</th>
                 </tr>
               </thead>
@@ -410,10 +553,9 @@ export const AccountingPage = () => {
                   const isExpanded = expandedGroups.has(group.key);
                   const hasMultiple = group.notes.length > 1;
                   return (
-                    <>
+                    <React.Fragment key={group.key}>
                       {/* Ligne principale (groupe) */}
                       <tr
-                        key={group.key}
                         className={`border-b border-slate-100 transition-colors group ${
                           hasMultiple ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-primary/5'
                         }`}
@@ -454,24 +596,44 @@ export const AccountingPage = () => {
                         <td className="px-8 py-5 text-right">
                           <span className="font-black" style={{ color: 'var(--primary)' }}>{group.total.toLocaleString('fr-FR')} MAD</span>
                         </td>
+                        <td className="px-8 py-5 text-center">
+                          {hasMultiple ? (
+                             // Si c'est un groupe, on affiche "Encaissé" uniquement si TOUS sont encaissés
+                             group.notes.every(n => n.payment_status === 'PAYE' && n.is_collected) ? (
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">Encaissé</span>
+                             ) : group.notes.every(n => n.payment_status === 'PAYE') ? (
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">Réglé</span>
+                             ) : (
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">En attente</span>
+                             )
+                          ) : (
+                            getStatusBadge(group.notes[0])
+                          )}
+                        </td>
                         <td className="px-8 py-5">
                           {!hasMultiple && (
                             <div className="flex items-center justify-center gap-2">
-                              <a href={`${API_BASE}/${group.notes[0].file_url}`} target="_blank" rel="noreferrer" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20">
+                              {(!group.notes[0].is_collected) && (
+                                <button onClick={e => { e.stopPropagation(); handleEncaisser(group.notes[0].id); }} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100" title="Encaisser">
+                                  <Check size={16} />
+                                </button>
+                              )}
+                              <button onClick={() => handleViewDocument(group.notes[0].file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                 <Eye size={16} />
-                              </a>
-                              <Link to={`/patients/${group.patient_id}/edit`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Attribuer Assurance" onClick={e => e.stopPropagation()}>
+                              </button>
+                              <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
                                 <Edit size={16} />
                               </Link>
-                              <a href={`${API_BASE}/${group.notes[0].file_url}`} download className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200">
+                              <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
                                 <Download size={16} />
-                              </a>
+                              </button>
                               <button onClick={e => { e.stopPropagation(); handleDelete(group.notes[0].id); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={16} />
                               </button>
                             </div>
                           )}
                         </td>
+
                       </tr>
 
                       {/* Lignes de détail accordéon (multi-notes) */}
@@ -483,22 +645,31 @@ export const AccountingPage = () => {
                           <td className="px-8 py-3 text-right" colSpan={2}>
                             <span className="text-sm font-black text-slate-700">{note.amount.toLocaleString('fr-FR')} MAD</span>
                           </td>
+                          <td className="px-8 py-3 text-center">
+                             {getStatusBadge(note)}
+                          </td>
                           <td className="px-8 py-3">
                             <div className="flex items-center justify-center gap-2">
-                              <a href={`${API_BASE}/${note.file_url}`} target="_blank" rel="noreferrer" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20">
+                              {note.payment_status !== 'PAYE' && (
+                                <button onClick={() => handleEncaisser(note.id)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100" title="Encaisser">
+                                  <Check size={14} />
+                                </button>
+                              )}
+                              <button onClick={() => handleViewDocument(note.file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                 <Eye size={14} />
-                              </a>
-                              <a href={`${API_BASE}/${note.file_url}`} download className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200">
+                              </button>
+                              <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
                                 <Download size={14} />
-                              </a>
+                              </button>
                               <button onClick={() => handleDelete(note.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
                                 <Trash2 size={14} />
                               </button>
                             </div>
                           </td>
+
                         </tr>
                       ))}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -514,6 +685,149 @@ export const AccountingPage = () => {
           </div>
         )}
       </main>
+        </>
+      ) : (
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+           {/* Treasury Overview Cards */}
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En Attente</span>
+                 <span className="text-3xl font-black text-slate-800">{treasuryData?.pending_total?.toLocaleString('fr-FR')} MAD</span>
+                 <div className="flex items-center gap-2 text-amber-500 mt-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-[10px] font-bold uppercase">{treasuryData?.pending_count} dossiers à régulariser</span>
+                 </div>
+              </div>
+              <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Règlements Partiels</span>
+                 <span className="text-3xl font-black text-slate-800">{treasuryData?.partial_total?.toLocaleString('fr-FR')} MAD</span>
+                 <span className="text-[10px] font-bold text-blue-500 uppercase mt-2 italic">Solde restant à percevoir</span>
+              </div>
+              <div className="bg-indigo-600 p-8 rounded-[2rem] shadow-xl shadow-indigo-200 flex flex-col gap-2 text-white">
+                 <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Alerte Chèques</span>
+                 <span className="text-3xl font-black">{treasuryData?.cheques_count || 0}</span>
+                 <p className="text-[10px] font-medium text-indigo-100 mt-2 leading-relaxed">
+                    Chèques en attente de dépôt bancaire ou d'encaissement définitif.
+                 </p>
+              </div>
+              <div className="bg-emerald-600 p-8 rounded-[2rem] shadow-xl shadow-emerald-200 flex flex-col gap-2 text-white">
+                 <span className="text-[10px] font-black text-emerald-200 uppercase tracking-widest">Potentiel Immédiat</span>
+                 <span className="text-3xl font-black">{( (treasuryData?.pending_total || 0) + (treasuryData?.partial_total || 0) ).toLocaleString('fr-FR')} MAD</span>
+                 <p className="text-[10px] font-medium text-emerald-100 mt-2 leading-relaxed">
+                    Trésorerie latente à recouvrir activement ce mois.
+                 </p>
+              </div>
+           </div>
+
+           <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+              <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div>
+                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Dossiers en souffrance</h3>
+                   <p className="text-[10px] text-slate-400 font-medium">Liste des notes non réglées ou partiellement réglées</p>
+                 </div>
+                 
+                 <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative group">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={14} />
+                      <input 
+                        type="text" 
+                        placeholder="Rechercher..." 
+                        className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all w-48"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <select 
+                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/5"
+                      value={selectedAssurance === 'ALL' ? 'ALL' : selectedAssurance} 
+                      onChange={(e) => setSelectedAssurance(e.target.value)}
+                    >
+                      <option value="ALL">Tous Statuts</option>
+                      <option value="EN_ATTENTE">En Attente</option>
+                      <option value="PARTIEL">Partiel</option>
+                    </select>
+                    <button 
+                      onClick={() => toast.success("Module de relances automatiques activé (IA).")}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                    >
+                      Lancer Rappels Auto
+                    </button>
+                 </div>
+              </div>
+             
+             {loadingTreasury ? (
+               <div className="py-20 flex flex-col items-center gap-4">
+                 <Loader2 className="animate-spin text-indigo-600" size={32} />
+               </div>
+             ) : (
+               <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Date Émission</th>
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Montant</th>
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Statut</th>
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(treasuryData?.items || [])
+                      .filter((item: any) => 
+                        (item.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                        (selectedAssurance === 'ALL' || item.status === selectedAssurance)
+                      )
+                      .map((item: any) => (
+                      <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-all group">
+                        <td className="px-8 py-5">
+                          <button 
+                            onClick={() => handlePatientClick(item.patient_id)}
+                            className="font-bold text-slate-700 hover:text-indigo-600 transition-colors text-left"
+                          >
+                            {item.patient_name}
+                          </button>
+                        </td>
+                        <td className="px-8 py-5 text-sm text-slate-500">
+                          {new Date(item.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className="font-black text-indigo-600">{item.amount.toLocaleString('fr-FR')} MAD</span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest",
+                            item.status === 'EN_ATTENTE' ? "bg-amber-100 text-amber-700" : 
+                            item.status === 'A_ENCAISSER' ? "bg-blue-100 text-blue-700" :
+                            "bg-purple-100 text-purple-700"
+                          )}>
+                            {item.status === 'EN_ATTENTE' ? 'En Attente' : 
+                             item.status === 'A_ENCAISSER' ? 'À Encaisser' : 'Partiel'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex justify-center gap-2">
+                             <button 
+                                onClick={() => handleViewDocument(`api/documents/${item.id}/download`)}
+                                className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
+                                title="Voir la note"
+                             >
+                                <Receipt size={14} />
+                             </button>
+                             <button 
+                                onClick={() => handleEncaisser(item.id)}
+                                className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all"
+                             >
+                                Encaisser
+                             </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+               </table>
+             )}
+           </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -99,10 +99,15 @@ export const Settings = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // États Tab 2 : IA & Système (LocalStorage)
   const [performanceMode, setPerformanceMode] = useState<boolean>(() => {
     return localStorage.getItem('performance_mode') === 'true';
   });
+
+  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('clinical_tips_enabled');
+    return saved === null ? true : saved === 'true';
+  });
+
 
   // --- EFFET : Chargement Profil ---
   useEffect(() => {
@@ -278,6 +283,15 @@ export const Settings = () => {
     setPerformanceMode(newVal);
     localStorage.setItem('performance_mode', String(newVal));
   };
+
+  const toggleClinicalTips = () => {
+    const newVal = !clinicalTipsEnabled;
+    setClinicalTipsEnabled(newVal);
+    localStorage.setItem('clinical_tips_enabled', String(newVal));
+    window.dispatchEvent(new Event('clinical-tips-changed'));
+  };
+
+
 
   const handleExportDB = () => {
     window.open(`${API_BASE}/api/admin/export-db`, '_blank');
@@ -792,6 +806,8 @@ export const Settings = () => {
             </div>
           )}
 
+
+
           {/* TAB 3 : OPTIMISATION & SYSTÈME */}
           {activeTab === 'ia' && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
@@ -826,9 +842,29 @@ export const Settings = () => {
                     <span className="text-xs font-bold" style={{ color: 'var(--primary)' }}>Mode Performance activé : L'interface est optimisée pour votre matériel.</span>
                   </div>
                 )}
+
+                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 flex items-center justify-between gap-8">
+                  <div className="flex-1">
+                    <h4 className="font-black text-slate-800">Conseils Cliniques (Tips)</h4>
+                    <p className="text-sm text-slate-500 mt-1 font-medium">Affiche des conseils et des faits scientifiques durant les temps d'attente ou l'analyse.</p>
+                  </div>
+                  <button 
+                    onClick={toggleClinicalTips}
+                    className={cn(
+                      "w-14 h-7 rounded-full transition-all relative flex items-center px-1",
+                      clinicalTipsEnabled ? "bg-emerald-500" : "bg-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 bg-white rounded-full shadow-lg transition-all",
+                      clinicalTipsEnabled ? "translate-x-7" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
+
 
           {/* TAB 3 : SÉCURITÉ */}
           {activeTab === 'securite' && (

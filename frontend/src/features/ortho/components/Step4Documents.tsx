@@ -2,20 +2,21 @@ import React from 'react';
 import { Camera, Printer, Clock, FileText, CheckCircle2 } from 'lucide-react';
 import type { PhotoUpload } from '../cephaloTypes';
 
+import { useOrthoStore } from '../stores/useOrthoStore';
+
 interface Step4DocumentsProps {
-  photos: PhotoUpload[];
-  patientName: string;
-  sexe: 'M' | 'F';
-  onUpload: (id: string, file: File) => void;
-  onGeneratePDF: () => void;
-  onPreviewPDF: () => void;
-  isGenerating: boolean;
   P: any;
 }
 
-export const Step4Documents: React.FC<Step4DocumentsProps> = ({ 
-  photos, onUpload, onGeneratePDF, onPreviewPDF, isGenerating, P 
-}) => {
+export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
+  const store = useOrthoStore();
+  const { 
+    photos, 
+    handlePhotoUpload: onUpload, 
+    handlePrint: onGeneratePDF, 
+    handlePreview: onPreviewPDF, 
+    isPrinting: isGenerating 
+  } = store;
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       

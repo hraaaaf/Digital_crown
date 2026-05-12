@@ -1,27 +1,31 @@
 import React, { useMemo } from 'react';
-import type { ClasseAngle, DonneesEtape2, DDMState } from '../cephaloTypes';
-import { fmtNum, calcDDMReelle } from '../cephaloUtils';
+import type { ClasseAngle } from '../cephaloTypes';
+import { fmtNum, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 
+import { useOrthoStore } from '../stores/useOrthoStore';
+
+
 interface Step2OcclusalProps {
-  data: DonneesEtape2;
-  ddm: DDMState;
-  impa: number;
-  iFrancfort: number;
-  onChange: (newData: Partial<DonneesEtape2>) => void;
-  onDdmChange: (newDdm: DDMState) => void;
   P: any;
 }
 
-export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ 
-  data, 
-  ddm, 
-  impa, 
-  iFrancfort, 
-  onChange, 
-  onDdmChange, 
-  P 
-}) => {
+export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
+  const store = useOrthoStore();
+  const { etape2Data: data, ddm, setDdm: onDdmChange, setEtape2Data: onChange, local, anglesData, etape3Data } = store;
+
+  // Re-calcul des dépendances locales si nécessaire (IMPA, I-Francfort)
+  const localImpa = useMemo(() => computeLocalImpa(local.landmarks), [local.landmarks]);
+  const serverImpa = useMemo(() => {
+    const v1 = anglesData?.metrics?.analyse_dentaire?.IMPA?.value;
+    if (v1 !== undefined && v1 !== null) return v1 as number;
+    const v2 = anglesData?.IMPA?.valeur;
+    if (v2 !== undefined && v2 !== null) return v2 as number;
+    return null;
+  }, [anglesData]);
+
+  const impa = serverImpa ?? localImpa ?? 90;
+  const iFrancfort = etape3Data.dentaire.i_francfort === '' ? 107 : Number(etape3Data.dentaire.i_francfort);
   const updateOcclusal = (key: string, val: ClasseAngle) => {
     onChange({ occlusal: { ...data.occlusal, [key]: val } });
   };

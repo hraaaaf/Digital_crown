@@ -77,6 +77,14 @@ export function computeAngle(p1: {x:number, y:number}, p2: {x:number, y:number},
 }
 
 /**
+ * Calcule l'angle inter-incisif (1/1).
+ */
+export function computeInterIncisalAngle(u1i: Landmark, u1a: Landmark, l1i: Landmark, l1a: Landmark): number {
+  return computeAngle(u1i, u1a, l1i, l1a);
+}
+
+
+/**
  * Calcule la distance signée d'un point à une ligne perpendiculaire à une autre.
  * Utilisé pour McNamara (distance à la verticale de Nasion).
  */
@@ -192,9 +200,25 @@ export function initializeDefaultApexes(landmarks: Landmark[]): Landmark[] {
 }
 
 /**
- * Automate Step 3 data based on current landmarks and patient info.
+ * Automate Step 3 data based on current landmarks, patient info, and Step 2 data.
  */
-export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null): Partial<DonneesEtape3> {
+/**
+ * Distance d'un point à une droite définie par deux points.
+ */
+export function computeDistanceToLine(p: Landmark, l1: Landmark, l2: Landmark, ratio: number): number {
+  const x0 = p.x; const y0 = p.y;
+  const x1 = l1.x; const y1 = l1.y;
+  const x2 = l2.x; const y2 = l2.y;
+  
+  const num = Math.abs((x2 - x1) * (y1 - y0) - (x1 - x0) * (y2 - y1));
+  const den = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  if (den === 0) return 0;
+  return (num / den) * ratio;
+}
+
+export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null, etape2: DonneesEtape2 | null = null, analysisType: 'COM' | 'STEINER' | 'TWEED' = 'COM'): Partial<DonneesEtape3> {
+
+
   const g = (id: string) => lms.find(l => l.id.toLowerCase() === id.toLowerCase());
   const po = g('po'); const or_ = g('or'); const n = g('n');
   const a = g('a'); const b = g('b'); const s = g('s');
@@ -202,18 +226,44 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   const sn = g('sn'); const prn = g('prn') || g('nose_tip');
   const cm = g('cm'); const ls = g('ls') || g('ul');
   const li = g('li') || g('ll'); const pogSoft = g('pog_soft') || g('stpog');
+  const u1i = g('u1_incisal') || g('u1i');
+  const u1a = g('u1_apex') || g('u1a');
+  const l1i = g('l1_incisal') || g('l1i');
+  const l1a = g('l1_apex') || g('l1a');
 
   const ratio = mmPerPixel || 0.1; // Fallback to 0.1 if not calibrated
   const results: Partial<DonneesEtape3> = {
     age: age,
     cvm: estimateCVM(age, sexe) || 'CS1',
     denture_type: age !== '' ? (age < 6 ? 'TEMPORAIRE' : age < 12 ? 'MIXTE' : 'PERMANENTE') : 'PERMANENTE',
+    dentaire: {
+      surplomb: '',
+      recouvrement: '',
+      impa: '',
+      i_francfort: '',
+      inter_incisif: ''
+    },
+    osseuse: {
+      angle_tweed: '',
+      decalage_ab: '',
+      situation_a: '',
+      situation_b: '',
+      profondeur_faciale: '',
+      sna: '',
+      snb: '',
+      anb: ''
+    },
+    esthetique: {
+      ligne_e_ls: '',
+      ligne_e_li: '',
+      angle_nasolabial: ''
+    }
   };
 
   // Analyse Osseuse
   if (po && or_ && go && me) {
     const fma = computeAngle(po, or_, go, me);
-    results.osseuse = { ...results.osseuse, angle_tweed: Math.round(fma) } as any;
+    results.osseuse!.angle_tweed = Math.round(fma);
     
     // Synthèse Verticalité
     if (fma < 20) results.pattern_vertical = 'hypodivergent';
@@ -221,54 +271,103 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     else results.pattern_vertical = 'normodivergent';
   }
 
-  if (s && n) {
+  if (s && n && po && or_) {
     if (a) {
       const sna = computeAngle(s, n, n, a);
-      results.osseuse = { ...results.osseuse, sna: Math.round(sna * 10) / 10 } as any;
+      results.osseuse!.sna = Math.round(sna * 10) / 10;
+      
+      const distA = computeDistanceToVertical(a, n, po, or_, ratio);
+      results.osseuse!.situation_a = Math.round(distA * 10) / 10;
     }
     if (b) {
       const snb = computeAngle(s, n, n, b);
-      results.osseuse = { ...results.osseuse, snb: Math.round(snb * 10) / 10 } as any;
-    }
-    if (results.osseuse?.sna && results.osseuse?.snb) {
-      const anb = Math.round((results.osseuse.sna - results.osseuse.snb) * 10) / 10;
-      results.osseuse.anb = anb;
+      results.osseuse!.snb = Math.round(snb * 10) / 10;
       
-      // Synthèse Classe Squelettique
-      if (anb < 0) results.classe_squelettique = 'Classe III';
-      else if (anb > 4) results.classe_squelettique = 'Classe II';
-      else results.classe_squelettique = 'Classe I';
-    }
-  }
-
-  if (po && or_ && n) {
-    if (a) {
-      const distA = computeDistanceToVertical(a, n, po, or_, ratio);
-      results.osseuse = { ...results.osseuse, situation_a: Math.round(distA * 10) / 10 } as any;
-    }
-    if (b) {
       const distB = computeDistanceToVertical(b, n, po, or_, ratio);
-      results.osseuse = { ...results.osseuse, situation_b: Math.round(distB * 10) / 10 } as any;
+      results.osseuse!.situation_b = Math.round(distB * 10) / 10;
     }
     if (a && b) {
       const distA = computeDistanceToVertical(a, n, po, or_, ratio);
       const distB = computeDistanceToVertical(b, n, po, or_, ratio);
-      results.osseuse = { ...results.osseuse, decalage_ab: Math.round((distA - distB) * 10) / 10 } as any;
+      const ab = Math.round((distA - distB) * 10) / 10;
+      results.osseuse!.decalage_ab = ab;
+      
+      // Synthèse Classe Squelettique basée sur A'B' (COM)
+      if (analysisType === 'COM') {
+        const isChild = age && Number(age) < 13;
+        const lowBound = isChild ? 1.0 : -0.8;
+        const highBound = isChild ? 7.4 : 5.4;
+        
+        if (ab < lowBound) results.classe_squelettique = 'Classe III';
+        else if (ab > highBound) results.classe_squelettique = 'Classe II';
+        else results.classe_squelettique = 'Classe I';
+      }
     }
+
     if (s) {
       const distS = computeDistanceToVertical(s, n, po, or_, ratio);
-      results.osseuse = { ...results.osseuse, profondeur_faciale: Math.round(Math.abs(distS) * 10) / 10 } as any;
+      results.osseuse!.profondeur_faciale = Math.round(Math.abs(distS) * 10) / 10;
     }
   }
 
-  // Analyse Esthétique
-  if (prn && pogSoft) {
-    const projectOnE = (p: {x:number, y:number}) => computeDistanceToVertical(p, pogSoft, pogSoft, prn, ratio);
-    if (ls) results.esthetique = { ...results.esthetique, ligne_e_ls: Math.round(projectOnE(ls) * 10) / 10 } as any;
-    if (li) results.esthetique = { ...results.esthetique, ligne_e_li: Math.round(projectOnE(li) * 10) / 10 } as any;
+  // Steiner specific
+  if (analysisType === 'STEINER' && n && s && a && b && u1i && u1a && l1i && l1a) {
+    const sna = computeAngle(s, n, n, a);
+    const snb = computeAngle(s, n, n, b);
+    results.osseuse!.sna = Math.round(sna * 10) / 10;
+    results.osseuse!.snb = Math.round(snb * 10) / 10;
+    results.osseuse!.anb = Math.round((sna - snb) * 10) / 10;
     
-    // Synthèse Profil
-    if (results.esthetique?.ligne_e_ls !== undefined) {
+    // 1/NA angle
+    results.dentaire!.i_na_angle = Math.round(computeAngle(n, a, u1a, u1i));
+    results.dentaire!.i_na_mm = Math.round(computeDistanceToLine(u1i, n, a, ratio) * 10) / 10;
+    
+    // 1/NB angle
+    results.dentaire!.i_nb_angle = Math.round(computeAngle(n, b, l1a, l1i));
+    results.dentaire!.i_nb_mm = Math.round(computeDistanceToLine(l1i, n, b, ratio) * 10) / 10;
+    
+    if (results.osseuse!.anb < 0) results.classe_squelettique = 'Classe III';
+    else if (results.osseuse!.anb > 4) results.classe_squelettique = 'Classe II';
+    else results.classe_squelettique = 'Classe I';
+  }
+
+  // Tweed specific
+  if (analysisType === 'TWEED' && po && or_ && go && me && l1i && l1a) {
+    const fma = computeAngle(po, or_, go, me);
+    const fmia = computeAngle(po, or_, l1a, l1i);
+    const impa = computeAngle(go, me, l1a, l1i);
+    
+    results.osseuse!.angle_tweed = Math.round(fma);
+    results.dentaire!.fmia = Math.round(fmia);
+    results.dentaire!.impa = Math.round(impa);
+  }
+
+  // Analyse Dentaire COM
+  if (u1i && u1a && l1i && l1a) {
+    results.dentaire!.inter_incisif = Math.round(computeInterIncisalAngle(u1i, u1a, l1i, l1a));
+  }
+  if (u1i && l1i && po && or_) {
+    const overjet = computeDistanceToVertical(l1i, u1i, po, or_, ratio);
+    results.dentaire!.surplomb = Math.round(Math.abs(overjet) * 10) / 10;
+    
+    const dy = l1i.y - u1i.y;
+    results.dentaire!.recouvrement = Math.round(Math.abs(dy * ratio) * 10) / 10;
+  }
+
+  if (l1i && l1a && go && me) {
+    results.dentaire!.impa = computeLocalImpa(lms) || '';
+  }
+  if (u1i && u1a && po && or_) {
+    results.dentaire!.i_francfort = computeAngle(u1i, u1a, po, or_);
+  }
+
+  // Analyse Esthétique
+  if (prn && pogSoft && po && or_) {
+    const projectOnE = (p: Landmark) => computeDistanceToVertical(p, pogSoft, pogSoft, prn, ratio);
+    if (ls) results.esthetique!.ligne_e_ls = Math.round(projectOnE(ls) * 10) / 10;
+    if (li) results.esthetique!.ligne_e_li = Math.round(projectOnE(li) * 10) / 10;
+    
+    if (results.esthetique?.ligne_e_ls !== undefined && results.esthetique.ligne_e_ls !== '') {
       const ls_e = Number(results.esthetique.ligne_e_ls);
       if (ls_e > 0) results.profil = 'convexe';
       else if (ls_e < -4) results.profil = 'concave';
@@ -278,10 +377,107 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
 
   if (cm && sn && ls) {
     const angleNL = computeAngle(cm, sn, sn, ls);
-    results.esthetique = { ...results.esthetique, angle_nasolabial: Math.round(angleNL) } as any;
+    results.esthetique!.angle_nasolabial = Math.round(angleNL);
+  }
+
+  // Automatisation Analyse Moulage (depuis Étape 2)
+  if (etape2) {
+    const { molaire_droite, molaire_gauche, canine_droite, canine_gauche } = etape2.occlusal;
+    let moulageText = `Classe Molaire : D:${molaire_droite} / G:${molaire_gauche}\n`;
+    moulageText += `Classe Canine : D:${canine_droite} / G:${canine_gauche}\n`;
+    results.analyse_moulages_auto = moulageText;
   }
 
   return results;
+
+
+}
+
+
+/**
+ * Génère un plan de traitement suggéré basé sur les données diagnostiques.
+ */
+export function generateTreatmentPlan(data: DonneesEtape3): string {
+  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade } = data;
+  const anb = data.osseuse.anb === '' ? 0 : Number(data.osseuse.anb);
+  const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
+  const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
+  
+  let plan = '';
+  
+  // Vérification extraction obligatoire
+  if (ddmSev === 'sévère' || impa > 100 || ifranc > 120) {
+    plan += '• INDICATION EXTRACTION : ';
+    if (ddmSev === 'sévère') plan += 'DDM sévère (<-6mm). ';
+    if (impa > 100) plan += 'IMPA > 100° (risque parodontal). ';
+    if (ifranc > 120) plan += 'I/F > 120° (biproalvéolie). ';
+    plan += '\n\n';
+  }
+  
+  // Contre-indication extraction mandibulaire
+  if (pattern === 'hyperdivergent') {
+    plan += '⚠ CONTRE-INDICATION : Extraction mandibulaire interdite (Tweed >30° risque béance).\n\n';
+  }
+  
+  // Arbre décisionnel principal
+  if (cvm && ['CS1', 'CS2', 'CS3', 'CS4'].includes(cvm)) {
+    plan += '**PATIENT EN CROISSANCE** (CVM ' + cvm + ')\n\n';
+    
+    if (classe?.includes('Classe I')) {
+      if (ddmSev === 'léger' || !ddmSev) {
+        plan += '• Protocole : Sans extraction\n';
+        plan += '• Expansion transversale (ERM) si arcade en V\n';
+        plan += '• Appareil fixe multi-attache\n';
+      } else if (ddmSev === 'modéré') {
+        plan += '• Protocole : Borderline - évaluer profil\n';
+        plan += '• Si profil convexe → Extraction PM4 sup.\n';
+        plan += '• Si profil droit → Essai sans extraction\n';
+      }
+    } else if (classe?.includes('Classe II')) {
+      if (division === '1') {
+        plan += '• Division 1 : Appareil fonctionnel de choix (Herbst ou Twin Block)\n';
+        plan += '• Timing optimal : CS3-CS4 (pic de croissance)\n';
+        if (type_arcade === 'I') plan += '• Arcade en V : ERM simultanée pour expansion\n';
+        plan += '• Préserver arcades (pas d\'extraction avant fin du pic)\n';
+        if (impa > 100) plan += '• Surveiller IMPA, ne pas corriger incisives avant fonctionnel\n';
+      } else if (division === '2') {
+        plan += '• Division 2 :\n';
+        plan += '  - Phase 1 : Dérétroclinaison incisives sup. (arcs acier)\n';
+        plan += '  - Phase 2 : Appareil fonctionnel ou fixe selon DDM\n';
+        if (pattern === 'hypodivergent') plan += '• FMA bas : Surveiller DV (ne pas ouvrir)\n';
+      }
+    } else if (classe?.includes('Classe III')) {
+      if (cvm !== 'CS4') {
+        plan += '• Masque facial (Delaire) + ERM\n';
+        plan += '• Protocole : 350-500g/côté, 14-16h/jour\n';
+        plan += '• Efficacité maximale avant CS4\n';
+      } else {
+        plan += '• CS4+ : Efficacité diminuée, camouflage si ANB >-4°\n';
+      }
+    }
+  } else if (cvm) {
+    plan += '**PATIENT ADULTE** (CVM ' + cvm + ')\n\n';
+    
+    if (classe?.includes('Classe II')) {
+      if (anb > 9) {
+        plan += '• ANB > 9° : CHIRURGIE ORTHOGNATHIQUE INDIQUÉE\n';
+        plan += '• Advancement mandibulaire (BSSO) ± LeFort I\n';
+        plan += '• Ortho pré-chirurgicale : décompensation (pas de camouflage)\n';
+      } else if (anb >= 4 && anb <= 7) {
+        plan += '• Camouflage orthodontique possible\n';
+        if (ddmSev === 'sévère') plan += '• Extraction PM4 supérieures + rétraction\n';
+        else plan += '• Distalisation assistée par TADs (sans extraction si profil acceptable)\n';
+      }
+    } else if (classe?.includes('Classe III')) {
+      if (anb < -4) plan += '• ANB <-4° : Chirurgie bi-maxillaire\n';
+      else plan += '• Camouflage : Extractions inférieures + proclinaison sup.\n';
+    } else if (classe?.includes('Classe I') && ddmSev === 'sévère') {
+      plan += '• Classe I avec DDM sévère : Extraction 4 prémolaires\n';
+      plan += '• Mécanique de fermeture avec TADs ancrage\n';
+    }
+  }
+  
+  return plan;
 }
 
 /**

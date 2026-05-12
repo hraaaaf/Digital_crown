@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime
 import os
@@ -161,8 +161,8 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
     # 1. BDD
     docs = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient_id,
-        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
-        models.DocumentArchive.is_latest_version == True
+        or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
+        or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
     results = []

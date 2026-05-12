@@ -54,12 +54,19 @@ function getFormeIcon(forme: string) {
 }
 
 function useDebounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+  const fnRef = useRef(fn);
+  useEffect(() => { fnRef.current = fn; }, [fn]);
+
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   return useCallback((...args: Parameters<T>) => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => fn(...args), delay);
-  }, [fn, delay]) as T;
+    timer.current = setTimeout(() => {
+      fnRef.current(...args);
+    }, delay);
+  }, [delay]) as T;
 }
+
 
 export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps> = ({
   patientId, drugs, setDrugs, onUpdateDrug, onRemoveDrug, onAddDrug,
@@ -169,18 +176,24 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   const handleQuickSearch = useDebounce(async (val: string) => {
     const trimmed = val.trim();
-    // On n'affiche les suggestions que si on tape le PREMIER mot (le médicament)
-    if (trimmed.length < 1 || val.includes(' ')) {
+    // On cherche le médicament (le premier mot)
+    const searchPart = trimmed.split(' ')[0];
+    
+    if (searchPart.length < 1) {
       setQuickSuggestions([]);
       return;
     }
+
     try {
-      const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(trimmed)}`);
-      setQuickSuggestions(res.data.medications || []);
+      const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(searchPart)}`);
+      const meds = res.data.medications || [];
+      console.log(`[QuickSearch] Found ${meds.length} meds for "${searchPart}"`);
+      setQuickSuggestions(meds);
     } catch (err) {
       console.error('Quick search error:', err);
     }
-  }, 200);
+  }, 300);
+
 
   const parseQuickEntry = (text: string): DrugItem => {
     const originalText = text;
@@ -454,7 +467,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute left-6 right-6 top-full mt-2 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-2xl z-[110] overflow-hidden py-3"
+                  className="absolute left-6 right-6 top-full mt-2 bg-white border border-slate-200 rounded-3xl shadow-2xl z-[999] overflow-hidden py-3"
+
                 >
                   <div className="px-6 py-2 border-b border-slate-50 mb-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suggestions de médicaments</span>
@@ -831,8 +845,48 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               })}
             </div>
 
+            {/* ELITE DOUBLE CHECK / AUDIT SECTION */}
+            <div className="mt-8 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-900/20">
+              <div className="absolute top-0 right-0 p-20 bg-primary/10 blur-[100px] rounded-full" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                      <ShieldCheck size={22} className={coherenceWarnings.length > 0 ? "text-amber-400" : "text-emerald-400"} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest">Audit de Cohérence Final</h4>
+                      <p className="text-[10px] font-bold text-slate-400">Vérification croisée avec le dossier patient</p>
+                    </div>
+                  </div>
+                  {coherenceWarnings.length === 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
+                      <CheckCircle2 size={12} className="text-emerald-400" />
+                      <span className="text-[9px] font-black uppercase text-emerald-400 tracking-widest">Validation de sécurité ok</span>
+                    </div>
+                  )}
+                </div>
+
+                {coherenceWarnings.length > 0 ? (
+                  <div className="space-y-3">
+                    {coherenceWarnings.map((w, i) => (
+                      <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
+                        <AlertCircle size={18} className={w.level === 'critical' ? "text-red-400" : "text-amber-400"} />
+                        <p className="text-[11px] font-bold text-slate-200 leading-relaxed">{w.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 italic">
+                    <p className="text-[10px] text-slate-400 font-medium">Aucune interaction ou risque majeur détecté pour cette sélection. Le plan de traitement respecte les standards de sécurité IAmina.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Actions bas de formulaire */}
-            <div className="flex gap-4 mt-4">
+            <div className="flex gap-4 mt-6">
               <button
                 onClick={onAddDrug}
                 className="flex-1 py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-[2.5rem] flex items-center justify-center gap-3 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-black text-xs uppercase tracking-widest"
@@ -850,6 +904,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 {savingHabits ? 'Mémorisation...' : 'Mémoriser mes habitudes'}
               </button>
             </div>
+
           </motion.div>
         )}
       </AnimatePresence>

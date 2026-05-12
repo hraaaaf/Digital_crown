@@ -96,12 +96,15 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = ({ P, fileRef, step1Con
   if (!imageSrc) {
     return (
       <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[400px] relative">
-        <ClinicalTipBubble 
-          show={showTip} 
-          tip={currentTip} 
-          onClose={() => setShowTip(false)}
-          autoHideMs={2000}
-        />
+        {localStorage.getItem('clinical_tips_enabled') !== 'false' && (
+          <ClinicalTipBubble 
+            show={showTip} 
+            tip={currentTip} 
+            onClose={() => setShowTip(false)}
+            autoHideMs={2000}
+          />
+        )}
+
 
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFileDrop(e.target.files)} />
         <motion.div

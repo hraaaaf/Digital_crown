@@ -84,6 +84,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [items, setItems] = useState<PriceItem[]>([]);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
   const [installments, setInstallments] = useState<{ id: number; date: string; amount: number; label: string }[]>([]);
+  const [isAccounted, setIsAccounted] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState('EN_ATTENTE');
+  const [isGlobalNote, setIsGlobalNote] = useState(false);
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -135,12 +138,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments,
+    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    installments, isAccounted, paymentStatus,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments,
+    installments, isAccounted, paymentStatus,
   ]);
 
   const generator = useDocumentGenerator(generatorParams);
@@ -300,6 +304,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               coherenceWarnings={generator.coherenceWarnings}
               paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
               installments={installments} setInstallments={setInstallments}
+              isAccounted={isAccounted} setIsAccounted={setIsAccounted}
+              paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus}
+              isGlobalNote={isGlobalNote} setIsGlobalNote={setIsGlobalNote}
               showOdontoPanoramique={showOdontoPanoramique} odontogramMode={odontogramMode} setOdontogramMode={setOdontogramMode}
               groupSelectedTeeth={groupSelectedTeeth}
               handleToothDirectClick={(n) => setGroupSelectedTeeth(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}

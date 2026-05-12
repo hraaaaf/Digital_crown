@@ -20,6 +20,8 @@ export const ClinicalTipBubble = ({
   autoHideMs = 2000,
   className = "fixed left-6 top-6 w-64 z-[10001] pointer-events-none" 
 }: ClinicalTipBubbleProps) => {
+  const isEnabled = localStorage.getItem('clinical_tips_enabled') !== 'false';
+  if (!isEnabled) return null;
   
   React.useEffect(() => {
     if (show && onClose && autoHideMs > 0) {

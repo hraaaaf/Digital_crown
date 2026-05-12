@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_
+from sqlalchemy import func, desc, and_, or_
 from typing import List, Optional, Dict
 from datetime import date, datetime
 import os
@@ -17,6 +17,7 @@ from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
 from backend.services.generators.report_gen import ReportGenerator
 from backend.services.clinical_coherence import coherence_service
+from backend.utils.accounting_utils import extract_amount_from_clinical_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
@@ -27,15 +28,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 DOCS_DIR = os.path.join(STATIC_DIR, "documents")
 doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
-def _extract_amount_from_clinical_data(clinical_data: dict) -> float:
-    if not clinical_data: return 0.0
-    if 'payments' in clinical_data:
-        total = sum(float(p.get('montant', 0)) for p in clinical_data['payments'])
-        if total > 0: return total
-    if 'items' in clinical_data:
-        total = sum(float(i.get('prix_unitaire', i.get('montant', 0))) for i in clinical_data['items'])
-        if total > 0: return total
-    return float(clinical_data.get('total', 0))
+# Logic moved to backend.utils.accounting_utils
 
 @router.post("/generate")
 async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -68,9 +61,33 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 "note": models.DocumentType.NOTE_HONORAIRES, "libre": models.DocumentType.DOCUMENT_LIBRE
             }
             
+            # Logique automatique de statut (Elite v4)
+            p_status = models.PaiementStatut.EN_ATTENTE
+            p_collected = False
+            
+            payments = req.data.get('payments', [])
+            if payments:
+                # Si au moins un paiement est en espèces ou TPE, on considère comme payé/encaissé pour simplifier
+                # ou alors on regarde si TOUS sont encaissables
+                all_instant = all(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
+                any_instant = any(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
+                
+                if all_instant:
+                    p_status = models.PaiementStatut.PAYE
+                    p_collected = True
+                elif any_instant:
+                    p_status = models.PaiementStatut.PARTIEL
+                    p_collected = False
+                else:
+                    p_status = models.PaiementStatut.A_ENCAISSER
+                    p_collected = False
+            
             doc, _ = archive_service.archive_document(
                 patient_id=patient.id, file_content=pdf_content, filename=os.path.basename(pdf_path),
-                doc_type=enum_map.get(req.type, models.DocumentType.AUTRE), uploaded_by_id=user_id, clinical_data=req.data
+                doc_type=enum_map.get(req.type, models.DocumentType.AUTRE), uploaded_by_id=user_id, clinical_data=req.data,
+                is_accounted=req.is_accounted, 
+                payment_status=req.payment_status if req.payment_status != "EN_ATTENTE" else p_status,
+                is_collected=p_collected
             )
             pdf_path = doc.file_path
 
@@ -171,7 +188,10 @@ def download_document(
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
-    return FileResponse(path=doc.file_path, filename=doc.original_filename)
+    
+    # Résolution du chemin absolu (pour éviter FileNotFoundError si lancé hors du dossier backend)
+    abs_path = os.path.join(BASE_DIR, doc.file_path)
+    return FileResponse(path=abs_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -210,23 +230,128 @@ def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depe
 @router.get("/accounting/honoraires", response_model=schemas.HonoraireListResponse)
 def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     user_employer_id = current_user.get_employer_id()
-    query = db.query(models.DocumentArchive).join(models.Patient).filter(
+    
+    # 1. Requête pour les documents (Notes d'honoraires)
+    doc_query = db.query(models.DocumentArchive).join(models.Patient).filter(
         models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES, 
-        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+        or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
+        or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),
+        or_(models.DocumentArchive.is_accounted == True, models.DocumentArchive.is_accounted == None),
         models.Patient.employer_id == user_employer_id
     )
-    if patient_id: query = query.filter(models.DocumentArchive.patient_id == patient_id)
-    if assurance: query = query.filter(models.Patient.assurance == assurance)
-    if year: query = query.filter(func.extract('year', models.DocumentArchive.created_at) == year)
-    if month: query = query.filter(func.extract('month', models.DocumentArchive.created_at) == month)
-    docs = query.order_by(desc(models.DocumentArchive.created_at)).all()
+    
+    # 2. Requête pour les actes marqués pour la compta
+    acte_query = db.query(models.Acte).join(models.Patient).filter(
+        models.Acte.is_accounted == True,
+        models.Patient.employer_id == user_employer_id
+    )
+
+    if patient_id: 
+        doc_query = doc_query.filter(models.DocumentArchive.patient_id == patient_id)
+        acte_query = acte_query.filter(models.Acte.patient_id == patient_id)
+    if assurance: 
+        doc_query = doc_query.filter(models.Patient.assurance == assurance)
+        acte_query = acte_query.filter(models.Patient.assurance == assurance)
+    if year: 
+        doc_query = doc_query.filter(func.extract('year', models.DocumentArchive.created_at) == year)
+        # Pour les actes on utilise date_debut
+        acte_query = acte_query.filter(func.extract('year', models.Acte.date_debut) == year)
+    if month: 
+        doc_query = doc_query.filter(func.extract('month', models.DocumentArchive.created_at) == month)
+        acte_query = acte_query.filter(func.extract('month', models.Acte.date_debut) == month)
+
+    docs = doc_query.all()
+    actes = acte_query.all()
+    
     items = []
     total_amount = 0
+    
+    # Traitement des documents
     for doc in docs:
-        amount = _extract_amount_from_clinical_data(doc.clinical_data)
-        items.append({"id": doc.id, "patient_id": doc.patient_id, "patient_name": f"{doc.patient.nom} {doc.patient.prenom}", "assurance": doc.patient.assurance, "date": doc.created_at, "title": doc.title or "Note d'honoraires", "amount": amount, "file_url": f"api/documents/{doc.id}/download"})
+        amount = extract_amount_from_clinical_data(doc.clinical_data)
+        items.append({
+            "id": f"doc_{doc.id}", 
+            "patient_id": doc.patient_id, 
+            "patient_name": f"{doc.patient.nom} {doc.patient.prenom}", 
+            "assurance": doc.patient.assurance or "AUCUNE", 
+            "date": doc.created_at, 
+            "title": doc.title or "Note d'honoraires", 
+            "amount": amount, 
+            "file_url": f"documents/{doc.id}/download",
+            "payment_status": doc.payment_status or "EN_ATTENTE",
+            "is_collected": doc.is_collected
+        })
         total_amount += amount
+
+    # Traitement des actes
+    for acte in actes:
+        items.append({
+            "id": f"acte_{acte.id}",
+            "patient_id": acte.patient_id,
+            "patient_name": f"{acte.patient.nom} {acte.patient.prenom}",
+            "assurance": acte.patient.assurance or "AUCUNE",
+            "date": acte.date_debut,
+            "title": f"Acte: {acte.libelle}",
+            "amount": acte.montant,
+            "file_url": "", # Pas de PDF pour un acte seul
+            "payment_status": acte.statut_paiement or "EN_ATTENTE",
+            "is_collected": acte.is_collected
+        })
+        total_amount += acte.montant
+
+    # Tri par date décroissante
+    items.sort(key=lambda x: x["date"], reverse=True)
+    
     return {"total": len(items), "total_amount": total_amount, "items": items}
+
+@router.get("/accounting/treasury-hub")
+async def get_treasury_hub(
+    db: Session = Depends(database.get_db),
+    user: models.User = Depends(get_current_user)
+):
+    from backend.services.accounting_service import accounting_service
+    return accounting_service.get_treasury_summary(db, user.get_employer_id())
+
+@router.post("/accounting/encaisser/{item_id}")
+async def mark_as_paid(
+    item_id: str,
+    db: Session = Depends(database.get_db),
+    user: models.User = Depends(get_current_user)
+):
+    try:
+        from backend.utils.access_control import assert_patient_access
+        
+        if item_id.startswith("doc_"):
+            doc_id = int(item_id.split("_")[1])
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+            if not doc: raise HTTPException(status_code=404, detail="Document non trouvé")
+            assert_patient_access(doc.patient_id, user, db)
+            doc.payment_status = models.PaiementStatut.PAYE
+            doc.is_collected = True
+            doc.updated_at = datetime.now()
+        elif item_id.startswith("acte_"):
+            acte_id = int(item_id.split("_")[1])
+            acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+            if not acte: raise HTTPException(status_code=404, detail="Acte non trouvé")
+            assert_patient_access(acte.patient_id, user, db)
+            acte.statut_paiement = models.PaiementStatut.PAYE
+            acte.is_collected = True
+        else:
+            doc_id = int(item_id)
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+            if not doc: raise HTTPException(status_code=404, detail="Élément non trouvé")
+            assert_patient_access(doc.patient_id, user, db)
+            doc.payment_status = models.PaiementStatut.PAYE
+            doc.is_collected = True
+            doc.updated_at = datetime.now()
+            
+        db.commit()
+        return {"status": "success", "message": "Élément marqué comme encaissé"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/accounting/export-pdf")
 def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):

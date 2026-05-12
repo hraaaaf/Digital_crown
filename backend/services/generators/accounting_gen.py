@@ -267,9 +267,14 @@ class AccountingGenerator:
         
         font_main = "Helvetica"
         font_bold = "Helvetica-Bold"
+        
+        is_global = getattr(data, 'is_global_note', False)
+        title_text = "NOTE D'HONORAIRES GLOBALE" if is_global else "NOTE D'HONORAIRES"
+        if facture_number:
+            title_text += f" N° {facture_number}"
 
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>NOTE D'HONORAIRES N° {facture_number}</b></u>" if facture_number else "<u><b>NOTE D'HONORAIRES</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>{title_text}</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
         
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PAIEMENT", header_style), Paragraph("HONORAIRES", header_style)]]

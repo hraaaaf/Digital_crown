@@ -27,6 +27,7 @@ class PaiementStatut(str, enum.Enum):
     EN_ATTENTE = "EN_ATTENTE"
     PAYE = "PAYE"
     PARTIEL = "PARTIEL"
+    A_ENCAISSER = "A_ENCAISSER"
 
 class PaymentMethod(str, enum.Enum):
     ESPECES = "ESPECES"
@@ -179,6 +180,8 @@ class Acte(Base):
     montant: Mapped[float] = mapped_column(Float, nullable=False)
     date_debut: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     statut_paiement: Mapped[PaiementStatut] = mapped_column(SQLEnum(PaiementStatut), default=PaiementStatut.EN_ATTENTE)
+    is_accounted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     
     patient: Mapped["Patient"] = relationship(back_populates="actes")
     praticien: Mapped["User"] = relationship(back_populates="actes_realises")
@@ -331,6 +334,11 @@ class DocumentArchive(Base):
     
     # Statut et cycle de vie
     status: Mapped[DocumentStatus] = mapped_column(SQLEnum(DocumentStatus), default=DocumentStatus.ACTIF, index=True)
+    
+    # Tresorerie & Flux (Phase 1)
+    is_accounted: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    payment_status: Mapped[PaiementStatut] = mapped_column(SQLEnum(PaiementStatut), default=PaiementStatut.EN_ATTENTE, index=True)
+    is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     
     # Dates importantes
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

@@ -33,7 +33,13 @@ export interface AnalyseDentaire {
   impa: number | '';
   i_francfort: number | '';
   inter_incisif: number | '';
+  i_na_angle?: number | '';
+  i_na_mm?: number | '';
+  i_nb_angle?: number | '';
+  i_nb_mm?: number | '';
+  fmia?: number | '';
 }
+
 
 export interface AnalyseOsseuse {
   angle_tweed: number | '';
@@ -75,6 +81,8 @@ export interface DonneesEtape3 {
   profil: ProfilFacial | '';
   severite_ddm: SeveriteDDM | '';
   subdivision: boolean;
+  analyse_moulages_auto: string;
+  selectedAnalysis: 'COM' | 'STEINER' | 'TWEED';
   denture_type: 'TEMPORAIRE' | 'MIXTE' | 'PERMANENTE' | '';
   preference_technique: 'DAMON' | 'CLASSIC' | 'ALIGNEURS' | '';
 }

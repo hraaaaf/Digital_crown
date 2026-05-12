@@ -4,8 +4,8 @@ import {
   buildPayload, computeMcNamaraProjections, initializeDefaultApexes, 
   calcDDMCephalo, computeLocalImpa 
 } from '../cephaloUtils';
-import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings } from '../cephaloShared';
-import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3 } from '../cephaloTypes';
+import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings, StepId } from '../cephaloShared';
+import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload } from '../cephaloTypes';
 
 interface OrthoState {
   // Global
@@ -41,9 +41,9 @@ interface OrthoState {
   diag: DiagnosticTexts;
   etape2Data: DonneesEtape2;
   etape3Data: DonneesEtape3;
-  completedSteps: Set<number>;
-
   // UI Status
+  step: StepId;
+  completedSteps: Set<number>;
   uploadError: string | null;
   isUploading: boolean;
   isSaving: boolean;
@@ -52,7 +52,17 @@ interface OrthoState {
   isPreviewLoading: boolean;
   syncState: SyncState;
 
+  // Photos & Documents
+  photos: PhotoUpload[];
+  dateConsultation: string;
+  sexePatient: 'M' | 'F';
+
   // Actions d'état (Setters)
+  setStep: (step: StepId) => void;
+  setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
+  setPhotos: (updater: PhotoUpload[] | ((prev: PhotoUpload[]) => PhotoUpload[])) => void;
+  setDateConsultation: (date: string) => void;
+  setSexePatient: (sexe: 'M' | 'F') => void;
   setPatientInfo: (id: number, name: string) => void;
   setAnalysisId: (id: number | undefined) => void;
   setImageSrc: (src: string | undefined) => void;
@@ -80,7 +90,6 @@ interface OrthoState {
   setDiag: (updater: DiagnosticTexts | ((prev: DiagnosticTexts) => DiagnosticTexts)) => void;
   setEtape2Data: (updater: DonneesEtape2 | ((prev: DonneesEtape2) => DonneesEtape2)) => void;
   setEtape3Data: (updater: DonneesEtape3 | ((prev: DonneesEtape3) => DonneesEtape3)) => void;
-  setCompletedSteps: (updater: Set<number> | ((prev: Set<number>) => Set<number>)) => void;
 
   setUploadError: (err: string | null) => void;
   setIsUploading: (uploading: boolean) => void;
@@ -98,8 +107,8 @@ interface OrthoState {
   updateLandmarksOptimistic: (newLms: Landmark[]) => void;
   handlePreview: () => Promise<void>;
   handlePrint: () => Promise<void>;
-
-  // Computed Getters (simulés par le composant appelant ou exportés via sélecteurs)
+  handlePhotoUpload: (id: string, file: File) => void;
+  goToStep: (target: StepId) => Promise<void>;
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | undefined = undefined;
@@ -153,10 +162,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     osseuse: { angle_tweed: '', decalage_ab: '', situation_a: '', situation_b: '', profondeur_faciale: '', sna: '', snb: '', anb: '' },
     esthetique: { ligne_e_ls: '', ligne_e_li: '', angle_nasolabial: '' },
     ddm_clinique: '', ddm_cephalo: '', division: null, type_arcade: null, classe_squelettique: '',
-    pattern_vertical: '', profil: '', severite_ddm: '', subdivision: false, denture_type: 'PERMANENTE', preference_technique: 'DAMON'
+    pattern_vertical: '', profil: '', severite_ddm: '', subdivision: false, analyse_moulages_auto: '',
+    selectedAnalysis: 'COM',
+    denture_type: 'PERMANENTE', preference_technique: 'DAMON'
   },
+  step: 1,
   completedSteps: new Set<number>(),
-
   uploadError: null,
   isUploading: false,
   isSaving: false,
@@ -165,8 +176,58 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   isPreviewLoading: false,
   syncState: 'idle',
 
+  photos: [
+    { id: 'radio', type: 'radio', file: null, preview: null, label: 'Radiographie Céphalométrique' },
+    { id: 'moulage_max', type: 'moulage_max', file: null, preview: null, label: 'Moulage Maxillaire' },
+    { id: 'moulage_mand', type: 'moulage_mand', file: null, preview: null, label: 'Moulage Mandibulaire' },
+    { id: 'extra_face', type: 'extra_face', file: null, preview: null, label: 'Photo Extra-orale Face' },
+    { id: 'extra_profile', type: 'extra_profile', file: null, preview: null, label: 'Photo Extra-orale Profil' },
+    { id: 'extra_sourire', type: 'extra_sourire', file: null, preview: null, label: 'Photo Extra-orale Sourire' },
+    { id: 'intra_face', type: 'intra_face', file: null, preview: null, label: 'Photo Intra-orale Face' },
+    { id: 'intra_profile', type: 'intra_profile', file: null, preview: null, label: 'Photo Intra-orale Profil' },
+  ],
+  dateConsultation: new Date().toISOString().split('T')[0],
+  sexePatient: 'M',
+
   // Setters
-  setPatientInfo: (id, name) => set({ patientId: id, patientName: name }),
+  setStep: (step) => set({ step }),
+  setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
+  setPhotos: (updater) => set((state) => ({ photos: typeof updater === 'function' ? updater(state.photos) : updater })),
+  setDateConsultation: (date) => set({ dateConsultation: date }),
+  setSexePatient: (sexe) => set({ sexePatient: sexe }),
+  setPatientInfo: (id, name) => {
+    // Si on change de patient, on tente de restaurer les photos/metas du localStorage
+    const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
+    const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
+    const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
+    const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
+    
+    set({ patientId: id, patientName: name });
+
+    if (savedPhotos) {
+      try {
+        const parsed = JSON.parse(savedPhotos);
+        set(s => ({
+          photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null }))
+        }));
+      } catch {}
+    }
+    if (savedMeta) {
+      try {
+        const parsed = JSON.parse(savedMeta);
+        set({ 
+          dateConsultation: parsed.dateConsultation || new Date().toISOString().split('T')[0],
+          sexePatient: parsed.sexePatient || 'M'
+        });
+      } catch {}
+    }
+    if (savedE2) {
+      try { set({ etape2Data: JSON.parse(savedE2) }); } catch {}
+    }
+    if (savedE3) {
+      try { set({ etape3Data: JSON.parse(savedE3) }); } catch {}
+    }
+  },
   setAnalysisId: (id) => set({ analysisId: id }),
   setImageSrc: (src) => set({ imageSrc: src }),
   setLocal: (updater) => set((state) => ({ local: typeof updater === 'function' ? updater(state.local) : updater })),
@@ -189,9 +250,20 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setAutoCalibMessage: (msg) => set({ autoCalibMessage: msg }),
   setDdm: (updater) => set((state) => ({ ddm: typeof updater === 'function' ? updater(state.ddm) : updater })),
   setDiag: (updater) => set((state) => ({ diag: typeof updater === 'function' ? updater(state.diag) : updater })),
-  setEtape2Data: (updater) => set((state) => ({ etape2Data: typeof updater === 'function' ? updater(state.etape2Data) : updater })),
-  setEtape3Data: (updater) => set((state) => ({ etape3Data: typeof updater === 'function' ? updater(state.etape3Data) : updater })),
-  setCompletedSteps: (updater) => set((state) => ({ completedSteps: typeof updater === 'function' ? updater(state.completedSteps) : updater })),
+  setEtape2Data: (updater) => {
+    set((state) => {
+      const next = typeof updater === 'function' ? updater(state.etape2Data) : updater;
+      if (state.patientId) localStorage.setItem(`digitalcrown_etape2_${state.patientId}`, JSON.stringify(next));
+      return { etape2Data: next };
+    });
+  },
+  setEtape3Data: (updater) => {
+    set((state) => {
+      const next = typeof updater === 'function' ? updater(state.etape3Data) : updater;
+      if (state.patientId) localStorage.setItem(`digitalcrown_etape3_${state.patientId}`, JSON.stringify(next));
+      return { etape3Data: next };
+    });
+  },
   setUploadError: (err) => set({ uploadError: err }),
   setIsUploading: (uploading) => set({ isUploading: uploading }),
   setIsSaving: (saving) => set({ isSaving: saving }),
@@ -199,6 +271,39 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setPreviewPdfUrl: (url) => set({ previewPdfUrl: url }),
   setIsPreviewLoading: (loading) => set({ isPreviewLoading: loading }),
   setSyncState: (s) => set({ syncState: s }),
+
+  handlePhotoUpload: (id, file) => {
+    const url = URL.createObjectURL(file);
+    set(s => {
+      const next = s.photos.map(p => p.id === id ? { ...p, file, preview: url } : p);
+      if (s.patientId) {
+        const previews = next.reduce((acc, p) => { acc[p.id] = p.preview; return acc; }, {} as Record<string, string | null>);
+        localStorage.setItem(`digitalcrown_photos_${s.patientId}`, JSON.stringify(previews));
+      }
+      return { photos: next };
+    });
+  },
+
+  goToStep: async (target) => {
+    const s = get();
+    // Logique de blocage déjà présente dans CephaloWorkspace, on peut la migrer ici
+    if (target >= 2) {
+      if (!s.imageSrc) {
+        set({ uploadError: 'Veuillez d\'abord uploader une radiographie.' });
+        setTimeout(() => set({ uploadError: null }), 4000);
+        return;
+      }
+      if (!s.isCalibrated) {
+        set({ showCalibration: true, calibrationClickPoints: [], calibrationDistance: '', calibrationStep: 'selecting' });
+        return;
+      }
+    }
+    await s.silentSave();
+    set(prev => ({ 
+      completedSteps: new Set([...prev.completedSteps, prev.step]),
+      step: target 
+    }));
+  },
 
   // Actions API
   runAnalysis: async (file: File) => {
@@ -403,7 +508,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const real = (max !== null && mand !== null) ? (max + mand) : null;
+      const impa = computeLocalImpa(s.local.landmarks);
+      const ceph = calcDDMCephalo(impa);
+      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
       
       const data = await cephaloRepository.generatePDF(s.patientId, {
         ai_diagnostic: {
@@ -441,7 +548,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const max = s.ddm.maxillaire === '' ? null : Number(s.ddm.maxillaire);
       const mand = s.ddm.mandibulaire === '' ? null : Number(s.ddm.mandibulaire);
-      const real = (max !== null && mand !== null) ? (max + mand) : null;
+      const impa = computeLocalImpa(s.local.landmarks);
+      const ceph = calcDDMCephalo(impa);
+      const real = (mand !== null && ceph !== null) ? mand + ceph : null;
 
       const data = await cephaloRepository.generatePDF(s.patientId, {
         ai_diagnostic: {

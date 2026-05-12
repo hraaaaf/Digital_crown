@@ -137,7 +137,10 @@ class ArchiveService:
                         clinical_data: Optional[dict] = None,
                         analysis_id: Optional[int] = None,
                         on_conflict: ConflictResolution = ConflictResolution.CREATE_VERSION,
-                        force_group_id: Optional[str] = None) -> Tuple[models.DocumentArchive, bool]:
+                        force_group_id: Optional[str] = None,
+                        is_accounted: bool = True,
+                        is_collected: bool = False,
+                        payment_status: models.PaiementStatut = models.PaiementStatut.EN_ATTENTE) -> Tuple[models.DocumentArchive, bool]:
         """
         Archive un document avec gestion intelligente des conflits.
         Retourne: (document, is_new_version)
@@ -225,6 +228,9 @@ class ArchiveService:
             tags=tags,
             clinical_data=clinical_data,
             analysis_id=analysis_id,
+            is_accounted=is_accounted,
+            is_collected=is_collected,
+            payment_status=payment_status,
             status=DocumentStatus.ACTIF
         )
         
