@@ -48,7 +48,7 @@ export const AgendaStudio: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-6">
       
       {/* GLOBAL CONTROLS HEADER */}
-      <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-6 rounded-[2.5rem] shadow-2xl">
+      <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-6 rounded-[2.5rem] shadow-2xl">
         
         {/* Left: Branding & Date Navigation */}
         <div className="flex items-center gap-6">
@@ -75,7 +75,7 @@ export const AgendaStudio: React.FC = () => {
         </div>
 
         {/* Right: View Switching & Actions */}
-        <div className="flex items-center gap-4 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">
+        <div data-tour="agenda-view-switcher" className="flex items-center gap-4 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">
           <button 
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-primary hover:brightness-110 hover:bg-primary/10 font-bold text-sm rounded-xl transition-all"

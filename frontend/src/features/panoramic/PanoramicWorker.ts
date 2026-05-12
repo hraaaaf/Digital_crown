@@ -22,6 +22,7 @@ export interface PanoramicResult {
 }
 
 // Les classes cibles Ghost Elite (31 classes)
+/*
 const CLASSES = [
   "Caries", "Crown", "Filling", "Implant", "Malaligned", "Mandibular Canal", "Missing teeth",
   "Periapical lesion", "Retained root", "Root Canal Treatment", "Root Piece", "impacted tooth",
@@ -29,6 +30,7 @@ const CLASSES = [
   "abutment", "attrition", "bone defect", "gingival former", "metal band", "orthodontic brackets",
   "permanent retainer", "post - core", "plating", "wire", "Cyst", "Root resorption", "Primary teeth"
 ];
+*/
 
 let session: ort.InferenceSession | null = null;
 
@@ -48,7 +50,7 @@ async function loadModel() {
 }
 
 // Prétraitement d'image (Letterbox)
-function preprocess(imageData: ImageData, targetSize = 1280): Float32Array {
+function preprocess(_imageData: ImageData, targetSize = 1280): Float32Array {
   // Simplification pour l'exemple. Il faudrait redimensionner l'image, 
   // appliquer le padding, et normaliser les pixels (0-1).
   // Retourne un Float32Array de la taille [1, 3, targetSize, targetSize]
@@ -57,7 +59,7 @@ function preprocess(imageData: ImageData, targetSize = 1280): Float32Array {
 }
 
 // Post-traitement (NMS + extraction BBoxes)
-function postprocess(output: any): Detection[] {
+function postprocess(_output: any): Detection[] {
   // Simulons l'extraction des boîtes YOLO pour le POC
   return [];
 }

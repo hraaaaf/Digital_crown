@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 import datetime
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict
 
 
 # --- SCHÉMA ANALYSE PANORAMIQUE v1 (DENTEX) ---
@@ -94,3 +94,10 @@ class PanoramicAnalysis(BaseModel):
     summary_markdown: Optional[str] = None
     processing_time_ms: float
     model_version: str = "Loki-Silvres-v1.0"
+
+
+class PanoramicReportRequest(BaseModel):
+    """Demande de génération de rapport basé sur les annotations manuelles."""
+    analysis_id: int
+    manual_anomalies: Dict[int, List[str]]
+

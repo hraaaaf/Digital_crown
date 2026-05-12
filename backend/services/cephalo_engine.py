@@ -246,23 +246,28 @@ class CephaloEngine:
         payload["metrics"]["analyse_dentaire"]["I_Francfort"] = self._evaluate_metric(
             i_francfort, 107.0, 5.0, "Incisive supérieure vestibulo-versée", "Incisive supérieure palato-versée", "Inclinaison normale", comp_range=(97.0, 120.0)
         )
+
+        inter_incisif = self._get_clinical_angle(pts["U1a"], pts["U1i"], pts["L1a"], pts["L1i"], invert=True)
+        payload["metrics"]["analyse_dentaire"]["Inter_Incisif"] = self._evaluate_metric(
+            inter_incisif, 131.0, 10.0, "Angle inter-incisif ouvert", "Angle inter-incisif fermé", "Relation inter-incisive normale", comp_range=(120.0, 142.0)
+        )
         # ---------------------------------------------------------------
 
         # --- FLUX 1.D : ANALYSE DE STEINER & TISSUS MOUS ---
         if pts["S"] and pts["N"]:
             if pts["A"]:
                 sna = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["A"])
-                payload["metrics"]["analyse_osseuse"]["sna"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["SNA"] = self._evaluate_metric(
                     sna, 82.0, 2.0, "Prognathie maxillaire (SNA)", "Rétrognathie maxillaire (SNA)", "Normal"
                 )
             if pts["B"]:
                 snb = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["B"])
-                payload["metrics"]["analyse_osseuse"]["snb"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["SNB"] = self._evaluate_metric(
                     snb, 80.0, 2.0, "Prognathie mandibulaire (SNB)", "Rétrognathie mandibulaire (SNB)", "Normal"
                 )
             if pts["A"] and pts["B"]:
                 anb = sna - snb if (sna and snb) else None
-                payload["metrics"]["analyse_osseuse"]["anb"] = self._evaluate_metric(
+                payload["metrics"]["analyse_osseuse"]["ANB"] = self._evaluate_metric(
                     anb, 2.0, 2.0, "Classe II squelettique (Steiner)", "Classe III squelettique (Steiner)", "Classe I squelettique"
                 )
 
@@ -273,7 +278,7 @@ class CephaloEngine:
         if prn and sn_soft and ls_soft:
             # Angle entre segment Sn-Prn et Sn-Ls
             nla = self._get_clinical_angle(sn_soft, prn, sn_soft, ls_soft, invert=True)
-            payload["metrics"]["analyse_esthetique"]["angle_nasolabial"] = self._evaluate_metric(
+            payload["metrics"]["analyse_esthetique"]["Angle_Nasolabial"] = self._evaluate_metric(
                 nla, 102.0, 10.0, "Angle ouvert (Nez relevé)", "Angle fermé (Nez tombant)", "Harmonie nasolabiale"
             )
 
@@ -281,7 +286,7 @@ class CephaloEngine:
 
         # 1.C. ANALYSE OSSEUSE
         fma = self._get_clinical_angle(pts["Go"], pts["Me"], pts["Po"], pts["Or"], invert=False)
-        payload["metrics"]["analyse_osseuse"]["angle_tweed"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["Angle_de_Tweed"] = self._evaluate_metric(
             fma, 26.0, 4.0, "Hyperdivergent (Face longue)", "Hypodivergent (Face courte)", "Normodivergent"
         )
 
@@ -297,16 +302,16 @@ class CephaloEngine:
         norm_sit_b = (-1.5, 4.5) if is_child else (0.0, 4.9)
         norm_prof_fac = (61.3, 5.0) if is_child else (70.3, 5.0)
 
-        payload["metrics"]["analyse_osseuse"]["decalage_ab"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
             dec_ab, norm_dec_ab[0], norm_dec_ab[1], "Décalage Classe II", "Décalage Classe III", "Décalage Classe I"
         )
-        payload["metrics"]["analyse_osseuse"]["situation_a"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["Situation_A"] = self._evaluate_metric(
             sit_a, norm_sit_a[0], norm_sit_a[1], "Maxillaire en avant", "Maxillaire en retrait", "Position maxillaire normale"
         )
-        payload["metrics"]["analyse_osseuse"]["situation_b"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
             sit_b, norm_sit_b[0], norm_sit_b[1], "Mandibule en avant", "Mandibule en retrait", "Position mandibulaire normale"
         )
-        payload["metrics"]["analyse_osseuse"]["profondeur_faciale"] = self._evaluate_metric(
+        payload["metrics"]["analyse_osseuse"]["Profondeur_Faciale"] = self._evaluate_metric(
             prof_faciale, norm_prof_fac[0], norm_prof_fac[1], "Profondeur augmentée", "Profondeur diminuée", "Profondeur normale"
         )
 
@@ -335,7 +340,7 @@ class CephaloEngine:
                 v_na = (ap[0] - np[0], ap[1] - np[1])
                 dist_na_mm = (v_na[0]*uFH[0] + v_na[1]*uFH[1]) * ratio
                 payload["metrics"]["analyse_osseuse"]["Situation_A"] = self._evaluate_metric(
-                    dist_na_mm, norm_sit_a[0], norm_sit_a[1]-norm_sit_a[0], "Prognathie maxillaire", "Rétrognathie maxillaire", "Normoposition"
+                    dist_na_mm, norm_sit_a[0], norm_sit_a[1], "Prognathie maxillaire", "Rétrognathie maxillaire", "Normoposition"
                 )
             
             if np and bp:
@@ -343,7 +348,7 @@ class CephaloEngine:
                 v_nb = (bp[0] - np[0], bp[1] - np[1])
                 dist_nb_mm = (v_nb[0]*uFH[0] + v_nb[1]*uFH[1]) * ratio
                 payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
-                    dist_nb_mm, norm_sit_b[0], norm_sit_b[1]-norm_sit_b[0], "Prognathie mandibulaire", "Rétrognathie mandibulaire", "Normoposition"
+                    dist_nb_mm, norm_sit_b[0], norm_sit_b[1], "Prognathie mandibulaire", "Rétrognathie mandibulaire", "Normoposition"
                 )
 
             if ap and bp:
@@ -351,7 +356,7 @@ class CephaloEngine:
                 v_ab = (ap[0] - bp[0], ap[1] - bp[1])
                 dist_ab_mm = (v_ab[0]*uFH[0] + v_ab[1]*uFH[1]) * ratio
                 payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
-                    dist_ab_mm, norm_dec_ab[0], norm_dec_ab[1]-norm_dec_ab[0], "Classe II squelettique", "Classe III squelettique", "Classe I squelettique"
+                    dist_ab_mm, norm_dec_ab[0], norm_dec_ab[1], "Classe II squelettique", "Classe III squelettique", "Classe I squelettique"
                 )
 
         # --- FLUX 2 : ANALYSE ESTHÉTIQUE (LIGNE E DE RICKETTS) ---
@@ -370,12 +375,12 @@ class CephaloEngine:
 
             if ls:
                 d_ls = dist_to_line(ls, prn, pog_s)
-                payload["metrics"]["analyse_esthetique"]["ligne_e_ls"] = self._evaluate_metric(
+                payload["metrics"]["analyse_esthetique"]["Ligne_E_Ls"] = self._evaluate_metric(
                     d_ls, -4.0, 2.0, "Lèvre supérieure en avant", "Lèvre supérieure en retrait", "Équilibre labial supérieur"
                 )
             if li:
                 d_li = dist_to_line(li, prn, pog_s)
-                payload["metrics"]["analyse_esthetique"]["ligne_e_li"] = self._evaluate_metric(
+                payload["metrics"]["analyse_esthetique"]["Ligne_E_Li"] = self._evaluate_metric(
                     d_li, -2.0, 2.0, "Lèvre inférieure en avant", "Lèvre inférieure en retrait", "Équilibre labial inférieur"
                 )
 
@@ -445,20 +450,64 @@ class CephaloEngine:
 
         diag_dentaire = f"Secteur incisif : {impa_diag} (IMPA : {val_impa}°) et {if_diag} (I/F : {val_if}°). Angle inter-incisif à {val_inter}°. Surplomb {overjet} ({val_surplomb} mm) et {overbite} ({val_recouvrement} mm)."
 
-        # 3. STRATÉGIE ET SYNTHÈSE
-        strategie = "Nivellement et alignement."
-        if class_sq == "Classe II" and val_dec_ab > 8:
-            strategie += f" Décompensation incisive requise. Au vu de la sévérité du décalage A'B' ({val_dec_ab} mm), une approche combinée orthodontico-chirurgicale est à envisager."
-        elif class_sq == "Classe III" and val_dec_ab < -3:
-            strategie += f" Au vu du décalage de {val_dec_ab} mm, chirurgie d'avancée maxillaire et/ou recul mandibulaire à évaluer."
+        # --- SYNTHÈSE GHOST ELITE (4 SECTIONS) ---
         
-        if div == "hyperdivergent":
-            strategie += " Ancrage squelettique par mini-vis recommandé pour le contrôle vertical strict."
+        # Section 1: Analyse Céphalométrique COM (Squelettique + Dentaire)
+        analyse_cephalo_com = f"ANALYSE SQUELETTIQUE : {diag_squelettique}\n\nANALYSE DENTAIRE : {diag_dentaire}"
+        
+        # Section 2: Analyse des Moulages (Initialisation - sera complétée par le clinicien)
+        analyse_moulages = "Occlusion à préciser (Classe d'Angle, Subdivision, Forme d'arcade)."
+        
+        # Section 3: Synthèse Diagnostique (Résumé des anomalies)
+        anomalies = []
+        if class_sq != "Classe I": anomalies.append(class_sq)
+        if div != "normodivergent": anomalies.append(div)
+        if impa_diag != "normoalvéolie": anomalies.append(impa_diag)
+        if if_diag != "normoalvéolie": anomalies.append(if_diag)
+        if overjet != "normal": anomalies.append(f"Surplomb {overjet}")
+        if overbite != "normal": anomalies.append(overbite)
+        
+        synthese = f"Patient {class_sq} {div}. Anomalies détectées : {', '.join(anomalies)}." if anomalies else "Harmonie squelettique et dentaire globale."
 
-        # Injection dans le payload final pour être consommé par cephalo_gen.py et CephaloStatsTable.tsx
+        # Section 4: Plan de Traitement (Stratégie Thérapeutique Elite)
+        is_child = age is not None and age <= 12
+        strategie_parts = []
+        
+        # 4.1. Approche Fondamentale (ODF vs Ortho)
+        if is_child:
+            strategie_parts.append("PHASE 1 : ORTHOPÉDIE DENTO-FACIALE (ODF). Priorité à la correction squelettique (Expansion/Propulsion) avant la fin de la croissance.")
+        else:
+            strategie_parts.append("PHASE GLOBALE : ORTHODONTIE MULTI-ATTACHES. Correction occlusale et alignement de précision.")
+            
+        # 4.2. Choix Technologique (Passive vs Aligneurs)
+        if val_dec_ab > 4 or val_surplomb > 5:
+            strategie_parts.append("MÉTHODE : Orthodontie Passive (Système Damon). Utilisation de forces légères pour une expansion alvéolaire physiologique.")
+            # Sélection Torque (Brackets)
+            torque_plan = "Torque sélectif : "
+            if val_if < 100: torque_plan += "High Torque (RED) sur U1 pour compenser l'inclinaison. "
+            elif val_if > 115: torque_plan += "Low Torque (GREEN/YELLOW) sur U1. "
+            else: torque_plan += "Standard Torque (BLUE). "
+            strategie_parts.append(torque_plan)
+        else:
+            strategie_parts.append("OPTION : Traitement par aligneurs (Invisalign) envisageable pour une approche esthétique et amovible.")
+
+        # 4.3. Spécificités Cliniques
+        if class_sq == "Classe II":
+            if is_child: strategie_parts.append("Action : Propulsion mandibulaire (Activateur ou Bielles).")
+            else: strategie_parts.append("Action : Correction de la Classe II par élastiques inter-maxillaires ou Distalisation maxillaire.")
+        elif class_sq == "Classe III":
+            if is_child: strategie_parts.append("Action : Masque de Delaire ou Disjoncteur à appui squelettique.")
+            else: strategie_parts.append("Action : Compensation dentaire ou Chirurgie Orthognathique (selon sévérité).")
+
+        if div == "hyperdivergent":
+            strategie_parts.append("Vigilance : Contrôle vertical strict. Éviter toute extrusion molaire (Ancrage par mini-vis à évaluer).")
+
+        strategie = "\n".join(strategie_parts)
+
         payload["ai_narrative"] = {
-            "diagnostic_squelettique": diag_squelettique,
-            "analyse_dentaire": diag_dentaire,
+            "diagnostic_squelettique": analyse_cephalo_com,
+            "analyse_moulages": analyse_moulages,
+            "synthese_diagnostique": synthese,
             "strategie_therapeutique": strategie
         }
 

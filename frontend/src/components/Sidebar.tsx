@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
+import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
+import { clinicalTips } from '../data/clinical_tips';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
@@ -21,6 +23,42 @@ import Logo from '../assets/logo.png';
 export const Sidebar = () => {
   const location = useLocation();
   const [isAiActive, setIsAiActive] = useState(false);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [showTip, setShowTip] = useState(false);
+  const [currentTip, setCurrentTip] = useState("");
+
+  // Cycle tips with Slingshot physics
+  useEffect(() => {
+    const triggerTip = () => {
+      // 1. Tension / Anticipation
+      setIsFlipping(true); 
+      
+      // 2. Mid-tension (randomize tip)
+      setTimeout(() => {
+        const randomTip = clinicalTips[Math.floor(Math.random() * clinicalTips.length)];
+        setCurrentTip(randomTip);
+      }, 400);
+
+      // 3. THE LAUNCH (Snap forward)
+      setTimeout(() => {
+        setShowTip(true);
+      }, 600);
+
+      // 4. Reset states
+      setTimeout(() => {
+        setIsFlipping(false);
+      }, 1200);
+    };
+
+    // Initial trigger after 10s, then every 2 minutes
+    const initialTimeout = setTimeout(triggerTip, 10000);
+    const interval = setInterval(triggerTip, 120000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, []);
   
   // CTO Rigor: Global event listener for AI animation
   useEffect(() => {
@@ -51,8 +89,18 @@ export const Sidebar = () => {
           0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--primary-rgb, rgba(0,51,128,0.1))); }
           50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary-rgb, rgba(0,51,128,0.3))); }
         }
+        @keyframes logo-slingshot {
+          0% { transform: translateX(0) scale(1); filter: brightness(1); }
+          30% { transform: translateX(-25px) scale(0.9) skewX(-5deg); filter: brightness(1.1); } /* Tension */
+          50% { transform: translateX(30px) scale(1.1) skewX(10deg); filter: brightness(1.3) drop-shadow(0 0 20px var(--primary)); } /* Launch */
+          70% { transform: translateX(-5px) scale(1.05); } /* Rebond */
+          100% { transform: translateX(0) scale(1); filter: brightness(1); }
+        }
         .animate-logo-pulse-light {
           animation: logo-pulse-light 2s ease-in-out infinite;
+        }
+        .animate-tooth-slingshot {
+          animation: logo-slingshot 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
       `}</style>
 
@@ -60,7 +108,7 @@ export const Sidebar = () => {
       <aside className="w-72 bg-sidebar backdrop-blur-2xl border-r border-border-main shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col h-screen fixed lg:relative z-[10000] shrink-0">
         
         {/* PRODUCT IDENTITY: DIGITAL CROWN LOGO (Centered) */}
-        <div className="p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28">
+        <div className="p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo">
           <Link 
             to="/dashboard" 
             className="transition-all duration-500 block w-full hover:opacity-80 flex items-center justify-center"
@@ -69,11 +117,16 @@ export const Sidebar = () => {
               src={Logo} 
               alt="Digital Crown AI" 
               className={cn(
-                "h-auto w-full max-w-[190px] object-contain transition-all duration-500", 
-                isAiActive && "animate-logo-pulse-light"
+                "h-auto w-full max-w-[190px] object-contain transition-all duration-700", 
+                isAiActive && "animate-logo-pulse-light",
+                isFlipping && "animate-tooth-slingshot"
               )} 
             />
           </Link>
+          
+          {/* Elite Clinical Tips Module */}
+          <ClinicalTipBubble show={showTip} tip={currentTip} onClose={() => setShowTip(false)} />
+
         </div>
 
         {/* STACKED NAVIGATION */}

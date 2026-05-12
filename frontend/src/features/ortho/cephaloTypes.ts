@@ -8,9 +8,10 @@ export interface DDMState {
 }
 
 export interface DiagnosticTexts {
-  squelettique: string;
-  compensations_dentaires: string;
-  plan_therapeutique: string;
+  diagnostic_squelettique: string;
+  analyse_moulages: string;
+  synthese_diagnostique: string;
+  strategie_therapeutique: string;
 }
 
 export interface LocalState {
@@ -74,6 +75,8 @@ export interface DonneesEtape3 {
   profil: ProfilFacial | '';
   severite_ddm: SeveriteDDM | '';
   subdivision: boolean;
+  denture_type: 'TEMPORAIRE' | 'MIXTE' | 'PERMANENTE' | '';
+  preference_technique: 'DAMON' | 'CLASSIC' | 'ALIGNEURS' | '';
 }
 
 export interface DonneesEtape2 {

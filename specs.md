@@ -19,6 +19,12 @@
 ### 👥 Gestion des Patients
 - **Tri Avancé** : Support du tri par `numero_dossier` (alphanumérique) et `created_at` (temporel) pour faciliter la gestion administrative des flux importants.
 
+### 🦷 Hub Panoramique ELITE v2.0
+- **Interaction FDI** : Canevas interactif avec sélection de zone (range FDI) pour les bridges et pathologies étendues.
+- **Taxonomie Spécialisée** : Classification structurée des anomalies en 6 spécialités cliniques (Conservatrice, Endo, Paro, Chirurgie, Prothèse, ATM).
+- **Moteur de Rapport** : Hybridation déterministe entre détection IA YOLOv11 (ONNX) et annotations manuelles. Génération PDF structurée par secteurs.
+
+
 ### 🧠 Intelligence Artificielle Cephalo
 - **Vision Engine** : U-Net CephLD-CCA (PyTorch).
 - **Géométrie** : Moteur Python pur pour les calculs d'angles (Tweed, Steiner, Normes COM).

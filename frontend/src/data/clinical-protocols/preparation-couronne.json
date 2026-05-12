@@ -1,31 +1,91 @@
 {
   "act_code": "CROWN-PREP",
-  "act_names": ["Préparation Couronne unitaire", "Taille prothétique"],
+  "act_names": [
+    "Préparation Couronne unitaire",
+    "Taille prothétique"
+  ],
   "difficulty": "complex",
   "duration_min": 45,
   "checklist": [
-    { "id": "space", "label": "Espace prothétique suffisant (1.5 - 2mm)", "critical": true },
-    { "id": "depouille", "label": "Absence de contre-dépouilles", "critical": true },
-    { "id": "limite", "label": "Limite cervicale nette et continue", "critical": true },
-    { "id": "ging", "label": "Éviction de toute carie résiduelle", "critical": true }
+    {
+      "id": "space",
+      "label": "Espace prothétique suffisant (1.5 - 2mm)",
+      "critical": true
+    },
+    {
+      "id": "depouille",
+      "label": "Absence de contre-dépouilles",
+      "critical": true
+    },
+    {
+      "id": "limite",
+      "label": "Limite cervicale nette et continue",
+      "critical": true
+    },
+    {
+      "id": "ging",
+      "label": "Éviction de toute carie résiduelle",
+      "critical": true
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Réduction occlusale", "tip": "Fraise cylindrique à bout rond gros grains." },
-    { "order": 2, "label": "Réductions axiales et création de la limite", "tip": "Respecter le parallélisme (6° de convergence)." },
-    { "order": 3, "label": "Finition des limites et angles", "tip": "Fraises bagues rouges / jaunes." },
-    { "order": 4, "label": "Gestion gingivale (Fil rétracteur / Expasyl)", "tip": "Indispensable pour une empreinte précise." },
-    { "order": 5, "label": "Empreinte (Numérique ou Silicone)", "tip": "Vérifier la lecture de la limite sur 360°." },
-    { "order": 6, "label": "Pose de la couronne provisoire", "tip": "Vérifier occlusion et points de contact." }
+    {
+      "order": 1,
+      "label": "Réduction occlusale",
+      "tip": "Fraise cylindrique à bout rond gros grains."
+    },
+    {
+      "order": 2,
+      "label": "Réductions axiales et création de la limite",
+      "tip": "Respecter le parallélisme (6° de convergence)."
+    },
+    {
+      "order": 3,
+      "label": "Finition des limites et angles",
+      "tip": "Fraises bagues rouges / jaunes."
+    },
+    {
+      "order": 4,
+      "label": "Gestion gingivale (Fil rétracteur / Expasyl)",
+      "tip": "Indispensable pour une empreinte précise."
+    },
+    {
+      "order": 5,
+      "label": "Empreinte (Numérique ou Silicone)",
+      "tip": "Vérifier la lecture de la limite sur 360°."
+    },
+    {
+      "order": 6,
+      "label": "Pose de la couronne provisoire",
+      "tip": "Vérifier occlusion et points de contact."
+    }
   ],
   "pitfalls": [
-    { "risk": "Échauffement pulpaire", "mitigation": "Spray d'eau abondant constant." },
-    { "risk": "Provisoire instable", "mitigation": "Assurer un scellement étanche pour éviter la sensibilité." }
+    {
+      "risk": "Échauffement pulpaire",
+      "mitigation": "Spray d'eau abondant constant."
+    },
+    {
+      "risk": "Provisoire instable",
+      "mitigation": "Assurer un scellement étanche pour éviter la sensibilité."
+    }
   ],
   "drugs": [
-    { "category": "antiseptic", "name": "Bain de bouche Chlorhexidine", "dose_adult": "Si inflammation gingivale post-empreinte" }
+    {
+      "category": "antiseptic",
+      "name": "Bain de bouche Chlorhexidine",
+      "dose_adult": "Si inflammation gingivale post-empreinte"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Ne pas manger de choses collantes sur la provisoire." },
-    { "timing": "day1", "instruction": "Signaler immédiatement si la provisoire tombe." }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas manger de choses collantes sur la provisoire."
+    },
+    {
+      "timing": "day1",
+      "instruction": "Signaler immédiatement si la provisoire tombe."
+    }
+  ],
+  "category": "Général"
 }

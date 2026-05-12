@@ -20,6 +20,9 @@ import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
+import { QuickPayModal } from './components/QuickPayModal';
+import { PatientScoreBadge } from './components/PatientScoreBadge';
+import { Banknote } from 'lucide-react';
 
 interface Patient {
   id: number;
@@ -44,6 +47,7 @@ export const PatientDetails = () => {
   const [loading, setLoading] = useState(true);
   const [editingDoc, setEditingDoc] = useState<any>(null);
   const [radioTab, setRadioTab] = useState<'cephalo' | 'panoramic'>('cephalo');
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   useEffect(() => {
     const handleEditDoc = (e: any) => {
@@ -114,6 +118,7 @@ export const PatientDetails = () => {
               <div>
                 <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
                   {fullName}
+                  <PatientScoreBadge patientId={Number(id)} />
                   {patient.assurance && patient.assurance !== 'AUCUNE' && (
                     <span className={cn(
                       "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border shadow-sm",
@@ -143,12 +148,23 @@ export const PatientDetails = () => {
               </div>
             </div>
             
-            <div className={cn("rounded-[1.2rem] text-white shadow-xl transition-all duration-500 flex items-center justify-center", isCompact ? "w-10 h-10" : "w-16 h-16")} style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}>
-              <User size={isCompact ? 20 : 30} strokeWidth={2} />
+            <div className="flex items-center gap-3">
+              {/* Quick Pay Button */}
+              <button
+                onClick={() => setIsPayModalOpen(true)}
+                className={cn("bg-white border border-slate-200 text-slate-700 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
+              >
+                <Banknote size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
+                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Encaisser</span>}
+              </button>
+
+              <div className={cn("rounded-[1.2rem] text-white shadow-xl transition-all duration-500 flex items-center justify-center", isCompact ? "w-10 h-10" : "w-16 h-16")} style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}>
+                <User size={isCompact ? 20 : 30} strokeWidth={2} />
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-10 border-b border-transparent -mb-[1px]">
+          <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
@@ -213,6 +229,12 @@ export const PatientDetails = () => {
           )}
         </div>
       </main>
+
+      <QuickPayModal 
+        isOpen={isPayModalOpen} 
+        onClose={() => setIsPayModalOpen(false)} 
+        patientId={Number(id)} 
+      />
     </div>
   );
 };

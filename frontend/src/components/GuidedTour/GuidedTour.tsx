@@ -1,21 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, ChevronRight, ChevronLeft, Map, Sparkles,
-  CheckCircle2, Play, SkipForward
+  X, ChevronRight, ChevronLeft, Sparkles,
+  CheckCircle2, Compass
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { TOUR_STEPS, TOUR_STORAGE_KEY, TOUR_VERSION, type TourStep } from './tourConfig';
+import { TOUR_STEPS, TOUR_CATEGORIES, TOUR_STORAGE_KEY, TOUR_VERSION, type TourStep } from './tourConfig';
+import { api } from '../../services/api';
 
-// ─── Tooltip Flèche par placement ──────────────────────────────────────────────
-const PLACEMENT_CLASSES: Record<string, string> = {
-  top:    '-bottom-2 left-1/2 -translate-x-1/2 rotate-180',
-  bottom: '-top-2 left-1/2 -translate-x-1/2',
-  left:   '-right-2 top-1/2 -translate-y-1/2 rotate-90',
-  right:  '-left-2 top-1/2 -translate-y-1/2 -rotate-90',
-  center: 'hidden',
-};
+// ─── Types ──────────────────────────────────────────────────────────────────────
+interface SpotlightRect {
+  x: number; y: number; w: number; h: number;
+}
 
 // ─── Composant Principal ────────────────────────────────────────────────────────
 interface GuidedTourProps {
@@ -28,42 +25,144 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
   isOpen, onClose, startFromStep = 0,
 }) => {
   const [currentIdx, setCurrentIdx] = useState(startFromStep);
-  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [firstPatientId, setFirstPatientId] = useState<number | null>(null);
   const navigate = useNavigate();
   const cardRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<MutationObserver | null>(null);
 
   const step = TOUR_STEPS[currentIdx];
   const isFirst = currentIdx === 0;
   const isLast = currentIdx === TOUR_STEPS.length - 1;
-  const progress = ((currentIdx + 1) / TOUR_STEPS.length) * 100;
+  // const progress = ((currentIdx + 1) / TOUR_STEPS.length) * 100;
 
-  // Catégories uniques pour la barre de progression segmentée
-  const categories = [...new Set(TOUR_STEPS.map(s => s.category))];
-
-  // Navigation vers la page associée à l'étape
-  const navigateToStepPage = useCallback(async (s: TourStep) => {
-    if (window.location.pathname !== s.page) {
-      setIsNavigating(true);
-      navigate(s.page);
-      await new Promise(r => setTimeout(r, 400));
-      setIsNavigating(false);
-    }
-  }, [navigate]);
-
-  // Résolution du rectangle cible (pour le spotlight)
-  const resolveTarget = useCallback((s: TourStep) => {
-    if (!s.targetSelector) { setTargetRect(null); return; }
-    const el = document.querySelector(s.targetSelector);
-    if (el) setTargetRect(el.getBoundingClientRect());
-    else setTargetRect(null);
-  }, []);
-
+  // ─── Résolution dynamique du premier patient ──────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    navigateToStepPage(step).then(() => resolveTarget(step));
-  }, [currentIdx, isOpen]);
+    api.get('/patients/?skip=0&limit=1')
+      .then(res => {
+        const patients = res.data;
+        if (Array.isArray(patients) && patients.length > 0) {
+          setFirstPatientId(patients[0].id);
+        }
+      })
+      .catch(() => setFirstPatientId(null));
+  }, [isOpen]);
 
+  // ─── Résolution de la route effective ─────────────────────────────────────
+  const getEffectivePage = useCallback((s: TourStep): string => {
+    if (s.pageDynamic && firstPatientId) {
+      return `/patients/${firstPatientId}`;
+    }
+    return s.page;
+  }, [firstPatientId]);
+
+  // ─── PreActions ───────────────────────────────────────────────────────────
+  const executePreAction = useCallback((s: TourStep) => {
+    if (!s.preAction) return;
+    if (s.preAction === 'switch-to-admin-tab') {
+      // Inject tab=admin into the URL to show DocumentHub
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'admin');
+      window.history.replaceState({}, '', url.toString());
+      // Trigger a popstate to make React Router re-read the URL
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, []);
+
+  // ─── Navigation vers la page ──────────────────────────────────────────────
+  const navigateToStepPage = useCallback(async (s: TourStep) => {
+    const targetPage = getEffectivePage(s);
+    if (window.location.pathname !== targetPage) {
+      setIsNavigating(true);
+      navigate(targetPage + (s.preAction === 'switch-to-admin-tab' ? '?tab=admin' : ''));
+      // Wait for route change and lazy load
+      await new Promise(r => setTimeout(r, 500));
+      setIsNavigating(false);
+    }
+    executePreAction(s);
+  }, [navigate, getEffectivePage, executePreAction]);
+
+  // ─── Résolution du rectangle cible avec MutationObserver ──────────────────
+  const resolveTarget = useCallback((s: TourStep) => {
+    if (!s.targetSelector) { setSpotlight(null); return; }
+
+    const tryResolve = () => {
+      const el = document.querySelector(s.targetSelector!);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        setSpotlight({ x: rect.left, y: rect.top, w: rect.width, h: rect.height });
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Re-resolve after scroll settles
+        setTimeout(() => {
+          const r2 = el.getBoundingClientRect();
+          setSpotlight({ x: r2.left, y: r2.top, w: r2.width, h: r2.height });
+        }, 400);
+        return true;
+      }
+      return false;
+    };
+
+    if (tryResolve()) return;
+
+    // DOM not ready — use MutationObserver
+    observerRef.current?.disconnect();
+    observerRef.current = new MutationObserver(() => {
+      if (tryResolve()) {
+        observerRef.current?.disconnect();
+      }
+    });
+    observerRef.current.observe(document.body, { childList: true, subtree: true });
+
+    // Safety timeout — stop observing after 3s
+    setTimeout(() => observerRef.current?.disconnect(), 3000);
+  }, []);
+
+  // Cleanup observer on unmount
+  useEffect(() => () => observerRef.current?.disconnect(), []);
+
+  // ─── Réactivité (scroll/resize) ───────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen || !step.targetSelector) return;
+    const update = () => {
+      const el = document.querySelector(step.targetSelector!);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setSpotlight({ x: r.left, y: r.top, w: r.width, h: r.height });
+      }
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [currentIdx, isOpen, step.targetSelector]);
+
+  // ─── Navigation step change ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    setSpotlight(null);
+    navigateToStepPage(step).then(() => {
+      setTimeout(() => resolveTarget(step), 150);
+    });
+  }, [currentIdx, isOpen, navigateToStepPage, resolveTarget, step]);
+
+  // ─── Keyboard ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { handleSkip(); }
+      else if (e.key === 'ArrowRight' || e.key === 'Enter') { goNext(); }
+      else if (e.key === 'ArrowLeft') { goPrev(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  });
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
   const goNext = () => {
     if (isLast) { handleComplete(); return; }
     setCurrentIdx(i => i + 1);
@@ -74,11 +173,13 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     setCurrentIdx(i => i - 1);
   };
 
-  const jumpTo = (idx: number) => setCurrentIdx(idx);
-
   const handleComplete = () => {
-    localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-    onClose();
+    setShowCelebration(true);
+    setTimeout(() => {
+      localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+      setShowCelebration(false);
+      onClose();
+    }, 2200);
   };
 
   const handleSkip = () => {
@@ -86,343 +187,389 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  // ─── Barre segmentée ─────────────────────────────────────────────────────
+  const segmentedProgress = useMemo(() => {
+    const cats = TOUR_CATEGORIES;
+    return cats.map(cat => {
+      const stepsInCat = TOUR_STEPS.filter(s => s.category === cat);
+      const firstIdx = TOUR_STEPS.findIndex(s => s.category === cat);
+      const lastIdx = firstIdx + stepsInCat.length - 1;
+      const isActive = currentIdx >= firstIdx && currentIdx <= lastIdx;
+      const isCompleted = currentIdx > lastIdx;
+      return { label: cat, isActive, isCompleted, count: stepsInCat.length };
+    }).filter(s => s.count > 0);
+  }, [currentIdx]);
 
-  // Calcul de la position de la card selon le placement
+  // ─── Positionnement de la card ────────────────────────────────────────────
   const getCardStyle = (): React.CSSProperties => {
-    if (!targetRect || step.placement === 'center' || step.isPageIntro) {
+    if (!spotlight || step.placement === 'center' || step.isPageIntro) {
       return {
-        top: '50%',
-        left: '50%',
-        zIndex: 100001,
-        maxWidth: '560px',
-        width: '90vw',
-        maxHeight: '90vh',
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        zIndex: 100001, maxWidth: 520, width: '92vw', maxHeight: '90vh',
       };
     }
-    const margin = 20;
-    const cardW = 480;
-    const cardH = 400; // estimation
 
-    switch (step.placement) {
+    const margin = 24;
+    const cardW = 420;
+    const cardH = cardRef.current?.offsetHeight || 360;
+
+    // Calcul des espaces disponibles
+    const spaceBottom = window.innerHeight - (spotlight.y + spotlight.h);
+    const spaceTop = spotlight.y;
+    const spaceRight = window.innerWidth - (spotlight.x + spotlight.w);
+    const spaceLeft = spotlight.x;
+
+    // Choix intelligent du placement
+    type Dir = 'bottom' | 'top' | 'right' | 'left';
+    const preferred = step.placement as Dir;
+    const spaces: Record<Dir, number> = { bottom: spaceBottom, top: spaceTop, right: spaceRight, left: spaceLeft };
+    const needs: Record<Dir, number> = { bottom: cardH + margin, top: cardH + margin, right: cardW + margin, left: cardW + margin };
+
+    let dir: Dir = preferred;
+    if (spaces[dir] < needs[dir]) {
+      // Fallback: pick direction with most space
+      dir = (Object.entries(spaces) as [Dir, number][])
+        .filter(([d]) => spaces[d] >= needs[d])
+        .sort(([, a], [, b]) => b - a)[0]?.[0] || 'bottom';
+    }
+
+    const centerX = spotlight.x + spotlight.w / 2;
+    const centerY = spotlight.y + spotlight.h / 2;
+
+    switch (dir) {
       case 'bottom': return {
         position: 'fixed',
-        top: targetRect.bottom + margin,
-        left: Math.min(targetRect.left, window.innerWidth - cardW - margin),
-        zIndex: 100001, width: cardW, maxHeight: '90vh',
+        top: Math.min(window.innerHeight - cardH - margin, spotlight.y + spotlight.h + margin),
+        left: Math.max(margin, Math.min(centerX - cardW / 2, window.innerWidth - cardW - margin)),
+        zIndex: 100001, width: cardW, maxHeight: '80vh',
       };
       case 'top': return {
         position: 'fixed',
-        top: Math.max(margin, targetRect.top - cardH - margin),
-        left: Math.min(targetRect.left, window.innerWidth - cardW - margin),
-        zIndex: 100001, width: cardW, maxHeight: '90vh',
+        top: Math.max(margin, spotlight.y - cardH - margin),
+        left: Math.max(margin, Math.min(centerX - cardW / 2, window.innerWidth - cardW - margin)),
+        zIndex: 100001, width: cardW, maxHeight: '80vh',
       };
       case 'right': return {
         position: 'fixed',
-        top: Math.max(margin, targetRect.top),
-        left: targetRect.right + margin,
-        zIndex: 100001, width: cardW, maxHeight: '90vh',
+        top: Math.max(margin, Math.min(centerY - cardH / 2, window.innerHeight - cardH - margin)),
+        left: Math.min(window.innerWidth - cardW - margin, spotlight.x + spotlight.w + margin),
+        zIndex: 100001, width: cardW, maxHeight: '80vh',
       };
       case 'left': return {
         position: 'fixed',
-        top: Math.max(margin, targetRect.top),
-        left: targetRect.left - cardW - margin,
-        zIndex: 100001, width: cardW, maxHeight: '90vh',
-      };
-      default: return {
-        position: 'fixed', top: '50%', left: '50%',
-        zIndex: 100001, width: '90vw', maxWidth: '560px',
-        maxHeight: '90vh',
+        top: Math.max(margin, Math.min(centerY - cardH / 2, window.innerHeight - cardH - margin)),
+        left: Math.max(margin, spotlight.x - cardW - margin),
+        zIndex: 100001, width: cardW, maxHeight: '80vh',
       };
     }
   };
 
+  if (!isOpen) return null;
+
+  // Spotlight padding
+  const pad = 10;
+  const spotX = spotlight ? spotlight.x - pad : 0;
+  const spotY = spotlight ? spotlight.y - pad : 0;
+  const spotW = spotlight ? spotlight.w + pad * 2 : 0;
+  const spotH = spotlight ? spotlight.h + pad * 2 : 0;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* ── OVERLAY AVEC DÉCOUPE SPOTLIGHT ─────────────────────────── */}
-          <motion.div
-            key="overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[100000] pointer-events-auto"
-            style={{ background: 'rgba(0, 0, 0, 0.72)', backdropFilter: 'blur(4px)' }}
-            onClick={(e) => { if (e.target === e.currentTarget) handleSkip(); }}
-          >
-            {/* Spotlight sur l'élément cible */}
-            {targetRect && !step.isPageIntro && (
-              <motion.div
-                key={`spotlight-${currentIdx}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                style={{
-                  position: 'absolute',
-                  top: targetRect.top - 8,
-                  left: targetRect.left - 8,
-                  width: targetRect.width + 16,
-                  height: targetRect.height + 16,
-                  borderRadius: 20,
-                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.72), 0 0 40px rgba(var(--primary-rgb, 0,51,128), 0.5)',
-                  border: '2px solid var(--primary)',
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
-
-            {/* Pulse beacon sur l'élément ciblé */}
-            {targetRect && !step.isPageIntro && (
-              <motion.div
-                key={`beacon-${currentIdx}`}
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.4, 1] }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                style={{
-                  position: 'absolute',
-                  top: targetRect.top - 16,
-                  left: targetRect.left - 16,
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: 'var(--primary)',
-                  opacity: 0.9,
-                  pointerEvents: 'none',
-                  animation: 'tour-beacon-pulse 1.5s ease-in-out infinite',
-                }}
-              />
-            )}
-          </motion.div>
-
-          {/* ── CARD PRINCIPALE ─────────────────────────────────────────── */}
-          <div 
-            className={cn(
-              "fixed z-[100001] pointer-events-none flex",
-              (!targetRect || step.placement === 'center' || step.isPageIntro) 
-                ? "inset-0 items-center justify-center p-4" 
-                : ""
-            )}
-          >
-            <motion.div
-              key={`card-${currentIdx}`}
-              ref={cardRef}
-              style={(!targetRect || step.placement === 'center' || step.isPageIntro) ? { maxWidth: '560px', width: '100%', maxHeight: '90vh' } : getCardStyle()}
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.98 }}
-              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-              className="rounded-[2rem] overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.5)] pointer-events-auto flex flex-col"
-            >
-            {/* Arrière-plan glassmorphisme */}
-            <div
-              className="relative flex flex-col max-h-[90vh]"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.97) 0%, rgba(240,245,255,0.97) 100%)',
-                backdropFilter: 'blur(40px)',
-              }}
-            >
-              {/* Décoration orbe premium */}
-              <div
-                className="absolute -top-20 -right-20 w-64 h-64 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)', opacity: 0.08 }}
-              />
-              <div
-                className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)', opacity: 0.05 }}
-              />
-
-              {/* ─ EN-TÊTE ─────────────────────────────────────────────── */}
-              <div className="relative px-8 pt-7 pb-5 border-b border-slate-100/80">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {/* Icône step */}
-                    <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-lg"
-                      style={{
-                        background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 70%, #6366f1) 100%)',
-                        boxShadow: '0 8px 24px -4px color-mix(in srgb, var(--primary) 40%, transparent)',
-                      }}
-                    >
-                      {step.icon}
-                    </div>
-
-                    <div>
-                      {/* Catégorie */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--primary)' }}>
-                          {step.category}
-                        </span>
-                        {step.badge && (
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-white"
-                            style={{
-                              background: 'linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #6366f1))',
-                            }}
-                          >
-                            {step.badge}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="text-xl font-black text-slate-900 leading-tight">{step.title}</h3>
-                      <p className="text-sm font-bold text-slate-500 mt-0.5">{step.subtitle}</p>
-                    </div>
-                  </div>
-
-                  {/* Bouton fermer */}
-                  <button
-                    onClick={handleSkip}
-                    className="shrink-0 w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all text-slate-400"
-                    title="Fermer le guide"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Barre de progression */}
-                <div className="mt-5 space-y-2">
-                  <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <span className="flex items-center gap-1.5">
-                      <Map size={11} />
-                      Étape {currentIdx + 1} / {TOUR_STEPS.length}
-                    </span>
-                    <span>{Math.round(progress)}% complété</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #6366f1))' }}
-                      initial={{ width: `${((currentIdx) / TOUR_STEPS.length) * 100}%` }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ─ CONTENU (Scrollable if needed) ────────────────────── */}
-              <div className="px-8 py-6 overflow-y-auto custom-scrollbar flex-1">
-                <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                  {step.description}
-                </p>
-
-                {step.features && step.features.length > 0 && (
-                  <motion.ul
-                    className="mt-5 space-y-2.5"
-                    initial="hidden"
-                    animate="visible"
-                    variants={{
-                      hidden: {},
-                      visible: { transition: { staggerChildren: 0.06 } },
-                    }}
-                  >
-                    {step.features.map((f, i) => (
-                      <motion.li
-                        key={i}
-                        variants={{
-                          hidden: { opacity: 0, x: -10 },
-                          visible: { opacity: 1, x: 0 },
-                        }}
-                        className="flex items-start gap-3 text-sm"
-                      >
-                        <div
-                          className="mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: 'color-mix(in srgb, var(--primary) 12%, transparent)' }}
-                        >
-                          <CheckCircle2 size={12} style={{ color: 'var(--primary)' }} />
-                        </div>
-                        <span className="font-medium text-slate-700 leading-snug">{f}</span>
-                      </motion.li>
-                    ))}
-                  </motion.ul>
-                )}
-              </div>
-
-              {/* ─ NAVIGATION MINI (points) ────────────────────────────── */}
-              <div className="px-8 pb-2 flex items-center gap-1.5 overflow-x-auto">
-                {TOUR_STEPS.map((s, i) => (
-                  <button
-                    key={s.id}
-                    onClick={() => jumpTo(i)}
-                    title={s.title}
-                    className={cn(
-                      'transition-all rounded-full shrink-0',
-                      i === currentIdx
-                        ? 'w-6 h-2'
-                        : i < currentIdx
-                          ? 'w-2 h-2'
-                          : 'w-2 h-2 opacity-30',
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* ── OVERLAY SVG ANIMÉ ─────────────────────────────────────────── */}
+            <div className="fixed inset-0 z-[100000]" style={{ pointerEvents: 'none' }}>
+              <svg className="w-full h-full" style={{ pointerEvents: 'none' }}>
+                <defs>
+                  <mask id="tour-mask">
+                    <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                    {spotlight && !step.isPageIntro && (
+                      <motion.rect
+                        initial={{ x: spotX, y: spotY, width: spotW, height: spotH, opacity: 0 }}
+                        animate={{ x: spotX, y: spotY, width: spotW, height: spotH, opacity: 1 }}
+                        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                        rx="16"
+                        fill="black"
+                      />
                     )}
-                    style={{
-                      background: i <= currentIdx ? 'var(--primary)' : '#cbd5e1',
-                    }}
-                  />
-                ))}
-              </div>
-
-              {/* ─ FOOTER NAVIGATION ───────────────────────────────────── */}
-              <div className="px-8 pb-7 pt-4 flex items-center justify-between gap-4 border-t border-slate-100/80 mt-2">
-                {/* Bouton Précédent */}
-                <button
-                  onClick={goPrev}
-                  disabled={isFirst}
-                  className={cn(
-                    'flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border',
-                    isFirst
-                      ? 'opacity-0 pointer-events-none'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95',
-                  )}
-                >
-                  <ChevronLeft size={16} />
-                  Précédent
-                </button>
-
-                {/* Centre : Skip */}
-                <button
-                  onClick={handleSkip}
-                  className="flex items-center gap-1.5 text-[11px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"
-                >
-                  <SkipForward size={12} />
-                  Passer le tour
-                </button>
-
-                {/* Bouton Suivant / Terminer */}
-                <button
-                  onClick={goNext}
-                  disabled={isNavigating}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-black text-white transition-all active:scale-95 shadow-lg"
+                  </mask>
+                </defs>
+                <rect
+                  x="0" y="0" width="100%" height="100%"
+                  fill={step.isPageIntro ? "rgba(15, 23, 42, 0.75)" : "rgba(15, 23, 42, 0.6)"}
+                  mask="url(#tour-mask)"
                   style={{
-                    background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 70%, #6366f1) 100%)',
-                    boxShadow: '0 8px 20px -4px color-mix(in srgb, var(--primary) 35%, transparent)',
+                    pointerEvents: 'auto',
+                    backdropFilter: step.isPageIntro ? 'blur(12px)' : 'none',
+                  }}
+                  onClick={handleSkip}
+                />
+              </svg>
+
+              {/* Spotlight border glow */}
+              {spotlight && !step.isPageIntro && (
+                <motion.div
+                  key={`glow-${currentIdx}`}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.35, delay: 0.15 }}
+                  className="pointer-events-none"
+                  style={{
+                    position: 'absolute',
+                    top: spotY, left: spotX,
+                    width: spotW, height: spotH,
+                    borderRadius: 16,
+                    border: '2px solid var(--primary)',
+                    boxShadow: '0 0 30px color-mix(in srgb, var(--primary) 25%, transparent), inset 0 0 20px color-mix(in srgb, var(--primary) 8%, transparent)',
+                  }}
+                />
+              )}
+            </div>
+
+            {/* ── CARD ──────────────────────────────────────────────────────── */}
+            <div
+              className={cn(
+                "fixed z-[100001] pointer-events-none flex",
+                (!spotlight || step.placement === 'center' || step.isPageIntro)
+                  ? "inset-0 items-center justify-center p-6"
+                  : ""
+              )}
+            >
+              <motion.div
+                key={`card-${currentIdx}`}
+                ref={cardRef}
+                style={getCardStyle()}
+                initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.97 }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                className="rounded-[1.75rem] overflow-hidden pointer-events-auto flex flex-col"
+              >
+                <div
+                  className="relative flex flex-col max-h-[88vh] overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(160deg, rgba(255,255,255,0.98) 0%, rgba(248,250,255,0.98) 100%)',
+                    boxShadow: '0 32px 80px -12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(40px)',
                   }}
                 >
-                  {isLast ? (
-                    <>
-                      <Sparkles size={15} />
-                      Commencer !
-                    </>
-                  ) : (
-                    <>
-                      Suivant
-                      <ChevronRight size={16} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+                  {/* Orbe décorative */}
+                  <div
+                    className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)', opacity: 0.07 }}
+                  />
 
-          {/* ── STYLES ANIMATION BEACON ────────────────────────────────── */}
-          <style>{`
-            @keyframes tour-beacon-pulse {
-              0%, 100% { transform: scale(1); opacity: 0.9; }
-              50% { transform: scale(1.6); opacity: 0.3; }
-            }
-          `}</style>
-        </>
-      )}
-    </AnimatePresence>
+                  {/* ─ HEADER ─────────────────────────────────────────────── */}
+                  <div className="relative px-7 pt-6 pb-4">
+                    {/* Skip discret (en haut à droite, sous le ✕) */}
+                    <div className="absolute top-5 right-5 flex flex-col items-end gap-1.5">
+                      <button
+                        onClick={handleSkip}
+                        className="w-8 h-8 rounded-xl bg-slate-100/80 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all text-slate-400"
+                        title="Fermer (Échap)"
+                      >
+                        <X size={14} />
+                      </button>
+                      <button
+                        onClick={handleSkip}
+                        className="text-[9px] font-bold text-slate-300 hover:text-slate-500 uppercase tracking-widest transition-colors"
+                      >
+                        Passer
+                      </button>
+                    </div>
+
+                    {/* Icône + Titre */}
+                    <div className="flex items-center gap-3.5 pr-20">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+                        style={{
+                          background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 65%, #6366f1) 100%)',
+                          boxShadow: '0 6px 20px -4px color-mix(in srgb, var(--primary) 35%, transparent)',
+                        }}
+                      >
+                        {step.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] truncate" style={{ color: 'var(--primary)' }}>
+                            {step.category}
+                          </span>
+                          {step.badge && (
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-wider text-white shrink-0"
+                              style={{ background: 'linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 55%, #6366f1))' }}
+                            >
+                              {step.badge}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900 leading-tight truncate">{step.title}</h3>
+                        <p className="text-xs font-bold text-slate-400 mt-0.5 truncate">{step.subtitle}</p>
+                      </div>
+                    </div>
+
+                    {/* Barre segmentée */}
+                    <div className="mt-4 flex gap-1">
+                      {segmentedProgress.map((seg, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div
+                            className={cn(
+                              "w-full h-1 rounded-full transition-all duration-500",
+                              seg.isCompleted ? "opacity-100" : seg.isActive ? "opacity-100" : "opacity-20"
+                            )}
+                            style={{
+                              background: seg.isCompleted || seg.isActive
+                                ? 'linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #6366f1))'
+                                : '#cbd5e1',
+                            }}
+                          />
+                          <span className={cn(
+                            "text-[7px] font-bold uppercase tracking-wider truncate max-w-full",
+                            seg.isActive ? "text-slate-600" : "text-slate-300"
+                          )}>
+                            {seg.label === 'Bienvenue' ? '🏠' : seg.label === 'Tour Terminé' ? '🏁' : seg.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ─ CONTENU ──────────────────────────────────────────── */}
+                  <div className="px-7 py-4 overflow-y-auto custom-scrollbar flex-1 border-t border-slate-100/60">
+                    <p className="text-[13px] font-medium text-slate-600 leading-relaxed">
+                      {step.description}
+                    </p>
+
+                    {step.features && step.features.length > 0 && (
+                      <motion.ul
+                        className="mt-4 space-y-2"
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                          hidden: {},
+                          visible: { transition: { staggerChildren: 0.05 } },
+                        }}
+                      >
+                        {step.features.map((f, i) => (
+                          <motion.li
+                            key={i}
+                            variants={{
+                              hidden: { opacity: 0, x: -8 },
+                              visible: { opacity: 1, x: 0 },
+                            }}
+                            className="flex items-start gap-2.5 text-[13px]"
+                          >
+                            <div
+                              className="mt-0.5 w-4 h-4 rounded-md flex items-center justify-center shrink-0"
+                              style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+                            >
+                              <CheckCircle2 size={10} style={{ color: 'var(--primary)' }} />
+                            </div>
+                            <span className="font-medium text-slate-700 leading-snug">{f}</span>
+                          </motion.li>
+                        ))}
+                      </motion.ul>
+                    )}
+                  </div>
+
+                  {/* ─ FOOTER ───────────────────────────────────────────── */}
+                  <div className="px-7 pb-5 pt-3 flex items-center justify-between gap-3 border-t border-slate-100/60">
+                    {/* Précédent */}
+                    <button
+                      onClick={goPrev}
+                      disabled={isFirst}
+                      className={cn(
+                        'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border',
+                        isFirst
+                          ? 'opacity-0 pointer-events-none border-transparent'
+                          : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 active:scale-95',
+                      )}
+                    >
+                      <ChevronLeft size={14} />
+                      Retour
+                    </button>
+
+                    {/* Compteur central */}
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                      <Compass size={10} />
+                      {currentIdx + 1} / {TOUR_STEPS.length}
+                    </span>
+
+                    {/* Suivant / Terminer */}
+                    <button
+                      onClick={goNext}
+                      disabled={isNavigating}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black text-white transition-all active:scale-95"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 65%, #6366f1) 100%)',
+                        boxShadow: '0 6px 16px -3px color-mix(in srgb, var(--primary) 30%, transparent)',
+                      }}
+                    >
+                      {isLast ? (
+                        <>
+                          <Sparkles size={13} />
+                          Terminer
+                        </>
+                      ) : (
+                        <>
+                          Suivant
+                          <ChevronRight size={14} />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* ── CELEBRATION ────────────────────────────────────────────── */}
+            <AnimatePresence>
+              {showCelebration && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100002] flex items-center justify-center pointer-events-none"
+                >
+                  {[...Array(12)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{
+                        x: 0, y: 0, scale: 0, opacity: 1,
+                      }}
+                      animate={{
+                        x: (Math.random() - 0.5) * 400,
+                        y: (Math.random() - 0.5) * 400,
+                        scale: [0, 1.5, 0],
+                        opacity: [1, 1, 0],
+                        rotate: Math.random() * 720,
+                      }}
+                      transition={{ duration: 1.8, ease: 'easeOut', delay: i * 0.04 }}
+                      className="absolute w-3 h-3 rounded-sm"
+                      style={{
+                        background: i % 3 === 0
+                          ? 'var(--primary)'
+                          : i % 3 === 1
+                            ? 'color-mix(in srgb, var(--primary) 60%, #6366f1)'
+                            : '#fbbf24',
+                      }}
+                    />
+                  ))}
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: [0, 1.2, 1], opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="text-6xl"
+                  >
+                    🎉
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 };

@@ -69,6 +69,13 @@ from .panoramic import (
     PanoramicAnalysisCreate,
     PanoramicAnalysisOut,
     PanoramicAnalysis,
+    PanoramicReportRequest,
+)
+
+
+from .payments import (
+    PaymentCreate,
+    PaymentOut,
 )
 
 from .documents import (
@@ -176,7 +183,8 @@ __all__ = [
     # panoramic (OPG v2 — overrides v1 BoundingBox/ToothObject/Finding)
     "BoundingBox", "Finding", "ToothObject",
     "FullAnalysis", "PanoramicAnalysisBase", "PanoramicAnalysisCreate",
-    "PanoramicAnalysisOut", "PanoramicAnalysis",
+    "PanoramicAnalysisOut", "PanoramicAnalysis", "PanoramicReportRequest",
+
     # documents
     "MedicationItem", "OrdonnanceData", "CertificatData",
     "ToothTreatmentInfo", "ToothData",

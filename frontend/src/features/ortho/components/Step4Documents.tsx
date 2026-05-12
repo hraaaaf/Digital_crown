@@ -8,12 +8,13 @@ interface Step4DocumentsProps {
   sexe: 'M' | 'F';
   onUpload: (id: string, file: File) => void;
   onGeneratePDF: () => void;
+  onPreviewPDF: () => void;
   isGenerating: boolean;
   P: any;
 }
 
 export const Step4Documents: React.FC<Step4DocumentsProps> = ({ 
-  photos, onUpload, onGeneratePDF, isGenerating, P 
+  photos, onUpload, onGeneratePDF, onPreviewPDF, isGenerating, P 
 }) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -66,15 +67,26 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({
           </div>
         </div>
 
-        <button 
-          onClick={onGeneratePDF}
-          disabled={isGenerating}
-          className="w-full md:w-auto px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-          style={{ background: `linear-gradient(135deg, ${P.accent}, ${P.accent}dd)` }}
-        >
-          {isGenerating ? <Clock size={20} className="animate-spin" /> : <Printer size={20} />}
-          Générer le Bilan PDF
-        </button>
+        <div className="flex flex-col gap-3 w-full md:w-auto">
+          <button 
+            onClick={onPreviewPDF}
+            disabled={isGenerating}
+            className="w-full px-10 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 bg-white"
+            style={{ color: P.accent, border: `2px solid ${P.accent}` }}
+          >
+            <FileText size={20} />
+            Aperçu
+          </button>
+          <button 
+            onClick={onGeneratePDF}
+            disabled={isGenerating}
+            className="w-full px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            style={{ background: `linear-gradient(135deg, ${P.accent}, ${P.accent}dd)` }}
+          >
+            {isGenerating ? <Clock size={20} className="animate-spin" /> : <Printer size={20} />}
+            Générer le Bilan
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -11,11 +11,12 @@ class QRService:
     """
     
     @staticmethod
-    def generate_qr_bytes(data: str, color: str = "black", box_size: int = 10, add_logo: bool = True, logo_path: Optional[str] = None) -> io.BytesIO:
-        """Génère les octets d'un QR code avec support de logo personnalisé au centre."""
+    def generate_qr_bytes(data: str, color: str = "black", box_size: int = 10, add_logo: bool = False, logo_path: Optional[str] = None) -> io.BytesIO:
+        """Génère les octets d'un QR code minimaliste et universellement lisible."""
         qr = qrcode.QRCode(
             version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            # Niveau L (Low) pour la grille la plus simple et la moins encombrée
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=box_size,
             border=2,
         )
@@ -24,40 +25,6 @@ class QRService:
 
         img = qr.make_image(fill_color=color, back_color="white").convert('RGB')
         
-        if add_logo:
-            width, height = img.size
-            logo_size = width // 5
-            logo_box = (
-                (width - logo_size) // 2,
-                (height - logo_size) // 2,
-                (width + logo_size) // 2,
-                (height + logo_size) // 2
-            )
-            
-            draw = ImageDraw.Draw(img)
-            draw.rectangle(logo_box, fill="white")
-            
-            if logo_path:
-                try:
-                    # Chargement et redimensionnement du logo réel
-                    logo = Image.open(logo_path).convert("RGBA")
-                    logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-                    # On crée un fond blanc pour le logo s'il a de la transparence
-                    logo_bg = Image.new("RGBA", logo.size, "WHITE")
-                    logo_final = Image.alpha_composite(logo_bg, logo).convert("RGB")
-                    img.paste(logo_final, (logo_box[0], logo_box[1]))
-                except Exception as e:
-                    print(f"Erreur chargement logo QR: {e}")
-                    # Fallback sur le sceau minimaliste si le logo échoue
-                    inner_margin = logo_size // 5
-                    inner_box = (logo_box[0] + inner_margin, logo_box[1] + inner_margin, logo_box[2] - inner_margin, logo_box[3] - inner_margin)
-                    draw.rectangle(inner_box, fill=color)
-            else:
-                # Sceau minimaliste par défaut
-                inner_margin = logo_size // 5
-                inner_box = (logo_box[0] + inner_margin, logo_box[1] + inner_margin, logo_box[2] - inner_margin, logo_box[3] - inner_margin)
-                draw.rectangle(inner_box, fill=color)
-            
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         buffered.seek(0)
@@ -79,13 +46,28 @@ class QRService:
 
     @staticmethod
     def generate_whatsapp_url(phone: str, message: str = "") -> str:
-        """Génère une URL WhatsApp avec message pré-rempli."""
+        """Génère une URL WhatsApp robuste avec message pré-rempli."""
         import urllib.parse
-        clean_phone = phone.replace(" ", "").replace("+", "")
-        url = f"https://wa.me/{clean_phone}"
+        if not phone:
+            return ""
+            
+        # Nettoyage strict : on ne garde que les chiffres
+        clean_phone = "".join(filter(str.isdigit, phone))
+        
+        # Gestion intelligente du format local (ex: 06 12 34 56 78)
+        # Si le numéro commence par 0 et fait 10 chiffres, on injecte le code pays par défaut (212 pour Digital Crown)
+        if clean_phone.startswith("0") and not clean_phone.startswith("00") and len(clean_phone) == 10:
+            clean_phone = "212" + clean_phone[1:]
+        elif clean_phone.startswith("00"):
+            clean_phone = clean_phone[2:]
+            
+        # Format universel api.whatsapp.com souvent plus stable que wa.me sur certains devices
+        base_url = "https://api.whatsapp.com/send"
+        params = {"phone": clean_phone}
         if message:
-            url += f"?text={urllib.parse.quote(message)}"
-        return url
+            params["text"] = message
+            
+        return f"{base_url}?{urllib.parse.urlencode(params)}"
 
     @staticmethod
     def generate_maps_url(address: str) -> str:

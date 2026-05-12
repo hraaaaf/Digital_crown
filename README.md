@@ -1,7 +1,8 @@
 # 👑 Digital Crown - SANINOVA Edition
 ## *L'Intelligence Clinique au service de l'Orthodontie Moderne*
 
-![Version](https://img.shields.io/badge/Version-v1.2_Stabilization-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-v1.3_Elite_Panoramic-blue?style=for-the-badge)
+
 ![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?style=for-the-badge&logo=react)
 ![Engine](https://img.shields.io/badge/PDF_Engine-ReportLab_Elite-red?style=for-the-badge)
@@ -13,9 +14,21 @@ Digital Crown est une plateforme **Ghost Elite** conçue pour transformer la ges
 
 ---
 
-## 🚀 Breakthroughs Techniques (Avril 2026)
+## 🚀 Breakthroughs Techniques (Mai 2026)
+
+### 🦷 Panoramic ELITE Hub v2.0
+Diagnostic panoramique haute-fidélité.
+- **Taxonomie Clinique** : Groupement des anomalies par spécialité (Endo, Paro, Chirurgie, Prothèse).
+- **Multi-Tooth Selection** : Prise en charge native des bridges et des zones infectieuses étendues (sélection de plage FDI).
+- **Live PDF Engine** : Génération instantanée de bilans structurés par secteur avec prévisualisation dynamique.
+
+### 💡 Elite Clinical Insights
+Le système d'assistance cognitive le plus discret au monde.
+- **Auto-Hide Tips** : Conseils cliniques apparaissant en haut à gauche pendant 2 secondes pour une concentration maximale.
+- **Predictive Habits** : Suggestions de prescriptions basées sur les habitudes cliniques réelles du praticien.
 
 ### 🧠 Clinical Intelligence v1.2
+
 Le cerveau de l'application. Plus qu'un simple gestionnaire, Digital Crown analyse le dossier patient en temps réel pour générer des **Flash Summaries** et des diagnostics structurés (Squelettique, Dentaire, Stratégie) via des modèles SLM locaux (Ollama/Llama3.2) et Gemini 1.5 Flash.
 
 ### 💎 Ghost Elite UI
@@ -64,7 +77,7 @@ DigitalCrown/
 │   │   ├── features/           # Modules métier (Ortho, Admin, Patients)
 │   │   ├── components/         # Design System Atomique
 │   │   └── services/api.ts     # Client Elite Axios
-└── AGENTS.md                   # Guide pour les agents IA
+└── SKILLS.md                   # Guide pour les agents IA
 ```
 
 ---
@@ -103,4 +116,5 @@ Accès App : `http://localhost:5173`
 
 ## 👨‍💻 Développement
 **Équipe Staff Engineering - Digital Crown**
-*Dernière mise à jour : 27 Avril 2026 (Stabilization Release v1.2)*
+*Dernière mise à jour : 12 Mai 2026 (Elite Panoramic Release v1.3)*
+

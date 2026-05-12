@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bilan Orthodontique - {{ patient_nom }}</title>
+    <style>
+        :root {
+            --dc-primary: {{ primary_color }};
+            --dc-secondary: {{ secondary_color }};
+        }
+
+        @page {
+            size: A4;
+            margin: 1.5cm;
+            @top-left {
+                content: "BILAN ORTHODONTIQUE - {{ patient_nom }} {{ patient_prenom }}";
+                font-family: 'Helvetica', sans-serif;
+                font-size: 8pt;
+                color: var(--dc-secondary);
+            }
+            @top-right {
+                content: "{{ date_analyse }}";
+                font-family: 'Helvetica', sans-serif;
+                font-size: 8pt;
+                color: var(--dc-secondary);
+            }
+            @bottom-center {
+                content: "Page " counter(page) " / " counter(pages);
+                font-family: 'Helvetica', sans-serif;
+                font-size: 8pt;
+                color: var(--dc-secondary);
+            }
+        }
+        
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #1f2937;
+            line-height: 1.5;
+            font-size: 10pt;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--dc-primary);
+            padding-bottom: 15px;
+        }
+
+        .title {
+            color: var(--dc-primary);
+            font-size: 20pt;
+            font-weight: bold;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            color: var(--dc-secondary);
+            font-size: 11pt;
+            margin-top: 5px;
+        }
+
+        .patient-info {
+            display: flex;
+            justify-content: space-between;
+            background-color: #f8fafc;
+            border-left: 4px solid var(--dc-primary);
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+
+        .info-col {
+            flex: 1;
+        }
+
+        .info-label {
+            font-size: 8pt;
+            text-transform: uppercase;
+            color: var(--dc-secondary);
+            font-weight: bold;
+        }
+
+        .info-value {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-top: 2px;
+        }
+
+        .section-title {
+            color: var(--dc-primary);
+            font-size: 14pt;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .text-block {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: justify;
+        }
+
+        .text-block p {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .text-block p:last-child {
+            margin-bottom: 0;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: var(--dc-primary);
+        }
+
+        .plan-traitement {
+            background-color: #f0fdf4;
+            border-left: 4px solid #16a34a;
+        }
+        
+        .synthese-block {
+            border-left: 4px solid var(--dc-primary);
+        }
+
+        .radio-container {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .radio-container img {
+            max-width: 100%;
+            max-height: 400px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .signature {
+            margin-top: 50px;
+            text-align: right;
+            font-style: italic;
+        }
+        
+        .doctor-name {
+            font-weight: bold;
+            font-size: 12pt;
+            font-style: normal;
+            color: var(--dc-primary);
+        }
+        
+        /* Table styles for metrics if needed */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 9pt;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: var(--dc-primary);
+            color: white;
+            font-weight: bold;
+        }
+        .status-High, .status-Low { color: #dc2626; font-weight: bold; }
+        .status-Normal { color: #16a34a; }
+        .status-Compensated { color: #ea580c; font-style: italic; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 class="title">Bilan Orthodontique</h1>
+        <div class="subtitle">Analyse Clinique et Céphalométrique - Méthode COM</div>
+    </div>
+
+    <div class="patient-info">
+        <div class="info-col">
+            <div class="info-label">Patient</div>
+            <div class="info-value">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}</div>
+        </div>
+        <div class="info-col">
+            <div class="info-label">Âge</div>
+            <div class="info-value">{{ patient_age }} ans</div>
+        </div>
+        <div class="info-col">
+            <div class="info-label">Denture</div>
+            <div class="info-value">{{ denture_type or 'Permanente' }}</div>
+        </div>
+        <div class="info-col">
+            <div class="info-label">Technique</div>
+            <div class="info-value">{{ preference_technique or 'Damon' }}</div>
+        </div>
+        <div class="info-col">
+            <div class="info-label">Date du Bilan</div>
+            <div class="info-value">{{ date_analyse }}</div>
+        </div>
+    </div>
+
+    {% if radio_url %}
+    <div class="radio-container">
+        <img src="{{ radio_url }}" alt="Radiographie Céphalométrique">
+    </div>
+    {% endif %}
+
+    <h2 class="section-title">1. Diagnostic Squelettique & Céphalométrique</h2>
+    <div class="text-block">
+        {{ diagnostic_squelettique | replace('\n', '<br>') | safe }}
+    </div>
+
+    <h2 class="section-title">2. Analyse Clinique & Moulages</h2>
+    <div class="text-block">
+        {{ analyse_moulages | replace('\n', '<br>') | safe }}
+    </div>
+
+    <h2 class="section-title">3. Synthèse Diagnostique</h2>
+    <div class="text-block synthese-block">
+        {{ synthese_diagnostique | replace('\n', '<br>') | safe }}
+    </div>
+
+    <h2 class="section-title">4. Plan de Traitement Proposé</h2>
+    <div class="text-block plan-traitement">
+        {{ strategie_therapeutique | replace('\n', '<br>') | safe }}
+    </div>
+    
+    {% if metrics %}
+    <h2 class="section-title">Annexe: Données Céphalométriques Sévères</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Métrique</th>
+                <th>Valeur</th>
+                <th>Norme</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in metrics %}
+            <tr>
+                <td>{{ m.name }}</td>
+                <td>{{ m.valeur }} {{ m.unite }}</td>
+                <td>{{ m.norme }}</td>
+                <td class="status-{{ m.status }}">{{ m.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="footer-container" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+        <div class="qr-auth" style="text-align: left;">
+            {% if qr_code_base64 %}
+            <img src="{{ qr_code_base64 }}" alt="QR Code Authentification" style="width: 80px; height: 80px;">
+            <div style="font-size: 7pt; color: var(--dc-secondary); margin-top: 5px;">Scannez pour vérifier l'authenticité<br>de ce diagnostic clinique.</div>
+            {% endif %}
+        </div>
+        
+        <div class="signature" style="text-align: right; font-style: italic;">
+            Rapport généré numériquement le {{ date_analyse }}<br><br>
+            <div class="doctor-name" style="font-weight: bold; font-size: 12pt; font-style: normal; color: var(--dc-primary);">{{ doctor_name }}</div>
+            <div style="font-size: 9pt; color: var(--dc-secondary); font-style: normal;">Signature électronique certifiée</div>
+        </div>
+    </div>
+
+</body>
+</html>

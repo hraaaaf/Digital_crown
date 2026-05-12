@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, case
 from sqlalchemy.orm import Session
 from backend import models
 from backend.services.clinical_rules_engine import clinical_rules
@@ -140,28 +140,51 @@ class PrescriptionService:
     def get_personalized_suggestions(self, db: Session, doctor_id: int, query: str = "") -> Dict[str, List[str]]:
         """
         Retourne des suggestions prioritaires basées sur les habitudes du docteur.
+        Priorise les correspondances au début du nom (Start-with priority).
         """
         query = query.strip().upper()
+        if not query:
+            return {"medications": [], "dosages": [], "posologies": []}
         
-        # 1. Médicaments favoris
-        med_habits = db.query(models.DoctorMedicationHabit.medication_name).filter(
+        # 1. Médicaments favoris (Habits)
+        # On utilise une expression CASE pour prioriser les correspondances au début
+        med_habits = db.query(
+            models.DoctorMedicationHabit.medication_name,
+            func.sum(models.DoctorMedicationHabit.usage_count).label("total")
+        ).filter(
             models.DoctorMedicationHabit.doctor_id == doctor_id,
             models.DoctorMedicationHabit.medication_name.ilike(f"%{query}%")
-        ).group_by(models.DoctorMedicationHabit.medication_name).order_by(func.sum(models.DoctorMedicationHabit.usage_count).desc()).limit(10).all()
+        ).group_by(models.DoctorMedicationHabit.medication_name).order_by(
+            # Priorité 1 : Commence par la requête (0 = oui, 1 = non)
+            case(
+                (models.DoctorMedicationHabit.medication_name.ilike(f"{query}%"), 0),
+                else_=1
+            ),
+            # Priorité 2 : Fréquence d'usage
+            desc("total")
+        ).limit(10).all()
         
         meds = [m[0] for m in med_habits]
         
-        # Compléter avec la base globale si besoin
-        if len(meds) < 5:
+        # 2. Compléter avec la base globale si besoin (< 5 résultats)
+        if len(meds) < 10:
             global_meds = db.query(models.Medication.nom).filter(
                 models.Medication.nom.ilike(f"%{query}%"),
                 ~models.Medication.nom.in_(meds)
-            ).order_by(models.Medication.usage_count.desc()).limit(10).all()
+            ).order_by(
+                # Priorité 1 : Commence par la requête
+                case(
+                    (models.Medication.nom.ilike(f"{query}%"), 0),
+                    else_=1
+                ),
+                # Priorité 2 : Fréquence globale
+                models.Medication.usage_count.desc()
+            ).limit(10 - len(meds)).all()
             meds.extend([m[0] for m in global_meds])
-
+        
         return {
             "medications": meds,
-            "dosages": [], # Sera rempli dynamiquement selon le médicament sélectionné
+            "dosages": [],
             "posologies": []
         }
 

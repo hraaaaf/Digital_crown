@@ -298,7 +298,7 @@ export const Settings = () => {
       <div className="flex flex-col md:flex-row gap-10 items-start">
         
         {/* NAVIGATION DES ONGLETS (Verticale) */}
-        <div className="w-full md:w-64 shrink-0 flex flex-col gap-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-3 rounded-[2rem] shadow-sm sticky top-28">
+        <div data-tour="settings-navigation" className="w-full md:w-64 shrink-0 flex flex-col gap-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-3 rounded-[2rem] shadow-sm sticky top-28">
           <TabButton active={activeTab === 'profil'} onClick={() => setActiveTab('profil')} icon={<Building size={20}/>} label="Profil Cabinet" />
           <TabButton active={activeTab === 'branding'} onClick={() => setActiveTab('branding')} icon={<PaletteIcon size={20}/>} label="Design & Ambiance" />
           <TabButton active={activeTab === 'equipe'} onClick={() => setActiveTab('equipe')} icon={<Users size={20}/>} label="Mon Équipe" />
@@ -684,7 +684,7 @@ export const Settings = () => {
 
           {/* TAB 2 : DESIGN & AMBIANCE */}
           {activeTab === 'branding' && (
-            <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
+            <div data-tour="settings-branding" className="space-y-12 animate-in slide-in-from-right-4 duration-500">
               <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
                 <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
                   <PaletteIcon size={32} />

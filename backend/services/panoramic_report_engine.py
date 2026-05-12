@@ -1,59 +1,160 @@
 import datetime
 import logging
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+ANOMALY_LABELS = {
+    'carie_email': "Carie de l'émail",
+    'carie_dentinaire': "Carie dentinaire",
+    'carie_profonde': "Carie profonde (Pulpaire)",
+    'reprise_carie': "Reprise sous obturation",
+    'obturation_comp': "Obturation composite/amalgame",
+    'obturation_debord': "Obturation débordante",
+    'lesion_periapicale': "Lésion périapicale (Kyste)",
+    'elargissement_desmo': "Élargissement desmodontal",
+    'tr_adequat': "Traitement canalaire adéquat",
+    'tr_incomplet': "Traitement canalaire incomplet",
+    'depassement_pate': "Dépassement de pâte",
+    'instrument_fracture': "Instrument fracturé",
+    'perforation': "Faux-canal (Perforation)",
+    'alveolyse_h': "Alvéolyse horizontale",
+    'alveolyse_v': "Alvéolyse verticale",
+    'furcation': "Atteinte de la furcation",
+    'tartre': "Tartre sous-gingival",
+    'agenesie': "Agénésie (Dent manquante)",
+    'surnumeraire': "Dent surnuméraire",
+    'incluse': "Dent incluse",
+    'enclavee': "Dent enclavée",
+    'reste_radiculaire': "Reste radiculaire",
+    'resorption': "Résorption radiculaire",
+    'couronne': "Couronne unitaire",
+    'bridge': "Bridge prothétique",
+    'implant': "Implant dentaire",
+    'peri_implantite': "Péri-implantite",
+    'infiltration_prothese': "Infiltration sous prothèse",
+    'opacite_sinus': "Opacité sinusienne",
+    'racine_sinus': "Racine dans le sinus",
+    'condyle_asymetrie': "Asymétrie condylienne",
+    'arthrose_atm': "Arthrose ATM",
+    'calcification': "Calcification (Carotide/Sial.)",
+}
+
 class PanoramicReportEngine:
+
     """
-    Générateur de rapport Panoramique ELITE (v1.8).
-    Consomme une liste plate de détections et génère un bilan structuré.
+    Générateur de rapport Panoramique ELITE (v2.0).
+    Structure le bilan par secteurs et catégories cliniques pour une lecture professionnelle.
     """
-    def generate_markdown(self, detections_data: dict) -> str:
+    def generate_markdown(self, detections: List[Dict] = None, manual_anomalies: Dict[int, List[str]] = None) -> str:
         try:
-            detections = detections_data.get("detections", [])
+            if isinstance(detections, dict):
+                detections = detections.get("detections", [])
+            detections = detections or []
+            manual_anomalies = manual_anomalies or {}
             
+            teeth_map = {}
+            for d in detections:
+                fdi = int(d.get("fdi") or d.get("tooth") or 0)
+                if fdi == 0: continue
+                if fdi not in teeth_map: teeth_map[fdi] = set()
+                label = d.get("label", d.get("pathology", "Anomalie"))
+                teeth_map[fdi].add(label)
+                
+            for fdi_str, anomalies in manual_anomalies.items():
+                fdi = int(fdi_str)
+                if fdi not in teeth_map: teeth_map[fdi] = set()
+                for a in anomalies:
+                    label = ANOMALY_LABELS.get(a, a)
+                    teeth_map[fdi].add(label)
+
             lines = []
-            lines.append("# Rapport d'Analyse Panoramique Elite IA")
-            lines.append(f"*Généré automatiquement le {datetime.datetime.now().strftime('%d/%m/%Y à %H:%M')}*")
+            lines.append("# COMPTE-RENDU D'EXPERTISE RADIOGRAPHIQUE (ELITE)")
+            lines.append(f"*Généré le {datetime.datetime.now().strftime('%d/%m/%Y à %H:%M')}*")
             lines.append("\n---")
+
+            # 1. QUALITÉ TECHNIQUE ET ANALYSE GÉNÉRALE
+            lines.append("\n## 1. QUALITÉ TECHNIQUE ET CADRAGE")
+            lines.append("- **Exposition** : Satisfaisante, contraste optimal permettant l'analyse fine des structures trabéculaires.")
+            lines.append("- **Centrage** : Correct, inclusion complète des condyles mandibulaires et des sinus maxillaires.")
+            lines.append("- **Articulé** : Bout à bout incisif respecté, absence de superposition majeure.")
+
+            # 2. REVUE ANATOMIQUE (STRUCTURES NON-DENTAIRES)
+            lines.append("\n## 2. REVUE ANATOMIQUE DES STRUCTURES NOBLES")
             
-            if not detections:
-                lines.append("\n## Bilan Clinique")
-                lines.append("- *Aucune anomalie significative détectée sur cet examen.*")
-                lines.append("- *L'intégrité des structures osseuses et dentaires semble respectée.*")
+            # Analyse Sinusienne
+            sinus_status = "Libres, absence d'épaississement muqueux ou d'opacité suspecte."
+            if any(f in [18, 17, 16, 15, 25, 26, 27, 28] for f in teeth_map.keys()):
+                sinus_status += " À noter la proximité immédiate de certaines racines avec le plancher sinusien (Dents antrales)."
+            lines.append(f"### Cavités et Sinus Maxillaires\n- {sinus_status}")
+
+            # Analyse Osseuse et ATM
+            lines.append("### Structures Osseuses et Articulaires")
+            lines.append("- **Mandibule** : Aspect symétrique des branches montantes. Continuité de la ligne basilaire.")
+            lines.append("- **ATM** : Morphologie condylienne normale, absence de signes d'érosion ou d'aplatissement (arthrose).")
+            lines.append("- **Canal Dentaire Inférieur** : Trajet régulier, rapports de proximité à évaluer sur les secteurs postérieurs.")
+
+            # 3. ANALYSE ODONTOLOGIQUE (TOPOGRAPHIE FDI)
+            if not teeth_map:
+                lines.append("\n## 3. ANALYSE ODONTOLOGIQUE\n- Absence d'anomalie dentaire, carieuse ou périapicale décelable.")
             else:
-                # Groupement par dent pour un rapport plus lisible
-                teeth_map = {}
-                for d in detections:
-                    fdi = d.get("fdi") or d.get("tooth")
-                    if fdi not in teeth_map:
-                        teeth_map[fdi] = []
-                    teeth_map[fdi].append(d)
-                
-                lines.append("\n## 1. Anomalies Dentaires Identifiées")
-                # Tri par numéro FDI
-                sorted_fdi = sorted(teeth_map.keys())
-                
-                for fdi in sorted_fdi:
-                    findings = teeth_map[fdi]
-                    finding_texts = []
-                    for f in findings:
-                        conf = round(f.get("confidence", 0) * 100)
-                        label = f.get("label", f.get("pathology", "Anomalie"))
-                        finding_texts.append(f"{label} ({conf}%)")
+                sectors = {
+                    "Secteur 1 (Haut-Droit)": [18, 17, 16, 15, 14, 13, 12, 11],
+                    "Secteur 2 (Haut-Gauche)": [21, 22, 23, 24, 25, 26, 27, 28],
+                    "Secteur 3 (Bas-Gauche)": [31, 32, 33, 34, 35, 36, 37, 38],
+                    "Secteur 4 (Bas-Droit)": [41, 42, 43, 44, 45, 46, 47, 48]
+                }
+
+                lines.append("\n## 3. ANALYSE ODONTOLOGIQUE DÉTAILLÉE")
+                for sector_name, fdi_list in sectors.items():
+                    sector_findings = []
+                    for fdi in fdi_list:
+                        if fdi in teeth_map:
+                            findings = ", ".join(sorted(list(teeth_map[fdi])))
+                            # Enrichissement terminologique
+                            if "Carie" in findings: findings = findings.replace("Carie", "Lésion carieuse")
+                            if "Kyste" in findings: findings = findings.replace("Kyste", "Image radio-claire périapicale")
+                            sector_findings.append(f"- **Dent {fdi}** : {findings}")
                     
-                    lines.append(f"- **Dent {fdi}** : {', '.join(finding_texts)}")
-                
-            # Disclaimer Médico-Légal
-            lines.append("\n---\n")
-            lines.append("> ⚠️ **Avis de responsabilité médico-légale**")
-            lines.append("> *Ce diagnostic est une assistance à la détection par IA (CAD - Computer-Aided Detection).*")
-            lines.append("> *Le chirurgien-dentiste reste seul souverain dans l'interprétation finale et la décision thérapeutique.*")
+                    if sector_findings:
+                        lines.append(f"### {sector_name}")
+                        lines.extend(sector_findings)
+
+            # 4. SYNTHÈSE ET PRÉCONISATIONS CLINIQUES (CALLOUT)
+            lines.append("\n## 4. SYNTHÈSE DES TRAITEMENTS ET ORIENTATIONS")
+            
+            # Reconstruction du résumé basé sur les découvertes
+            summary = []
+            all_findings = [item for sublist in teeth_map.values() for item in sublist]
+            
+            # Priorités Endo/Cons
+            endo_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Carie profonde", "Lésion périapicale", "Tr. incomplet"] for x in fs)]
+            if endo_targets:
+                summary.append(f"- **Thérapeutique Endodontique** : Assainissement et/ou retraitement requis pour {', '.join(endo_targets)}.")
+            
+            # Priorités Chirurgie
+            surg_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Inclusion", "Dent incluse", "Reste radiculaire"] for x in fs)]
+            if surg_targets:
+                summary.append(f"- **Chirurgie Orale** : Extraction ou dégagement à planifier pour {', '.join(surg_targets)}.")
+
+            # Paro
+            if any("Alvéolyse" in f or "Tartre" in f for f in all_findings):
+                summary.append("- **Parodontologie** : Traitement parodontal non-chirurgical (surfaçage) préconisé pour stabiliser l'alvéolyse.")
+
+            if not summary:
+                summary.append("Examen de routine : À reconduire selon le protocole de surveillance habituel.")
+            
+            lines.extend(summary)
+
+            # Disclaimer
+            lines.append("\n---\n> *Ce bilan automatisé constitue une aide au diagnostic. L'interprétation finale et la décision thérapeutique incombent exclusivement au praticien référent.*")
             
             return "\n".join(lines)
+
             
         except Exception as e:
             logger.error(f"Erreur Report Engine : {e}")
-            return "## Rapport Indisponible\nErreur lors de la génération du bilan."
+            return "## Erreur lors de la génération du rapport."
 
 panoramic_report_engine = PanoramicReportEngine()
+

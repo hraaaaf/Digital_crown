@@ -1,31 +1,90 @@
 {
   "act_code": "ORTHO-BOND",
-  "act_names": ["Collage de Brackets (Multi-attaches)", "Pose appareillage fixe"],
+  "act_names": [
+    "Collage de Brackets (Multi-attaches)",
+    "Pose appareillage fixe"
+  ],
   "difficulty": "complex",
   "duration_min": 60,
   "checklist": [
-    { "id": "proph", "label": "Prophylaxie sans fluor ni huile", "critical": true },
-    { "id": "dry", "label": "Isolation parfaite (Champ sec)", "critical": true },
-    { "id": "etch", "label": "Aspect blanc crayeux après mordançage", "critical": true },
-    { "id": "pos", "label": "Vérification axes et hauteurs de collage", "critical": true }
+    {
+      "id": "proph",
+      "label": "Prophylaxie sans fluor ni huile",
+      "critical": true
+    },
+    {
+      "id": "dry",
+      "label": "Isolation parfaite (Champ sec)",
+      "critical": true
+    },
+    {
+      "id": "etch",
+      "label": "Aspect blanc crayeux après mordançage",
+      "critical": true
+    },
+    {
+      "id": "pos",
+      "label": "Vérification axes et hauteurs de collage",
+      "critical": true
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Mordançage acide phosphorique 37% (30 sec)", "tip": "Cibler uniquement la zone de collage." },
-    { "order": 2, "label": "Rinçage (20 sec) et séchage strict", "tip": "L'émail doit être mat et blanc." },
-    { "order": 3, "label": "Application du Primer (Adhésif) sur l'émail", "tip": "Fine couche uniforme." },
-    { "order": 4, "label": "Positionnement du bracket avec composite de collage", "tip": "Suivre la charte de positionnement (ex: MBT)." },
-    { "order": 5, "label": "Élimination méticuleuse des excès (Flash)", "tip": "Crucial pour la santé parodontale." },
-    { "order": 6, "label": "Photopolymérisation (20-40 sec par dent)" }
+    {
+      "order": 1,
+      "label": "Mordançage acide phosphorique 37% (30 sec)",
+      "tip": "Cibler uniquement la zone de collage."
+    },
+    {
+      "order": 2,
+      "label": "Rinçage (20 sec) et séchage strict",
+      "tip": "L'émail doit être mat et blanc."
+    },
+    {
+      "order": 3,
+      "label": "Application du Primer (Adhésif) sur l'émail",
+      "tip": "Fine couche uniforme."
+    },
+    {
+      "order": 4,
+      "label": "Positionnement du bracket avec composite de collage",
+      "tip": "Suivre la charte de positionnement (ex: MBT)."
+    },
+    {
+      "order": 5,
+      "label": "Élimination méticuleuse des excès (Flash)",
+      "tip": "Crucial pour la santé parodontale."
+    },
+    {
+      "order": 6,
+      "label": "Photopolymérisation (20-40 sec par dent)"
+    }
   ],
   "pitfalls": [
-    { "risk": "Contamination salivaire", "mitigation": "Si contact salivaire après mordançage, recommencer le cycle complet." },
-    { "risk": "Mauvais axe", "mitigation": "Vérifier le parallélisme avec le grand axe de la dent avant polymérisation." }
+    {
+      "risk": "Contamination salivaire",
+      "mitigation": "Si contact salivaire après mordançage, recommencer le cycle complet."
+    },
+    {
+      "risk": "Mauvais axe",
+      "mitigation": "Vérifier le parallélisme avec le grand axe de la dent avant polymérisation."
+    }
   ],
   "drugs": [
-    { "category": "analgesic", "name": "Paracétamol 500mg", "dose_adult": "Si inconfort après pose" }
+    {
+      "category": "analgesic",
+      "name": "Paracétamol 500mg",
+      "dose_adult": "Si inconfort après pose"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Éviter les aliments collants ou trop durs." },
-    { "timing": "day1", "instruction": "Hygiène renforcée autour des attaches." }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Éviter les aliments collants ou trop durs."
+    },
+    {
+      "timing": "day1",
+      "instruction": "Hygiène renforcée autour des attaches."
+    }
+  ],
+  "category": "Général"
 }

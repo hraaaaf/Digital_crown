@@ -23,6 +23,7 @@ const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({
 const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
+const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[60vh]">
@@ -125,6 +126,8 @@ const ProtectedRoutes = () => (
         <Route path="/patients/:id/edit" element={<EditPatientForm />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/bibliotheque" element={<EliteLibrary />} />
+        <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
+        <Route path="/science-hub" element={<EliteScienceHub />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Suspense>

@@ -174,3 +174,71 @@ def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Se
     except Exception as e:
         logger.exception(f"Erreur critique lors du calibrage: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-panoramic-report")
+async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Génère un bilan professionnel basé sur les détections IA et les annotations manuelles."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == req.analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    
+    assert_patient_access(analysis.patient_id, current_user, db)
+    
+    try:
+        from backend.services.panoramic_report_engine import panoramic_report_engine
+        
+        # Récupération des détections IA stockées
+        detections = analysis.detections_data.get("detections", [])
+        
+        # Génération du nouveau rapport hybride (IA + Manuel)
+        report_markdown = panoramic_report_engine.generate_markdown(
+            detections=detections, 
+            manual_anomalies=req.manual_anomalies
+        )
+        
+        # Mise à jour persistante
+        analysis.report_narrative = report_markdown
+        db.commit()
+        db.refresh(analysis)
+        
+        return {
+            "id": analysis.id,
+            "report_narrative": report_markdown
+        }
+    except Exception as e:
+        logger.exception(f"Erreur lors de la génération du rapport panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/panoramic/{analysis_id}/pdf")
+def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Génère et retourne l'URL du bilan PDF professionnel."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    
+    assert_patient_access(analysis.patient_id, current_user, db)
+    
+    try:
+        from backend.services.generators.panoramic_gen import panoramic_generator
+        
+        # Récupération du nom du patient
+        patient = db.query(models.Patient).filter(models.Patient.id == analysis.patient_id).first()
+        patient_name = f"{patient.prenom} {patient.nom}"
+        
+        # Récupération de la configuration du cabinet
+        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == current_user.id).first()
+
+        
+        pdf_url = panoramic_generator.generate_pdf(
+            patient_name=patient_name,
+            img_rel_path=analysis.image_path,
+            report_markdown=analysis.report_narrative or "Bilan en cours de rédaction...",
+            config=config,
+            user=current_user
+        )
+        
+        return {"pdf_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{pdf_url}"}
+        
+    except Exception as e:
+        logger.exception(f"Erreur lors de la génération du PDF panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

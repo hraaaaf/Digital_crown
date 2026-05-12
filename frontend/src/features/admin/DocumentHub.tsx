@@ -247,9 +247,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
         />
 
-        <StudioTabs activeTab={activeTab} onTabChange={handleTabChange} />
+        <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <div data-tour="document-hub-content" className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {activeTab === 'ordonnance' && (
             <PrescriptionAgenticStudio
               patientId={patientId || '0'}

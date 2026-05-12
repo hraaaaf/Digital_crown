@@ -95,5 +95,6 @@
       "timing": "week1",
       "instruction": "Bilan radiographique complet si non fait aujourd'hui"
     }
-  ]
+  ],
+  "category": "Prévention"
 }

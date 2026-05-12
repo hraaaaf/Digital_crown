@@ -14,7 +14,7 @@ from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.certificat_gen import CertificatGenerator
 from backend.services.generators.accounting_gen import AccountingGenerator
 from backend.services.generators.libre_gen import LibreGenerator
-from backend.services.generators.cephalo_gen import CephaloPDFGenerator
+from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class DocumentFactory:
         self.cert_gen = CertificatGenerator(self.output_dir)
         self.acc_gen = AccountingGenerator(self.output_dir)
         self.libre_gen = LibreGenerator(self.output_dir)
-        self.ceph_gen = CephaloPDFGenerator(self.output_dir)
+        self.ceph_gen = BilanOrthoPDFGenerator(self.output_dir)
     
     def _get_default_template(self, doc_type: str, db: Session, user_id: int) -> Optional[models.DocumentTemplate]:
         """Récupère le template par défaut pour un type de document."""
@@ -141,7 +141,7 @@ class DocumentFactory:
                     "margin_top": cabinet.margin_top if cabinet else 4.5,
                     "margin_bottom": cabinet.margin_bottom if cabinet else 3.5
                 },
-                doctor_name=f"Dr. {user.nom.upper()} {user.prenom.capitalize()}" if user else "Dr. Saninova",
+                doctor_name=f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova",
                 radio_image_path=radio_image_path
             )
             return self.ceph_gen.generate(vm)

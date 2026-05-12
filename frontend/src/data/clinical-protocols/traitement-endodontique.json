@@ -1,36 +1,117 @@
 {
   "act_code": "traitement-endodontique",
-  "act_names": ["Traitement endodontique", "Endo", "Dévitalisation", "RCT", "Traitement canalaire"],
+  "act_names": [
+    "Traitement endodontique",
+    "Endo",
+    "Dévitalisation",
+    "RCT",
+    "Traitement canalaire"
+  ],
   "difficulty": "complex",
   "duration_min": 60,
   "checklist": [
-    { "id": "radio", "label": "Radio pré-op (courbures, longueur)", "critical": false },
-    { "id": "digue", "label": "Digue posée et étanche", "critical": true },
-    { "id": "irriguant", "label": "Désinfectant (NaOCl) prêt", "critical": false },
-    { "id": "limes", "label": "Limes organisées par séquence", "critical": false },
-    { "id": "apex", "label": "Apex locator calibré", "critical": false }
+    {
+      "id": "radio",
+      "label": "Radio pré-op (courbures, longueur)",
+      "critical": false
+    },
+    {
+      "id": "digue",
+      "label": "Digue posée et étanche",
+      "critical": true
+    },
+    {
+      "id": "irriguant",
+      "label": "Désinfectant (NaOCl) prêt",
+      "critical": false
+    },
+    {
+      "id": "limes",
+      "label": "Limes organisées par séquence",
+      "critical": false
+    },
+    {
+      "id": "apex",
+      "label": "Apex locator calibré",
+      "critical": false
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Accès cavitaire", "tip": "Dégager tout le plafond pulpaire" },
-    { "order": 2, "label": "Repérage des canaux", "tip": "Utiliser une sonde endodontique DG16" },
-    { "order": 3, "label": "Détermination longueur de travail", "tip": "Apex locator + confirmation radio" },
-    { "order": 4, "label": "Mise en forme (Crown-down)", "tip": "Irrigation abondante entre chaque lime" },
-    { "order": 5, "label": "Irrigation finale active", "tip": "NaOCl 2.5-5.25% activé" },
-    { "order": 6, "label": "Obturation (Gutta-percha)", "tip": "Condensation latérale ou verticale" }
+    {
+      "order": 1,
+      "label": "Accès cavitaire",
+      "tip": "Dégager tout le plafond pulpaire"
+    },
+    {
+      "order": 2,
+      "label": "Repérage des canaux",
+      "tip": "Utiliser une sonde endodontique DG16"
+    },
+    {
+      "order": 3,
+      "label": "Détermination longueur de travail",
+      "tip": "Apex locator + confirmation radio"
+    },
+    {
+      "order": 4,
+      "label": "Mise en forme (Crown-down)",
+      "tip": "Irrigation abondante entre chaque lime"
+    },
+    {
+      "order": 5,
+      "label": "Irrigation finale active",
+      "tip": "NaOCl 2.5-5.25% activé"
+    },
+    {
+      "order": 6,
+      "label": "Obturation (Gutta-percha)",
+      "tip": "Condensation latérale ou verticale"
+    }
   ],
   "pitfalls": [
-    { "risk": "Canal calcifié", "mitigation": "EDTA 5min avant le glide path" },
-    { "risk": "Perforation", "mitigation": "Arrêter immédiatement, sceller au MTA" },
-    { "risk": "Instrument fracturé", "mitigation": "Scope si disponible, sinon référer" }
+    {
+      "risk": "Canal calcifié",
+      "mitigation": "EDTA 5min avant le glide path"
+    },
+    {
+      "risk": "Perforation",
+      "mitigation": "Arrêter immédiatement, sceller au MTA"
+    },
+    {
+      "risk": "Instrument fracturé",
+      "mitigation": "Scope si disponible, sinon référer"
+    }
   ],
   "drugs": [
-    { "category": "antiseptic", "name": "NaOCl 2.5-5.25%", "dose_adult": "Irrigation continue" },
-    { "category": "antiseptic", "name": "EDTA 17%", "dose_adult": "Glide path" },
-    { "category": "antiseptic", "name": "Hydroxyde de calcium", "dose_adult": "Inter-séance" }
+    {
+      "category": "antiseptic",
+      "name": "NaOCl 2.5-5.25%",
+      "dose_adult": "Irrigation continue"
+    },
+    {
+      "category": "antiseptic",
+      "name": "EDTA 17%",
+      "dose_adult": "Glide path"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Hydroxyde de calcium",
+      "dose_adult": "Inter-séance"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Douleur 48-72h normale (inflammatoire)" },
-    { "timing": "day1", "instruction": "Ibuprofène si nécessaire" },
-    { "timing": "week1", "instruction": "Éviter de croquer fort sur cette dent" }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Douleur 48-72h normale (inflammatoire)"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Ibuprofène si nécessaire"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Éviter de croquer fort sur cette dent"
+    }
+  ],
+  "category": "Endodontie"
 }

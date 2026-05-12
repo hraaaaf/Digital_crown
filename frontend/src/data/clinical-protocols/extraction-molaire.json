@@ -1,36 +1,116 @@
 {
   "act_code": "extraction-molaire",
-  "act_names": ["Extraction molaire", "Avulsion molaire", "Extraction dentaire", "Chirurgie buccale"],
+  "act_names": [
+    "Extraction molaire",
+    "Avulsion molaire",
+    "Extraction dentaire",
+    "Chirurgie buccale"
+  ],
   "difficulty": "complex",
   "duration_min": 45,
   "checklist": [
-    { "id": "radio", "label": "Radio panoramique confirmée", "critical": false },
-    { "id": "consent", "label": "Consentement signé", "critical": false },
-    { "id": "meds", "label": "Pas d'AINS 48h pré-op", "critical": false },
-    { "id": "nerf", "label": "Vérifier proximité nerf alvéolaire", "critical": true },
-    { "id": "suture", "label": "Matériel suture disponible", "critical": false }
+    {
+      "id": "radio",
+      "label": "Radio panoramique confirmée",
+      "critical": false
+    },
+    {
+      "id": "consent",
+      "label": "Consentement signé",
+      "critical": false
+    },
+    {
+      "id": "meds",
+      "label": "Pas d'AINS 48h pré-op",
+      "critical": false
+    },
+    {
+      "id": "nerf",
+      "label": "Vérifier proximité nerf alvéolaire",
+      "critical": true
+    },
+    {
+      "id": "suture",
+      "label": "Matériel suture disponible",
+      "critical": false
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Anesthésie bloc + infiltration", "tip": "Articaïne 4% + Épinéphrine 1:100000" },
-    { "order": 2, "label": "Syndesmotomie circonférentielle", "tip": "Utiliser un syndesmotome fin" },
-    { "order": 3, "label": "Luxation par élévateurs", "tip": "Points d'appui osseux uniquement" },
-    { "order": 4, "label": "Extraction proprement dite", "tip": "Mouvements de rotation/bascule lents" },
-    { "order": 5, "label": "Curetage alvéolaire", "tip": "Vérifier l'absence de débris" },
-    { "order": 6, "label": "Suture et compression", "tip": "Points simples ou en X" }
+    {
+      "order": 1,
+      "label": "Anesthésie bloc + infiltration",
+      "tip": "Articaïne 4% + Épinéphrine 1:100000"
+    },
+    {
+      "order": 2,
+      "label": "Syndesmotomie circonférentielle",
+      "tip": "Utiliser un syndesmotome fin"
+    },
+    {
+      "order": 3,
+      "label": "Luxation par élévateurs",
+      "tip": "Points d'appui osseux uniquement"
+    },
+    {
+      "order": 4,
+      "label": "Extraction proprement dite",
+      "tip": "Mouvements de rotation/bascule lents"
+    },
+    {
+      "order": 5,
+      "label": "Curetage alvéolaire",
+      "tip": "Vérifier l'absence de débris"
+    },
+    {
+      "order": 6,
+      "label": "Suture et compression",
+      "tip": "Points simples ou en X"
+    }
   ],
   "pitfalls": [
-    { "risk": "Fracture radiculaire", "mitigation": "Utiliser élévateur avant dégagement final" },
-    { "risk": "Hémorragie", "mitigation": "Compresse + acide tranexamique si nécessaire" },
-    { "risk": "Déplacement sinus", "mitigation": "Ne pas pousser apicalement, référer si suspect" }
+    {
+      "risk": "Fracture radiculaire",
+      "mitigation": "Utiliser élévateur avant dégagement final"
+    },
+    {
+      "risk": "Hémorragie",
+      "mitigation": "Compresse + acide tranexamique si nécessaire"
+    },
+    {
+      "risk": "Déplacement sinus",
+      "mitigation": "Ne pas pousser apicalement, référer si suspect"
+    }
   ],
   "drugs": [
-    { "category": "anesthesia", "name": "Articaïne 4%+Épinéphrine 1:100000", "dose_adult": "1,8ml/carpule" },
-    { "category": "antibiotic", "name": "Amoxicilline", "dose_adult": "2g/j x 3j si risque" },
-    { "category": "analgesic", "name": "Ibuprofène", "dose_adult": "400mg x 3/j" }
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4%+Épinéphrine 1:100000",
+      "dose_adult": "1,8ml/carpule"
+    },
+    {
+      "category": "antibiotic",
+      "name": "Amoxicilline",
+      "dose_adult": "2g/j x 3j si risque"
+    },
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène",
+      "dose_adult": "400mg x 3/j"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Compression 30min sans parler" },
-    { "timing": "day1", "instruction": "Pas de rinçage, pas d'alcool, pas de tabac" },
-    { "timing": "day1", "instruction": "Glace 20min/heure" }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Compression 30min sans parler"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Pas de rinçage, pas d'alcool, pas de tabac"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Glace 20min/heure"
+    }
+  ],
+  "category": "Chirurgie"
 }

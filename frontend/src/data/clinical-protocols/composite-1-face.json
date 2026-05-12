@@ -1,36 +1,115 @@
 {
   "act_code": "composite-1-face",
-  "act_names": ["Restauration composite 1 face", "Composite simple", "Obturation 1 face", "Carie simple"],
+  "act_names": [
+    "Restauration composite 1 face",
+    "Composite simple",
+    "Obturation 1 face",
+    "Carie simple"
+  ],
   "difficulty": "routine",
   "duration_min": 30,
   "checklist": [
-    { "id": "isolation", "label": "Digue posée obligatoirement", "critical": true },
-    { "id": "diagnostic", "label": "Cliché rétroalvéolaire interprété", "critical": false },
-    { "id": "teinte", "label": "Teinte composite choisie (dent humide)", "critical": false },
-    { "id": "lampe", "label": "Lampe photopolymérisation vérifiée (>600mW/cm²)", "critical": false },
-    { "id": "adhesif", "label": "Système adhésif compatible (MR ou MO)", "critical": false }
+    {
+      "id": "isolation",
+      "label": "Digue posée obligatoirement",
+      "critical": true
+    },
+    {
+      "id": "diagnostic",
+      "label": "Cliché rétroalvéolaire interprété",
+      "critical": false
+    },
+    {
+      "id": "teinte",
+      "label": "Teinte composite choisie (dent humide)",
+      "critical": false
+    },
+    {
+      "id": "lampe",
+      "label": "Lampe photopolymérisation vérifiée (>600mW/cm²)",
+      "critical": false
+    },
+    {
+      "id": "adhesif",
+      "label": "Système adhésif compatible (MR ou MO)",
+      "critical": false
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Éviction carie + préparation cavité", "tip": "Fraise boule tungstène, pas de préparation excessive" },
-    { "order": 2, "label": "Mordançage acide phosphorique 15-30s", "tip": "Rincer 30s, sécher doucement (ne pas déshydrater)" },
-    { "order": 3, "label": "Application adhésif + polymérisation 20s", "tip": "Évaporer le solvant avant photo" },
-    { "order": 4, "label": "Insertion composite par incréments 2mm", "tip": "Incréments obliques pour limiter la contraction" },
-    { "order": 5, "label": "Polymérisation 20s par incrément", "tip": "Lampe en contact, pas d'ombre" },
-    { "order": 6, "label": "Finition + vérification occlusion", "tip": "Papier articulé + fraises Arkansas/disques Soflex" }
+    {
+      "order": 1,
+      "label": "Éviction carie + préparation cavité",
+      "tip": "Fraise boule tungstène, pas de préparation excessive"
+    },
+    {
+      "order": 2,
+      "label": "Mordançage acide phosphorique 15-30s",
+      "tip": "Rincer 30s, sécher doucement (ne pas déshydrater)"
+    },
+    {
+      "order": 3,
+      "label": "Application adhésif + polymérisation 20s",
+      "tip": "Évaporer le solvant avant photo"
+    },
+    {
+      "order": 4,
+      "label": "Insertion composite par incréments 2mm",
+      "tip": "Incréments obliques pour limiter la contraction"
+    },
+    {
+      "order": 5,
+      "label": "Polymérisation 20s par incrément",
+      "tip": "Lampe en contact, pas d'ombre"
+    },
+    {
+      "order": 6,
+      "label": "Finition + vérification occlusion",
+      "tip": "Papier articulé + fraises Arkansas/disques Soflex"
+    }
   ],
   "pitfalls": [
-    { "risk": "Contamination salivaire", "mitigation": "Reprendre depuis le mordançage — pas de négociation" },
-    { "risk": "Sensibilité post-op", "mitigation": "Vérifier l'occlusion et les contacts prématurés immédiatement" },
-    { "risk": "Teinte non conforme", "mitigation": "Toujours choisir la teinte avant l'isolation (dent humide)" },
-    { "risk": "Polymérisation incomplète", "mitigation": "Calibrer la lampe mensuellement, vérifier la distance" }
+    {
+      "risk": "Contamination salivaire",
+      "mitigation": "Reprendre depuis le mordançage — pas de négociation"
+    },
+    {
+      "risk": "Sensibilité post-op",
+      "mitigation": "Vérifier l'occlusion et les contacts prématurés immédiatement"
+    },
+    {
+      "risk": "Teinte non conforme",
+      "mitigation": "Toujours choisir la teinte avant l'isolation (dent humide)"
+    },
+    {
+      "risk": "Polymérisation incomplète",
+      "mitigation": "Calibrer la lampe mensuellement, vérifier la distance"
+    }
   ],
   "drugs": [
-    { "category": "anesthesia", "name": "Articaïne 4% + Épinéphrine 1:100000", "dose_adult": "1,8 ml si anesthésie nécessaire" },
-    { "category": "analgesic", "name": "Paracétamol", "dose_adult": "1g x 3/j si douleur post-op" }
+    {
+      "category": "anesthesia",
+      "name": "Articaïne 4% + Épinéphrine 1:100000",
+      "dose_adult": "1,8 ml si anesthésie nécessaire"
+    },
+    {
+      "category": "analgesic",
+      "name": "Paracétamol",
+      "dose_adult": "1g x 3/j si douleur post-op"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Ne pas manger pendant 1h (prise de l'anesthésie)" },
-    { "timing": "day1", "instruction": "Éviter aliments durs et colorants 48h (café, thé, tabac)" },
-    { "timing": "week1", "instruction": "Consulter si douleur à la mastication persiste >3 jours" }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas manger pendant 1h (prise de l'anesthésie)"
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter aliments durs et colorants 48h (café, thé, tabac)"
+    },
+    {
+      "timing": "week1",
+      "instruction": "Consulter si douleur à la mastication persiste >3 jours"
+    }
+  ],
+  "category": "Conservatrice"
 }

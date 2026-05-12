@@ -28,6 +28,12 @@ class PaiementStatut(str, enum.Enum):
     PAYE = "PAYE"
     PARTIEL = "PARTIEL"
 
+class PaymentMethod(str, enum.Enum):
+    ESPECES = "ESPECES"
+    CARTE = "CARTE"
+    VIREMENT = "VIREMENT"
+    CHEQUE = "CHEQUE"
+
 class AppointmentStatus(str, enum.Enum):
     PREVU = "PRÉVU"
     EN_SALLE_ATTENTE = "EN_S_ATTENTE" 
@@ -522,6 +528,29 @@ class DoctorActHabit(Base):
 # ==============================================================================
 # --- PHASE 5 : PAYMENT TRACKING & INSTALLMENTS ---
 # ==============================================================================
+
+class Payment(Base):
+    """
+    Table des encaissements réels pour suivre la trésorerie et la solvabilité patient.
+    """
+    __tablename__ = "payments"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    payment_method: Mapped[PaymentMethod] = mapped_column(SQLEnum(PaymentMethod), default=PaymentMethod.ESPECES)
+    payment_date: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    
+    # Liens optionnels vers un acte ou une échéance
+    acte_id: Mapped[Optional[int]] = mapped_column(ForeignKey("actes.id", ondelete="SET NULL"), nullable=True)
+    installment_id: Mapped[Optional[int]] = mapped_column(ForeignKey("installments.id", ondelete="SET NULL"), nullable=True)
+    
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    patient: Mapped["Patient"] = relationship()
+    acte: Mapped[Optional["Acte"]] = relationship()
+    installment: Mapped[Optional["Installment"]] = relationship()
 
 class InstallmentPlan(Base):
     """

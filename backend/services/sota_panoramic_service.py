@@ -21,7 +21,7 @@ class SOTAPanoramicEngine:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.model_path = os.path.join(base_dir, "ai_models", "panoramic_model.onnx")
         self.session = None
-        self.classes = ["Caries", "Deep Caries", "Periapical Lesions", "Impacted Teeth"]
+        self.classes = ["Caries", "Deep Caries", "Impacted", "Periapical Lesion"]
         self.input_size = 1280
         self._load_model()
 
@@ -87,10 +87,10 @@ class SOTAPanoramicEngine:
             # Seuils adaptatifs (Elite Standard)
             # Les lésions périapicales sont souvent plus subtiles aux apex
             class_thresholds = {
-                "Periapical Lesions": 0.15,
+                "Periapical Lesion": 0.15,
                 "Caries": 0.25,
                 "Deep Caries": 0.25,
-                "Impacted Teeth": 0.25
+                "Impacted": 0.25
             }
             
             for i in range(output.shape[1]):

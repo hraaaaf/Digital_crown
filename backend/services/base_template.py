@@ -287,6 +287,8 @@ class BaseTemplate:
             # Génération automatique de la vCard à partir du profil
             name = self._get_val(config, 'nom_praticien') or self._get_val(user, 'nom_complet') or "Docteur"
             phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
+            if "/" in phone:
+                phone = phone.split("/")[0].strip()
             email = getattr(user, 'email', '')
             address = self._get_val(config, 'footer_address') or self._get_val(user, 'adresse_complete', '')
             qr_data = QRService.generate_vcard(name, phone, email, address=address)
@@ -300,9 +302,24 @@ class BaseTemplate:
             # Suivi de paiement / Progression (nouveau mode Elite v4.2)
             qr_data = f"https://digitalcrown.ai/track/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
         elif qr_type == 'WHATSAPP':
-            # Contact direct WhatsApp (v4.2)
-            phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
-            msg = "Bonjour Dr, je souhaite confirmer mon rendez-vous."
+            # Contact direct WhatsApp (v4.2) - Priorité absolue à qr_value
+            # car c'est là que le docteur saisit le numéro spécifique au QR
+            phone = qr_value
+            
+            if not phone:
+                c_json = self._get_val(config, 'contacts_json')
+                if isinstance(c_json, dict) and c_json.get("whatsapp", {}).get("enabled"):
+                    phone = c_json.get("whatsapp", {}).get("value") or ""
+            
+            if not phone:
+                phone = self._get_val(config, 'footer_phones') or self._get_val(user, 'telephone_mobile') or ""
+            
+            # Si on a plusieurs numéros (ex: "06.. / 05.."), on prend le premier
+            if "/" in phone:
+                phone = phone.split("/")[0].strip()
+                
+            # Message bilingue pour une expérience patient optimale (Prise de RDV)
+            msg = "Bonjour Dr, je souhaite prendre rendez-vous. / السلام عليكم دكتور، أود حجز موعد."
             qr_data = QRService.generate_whatsapp_url(phone, msg)
         elif qr_type == 'LOCATION':
             # Localisation Google Maps (v4.2)

@@ -9,7 +9,7 @@
 En cas de conflit : Sécurité > Intégrité > Performance > Style.
 
 ## 1. Analyse avant action
-- Lire TOUS les fichiers `.md` à la racine avant toute action — ils sont la source
+- Lire TOUS les fichiers `.md` à la racine avant toute action (particulièrement `SKILLS.md`) — ils sont la source
   de vérité du projet.
 - Consulter `ANTIGRAVITY_MISTAKES.md` (le créer s'il n'existe pas).
 - Lister explicitement les fichiers lus : `[Contexte lu : fichier1, fichier2, ...]`

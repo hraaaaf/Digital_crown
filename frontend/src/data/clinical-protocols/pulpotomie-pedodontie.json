@@ -1,29 +1,81 @@
 {
   "act_code": "PULPOTOMY-PEDO",
-  "act_names": ["Pulpotomie dent temporaire", "Thérapie pulpaire pédiatrique"],
+  "act_names": [
+    "Pulpotomie dent temporaire",
+    "Thérapie pulpaire pédiatrique"
+  ],
   "difficulty": "complex",
   "duration_min": 30,
   "checklist": [
-    { "id": "radio", "label": "Radio pré-op (absence d'atteinte furcation)", "critical": true },
-    { "id": "digue", "label": "Isolation par Digue (Standard Elite)", "critical": true },
-    { "id": "hemo", "label": "Hémostase des moignons radiculaires", "critical": true }
+    {
+      "id": "radio",
+      "label": "Radio pré-op (absence d'atteinte furcation)",
+      "critical": true
+    },
+    {
+      "id": "digue",
+      "label": "Isolation par Digue (Standard Elite)",
+      "critical": true
+    },
+    {
+      "id": "hemo",
+      "label": "Hémostase des moignons radiculaires",
+      "critical": true
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Éviction carieuse et ouverture de la chambre", "tip": "Fraise boule ou Endo-Z." },
-    { "order": 2, "label": "Amputation de la pulpe coronaire", "tip": "Au niveau des entrées canalaires." },
-    { "order": 3, "label": "Compression coton stérile pour hémostase (3-5 min)", "tip": "Si l'hémostase est impossible : passer en pulpectomie." },
-    { "order": 4, "label": "Application matériau bio-actif (Biodentine/MTA)", "tip": "Matériau de choix pour le succès à long terme." },
-    { "order": 5, "label": "Restauration étanche (CPP conseillée)", "tip": "Couronne Pédodontique Préformée." }
+    {
+      "order": 1,
+      "label": "Éviction carieuse et ouverture de la chambre",
+      "tip": "Fraise boule ou Endo-Z."
+    },
+    {
+      "order": 2,
+      "label": "Amputation de la pulpe coronaire",
+      "tip": "Au niveau des entrées canalaires."
+    },
+    {
+      "order": 3,
+      "label": "Compression coton stérile pour hémostase (3-5 min)",
+      "tip": "Si l'hémostase est impossible : passer en pulpectomie."
+    },
+    {
+      "order": 4,
+      "label": "Application matériau bio-actif (Biodentine/MTA)",
+      "tip": "Matériau de choix pour le succès à long terme."
+    },
+    {
+      "order": 5,
+      "label": "Restauration étanche (CPP conseillée)",
+      "tip": "Couronne Pédodontique Préformée."
+    }
   ],
   "pitfalls": [
-    { "risk": "Infiltration bactérienne", "mitigation": "L'étanchéité coronaire est plus importante que le matériau pulpaire." },
-    { "risk": "Hémorragie persistante", "mitigation": "Indique une inflammation radiculaire : échec probable de la pulpotomie." }
+    {
+      "risk": "Infiltration bactérienne",
+      "mitigation": "L'étanchéité coronaire est plus importante que le matériau pulpaire."
+    },
+    {
+      "risk": "Hémorragie persistante",
+      "mitigation": "Indique une inflammation radiculaire : échec probable de la pulpotomie."
+    }
   ],
   "drugs": [
-    { "category": "analgesic", "name": "Paracétamol sirop (poids-dépendant)", "dose_adult": "N/A - Dosage enfant uniquement" }
+    {
+      "category": "analgesic",
+      "name": "Paracétamol sirop (poids-dépendant)",
+      "dose_adult": "N/A - Dosage enfant uniquement"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Ne pas mordre la lèvre tant que l'anesthésie dure." },
-    { "timing": "day1", "instruction": "Surveiller toute apparition de gonflement." }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas mordre la lèvre tant que l'anesthésie dure."
+    },
+    {
+      "timing": "day1",
+      "instruction": "Surveiller toute apparition de gonflement."
+    }
+  ],
+  "category": "Général"
 }

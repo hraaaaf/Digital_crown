@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         
         {/* ACTION: AJOUT PATIENT */}
-        <Link to="/patients/new" className="group p-8 rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(to bottom right, var(--primary), var(--secondary, #1e3a8a))', boxShadow: '0 20px 40px -15px var(--primary)' }}>
+        <Link to="/patients/new" data-tour="quick-action-new-patient" className="group p-8 rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(to bottom right, var(--primary), var(--secondary, #1e3a8a))', boxShadow: '0 20px 40px -15px var(--primary)' }}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
             <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/30 group-hover:rotate-12 transition-transform">
@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
             <Clock size={18} /> Activité Récente
           </h2>
           
-          <div className="bg-card backdrop-blur-xl border border-border-main rounded-[2.5rem] p-4 shadow-sm">
+          <div data-tour="dashboard-activity" className="bg-card backdrop-blur-xl border border-border-main rounded-[2.5rem] p-4 shadow-sm">
             {stats?.recent_patients && stats.recent_patients.length > 0 ? (
               stats.recent_patients.map((patient, index) => {
                 if (!patient || !patient.nom) return null;

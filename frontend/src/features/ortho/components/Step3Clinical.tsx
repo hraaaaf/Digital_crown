@@ -1,17 +1,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Ruler, Activity, Info } from 'lucide-react';
-import type { DonneesEtape3 } from '../cephaloTypes';
+import type { DonneesEtape3, DiagnosticTexts } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 
 interface Step3ClinicalProps {
   data: DonneesEtape3;
   onChange: (newData: Partial<DonneesEtape3>) => void;
+  diag: DiagnosticTexts;
+  onDiagChange: React.Dispatch<React.SetStateAction<DiagnosticTexts>>;
   P: any;
 }
 
-export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ data, onChange, P }) => {
+export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ data, onChange, diag, onDiagChange, P }) => {
   const updateDentaire = (key: keyof typeof data.dentaire, val: string) => {
     const num = val === '' ? '' : parseFloat(val);
     onChange({ dentaire: { ...data.dentaire, [key]: num } });
@@ -27,82 +29,244 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ data, onChange, P 
     onChange({ esthetique: { ...data.esthetique, [key]: num } });
   };
 
+  const handleDiagChange = (key: keyof DiagnosticTexts, value: string) => {
+    onDiagChange(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* COLONNE GAUCHE : ANALYSES AUTOMATIQUES */}
-      <div className="space-y-6">
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <div className="flex items-center gap-3 mb-6">
-            <Ruler size={18} style={{ color: P.accent }} />
-            <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Dentaire</h3>
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* COLONNE GAUCHE : DONNÉES PATIENT & ANALYSES */}
+        <div className="space-y-6">
+          <div className="rounded-2xl p-6" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+            <div className="flex items-center gap-3 mb-6">
+              <Activity size={18} style={{ color: P.accent }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Données Patient</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Âge (ans)</label>
+                <input 
+                  type="number" 
+                  value={data.age} 
+                  onChange={(e) => onChange({ age: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                  className="w-full bg-transparent font-black text-lg outline-none"
+                  style={{ color: P.text }}
+                />
+              </div>
+              <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Stade CVM</label>
+                <select 
+                  value={data.cvm}
+                  onChange={(e) => onChange({ cvm: e.target.value as any })}
+                  className="w-full bg-transparent font-bold text-sm outline-none"
+                  style={{ color: P.text }}
+                >
+                  <option value="">Sélectionner...</option>
+                  {['CS1', 'CS2', 'CS3', 'CS4', 'CS5', 'CS6'].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-             <MetricInput label="IMPA" value={data.dentaire.impa} onChange={(v: string) => updateDentaire('impa', v)} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} />
-             <MetricInput label="I / Francfort" value={data.dentaire.i_francfort} onChange={(v: string) => updateDentaire('i_francfort', v)} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} />
-             <MetricInput label="Surplomb" value={data.dentaire.surplomb} onChange={(v: string) => updateDentaire('surplomb', v)} unit="mm" normal="2mm ± 1" mean={2} tol={1} P={P} />
-             <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} onChange={(v: string) => updateDentaire('recouvrement', v)} unit="mm" normal="2mm ± 1" mean={2} tol={1} P={P} />
+
+          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+            <div className="flex items-center gap-3 mb-6">
+              <Ruler size={18} style={{ color: P.accent }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Dentaire</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+               <MetricInput label="IMPA" value={data.dentaire.impa} onChange={(v: string) => updateDentaire('impa', v)} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} />
+               <MetricInput label="I / Francfort" value={data.dentaire.i_francfort} onChange={(v: string) => updateDentaire('i_francfort', v)} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} />
+               <MetricInput label="Surplomb" value={data.dentaire.surplomb} onChange={(v: string) => updateDentaire('surplomb', v)} unit="mm" normal="2mm ± 1" mean={2} tol={1} P={P} />
+               <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} onChange={(v: string) => updateDentaire('recouvrement', v)} unit="mm" normal="2mm ± 1" mean={2} tol={1} P={P} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+            <div className="flex items-center gap-3 mb-6">
+              <Activity size={18} style={{ color: P.accent }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Osseuse</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <MetricInput label="SNA" value={data.osseuse.sna} onChange={(v: string) => updateOsseuse('sna', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
+                <MetricInput label="SNB" value={data.osseuse.snb} onChange={(v: string) => updateOsseuse('snb', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
+                <MetricInput label="ANB" value={data.osseuse.anb} onChange={(v: string) => updateOsseuse('anb', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
+                <MetricInput label="Tweed (FMA)" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="25° ± 3" mean={25} tol={3} P={P} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+            <div className="flex items-center gap-3 mb-6">
+              <Activity size={18} style={{ color: P.accentSuccess }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Esthétique (Ricketts)</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
+                <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
+                <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
+            </div>
           </div>
         </div>
 
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <div className="flex items-center gap-3 mb-6">
-            <Activity size={18} style={{ color: P.accent }} />
-            <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Osseuse</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-              <MetricInput label="SNA" value={data.osseuse.sna} onChange={(v: string) => updateOsseuse('sna', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
-              <MetricInput label="SNB" value={data.osseuse.snb} onChange={(v: string) => updateOsseuse('snb', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
-              <MetricInput label="ANB" value={data.osseuse.anb} onChange={(v: string) => updateOsseuse('anb', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
-              <MetricInput label="Tweed (FMA)" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="25° ± 3" mean={25} tol={3} P={P} />
-          </div>
-        </div>
+        {/* COLONNE DROITE : SYNTHÈSE DIAGNOSTIC */}
+        <div className="space-y-6">
+          <div className="rounded-2xl p-6 flex flex-col" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
+             <div className="flex items-center gap-3 mb-6">
+              <Info size={18} style={{ color: P.accent }} />
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Synthèse COM</h3>
+            </div>
+            
+            <div className="space-y-6 flex-1">
+              <div className="p-4 rounded-xl" style={{ background: `${P.accent}08`, border: `1px solid ${P.accent}20` }}>
+                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.accent }}>Classe Squelettique</label>
+                <div className="text-2xl font-black" style={{ color: P.text }}>{data.classe_squelettique || '---'}</div>
+              </div>
 
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <div className="flex items-center gap-3 mb-6">
-            <Activity size={18} style={{ color: P.accentSuccess }} />
-            <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Esthétique (Ricketts)</h3>
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: P.textMuted }}>DDM Clinique</label>
+                  <div className="text-lg font-black" style={{ color: P.text }}>{fmtNum(Number(data.ddm_clinique))} mm</div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: P.textMuted }}>DDM Céphalo</label>
+                  <div className="text-lg font-black" style={{ color: P.accent }}>{fmtNum(Number(data.ddm_cephalo))} mm</div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block mb-1">DDM RÉELLE (Mandibulaire)</label>
+                 <div className="text-3xl font-black text-emerald-600">
+                  {fmtNum(Number(data.ddm_clinique) + Number(data.ddm_cephalo))} mm
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Denture</label>
+                  <select 
+                    value={data.denture_type}
+                    onChange={(e) => onChange({ denture_type: e.target.value as any })}
+                    className="w-full bg-transparent font-bold text-sm outline-none"
+                    style={{ color: P.text }}
+                  >
+                    <option value="PERMANENTE">Permanente</option>
+                    <option value="MIXTE">Mixte</option>
+                    <option value="TEMPORAIRE">Temporaire</option>
+                  </select>
+                </div>
+                <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
+                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Technique</label>
+                  <select 
+                    value={data.preference_technique}
+                    onChange={(e) => onChange({ preference_technique: e.target.value as any })}
+                    className="w-full bg-transparent font-bold text-sm outline-none"
+                    style={{ color: P.text }}
+                  >
+                    <option value="DAMON">Damon (Passif)</option>
+                    <option value="CLASSIC">Classique</option>
+                    <option value="ALIGNEURS">Aligneurs</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t" style={{ borderColor: P.border }}>
+                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Synthèse Morphologique</label>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Verticalité</span>
+                    <select 
+                      value={data.pattern_vertical}
+                      onChange={(e) => onChange({ pattern_vertical: e.target.value as any })}
+                      className="bg-transparent text-xs font-black outline-none text-right"
+                      style={{ color: P.text }}
+                    >
+                      <option value="">Indéterminé</option>
+                      <option value="normodivergent">Normodivergent</option>
+                      <option value="hypodivergent">Hypodivergent</option>
+                      <option value="hyperdivergent">Hyperdivergent</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Profil Facial</span>
+                    <select 
+                      value={data.profil}
+                      onChange={(e) => onChange({ profil: e.target.value as any })}
+                      className="bg-transparent text-xs font-black outline-none text-right"
+                      style={{ color: P.text }}
+                    >
+                      <option value="">Indéterminé</option>
+                      <option value="droit">Droit</option>
+                      <option value="convexe">Convexe</option>
+                      <option value="concave">Concave</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Sévérité DDM</span>
+                    <select 
+                      value={data.severite_ddm}
+                      onChange={(e) => onChange({ severite_ddm: e.target.value as any })}
+                      className="bg-transparent text-xs font-black outline-none text-right"
+                      style={{ color: P.text }}
+                    >
+                      <option value="">Nulle</option>
+                      <option value="léger">Léger</option>
+                      <option value="modéré">Modéré</option>
+                      <option value="sévère">Sévère</option>
+                      <option value="excès">Excès de place</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-              <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
-              <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
-              <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
+
+          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>1. Diagnostic Squelettique</h3>
+            <textarea 
+              value={diag.diagnostic_squelettique}
+              onChange={(e) => handleDiagChange('diagnostic_squelettique', e.target.value)}
+              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              style={{ borderColor: P.border, color: P.text }}
+              placeholder="Description des rapports osseux..."
+            />
           </div>
         </div>
       </div>
 
-      {/* COLONNE DROITE : SYNTHÈSE DIAGNOSTIC */}
-      <div className="space-y-6">
-        <div className="rounded-2xl p-6 h-full flex flex-col" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
-           <div className="flex items-center gap-3 mb-6">
-            <Info size={18} style={{ color: P.accent }} />
-            <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Synthèse COM</h3>
-          </div>
-          
-          <div className="space-y-6 flex-1">
-            <div className="p-4 rounded-xl" style={{ background: `${P.accent}08`, border: `1px solid ${P.accent}20` }}>
-              <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.accent }}>Classe Squelettique</label>
-              <div className="text-2xl font-black" style={{ color: P.text }}>{data.classe_squelettique || '---'}</div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: P.textMuted }}>DDM Clinique</label>
-                <div className="text-lg font-black" style={{ color: P.text }}>{fmtNum(Number(data.ddm_clinique))} mm</div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: P.textMuted }}>DDM Céphalo</label>
-                <div className="text-lg font-black" style={{ color: P.accent }}>{fmtNum(Number(data.ddm_cephalo))} mm</div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-               <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block mb-1">DDM RÉELLE (Mandibulaire)</label>
-               <div className="text-3xl font-black text-emerald-600">
-                {fmtNum(Number(data.ddm_clinique) + Number(data.ddm_cephalo))} mm
-               </div>
-            </div>
-          </div>
+      {/* RAPPORTS TEXTUELS ADDITIONNELS (FULL WIDTH) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>2. Analyse Moulages</h3>
+          <textarea 
+            value={diag.analyse_moulages}
+            onChange={(e) => handleDiagChange('analyse_moulages', e.target.value)}
+            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+            style={{ borderColor: P.border, color: P.text }}
+            placeholder="Anomalies dentaires et occlusales..."
+          />
+        </div>
+        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>3. Synthèse Diagnostique</h3>
+          <textarea 
+            value={diag.synthese_diagnostique}
+            onChange={(e) => handleDiagChange('synthese_diagnostique', e.target.value)}
+            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+            style={{ borderColor: P.border, color: P.text }}
+            placeholder="Résumé clinique et objectifs..."
+          />
+        </div>
+        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>4. Plan de Traitement</h3>
+          <textarea 
+            value={diag.strategie_therapeutique}
+            onChange={(e) => handleDiagChange('strategie_therapeutique', e.target.value)}
+            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+            style={{ borderColor: P.border, color: P.text }}
+            placeholder="Étapes thérapeutiques et appareillages..."
+          />
         </div>
       </div>
     </div>

@@ -1,30 +1,85 @@
 {
   "act_code": "ALVEO-TREAT",
-  "act_names": ["Traitement Alvéolite (Dry Socket)", "Gestion d'ostéite alvéolaire"],
+  "act_names": [
+    "Traitement Alvéolite (Dry Socket)",
+    "Gestion d'ostéite alvéolaire"
+  ],
   "difficulty": "routine",
   "duration_min": 20,
   "checklist": [
-    { "id": "diag", "label": "Confirmation douleur intense J+2 à J+5", "critical": true },
-    { "id": "clot", "label": "Vérification absence de caillot", "critical": true },
-    { "id": "irrig", "label": "Irrigation douce Sérum Phi / Chlorhexidine", "critical": true },
-    { "id": "debris", "label": "Éviction débris alimentaires sans curetage agressif", "critical": true }
+    {
+      "id": "diag",
+      "label": "Confirmation douleur intense J+2 à J+5",
+      "critical": true
+    },
+    {
+      "id": "clot",
+      "label": "Vérification absence de caillot",
+      "critical": true
+    },
+    {
+      "id": "irrig",
+      "label": "Irrigation douce Sérum Phi / Chlorhexidine",
+      "critical": true
+    },
+    {
+      "id": "debris",
+      "label": "Éviction débris alimentaires sans curetage agressif",
+      "critical": true
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Anesthésie locale de confort (la zone est hyper-algique)", "tip": "Éviter la vaso-constriction excessive si possible." },
-    { "order": 2, "label": "Irrigation abondante de l'alvéole à la Chlorhexidine 0.2%", "tip": "Utiliser une seringue à bout mousse." },
-    { "order": 3, "label": "Mise en place d'un pansement alvéolaire (ex: Alvogyl)", "tip": "Ne pas tasser, laisser le produit diffuser." },
-    { "order": 4, "label": "Vérification de l'hémostase et du confort immédiat" }
+    {
+      "order": 1,
+      "label": "Anesthésie locale de confort (la zone est hyper-algique)",
+      "tip": "Éviter la vaso-constriction excessive si possible."
+    },
+    {
+      "order": 2,
+      "label": "Irrigation abondante de l'alvéole à la Chlorhexidine 0.2%",
+      "tip": "Utiliser une seringue à bout mousse."
+    },
+    {
+      "order": 3,
+      "label": "Mise en place d'un pansement alvéolaire (ex: Alvogyl)",
+      "tip": "Ne pas tasser, laisser le produit diffuser."
+    },
+    {
+      "order": 4,
+      "label": "Vérification de l'hémostase et du confort immédiat"
+    }
   ],
   "pitfalls": [
-    { "risk": "Curetage agressif", "mitigation": "Ne JAMAIS cureter l'alvéole pour faire saigner, cela aggrave l'ostéite." },
-    { "risk": "Surobstruction", "mitigation": "Le pansement ne doit pas empêcher le drainage naturel." }
+    {
+      "risk": "Curetage agressif",
+      "mitigation": "Ne JAMAIS cureter l'alvéole pour faire saigner, cela aggrave l'ostéite."
+    },
+    {
+      "risk": "Surobstruction",
+      "mitigation": "Le pansement ne doit pas empêcher le drainage naturel."
+    }
   ],
   "drugs": [
-    { "category": "analgesic", "name": "Ibuprofène 400mg", "dose_adult": "1 tab 3x/jour si besoin" },
-    { "category": "antiseptic", "name": "Bain de bouche Chlorhexidine 0.12%", "dose_adult": "2x/jour dès J+1" }
+    {
+      "category": "analgesic",
+      "name": "Ibuprofène 400mg",
+      "dose_adult": "1 tab 3x/jour si besoin"
+    },
+    {
+      "category": "antiseptic",
+      "name": "Bain de bouche Chlorhexidine 0.12%",
+      "dose_adult": "2x/jour dès J+1"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Ne pas rincer vigoureusement pendant 24h." },
-    { "timing": "day1", "instruction": "Éviter tabac et pailles (pression négative)." }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Ne pas rincer vigoureusement pendant 24h."
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter tabac et pailles (pression négative)."
+    }
+  ],
+  "category": "Général"
 }

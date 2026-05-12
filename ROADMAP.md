@@ -200,4 +200,16 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-*Dernière mise à jour : 05 Mai 2026 — Audit de cohérence Roadmap vs Codebase.*
+## ✅ 18. Hub Panoramique ELITE & Clinical Insights (TERMINÉ)
+**Statut :** Déployé (v1.3)
+**Spécialiste :** Staff Engineering & PixelMaster
+
+- [x] **Panoramic Hub v2.0** : Interface de diagnostic panoramique interactive avec taxonomie par spécialité (Conservatrice, Endo, Paro, Chirurgie, Prothèse, ATM).
+- [x] **Gestion des Zones** : Prise en charge native des bridges et des alvéolyses multi-dents avec calcul de plage FDI automatique (même entre quadrants).
+- [x] **Elite Tips v1.2** : Système de micro-conseils cliniques en haut à gauche avec auto-disparition ultra-rapide (2s) pour zéro distraction.
+- [x] **Moteur de Rapport Hybride** : Fusion déterministe IA + Expertise humaine dans un PDF structuré par secteur (FDI).
+
+---
+
+*Dernière mise à jour : 12 Mai 2026 — Elite Panoramic Release.*
+

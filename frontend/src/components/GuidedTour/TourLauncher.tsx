@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Sparkles, ChevronRight } from 'lucide-react';
+import { Compass, Sparkles } from 'lucide-react';
 import { GuidedTour } from './GuidedTour';
-import { TOUR_STORAGE_KEY, TOUR_VERSION } from './tourConfig';
+import { TOUR_STORAGE_KEY } from './tourConfig';
 
 /**
  * TourLauncher — Bouton flottant + auto-lancement au premier usage.
@@ -10,76 +10,76 @@ import { TOUR_STORAGE_KEY, TOUR_VERSION } from './tourConfig';
  */
 export const TourLauncher: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [showBadge, setShowBadge] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   useEffect(() => {
-    // Auto-lancement au premier accès (jamais vu le tour)
     const completed = localStorage.getItem(TOUR_STORAGE_KEY);
     if (!completed) {
-      // Petit délai pour laisser le layout se charger
-      const timer = setTimeout(() => setIsOpen(true), 1200);
+      setIsFirstVisit(true);
+      // Auto-lancement au premier accès (délai pour le layout)
+      const timer = setTimeout(() => setIsOpen(true), 1500);
       return () => clearTimeout(timer);
-    } else {
-      // Tour déjà complété → affiche juste le bouton sans notification
-      setShowBadge(false);
     }
   }, []);
 
+  const handleClose = () => {
+    setIsOpen(false);
+    setIsFirstVisit(false);
+  };
+
   return (
     <>
-      {/* Tour modal */}
-      <GuidedTour isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <GuidedTour isOpen={isOpen} onClose={handleClose} />
 
-      {/* Bouton flottant "Lancer le Tour" */}
+      {/* Bouton flottant */}
       <AnimatePresence>
         {!isOpen && (
           <motion.div
             key="tour-launcher"
-            initial={{ opacity: 0, scale: 0.7, x: 40 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.7, x: 40 }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
-            className="fixed bottom-8 right-8 z-[9999]"
+            initial={{ opacity: 0, scale: 0.6, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.6, y: 20 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.5 }}
+            className="fixed bottom-6 right-6 z-[9999]"
           >
             <button
               onClick={() => setIsOpen(true)}
-              className="group relative flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-black shadow-2xl transition-all hover:scale-105 active:scale-95"
+              className="group relative flex items-center gap-2.5 pl-4 pr-5 py-3 rounded-2xl text-white text-[13px] font-black transition-all hover:scale-[1.03] active:scale-95"
               style={{
-                background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 65%, #6366f1) 100%)',
-                boxShadow: '0 12px 40px -8px color-mix(in srgb, var(--primary) 50%, transparent)',
+                background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 60%, #6366f1) 100%)',
+                boxShadow: '0 10px 32px -6px color-mix(in srgb, var(--primary) 45%, transparent)',
               }}
               title="Lancer le guide interactif"
             >
-              {/* Orbe animée en arrière-plan */}
+              {/* Hover overlay */}
               <div
-                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{
-                  background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 80%, #6366f1) 0%, var(--primary) 100%)',
-                }}
+                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-400"
+                style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 80%, #6366f1) 0%, var(--primary) 100%)' }}
               />
 
-              <span className="relative z-10 flex items-center gap-2.5">
-                <Map size={16} className="shrink-0" />
-                <span className="hidden sm:block">Guide Interactif</span>
-                <ChevronRight size={14} className="opacity-70 group-hover:translate-x-0.5 transition-transform" />
+              <span className="relative z-10 flex items-center gap-2">
+                <Compass size={15} className="shrink-0" />
+                <span className="hidden sm:block">Guide</span>
               </span>
 
-              {/* Badge "Nouveau" si tour non vu */}
-              {showBadge && (
+              {/* Badge "Nouveau" pour première visite */}
+              {isFirstVisit && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center"
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center z-20"
                 >
-                  <Sparkles size={10} className="text-white" />
+                  <Sparkles size={8} className="text-white" />
                 </motion.div>
               )}
 
-              {/* Pulse ring animation */}
-              <div
-                className="absolute inset-0 rounded-2xl animate-ping opacity-20 pointer-events-none"
-                style={{ background: 'var(--primary)', animationDuration: '2.5s' }}
-              />
+              {/* Pulse ring subtil */}
+              {isFirstVisit && (
+                <div
+                  className="absolute inset-0 rounded-2xl animate-ping opacity-15 pointer-events-none"
+                  style={{ background: 'var(--primary)', animationDuration: '3s' }}
+                />
+              )}
             </button>
           </motion.div>
         )}

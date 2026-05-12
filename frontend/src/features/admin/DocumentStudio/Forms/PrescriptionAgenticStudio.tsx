@@ -78,6 +78,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [presets, setPresets] = useState<any[]>([]);
   const [showPresets, setShowPresets] = useState(true);
 
+  // --- QUICK ENTRY EVOLVED ---
+  const [quickVal, setQuickVal] = useState('');
+  const [quickSuggestions, setQuickSuggestions] = useState<string[]>([]);
+  const [quickHighlightedIdx, setQuickHighlightedIdx] = useState(-1);
+
   // --- SILENT CLINICAL ASSESSMENT (Phase 2) ---
   useEffect(() => {
     if (!patientId) return;
@@ -118,19 +123,20 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   };
 
   // --- Autocomplete avec debounce (250ms) ---
-  const fetchSuggestions = useCallback(async (id: number, field: string, val: string) => {
+  const fetchSuggestions = useCallback(async (id: number, field: string, val: string, abortSignal?: AbortSignal) => {
     try {
       if (field === 'name' && val.length >= 1) {
-        const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(val)}`);
+        const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(val)}`, { signal: abortSignal });
         setSuggestions(res.data);
       } else if ((field === 'dosage' || field === 'posologie')) {
         const drug = drugs.find(d => d.id === id);
         if (drug?.name) {
-          const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(drug.name)}`);
+          const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(drug.name)}`, { signal: abortSignal });
           setSuggestions({ medications: [], ...res.data });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'CanceledError') return;
       console.error('Fetch suggestions error:', err);
     }
   }, [drugs]);
@@ -157,7 +163,100 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       debouncedFetch(id, field, val);
     } else {
       setSuggestions({ medications: [], dosages: [], posologies: [] });
+      setActiveSearchId(null);
     }
+  };
+
+  const handleQuickSearch = useDebounce(async (val: string) => {
+    const trimmed = val.trim();
+    // On n'affiche les suggestions que si on tape le PREMIER mot (le médicament)
+    if (trimmed.length < 1 || val.includes(' ')) {
+      setQuickSuggestions([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/prescriptions/habits/suggest?q=${encodeURIComponent(trimmed)}`);
+      setQuickSuggestions(res.data.medications || []);
+    } catch (err) {
+      console.error('Quick search error:', err);
+    }
+  }, 200);
+
+  const parseQuickEntry = (text: string): DrugItem => {
+    const originalText = text;
+    const parts = text.trim().split(/\s+/);
+    const drug: DrugItem = {
+      id: Date.now(),
+      name: parts[0].toUpperCase(),
+      dosage: '',
+      forme: 'COMPRIMÉS',
+      posologie: '',
+      type: 'MEDICAMENT',
+      quantite: 1,
+      non_substituable: false
+    };
+    // 1. Détection de la forme
+    let formeTextFound = '';
+    const formesMap: Record<string, string> = {
+      'sachet': 'SACHETS',
+      'gelule': 'GÉLULES',
+      'gélule': 'GÉLULES',
+      'bain': 'BAIN DE BOUCHE',
+      'sirop': 'SIROP',
+      'pommade': 'POMMADE',
+      'crème': 'CRÈME',
+      'creme': 'CRÈME',
+      'goutte': 'GOUTTES',
+      'ampoule': 'AMPOULES',
+      'spray': 'SPRAY',
+      'comprimé': 'COMPRIMÉS',
+      'comprime': 'COMPRIMÉS',
+      'cp': 'COMPRIMÉS'
+    };
+
+    for (const [key, value] of Object.entries(formesMap)) {
+      const reg = new RegExp(`\\b${key}s?\\b`, 'i');
+      const m = text.match(reg);
+      if (m) {
+        drug.forme = value;
+        formeTextFound = m[0];
+        break;
+      }
+    }
+
+    // 2. Détection du dosage (ex: 1g, 500mg)
+    let dosageTextFound = '';
+    const dosageMatch = text.match(/\b\d+(\s?)(g|mg|mcg|ml|l|ui)\b/i);
+    if (dosageMatch) {
+      drug.dosage = dosageMatch[0].toUpperCase().replace(/\s/g, '');
+      dosageTextFound = dosageMatch[0];
+    }
+
+    // 3. Détection de la quantité
+    let qtyTextFound = '';
+    const qtyMatch = text.match(/(qsp|x|qty|qté|qte)\s*(\d+)/i) || text.match(/\b(\d+)\s*(boite|boîte|pack|unité)s?\b/i);
+    if (qtyMatch) {
+      const num = qtyMatch[2] || qtyMatch[1];
+      drug.quantite = parseInt(num);
+      qtyTextFound = qtyMatch[0];
+    }
+
+    // 4. Extraction de la posologie (le reste du texte)
+    let poso = originalText;
+    
+    // On retire le nom s'il est au début
+    if (poso.toUpperCase().startsWith(drug.name)) {
+      poso = poso.substring(drug.name.length);
+    }
+    
+    // Retrait chirurgical des éléments identifiés pour ne laisser que la posologie
+    if (dosageTextFound) poso = poso.replace(dosageTextFound, '');
+    if (formeTextFound) poso = poso.replace(formeTextFound, '');
+    if (qtyTextFound) poso = poso.replace(qtyTextFound, '');
+
+    drug.posologie = poso.replace(/\s+/g, ' ').trim();
+    
+    return drug;
   };
 
   const applySuggestion = useCallback((id: number, field: string, val: string) => {
@@ -302,36 +401,94 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
       {/* COMMAND BAR & SPEED-PILLS (Phase 3) */}
       <div className="space-y-4">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
-            <Zap size={18} />
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
+              <Zap size={18} />
+            </div>
+            <input
+              type="text"
+              value={quickVal}
+              onChange={(e) => {
+                const v = e.target.value;
+                setQuickVal(v);
+                handleQuickSearch(v);
+              }}
+              className="w-full bg-white/60 border border-white/80 backdrop-blur-xl rounded-[2rem] pl-16 pr-8 py-5 text-sm font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300"
+              placeholder="Saisie Rapide : Taper un médicament, un dosage ou une posologie... (Ex: Augmentin 1g sachet 2x/j)"
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setQuickHighlightedIdx(i => Math.min(i + 1, quickSuggestions.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setQuickHighlightedIdx(i => Math.max(i - 1, 0));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  let finalVal = quickVal;
+                  if (quickHighlightedIdx >= 0) {
+                    const sugg = quickSuggestions[quickHighlightedIdx];
+                    const parts = quickVal.split(' ');
+                    parts[0] = sugg; // On remplace le premier mot par la suggestion
+                    finalVal = parts.join(' ');
+                  }
+                  
+                  if (finalVal.trim()) {
+                    const newDrug = parseQuickEntry(finalVal);
+                    setDrugs([newDrug, ...drugs]);
+                    setQuickVal('');
+                    setQuickSuggestions([]);
+                    setQuickHighlightedIdx(-1);
+                    setStep('PLANNING');
+                  }
+                } else if (e.key === 'Escape') {
+                  setQuickSuggestions([]);
+                }
+              }}
+              onBlur={() => setTimeout(() => setQuickSuggestions([]), 200)}
+            />
+            
+            {/* SUGGESTIONS SAISIE RAPIDE */}
+            <AnimatePresence>
+              {quickSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute left-6 right-6 top-full mt-2 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-2xl z-[110] overflow-hidden py-3"
+                >
+                  <div className="px-6 py-2 border-b border-slate-50 mb-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suggestions de médicaments</span>
+                  </div>
+                  {quickSuggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        const parts = quickVal.split(' ');
+                        parts[0] = s;
+                        const final = parts.join(' ');
+                        const newDrug = parseQuickEntry(final);
+                        setDrugs([newDrug, ...drugs]);
+                        setQuickVal('');
+                        setQuickSuggestions([]);
+                        setStep('PLANNING');
+                      }}
+                      className={cn(
+                        "w-full px-8 py-3 text-left text-sm font-bold transition-all flex items-center justify-between group",
+                        i === quickHighlightedIdx ? "bg-primary text-white" : "text-slate-600 hover:bg-primary/5 hover:text-primary"
+                      )}
+                    >
+                      <span>{s}</span>
+                      <ChevronRight size={14} className={cn("transition-transform", i === quickHighlightedIdx ? "translate-x-1" : "opacity-0 group-hover:opacity-100")} />
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded-lg">↵ ENTER POUR AJOUTER</span>
+            </div>
           </div>
-          <input
-            type="text"
-            className="w-full bg-white/60 border border-white/80 backdrop-blur-xl rounded-[2rem] pl-16 pr-8 py-5 text-sm font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300"
-            placeholder="Saisie Rapide : Taper un médicament, un dosage ou une posologie... (Ex: Augmentin 1g sachet 2x/j)"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                const val = e.currentTarget.value;
-                const newDrug: DrugItem = {
-                  id: Date.now(),
-                  name: val.split(' ')[0].toUpperCase(),
-                  dosage: val.split(' ')[1] || '',
-                  forme: 'COMPRIMÉS',
-                  posologie: val.split(' ').slice(2).join(' ') || '',
-                  type: 'MEDICAMENT',
-                  quantite: 1
-                };
-                setDrugs([newDrug, ...drugs]);
-                e.currentTarget.value = '';
-                setStep('PLANNING');
-              }
-            }}
-          />
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded-lg">↵ ENTER POUR AJOUTER</span>
-          </div>
-        </div>
 
         {/* SPEED-PILLS : Favoris du Docteur */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide px-2">
@@ -569,12 +726,14 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                         <div className="space-y-1">
                           <input
                             type="text"
+                            data-tour="prescription-name-input"
                             className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-400 tracking-tight"
                             placeholder={isRadio ? "NOM DE L'EXAMEN..." : 'MÉDICAMENT...'}
                             value={drug.name}
                             onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
                             onFocus={() => { if (drug.name.length >= 1) handleSearch(drug.id, 'name', drug.name); }}
                             onKeyDown={e => handleKeyDown(e, drug.id, 'name')}
+                            onBlur={() => setTimeout(() => setActiveSearchId(null), 200)}
                           />
 
                           {!isRadio && (
@@ -616,10 +775,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
                         {/* Autocomplete nom */}
                         <AnimatePresence>
-                          {activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0 && (
+                          {activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && (suggestions.medications.length > 0) && (
                             <motion.div
                               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                              className="absolute left-0 top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
+                              className="absolute left-0 top-full mt-2 w-full min-w-[200px] bg-white border border-slate-100 rounded-xl shadow-2xl z-[100] overflow-hidden py-1 max-h-[300px] overflow-y-auto custom-scrollbar"
                             >
                               {suggestions.medications.map((m, i) => (
                                 <button

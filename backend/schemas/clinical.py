@@ -7,9 +7,10 @@ from typing import Optional, Dict, List, Any, Tuple
 
 class DiagnosticSLM(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    squelettique: str
-    dentaire: str
-    traitement: str
+    diagnostic_squelettique: str
+    analyse_moulages: str
+    synthese_diagnostique: str
+    strategie_therapeutique: str
 
 
 # --- STRUCTURE DE MESURE CLINIQUE (MÉTHODE COM) ---
@@ -39,11 +40,15 @@ class SkeletalAnalysis(BaseModel):
     Situation_A: MeasureData = Field(default_factory=MeasureData)
     Situation_B: MeasureData = Field(default_factory=MeasureData)
     Profondeur_Faciale: MeasureData = Field(default_factory=MeasureData)
+    SNA: MeasureData = Field(default_factory=MeasureData)
+    SNB: MeasureData = Field(default_factory=MeasureData)
+    ANB: MeasureData = Field(default_factory=MeasureData)
 
 
 class EstheticAnalysis(BaseModel):
     Ligne_E_Ls: MeasureData = Field(default_factory=MeasureData)
     Ligne_E_Li: MeasureData = Field(default_factory=MeasureData)
+    Angle_Nasolabial: MeasureData = Field(default_factory=MeasureData)
 
 
 class AnalysisMetrics(BaseModel):
@@ -80,10 +85,30 @@ class DDMComponent(BaseModel):
 
 
 class ClinicalData(BaseModel):
+    # DDM
     ddm_maxillaire: Optional[DDMComponent] = None
     ddm_mandibulaire: Optional[DDMComponent] = None
     ddm_reelle: Optional[float] = None
+    
+    # Moulages / Occlusal
+    classe_molaire_droite: Optional[str] = None
+    classe_molaire_gauche: Optional[str] = None
+    classe_canine_droite: Optional[str] = None
+    classe_canine_gauche: Optional[str] = None
+    subdivision: Optional[bool] = None
+    forme_arcade: Optional[str] = None
+    
+    # Patient Context
+    age: Optional[int] = None
+    cvm: Optional[str] = None
+    sexe: Optional[str] = None
+    denture_type: Optional[str] = None # TEMPORAIRE, MIXTE, PERMANENTE
+    preference_technique: Optional[str] = None # DAMON, CLASSIC, ALIGNEURS
+    
+    # Output Final
     plan_traitement: Optional[str] = ""
+    resume_moulages: Optional[str] = ""
+    resume_diagnostic: Optional[str] = ""
 
 
 class McNamaraProjections(BaseModel):

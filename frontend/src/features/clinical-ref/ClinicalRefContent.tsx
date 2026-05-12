@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, AlertCircle, CheckCircle2, Info, Pill } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, Pill } from 'lucide-react';
 import type { ClinicalProtocol } from './types';
 import { ClinicalRefTabs } from './ClinicalRefTabs';
 import { cn } from '../../utils/cn';
@@ -30,11 +30,11 @@ export const ClinicalRefContent: React.FC<ContentProps> = ({ protocol }) => {
             {activeTab === 'checklist' && (
               <div className="space-y-3">
                 {protocol.checklist.map((item) => (
-                  <label key={item.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:border-primary/30 transition-all group">
-                    <input type="checkbox" className="w-4 h-4 rounded-md border-slate-300 text-primary focus:ring-primary" style={{ accentColor: 'var(--primary)' }} />
+                  <label key={item.id} className="flex items-center gap-3 p-3 bg-[var(--bg-medical-pearl)] rounded-xl border border-[var(--border-color)] cursor-pointer hover:border-[var(--primary)]/30 transition-all group">
+                    <input type="checkbox" className="w-4 h-4 rounded-md border-[var(--border-color)] text-[var(--primary)] focus:ring-[var(--primary)]" style={{ accentColor: 'var(--primary)' }} />
                     <span className={cn(
                       "text-xs font-bold transition-all",
-                      item.critical ? "text-red-600 flex items-center gap-1.5" : "text-slate-600"
+                      item.critical ? "text-rose-500 flex items-center gap-1.5" : "text-[var(--text-main)]"
                     )}>
                       {item.critical && <AlertCircle size={12} />}
                       {item.label}
@@ -50,16 +50,16 @@ export const ClinicalRefContent: React.FC<ContentProps> = ({ protocol }) => {
                 {protocol.steps.map((step) => (
                   <div key={step.order} className="relative pl-8 pb-1 last:pb-0">
                     {step.order !== protocol.steps.length && (
-                      <div className="absolute left-[11px] top-6 bottom-0 w-[2px] bg-slate-100" />
+                      <div className="absolute left-[11px] top-6 bottom-0 w-[2px] bg-[var(--border-color)]" />
                     )}
-                    <div className="absolute left-0 top-0 w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black" style={{ color: 'var(--primary)' }}>
+                    <div className="absolute left-0 top-0 w-6 h-6 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[10px] font-black" style={{ color: 'var(--primary)' }}>
                       {step.order}
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                      <p className="text-xs font-bold text-slate-800">{step.label}</p>
+                    <div className="bg-[var(--card-bg)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
+                      <p className="text-xs font-bold text-[var(--text-main)]">{step.label}</p>
                       {step.tip && (
-                        <p className="text-[10px] text-slate-400 mt-1 font-medium flex items-center gap-1">
-                          <Info size={10} className="text-primary" style={{ color: 'var(--primary)' }} />
+                        <p className="text-[10px] text-[var(--text-muted)] mt-2 font-medium flex items-center gap-1.5">
+                          <Info size={11} className="text-[var(--primary)]" />
                           {step.tip}
                         </p>
                       )}
@@ -73,12 +73,12 @@ export const ClinicalRefContent: React.FC<ContentProps> = ({ protocol }) => {
             {activeTab === 'pitfalls' && (
               <div className="space-y-3">
                 {protocol.pitfalls.map((p, i) => (
-                  <div key={i} className="p-4 bg-red-50/30 rounded-2xl border border-red-100">
-                    <div className="flex items-center gap-2 mb-2 text-red-600">
+                  <div key={i} className="p-4 bg-rose-500/5 rounded-2xl border border-rose-500/20">
+                    <div className="flex items-center gap-2 mb-2 text-rose-500">
                       <AlertCircle size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">{p.risk}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Risque : {p.risk}</span>
                     </div>
-                    <p className="text-xs font-bold text-slate-700 leading-relaxed">{p.mitigation}</p>
+                    <p className="text-xs font-bold text-[var(--text-main)] leading-relaxed">{p.mitigation}</p>
                   </div>
                 ))}
               </div>
@@ -88,17 +88,17 @@ export const ClinicalRefContent: React.FC<ContentProps> = ({ protocol }) => {
             {activeTab === 'drugs' && (
               <div className="space-y-3">
                 {protocol.drugs.map((d, i) => (
-                  <div key={i} className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm flex items-start gap-3">
+                  <div key={i} className="p-3 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl shadow-sm flex items-start gap-3">
                     <div className={cn(
                       "p-2 rounded-lg",
-                      d.category === 'anesthesia' ? "bg-blue-50 text-blue-600" : 
-                      d.category === 'antibiotic' ? "bg-emerald-50 text-emerald-600" : "bg-purple-50 text-purple-600"
+                      d.category === 'anesthesia' ? "bg-blue-500/10 text-blue-500" : 
+                      d.category === 'antibiotic' ? "bg-emerald-500/10 text-emerald-500" : "bg-purple-500/10 text-purple-500"
                     )}>
                       <Pill size={16} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black text-slate-800">{d.name}</h4>
-                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">{d.dose_adult}</p>
+                      <h4 className="text-xs font-black text-[var(--text-main)]">{d.name}</h4>
+                      <p className="text-[10px] text-[var(--text-muted)] font-bold mt-0.5">{d.dose_adult}</p>
                     </div>
                   </div>
                 ))}
@@ -108,12 +108,12 @@ export const ClinicalRefContent: React.FC<ContentProps> = ({ protocol }) => {
             {/* PATIENT */}
             {activeTab === 'patient' && (
               <div className="space-y-3">
-                <div className="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 mb-4">
-                   <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2">Conseils à déléguer</p>
+                <div className="p-5 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 mb-4">
+                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Conseils Post-Opératoires</p>
                    <ul className="space-y-3">
                      {protocol.patient_instructions.map((inst, i) => (
-                       <li key={i} className="flex items-start gap-2 text-xs font-bold text-slate-700">
-                         <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                       <li key={i} className="flex items-start gap-2.5 text-xs font-bold text-[var(--text-main)]">
+                         <CheckCircle2 size={15} className="text-emerald-500 mt-0.5 shrink-0" />
                          <span>{inst.instruction}</span>
                        </li>
                      ))}

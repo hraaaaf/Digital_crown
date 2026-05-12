@@ -54,7 +54,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { Landmark, ImageFilters, VTOSettings } from './cephaloShared';
-import { toRad, toDeg, projectPointOnLine, getPerpendicularTick, polarPoint, buildWedgePath } from './cephaloMath';
+import { toDeg, projectPointOnLine, getPerpendicularTick, buildWedgePath } from './cephaloMath';
 import { AnatomicalTooth } from './components/AnatomicalTooth';
 import { WedgeZone } from './components/WedgeZone';
 
@@ -96,10 +96,10 @@ export interface CephaloTracingLayerProps {
   } | null;
   isCalibrating?: boolean;
   calibrationPoints?: { x: number; y: number }[];
-  onAddCalibrationPoint?: (x: number, y: number) => void;
+  onAddCalibrationPoint?: (p: { x: number; y: number }) => void;
   uiMode?: TracingUIMode;
   hoveredMetric?: { key: string; points: string[]; lines: string[] } | null;
-  onEmptyAreaClick?: (x: number, y: number) => void;
+  onEmptyAreaClick?: (p: { x: number; y: number }) => void;
   magnifierEnabled?: boolean;
   performanceMode?: boolean;
   vto?: VTOSettings;
@@ -313,11 +313,11 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     const coords = clientToSVG(e.clientX, e.clientY);
     if (!coords) return;
     if (isCalibrating && onAddCalibrationPoint) {
-      onAddCalibrationPoint(coords.x, coords.y);
+      onAddCalibrationPoint(coords);
       return;
     }
     if (e.target === e.currentTarget && onEmptyAreaClick) {
-      onEmptyAreaClick(coords.x, coords.y);
+      onEmptyAreaClick(coords);
     }
   }, [clientToSVG, activeDragId, isCalibrating, onAddCalibrationPoint, onEmptyAreaClick]);
 

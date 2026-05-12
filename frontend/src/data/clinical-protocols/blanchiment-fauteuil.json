@@ -1,30 +1,85 @@
 {
   "act_code": "BLEACH-OFFICE",
-  "act_names": ["Blanchiment au fauteuil", "Éclaircissement dentaire professionnel"],
+  "act_names": [
+    "Blanchiment au fauteuil",
+    "Éclaircissement dentaire professionnel"
+  ],
   "difficulty": "routine",
   "duration_min": 90,
   "checklist": [
-    { "id": "bilan", "label": "Bilan carieux et paro complet", "critical": true },
-    { "id": "teinte", "label": "Prise de teinte initiale (Nuancier VITA)", "critical": true },
-    { "id": "barrier", "label": "Protection gingivale étanche", "critical": true },
-    { "id": "sensi", "label": "Test de sensibilité pré-opératoire", "critical": false }
+    {
+      "id": "bilan",
+      "label": "Bilan carieux et paro complet",
+      "critical": true
+    },
+    {
+      "id": "teinte",
+      "label": "Prise de teinte initiale (Nuancier VITA)",
+      "critical": true
+    },
+    {
+      "id": "barrier",
+      "label": "Protection gingivale étanche",
+      "critical": true
+    },
+    {
+      "id": "sensi",
+      "label": "Test de sensibilité pré-opératoire",
+      "critical": false
+    }
   ],
   "steps": [
-    { "order": 1, "label": "Détartrage et polissage préalable", "tip": "Éliminer toute plaque pour une action homogène." },
-    { "order": 2, "label": "Pose de l'écarteur et de la barrière gingivale", "tip": "Vérifier l'étanchéité sous lumière." },
-    { "order": 3, "label": "Application du gel de peroxyde concentré", "tip": "Épaisseur de 1-2 mm sur les faces visibles." },
-    { "order": 4, "label": "Activation lumineuse (Cycles de 15-20 min)", "tip": "Surveiller la température ressentie par le patient." },
-    { "order": 5, "label": "Rinçage et application d'un gel désensibilisant" }
+    {
+      "order": 1,
+      "label": "Détartrage et polissage préalable",
+      "tip": "Éliminer toute plaque pour une action homogène."
+    },
+    {
+      "order": 2,
+      "label": "Pose de l'écarteur et de la barrière gingivale",
+      "tip": "Vérifier l'étanchéité sous lumière."
+    },
+    {
+      "order": 3,
+      "label": "Application du gel de peroxyde concentré",
+      "tip": "Épaisseur de 1-2 mm sur les faces visibles."
+    },
+    {
+      "order": 4,
+      "label": "Activation lumineuse (Cycles de 15-20 min)",
+      "tip": "Surveiller la température ressentie par le patient."
+    },
+    {
+      "order": 5,
+      "label": "Rinçage et application d'un gel désensibilisant"
+    }
   ],
   "pitfalls": [
-    { "risk": "Brûlure gingivale", "mitigation": "Arrêt immédiat si blanchiment de la gencive, rincer et isoler à nouveau." },
-    { "risk": "Hypersensibilité aiguë", "mitigation": "Réduire le temps d'exposition ou la concentration si douleur." }
+    {
+      "risk": "Brûlure gingivale",
+      "mitigation": "Arrêt immédiat si blanchiment de la gencive, rincer et isoler à nouveau."
+    },
+    {
+      "risk": "Hypersensibilité aiguë",
+      "mitigation": "Réduire le temps d'exposition ou la concentration si douleur."
+    }
   ],
   "drugs": [
-    { "category": "antiseptic", "name": "Dentifrice désensibilisant (Nitrate de Potassium)", "dose_adult": "Usage quotidien post-op" }
+    {
+      "category": "antiseptic",
+      "name": "Dentifrice désensibilisant (Nitrate de Potassium)",
+      "dose_adult": "Usage quotidien post-op"
+    }
   ],
   "patient_instructions": [
-    { "timing": "immediately", "instruction": "Diète blanche pendant 48h (Pas de café, thé, vin, tabac)." },
-    { "timing": "day1", "instruction": "Éviter les boissons très froides ou très chaudes." }
-  ]
+    {
+      "timing": "immediately",
+      "instruction": "Diète blanche pendant 48h (Pas de café, thé, vin, tabac)."
+    },
+    {
+      "timing": "day1",
+      "instruction": "Éviter les boissons très froides ou très chaudes."
+    }
+  ],
+  "category": "Général"
 }

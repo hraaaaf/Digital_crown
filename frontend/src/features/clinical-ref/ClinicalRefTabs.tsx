@@ -17,21 +17,21 @@ export const ClinicalRefTabs: React.FC<TabsProps> = ({ activeTab, onTabChange })
   ];
 
   return (
-    <div className="flex items-center justify-between bg-slate-100/50 p-1 rounded-xl mb-4">
+    <div className="flex items-center justify-between bg-[var(--bg-medical-pearl)] p-1 rounded-2xl mb-6 border border-[var(--border-color)]/30">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            "flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all flex-1 gap-1",
+            "flex flex-col items-center justify-center py-2.5 px-1 rounded-xl transition-all flex-1 gap-1.5",
             activeTab === tab.id 
-              ? "bg-white shadow-sm text-primary scale-105" 
-              : "text-slate-400 hover:text-slate-600 hover:bg-white/30"
+              ? "bg-[var(--card-bg)] shadow-lg shadow-[var(--primary)]/5 text-[var(--primary)] scale-[1.02]" 
+              : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]/50"
           )}
           style={{ color: activeTab === tab.id ? 'var(--primary)' : undefined }}
         >
           {tab.icon}
-          <span className="text-[9px] font-black uppercase tracking-tighter">{tab.label}</span>
+          <span className="text-[10px] font-black uppercase tracking-tight">{tab.label}</span>
         </button>
       ))}
     </div>

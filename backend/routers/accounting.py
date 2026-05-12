@@ -92,3 +92,30 @@ def record_act(data: dict, db: Session = Depends(database.get_db), current_user:
         data.get("category")
     )
     return {"status": "success"}
+
+# --- NEW : PAYMENT TRACKING (Encaissements Réels) ---
+
+@router.post("/payments", response_model=schemas.PaymentOut)
+def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Enregistre un encaissement réel dans le tiroir-caisse."""
+    assert_patient_access(payment.patient_id, current_user, db)
+    
+    new_payment = models.Payment(
+        patient_id=payment.patient_id,
+        amount=payment.amount,
+        payment_method=getattr(models.PaymentMethod, payment.payment_method, models.PaymentMethod.ESPECES),
+        payment_date=payment.payment_date or datetime.now(),
+        acte_id=payment.acte_id,
+        installment_id=payment.installment_id,
+        notes=payment.notes
+    )
+    db.add(new_payment)
+    db.commit()
+    db.refresh(new_payment)
+    return new_payment
+
+@router.get("/payments/patient/{patient_id}", response_model=List[schemas.PaymentOut])
+def get_patient_payments(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Récupère l'historique des encaissements d'un patient."""
+    assert_patient_access(patient_id, current_user, db)
+    return db.query(models.Payment).filter(models.Payment.patient_id == patient_id).order_by(models.Payment.payment_date.desc()).all()

@@ -1,14 +1,26 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { FileText, Printer, Share2, Loader2, ShieldCheck } from 'lucide-react';
+import { FileText, Printer, Share2, Loader2, ShieldCheck, Download, Eye } from 'lucide-react';
 
 interface ReportViewerProps {
   markdown: string;
   isGenerating: boolean;
   engineName?: string;
+  onDownload?: () => void;
+  isDownloading?: boolean;
+  onPreview?: () => void;
 }
 
-export const ReportViewer: React.FC<ReportViewerProps> = ({ markdown, isGenerating, engineName }) => {
+export const ReportViewer: React.FC<ReportViewerProps> = ({ 
+  markdown, 
+  isGenerating, 
+  engineName,
+  onDownload,
+  isDownloading,
+  onPreview
+}) => {
+
+
   if (isGenerating) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-6 border-2 border-dashed border-indigo-100 rounded-3xl bg-indigo-50/30 backdrop-blur-sm animate-pulse">
@@ -50,15 +62,32 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ markdown, isGenerati
         </div>
         <div className="flex items-center gap-2">
           <button 
+            onClick={onPreview}
+            className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90"
+            title="Aperçu Live PDF"
+          >
+            <Eye size={18} />
+          </button>
+          <button 
             onClick={() => window.print()}
+
             className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90"
             title="Imprimer le diagnostic"
           >
             <Printer size={18} />
           </button>
+          <button 
+            onClick={onDownload}
+            disabled={isDownloading}
+            className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90 disabled:opacity-50"
+            title="Télécharger le bilan PDF"
+          >
+            {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+          </button>
           <button className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90">
             <Share2 size={18} />
           </button>
+
         </div>
       </div>
 

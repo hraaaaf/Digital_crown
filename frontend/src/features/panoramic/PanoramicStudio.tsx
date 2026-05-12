@@ -11,6 +11,10 @@ import { cn } from '../../utils/cn';
 import { PanoramicHistory } from './PanoramicHistory';
 import { XRayCanvas } from './XRayCanvas';
 import { ReportViewer } from './ReportViewer';
+import { usePanoramicStore, ANOMALY_TAXONOMY } from './stores/usePanoramicStore';
+import { LivePreview } from '../admin/DocumentStudio/LivePreview';
+
+
 
 interface Annotation {
   id: number;
@@ -36,15 +40,27 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
   const [imgSize, setImgSize] = useState<{w: number, h: number} | null>(null);
   const [activeDet, setActiveDet] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<'diagnostics' | 'report'>('diagnostics');
   const [imgFilters, setImgFilters] = useState<ImageFilters>({ brightness: 100, contrast: 110, invert: false });
   const [magnifier, setMagnifier] = useState<{ x: number, y: number, show: boolean }>({ x: 0, y: 0, show: false });
-  const [magnifierEnabled, setMagnifierEnabled] = useState(true);
+  const [magnifierEnabled, setMagnifierEnabled] = useState(false);
   const [toolMode, setToolMode] = useState<'select' | 'annotate'>('select');
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [compareMode, setCompareMode] = useState(false);
   const [compareResult, setCompareResult] = useState<any>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const { toothAnomalies, resetAll, toggleAnomaly } = usePanoramicStore();
+
+  const manualAnomaliesList = Object.entries(toothAnomalies).flatMap(([fdi, anomalies]) => 
+    anomalies.map(anomaly => ({ fdi: parseInt(fdi), anomaly }))
+  );
+
+
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleSelectHistory = (analysis: any) => {
@@ -86,6 +102,63 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     }
   };
 
+  const handleFinalize = async () => {
+    if (!result?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await api.post('/ia/generate-panoramic-report', {
+        analysis_id: result.id,
+        manual_anomalies: toothAnomalies
+      });
+      
+      setResult((prev: any) => ({
+        ...prev,
+        report_narrative: response.data.report_narrative
+      }));
+      
+      alert("Bilan professionnel généré et archivé avec succès.");
+      resetAll();
+    } catch (err) {
+      console.error("Erreur lors de la finalisation du bilan :", err);
+      alert("Une erreur est survenue lors de la génération du bilan.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!result?.id) return;
+    setDownloading(true);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
+      window.open(response.data.pdf_url, '_blank');
+    } catch (err) {
+      console.error("Erreur téléchargement PDF :", err);
+      alert("Une erreur est survenue lors de la génération du PDF.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!result?.id) return;
+    setIsPreviewLoading(true);
+    setPreviewPdfUrl(null);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
+      setPreviewPdfUrl(response.data.pdf_url);
+    } catch (err) {
+      console.error("Erreur aperçu PDF :", err);
+      alert("Impossible de charger l'aperçu.");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+
+
+
   const getPathologyColor = (pathology: string) => {
     const pathologies = ['Caries', 'Deep Caries', 'Periapical Lesion', 'Impacted'];
     const treatments = ['Implant', 'Crown', 'Endodontic', 'Restoration', 'Filling'];
@@ -109,7 +182,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!containerRef.current || !result) return;
+    if (!magnifierEnabled || !containerRef.current || !result) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -296,8 +369,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                       }}
                       filterString={filterString}
                       activeDet={activeDet}
-                      onHoverDet={setActiveDet}
                     />
+
 
                     {imgSize && (
                       <svg 
@@ -443,16 +516,39 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       <div className="w-full lg:w-[400px] flex flex-col gap-4 shrink-0 lg:overflow-hidden min-h-[600px] lg:min-h-0">
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200/60 flex-1 overflow-hidden flex flex-col">
           {result ? (
-            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
-              <ReportViewer 
-                markdown={result.report_narrative} 
-                isGenerating={loading} 
-                engineName="Loki-Silvres V8 (Déterministe)"
-              />
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
+              
+              {/* TABS HEADER */}
+              <div className="sticky top-0 z-[50] bg-white/90 backdrop-blur-md border-b border-slate-100 p-2 flex gap-2 shrink-0">
+                <button 
+                  onClick={() => setSidebarTab('diagnostics')}
+                  className={cn("flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", sidebarTab === 'diagnostics' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-transparent text-slate-400 hover:bg-slate-50")}
+                >
+                  Diagnostics
+                </button>
+                <button 
+                  onClick={() => setSidebarTab('report')}
+                  className={cn("flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", sidebarTab === 'report' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-transparent text-slate-400 hover:bg-slate-50")}
+                >
+                  Bilan PDF
+                </button>
+              </div>
 
-              <div className="p-8 space-y-8">
-                {result.vision?.detections_data?.detections?.length > 0 && (
-                  <div className="space-y-4">
+              {sidebarTab === 'report' ? (
+                <div className="flex-1 flex flex-col">
+                  <ReportViewer 
+                    markdown={result.report_narrative} 
+                    isGenerating={loading} 
+                    engineName="Loki-Silvres V8 (Déterministe)"
+                    onDownload={handleDownloadPDF}
+                    isDownloading={downloading}
+                    onPreview={handlePreview}
+                  />
+                </div>
+              ) : (
+                <div className="p-8 space-y-8 flex-1 flex flex-col">
+                  {result.vision?.detections_data?.detections?.length > 0 && (
+                    <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                       Cartographie des Anomalies
                     </h4>
@@ -500,22 +596,40 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                   </div>
                 )}
 
-                {/* SECTION DÉTAILS MANUELS */}
-                {annotations.length > 0 && (
+                {/* SECTION SÉLECTIONS MANUELLES */}
+                {(annotations.length > 0 || manualAnomaliesList.length > 0) && (
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                       <Type size={12} className="text-indigo-500" />
-                      Détails Cliniques Ajoutés
+                      Ajustements Manuels
                     </h4>
                     <div className="space-y-2">
+                      {manualAnomaliesList.map((item, idx) => {
+                        const def = ANOMALY_TAXONOMY.find(t => t.id === item.anomaly);
+                        const label = def ? def.label : item.anomaly;
+                        return (
+                          <div key={`manual-${idx}`} className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl flex justify-between items-center group transition-all">
+                            <div className="flex items-center gap-3">
+                              <span className="font-black text-sm text-indigo-900">Dent {item.fdi}</span>
+                              <span className="text-xs font-bold text-slate-600">{label}</span>
+                            </div>
+                            <button 
+                              onClick={() => toggleAnomaly(item.fdi, item.anomaly)}
+                              className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
                       {annotations.map((ann) => (
-                        <div key={ann.id} className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl flex justify-between items-center group transition-all hover:border-indigo-300">
+                        <div key={ann.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center group transition-all">
                           <span className="text-xs font-bold text-slate-700">{ann.text}</span>
                           <button 
                             onClick={() => setAnnotations(prev => prev.filter(a => a.id !== ann.id))}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all p-1"
+                            className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}
@@ -523,13 +637,22 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                   </div>
                 )}
                 
-                <div className="pt-4 sticky bottom-0 bg-white pb-2">
-                  <button className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.5rem] font-black tracking-widest shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-3 group">
-                    <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />
-                    VALIDER ET ARCHIVER
+                <div className="pt-4 mt-auto sticky bottom-0 bg-white pb-2 shrink-0">
+                  <button 
+                    onClick={async () => {
+                      await handleFinalize();
+                      setSidebarTab('report'); // Switch to report tab on finalize
+                    }}
+                    disabled={loading}
+                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.5rem] font-black tracking-widest shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-3 group disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />}
+                    VALIDER ET GÉNÉRER
                   </button>
                 </div>
+
               </div>
+              )}
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center p-8">
@@ -563,7 +686,29 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
           background: #e2e8f0;
         }
       `}</style>
+      {/* Modal Aperçu PDF */}
+      <AnimatePresence>
+        {(previewPdfUrl || isPreviewLoading) && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-4 z-50 rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-black/5"
+          >
+            <LivePreview 
+              pdfUrl={previewPdfUrl} 
+              loading={isPreviewLoading} 
+              onClose={() => {
+                setPreviewPdfUrl(null);
+                setIsPreviewLoading(false);
+              }} 
+              title="Aperçu du Bilan Panoramique" 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 };
 

@@ -30,6 +30,7 @@ export interface PatientInstructionItem {
 
 export interface ClinicalProtocol {
   act_code: string;
+  category: string;
   act_names: string[];
   difficulty: "routine" | "complex" | "specialist";
   duration_min: number;
