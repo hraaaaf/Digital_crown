@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
+import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
 
 interface RecentPatient {
   id: number;
@@ -27,7 +28,7 @@ interface DashboardStats {
   total_analyses: number;
   in_waiting: number;
   recent_patients: RecentPatient[];
-  weekly_activity: number[]; // Tableau de 7 valeurs pour le graphique
+  weekly_activity: number[];
 }
 
 export const Dashboard: React.FC = () => {
@@ -76,7 +77,6 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12 animate-in fade-in duration-700">
       
-      {/* HEADER GREETING */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Bonjour, Dr. Benmoussa</h1>
@@ -97,10 +97,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* QUICK ACTIONS GRID */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        
-        {/* ACTION: AJOUT PATIENT */}
         <Link to="/patients/new" data-tour="quick-action-new-patient" className="group p-8 rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(to bottom right, var(--primary), var(--secondary, #1e3a8a))', boxShadow: '0 20px 40px -15px var(--primary)' }}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
@@ -112,7 +109,6 @@ export const Dashboard: React.FC = () => {
           </div>
         </Link>
 
-        {/* ACTION: RECHERCHE / LISTE */}
         <Link to="/patients" className="group bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
           <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:bg-primary group-hover:text-white transition-all duration-300" style={{ color: 'var(--primary)' }}>
             <Users size={28} />
@@ -121,7 +117,6 @@ export const Dashboard: React.FC = () => {
           <p className="text-slate-500 mt-1 font-medium italic">Gestion de la patientèle</p>
         </Link>
 
-        {/* ACTION: AGENDA */}
         <Link to="/agenda" className="group bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
           <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
             <Calendar size={28} />
@@ -129,11 +124,9 @@ export const Dashboard: React.FC = () => {
           <h3 className="text-xl font-black text-slate-800 tracking-tight">Agenda Clinique</h3>
           <p className="text-slate-500 mt-1 font-medium italic">Suivi des rendez-vous</p>
         </Link>
-
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* SECTION PATIENTS RÉCENTS */}
         <section data-tour="dashboard-agenda" className="space-y-5">
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
             <Clock size={18} /> Activité Récente
@@ -158,9 +151,12 @@ export const Dashboard: React.FC = () => {
                         {(patient.nom || '?').charAt(0)}
                       </div>
                       <div>
-                        <h4 className="font-black text-primary text-lg leading-none">
-                          {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
-                        </h4>
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-black text-primary text-lg leading-none">
+                            {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
+                          </h4>
+                          <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />
+                        </div>
                         <p className="text-xs font-bold text-slate-500 mt-1.5 flex items-center gap-2">
                           <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}
                           <span className="text-slate-300">·</span>
@@ -182,39 +178,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* SECTION KPI & DATA VIZ */}
-        <section data-tour="dashboard-stats" className="space-y-5">
+        <section className="space-y-5">
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
-            <TrendingUp size={18} /> Statistiques
+            <TrendingUp size={18} /> Performance Hebdomadaire
           </h2>
-          
-          <div className="bg-card backdrop-blur-xl border border-border-main rounded-[2.5rem] p-8 shadow-sm flex flex-col gap-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Patients</p>
-                <p className="text-3xl font-black text-primary">{stats?.total_patients ?? 0}</p>
-              </div>
-              <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 text-center">
-                <p className="text-[10px] font-black text-blue-500 uppercase mb-1">Analyses</p>
-                <p className="text-3xl font-black text-primary">{stats?.total_analyses ?? 0}</p>
-              </div>
-            </div>
-            
-            <hr className="border-slate-100" />
-
-            {/* GRAPHIQUE D'ACTIVITÉ SÉCURISÉ */}
-            <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Activité Hebdomadaire</p>
-              <div className="h-32 flex items-end justify-between gap-2">
-                {(stats?.weekly_activity || [0,0,0,0,0,0,0]).map((height, i) => (
-                  <div key={i} className="w-full bg-slate-100 rounded-t-lg relative overflow-hidden h-full flex items-end">
-                    <div 
-                      className="w-full bg-gradient-to-t from-primary to-accent rounded-t-lg transition-all duration-500"
-                      style={{ height: `${height || 5}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
+          <div className="bg-white rounded-[2.5rem] border border-slate-200/60 p-8 h-[380px] shadow-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-slate-300">
+               <TrendingUp size={48} />
+               <p className="font-bold text-sm uppercase tracking-widest">Graphique d'activité bientôt disponible</p>
             </div>
           </div>
         </section>

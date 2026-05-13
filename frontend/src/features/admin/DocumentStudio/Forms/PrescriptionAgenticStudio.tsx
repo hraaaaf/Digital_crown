@@ -197,17 +197,37 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   const parseQuickEntry = (text: string): DrugItem => {
     const originalText = text;
+    const lowerText = text.toLowerCase();
     const parts = text.trim().split(/\s+/);
+    
+    // Détection Radio / Examen
+    const radioKeywords = ['radio', 'télé-radio', 'teleradio', 'conebeam', 'scanner', 'irm', 'panoramique', 'rvg', 'bitewing', 'status', 'dentoscan', 'cbct', 'examen'];
+    const isExamen = radioKeywords.some(k => lowerText.includes(k));
+
     const drug: DrugItem = {
       id: Date.now(),
       name: parts[0].toUpperCase(),
       dosage: '',
-      forme: 'COMPRIMÉS',
+      forme: isExamen ? '' : 'COMPRIMÉS',
       posologie: '',
-      type: 'MEDICAMENT',
+      type: isExamen ? 'EXAMEN' : 'MEDICAMENT',
       quantite: 1,
       non_substituable: false
     };
+
+    if (isExamen) {
+      // Pour les examens, on prend tout le texte comme nom si c'est court, 
+      // ou on laisse le premier mot et le reste en posologie (instructions)
+      if (parts.length <= 3) {
+        drug.name = text.toUpperCase().trim();
+        drug.posologie = '';
+      } else {
+        drug.name = parts.slice(0, 2).join(' ').toUpperCase();
+        drug.posologie = parts.slice(2).join(' ').trim();
+      }
+      return drug;
+    }
+
     // 1. Détection de la forme
     let formeTextFound = '';
     const formesMap: Record<string, string> = {
@@ -705,101 +725,123 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     className={cn(
                       'bg-white/60 p-4 rounded-[1.8rem] border transition-all group relative backdrop-blur-xl',
                       fieldError ? 'border-red-200 bg-red-50/10' : 'border-white/80 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20',
-                      isRadio && 'border-amber-100 bg-amber-50/5',
+                      isRadio && 'border-amber-100 bg-amber-50/5'
                     )}
                   >
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      {/* Toggle Compact */}
-                      <div className="col-span-12 lg:col-span-2 flex items-center gap-1.5 p-1 bg-slate-100/50 rounded-xl w-fit border border-slate-200/30">
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                      {/* Toggle Type (Icone Seule pour gain de place) */}
+                      <div className="col-span-12 lg:col-span-1 flex flex-col items-center gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/30 self-stretch justify-center">
                         <button
                           type="button"
                           onClick={() => { onUpdateDrug(drug.id, 'type', 'MEDICAMENT'); if (!drug.forme) onUpdateDrug(drug.id, 'forme', 'COMPRIMÉS'); }}
                           className={cn(
-                            'p-2 rounded-lg transition-all',
+                            'p-2 rounded-xl transition-all',
                             !isRadio ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-500',
                           )}
                           title="Médicament"
                         >
-                          <Pill size={14} style={!isRadio ? { color: 'var(--primary)' } : {}} />
+                          <Pill size={16} style={!isRadio ? { color: 'var(--primary)' } : {}} />
                         </button>
                         <button
                           type="button"
                           onClick={() => { onUpdateDrug(drug.id, 'type', 'EXAMEN'); onUpdateDrug(drug.id, 'dosage', ''); onUpdateDrug(drug.id, 'forme', ''); onUpdateDrug(drug.id, 'posologie', ''); }}
                           className={cn(
-                            'p-2 rounded-lg transition-all',
+                            'p-2 rounded-xl transition-all',
                             isRadio ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-500',
                           )}
                           title="Radio / Examen"
                         >
-                          <Microscope size={14} />
+                          <Microscope size={16} />
                         </button>
                       </div>
 
-                      {/* Nom & Forme/Dose */}
-                      <div className={cn('relative', isRadio ? 'col-span-12 lg:col-span-10' : 'col-span-12 lg:col-span-4')}>
-                        <div className="space-y-1">
-                          <input
-                            type="text"
-                            data-tour="prescription-name-input"
-                            className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-400 tracking-tight"
-                            placeholder={isRadio ? "NOM DE L'EXAMEN..." : 'MÉDICAMENT...'}
-                            value={drug.name}
-                            onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
-                            onFocus={() => { if (drug.name.length >= 1) handleSearch(drug.id, 'name', drug.name); }}
-                            onKeyDown={e => handleKeyDown(e, drug.id, 'name')}
-                            onBlur={() => setTimeout(() => setActiveSearchId(null), 200)}
-                          />
+                      {/* Main Entry Area */}
+                      <div className={cn('relative col-span-12', isRadio ? 'lg:col-span-10' : 'lg:col-span-10')}>
+                        <div className="grid grid-cols-10 gap-4 items-center">
+                          {/* Name & Metadata */}
+                          <div className={cn("space-y-2", isRadio ? "col-span-10" : "col-span-4")}>
+                            <input
+                              type="text"
+                              className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-slate-800 text-sm uppercase placeholder:text-slate-400 tracking-tight"
+                              placeholder={isRadio ? "DÉTAILS DE L'EXAMEN RADIOLOGIQUE..." : 'NOM DU MÉDICAMENT...'}
+                              value={drug.name}
+                              onChange={e => handleSearch(drug.id, 'name', e.target.value.toUpperCase())}
+                              onFocus={() => { if (drug.name.length >= 1) handleSearch(drug.id, 'name', drug.name); }}
+                              onKeyDown={e => handleKeyDown(e, drug.id, 'name')}
+                              onBlur={() => setTimeout(() => setActiveSearchId(null), 200)}
+                            />
 
+                            {!isRadio && (
+                              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                                <button
+                                  type="button"
+                                  onClick={e => handleFormeOpen(e, drug.id)}
+                                  className="bg-slate-100/50 px-2.5 py-1.5 rounded-xl text-[8px] font-black text-primary uppercase tracking-widest border border-transparent hover:bg-white hover:border-primary/20 transition-all flex items-center gap-1.5"
+                                  style={{ color: 'var(--primary)' }}
+                                >
+                                  {getFormeIcon(drug.forme)}
+                                  {drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}
+                                </button>
+                                
+                                {drug.forme.startsWith('AUTRE') && (
+                                  <input
+                                    type="text"
+                                    className="w-24 bg-white/50 border border-slate-200 px-2.5 py-1.5 rounded-xl focus:ring-0 text-[9px] font-black text-slate-700 uppercase tracking-widest placeholder:text-slate-400 focus:border-primary/40 transition-colors"
+                                    placeholder="PRÉCISER..."
+                                    value={drug.forme.includes(':') ? drug.forme.split(':')[1].trim() : ''}
+                                    onChange={e => onUpdateDrug(drug.id, 'forme', `AUTRE: ${e.target.value}`)}
+                                  />
+                                )}
+                                
+                                <div className="flex items-center gap-1 bg-white/50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Dose:</span>
+                                  <input
+                                    type="text"
+                                    className="w-20 bg-transparent border-none p-0 focus:ring-0 text-[9px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-400"
+                                    placeholder="500MG..."
+                                    value={drug.dosage}
+                                    onFocus={() => handleSearch(drug.id, 'dosage', drug.dosage)}
+                                    onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Posologie (Medicament Only) */}
                           {!isRadio && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={e => handleFormeOpen(e, drug.id)}
-                                className="bg-slate-100/50 px-2 py-1 rounded-lg text-[8px] font-black text-primary uppercase tracking-widest border border-transparent hover:bg-white hover:border-primary/20 transition-all flex items-center gap-1.5"
-                                style={{ color: 'var(--primary)' }}
-                              >
-                                {getFormeIcon(drug.forme)}
-                                {drug.forme.startsWith('AUTRE') ? 'AUTRE' : (drug.forme || 'FORME')}
-                              </button>
-                              
-                              {drug.forme.startsWith('AUTRE') && (
-                                <input
-                                  type="text"
-                                  className="w-24 bg-white/50 border border-slate-200 px-2 py-1 rounded-lg focus:ring-0 text-[9px] font-black text-slate-700 uppercase tracking-widest placeholder:text-slate-400 focus:border-primary/40 transition-colors"
-                                  placeholder="PRÉCISER..."
-                                  value={drug.forme.includes(':') ? drug.forme.split(':')[1].trim() : ''}
-                                  onChange={e => onUpdateDrug(drug.id, 'forme', `AUTRE: ${e.target.value}`)}
-                                />
-                              )}
-                              
-                              <div className="flex items-center gap-1 bg-white/50 px-2 py-1 rounded-lg border border-slate-100">
-                                <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Dose :</span>
-                                <input
-                                  type="text"
-                                  className="w-20 bg-transparent border-none p-0 focus:ring-0 text-[9px] font-black text-slate-600 uppercase tracking-widest placeholder:text-slate-400"
-                                  placeholder="500MG..."
-                                  value={drug.dosage}
-                                  onFocus={() => handleSearch(drug.id, 'dosage', drug.dosage)}
-                                  onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
+                            <div className="col-span-6 relative h-full animate-in fade-in slide-in-from-right-2">
+                              <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 group-hover:bg-white transition-all focus-within:ring-2 focus-within:ring-primary/5 focus-within:border-primary/20">
+                                <textarea
+                                  rows={1}
+                                  className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
+                                  placeholder="Posologie et instructions..."
+                                  value={drug.posologie}
+                                  onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
+                                  onChange={e => {
+                                    handleSearch(drug.id, 'posologie', e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                  }}
                                 />
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {/* Autocomplete nom */}
+                        {/* Autocomplete nom (Medicament Only) */}
                         <AnimatePresence>
-                          {activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && (suggestions.medications.length > 0) && (
+                          {activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0 && (
                             <motion.div
                               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                              className="absolute left-0 top-full mt-2 w-full min-w-[200px] bg-white border border-slate-100 rounded-xl shadow-2xl z-[100] overflow-hidden py-1 max-h-[300px] overflow-y-auto custom-scrollbar"
+                              className="absolute left-0 top-full mt-2 w-full min-w-[240px] bg-white border border-slate-100 rounded-2xl shadow-2xl z-[100] overflow-hidden py-2 max-h-[300px] overflow-y-auto custom-scrollbar"
                             >
                               {suggestions.medications.map((m, i) => (
                                 <button
                                   key={m}
                                   onClick={() => applySuggestion(drug.id, 'name', m)}
                                   className={cn(
-                                    'w-full px-4 py-2 text-left text-[10px] font-black text-slate-600 transition-colors flex items-center justify-between',
+                                    'w-full px-5 py-3 text-left text-[10px] font-black text-slate-600 transition-colors flex items-center justify-between',
                                     i === highlightedIdx ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 hover:text-primary',
                                   )}
                                 >
@@ -812,29 +854,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                         </AnimatePresence>
                       </div>
 
-                      {/* Posologie */}
-                      <div className={cn('relative h-full', isRadio ? 'hidden' : 'col-span-12 lg:col-span-5')}>
-                        <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 group-hover:bg-white transition-all focus-within:shadow-md focus-within:shadow-primary/5">
-                          <textarea
-                            rows={1}
-                            className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-400 leading-tight"
-                            placeholder="Posologie..."
-                            value={drug.posologie}
-                            onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
-                            onChange={e => {
-                              handleSearch(drug.id, 'posologie', e.target.value);
-                              e.target.style.height = 'auto';
-                              e.target.style.height = `${e.target.scrollHeight}px`;
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Actions */}
+                      {/* Remove Action */}
                       <div className="col-span-12 lg:col-span-1 flex justify-end">
                         <button
                           onClick={() => onRemoveDrug(drug.id)}
-                          className="p-2 text-slate-200 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -845,43 +869,18 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               })}
             </div>
 
-            {/* ELITE DOUBLE CHECK / AUDIT SECTION */}
-            <div className="mt-8 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-900/20">
-              <div className="absolute top-0 right-0 p-20 bg-primary/10 blur-[100px] rounded-full" />
-              
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                      <ShieldCheck size={22} className={coherenceWarnings.length > 0 ? "text-amber-400" : "text-emerald-400"} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest">Audit de Cohérence Final</h4>
-                      <p className="text-[10px] font-bold text-slate-400">Vérification croisée avec le dossier patient</p>
-                    </div>
-                  </div>
-                  {coherenceWarnings.length === 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
-                      <CheckCircle2 size={12} className="text-emerald-400" />
-                      <span className="text-[9px] font-black uppercase text-emerald-400 tracking-widest">Validation de sécurité ok</span>
-                    </div>
-                  )}
-                </div>
-
-                {coherenceWarnings.length > 0 ? (
-                  <div className="space-y-3">
-                    {coherenceWarnings.map((w, i) => (
-                      <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
-                        <AlertCircle size={18} className={w.level === 'critical' ? "text-red-400" : "text-amber-400"} />
-                        <p className="text-[11px] font-bold text-slate-200 leading-relaxed">{w.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 italic">
-                    <p className="text-[10px] text-slate-400 font-medium">Aucune interaction ou risque majeur détecté pour cette sélection. Le plan de traitement respecte les standards de sécurité IAmina.</p>
-                  </div>
-                )}
+            {/* Discreet Safety Status Badge */}
+            <div className="flex items-center justify-end px-4">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-help",
+                coherenceWarnings.length > 0 
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-600" 
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+              )} title={coherenceWarnings.length > 0 ? "Avertissements de sécurité détectés" : "Validation de sécurité IAmina : OK"}>
+                {coherenceWarnings.length > 0 ? <AlertCircle size={12} /> : <ShieldCheck size={12} />}
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  {coherenceWarnings.length > 0 ? `${coherenceWarnings.length} Alertes` : "Sécurité Validée"}
+                </span>
               </div>
             </div>
 

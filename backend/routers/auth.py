@@ -13,8 +13,10 @@ from backend.security import (
     SECRET_KEY,
     ALGORITHM,
 )
-from backend.schemas import TokenData
+from backend.schemas import TokenData, SupabaseSyncRequest
 from backend.utils.rate_limit import check_rate_limit
+from backend.config import settings
+import httpx
 
 router = APIRouter(tags=["Authentication"])
 
@@ -181,3 +183,94 @@ async def logout(
 @router.get("/me", response_model=schemas.UserOut)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/sync-supabase")
+async def sync_supabase_user(
+    body: schemas.SupabaseSyncRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Synchronise l'utilisateur authentifié via Supabase avec la DB locale.
+    Vérifie également la validité de la licence (Kill-Switch).
+    """
+    if not settings.SUPABASE_URL:
+        # En mode dev sans config, on laisse passer si c'est l'admin par défaut
+        if body.email == "admin@digitalcrown.com":
+             user = db.query(models.User).filter(models.User.email == body.email).first()
+             return {"status": "ok", "token": create_access_token(data={"sub": user.email})}
+        raise HTTPException(status_code=500, detail="Supabase n'est pas configuré sur le serveur.")
+
+    # 1. Valider le token auprès de Supabase
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Authorization": f"Bearer {body.access_token}",
+                "apikey": settings.SUPABASE_ANON_KEY
+            }
+            # Appel à l'endpoint /user de Supabase Auth
+            response = await client.get(f"{settings.SUPABASE_URL}/auth/v1/user", headers=headers)
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=401, detail="Session Cloud invalide ou expirée.")
+            
+            supabase_user = response.json()
+            if supabase_user.get("email") != body.email:
+                raise HTTPException(status_code=401, detail="Email mismatch.")
+                
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=401, detail=f"Erreur de validation Cloud: {str(e)}")
+
+    # 2. Synchronisation Locale
+    user = db.query(models.User).filter(models.User.email == body.email).first()
+    
+    if not user:
+        # Vérifier s'il y a déjà un admin (le propriétaire)
+        has_admin = db.query(models.User).filter(models.User.role == models.UserRole.ADMIN).first()
+        
+        # Création automatique du praticien lors de sa première connexion
+        import uuid
+        user = models.User(
+            email=body.email,
+            hashed_password=uuid.uuid4().hex,
+            role=models.UserRole.ADMIN if not has_admin else models.UserRole.DENTISTE,
+            nom_complet=body.email.split('@')[0].capitalize(),
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+
+    # 3. LE KILL-SWITCH (Brainstorming : Période d'essai)
+    # On récupère les métadonnées de l'utilisateur Supabase (ou une table dédiée)
+    user_metadata = supabase_user.get("user_metadata", {})
+    trial_end_str = user_metadata.get("trial_end") # Format YYYY-MM-DD
+    
+    if trial_end_str:
+        from datetime import datetime
+        try:
+            trial_end = datetime.strptime(trial_end_str, "%Y-%m-%d")
+            if datetime.now() > trial_end:
+                audit_service.log(
+                    db=db, user_id=user.id, action="TRIAL_EXPIRED",
+                    resource_type="User", resource_id=user.email, severity="CRITICAL",
+                    details=f"Tentative d'accès après expiration ({trial_end_str})"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Votre période d'essai a expiré. Contactez le support pour activer votre licence."
+                )
+        except ValueError:
+            pass
+
+    # 4. Générer un token local pour les requêtes suivantes
+    local_token = create_access_token(data={"sub": user.email})
+    
+    return {
+        "status": "synchronized",
+        "user_id": user.id,
+        "role": user.role,
+        "token": local_token
+    }

@@ -51,6 +51,17 @@ def record_medication_habits_batch(req: List[dict], db: Session = Depends(databa
             prescription_service.record_medication_usage(db, current_user.id, med_name, dosage, posologie)
     return {"status": "success"}
 
+@prescription_router.post("/safety/check")
+def check_prescription_safety(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Vérifie la sécurité d'une ordonnance pour un patient donné.
+    """
+    patient_id = req.get("patient_id")
+    drug_names = req.get("drug_names", [])
+    if not patient_id:
+        raise HTTPException(status_code=400, detail="ID Patient manquant")
+    return prescription_service.check_safety(db, patient_id, drug_names)
+
 @prescription_router.get("/smart-suggest/{patient_id}")
 async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     assert_patient_access(patient_id, current_user, db)
@@ -62,9 +73,34 @@ async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.g
     act_names = [r.motif for r in rdvs if r.motif]
     return prescription_service.resolve_smart_prescription(db, patient_id, act_names, doctor_id=current_user.id)
 
-@actes_router.get("/catalog/search", response_model=List[schemas.ClinicalActCatalogOut])
+@actes_router.get("/catalog/search", response_model=List[dict])
 def search_clinical_acts(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.ClinicalActCatalog).filter(models.ClinicalActCatalog.name.ilike(f"%{q.strip()}%")).order_by(models.ClinicalActCatalog.usage_count.desc()).limit(20).all()
+    from backend.services.accounting_service import accounting_service
+    return accounting_service.search_acts(db, current_user.id, q)
+
+@actes_router.post("/catalog/bundles")
+def get_act_bundles(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Retourne les bundles d'actes recommandés pour une liste d'actes donnés.
+    """
+    from backend.services.accounting_service import accounting_service
+    act_names = req.get("act_names", [])
+    return accounting_service.get_smart_bundles(act_names)
+
+@actes_router.get("/brain/summary")
+def get_brain_summary(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Retourne une synthèse de tout ce que le système a appris sur le praticien.
+    """
+    from backend.services.accounting_service import accounting_service
+    from backend.services.prescription_service import prescription_service
+    
+    return {
+        "frequent_acts": accounting_service.get_frequent_acts(db, current_user.id, limit=5),
+        "frequent_drugs": prescription_service.get_doctor_habits_summary(db, current_user.id),
+        "total_knowledge_points": db.query(models.DoctorActHabit).filter(models.DoctorActHabit.doctor_id == current_user.id).count() + 
+                                  db.query(models.DoctorMedicationHabit).filter(models.DoctorMedicationHabit.doctor_id == current_user.id).count()
+    }
 
 from backend.services.prescription_agentic_service import prescription_agentic
 

@@ -160,6 +160,7 @@ from .auth import (
     TeamMemberCreate,
     TeamMemberUpdate,
     TeamMemberOut,
+    SupabaseSyncRequest,
 )
 
 __all__ = [
@@ -216,4 +217,5 @@ __all__ = [
     # auth
     "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
+    "SupabaseSyncRequest",
 ]

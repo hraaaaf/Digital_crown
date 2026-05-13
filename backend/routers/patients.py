@@ -129,18 +129,23 @@ def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), c
     # 3. Score Global (60% Assiduité, 40% Solvabilité)
     score_global = int((assiduite_score * 0.6) + (solvabilite_score * 0.4))
     
-    # 4. Détermination du Grade
-    grade = "BRONZE"
-    if score_global >= 90:
-        grade = "PLATINUM"
-    elif score_global >= 75:
-        grade = "GOLD"
-    elif score_global >= 50:
-        grade = "SILVER"
+    # 4. Détermination du Grade (Priorité au Manuel)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    grade = patient.manual_grade if patient and patient.manual_grade else "BRONZE"
+    
+    if not (patient and patient.manual_grade):
+        if score_global >= 90:
+            grade = "PLATINUM"
+        elif score_global >= 75:
+            grade = "GOLD"
+        elif score_global >= 50:
+            grade = "SILVER"
         
     return {
         "score": score_global,
         "grade": grade,
+        "is_manual": bool(patient and patient.manual_grade),
+        "comment": patient.grade_comment if patient else None,
         "details": {
             "assiduite_score": assiduite_score,
             "solvabilite_score": solvabilite_score,
@@ -150,6 +155,22 @@ def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), c
             "total_encaisse": total_encaisse
         }
     }
+
+@router.patch("/{patient_id}/grade")
+def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    assert_patient_access(patient_id, current_user, db)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient non trouvé")
+        
+    if "grade" in data:
+        # None signifie retour au mode automatique
+        patient.manual_grade = data["grade"]
+    if "comment" in data:
+        patient.grade_comment = data["comment"]
+        
+    db.commit()
+    return {"status": "success"}
 
 # --- CLINICAL INTELLIGENCE ---
 

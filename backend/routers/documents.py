@@ -45,7 +45,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             pdf_path = doc_factory.create_devis(patient, schemas.DevisData(**req.data), db, user_id)
         elif req.type in ["honoraires", "note"]:
             pdf_path = doc_factory.create_note_honoraires(patient, schemas.HonorairesData(**req.data), db, user_id)
-        elif req.type == "libre":
+        elif req.type in ["libre", "lettre"]:
             pdf_path = doc_factory.create_document_libre(patient, schemas.LibreData(**req.data), db, user_id)
         
         is_financial = req.type in ["honoraires", "note", "devis"]
@@ -58,7 +58,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             enum_map = {
                 "ordonnance": models.DocumentType.ORDONNANCE, "certificat": models.DocumentType.CERTIFICAT,
                 "devis": models.DocumentType.DEVIS, "honoraires": models.DocumentType.NOTE_HONORAIRES,
-                "note": models.DocumentType.NOTE_HONORAIRES, "libre": models.DocumentType.DOCUMENT_LIBRE
+                "note": models.DocumentType.NOTE_HONORAIRES, "libre": models.DocumentType.DOCUMENT_LIBRE,
+                "lettre": models.DocumentType.LETTRE_MEDICALE
             }
             
             # Logique automatique de statut (Elite v4)

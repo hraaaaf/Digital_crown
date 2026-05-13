@@ -35,19 +35,32 @@ api.interceptors.response.use(
     if (data?.detail && Array.isArray(data.detail)) console.table(data.detail);
     console.groupEnd();
 
-    // Auto-refresh on 401 (once per request, skip the /auth/ endpoints)
+    // Auto-refresh/Sync on 401
     if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
       original._retried = true;
+      
       if (!_refreshing) {
-        // Import lazily to avoid circular dependency
-        _refreshing = import('./auth').then(m => m.authService.refresh()).finally(() => { _refreshing = null; });
+        _refreshing = (async () => {
+          const { authService } = await import('./auth');
+          const user = await authService.getCurrentUser();
+          const token = await authService.getToken(); // Supabase token if local is missing
+          
+          if (user?.email && token) {
+            // Tentative de re-synchro silencieuse avec le backend local
+            return await authService.syncWithBackend(token, user.email);
+          }
+          return false;
+        })().finally(() => { _refreshing = null; });
       }
+      
       const ok = await _refreshing;
       if (ok) return api(original);
-      // Refresh failed → force logout
-      try { localStorage.removeItem('token'); sessionStorage.removeItem('token'); } catch { /* ignore */ }
+      
+      // Échec total → logout
+      localStorage.removeItem('token');
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
+
 
     return Promise.reject(error);
   }

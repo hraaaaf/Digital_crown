@@ -4,6 +4,7 @@ import type { Patient } from '../../types';
 import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
+import { PatientScoreBadge } from './components/PatientScoreBadge';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -173,8 +174,11 @@ export const PatientList = () => {
                           {(p.prenom?.charAt(0) || '')}{(p.nom?.charAt(0) || '')}
                         </div>
                         <div>
-                          <div className="font-black text-primary text-lg tracking-tight">
-                            {p.nom.toUpperCase()} {p.prenom}
+                          <div className="flex items-center gap-3">
+                            <div className="font-black text-primary text-lg tracking-tight">
+                              {p.nom.toUpperCase()} {p.prenom}
+                            </div>
+                            <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={fetchPatients} />
                           </div>
                           <div className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider font-mono">
                             {p.numero_dossier || `ID-${p.id}`}

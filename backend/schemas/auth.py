@@ -58,3 +58,9 @@ class TeamMemberOut(BaseModel):
     is_active: bool
     created_at: Optional[datetime.datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class SupabaseSyncRequest(BaseModel):
+    access_token: str
+    email: EmailStr
+

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
-import { Brain } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Composants Modulaires
@@ -9,18 +7,18 @@ import { StudioHeader } from './DocumentStudio/StudioHeader';
 import { StudioTabs } from './DocumentStudio/StudioTabs';
 import { StudioFooter } from './DocumentStudio/StudioFooter';
 import { LivePreview } from './DocumentStudio/LivePreview';
-import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
 import { CertificateForm } from './DocumentStudio/Forms/CertificateForm';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
-
-// Types
+import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
+import type { Insight } from './DocumentStudio/EliteAssistant';
+import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
 
-type DocumentType = 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre' | 'ai';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre';
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
 interface PriceItem {
@@ -96,6 +94,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [libreHideHeader, setLibreHideHeader] = useState(false);
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
+  const [insights, setInsights] = useState<Insight[]>([]);
 
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<DocumentType | null>(null);
@@ -138,7 +137,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
@@ -146,6 +144,112 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus,
   ]);
+
+  // --- INTELLIGENCE SCOPE ---
+  const isSurgical = useMemo(() => items.some(i => 
+    i.description.toLowerCase().includes('extraction') || 
+    i.description.toLowerCase().includes('implant') || 
+    i.description.toLowerCase().includes('chirurgie')
+  ), [items]);
+
+  const hasDrugs = useMemo(() => drugs.length > 0, [drugs]);
+
+  // --- BRAIN ENGINE : INTELLIGENCE PROACTIVE ---
+  useEffect(() => {
+    // 1. Détection des actes pour suggestions croisées (Bundles)
+    const currentActNames = items.map(i => i.description).filter(Boolean);
+    if (currentActNames.length > 0) {
+      const timer = setTimeout(() => {
+        api.post('/actes/catalog/bundles', { act_names: currentActNames })
+          .then(res => {
+            const bundles = res.data as { name: string; price: number; category: string }[];
+            bundles.forEach(b => {
+              const id = `bundle-${b.name}`;
+              if (!insights.find(ins => ins.id === id)) {
+                setInsights(prev => [{
+                  id: id,
+                  type: 'suggestion',
+                  title: 'Acte Complémentaire',
+                  content: `Pour un traitement complet, l'assistant suggère d'ajouter : ${b.name}.`,
+                  actionLabel: `Ajouter (+${b.price} MAD)`,
+                  onAction: () => {
+                    setItems(prev => [...prev, { id: Date.now(), description: b.name, price: b.price, dent: '0', category: b.category }]);
+                    setInsights(prev => prev.filter(i => i.id !== id));
+                  }
+                }, ...prev]);
+              }
+            });
+          })
+          .catch(console.error);
+      }, 500); // Debounce pour éviter trop d'appels
+      return () => clearTimeout(timer);
+    }
+
+    // 2. Intelligence Elite : Détection des Protocoles Oubliés
+    if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
+      setInsights(prev => [{
+        id: 'ins-missing-protocol',
+        type: 'safety',
+        title: 'Protocole Post-Op Manquant',
+        content: "Détection d'un acte chirurgical sans ordonnance associée. Souhaitez-vous générer un protocole antalgique/antibiotique ?",
+        actionLabel: 'Générer Protocole',
+        onAction: () => { setActiveTab('ordonnance'); }
+      }, ...prev]);
+    }
+
+    // 3. Profil Patient Premium (Analyse sans redondance)
+    if (patientDetails && !insights.find(ins => ins.id === 'ins-platinum')) {
+       setInsights(prev => [{
+         id: 'ins-platinum',
+         type: 'habit',
+         title: 'Standard de Soins Elite',
+         content: `${patientDetails.prenom} bénéficie du programme Platinum. Un compte-rendu détaillé est recommandé après cette séance.`,
+         actionLabel: 'Préparer CR',
+         onAction: () => { setActiveTab('libre'); }
+       }, ...prev]);
+    }
+
+    // 4. Sécurité Clinique : Vérification des antécédents
+    const drugNames = drugs.map(d => d.name).filter(Boolean);
+    if (drugNames.length > 0 && patientId) {
+      const timer = setTimeout(() => {
+        api.post('/prescriptions/safety/check', { patient_id: patientId, drug_names: drugNames })
+          .then(res => {
+            const warnings = res.data as { type: string; severity: string; message: string; drug: string }[];
+            warnings.forEach(w => {
+              const id = `safety-${w.drug}`;
+              if (!insights.find(ins => ins.id === id)) {
+                setInsights(prev => [{
+                  id: id,
+                  type: 'safety',
+                  title: 'Alerte Sécurité',
+                  content: w.message,
+                }, ...prev]);
+              }
+            });
+          })
+          .catch(console.error);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [items, drugs, patientDetails, insights, patientId]);
+
+  useEffect(() => {
+    // Calcul du Score d'Intelligence "Réel"
+    let score = 72;
+    score += items.length * 2;
+    if (isSurgical) score += 10;
+    if (hasDrugs) score += 5;
+    
+    // Malus si oublis ou alertes (pour pousser la rigueur)
+    if (isSurgical && !hasDrugs) score -= 15;
+    
+    const finalScore = Math.min(99, Math.max(40, score));
+
+    window.dispatchEvent(new CustomEvent('elite-insights-update', { 
+      detail: { insights, score: finalScore } 
+    }));
+  }, [insights, items.length, isSurgical, hasDrugs]);
 
   const generator = useDocumentGenerator(generatorParams);
 
@@ -225,7 +329,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [patientId, activeTab]);
 
   useEffect(() => {
-    if (sideStudioType !== 'PREVIEW' || activeTab === 'ai') return;
+    if (sideStudioType !== 'PREVIEW') return;
     const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
   }, [
@@ -238,7 +342,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
 
       {/* ESPACE DE TRAVAIL */}
-      <div className="flex-1 h-full flex flex-col px-8 pt-6 pb-2 gap-3 overflow-y-auto">
+      <div className="flex-1 h-full flex flex-col px-8 pt-6 pb-2 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-colors duration-500">
 
         <StudioHeader
           patientName={patientName}
@@ -254,6 +358,23 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
 
         <div data-tour="document-hub-content" className="flex-1 overflow-y-auto custom-scrollbar p-2">
+          {activeTab === 'plan' && (
+            <TreatmentPlanStudio 
+              patientId={Number(patientId)} 
+              onConvertToQuote={(allActs) => {
+                const newItems: PriceItem[] = allActs.map((act: any) => ({
+                  id: Date.now() + Math.random(),
+                  description: act.suggested_act,
+                  dent: act.fdi,
+                  price: 0, // À remplir par le praticien ou le catalogue
+                  toothNumbers: act.fdi !== 'Global' ? [Number(act.fdi)] : []
+                }));
+                setItems(prev => [...prev, ...newItems]);
+                setActiveTab('devis');
+              }}
+            />
+          )}
+
           {activeTab === 'ordonnance' && (
             <PrescriptionAgenticStudio
               patientId={patientId || '0'}
@@ -284,9 +405,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             />
           )}
 
-          {activeTab === 'libre' && (
+          {(activeTab === 'libre' || activeTab === 'lettre') && (
             <LibreForm
-              title={libreTitle} setTitle={setLibreTitle}
+              title={activeTab === 'lettre' && !libreTitle ? "LETTRE MÉDICALE" : libreTitle} 
+              setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
               customDate={libreCustomDate} setCustomDate={setLibreCustomDate}
@@ -341,17 +463,38 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 const localMatches = TREATMENT_TEMPLATES.filter((t: { name: string; category: string; id: string }) => 
                   t.name.toLowerCase().includes(q.toLowerCase()) || 
                   t.category.toLowerCase().includes(q.toLowerCase())
-                ).map((t: { id: string; name: string; category: string }) => ({ id: t.id, name: t.name, base_price: 0, category: t.category, isLocal: true }));
+                ).map((t: { id: string; name: string; category: string }) => ({ 
+                  id: `template_${t.id}`, 
+                  name: t.name, 
+                  base_price: 0, 
+                  category: t.category, 
+                  isLocal: true,
+                  is_habit: false
+                }));
 
-                // 2. Search in API
+                // 2. Search in API (Enhanced with Habits in backend)
                 try {
                   const res = await api.get(`/actes/catalog/search?q=${q}`);
                   const apiMatches = res.data || [];
                   
-                  // Merge and deduplicate by name
-                  const merged: { id: string | number; name: string; base_price: number; category: string; isLocal?: boolean }[] = [...localMatches];
-                  apiMatches.forEach((a: { name: string; base_price: number; category: string; id: string | number }) => {
-                    if (!merged.find(m => m.name.toLowerCase() === a.name.toLowerCase())) {
+                  // Merge and deduplicate by name, prioritizing habits and local templates
+                  const merged: any[] = [];
+                  
+                  // Priorité 1 : Habits de l'API (déjà triés par usage_count dans le backend)
+                  apiMatches.filter((a: any) => a.is_habit).forEach((a: any) => {
+                    merged.push({ ...a, isLocal: false });
+                  });
+
+                  // Priorité 2 : Local Templates
+                  localMatches.forEach((m: any) => {
+                    if (!merged.find(x => x.name.toLowerCase() === m.name.toLowerCase())) {
+                      merged.push(m);
+                    }
+                  });
+
+                  // Priorité 3 : Reste du catalogue API
+                  apiMatches.filter((a: any) => !a.is_habit).forEach((a: any) => {
+                    if (!merged.find(x => x.name.toLowerCase() === a.name.toLowerCase())) {
                       merged.push({ ...a, isLocal: false });
                     }
                   });
@@ -365,7 +508,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               setActiveActSearchId={setActiveActSearchId}
               actSuggestions={actSuggestions}
               applyActSuggestion={(id, act) => {
-                setItems(items.map(i => i.id === id ? { ...i, description: act.name, price: act.base_price || 0 } : i));
+                setItems(items.map(i => i.id === id ? { ...i, description: act.name, price: act.base_price || 0, category: act.category } : i));
                 setActSuggestions([]);
                 setActiveActSearchId(null);
               }}
@@ -373,25 +516,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             />
           )}
 
-          {activeTab === 'ai' && (
-            <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-200">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
-                  <Brain size={24} />
-                </div>
-                <h3 className="text-2xl font-black text-slate-800">Diagnostic IA Expert</h3>
-              </div>
-              {generator.aiReport ? (
-                <div className="prose prose-slate max-w-none prose-p:font-medium prose-headings:font-black">
-                  <ReactMarkdown>{generator.aiReport}</ReactMarkdown>
-                </div>
-              ) : (
-                <div className="text-center py-20">
-                  <p className="text-slate-400 font-bold">L'analyse IA scannera le dossier complet du patient pour suggérer un plan de traitement.</p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <StudioFooter
@@ -476,12 +600,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
               title={{
+                'plan': 'Stratégie Clinique',
                 'ordonnance': 'Ordonnance',
                 'certificat': 'Certificat',
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
-                'libre': 'Document Libre',
-                'ai': 'Rapport IA'
+                'lettre': 'Lettre Médicale',
+                'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />
           </motion.div>

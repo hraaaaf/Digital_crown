@@ -41,6 +41,12 @@ class AccountingService:
                 )
                 db.add(new_habit)
             
+            # --- MPL : Enregistrement de la séquence ---
+            from backend.services.habits_engine import habits_engine
+            # On cherche le dernier acte du patient pour enregistrer la corrélation
+            # Note: On a besoin du patient_id ici, on va l'ajouter en paramètre ou le déduire
+            # Pour l'instant on se concentre sur l'usage simple, la séquence sera gérée par le routeur
+            
             db.commit()
             logger.info(f"✅ Habitude d'acte enregistrée : {act_name} pour Dr {doctor_id}")
         except Exception as e:
@@ -61,9 +67,99 @@ class AccountingService:
                 "name": h.act_name,
                 "base_price": h.base_price,
                 "category": h.category,
-                "usage_count": h.usage_count
+                "usage_count": h.usage_count,
+                "is_habit": True
             } for h in habits
         ]
+
+    def search_acts(self, db: Session, doctor_id: int, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Recherche un acte dans le catalogue global ET dans les habitudes du médecin.
+        Les habitudes ont la priorité sur le prix.
+        """
+        query = query.strip()
+        if not query:
+            return []
+
+        # 1. Chercher dans les habitudes du médecin
+        habits = db.query(models.DoctorActHabit).filter(
+            models.DoctorActHabit.doctor_id == doctor_id,
+            models.DoctorActHabit.act_name.ilike(f"%{query}%")
+        ).order_by(models.DoctorActHabit.usage_count.desc()).limit(limit).all()
+
+        habit_names = {h.act_name.lower() for h in habits}
+        results = [
+            {
+                "id": f"habit_{h.id}",
+                "name": h.act_name,
+                "base_price": h.base_price,
+                "category": h.category,
+                "is_habit": True
+            } for h in habits
+        ]
+
+        # 2. Chercher dans le catalogue global (si on n'a pas atteint la limite)
+        if len(results) < limit:
+            catalog = db.query(models.ClinicalActCatalog).filter(
+                models.ClinicalActCatalog.name.ilike(f"%{query}%")
+            ).order_by(models.ClinicalActCatalog.usage_count.desc()).limit(limit - len(results)).all()
+
+            for c in catalog:
+                if c.name.lower() not in habit_names:
+                    results.append({
+                        "id": f"cat_{c.id}",
+                        "name": c.name,
+                        "base_price": c.base_price,
+                        "category": c.category,
+                        "is_habit": False
+                    })
+
+        return results
+
+    def get_smart_bundles(self, act_names: List[str]) -> List[Dict[str, Any]]:
+        """
+        Suggère des 'bundles' d'actes basés sur les actes déjà saisis.
+        Logique proactive pour ne rien oublier (ex: radio avec extraction).
+        """
+        bundles = []
+        act_names_lower = [a.lower() for a in act_names]
+        
+        # Logique de règles (évolutive vers ML)
+        associations = {
+            "détartrage": [
+                {"name": "Polissage", "price": 100, "category": "Prévention"},
+                {"name": "Application de Fluor", "price": 200, "category": "Prévention"}
+            ],
+            "extraction": [
+                {"name": "Radio Alvéolaire", "price": 100, "category": "Radiologie"},
+                {"name": "Comblement Alvéolaire", "price": 500, "category": "Chirurgie"}
+            ],
+            "implant": [
+                {"name": "Scanner (CBCT)", "price": 800, "category": "Radiologie"},
+                {"name": "Pilier de cicatrisation", "price": 450, "category": "Implantologie"}
+            ],
+            "carie": [
+                {"name": "Radio Alvéolaire", "price": 100, "category": "Radiologie"}
+            ]
+        }
+
+        for act in act_names_lower:
+            for key, associated in associations.items():
+                if key in act:
+                    for item in associated:
+                        if not any(item["name"].lower() in a for a in act_names_lower):
+                            bundles.append(item)
+                            
+        # 2. Logique Dynamique (Habits Engine)
+        from backend.services.habits_engine import habits_engine
+        # On simule un DB session ici si possible ou on passe par le routeur
+        # Pour simplifier, on injecte les bundles dynamiques s'ils ne sont pas déjà présents
+        if len(act_names) > 0:
+            # On prendrait normalement une session db propre, mais ici on est dans un service
+            # On va laisser le routeur combiner les deux pour éviter les circular imports complexes
+            pass
+        
+        return bundles
 
     def get_treasury_summary(self, db: Session, user_employer_id: int) -> Dict[str, Any]:
         """

@@ -176,6 +176,28 @@ class PanoramicGenerator:
         elements.append(header_table)
         elements.append(Spacer(1, 0.8*cm))
 
+        # 2. Insertion de l'image (Full Width)
+        try:
+            full_img_path = os.path.join(self.base_path, img_rel_path)
+            if os.path.exists(full_img_path):
+                img_reader = ImageReader(full_img_path)
+                orig_w, orig_h = img_reader.getSize()
+                aspect = orig_h / float(orig_w)
+                target_w = 18 * cm
+                target_h = target_w * aspect
+                
+                # Container pour l'image avec bordure
+                img_flowable = Image(full_img_path, width=target_w, height=target_h)
+                elements.append(KeepTogether([
+                    Paragraph("<font color='#64748b' size='8'>CLICHÉ RADIOGRAPHIQUE ANALYSÉ</font>", self.styles['BilanText']),
+                    Spacer(1, 0.2*cm),
+                    img_flowable
+                ]))
+                elements.append(Spacer(1, 0.8*cm))
+        except Exception as e:
+            logger.error(f"Erreur insertion image PDF: {e}")
+            elements.append(Paragraph("<i>[Image panoramique non disponible pour ce bilan]</i>", self.styles['BilanText']))
+
         
         # 3. Contenu structuré
         content_flowables = self._markdown_to_flowables(report_markdown)

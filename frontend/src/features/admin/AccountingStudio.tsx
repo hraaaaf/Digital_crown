@@ -130,6 +130,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   // Zen-Elite state: Collapsible Odontogram
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
   
   const [activeGuideAct, setActiveGuideAct] = useState<string | null>(null);
   const protocol = useClinicalRef(activeGuideAct || undefined);
@@ -155,6 +156,24 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
       console.error("Erreur habitudes acts:", err);
     }
   };
+
+  useEffect(() => {
+    // Détection des Bundles (Smart Bundling)
+    const lastItem = items[items.length - 1];
+    if (lastItem && lastItem.description.trim().length > 2) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await api.post('/actes/catalog/bundles', { act_names: [lastItem.description] });
+          setSuggestedBundles(res.data || []);
+        } catch (err) {
+          console.error("Erreur fetching bundles:", err);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setSuggestedBundles([]);
+    }
+  }, [items]);
 
   const saveActAsHabit = async (name: string, price: number, category?: string) => {
     try {
@@ -203,33 +222,70 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
       )}
 
-      {/* 1. RACCOURCIS RAPIDES */}
-      <div className="flex flex-wrap gap-3 p-6 bg-white/60 backdrop-blur-2xl rounded-[2rem] border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] items-center relative z-20">
-        <div className="flex items-center gap-3 pr-6 border-r border-slate-200">
-          <div className="w-9 h-9 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100">
-            <Zap size={18} />
+      {/* 1. RACCOURCIS RAPIDES & SMART BUNDLES */}
+      <div className="flex flex-col gap-4 p-6 bg-white/60 backdrop-blur-2xl rounded-[2rem] border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] relative z-20">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-3 pr-6 border-r border-slate-200">
+            <div className="w-9 h-9 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100">
+              <Zap size={18} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Habitudes</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rapide</span>
+          <div className="flex flex-wrap gap-2">
+            {quickActs.map((act, i) => (
+              <motion.button
+                key={i}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  props.setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
+                  saveActAsHabit(act.name, act.price, act.category);
+                }}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
+                  getCategoryColor(act.category || '')
+                )}
+              >
+                {act.name} <span className="opacity-40 font-bold">+{act.price}</span>
+              </motion.button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {quickActs.map((act, i) => (
-            <motion.button
-              key={i}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+
+        {suggestedBundles.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pt-4 border-t border-slate-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-500"
+          >
+            <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary rounded-lg">
+              <Brain size={14} className="animate-pulse" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Séquence Détectée :</span>
+            </div>
+            <button 
               onClick={() => {
-                props.setItems([...items, { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
-                saveActAsHabit(act.name, act.price, act.category);
+                const newItems = [...items];
+                suggestedBundles.forEach(b => {
+                  if (!newItems.find(it => it.description.toLowerCase() === b.name.toLowerCase())) {
+                    newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
+                  }
+                });
+                props.setItems(newItems);
+                setSuggestedBundles([]);
+                toast.success("Pack Habitude appliqué avec succès !");
               }}
-              className={cn(
-                "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
-                getCategoryColor(act.category || '')
-              )}
+              className="flex items-center gap-3 px-6 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-primary transition-all active:scale-95"
+              style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
             >
-              {act.name} <span className="opacity-40 font-bold">+{act.price}</span>
-            </motion.button>
-          ))}
-        </div>
+              <Plus size={16} /> Valider et Facturer le Pack Habitude
+            </button>
+            <div className="flex gap-2">
+              {suggestedBundles.map((b, i) => (
+                <span key={i} className="text-[10px] font-bold text-slate-400 italic">+ {b.name}</span>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* 2. ASSISTANT CLINIQUE (Sélecteur de Dents) */}
@@ -472,10 +528,24 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                           className="w-full text-left px-6 py-4 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/suggest"
                         >
                           <div className="flex flex-col">
-                            <span className="font-black text-sm group-hover/suggest:text-primary transition-colors">{act.name}</span>
-                            <span className="text-[8px] font-black uppercase text-slate-300 tracking-widest">{act.category}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-sm group-hover/suggest:text-primary transition-colors">{act.name}</span>
+                              {act.is_habit && (
+                                <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-lg text-[7px] font-black uppercase tracking-widest border border-amber-200/50">
+                                  Souvenir Praticien
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5 mt-0.5">
+                              {act.category === 'CHIR' ? '🦷 Chirurgie' : 
+                               act.category === 'PROTH' ? '💎 Prothèse' : 
+                               act.category === 'CONS' ? '🩺 Consultation' : 
+                               act.category === 'PREV' ? '✨ Prévention' : act.category}
+                            </span>
                           </div>
-                          <span className="text-sm font-black" style={{ color: 'var(--primary)' }}>{act.base_price} MAD</span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-black text-slate-800" style={act.is_habit ? { color: 'var(--primary)' } : {}}>{act.base_price} <span className="text-[8px] opacity-40">MAD</span></span>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -572,7 +642,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
             {/* Statut de Paiement */}
             <div className="space-y-3">
               <label className={labelClass}>Statut d'Encaissement</label>
@@ -591,6 +661,26 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                     )}
                   >
                     {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mode de Règlement (Nouveau) */}
+            <div className="space-y-3">
+              <label className={labelClass}>Mode de Règlement</label>
+              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+                {['Espèces', 'Chèque', 'TPE', 'Virement'].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setPaymentMode(m)}
+                    className={cn(
+                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      paymentMode === m ? "bg-white shadow-lg text-primary" : "text-slate-400 hover:text-slate-600"
+                    )}
+                    style={paymentMode === m ? { color: 'var(--primary)' } : {}}
+                  >
+                    {m === 'Espèces' ? 'Cash' : m}
                   </button>
                 ))}
               </div>
@@ -616,7 +706,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                     isGlobalNote ? "bg-white shadow-lg text-purple-600" : "text-slate-400 hover:text-slate-600"
                   )}
                 >
-                  Global / Échelonné
+                  Global
                 </button>
               </div>
             </div>
@@ -641,7 +731,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               </div>
               
               <div className="space-y-3">
-                {installments.map((inst, idx) => (
+                {installments.map((inst) => (
                   <div key={inst.id} className="grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-5">
                       <input 

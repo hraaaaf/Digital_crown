@@ -126,6 +126,10 @@ class Patient(Base):
     assurance: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # CNOPS, CNSS, MUTUELLE_FAR, PRIVEE, AUCUNE
     antecedents_medicaux: Mapped[str | None] = mapped_column(String, nullable=True)
     
+    # Fiabilité Patient (Elite System)
+    manual_grade: Mapped[Optional[str]] = mapped_column(String(20), nullable=True) # PLATINUM, GOLD, SILVER, BRONZE
+    grade_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     dossier: Mapped["DossierClinique"] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
@@ -532,6 +536,40 @@ class DoctorActHabit(Base):
     
     usage_count: Mapped[int] = mapped_column(Integer, default=1)
     last_used: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+class DoctorActCorrelation(Base):
+    """
+    Apprentissage des séquences d'actes (Smart Bundling).
+    Stocke la probabilité que l'acte B suive l'acte A.
+    """
+    __tablename__ = "doctor_act_correlations"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    act_a: Mapped[str] = mapped_column(String(255), index=True)
+    act_b: Mapped[str] = mapped_column(String(255), index=True)
+    
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=1)
+    last_detected: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+class DoctorTriggerHabit(Base):
+    """
+    Machine à états proactive (Triggers).
+    Stocke des règles apprises ou configurées basées sur des événements cliniques.
+    """
+    __tablename__ = "doctor_trigger_habits"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    trigger_type: Mapped[str] = mapped_column(String(50), index=True) # ex: PHASE_END, AGE_THRESHOLD
+    context_key: Mapped[str] = mapped_column(String(100)) # ex: ORTHO_CONTENTION
+    
+    action_suggestion: Mapped[str] = mapped_column(String(255)) # ex: Commander fils contention
+    priority: Mapped[int] = mapped_column(Integer, default=1)
+    
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 # ==============================================================================
 # --- PHASE 5 : PAYMENT TRACKING & INSTALLMENTS ---

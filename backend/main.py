@@ -68,7 +68,7 @@ app.add_middleware(
 )
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -82,6 +82,7 @@ app.include_router(prescriptions.prescription_router, prefix="/api/prescriptions
 app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes Cliniques"])
 app.include_router(accounting.router, prefix="/api/accounting", tags=["Accounting & Payments"])
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
+app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
 
 # --- STATIC FILES ---
 # Placé à la fin pour éviter de masquer des routes d'API

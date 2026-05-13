@@ -216,7 +216,7 @@ export function computeDistanceToLine(p: Landmark, l1: Landmark, l2: Landmark, r
   return (num / den) * ratio;
 }
 
-export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null, etape2: DonneesEtape2 | null = null, analysisType: 'COM' | 'STEINER' | 'TWEED' = 'COM'): Partial<DonneesEtape3> {
+export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null, etape2: DonneesEtape2 | null = null): Partial<DonneesEtape3> {
 
 
   const g = (id: string) => lms.find(l => l.id.toLowerCase() === id.toLowerCase());
@@ -260,86 +260,119 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     }
   };
 
-  // Analyse Osseuse
+  // --- 1. CALCULS SYSTÉMATIQUES (TOUTES ANALYSES) ---
+  
+  // A. Tweed & Verticalité
   if (po && or_ && go && me) {
     const fma = computeAngle(po, or_, go, me);
     results.osseuse!.angle_tweed = Math.round(fma);
-    
-    // Synthèse Verticalité
     if (fma < 20) results.pattern_vertical = 'hypodivergent';
     else if (fma > 30) results.pattern_vertical = 'hyperdivergent';
     else results.pattern_vertical = 'normodivergent';
   }
 
+  // B. Steiner (ANB)
+  if (s && n && a && b) {
+    const sna = computeAngle(s, n, n, a);
+    const snb = computeAngle(s, n, n, b);
+    results.osseuse!.sna = Math.round(sna * 10) / 10;
+    results.osseuse!.snb = Math.round(snb * 10) / 10;
+    results.osseuse!.anb = Math.round((sna - snb) * 10) / 10;
+  }
+
+  // C. McNamara / COM (Projections FH)
   if (s && n && po && or_) {
     if (a) {
-      const sna = computeAngle(s, n, n, a);
-      results.osseuse!.sna = Math.round(sna * 10) / 10;
-      
       const distA = computeDistanceToVertical(a, n, po, or_, ratio);
       results.osseuse!.situation_a = Math.round(distA * 10) / 10;
     }
     if (b) {
-      const snb = computeAngle(s, n, n, b);
-      results.osseuse!.snb = Math.round(snb * 10) / 10;
-      
       const distB = computeDistanceToVertical(b, n, po, or_, ratio);
       results.osseuse!.situation_b = Math.round(distB * 10) / 10;
     }
     if (a && b) {
       const distA = computeDistanceToVertical(a, n, po, or_, ratio);
       const distB = computeDistanceToVertical(b, n, po, or_, ratio);
-      const ab = Math.round((distA - distB) * 10) / 10;
-      results.osseuse!.decalage_ab = ab;
-      
-      // Synthèse Classe Squelettique basée sur A'B' (COM)
-      if (analysisType === 'COM') {
-        const isChild = age && Number(age) < 13;
-        const lowBound = isChild ? 1.0 : -0.8;
-        const highBound = isChild ? 7.4 : 5.4;
-        
-        if (ab < lowBound) results.classe_squelettique = 'Classe III';
-        else if (ab > highBound) results.classe_squelettique = 'Classe II';
-        else results.classe_squelettique = 'Classe I';
-      }
+      results.osseuse!.decalage_ab = Math.round((distA - distB) * 10) / 10;
     }
-
     if (s) {
       const distS = computeDistanceToVertical(s, n, po, or_, ratio);
       results.osseuse!.profondeur_faciale = Math.round(Math.abs(distS) * 10) / 10;
     }
   }
 
-  // Steiner specific
-  if (analysisType === 'STEINER' && n && s && a && b && u1i && u1a && l1i && l1a) {
-    const sna = computeAngle(s, n, n, a);
-    const snb = computeAngle(s, n, n, b);
-    results.osseuse!.sna = Math.round(sna * 10) / 10;
-    results.osseuse!.snb = Math.round(snb * 10) / 10;
-    results.osseuse!.anb = Math.round((sna - snb) * 10) / 10;
+  // D. Dentaire (IMPA, Inter-incisif, Tweed specific, Steiner specific)
+  if (u1i && u1a && l1i && l1a) {
+    results.dentaire!.inter_incisif = Math.round(computeInterIncisalAngle(u1i, u1a, l1i, l1a));
     
-    // 1/NA angle
-    results.dentaire!.i_na_angle = Math.round(computeAngle(n, a, u1a, u1i));
-    results.dentaire!.i_na_mm = Math.round(computeDistanceToLine(u1i, n, a, ratio) * 10) / 10;
-    
-    // 1/NB angle
-    results.dentaire!.i_nb_angle = Math.round(computeAngle(n, b, l1a, l1i));
-    results.dentaire!.i_nb_mm = Math.round(computeDistanceToLine(l1i, n, b, ratio) * 10) / 10;
-    
-    if (results.osseuse!.anb < 0) results.classe_squelettique = 'Classe III';
-    else if (results.osseuse!.anb > 4) results.classe_squelettique = 'Classe II';
-    else results.classe_squelettique = 'Classe I';
+    // Steiner specific (1/NA, 1/NB)
+    if (n && a) {
+      results.dentaire!.i_na_angle = Math.round(computeAngle(n, a, u1a, u1i));
+      results.dentaire!.i_na_mm = Math.round(computeDistanceToLine(u1i, n, a, ratio) * 10) / 10;
+    }
+    if (n && b) {
+      results.dentaire!.i_nb_angle = Math.round(computeAngle(n, b, l1a, l1i));
+      results.dentaire!.i_nb_mm = Math.round(computeDistanceToLine(l1i, n, b, ratio) * 10) / 10;
+    }
   }
 
-  // Tweed specific
-  if (analysisType === 'TWEED' && po && or_ && go && me && l1i && l1a) {
-    const fma = computeAngle(po, or_, go, me);
+  if (l1i && l1a && go && me) {
+    results.dentaire!.impa = computeLocalImpa(lms) || '';
+  }
+
+  if (po && or_ && l1i && l1a) {
     const fmia = computeAngle(po, or_, l1a, l1i);
-    const impa = computeAngle(go, me, l1a, l1i);
-    
-    results.osseuse!.angle_tweed = Math.round(fma);
     results.dentaire!.fmia = Math.round(fmia);
-    results.dentaire!.impa = Math.round(impa);
+  }
+
+  if (u1i && u1a && po && or_) {
+    results.dentaire!.i_francfort = computeAngle(u1i, u1a, po, or_);
+  }
+
+  if (u1i && l1i && po && or_) {
+    const overjet = computeDistanceToVertical(l1i, u1i, po, or_, ratio);
+    results.dentaire!.surplomb = Math.round(Math.abs(overjet) * 10) / 10;
+    const dy = l1i.y - u1i.y;
+    results.dentaire!.recouvrement = Math.round(Math.abs(dy * ratio) * 10) / 10;
+  }
+
+  // --- 2. LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
+  const anb = results.osseuse!.anb !== '' ? Number(results.osseuse!.anb) : null;
+  const ab = results.osseuse!.decalage_ab !== '' ? Number(results.osseuse!.decalage_ab) : null;
+  const isChild = age !== '' && Number(age) < 13;
+  
+  // Bornes McNamara (COM)
+  const lowBoundMc = isChild ? 1.0 : -0.8;
+  const highBoundMc = isChild ? 7.4 : 5.4;
+
+  let classeSteiner: 'I' | 'II' | 'III' | null = null;
+  if (anb !== null) {
+    if (anb > 4.5) classeSteiner = 'II';
+    else if (anb < 0) classeSteiner = 'III';
+    else classeSteiner = 'I';
+  }
+
+  let classeMcNamara: 'I' | 'II' | 'III' | null = null;
+  if (ab !== null) {
+    if (ab > highBoundMc) classeMcNamara = 'II';
+    else if (ab < lowBoundMc) classeMcNamara = 'III';
+    else classeMcNamara = 'I';
+  }
+
+  // Consensus Elite : Si les deux sont dispos, on cherche l'accord. Sinon on prend celui dispo.
+  if (classeSteiner && classeMcNamara) {
+    if (classeSteiner === classeMcNamara) {
+      results.classe_squelettique = `Classe ${classeSteiner}`;
+    } else {
+      // En cas de désaccord, on prend la tendance la plus marquée ou Steiner par défaut (Gold Standard)
+      results.classe_squelettique = `Classe ${classeSteiner} (Tendance ${classeMcNamara})`;
+    }
+  } else if (classeSteiner) {
+    results.classe_squelettique = `Classe ${classeSteiner}`;
+  } else if (classeMcNamara) {
+    results.classe_squelettique = `Classe ${classeMcNamara}`;
+  } else {
+    results.classe_squelettique = 'Indéterminée';
   }
 
   // Analyse Dentaire COM

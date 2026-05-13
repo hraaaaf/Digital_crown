@@ -3,7 +3,9 @@ import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
 import { cabinetApi } from '../../services/templateApi';
 import { safeStorage } from '../../hooks/useLocalStorage';
-import { TourLauncher } from '../GuidedTour/TourLauncher';
+import { EliteDock } from '../../features/admin/DocumentStudio/EliteDock';
+import { useEliteStore } from '../../stores/useEliteStore';
+import { useParams, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +13,16 @@ interface LayoutProps {
 
 export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const isDemoMode = safeStorage.get('appMode') === 'demo';
+  const { fetchPatientIntelligence } = useEliteStore();
+  const location = useLocation();
+  
+  // Détection du patient_id dans l'URL pour rafraîchir l'intelligence
+  useEffect(() => {
+    const match = location.pathname.match(/\/patients\/(\d+)/);
+    if (match && match[1]) {
+      fetchPatientIntelligence(parseInt(match[1], 10));
+    }
+  }, [location.pathname, fetchPatientIntelligence]);
 
   // Rigueur CTO : Application du thème persisté au chargement
   useEffect(() => {
@@ -73,8 +85,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <Header />
 
-        {/* Guide Interactif — toujours disponible */}
-        <TourLauncher />
+        {/* Dock d'Elite : Guide + Brain (Groupés & Déplaçables) */}
+        <EliteDock />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
           {isDemoMode && (

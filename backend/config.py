@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # Storage
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
     
+    # Supabase (Auth Cloud)
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

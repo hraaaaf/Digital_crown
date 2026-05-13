@@ -24,7 +24,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onToggleOdonto
 }) => {
   return (
-    <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-3 bg-white/40 backdrop-blur-3xl rounded-2xl border border-white/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
+    <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-2xl border border-white/50 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
           <Eye size={20} />
@@ -69,13 +69,13 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           </button>
         )}
 
-        <div className="bg-white/80 p-2.5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-1 min-w-[130px]">
-          <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none">
+        <div className="bg-white/80 dark:bg-slate-900/50 p-2.5 rounded-2xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col items-start gap-1 min-w-[130px]">
+          <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
             <CalendarIcon size={10} /> Date d'émission
           </label>
           <input 
             type="date" 
-            className="bg-transparent text-xs font-black text-slate-700 outline-none w-full cursor-pointer" 
+            className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer h-5" 
             value={docDate} 
             onChange={(e) => onDateChange(e.target.value)} 
           />

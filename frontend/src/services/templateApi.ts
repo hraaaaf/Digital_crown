@@ -1,8 +1,7 @@
 // ==============================================================================
 // SERVICES API MULTI-TENANT (Phase SaaS)
 // ==============================================================================
-import axios from 'axios';
-import { API_BASE } from './api';
+import { api } from './api';
 import type {
   CabinetConfig,
   CabinetConfigCreate,
@@ -16,20 +15,6 @@ import type {
   CardExtractionResult,
 } from '../types/template';
 
-const api = axios.create({
-  baseURL: API_BASE,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// Intercepteur pour ajouter le JWT token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 // --- Cabinet API ---
 
 export const cabinetApi = {
@@ -37,7 +22,7 @@ export const cabinetApi = {
    * Vérifier le statut d'initialisation du cabinet
    */
   checkInitStatus: async (): Promise<CabinetInitStatus> => {
-    const { data } = await api.get('/api/clinics/init-status');
+    const { data } = await api.get('/clinics/init-status');
     return data;
   },
 
@@ -45,7 +30,7 @@ export const cabinetApi = {
    * Créer un nouveau cabinet (Wizard étape 1)
    */
   create: async (config: CabinetConfigCreate): Promise<CabinetConfig> => {
-    const { data } = await api.post('/api/clinics/', config);
+    const { data } = await api.post('/clinics/', config);
     return data;
   },
 
@@ -53,7 +38,7 @@ export const cabinetApi = {
    * Récupérer mon cabinet
    */
   getMine: async (): Promise<CabinetConfig> => {
-    const { data } = await api.get('/api/clinics/me');
+    const { data } = await api.get('/clinics/me');
     return data;
   },
 
@@ -61,7 +46,7 @@ export const cabinetApi = {
    * Mettre à jour mon cabinet
    */
   update: async (config: Partial<CabinetConfigCreate>): Promise<CabinetConfig> => {
-    const { data } = await api.put('/api/clinics/me', config);
+    const { data } = await api.put('/clinics/me', config);
     return data;
   },
 
@@ -72,7 +57,7 @@ export const cabinetApi = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const { data } = await api.post('/api/clinics/me/logo', formData, {
+    const { data } = await api.post('/clinics/me/logo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -89,7 +74,7 @@ export const cabinetApi = {
     formData.append('margins_top', marginsTop.toString());
     formData.append('margins_bottom', marginsBottom.toString());
     
-    const { data } = await api.post('/api/clinics/me/letterhead', formData, {
+    const { data } = await api.post('/clinics/me/letterhead', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -103,7 +88,7 @@ export const cabinetApi = {
   extractCard: async (file: File): Promise<CardExtractionResult> => {
     const formData = new FormData();
     formData.append('file', file);
-    const { data } = await api.post('/api/clinics/extract-card', formData, {
+    const { data } = await api.post('/clinics/extract-card', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data;
@@ -117,7 +102,7 @@ export const templateApi = {
    * Récupérer tous les templates d'un cabinet
    */
   getByClinic: async (clinicId: string, type?: string): Promise<DocumentTemplateList[]> => {
-    const { data } = await api.get(`/api/clinics/${clinicId}/templates`, {
+    const { data } = await api.get(`/clinics/${clinicId}/templates`, {
       params: type ? { type } : undefined,
     });
     return data;
@@ -127,7 +112,7 @@ export const templateApi = {
    * Récupérer un template spécifique
    */
   getById: async (templateId: string): Promise<DocumentTemplate> => {
-    const { data } = await api.get(`/api/templates/${templateId}`);
+    const { data } = await api.get(`/templates/${templateId}`);
     return data;
   },
 
@@ -135,7 +120,7 @@ export const templateApi = {
    * Créer un nouveau template (admin uniquement pour les templates système)
    */
   create: async (template: DocumentTemplateCreate): Promise<DocumentTemplate> => {
-    const { data } = await api.post('/api/templates', template);
+    const { data } = await api.post('/templates', template);
     return data;
   },
 
@@ -143,7 +128,7 @@ export const templateApi = {
    * Mettre à jour un template (design_config uniquement)
    */
   update: async (templateId: string, updates: DocumentTemplateUpdate): Promise<DocumentTemplate> => {
-    const { data } = await api.put(`/api/templates/${templateId}`, updates);
+    const { data } = await api.put(`/templates/${templateId}`, updates);
     return data;
   },
 
@@ -151,7 +136,7 @@ export const templateApi = {
    * Supprimer un template personnalisé
    */
   delete: async (templateId: string): Promise<{ message: string }> => {
-    const { data } = await api.delete(`/api/templates/${templateId}`);
+    const { data } = await api.delete(`/templates/${templateId}`);
     return data;
   },
 
@@ -159,7 +144,7 @@ export const templateApi = {
    * Définir comme template par défaut
    */
   setDefault: async (templateId: string): Promise<{ message: string }> => {
-    const { data } = await api.post(`/api/templates/${templateId}/set-default`);
+    const { data } = await api.post(`/templates/${templateId}/set-default`);
     return data;
   },
 
@@ -168,7 +153,7 @@ export const templateApi = {
    * Retourne un Blob PDF
    */
   preview: async (request: TemplatePreviewRequest): Promise<Blob> => {
-    const { data } = await api.post(`/api/templates/${request.template_id}/preview`, request, {
+    const { data } = await api.post(`/templates/${request.template_id}/preview`, request, {
       responseType: 'blob',
     });
     return data;

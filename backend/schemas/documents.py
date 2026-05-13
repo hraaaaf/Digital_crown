@@ -137,7 +137,7 @@ class LibreData(BaseModel):
 
 class DocumentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["ordonnance", "certificat", "devis", "note", "honoraires", "libre"]
+    type: Literal["ordonnance", "certificat", "devis", "note", "honoraires", "libre", "lettre"]
     patient_id: int
     data: Dict
     is_accounted: bool = True

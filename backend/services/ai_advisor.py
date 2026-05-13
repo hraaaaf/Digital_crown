@@ -73,7 +73,7 @@ class AIAdvisor:
         # Default mode: expert heuristic (fast, reliable, COM standards)
         if not use_slm:
             logger.info("AI Advisor: Heuristic mode active (COM standards)")
-            return self._heuristic_fallback(osseuse, dentaire, age)
+            return self._heuristic_fallback(metrics, age)
         
         # SLM Mode: attempt with extended timeout (5s), fallback on failure
         prompt = f"Analyse ces données cliniques et génère le JSON attendu :\n{json.dumps(clinical_data, ensure_ascii=False, indent=2)}"
@@ -103,17 +103,17 @@ class AIAdvisor:
                 return parsed
             else:
                 logger.warning("AI Advisor: SLM invalid response, heuristic fallback (incomplete data analysis)")
-                return self._heuristic_fallback(osseuse, dentaire, age)
+                return self._heuristic_fallback(metrics, age)
 
         except requests.exceptions.Timeout:
             logger.warning("AI Advisor: SLM timeout (5s), heuristic fallback (expert mode active)")
-            return self._heuristic_fallback(osseuse, dentaire, age)
+            return self._heuristic_fallback(metrics, age)
         except requests.exceptions.ConnectionError:
             logger.warning("AI Advisor: SLM offline (Ollama unavailable), heuristic fallback (expert mode active)")
-            return self._heuristic_fallback(osseuse, dentaire, age)
+            return self._heuristic_fallback(metrics, age)
         except Exception as e:
             logger.warning(f"AI Advisor: SLM critical error ({e}), heuristic fallback (expert mode active)")
-            return self._heuristic_fallback(osseuse, dentaire, age)
+            return self._heuristic_fallback(metrics, age)
 
     def _parse_json_safe(self, text: str) -> Dict[str, str]:
         """Ensures output is always a valid JSON matching the schema."""
@@ -132,12 +132,14 @@ class AIAdvisor:
                 "strategie_therapeutique": "Veuillez vérifier les tracés manuellement."
             }
 
-    def _heuristic_fallback(self, osseuse: schemas.SkeletalAnalysis, dentaire: schemas.DentalAnalysis, cohort: str) -> Dict[str, str]:
+    def _heuristic_fallback(self, metrics: schemas.AnalysisMetrics, cohort: str) -> Dict[str, str]:
         """
         Deterministic expert rule engine for SLM failure.
         Generates a complete report based on COM (Modern Orthodontics Center) standards.
         Uses age-specific norms (9 years old vs Adult) according to the COM sheet.
         """
+        osseuse = metrics.analyse_osseuse
+        dentaire = metrics.analyse_dentaire
         # --- COM NORMS BY COHORT ---
         is_child = "Enfant" in cohort
         
@@ -237,9 +239,11 @@ class AIAdvisor:
             e_ls = esthetique.Ligne_E_Ls
             e_li = esthetique.Ligne_E_Li
             if e_ls.status != "Normoposition":
-                diag_dent_parts.append(f"Profil : {e_ls.interpretation} ({e_ls.valeur:.1f} mm vs -4mm).")
+                val_ls = f"{e_ls.valeur:.1f}" if e_ls.valeur is not None else "N/A"
+                diag_dent_parts.append(f"Profil : {e_ls.interpretation} ({val_ls} mm vs -4mm).")
             if e_li.status != "Normoposition":
-                diag_dent_parts.append(f"{e_li.interpretation} ({e_li.valeur:.1f} mm vs -2mm).")
+                val_li = f"{e_li.valeur:.1f}" if e_li.valeur is not None else "N/A"
+                diag_dent_parts.append(f"{e_li.interpretation} ({val_li} mm vs -2mm).")
         
         # IMPA Analysis
         if impa_status == "High":

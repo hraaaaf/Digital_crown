@@ -4,6 +4,7 @@ from sqlalchemy import func, desc, case
 from sqlalchemy.orm import Session
 from backend import models
 from backend.services.clinical_rules_engine import clinical_rules
+from backend.services.habits_engine import habits_engine
 
 logger = logging.getLogger(__name__)
 
@@ -40,25 +41,36 @@ class PrescriptionService:
         ).first()
 
         plan_source = "Système (Standard)"
-        suggested_drugs = []
+        raw_suggested_drugs = []
 
         if habit:
             plan_source = "Habituelle (Praticien)"
-            suggested_drugs = habit.drugs_json
+            raw_suggested_drugs = habit.drugs_json
         else:
             # Fallback sur les molécules recommandées par le CRE
             for rec in safety_analysis["recommandations_moleculaires"]:
-                suggested_drugs.append({
+                raw_suggested_drugs.append({
                     "name": rec["noms_commerciaux"][0],
                     "dosage": rec["dosage_defaut"],
                     "forme": rec["forme"],
-                    "posologie": "Selon prescription" # Sera affiné par l'IA ou les habitudes
+                    "posologie": "Selon prescription", 
+                    "relevance": habits_engine.get_relevance_score(db, doctor_id, main_act, rec["noms_commerciaux"][0]) if doctor_id else 0.5
                 })
+
+        # 4. FILTRAGE CROISÉ (Sécurité Profonde)
+        final_suggested_drugs = []
+        for drug in raw_suggested_drugs:
+            # Vérifier si ce médicament spécifique déclenche une alerte de sécurité
+            drug_warnings = self.check_safety(db, patient_id, [drug.get("name", "")])
+            if any(w["severity"] == "high" for w in drug_warnings):
+                logger.warning(f"⚠️ Molécule filtrée pour {patient_id} : {drug.get('name')} (Risque détecté)")
+                continue # On retire la suggestion dangereuse
+            final_suggested_drugs.append(drug)
 
         return {
             "source": plan_source,
             "act_context": main_act,
-            "drugs": suggested_drugs,
+            "drugs": final_suggested_drugs,
             "safety": {
                 "risques": safety_analysis["risques_identifies"],
                 "dosage_note": safety_analysis["dosage_note"],
@@ -217,6 +229,42 @@ class PrescriptionService:
             "dosages": dosages[:5],
             "posologies": posologies[:5]
         }
+
+    def check_safety(self, db: Session, patient_id: int, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """
+        Vérifie les contre-indications entre les antécédents du patient et les médicaments.
+        """
+        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+        if not patient or not patient.antecedents_medicaux:
+            return []
+        
+        antecedents = patient.antecedents_medicaux.lower()
+        warnings = []
+        
+        # Logique de détection sémantique simple
+        risk_map = {
+            "diabète": ["sucre", "glucose", "corticoïde"],
+            "hypertension": ["anti-inflammatoire", "nsaid", "ibuprofène", "diclofénac", "adrénaline"],
+            "allergie": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
+            "pénicilline": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
+            "asthme": ["aspirine", "ibuprofène", "nsaid"],
+            "grossesse": ["tétracycline", "ibuprofène", "aspirine"],
+            "cardiaque": ["adrénaline", "anesthésie avec adrénaline"]
+        }
+        
+        for ant, risks in risk_map.items():
+            if ant in antecedents:
+                for drug in drug_names:
+                    if any(r in drug.lower() for r in risks):
+                        warnings.append({
+                            "type": "safety",
+                            "severity": "high",
+                            "antecedent": ant.capitalize(),
+                            "drug": drug,
+                            "message": f"⚠️ Attention : Antécédent ({ant.capitalize()}) détecté. Risque avec {drug}."
+                        })
+        
+        return warnings
 
     def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
         """

@@ -31,7 +31,8 @@ import type {
 } from './cephaloShared';
 
 import { 
-  computeStep3Data
+  computeStep3Data,
+  generateTreatmentPlan
 } from './cephaloUtils';
 import { PALETTE } from './cephaloTheme';
 
@@ -39,7 +40,6 @@ import { Step1Cephalo } from './components/Step1Cephalo';
 import { Step2Occlusal } from './components/Step2Occlusal';
 import { Step3Clinical } from './components/Step3Clinical';
 import { Step4Documents } from './components/Step4Documents';
-import { SmokeTestUI } from './components/SmokeTestUI';
 import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 import { StepTab } from './components/StepTab';
 import { SyncBadge } from './components/SyncBadge';
@@ -129,8 +129,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       patientData.age, 
       patientData.sexe, 
       mmPerPixel, 
-      store.etape2Data,
-      store.etape3Data.selectedAnalysis
+      store.etape2Data
     );
     
     setEtape3Data(prev => {
@@ -141,6 +140,24 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       if (!hasOsseuseChanged && !hasEsthetiqueChanged && !hasMoulageChanged && prev.age === patientData.age && prev.cvm === automated.cvm) {
         return prev;
       }
+
+      // Sync intelligent pour le diagnostic textuel
+      const currentMoulageDiag = store.diag.analyse_moulages;
+      const isPlaceholder = !currentMoulageDiag || 
+                           currentMoulageDiag === "Occlusion à préciser (Classe d'Angle, Subdivision, Forme d'arcade)." ||
+                           currentMoulageDiag.trim() === "";
+
+      if (isPlaceholder && automated.analyse_moulages_auto) {
+        store.setDiag(d => ({ ...d, analyse_moulages: automated.analyse_moulages_auto || "" }));
+      }
+
+      // Auto-fill stratégie thérapeutique si vide
+      if (!store.diag.strategie_therapeutique || store.diag.strategie_therapeutique.trim() === "") {
+        const plan = generateTreatmentPlan(automated as any);
+        if (plan) {
+          store.setDiag(d => ({ ...d, strategie_therapeutique: plan }));
+        }
+      }
       
       return {
         ...prev,
@@ -149,7 +166,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         esthetique: { ...prev.esthetique, ...automated.esthetique },
       };
     });
-  }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis]);
+  }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis, store.diag.analyse_moulages]);
 
   
 
@@ -297,9 +314,6 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
             <Step4Documents P={P} />
           )}
 
-          {/* Outil de Debug/SmokeTest (Visible en dev) */}
-          <SmokeTestUI P={P} />
-          
           {/* Navigation des étapes */}
           <div className={`flex mt-8 pt-6 border-t ${step > 1 ? 'justify-between' : 'justify-end'}`} style={{ borderColor: P.border }}>
             {step > 1 && (

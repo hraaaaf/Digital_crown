@@ -40,6 +40,21 @@ ANOMALY_LABELS = {
     'calcification': "Calcification (Carotide/Sial.)",
 }
 
+CCAM_SUGGESTIONS = {
+    'carie_email': "HBMD038 (Restauration 1 face)",
+    'carie_dentinaire': "HBMD042 (Restauration 2 faces)",
+    'carie_profonde': "HBMD044 (Restauration 3 faces+) / HBFD033 (Endo)",
+    'reprise_carie': "HBMD042 (Dépose et restauration)",
+    'lesion_periapicale': "HBGD035 (Résection apicale) / Retraitement canalaire",
+    'tr_incomplet': "HBFD033 (Retraitement endo)",
+    'incluse': "HBGD036 (Extraction dent incluse)",
+    'reste_radiculaire': "HBGD031 (Extraction de racine)",
+    'implant': "LBLD015 (Pose d'implant)",
+    'couronne': "HBLD018 (Pose de couronne)",
+    'bridge': "HBLD023 (Pont de 3 éléments)",
+    'tartre': "HBJD001 (Détartrage complet)",
+}
+
 class PanoramicReportEngine:
 
     """
@@ -112,9 +127,12 @@ class PanoramicReportEngine:
                         if fdi in teeth_map:
                             findings = ", ".join(sorted(list(teeth_map[fdi])))
                             # Enrichissement terminologique
+                            ccam_hits = [CCAM_SUGGESTIONS[a] for a in list(teeth_map[fdi]) if a in CCAM_SUGGESTIONS]
+                            ccam_str = f" [Code suggéré: {', '.join(ccam_hits)}]" if ccam_hits else ""
+                            
                             if "Carie" in findings: findings = findings.replace("Carie", "Lésion carieuse")
                             if "Kyste" in findings: findings = findings.replace("Kyste", "Image radio-claire périapicale")
-                            sector_findings.append(f"- **Dent {fdi}** : {findings}")
+                            sector_findings.append(f"- **Dent {fdi}** : {findings}{ccam_str}")
                     
                     if sector_findings:
                         lines.append(f"### {sector_name}")

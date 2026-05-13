@@ -31,19 +31,22 @@ class BilanOrthoEngine:
         diag_sq = narrative.get("diagnostic_squelettique", "")
         diag_dent = narrative.get("analyse_dentaire", "")
         
-        # S'il manque, on le reconstruit très succinctement
-        if not diag_sq:
-            ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 0
-            if ab > 6: classe_sq = "Classe II"
-            elif ab < 1: classe_sq = "Classe III"
-            else: classe_sq = "Classe I"
+        # S'il manque, on le reconstruit avec la logique de consensus
+        if not diag_sq or len(diag_sq) < 20:
+            ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 2.3
+            anb = cephalo.metrics.analyse_osseuse.ANB.valeur or 2.0
+            
+            # Logic de consensus
+            cl = "I"
+            if anb > 4.5 or ab > 5.4: cl = "II"
+            elif anb < 0 or ab < -0.8: cl = "III"
             
             tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur or 26
+            div = "normodivergente"
             if tweed > 30: div = "hyperdivergente"
             elif tweed < 22: div = "hypodivergente"
-            else: div = "normodivergente"
             
-            diag_sq = f"Base squelettique de {classe_sq} (A'B' = {ab} mm). Typologie faciale {div} (Tweed = {tweed}°)."
+            diag_sq = f"Base squelettique de Classe {cl}. Typologie faciale {div} (Tweed = {tweed}°)."
 
         if not diag_dent:
             impa = cephalo.metrics.analyse_dentaire.IMPA.valeur or 90
@@ -90,25 +93,29 @@ class BilanOrthoEngine:
 
     def _generate_synthese_diagnostique(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> str:
         # Croisement intelligent Radio / Clinique
-        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 0
+        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 2.3
+        anb = cephalo.metrics.analyse_osseuse.ANB.valeur or 2.0
         ddm = clinique.ddm_reelle or 0
         impa = cephalo.metrics.analyse_dentaire.IMPA.valeur or 90
         
         synthese = []
         
-        # Association Squelettique / Dentaire
-        if ab > 6:
-            synthese.append("La Classe II squelettique est le problème majeur.")
+        # Consensus Classe
+        is_cl2 = anb > 4.5 or ab > 5.4
+        is_cl3 = anb < 0 or ab < -0.8
+
+        if is_cl2:
+            synthese.append("La Classe II squelettique est le problème sagittal majeur.")
             if ddm < -4:
-                synthese.append("Elle est aggravée par un encombrement dentaire limitant la compensation.")
+                synthese.append("Elle est aggravée par un encombrement dentaire limitant les compensations.")
             if impa > 95:
-                synthese.append("Notez une forte proalvéolie mandibulaire (compensation physiologique à corriger prudemment).")
-        elif ab < 1:
-            synthese.append("Tendance Classe III squelettique.")
+                synthese.append("Notez une forte proalvéolie mandibulaire (compensation physiologique à gérer).")
+        elif is_cl3:
+            synthese.append("Problématique de Classe III squelettique identifiée.")
             if impa < 85:
-                synthese.append("L'incisive inférieure est linguoversée (compensation).")
+                synthese.append("L'incisive inférieure est linguoversée en tentative de compensation naturelle.")
         else:
-            synthese.append("Bases osseuses équilibrées (Classe I).")
+            synthese.append("Bases osseuses équilibrées sagittalement (Classe I).")
             if ddm < -5:
                 synthese.append("L'encombrement dentaire (DDM) constitue le défi thérapeutique principal.")
                 

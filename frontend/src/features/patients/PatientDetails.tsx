@@ -98,7 +98,7 @@ export const PatientDetails = () => {
     <div className={cn("flex flex-col bg-slate-50/30", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
       
       <header className={cn(
-        "sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-all duration-500",
+        "sticky top-0 z-[300] bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-all duration-500",
         isCompact ? "pt-3 pb-0 shadow-sm" : "pt-8 pb-0 shadow-[0_4px_30px_rgba(0,0,0,0.03)]"
       )}>
         <div className="max-w-[1600px] mx-auto px-6 md:px-10">

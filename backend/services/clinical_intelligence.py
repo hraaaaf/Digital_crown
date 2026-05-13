@@ -141,8 +141,14 @@ class ClinicalIntelligenceService:
             
             report_dict = ai_advisor.generate_diagnostic(
                 schemas.CephaloAnalysisResult(
-                    analysis_metadata=schemas.AnalysisMetadata(patient_id=patient_id, cohort=cohort),
-                    metrics=schemas.AnalysisMetrics(**last_analysis.angles_data)
+                    analysis_metadata=schemas.AnalysisMetadata(
+                        pixel_ratio=last_analysis.mm_per_pixel or 1.0, 
+                        cohort=cohort
+                    ),
+                    metrics=schemas.AnalysisMetrics(**last_analysis.angles_data),
+                    visual_debug={},
+                    t1_projection={},
+                    clinical_data=schemas.ClinicalData()
                 ),
                 use_slm=False # Force heuristic for speed in "Live"
             )

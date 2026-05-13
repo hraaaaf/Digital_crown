@@ -392,6 +392,7 @@ class CephaloEngine:
         # Extraction sécurisée des valeurs pour la synthèse
         val_tweed = payload["metrics"]["analyse_osseuse"].get("Angle_de_Tweed", {}).get("valeur", 26.0)
         val_dec_ab = payload["metrics"]["analyse_osseuse"].get("Decalage_A_B", {}).get("valeur", norm_dec_ab[0])
+        val_anb = payload["metrics"]["analyse_osseuse"].get("ANB", {}).get("valeur", 2.0)
         val_sit_a = payload["metrics"]["analyse_osseuse"].get("Situation_A", {}).get("valeur", norm_sit_a[0])
         val_sit_b = payload["metrics"]["analyse_osseuse"].get("Situation_B", {}).get("valeur", norm_sit_b[0])
         
@@ -404,6 +405,7 @@ class CephaloEngine:
         # Sécurisation anti-None
         val_tweed = val_tweed if val_tweed is not None else 26.0
         val_dec_ab = val_dec_ab if val_dec_ab is not None else norm_dec_ab[0]
+        val_anb = val_anb if val_anb is not None else 2.0
         val_sit_a = val_sit_a if val_sit_a is not None else norm_sit_a[0]
         val_sit_b = val_sit_b if val_sit_b is not None else norm_sit_b[0]
         val_impa = val_impa if val_impa is not None else 90.0
@@ -412,24 +414,40 @@ class CephaloEngine:
         val_surplomb = val_surplomb if val_surplomb is not None else 2.25
         val_recouvrement = val_recouvrement if val_recouvrement is not None else 2.25
 
-        # 1. DIAGNOSTIC SQUELETTIQUE
-        class_sq = "Classe I"
-        if val_dec_ab > norm_dec_ab[1]: class_sq = "Classe II"
-        elif val_dec_ab < norm_dec_ab[0]: class_sq = "Classe III"
+        # --- LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
+        mean_ab, dev_ab = norm_dec_ab
+        max_ab = mean_ab + dev_ab
+        min_ab = mean_ab - dev_ab
+        
+        # Steiner Class (Gold Standard)
+        class_steiner = "I"
+        if val_anb > 4.5: class_steiner = "II"
+        elif val_anb < 0: class_steiner = "III"
+        
+        # McNamara Class (Projections)
+        class_mcnamara = "I"
+        if val_dec_ab > max_ab: class_mcnamara = "II"
+        elif val_dec_ab < min_ab: class_mcnamara = "III"
+        
+        # Consensus
+        if class_steiner == class_mcnamara:
+            class_sq = f"Classe {class_steiner}"
+        else:
+            class_sq = f"Classe {class_steiner} (Tendance {class_mcnamara})"
         
         div = "normodivergent"
         if val_tweed > 30: div = "hyperdivergent"
         elif val_tweed < 22: div = "hypodivergent"
         
         pos_a = "normoposition"
-        if val_sit_a > norm_sit_a[1]: pos_a = "prognathie maxillaire"
-        elif val_sit_a < norm_sit_a[0]: pos_a = "rétrognathie maxillaire"
+        if val_sit_a > norm_sit_a[0] + norm_sit_a[1]: pos_a = "prognathie maxillaire"
+        elif val_sit_a < norm_sit_a[0] - norm_sit_a[1]: pos_a = "rétrognathie maxillaire"
         
         pos_b = "normoposition"
-        if val_sit_b > norm_sit_b[1]: pos_b = "prognathie mandibulaire"
-        elif val_sit_b < norm_sit_b[0]: pos_b = "rétrognathie mandibulaire"
+        if val_sit_b > norm_sit_b[0] + norm_sit_b[1]: pos_b = "prognathie mandibulaire"
+        elif val_sit_b < norm_sit_b[0] - norm_sit_b[1]: pos_b = "rétrognathie mandibulaire"
 
-        diag_squelettique = f"Structure de {class_sq} par décalage A'B' de {val_dec_ab} mm. {pos_a.capitalize()} (Point A à {val_sit_a} mm) associée à une {pos_b} (Point B à {val_sit_b} mm). Typologie faciale : {div.capitalize()} (Angle de Tweed : {val_tweed}°)."
+        diag_squelettique = f"Structure de {class_sq} (ANB: {val_anb}°, A'B': {val_dec_ab} mm). {pos_a.capitalize()} associée à une {pos_b}. Typologie faciale : {div.capitalize()} (Angle de Tweed : {val_tweed}°)."
 
         # 2. DIAGNOSTIC DENTAIRE
         impa_diag = "normoalvéolie"

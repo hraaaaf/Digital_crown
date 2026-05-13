@@ -11,6 +11,7 @@ interface PriceItem {
   price: number;
   toothNumbers?: number[];
   _odontogramKey?: string;
+  category?: string;
 }
 
 interface PatientDetails {
@@ -22,7 +23,7 @@ interface PatientDetails {
 }
 
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-type DocumentType = 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre' | 'ai';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre';
 
 interface UseDocumentGeneratorParams {
   patientId: string | undefined;
@@ -176,7 +177,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
   // Impression automatique après génération PDF
   useEffect(() => {
-    if (!pendingPrint || !pdfUrl || activeTab === 'ai') return;
+    if (!pendingPrint || !pdfUrl) return;
     
     const printTimer = setTimeout(async () => {
       try {
@@ -309,7 +310,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     isPreview = false,
     force = false,
   ) => {
-    if (!patientId || activeTab === 'ai') return;
+    if (!patientId) return;
 
     if (print && !isPreview && !force) {
       setShowPrintWarning(true);
@@ -374,6 +375,24 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
             }
           } catch (e) {
             console.warn("Échec de l'apprentissage des habitudes (silencieux)", e);
+          }
+        }
+
+        // --- Apprentissage automatique des Actes (Phase 2) ---
+        if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
+          try {
+            const { items } = params;
+            for (const item of items) {
+              if (item.description.trim()) {
+                await api.post('/accounting/record-act', {
+                  name: item.description,
+                  price: item.price,
+                  category: item.category
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Échec de l'apprentissage des actes (silencieux)", e);
           }
         }
       }

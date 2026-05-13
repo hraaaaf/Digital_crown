@@ -67,6 +67,23 @@ export const TOUR_STEPS: TourStep[] = [
     badge: 'Live',
   },
   {
+    id: 'elite-orb',
+    page: '/dashboard',
+    targetSelector: '[data-tour="elite-orb"]',
+    placement: 'bottom',
+    category: 'Dashboard',
+    icon: '🧠',
+    title: 'Assistant Elite (Orb)',
+    subtitle: 'Intelligence Proactive',
+    description: "Le Brain Orb est le centre névralgique du logiciel. Il analyse en temps réel votre dossier patient pour détecter des anomalies radiologiques, des risques financiers ou des rappels cliniques.",
+    features: [
+      'Audit live du dossier patient',
+      'Détection d\'anomalies panoramiques',
+      'Rappels de protocoles et hygiène',
+    ],
+    badge: 'Elite',
+  },
+  {
     id: 'quick-action',
     page: '/dashboard',
     targetSelector: '[data-tour="quick-action-new-patient"]',
