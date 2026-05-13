@@ -20,13 +20,15 @@ import {
   Users,
   QrCode,
   Link,
-  MapPin
+  MapPin,
+  Stethoscope,
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../services/api';
 import { cn } from '../utils/cn';
 import { TeamManager } from '../features/admin/TeamManager';
-import { BRAND_IDENTITIES } from '../features/admin/constants';
-import { Palette as PaletteIcon, Moon, Sun, Leaf, Heart } from 'lucide-react';
+import { BRAND_IDENTITIES, SPECIALTIES_DICT, APP_THEMES, PREMIUM_FONTS, DESIGN_VARIANTS } from '../features/admin/constants';
+import { Palette as PaletteIcon, Trash2 } from 'lucide-react';
 
 type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
 
@@ -57,6 +59,9 @@ interface CabinetProfile {
   if?: string;
   contacts_json?: ContactsJson;
   selected_theme?: string;
+  app_accent_color?: string;
+  font_fr?: string;
+  selected_template?: string;
   primary_color?: string;
   secondary_color?: string;
   accent_color?: string;
@@ -65,6 +70,12 @@ interface CabinetProfile {
   qr_code_value?: string;
   qr_code_color?: string;
   qr_code_label?: string;
+  show_patient_badges?: boolean;
+  nom_praticien_ar?: string;
+  specialty_ids?: string[];
+  logo_path?: string;
+  header_lines_fr?: string[];
+  header_lines_ar?: string[];
 }
 
 
@@ -87,7 +98,14 @@ export const Settings = () => {
     qr_code_type: 'VCARD',
     qr_code_value: '',
     qr_code_color: '',
-    qr_code_label: ''
+    qr_code_label: '',
+    show_patient_badges: true,
+    nom_praticien_ar: '',
+    specialty_ids: [],
+    logo_path: '',
+    app_accent_color: undefined,
+    font_fr: 'inter',
+    selected_template: 'classic'
   });
   const [contacts, setContacts] = useState<ContactsJson>({
     fixe: { enabled: true, value: '' },
@@ -128,6 +146,9 @@ export const Settings = () => {
             watermark_enabled: res.data.watermark_enabled ?? true,
             letterhead_path: res.data.letterhead_path || undefined,
             selected_theme: res.data.selected_theme || 'elite',
+            app_accent_color: res.data.app_accent_color || undefined,
+            font_fr: res.data.font_fr || 'inter',
+            selected_template: res.data.selected_template || 'classic',
             primary_color: res.data.primary_color || '#003380',
             secondary_color: res.data.secondary_color || '#1e40af',
             accent_color: res.data.accent_color || '#60a5fa',
@@ -135,15 +156,19 @@ export const Settings = () => {
             qr_code_type: res.data.qr_code_type || 'VCARD',
             qr_code_value: res.data.qr_code_value || '',
             qr_code_color: res.data.qr_code_color || '',
-            qr_code_label: res.data.qr_code_label || ''
+            qr_code_label: res.data.qr_code_label || '',
+            show_patient_badges: res.data.show_patient_badges ?? true,
+            nom_praticien_ar: res.data.nom_praticien_ar || '',
+            specialty_ids: res.data.specialty_ids || [],
+            logo_path: res.data.logo_path || ''
           });
+          
+          localStorage.setItem('show_patient_badges', String(res.data.show_patient_badges ?? true));
 
           // Appliquer le thème immédiatement (Standardisation sur body)
-          const themeValue = res.data.selected_theme === 'elite' ? '' : res.data.selected_theme;
+          const themeValue = res.data.selected_theme === 'elite' ? '' : (res.data.selected_theme || '');
           document.body.dataset.theme = themeValue;
-          if (res.data.primary_color) document.documentElement.style.setProperty('--primary', res.data.primary_color);
-          if (res.data.secondary_color) document.documentElement.style.setProperty('--secondary', res.data.secondary_color);
-          if (res.data.accent_color) document.documentElement.style.setProperty('--accent', res.data.accent_color);
+          if (res.data.app_accent_color) document.documentElement.style.setProperty('--primary', res.data.app_accent_color);
 
           if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
             setContacts(res.data.contacts_json as ContactsJson);
@@ -177,14 +202,14 @@ export const Settings = () => {
   // --- EFFET : Live Preview Design ---
   useEffect(() => {
     if (loadingProfile) return;
-    
-    const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
+    const themeValue = profile.selected_theme === 'elite' ? '' : (profile.selected_theme || '');
     document.body.dataset.theme = themeValue;
-    
-    if (profile.primary_color) document.documentElement.style.setProperty('--primary', profile.primary_color);
-    if (profile.secondary_color) document.documentElement.style.setProperty('--secondary', profile.secondary_color);
-    if (profile.accent_color) document.documentElement.style.setProperty('--accent', profile.accent_color);
-  }, [profile.selected_theme, profile.primary_color, profile.secondary_color, profile.accent_color, loadingProfile]);
+    if (profile.app_accent_color) {
+      document.documentElement.style.setProperty('--primary', profile.app_accent_color);
+    } else {
+      document.documentElement.style.removeProperty('--primary');
+    }
+  }, [profile.selected_theme, profile.app_accent_color, loadingProfile]);
 
   const handleLetterheadUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -216,7 +241,79 @@ export const Settings = () => {
 
   // --- HANDLERS ---
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const updatedProfile = { ...profile, [name]: value };
+    
+    // Génération automatique de l'en-tête si le nom change
+    if (name === 'nom' || name === 'nom_praticien_ar') {
+      const { header_lines_fr, header_lines_ar } = generateHeaders(updatedProfile.nom, updatedProfile.nom_praticien_ar || '', updatedProfile.specialty_ids || []);
+      updatedProfile.header_lines_fr = header_lines_fr;
+      updatedProfile.header_lines_ar = header_lines_ar;
+    }
+    
+    setProfile(updatedProfile);
+  };
+
+  const generateHeaders = (nom: string, nomAr: string, specialtyIds: string[]) => {
+    const linesFr = [];
+    const linesAr = [];
+
+    // Ligne 1 : Nom
+    const cleanNom = nom.startsWith('Dr.') ? nom : `Dr. ${nom}`;
+    const cleanNomAr = nomAr.endsWith(' .د') ? nomAr : `${nomAr} .د`;
+    linesFr.push(cleanNom);
+    linesAr.push(cleanNomAr);
+
+    // Ligne 2 : Titre
+    linesFr.push("Chirurgien Dentiste");
+    linesAr.push("طبيب جراح للأسنان");
+
+    // Lignes 3+ : Spécialités
+    const selected = SPECIALTIES_DICT.filter(s => specialtyIds.includes(s.id));
+    for (let i = 0; i < selected.length; i += 2) {
+      const pair = selected.slice(i, i + 2);
+      linesFr.push(pair.map(p => p.fr).join(' - '));
+      linesAr.push(pair.map(p => p.ar).reverse().join(' - '));
+    }
+
+    return { header_lines_fr: linesFr, header_lines_ar: linesAr };
+  };
+
+  const toggleSpecialty = (id: string) => {
+    const current = profile.specialty_ids || [];
+    const updated = current.includes(id) 
+      ? current.filter(sid => sid !== id) 
+      : [...current, id];
+    
+    const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, profile.nom_praticien_ar || '', updated);
+    setProfile(prev => ({ 
+      ...prev, 
+      specialty_ids: updated,
+      header_lines_fr,
+      header_lines_ar
+    }));
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setSavingProfile(true);
+      const res = await api.post('/clinics/me/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setProfile(prev => ({ ...prev, logo_path: res.data.logo_url }));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error("Erreur upload logo:", err);
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const saveProfile = async () => {
@@ -237,6 +334,8 @@ export const Settings = () => {
     try {
       const payload: any = {
         ...profile,
+        nom_praticien_ar: profile.nom_praticien_ar,
+        specialty_ids: profile.specialty_ids,
         footer_phones: contactString,
         contacts_json: contacts
       };
@@ -248,12 +347,13 @@ export const Settings = () => {
 
       await api.put('/clinics/me', payload);
       
-      // Appliquer le thème immédiatement après sauvegarde (Standardisation sur body)
-      const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
+      const themeValue = profile.selected_theme === 'elite' ? '' : (profile.selected_theme || '');
       document.body.dataset.theme = themeValue;
-      if (profile.primary_color) document.documentElement.style.setProperty('--primary', profile.primary_color);
-      if (profile.secondary_color) document.documentElement.style.setProperty('--secondary', profile.secondary_color);
-      if (profile.accent_color) document.documentElement.style.setProperty('--accent', profile.accent_color);
+      if (profile.app_accent_color) {
+        document.documentElement.style.setProperty('--primary', profile.app_accent_color);
+      } else {
+        document.documentElement.style.removeProperty('--primary');
+      }
       
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -361,25 +461,139 @@ export const Settings = () => {
               {loadingProfile ? (
                 <div className="flex justify-center py-20"><Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={40} /></div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <label className={labelClass}>Nom du Cabinet / Praticien</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className={labelClass}>Nom du Praticien (Français)</label>
                     <input 
                       type="text" 
                       name="nom" 
                       value={profile.nom} 
                       onChange={handleProfileChange} 
                       className={inputClass} 
-                      placeholder="Ex: Dr. Benmoussa" 
+                      placeholder="Ex: Benmoussa Achraf" 
                       style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)', borderColor: 'rgba(var(--primary-rgb), 0.2)' } as React.CSSProperties}
                     />
+                    <p className="text-[9px] text-slate-400 mt-2 font-medium italic">Le titre "Dr." sera ajouté automatiquement sur les documents.</p>
                   </div>
+                  <div dir="rtl">
+                    <label className={labelClass + " text-right"}>اسم الطبيب (بالعربية)</label>
+                    <input 
+                      type="text" 
+                      name="nom_praticien_ar" 
+                      value={profile.nom_praticien_ar} 
+                      onChange={handleProfileChange} 
+                      className={inputClass + " text-right font-amiri text-lg"} 
+                      placeholder="مثال: بنموسى أشرف" 
+                      style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)', borderColor: 'rgba(var(--primary-rgb), 0.2)' } as React.CSSProperties}
+                    />
+                    <p className="text-[9px] text-slate-400 mt-2 font-medium italic text-right">سيتم إضافة لقب ".د" تلقائياً.</p>
+                  </div>
+
+                  <div className="md:col-span-2 bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+                      <Stethoscope size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-primary uppercase tracking-wider">Titre Professionnel</p>
+                      <p className="text-sm font-bold text-slate-700">Chirurgien Dentiste / طبيب جراح للأسنان</p>
+                    </div>
+                  </div>
+
+                  {/* EXPERTISE CLINIQUE */}
+                  <div className="md:col-span-2 mt-4">
+                    <label className={labelClass}>Expertises & Spécialités Cliniques</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+                      {SPECIALTIES_DICT.map(spec => {
+                        const isSelected = profile.specialty_ids?.includes(spec.id);
+                        return (
+                          <button
+                            key={spec.id}
+                            onClick={() => toggleSpecialty(spec.id)}
+                            className={cn(
+                              "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group relative overflow-hidden",
+                              isSelected 
+                                ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
+                                : "border-slate-100 bg-white hover:border-slate-200"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                              isSelected ? "bg-primary text-white shadow-lg" : "bg-slate-50 text-slate-400 group-hover:scale-110"
+                            )}>
+                              <spec.icon size={20} />
+                            </div>
+                            <div className="text-center">
+                              <span className={cn("block text-xs font-black", isSelected ? "text-primary" : "text-slate-600")}>{spec.fr}</span>
+                              <span className={cn("block text-[10px] font-bold font-amiri", isSelected ? "text-primary/70" : "text-slate-400")}>{spec.ar}</span>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-2 right-2">
+                                <CheckCircle2 size={12} className="text-primary" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="md:col-span-2">
-                    <label className={labelClass}>Adresse complète</label>
+                    <label className={labelClass}>Adresse complète du Cabinet</label>
                     <input type="text" name="adresse" value={profile.adresse} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
-                  <div>
-                    <label className={labelClass}>Téléphone</label>
+                  
+                  <div className="md:col-span-2 mt-4 bg-amber-50 p-6 rounded-3xl border border-amber-100">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm">
+                        <PaletteIcon size={20} />
+                      </div>
+                      <h4 className="font-black text-amber-900">Logo du Cabinet</h4>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-8">
+                      <div 
+                        className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-amber-200 flex items-center justify-center cursor-pointer hover:bg-amber-100/50 transition-all relative group overflow-hidden"
+                        onClick={() => document.getElementById('logo-input')?.click()}
+                      >
+                        {profile.logo_path ? (
+                          <>
+                            <img 
+                              src={profile.logo_path.startsWith('http') ? profile.logo_path : `${API_BASE}/static/uploads/${profile.logo_path}`} 
+                              alt="Logo" 
+                              className="w-full h-full object-contain p-4" 
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Upload className="text-white" size={24} />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <ImageIcon className="text-amber-200" size={32} />
+                            <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Choisir Logo</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs font-bold text-amber-800">Conseil Elite :</p>
+                        <p className="text-xs text-amber-700/80 leading-relaxed">Utilisez un logo sur fond transparent (PNG) pour une intégration parfaite dans vos entêtes Classic et Modern. Évitez les fichiers trop lourds (&gt; 2Mo).</p>
+                        <input id="logo-input" type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                        {profile.logo_path && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProfile(p => ({ ...p, logo_path: '' }));
+                              api.put('/clinics/me', { logo_path: null });
+                            }}
+                            className="mt-4 text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2 hover:text-rose-600 transition-colors"
+                          >
+                            <Trash2 size={12} /> Supprimer le logo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>Téléphone & Visibilité</label>
                     <div className="w-full px-5 py-4 bg-blue-50/60 border border-blue-100 rounded-xl text-sm font-medium text-slate-500 flex items-center gap-3">
                       <Phone size={16} className="text-blue-400 shrink-0" />
                       <span>
@@ -388,17 +602,17 @@ export const Settings = () => {
                       </span>
                     </div>
                   </div>
+
                   <div>
                     <label className={labelClass}>Numéro INPE</label>
                     <input type="text" name="inpe" value={profile.inpe} onChange={handleProfileChange} className={inputClass} style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
                   </div>
                   <div>
-                    <label className={labelClass}>Identifiant Commun Entreprise (ICE)</label>
-                    <input type="text" name="ice" value={profile.ice} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 001234..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Identifiant Fiscal (IF)</label>
-                    <input type="text" name="if" value={profile.if} onChange={handleProfileChange} className={inputClass} placeholder="Ex: 56789..." style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as React.CSSProperties} />
+                    <label className={labelClass}>ICE / IF</label>
+                    <div className="grid grid-cols-2 gap-4">
+                       <input type="text" name="ice" value={profile.ice} onChange={handleProfileChange} className={inputClass} placeholder="ICE" />
+                       <input type="text" name="if" value={profile.if} onChange={handleProfileChange} className={inputClass} placeholder="IF" />
+                    </div>
                   </div>
 
                   {/* SECTION CONTACTS DYNAMIQUE */}
@@ -698,111 +912,201 @@ export const Settings = () => {
 
           {/* TAB 2 : DESIGN & AMBIANCE */}
           {activeTab === 'branding' && (
-            <div data-tour="settings-branding" className="space-y-12 animate-in slide-in-from-right-4 duration-500">
-              <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
-                <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
-                  <PaletteIcon size={32} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>Design & Ambiance</h3>
-                  <p className="text-slate-500 text-sm font-medium mt-1">Personnalisez l'atmosphère de votre logiciel et de vos documents.</p>
-                </div>
-              </div>
+            <div data-tour="settings-branding" className="space-y-10 animate-in slide-in-from-right-4 duration-500">
 
-              {/* 1. SÉLECTION DU THÈME (AMBIANCE) */}
-              <div className="space-y-6">
-                <label className={labelClass}>Thème du Logiciel (Ambiance)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { id: 'elite', name: 'Ghost Elite', icon: <Sun size={20} />, desc: 'Clair & Pur', color: 'bg-slate-100 text-slate-600' },
-                    { id: 'emerald', name: 'Émeraude Zen', icon: <Leaf size={20} />, desc: 'Serein & Médical', color: 'bg-emerald-50 text-emerald-600' },
-                    { id: 'rose', name: 'Rose Prestige', icon: <Heart size={20} />, desc: 'Luxe & Douceur', color: 'bg-rose-50 text-rose-600' },
-                    { id: 'prestige', name: 'Nuit Intense', icon: <Moon size={20} />, desc: 'Sombre & Premium', color: 'bg-slate-900 text-slate-200' }
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setProfile({ ...profile, selected_theme: t.id })}
-                      className={cn(
-                        "p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 text-center group",
-                        profile.selected_theme === t.id 
-                          ? "border-primary bg-primary/5 shadow-xl scale-[1.02]" 
-                          : "border-slate-100 bg-white hover:border-slate-200"
-                      )}
-                    >
-                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform", t.color)}>
-                        {t.icon}
-                      </div>
-                      <div>
-                        <span className="block font-black text-sm text-slate-800">{t.name}</span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t.desc}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. IDENTITÉ VISUELLE (COULEURS) */}
-              <div className="space-y-6 pt-10 border-t border-slate-100">
-                <label className={labelClass}>Identité Visuelle (Couleurs Signature)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {BRAND_IDENTITIES.map(id => (
-                    <button
-                      key={id.id}
-                      onClick={() => setProfile({ 
-                        ...profile, 
-                        primary_color: id.primary, 
-                        secondary_color: id.secondary, 
-                        accent_color: id.accent 
-                      })}
-                      className={cn(
-                        "p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden",
-                        profile.primary_color === id.primary ? "border-primary bg-white shadow-lg scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <h5 className="text-[11px] font-black uppercase tracking-tighter text-slate-900">{id.name}</h5>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">{id.vibe}</span>
-                        </div>
-                        <div className="flex -space-x-2">
-                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.primary }} />
-                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.secondary }} />
-                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.accent }} />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-500 leading-relaxed font-medium">{id.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 3. COULEUR PERSONNALISÉE (DYNAMIQUE) */}
-              <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-200/60 flex flex-col md:flex-row items-center gap-10">
-                <div className="flex-1">
-                  <h4 className="text-lg font-black text-slate-800">Ajustement Manuel</h4>
-                  <p className="text-sm text-slate-500 mt-1 font-medium">Vous pouvez également choisir précisément vos teintes HEX pour une personnalisation totale.</p>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primaire</span>
-                    <input 
-                      type="color" 
-                      value={profile.primary_color} 
-                      onChange={(e) => setProfile({ ...profile, primary_color: e.target.value })}
-                      className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
-                    />
+              {/* ══════════════════════════════════════════════ */}
+              {/* LIGNE 1 — STUDIO DOCUMENTS                     */}
+              {/* ══════════════════════════════════════════════ */}
+              <div className="rounded-[2.5rem] border-2 border-slate-100 bg-white overflow-hidden">
+                <div className="px-8 py-5 bg-slate-50 border-b border-slate-100 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center" style={{ color: 'var(--primary)' }}>
+                    <FileText size={20} />
                   </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accent</span>
-                    <input 
-                      type="color" 
-                      value={profile.accent_color} 
-                      onChange={(e) => setProfile({ ...profile, accent_color: e.target.value })}
-                      className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
-                    />
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">Studio Documents</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Couleurs · Typographie · Mise en page des PDF</p>
+                  </div>
+                  <div className="ml-auto px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-black text-amber-700 uppercase tracking-widest">PDFs uniquement</div>
+                </div>
+
+                <div className="p-8 space-y-8">
+                  {/* IDENTITÉ VISUELLE — PALETTES COULEURS DOC */}
+                  <div className="space-y-4">
+                    <label className={labelClass}>Palette de couleurs des documents</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {BRAND_IDENTITIES.map(id => (
+                        <button
+                          key={id.id}
+                          onClick={() => setProfile({ ...profile, primary_color: id.primary, secondary_color: id.secondary, accent_color: id.accent })}
+                          className={cn(
+                            "p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden",
+                            profile.primary_color === id.primary ? "border-amber-400 bg-amber-50/50 shadow-lg scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <h5 className="text-[11px] font-black uppercase tracking-tighter text-slate-900">{id.name}</h5>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase">{id.vibe}</span>
+                            </div>
+                            <div className="flex -space-x-2">
+                              <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.primary }} />
+                              <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.secondary }} />
+                              <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: id.accent }} />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-relaxed font-medium">{id.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AJUSTEMENT COULEURS MANUEL */}
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                    <div className="flex-1">
+                      <h4 className="text-sm font-black text-slate-800">Ajustement Manuel</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 font-medium">Personnalisation HEX des teintes du document.</p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      {[
+                        { label: 'Primaire', key: 'primary_color' as const },
+                        { label: 'Secondaire', key: 'secondary_color' as const },
+                        { label: 'Accent', key: 'accent_color' as const }
+                      ].map(({ label, key }) => (
+                        <div key={key} className="flex flex-col items-center gap-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+                          <input
+                            type="color"
+                            value={profile[key] || '#003380'}
+                            onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}
+                            className="w-10 h-10 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* TYPOGRAPHIE + MISE EN PAGE */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className={labelClass}>Typographie des documents</label>
+                      <div className="space-y-2">
+                        {PREMIUM_FONTS.map(f => (
+                          <button
+                            key={f.id}
+                            onClick={() => setProfile({ ...profile, font_fr: f.id })}
+                            className={cn(
+                              "w-full p-3 rounded-xl border-2 text-left flex items-center justify-between transition-all",
+                              (profile.font_fr === f.id || (!profile.font_fr && f.id === 'inter')) ? "border-amber-400 bg-amber-50/50" : "border-slate-100 bg-white hover:bg-slate-50"
+                            )}
+                          >
+                            <div>
+                              <span className={cn("block text-sm font-bold", f.class)}>{f.name}</span>
+                              <span className="text-[9px] text-slate-400">{f.desc}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className={labelClass}>Modèle de mise en page</label>
+                      <div className="space-y-2">
+                        {DESIGN_VARIANTS.map((v: any) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setProfile({ ...profile, selected_template: v.id })}
+                            className={cn(
+                              "w-full p-3 rounded-xl border-2 text-left flex items-center gap-3 transition-all",
+                              profile.selected_template === v.id ? "border-amber-400 bg-amber-50/50" : "border-slate-100 bg-white hover:bg-slate-50"
+                            )}
+                          >
+                            <v.icon size={16} className={profile.selected_template === v.id ? "text-amber-600" : "text-slate-400"} />
+                            <span className="text-xs font-bold text-slate-900">{v.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* ══════════════════════════════════════════════ */}
+              {/* LIGNE 2 — AMBIANCE APPLICATION                 */}
+              {/* ══════════════════════════════════════════════ */}
+              <div className="rounded-[2.5rem] border-2 overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--primary) 13%, transparent)' }}>
+                <div className="px-8 py-5 border-b flex items-center gap-4" style={{ backgroundColor: 'color-mix(in srgb, var(--primary) 5%, transparent)', borderColor: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)', color: 'var(--primary)' }}>
+                    <PaletteIcon size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black" style={{ color: 'var(--text-main)' }}>Ambiance Application</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Thème · Mode sombre · Accent de l'interface</p>
+                  </div>
+                  <div className="ml-auto px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)', color: 'var(--primary)' }}>Interface uniquement</div>
+                </div>
+
+                <div className="p-8 space-y-8" style={{ backgroundColor: 'var(--card-bg)' }}>
+                  {/* GRILLE DES THÈMES */}
+                  <div className="space-y-4">
+                    <label className={labelClass}>Preset de thème</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {APP_THEMES.map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => setProfile({ ...profile, selected_theme: t.id, app_accent_color: profile.app_accent_color || t.defaultAccent })}
+                          className={cn(
+                            "relative rounded-2xl border-2 overflow-hidden transition-all group text-left",
+                            profile.selected_theme === t.id ? "shadow-lg scale-[1.02]" : "border-slate-200 hover:border-slate-300"
+                          )}
+                          style={profile.selected_theme === t.id ? { borderColor: 'var(--primary)' } : {}}
+                        >
+                          {/* PREVIEW MINI */}
+                          <div className="h-16 relative" style={{ backgroundColor: t.preview.bg }}>
+                            <div className="absolute bottom-2 left-2 right-2 h-5 rounded-md" style={{ backgroundColor: t.preview.card, border: `1px solid ${t.preview.border}` }} />
+                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full" style={{ backgroundColor: t.preview.accent }} />
+                          </div>
+                          {/* LABEL */}
+                          <div className="px-3 py-2.5" style={{ backgroundColor: t.preview.card, borderTop: `1px solid ${t.preview.border}` }}>
+                            <span className="block text-[10px] font-black uppercase tracking-tight" style={{ color: t.preview.text }}>{t.name}</span>
+                            <span className="text-[9px] font-medium opacity-60" style={{ color: t.preview.text }}>{t.desc}</span>
+                          </div>
+                          {profile.selected_theme === t.id && (
+                            <div className="absolute top-2 left-2 w-5 h-5 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: 'var(--primary)' }}>
+                              <CheckCircle2 size={12} className="text-white" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ACCENT OVERRIDE */}
+                  <div className="p-6 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center gap-6" style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border-color)' }}>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-black" style={{ color: 'var(--text-main)' }}>Couleur d'accent de l'interface</h4>
+                      <p className="text-[10px] mt-1 font-medium" style={{ color: 'var(--text-muted)' }}>Personnalisez la couleur principale de l'interface pour ce thème.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Accent UI</span>
+                        <input
+                          type="color"
+                          value={profile.app_accent_color || APP_THEMES.find(t => t.id === profile.selected_theme)?.defaultAccent || '#003380'}
+                          onChange={(e) => setProfile({ ...profile, app_accent_color: e.target.value })}
+                          className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white shadow-md bg-transparent"
+                        />
+                      </div>
+                      <button
+                        onClick={() => setProfile({ ...profile, app_accent_color: APP_THEMES.find(t => t.id === profile.selected_theme)?.defaultAccent || '#003380' })}
+                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white hover:bg-slate-50 transition-all text-slate-500"
+                      >
+                        Réinitialiser
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -858,6 +1162,30 @@ export const Settings = () => {
                     <div className={cn(
                       "w-5 h-5 bg-white rounded-full shadow-lg transition-all",
                       clinicalTipsEnabled ? "translate-x-7" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 flex items-center justify-between gap-8">
+                  <div className="flex-1">
+                    <h4 className="font-black text-slate-800">Badges de Fiabilité Patient</h4>
+                    <p className="text-sm text-slate-500 mt-1 font-medium">Affiche les badges Platinum/Gold/Silver/Bronze sur les dossiers patients pour une évaluation rapide de la fiabilité.</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const newVal = !profile.show_patient_badges;
+                      setProfile(p => ({ ...p, show_patient_badges: newVal }));
+                      localStorage.setItem('show_patient_badges', String(newVal));
+                      window.dispatchEvent(new Event('patient-badges-changed'));
+                    }}
+                    className={cn(
+                      "w-14 h-7 rounded-full transition-all relative flex items-center px-1",
+                      profile.show_patient_badges ? "bg-indigo-600" : "bg-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 bg-white rounded-full shadow-lg transition-all",
+                      profile.show_patient_badges ? "translate-x-7" : "translate-x-0"
                     )} />
                   </button>
                 </div>

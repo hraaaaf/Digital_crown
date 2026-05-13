@@ -113,3 +113,54 @@ export const BRAND_IDENTITIES = [
     vibe: 'Prestigieux & Ancien'
   }
 ];
+
+export const APP_THEMES = [
+  {
+    id: 'elite',
+    dataTheme: '',
+    name: 'Ghost Elite',
+    desc: 'Clarté Premium',
+    defaultAccent: '#003380',
+    preview: { bg: '#f8fafc', card: '#ffffff', border: '#e2e8f0', text: '#0f172a', accent: '#003380' }
+  },
+  {
+    id: 'prestige',
+    dataTheme: 'prestige',
+    name: 'Nuit Elite',
+    desc: 'Sombre & Luxueux',
+    defaultAccent: '#3b82f6',
+    preview: { bg: '#020617', card: '#0f172a', border: '#1e293b', text: '#f8fafc', accent: '#3b82f6' }
+  },
+  {
+    id: 'emerald',
+    dataTheme: 'emerald',
+    name: 'Zen Émeraude',
+    desc: 'Serein & Médical',
+    defaultAccent: '#059669',
+    preview: { bg: '#f0fdf4', card: '#fcfdfd', border: '#d1fae5', text: '#064e3b', accent: '#059669' }
+  },
+  {
+    id: 'rose',
+    dataTheme: 'rose',
+    name: 'Rose Prestige',
+    desc: 'Douceur & Luxe',
+    defaultAccent: '#db2777',
+    preview: { bg: '#fff1f2', card: '#fffbfb', border: '#fecdd3', text: '#831843', accent: '#db2777' }
+  },
+  {
+    id: 'ocean',
+    dataTheme: 'ocean',
+    name: 'Océan Profond',
+    desc: 'Confiance & Clarté',
+    defaultAccent: '#0284c7',
+    preview: { bg: '#f0f9ff', card: '#ffffff', border: '#bae6fd', text: '#0c4a6e', accent: '#0284c7' }
+  },
+  {
+    id: 'graphite',
+    dataTheme: 'graphite',
+    name: 'Graphite Zen',
+    desc: 'Minimalisme Total',
+    defaultAccent: '#475569',
+    preview: { bg: '#f1f5f9', card: '#ffffff', border: '#e2e8f0', text: '#0f172a', accent: '#475569' }
+  }
+] as const;

@@ -115,6 +115,46 @@
   --accent: #60a5fa;
 }
 
+[data-theme='ocean'] {
+  /* OCÉAN PROFOND */
+  --bg-medical-pearl: #f0f9ff;
+  --bg-gradient-start: #f0f9ff;
+  --bg-gradient-end: #e0f2fe;
+  --glass-bg: rgba(240, 249, 255, 0.9);
+  --glass-border: rgba(2, 132, 199, 0.1);
+  --card-bg: #ffffff;
+  --sidebar-bg: #f0f9ff;
+  --text-main: #0c4a6e;
+  --text-muted: #0284c7;
+  --border-color: #bae6fd;
+  --border-hover: #7dd3fc;
+  --input-bg: #f0f9ff;
+
+  --primary: #0284c7;
+  --secondary: #0369a1;
+  --accent: #38bdf8;
+}
+
+[data-theme='graphite'] {
+  /* GRAPHITE ZEN */
+  --bg-medical-pearl: #f1f5f9;
+  --bg-gradient-start: #f1f5f9;
+  --bg-gradient-end: #e2e8f0;
+  --glass-bg: rgba(241, 245, 249, 0.9);
+  --glass-border: rgba(51, 65, 85, 0.1);
+  --card-bg: #ffffff;
+  --sidebar-bg: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --input-bg: #f1f5f9;
+
+  --primary: #475569;
+  --secondary: #334155;
+  --accent: #94a3b8;
+}
+
 body {
   background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
   color: var(--text-main);

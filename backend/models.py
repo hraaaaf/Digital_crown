@@ -73,6 +73,10 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.DENTISTE)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
+    # Gestion de Licence SaaS (Kill-Switch)
+    is_licensed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    license_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
     nom_complet: Mapped[Optional[str]] = mapped_column(String(255))
     specialites: Mapped[Optional[str]] = mapped_column(Text)
     adresse_complete: Mapped[Optional[str]] = mapped_column(Text)
@@ -398,6 +402,7 @@ class CabinetConfig(Base):
     # En-tête Bilingue (max 6 lignes chacun)
     header_lines_fr: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
     header_lines_ar: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
+    specialty_ids: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
     
     # Pied de page
     footer_address: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -426,6 +431,7 @@ class CabinetConfig(Base):
     # État
     is_initialized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     selected_theme: Mapped[str] = mapped_column(String(20), default="elite", nullable=False)
+    app_accent_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True, default=None)
     selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
     
@@ -442,6 +448,9 @@ class CabinetConfig(Base):
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de : {total_words}.")
     cloture_devis_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêté le présent devis à la somme de : {total_words}.")
+    
+    # Options d'affichage UI (Elite v4.1)
+    show_patient_badges: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())

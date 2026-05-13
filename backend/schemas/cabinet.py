@@ -99,6 +99,7 @@ class CabinetConfigBase(BaseModel):
     cabinet_type: str = Field(default="PRIVE")
     header_lines_fr: List[str] = Field(default_factory=list, max_length=6)
     header_lines_ar: List[str] = Field(default_factory=list, max_length=6)
+    specialty_ids: List[str] = Field(default_factory=list)
     footer_address: Optional[str] = Field(default="", max_length=500)
     footer_phones: Optional[str] = Field(default="", max_length=255)
     adresse: Optional[str] = Field(default="", max_length=500, alias="adresse")
@@ -116,6 +117,7 @@ class CabinetConfigBase(BaseModel):
     watermark_enabled: bool = Field(default=True)
     watermark_opacity: float = Field(default=0.10, ge=0.0, le=1.0)
     selected_theme: str = Field(default="elite", max_length=20)
+    app_accent_color: Optional[str] = Field(default=None, pattern=r"^(?:#[0-9A-Fa-f]{6})?$")
     selected_template: str = Field(default="classic", max_length=20)
     margin_top: float = Field(default=3.6, ge=0.0, le=15.0)
     margin_bottom: float = Field(default=3.2, ge=0.0, le=15.0)
@@ -127,6 +129,7 @@ class CabinetConfigBase(BaseModel):
     qr_code_label: Optional[str] = Field(default=None, max_length=100)
     cloture_note_template: str = Field(default="Arrêtée la présente note à la somme de {total_words} TTC.")
     cloture_devis_template: str = Field(default="Arrêté le présent devis à la somme de {total_words} TTC.")
+    show_patient_badges: bool = Field(default=True)
 
 
 class CabinetConfigCreate(CabinetConfigBase):
