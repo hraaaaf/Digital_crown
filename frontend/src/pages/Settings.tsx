@@ -28,7 +28,41 @@ import { api } from '../services/api';
 import { cn } from '../utils/cn';
 import { TeamManager } from '../features/admin/TeamManager';
 import { BRAND_IDENTITIES, SPECIALTIES_DICT, APP_THEMES, PREMIUM_FONTS, DESIGN_VARIANTS } from '../features/admin/constants';
-import { Palette as PaletteIcon, Trash2 } from 'lucide-react';
+import { Palette as PaletteIcon, Trash2, Moon, Sun, Leaf, Heart, Keyboard } from 'lucide-react';
+
+// --- COMPOSANT : CLAVIER ARABE VIRTUEL ---
+const ArabicKeyboard = ({ onInput }: { onInput: (char: string) => void }) => {
+  const letters = [
+    'ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج', 'د',
+    'ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ط',
+    'ئ', 'ء', 'ؤ', 'ر', 'لا', 'ى', 'ة', 'و', 'ز', 'ظ'
+  ];
+  return (
+    <div 
+      className="grid grid-cols-11 gap-1 p-2 bg-slate-900 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 z-[60]"
+      onMouseDown={(e) => e.preventDefault()} // Empêche la perte de focus de l'input
+      onClick={(e) => e.stopPropagation()}
+    >
+      {letters.map(l => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => onInput(l)}
+          className="w-8 h-8 flex items-center justify-center bg-slate-800 text-white rounded-md hover:bg-primary hover:scale-110 active:scale-95 transition-all text-sm font-arabic"
+        >
+          {l}
+        </button>
+      ))}
+      <button 
+        type="button"
+        onClick={() => onInput(' ')} 
+        className="col-span-3 h-8 bg-slate-700 text-white rounded-md hover:bg-primary hover:scale-[1.02] active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest"
+      >
+        Espace
+      </button>
+    </div>
+  );
+};
 
 type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
 
@@ -80,6 +114,7 @@ interface CabinetProfile {
 
 
 
+
 export const Settings = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profil');
   
@@ -105,8 +140,11 @@ export const Settings = () => {
     logo_path: '',
     app_accent_color: undefined,
     font_fr: 'inter',
-    selected_template: 'classic'
+    selected_template: 'classic',
+    header_lines_fr: [],
+    header_lines_ar: []
   });
+
   const [contacts, setContacts] = useState<ContactsJson>({
     fixe: { enabled: true, value: '' },
     mobile: { enabled: false, value: '' },
@@ -127,7 +165,28 @@ export const Settings = () => {
   });
 
 
-  // --- EFFET : Chargement Profil ---
+  const [showArKeyboard, setShowArKeyboard] = useState<{type: 'header' | 'name', idx?: number} | null>(null);
+
+  const loadBenmoussaTemplate = () => {
+    setProfile(p => ({
+      ...p,
+      header_lines_fr: [
+        "Dr. Benmoussa Achraf",
+        "Chirurgien Dentiste",
+        "Soins - Prothèse",
+        "Chirurgie - Parodontologie",
+        "Blanchiment - Orthodontie"
+      ],
+      header_lines_ar: [
+        "د. أشرف بنموسى",
+        "طبيب جراح للأسنان",
+        "علاج - تعويض الأسنان",
+        "جراحة - أمراض اللثة",
+        "تبييض - تقويم الأسنان"
+      ]
+    }));
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -160,10 +219,13 @@ export const Settings = () => {
             show_patient_badges: res.data.show_patient_badges ?? true,
             nom_praticien_ar: res.data.nom_praticien_ar || '',
             specialty_ids: res.data.specialty_ids || [],
-            logo_path: res.data.logo_path || ''
+            logo_path: res.data.logo_path || '',
+            header_lines_fr: res.data.header_lines_fr || [],
+            header_lines_ar: res.data.header_lines_ar || []
           });
           
           localStorage.setItem('show_patient_badges', String(res.data.show_patient_badges ?? true));
+
 
           // Appliquer le thème immédiatement (Standardisation sur body)
           const themeValue = res.data.selected_theme === 'elite' ? '' : (res.data.selected_theme || '');
@@ -614,6 +676,173 @@ export const Settings = () => {
                        <input type="text" name="if" value={profile.if} onChange={handleProfileChange} className={inputClass} placeholder="IF" />
                     </div>
                   </div>
+
+                  {/* SECTION SPÉCIALITÉS & EN-TÊTE BILINGUE */}
+                  <div className="md:col-span-2 mt-8 py-8 border-t border-slate-100 space-y-8">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/5 rounded-lg flex items-center justify-center shadow-inner" style={{ color: 'var(--primary)' }}>
+                          <Users size={20} />
+                        </div>
+                        <h4 className="text-lg font-black text-slate-800">Spécialités & En-tête Bilingue</h4>
+                      </div>
+                      <button 
+                        onClick={loadBenmoussaTemplate}
+                        className="px-4 py-2 bg-primary/5 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center gap-2"
+                      >
+                        <Settings2 size={14} />
+                        Modèle Dr Benmoussa
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Français */}
+                      <div className="space-y-4">
+                        <label className={labelClass}>En-tête Français (Document Header)</label>
+                        <div className="space-y-2">
+                          {(profile.header_lines_fr || []).map((line, idx) => (
+                            <div key={`fr-${idx}`} className="flex gap-2">
+                              <input 
+                                className={cn(inputClass, "py-2 px-3", idx === 0 && "text-primary text-base")} 
+                                value={line} 
+                                placeholder={idx === 0 ? "Nom du Praticien" : "Titre ou Spécialité..."}
+                                onChange={(e) => {
+                                  const newLines = [...(profile.header_lines_fr || [])];
+                                  newLines[idx] = e.target.value;
+                                  setProfile({...profile, header_lines_fr: newLines});
+                                }}
+                              />
+                              <button 
+                                onClick={() => {
+                                  const newLines = (profile.header_lines_fr || []).filter((_, i) => i !== idx);
+                                  setProfile({...profile, header_lines_fr: newLines});
+                                }}
+                                className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {(profile.header_lines_fr || []).length < 6 && (
+                            <button 
+                              onClick={() => setProfile({...profile, header_lines_fr: [...(profile.header_lines_fr || []), ""]})}
+                              className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all"
+                            >
+                              + Ajouter une ligne (FR)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Arabe */}
+                      <div className="space-y-4">
+                        <label className={cn(labelClass, "text-right")}>En-tête Arabe (En-tête de l'ordonnance)</label>
+                        <div className="space-y-2 relative">
+                          {(profile.header_lines_ar || []).map((line, idx) => (
+                            <div key={`ar-${idx}`} className="flex gap-2 group">
+                              <button 
+                                onClick={() => {
+                                  const newLines = (profile.header_lines_ar || []).filter((_, i) => i !== idx);
+                                  setProfile({...profile, header_lines_ar: newLines});
+                                }}
+                                className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                ×
+                              </button>
+                              <div className="flex-1 relative">
+                                <input 
+                                  className={cn(inputClass, "py-2 px-3 text-right font-arabic", idx === 0 && "text-primary text-base")} 
+                                  dir="rtl"
+                                  value={line} 
+                                  placeholder={idx === 0 ? "د. اسم الطبيب" : "التخصص..."}
+                                  onChange={(e) => {
+                                    const newLines = [...(profile.header_lines_ar || [])];
+                                    newLines[idx] = e.target.value;
+                                    setProfile({...profile, header_lines_ar: newLines});
+                                  }}
+                                  onFocus={() => setShowArKeyboard({type: 'header', idx})}
+                                />
+                                {showArKeyboard?.type === 'header' && showArKeyboard.idx === idx && (
+                                  <div className="absolute top-full right-0 mt-2 z-50">
+                                    <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
+                                    <ArabicKeyboard onInput={(char) => {
+                                      const newLines = [...(profile.header_lines_ar || [])];
+                                      newLines[idx] = (newLines[idx] || '') + char;
+                                      setProfile({...profile, header_lines_ar: newLines});
+                                    }} />
+                                  </div>
+                                )}
+                                <button className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-colors opacity-0 group-hover:opacity-100" onClick={() => setShowArKeyboard({type: 'header', idx})}>
+                                  <Keyboard size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {(profile.header_lines_ar || []).length < 6 && (
+                            <button 
+                              onClick={() => setProfile({...profile, header_lines_ar: [...(profile.header_lines_ar || []), ""]})}
+                              className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all"
+                            >
+                              + Ajouter une ligne (AR)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Gestion des spécialités (Chips) */}
+                    <div className="space-y-6 pt-6 border-t border-slate-50">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <label className={labelClass}>Spécialités affichées (Chips de mise en avant)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['Endodontie', 'Esthétique', 'Implantologie', 'Stomatologie', 'Parodontologie', 'Blanchiment'].map(s => (
+                            <button
+                              key={s}
+                              onClick={() => {
+                                if (!(profile.specialty_ids || []).includes(s)) {
+                                  setProfile(p => ({ ...p, specialty_ids: [...(p.specialty_ids || []), s] }));
+                                }
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-full text-[9px] font-black uppercase hover:bg-primary/10 hover:text-primary transition-all border border-transparent hover:border-primary/20"
+                            >
+                              + {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 p-4 bg-white rounded-[1.5rem] border border-slate-200 shadow-inner min-h-[70px] relative">
+                        {(profile.specialty_ids || []).map((spec, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/20 shadow-sm animate-in zoom-in-95 duration-200">
+                            <span className="text-xs font-black text-primary">{spec}</span>
+                            <button 
+                              onClick={() => setProfile(p => ({ ...p, specialty_ids: p.specialty_ids?.filter((_, i) => i !== idx) }))}
+                              className="w-4 h-4 rounded-full bg-white text-primary hover:bg-red-500 hover:text-white flex items-center justify-center text-[10px] transition-all shadow-sm"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <input 
+                          type="text" 
+                          placeholder="Saisir manuellement..."
+                          className="bg-transparent border-none outline-none text-xs font-bold text-slate-400 px-2 min-w-[150px]"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !(profile.specialty_ids || []).includes(val)) {
+                                setProfile(p => ({ ...p, specialty_ids: [...(p.specialty_ids || []), val] }));
+                                (e.target as HTMLInputElement).value = '';
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium italic ml-2">Les spécialités ci-dessus apparaîtront sur vos en-têtes et documents de bilan.</p>
+                    </div>
+                  </div>
+
+
 
                   {/* SECTION CONTACTS DYNAMIQUE */}
                   <div className="md:col-span-2 mt-8 py-8 border-t border-slate-100">

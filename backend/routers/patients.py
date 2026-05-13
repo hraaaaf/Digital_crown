@@ -23,23 +23,24 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
         query = query.filter(models.Patient.id != exclude_id)
     return query.first()
 
-def generate_next_dossier_number(db: Session) -> str:
-    last_patient = db.query(models.Patient).order_by(models.Patient.id.desc()).first()
+def generate_next_dossier_number(db: Session, employer_id: int) -> str:
+    last_patient = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).order_by(models.Patient.id.desc()).first()
     if last_patient and last_patient.numero_dossier:
         try:
             last_num = int(last_patient.numero_dossier.split('-')[1])
             next_num = last_num + 1
         except (ValueError, IndexError):
-            next_num = db.query(models.Patient).count() + 1
+            next_num = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).count() + 1
     else:
         next_num = 1
     return f"P-{next_num:06d}"
+
 
 # --- ROUTES CRUD ---
 
 @router.get("/next-dossier-number")
 def get_next_dossier_number(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    return {"next_number": generate_next_dossier_number(db)}
+    return {"next_number": generate_next_dossier_number(db, current_user.get_employer_id())}
 
 @router.get("/check-dossier/{numero}")
 def check_dossier_availability(numero: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -71,7 +72,7 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     patient_data['employer_id'] = employer_id
     
     if not patient_data.get('numero_dossier'):
-        patient_data['numero_dossier'] = generate_next_dossier_number(db)
+        patient_data['numero_dossier'] = generate_next_dossier_number(db, employer_id)
     
     db_patient = models.Patient(**patient_data)
     db.add(db_patient); db.flush()

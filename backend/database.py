@@ -64,6 +64,10 @@ def check_and_update_db():
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_template VARCHAR DEFAULT 'classic'")
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_fr VARCHAR DEFAULT 'inter'")
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_ar VARCHAR DEFAULT 'amiri'")
+        safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_lines_fr JSONB DEFAULT '[]'")
+        safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_lines_ar JSONB DEFAULT '[]'")
+        safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS specialty_ids JSONB DEFAULT '[]'")
+
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_top FLOAT DEFAULT 3.6")
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_bottom FLOAT DEFAULT 3.2")
         safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS ice VARCHAR DEFAULT ''")

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 import datetime
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, List
 
 
 class PraticienProfileOut(BaseModel):
@@ -14,7 +14,11 @@ class PraticienProfileOut(BaseModel):
     telephone_mobile: Optional[str] = None
     identifiants_legaux: Optional[Dict[str, str]] = None
     inpe: Optional[str] = None
+    header_lines_fr: Optional[List[str]] = None
+    header_lines_ar: Optional[List[str]] = None
+    specialty_ids: Optional[List[str]] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class DossierOut(BaseModel):
