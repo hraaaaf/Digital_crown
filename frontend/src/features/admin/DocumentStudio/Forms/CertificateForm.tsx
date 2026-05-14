@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
-import { CheckCircle2, Clock, Edit3, Sparkles } from 'lucide-react';
+import { CheckCircle2, Clock, Edit3, Sparkles, AlertCircle } from 'lucide-react';
 import { api } from '../../../../services/api';
 
 interface CertificateFormProps {
@@ -49,7 +49,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     { id: 'Repos Post-Opératoire', label: 'Repos Post-Op', icon: <Clock size={14} /> },
     { id: 'Suite d\'Intervention', label: 'Suite d\'Acte', icon: <CheckCircle2 size={14} /> },
     { id: 'Certificat de Présence', label: 'Présence (Soin)', icon: <CheckCircle2 size={14} /> },
-    { id: 'Certificat d\'aptitude', label: 'Aptitude', icon: <CheckCircle2 size={14} /> },
+    { id: 'Certificat d\'aptitude', label: 'Aptitude / Sport', icon: <CheckCircle2 size={14} /> },
+    { id: 'Certificat de Reprise', label: 'Reprise Travail', icon: <CheckCircle2 size={14} /> },
+    { id: 'Contre-indication', label: 'Contre-Indication', icon: <AlertCircle size={14} /> },
     { id: 'Autre', label: 'Autre motif', icon: <Edit3 size={14} /> },
   ];
 
@@ -79,22 +81,32 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
               {certifTypes.map((type) => (
-                <button
-                  key={type.id}
-                  onClick={() => setCertifType(type.id)}
-                  className={cn(
-                    "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
-                    certifType === type.id
-                      ? "bg-primary text-white border-primary shadow-xl shadow-primary/20"
-                      : "bg-white text-slate-500 border-slate-100 hover:border-primary/30"
-                  )}
-                  style={certifType === type.id ? { backgroundColor: 'var(--primary)' } : {}}
-                >
-                  <span className={cn(certifType === type.id ? "text-white" : "text-primary/40")}>{type.icon}</span>
-                  {type.label}
-                </button>
+                <div key={type.id} className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={() => setCertifType(type.id)}
+                    className={cn(
+                      "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm min-w-[180px]",
+                      certifType === type.id
+                        ? "bg-primary text-white border-primary shadow-xl shadow-primary/20"
+                        : "bg-white text-slate-500 border-slate-100 hover:border-primary/30"
+                    )}
+                    style={certifType === type.id ? { backgroundColor: 'var(--primary)' } : {}}
+                  >
+                    <span className={cn(certifType === type.id ? "text-white" : "text-primary/40")}>{type.icon}</span>
+                    {type.label}
+                  </button>
+                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4">
+                    {type.id === 'Repos Post-Opératoire' && "Génère un arrêt de travail"}
+                    {type.id === 'Suite d\'Intervention' && "Génère un certificat de soins"}
+                    {type.id === 'Certificat de Présence' && "Génère un justificatif horaire"}
+                    {type.id === 'Certificat d\'aptitude' && "Génère un certificat médical"}
+                    {type.id === 'Certificat de Reprise' && "Génère un avis de reprise"}
+                    {type.id === 'Contre-indication' && "Génère une inaptitude tempo."}
+                    {type.id === 'Autre' && "Saisie libre du motif"}
+                  </span>
+                </div>
               ))}
             </div>
 

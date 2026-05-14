@@ -52,6 +52,7 @@ interface DashboardStats {
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [praticienName, setPraticienName] = useState('Praticien');
 
   const today = new Date().toLocaleDateString('fr-FR', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
@@ -80,7 +81,18 @@ export const Dashboard: React.FC = () => {
       }
     };
 
+    const fetchConfig = async () => {
+      try {
+        const response = await api.get('/admin/cabinet/mine');
+        const config = response.data;
+        if (config.header_lines_fr && config.header_lines_fr.length > 0) {
+          setPraticienName(config.header_lines_fr[0]);
+        }
+      } catch (e) {}
+    };
+
     fetchStats();
+    fetchConfig();
   }, []);
 
   if (loading) return (
@@ -101,12 +113,13 @@ export const Dashboard: React.FC = () => {
     >
       <motion.header variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, Dr. Benmoussa</h1>
+          <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {praticienName}</h1>
           <div className="flex items-center gap-3 mt-3 bg-card-bg/60 backdrop-blur-md px-4 py-2 rounded-elite-sm border border-border-main w-fit">
             <Calendar size={16} className="text-primary" />
             <p className="text-text-muted font-bold text-sm">{formatDate(today)}</p>
           </div>
         </div>
+
         
         <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
           <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">

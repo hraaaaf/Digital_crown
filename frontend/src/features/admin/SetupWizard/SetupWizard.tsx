@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, ArrowRight, ArrowLeft, Check, CheckCircle2,
@@ -32,15 +32,6 @@ export const SetupWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem('appMode') === 'demo');
-
-  const toggleDemoMode = useCallback(() => {
-    setIsDemoMode(prev => {
-      const next = !prev;
-      localStorage.setItem('appMode', next ? 'demo' : 'live');
-      return next;
-    });
-  }, []);
 
   const [cabinetType, setCabinetType] = useState<'PRIVE' | 'CLINIQUE'>('PRIVE');
   const [identity, setIdentity] = useState<IdentityState>({ nomCabinet: '', nomPraticien: '', nomPraticienAR: '', adresse: '', ice: '', if: '', inpe: '' });
@@ -76,6 +67,7 @@ export const SetupWizard: React.FC = () => {
     label: 'Scannez pour me contacter',
     color: null as string | null,
   });
+  const [showPreview, setShowPreview] = useState(true);
 
   // Confirmation modal for card-import overwrite
   const [confirmOverwriteFile, setConfirmOverwriteFile] = useState<File | null>(null);
@@ -222,18 +214,12 @@ export const SetupWizard: React.FC = () => {
         qr_code_color: qrConfig.color || identityData.primary,
       };
 
-      if (isDemoMode) {
-        await new Promise(r => setTimeout(r, 1200));
-        sessionStorage.setItem('demoConfig', JSON.stringify(payload));
-        navigate('/dashboard');
-      } else {
-        await cabinetApi.create(payload as any);
-        if (logoFile) await cabinetApi.uploadLogo(logoFile);
-        if (headerOption === 'letterhead' && letterheadFile) {
-          await cabinetApi.uploadLetterhead(letterheadFile, sanitizedMargins.top, sanitizedMargins.bottom);
-        }
-        navigate('/dashboard');
+      await cabinetApi.create(payload as any);
+      if (logoFile) await cabinetApi.uploadLogo(logoFile);
+      if (headerOption === 'letterhead' && letterheadFile) {
+        await cabinetApi.uploadLetterhead(letterheadFile, sanitizedMargins.top, sanitizedMargins.bottom);
       }
+      navigate('/dashboard');
     } catch {
       setErrors({ submit: "Échec de l'initialisation. Réessayez." });
     } finally {
@@ -249,15 +235,7 @@ export const SetupWizard: React.FC = () => {
             <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Building2 className="text-white" size={20} /></div>
             <div><h1 className="font-black text-text-main tracking-tight text-lg uppercase">Digital <span className="text-primary">Crown</span></h1><p className="text-[9px] font-black text-text-muted uppercase tracking-widest leading-none mt-0.5">Setup Wizard v4.0</p></div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 px-4 py-2 bg-input-field rounded-xl border border-border-main">
-              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Elite Mode</span>
-              <button onClick={toggleDemoMode} className={cn("w-10 h-5 rounded-full relative transition-all", isDemoMode ? "bg-primary" : "bg-text-muted/20")}>
-                <div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all", isDemoMode ? "left-6" : "left-1")} />
-              </button>
-            </div>
-            <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-text-muted hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
-          </div>
+          <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-text-muted hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
         </div>
       </header>
 
@@ -305,25 +283,58 @@ export const SetupWizard: React.FC = () => {
           </div>
 
           {(currentStep >= 3 && currentStep <= 7) && (
-            <div className="lg:col-span-5 sticky top-28 animate-in fade-in slide-in-from-right-12 duration-1000">
-              <div className="mb-6 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2"><span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Aperçu Live Studio</span></div>
-                <div className="bg-card px-3 py-1 rounded-md border border-border-main text-[9px] font-bold text-text-muted shadow-sm">Document A5 Premium</div>
+            <div className="lg:col-span-5 sticky top-28 relative z-[11000] animate-in fade-in slide-in-from-right-12 duration-1000">
+              <div className="mb-6 flex items-center justify-between px-4 bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-border-main/40">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Aperçu Live Studio</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      toast.success("Aperçu rafraîchi");
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
+                  >
+                    Actualiser
+                  </button>
+                  <button 
+                    onClick={() => setShowPreview(!showPreview)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 border rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                      showPreview ? "bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white" : "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white"
+                    )}
+                  >
+                    {showPreview ? "Fermer" : "Ouvrir"}
+                  </button>
+                </div>
               </div>
-              <LiveDocumentStudio
-                identity={identity}
-                selectedIdentity={selectedIdentity}
-                selectedTemplate={selectedTemplate}
-                selectedFont={selectedFont}
-                headerOption={headerOption}
-                logoPreview={logoPreview}
-                letterheadPreview={letterheadPreview}
-                margins={margins}
-                cabinetType={cabinetType}
-                specialtyStrings={specialtyStrings}
-                contactString={contactString}
-                qrConfig={qrConfig}
-              />
+              
+              {showPreview ? (
+                <LiveDocumentStudio
+                  identity={identity}
+                  selectedIdentity={selectedIdentity}
+                  selectedTemplate={selectedTemplate}
+                  selectedFont={selectedFont}
+                  headerOption={headerOption}
+                  logoPreview={logoPreview}
+                  letterheadPreview={letterheadPreview}
+                  margins={margins}
+                  cabinetType={cabinetType}
+                  specialtyStrings={specialtyStrings}
+                  contactString={contactString}
+                  qrConfig={qrConfig}
+                />
+              ) : (
+                <div className="w-full aspect-[1/1.414] bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-12">
+                   <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
+                      <Building2 className="text-slate-200" size={32} />
+                   </div>
+                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Aperçu masqué</p>
+                   <button onClick={() => setShowPreview(true)} className="mt-4 text-[10px] font-black text-primary underline uppercase tracking-widest">Réactiver l'aperçu</button>
+                </div>
+              )}
             </div>
           )}
         </div>

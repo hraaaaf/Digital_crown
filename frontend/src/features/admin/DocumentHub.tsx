@@ -17,8 +17,9 @@ import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
+import { PriceBrain } from '../../components/odontogram/PriceBrain';
 
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre';
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
 interface PriceItem {
@@ -28,6 +29,7 @@ interface PriceItem {
   price: number;
   toothNumbers?: number[];
   _odontogramKey?: string;
+  category?: string;
 }
 
 interface DocumentHubProps {
@@ -270,7 +272,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab('certificat');
         setCertifType(d.reason || 'Certificat de Repos');
         setCertifDays(d.days || 0);
-      } else if (type === 'libre') {
+      } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
         setLibreTitle(d.title || 'Note Médicale');
         setLibreContent(d.content || '');
@@ -298,7 +300,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     setSelectedTeethFromOdontogram(teeth);
     setItems(prev => {
       const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
-      const surviving = prev.filter(i => !i._odontogramKey || activeKeys.has(i._odontogramKey));
+      // Filter out empty manual rows OR rows whose odontogram key is no longer active
+      const surviving = prev.filter(i => {
+        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
+        return i.description.trim() !== ''; // Keep manual rows only if they have content
+      });
       const existingKeys = new Set(surviving.map(i => i._odontogramKey).filter(Boolean));
       const newItems: PriceItem[] = [];
       teeth.forEach(t => {
@@ -405,9 +411,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             />
           )}
 
-          {(activeTab === 'libre' || activeTab === 'lettre') && (
+          {activeTab === 'libre' && (
             <LibreForm
-              title={activeTab === 'lettre' && !libreTitle ? "LETTRE MÉDICALE" : libreTitle} 
+              title={libreTitle} 
               setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
@@ -422,7 +428,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
               isDevis={activeTab === 'devis'}
-              patientId={patientId || '0'} items={items} setItems={setItems}
+              patientId={patientId || '0'} items={items} setItems={(newItems) => {
+                // Si on change les items, on peut aussi apprendre les prix ici si c'est pertinent
+                setItems(newItems);
+              }}
               coherenceWarnings={generator.coherenceWarnings}
               paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
               installments={installments} setInstallments={setInstallments}
@@ -453,7 +462,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               handleTeethFromOdontogram={handleTeethFromOdontogram}
               addEmptyRow={() => setItems([...items, { id: Date.now(), description: '', dent: '0', price: 0 }])}
               removeItem={(id) => setItems(items.filter(i => i.id !== id))}
-              updateItem={(id, f, v) => setItems(items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i))}
+              updateItem={(id, f, v) => {
+                const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
+                setItems(newItems);
+                // Apprentissage Brain Ghost (v4.9)
+                const item = newItems.find(i => i.id === id);
+                if (item && item.description && item.price > 0 && (f === 'price' || f === 'description')) {
+                  PriceBrain.recordAct(item.description, item.price, item.category || 'CONSERVATRICE');
+                }
+              }}
               handleActSearch={async (q, id) => {
                 setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
                 if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
@@ -477,12 +494,27 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                   const res = await api.get(`/actes/catalog/search?q=${q}`);
                   const apiMatches = res.data || [];
                   
-                  // Merge and deduplicate by name, prioritizing habits and local templates
-                  const merged: any[] = [];
+                  // Priorité 0 : Local Brain (Ghost Conscience)
+                  const brainHistory = PriceBrain.getHistory();
+                  const localBrainMatches = Object.values(brainHistory)
+                    .filter(a => a.name.toLowerCase().includes(q.toLowerCase()))
+                    .map(a => ({
+                      id: `brain_${a.name}`,
+                      name: a.name,
+                      base_price: a.price,
+                      category: a.category,
+                      isLocal: true,
+                      is_habit: true
+                    }));
+
+                  // Merge and deduplicate by name
+                  const merged: any[] = [...localBrainMatches];
                   
-                  // Priorité 1 : Habits de l'API (déjà triés par usage_count dans le backend)
+                  // Priorité 1 : Habits de l'API
                   apiMatches.filter((a: any) => a.is_habit).forEach((a: any) => {
-                    merged.push({ ...a, isLocal: false });
+                    if (!merged.find(x => x.name.toLowerCase() === a.name.toLowerCase())) {
+                      merged.push({ ...a, isLocal: false });
+                    }
                   });
 
                   // Priorité 2 : Local Templates
@@ -509,6 +541,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               actSuggestions={actSuggestions}
               applyActSuggestion={(id, act) => {
                 setItems(items.map(i => i.id === id ? { ...i, description: act.name, price: act.base_price || 0, category: act.category } : i));
+                // Apprentissage immédiat si prix dispo
+                if (act.name && act.base_price > 0) {
+                  PriceBrain.recordAct(act.name, act.base_price, act.category || 'CONSERVATRICE');
+                }
                 setActSuggestions([]);
                 setActiveActSearchId(null);
               }}
@@ -593,19 +629,19 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             initial={{ x: 600, opacity: 0 }} 
             animate={{ x: 0, opacity: 1 }} 
             exit={{ x: 600, opacity: 0 }} 
-            className="fixed right-6 top-6 bottom-6 w-[550px] z-[10000] drop-shadow-2xl"
+            className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
           >
             <LivePreview
               pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
+              onRefresh={() => generator.handleGenerate(false, false, true)}
               title={{
                 'plan': 'Stratégie Clinique',
                 'ordonnance': 'Ordonnance',
                 'certificat': 'Certificat',
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
-                'lettre': 'Lettre Médicale',
                 'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />

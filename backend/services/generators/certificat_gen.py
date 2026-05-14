@@ -180,6 +180,12 @@ class CertificatGenerator:
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> est en état "
                 f"d'assurer <b>{reprise_term}</b> suite à l'acte professionnel réalisé ce jour.<br/><br/>"
             )
+        elif "contre-indication" in reason_lower:
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b> présente une <b>contre-indication médicale temporaire</b> "
+                f"à la pratique ou à l'acte mentionné, pour une durée de <b>{days} jours</b>.<br/><br/>"
+            )
         else:
             phrase_motif = f"<b>{reason}</b>" if reason else "un repos médical"
             certif_text = (

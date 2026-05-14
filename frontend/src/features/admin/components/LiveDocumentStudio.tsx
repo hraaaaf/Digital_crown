@@ -47,7 +47,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = React.memo(
   const fontClass = PREMIUM_FONTS.find(f => f.id === selectedFont)?.class || 'font-sans';
 
   return (
-    <div className="w-full bg-slate-100 rounded-[2.5rem] p-8 border border-slate-200/40 shadow-inner flex justify-center sticky top-28">
+    <div className="w-full bg-slate-100 rounded-[2.5rem] p-8 border border-slate-200/40 shadow-inner flex justify-center">
       <div className={cn(
         "w-full max-w-[360px] bg-white shadow-2xl rounded-sm overflow-hidden flex flex-col aspect-[1/1.414] border border-slate-100 relative transition-all duration-500",
         fontClass,

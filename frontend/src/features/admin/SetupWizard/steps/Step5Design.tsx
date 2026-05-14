@@ -16,8 +16,8 @@ interface Props {
   setSelectedTemplate: (v: TemplateOption) => void;
   logoPreview: string | null;
   letterheadPreview: string | null;
-  logoInputRef: React.RefObject<HTMLInputElement>;
-  letterheadInputRef: React.RefObject<HTMLInputElement>;
+  logoInputRef: React.RefObject<HTMLInputElement | null>;
+  letterheadInputRef: React.RefObject<HTMLInputElement | null>;
   handleLogoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleLetterheadChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   margins: { top: number; bottom: number };

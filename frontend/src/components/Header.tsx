@@ -15,7 +15,6 @@ export const Header = () => {
   const [showNotifs, setShowNotifs] = useState(false);
   const [hoveredOrb, setHoveredOrb] = useState<'brain' | 'guide' | null>('brain');
   const notifRef = useRef<HTMLDivElement>(null);
-  const isDemoMode = safeStorage.get('appMode') === 'demo';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -29,18 +28,6 @@ export const Header = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (isDemoMode) {
-        const storedDemo = sessionStorage.getItem('demoConfig');
-        if (storedDemo) {
-          try {
-            const demoData = JSON.parse(storedDemo);
-            setCabinetName(demoData.nom_cabinet || 'Cabinet Démo');
-            setPraticienName(demoData.nomPraticien || 'Dr. Exploration');
-          } catch (e) {}
-        }
-        return;
-      }
-
       try {
         const config = await cabinetApi.getMine();
         setCabinetName(config.nom_cabinet || 'Mon Cabinet');
@@ -53,7 +40,6 @@ export const Header = () => {
       }
     };
     const fetchTreasury = async () => {
-      if (isDemoMode) return;
       try {
         const res = await api.get('/documents/accounting/treasury-hub');
         setTreasuryCount(res.data.pending_count || 0);
@@ -65,13 +51,13 @@ export const Header = () => {
 
     const interval = setInterval(fetchTreasury, 60000); // Rafraîchissement toutes les 60s
     return () => clearInterval(interval);
-  }, [isDemoMode]);
+  }, []);
 
   const handleLogout = () => {
     safeStorage.remove('appMode');
-    sessionStorage.removeItem('demoConfig');
     window.location.href = '/welcome'; 
   };
+
 
   return (
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">

@@ -56,17 +56,31 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
 
         {activeTab !== 'ai' && (
-          <button 
-            onClick={onTogglePreview}
-            className={cn(
-              "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-              sideStudioType === 'PREVIEW' 
-                ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/30" 
-                : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
-            )}
-          >
-            <Eye size={14}/> {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Direct"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2 px-5 py-3 bg-white text-slate-400 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
+            >
+              Actualiser
+            </button>
+            <button 
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+            >
+              Quitter
+            </button>
+            <button 
+              onClick={onTogglePreview}
+              className={cn(
+                "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                sideStudioType === 'PREVIEW' 
+                  ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/30" 
+                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+              )}
+            >
+              <Eye size={14}/> {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Direct"}
+            </button>
+          </div>
         )}
 
         <div className="bg-white/80 dark:bg-slate-900/50 p-2.5 rounded-2xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col items-start gap-1 min-w-[130px]">

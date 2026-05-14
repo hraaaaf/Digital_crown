@@ -1701,3 +1701,5 @@ const TabButton = ({ active, onClick, icon, label }: { active: boolean, onClick:
     {icon} <span>{label}</span>
   </button>
 );
+
+export default Settings;

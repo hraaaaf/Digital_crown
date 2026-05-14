@@ -10,7 +10,6 @@ import { Dashboard } from './pages/Dashboard';
 import { LoginPage } from './pages/LoginPage';
 import { WelcomeScreen } from './pages/WelcomeScreen';
 import { authService } from './services/auth';
-import { MarketingDemo } from './components/MarketingDemo';
 
 // Chargés à la demande
 const PatientList     = lazy(() => import('./features/patients/PatientList').then(m => ({ default: m.PatientList })));
@@ -42,37 +41,33 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const location = useLocation();
 
   useEffect(() => {
-    if (authService.isAuthenticated()) {
-      checkInitStatus();
-    }
-  }, [authService.isAuthenticated()]);
-
-  const checkInitStatus = async () => {
-    try {
-      const status = await cabinetApi.checkInitStatus();
-      setIsInitialized(status.is_initialized);
-      
-      // AUTO-BYPASS : Si le cabinet est déjà initialisé (ancien compte), 
-      // on active le mode réel par défaut pour éviter l'écran de bienvenue.
-      if (status.is_initialized && !safeStorage.get('appMode')) {
-        safeStorage.set('appMode', 'prod');
+    const checkAuthAndInit = async () => {
+      try {
+        const authStatus = await authService.isAuthenticated();
+        setIsAuthenticated(authStatus);
+        
+        if (authStatus) {
+          const status = await cabinetApi.checkInitStatus();
+          setIsInitialized(status.is_initialized);
+          
+          if (status.is_initialized && !safeStorage.get('appMode')) {
+            safeStorage.set('appMode', 'prod');
+          }
+        }
+      } catch (error) {
+        console.error('Erreur vérification statut:', error);
+        setIsInitialized(false);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Erreur vérification statut:', error);
-      setIsInitialized(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
-  if (!authService.isAuthenticated()) {
-    if (location.pathname === '/login') return <>{children}</>;
-    return <Navigate to="/login" replace />;
-  }
+    checkAuthAndInit();
+  }, [location.pathname]);
 
   if (isLoading) {
     return (
@@ -85,22 +80,38 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // Force le choix du mode s'il n'existe pas
+  // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
+  if (!isAuthenticated) {
+    if (location.pathname === '/login') return <>{children}</>;
+    return <Navigate to="/login" replace />;
+  }
+
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-slate-600">Vérification de la configuration...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)
   const appMode = safeStorage.get('appMode');
   if (!appMode && location.pathname !== '/welcome') {
     return <Navigate to="/welcome" replace />;
   }
 
-  // En mode démo, on ignore la redirection forcée vers setup si on veut explorer librement
-  // mais on autorise l'accès au setup. Si mode réel, on impose /setup si non init.
-  if (appMode === 'prod') {
-    if (!isInitialized && location.pathname !== '/setup') {
-      return <Navigate to="/setup" replace />;
-    }
-    if (isInitialized && location.pathname === '/setup') {
-      return <Navigate to="/dashboard" replace />;
-    }
+  // Si mode réel, on impose /setup si non init.
+  if (!isInitialized && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
   }
+  if (isInitialized && location.pathname === '/setup') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
 
   return <>{children}</>;
 };
@@ -157,7 +168,6 @@ function App() {
           error: { duration: 5000 },
         }}
       />
-      <MarketingDemo />
       <Routes>
         {/* Route d'entrée absolue (sans protection) */}
         <Route path="/welcome" element={<WelcomeScreen />} />

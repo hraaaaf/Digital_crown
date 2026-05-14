@@ -145,6 +145,17 @@ export interface ToothTreatment {
   scope?: 'UNITAIRE' | 'MULTIDENTS' | 'GLOBAL';
 }
 
+export const CATEGORY_LABELS: Record<string, string> = {
+  CONSERVATRICE: 'Conservatrice',
+  ENDODONTIE: 'Endodontie',
+  CHIRURGIE: 'Chirurgie',
+  PROTHESE: 'Prothèse',
+  PREVENTION: 'Prévention',
+  PARODONTOLOGIE: 'Parodontologie',
+  ESTHETIQUE: 'Esthétique',
+  ORTHODONTIE: 'Orthodontie',
+};
+
 // Données de sélection avec surface spécifique
 export interface SelectedSurfaceData {
   toothNumber: number;

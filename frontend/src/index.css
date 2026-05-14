@@ -125,6 +125,8 @@
   --primary: #3b82f6;
   --secondary: #2563eb;
   --accent: #60a5fa;
+}
+
 [data-theme='ocean'] {
   /* OCÉAN PROFOND */
   --bg-medical-pearl: #f0f9ff;
@@ -236,16 +238,17 @@
 /* Cas particuliers pour le Glassmorphism */
 [data-theme='dark'] :is(.bg-white\/80, .bg-card-bg\/80, .bg-white\/60, .bg-white\/40), 
 [data-theme='prestige'] :is(.bg-white\/80, .bg-card-bg\/80, .bg-white\/60, .bg-white\/40) {
-  background-color: var(--glass-bg) !important;
+  background-color: var(--glass-bg);
   backdrop-filter: blur(20px);
 }
 
 /* Forçage spécifique PatientScoreBadge et Menus Flottants */
 [data-theme='dark'] :is(.bg-white, [class*="bg-white/95"], .bg-\[\#FFF9E6\], .bg-rose-50),
 [data-theme='prestige'] :is(.bg-white, [class*="bg-white/95"], .bg-\[\#FFF9E6\], .bg-rose-50) {
-  background-color: var(--card-bg) !important;
-  backdrop-filter: blur(12px) !important;
+  background-color: var(--card-bg);
+  backdrop-filter: blur(12px);
 }
+
 
 [data-theme='dark'] :is(.text-slate-800, .text-\[\#B48A05\], .text-rose-600),
 [data-theme='prestige'] :is(.text-slate-800, .text-\[\#B48A05\], .text-rose-600) {
@@ -299,4 +302,8 @@ body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
-[data-theme='prestige'] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+[data-theme='prestige'] ::-webkit-scrollbar-thumb, 
+[data-theme='dark'] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+
+.custom-scrollbar-white::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15) !important; }
+.custom-scrollbar-white::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25) !important; }
