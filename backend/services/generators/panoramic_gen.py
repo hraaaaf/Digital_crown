@@ -21,14 +21,21 @@ class PanoramicGenerator:
         self._init_styles()
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def _init_styles(self):
-        """Initialisation des styles Elite pour le bilan."""
+    def _init_styles(self, p_color=None):
+        """Initialisation ou mise à jour des styles Elite pour le bilan."""
+        primary = p_color if p_color else NAVY_BLUE
+        
+        # On supprime les styles existants s'ils sont déjà présents pour éviter les erreurs ReportLab
+        for style_name in ['BilanTitle', 'BilanSection', 'BilanText', 'ClinicalSummaryBox', 'TableHead', 'TableCell']:
+            if style_name in self.styles:
+                self.styles.remove(style_name)
+
         self.styles.add(ParagraphStyle(
             name='BilanTitle',
             parent=self.styles['Normal'],
             fontName='Helvetica-Bold',
             fontSize=22,
-            textColor=NAVY_BLUE,
+            textColor=primary,
             alignment=TA_CENTER,
             spaceAfter=25,
             leading=26
@@ -38,7 +45,7 @@ class PanoramicGenerator:
             parent=self.styles['Normal'],
             fontName='Helvetica-Bold',
             fontSize=13,
-            textColor=NAVY_BLUE,
+            textColor=primary,
             spaceBefore=18,
             spaceAfter=12,
             borderPadding=5,
@@ -57,12 +64,12 @@ class PanoramicGenerator:
             name='ClinicalSummaryBox',
             parent=self.styles['Normal'],
             fontName='Helvetica-Oblique',
-            fontSize=10,
-            leading=15,
+            fontSize=11,
+            leading=16,
             textColor=colors.white,
-            backColor=NAVY_BLUE,
-            borderPadding=10,
-            borderRadius=5,
+            backColor=primary,
+            borderPadding=12,
+            borderRadius=8,
             alignment=TA_LEFT,
             spaceBefore=20,
             spaceAfter=20
@@ -104,7 +111,7 @@ class PanoramicGenerator:
                 
             if line.startswith('## '):
                 title = line[3:].upper()
-                if "SYNTHÈSE" in title or "PRÉCONISATIONS" in title:
+                if "SYNTHÈSE" in title or "PRÉCONISATIONS" in title or "CONCLUSION" in title:
                     in_summary = True
                 else:
                     in_summary = False
@@ -122,10 +129,8 @@ class PanoramicGenerator:
                 if in_summary:
                     summary_text.append(f"• {clean_line}")
                 else:
-                    # Affichage sous forme de tiret simple (BilanText)
                     flowables.append(Paragraph(f"• {clean_line}", self.styles['BilanText']))
             elif line.startswith('> '):
-                # Disclaimer ou citation
                 text = line[2:].replace('*', '')
                 flowables.append(Spacer(1, 0.5*cm))
                 flowables.append(Paragraph(f"<i>{text}</i>", self.styles['BilanText']))
@@ -147,17 +152,26 @@ class PanoramicGenerator:
 
     def generate_pdf(self, patient_name, img_rel_path, report_markdown, config=None, user=None):
         """Génère le document PDF Elite."""
+        # Mise à jour dynamique des styles selon le cabinet
+        p_color_hex = config.get('primary_color', '#003380') if config else '#003380'
+        p_color = colors.HexColor(p_color_hex)
+        self._init_styles(p_color=p_color)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"bilan_panoramique_{timestamp}.pdf"
         filepath = os.path.join(self.output_dir, filename)
         
+        # Marges configurables
+        m_top = (max(config.get('margin_top', 4.5), 4.5) if config else 4.5) * cm
+        m_bottom = (max(config.get('margin_bottom', 3.5), 3.5) if config else 3.5) * cm
+
         doc = SimpleDocTemplate(
             filepath, 
             pagesize=A4, 
             rightMargin=1.5*cm, 
             leftMargin=1.5*cm, 
-            topMargin=4.5*cm, 
-            bottomMargin=3*cm
+            topMargin=m_top, 
+            bottomMargin=m_bottom
         )
         
         elements = []
@@ -170,7 +184,7 @@ class PanoramicGenerator:
         ]]
         header_table = Table(header_data, colWidths=[12*cm, 6*cm])
         header_table.setStyle(TableStyle([
-            ('LINEBELOW', (0,0), (-1,-1), 1, NAVY_BLUE),
+            ('LINEBELOW', (0,0), (-1,-1), 1, p_color),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
         ]))
         elements.append(header_table)
@@ -195,9 +209,7 @@ class PanoramicGenerator:
                 ]))
                 elements.append(Spacer(1, 0.8*cm))
         except Exception as e:
-            logger.error(f"Erreur insertion image PDF: {e}")
             elements.append(Paragraph("<i>[Image panoramique non disponible pour ce bilan]</i>", self.styles['BilanText']))
-
         
         # 3. Contenu structuré
         content_flowables = self._markdown_to_flowables(report_markdown)
@@ -213,6 +225,5 @@ class PanoramicGenerator:
 
         doc.build(elements, onFirstPage=draw_canvas, onLaterPages=draw_canvas)
         return f"api/static/documents/panoramic/{filename}"
-
 
 panoramic_generator = PanoramicGenerator()

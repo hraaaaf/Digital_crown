@@ -73,9 +73,21 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const P = PALETTE[mode];
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
 
-  // Initialisation du Store Zustand
+  // Initialisation du Store Zustand & Sync Thème
   useEffect(() => {
     store.setPatientInfo(patientId, patientName);
+    
+    // Sync reactive avec le thème global
+    const syncTheme = () => {
+      const isDark = document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige';
+      store.setMode(isDark ? 'dark' : 'light');
+    };
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+    
+    syncTheme(); // Init immédiat
+    return () => observer.disconnect();
   }, [patientId, patientName]);
 
   // Initialisation Patient

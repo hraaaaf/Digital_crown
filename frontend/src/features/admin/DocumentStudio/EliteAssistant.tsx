@@ -68,8 +68,8 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.9, y: isEmbedded ? -20 : 20, filter: 'blur(10px)' }}
             className={cn(
-              "pointer-events-auto w-72 bg-white/90 dark:bg-slate-900/80 backdrop-blur-3xl border border-slate-200/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden",
-              isEmbedded ? "absolute top-20 right-0" : "mb-2"
+              "pointer-events-auto w-72 bg-white/90 dark:bg-slate-900/80 backdrop-blur-3xl border border-slate-200/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-[10002]",
+              isEmbedded ? "absolute top-20 right-2" : "mb-2"
             )}
           >
             {/* Header - More Compact */}
@@ -80,10 +80,6 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                 </div>
                 <div>
                   <h4 className="text-[9px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Ghost Brain</h4>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Live Audit</span>
-                  </div>
                 </div>
               </div>
               <button 
@@ -290,17 +286,11 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
           </div>
         )}
 
-        {/* Status Tooltip (Thinking) */}
-        {!isExpanded && (
-           <motion.div 
-             initial={{ opacity: 0 }}
-             animate={{ opacity: [0, 1, 0.5, 1] }}
-             transition={{ repeat: Infinity, duration: 4 }}
-             className="absolute -top-8 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase text-primary tracking-widest whitespace-nowrap"
-           >
-             Live Audit...
-           </motion.div>
-        )}
+        {/* Status Tooltip */}
+        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[8px] font-black rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-tighter whitespace-nowrap">
+          Ghost Brain
+        </div>
+
       </motion.button>
 
     </div>

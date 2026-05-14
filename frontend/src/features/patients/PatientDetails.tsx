@@ -80,9 +80,9 @@ export const PatientDetails = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center flex-col gap-6 bg-slate-50/50">
+      <div className="flex h-screen items-center justify-center flex-col gap-6 bg-transparent">
         <Loader2 className="w-14 h-14 animate-spin" style={{ color: 'var(--primary)' }} />
-        <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">
+        <p className="text-text-muted font-black uppercase tracking-[0.2em] text-[10px]">
           Ouverture du dossier clinique...
         </p>
       </div>
@@ -95,11 +95,11 @@ export const PatientDetails = () => {
   const isCompact = activeTab === 'admin' || activeTab === 'archives';
 
   return (
-    <div className={cn("flex flex-col bg-slate-50/30", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
+    <div className={cn("flex flex-col bg-transparent", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
       
       <header className={cn(
-        "sticky top-0 z-[300] bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-all duration-500",
-        isCompact ? "pt-3 pb-0 shadow-sm" : "pt-8 pb-0 shadow-[0_4px_30px_rgba(0,0,0,0.03)]"
+        "sticky top-0 z-[300] bg-card-bg/80 backdrop-blur-xl border-b border-border-main transition-all duration-500",
+        isCompact ? "pt-3 pb-0 shadow-elite" : "pt-8 pb-0 shadow-elite"
       )}>
         <div className="max-w-[1600px] mx-auto px-6 md:px-10">
           
@@ -107,7 +107,7 @@ export const PatientDetails = () => {
             <div className="flex items-center gap-5">
               <button 
                 onClick={() => navigate('/patients')}
-                className={cn("bg-white border border-slate-200 text-slate-400 hover:border-primary flex items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:border-primary flex items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
                   isCompact ? "w-8 h-8" : "w-12 h-12"
                 )}
                 style={{ color: 'var(--primary)' }}
@@ -122,10 +122,10 @@ export const PatientDetails = () => {
                   {patient.assurance && patient.assurance !== 'AUCUNE' && (
                     <span className={cn(
                       "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border shadow-sm",
-                      patient.assurance === 'CNOPS' ? "bg-blue-100 text-blue-700 border-blue-200" :
-                      patient.assurance === 'CNSS' ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                      patient.assurance === 'MUTUELLE_FAR' ? "bg-purple-100 text-purple-700 border-purple-200" :
-                      "bg-amber-100 text-amber-700 border-amber-200"
+                      patient.assurance === 'CNOPS' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                      patient.assurance === 'CNSS' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                      patient.assurance === 'MUTUELLE_FAR' ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                      "bg-amber-500/10 text-amber-400 border-amber-500/20"
                     )}>
                       {patient.assurance === 'MUTUELLE_FAR' ? 'FAR' : patient.assurance}
                     </span>
@@ -137,13 +137,13 @@ export const PatientDetails = () => {
                   )}
                 </h1>
                 
-                <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-slate-500 transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
-                  <div className="flex items-center gap-2 px-2 py-1 bg-white border border-slate-200/60 rounded-lg shadow-sm">
+                <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
+                  <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
                     <FileDigit size={14} style={{ color: 'var(--primary)' }} />
                     <span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span>
                   </div>
-                  <div className="flex items-center gap-2"><Calendar size={16} className="text-slate-400" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
-                  <div className="flex items-center gap-2"><Phone size={16} className="text-slate-400" /><span>{patient.telephone}</span></div>
+                  <div className="flex items-center gap-2"><Calendar size={16} className="text-text-muted" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
+                  <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone}</span></div>
                 </div>
               </div>
             </div>
@@ -152,7 +152,7 @@ export const PatientDetails = () => {
               {/* Quick Pay Button */}
               <button
                 onClick={() => setIsPayModalOpen(true)}
-                className={cn("bg-white border border-slate-200 text-slate-700 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
               >
                 <Banknote size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
                 {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Encaisser</span>}
@@ -186,12 +186,12 @@ export const PatientDetails = () => {
             <div className="space-y-6">
               {/* Ghost Elite Toggle */}
               <div className="flex justify-center">
-                <div className="inline-flex bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
+                <div className="inline-flex bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner">
                   <button 
                     onClick={() => setRadioTab('cephalo')}
                     className={cn(
                       "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
-                      radioTab === 'cephalo' ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"
+                      radioTab === 'cephalo' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"
                     )}
                   >
                     <Activity size={16} />
@@ -201,7 +201,7 @@ export const PatientDetails = () => {
                     onClick={() => setRadioTab('panoramic')}
                     className={cn(
                       "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
-                      radioTab === 'panoramic' ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"
+                      radioTab === 'panoramic' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"
                     )}
                   >
                     <Target size={16} />
@@ -210,7 +210,7 @@ export const PatientDetails = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[85vh]">
+              <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[85vh]">
                 {radioTab === 'cephalo' ? (
                   <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
                 ) : (
@@ -246,7 +246,7 @@ const TabButton = ({ active, onClick, icon, label }: any) => (
       "flex items-center gap-2 pb-3 px-2 text-[12px] font-black uppercase tracking-[0.1em] transition-all border-b-4",
       active 
         ? "text-primary" 
-        : "border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200"
+        : "border-transparent text-text-muted hover:text-main hover:border-border-main"
     )}
     style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}
   >

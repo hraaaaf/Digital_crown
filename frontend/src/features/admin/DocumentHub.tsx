@@ -593,7 +593,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             initial={{ x: 600, opacity: 0 }} 
             animate={{ x: 0, opacity: 1 }} 
             exit={{ x: 600, opacity: 0 }} 
-            className="fixed right-6 top-6 bottom-6 w-[550px] z-[200] drop-shadow-2xl"
+            className="fixed right-6 top-6 bottom-6 w-[550px] z-[10000] drop-shadow-2xl"
           >
             <LivePreview
               pdfUrl={generator.pdfUrl}

@@ -28,7 +28,8 @@ import { api } from '../services/api';
 import { cn } from '../utils/cn';
 import { TeamManager } from '../features/admin/TeamManager';
 import { BRAND_IDENTITIES, SPECIALTIES_DICT, APP_THEMES, PREMIUM_FONTS, DESIGN_VARIANTS } from '../features/admin/constants';
-import { Palette as PaletteIcon, Trash2, Moon, Sun, Leaf, Heart, Keyboard } from 'lucide-react';
+import { safeStorage } from '../hooks/useLocalStorage';
+import { Palette as PaletteIcon, Trash2, Moon, Sun, Leaf, Heart, Keyboard, Activity, Sparkles } from 'lucide-react';
 
 // --- COMPOSANT : CLAVIER ARABE VIRTUEL ---
 const ArabicKeyboard = ({ onInput }: { onInput: (char: string) => void }) => {
@@ -409,7 +410,18 @@ export const Settings = () => {
 
       await api.put('/clinics/me', payload);
       
-      const themeValue = profile.selected_theme === 'elite' ? '' : (profile.selected_theme || '');
+      // Sync Demo Mode for persistence during session
+      if (safeStorage.get('appMode') === 'demo') {
+        sessionStorage.setItem('demoConfig', JSON.stringify({
+          selected_theme: profile.selected_theme,
+          primary_color: profile.primary_color,
+          secondary_color: profile.secondary_color,
+          accent_color: profile.accent_color
+        }));
+      }
+
+      // Appliquer le thème immédiatement après sauvegarde (Standardisation sur body)
+      const themeValue = profile.selected_theme === 'elite' ? '' : profile.selected_theme;
       document.body.dataset.theme = themeValue;
       if (profile.app_accent_color) {
         document.documentElement.style.setProperty('--primary', profile.app_accent_color);
@@ -1143,6 +1155,7 @@ export const Settings = () => {
           {activeTab === 'branding' && (
             <div data-tour="settings-branding" className="space-y-10 animate-in slide-in-from-right-4 duration-500">
 
+<<<<<<< HEAD
               {/* ══════════════════════════════════════════════ */}
               {/* LIGNE 1 — STUDIO DOCUMENTS                     */}
               {/* ══════════════════════════════════════════════ */}
@@ -1170,6 +1183,100 @@ export const Settings = () => {
                           className={cn(
                             "p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden",
                             profile.primary_color === id.primary ? "border-amber-400 bg-amber-50/50 shadow-lg scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white"
+=======
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-12">
+                {/* COLONNE RÉGLAGES */}
+                <div className="xl:col-span-3 space-y-12">
+                  {/* 1. SÉLECTION DU THÈME */}
+                  <div className="space-y-6">
+                    <label className={labelClass}>Thème du Logiciel (Ambiance)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {[
+                        { id: 'elite', name: 'Ghost Elite', icon: <Sun size={20} />, desc: 'Clair & Pur', color: 'bg-slate-100 text-slate-600', preview: 'bg-medical-pearl' },
+                        { id: 'emerald', name: 'Émeraude Zen', icon: <Leaf size={20} />, desc: 'Serein & Médical', color: 'bg-emerald-50 text-emerald-600', preview: 'bg-emerald-50/30' },
+                        { id: 'rose', name: 'Rose Prestige', icon: <Heart size={20} />, desc: 'Luxe & Douceur', color: 'bg-rose-50 text-rose-600', preview: 'bg-rose-50/30' },
+                        { id: 'prestige', name: 'Nuit Intense', icon: <Moon size={20} />, desc: 'Sombre Médical', color: 'bg-slate-800 text-slate-200', preview: 'bg-slate-900' },
+                        { id: 'dark', name: 'Onyx Elite', icon: <Sparkles size={20} />, desc: 'Dark Mode Absolu', color: 'bg-slate-950 text-indigo-400', preview: 'bg-black' }
+                      ].map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            const newTheme = t.id;
+                            setProfile({ ...profile, selected_theme: newTheme });
+                            
+                            // Appliquer immédiatement au body
+                            document.body.dataset.theme = newTheme === 'elite' ? '' : newTheme;
+
+                            // Rigueur CTO : Si mode démo, on synchronise le sessionStorage pour MainLayout
+                            if (safeStorage.get('appMode') === 'demo') {
+                              const stored = sessionStorage.getItem('demoConfig');
+                              if (stored) {
+                                try {
+                                  const config = JSON.parse(stored);
+                                  config.selected_theme = newTheme;
+                                  sessionStorage.setItem('demoConfig', JSON.stringify(config));
+                                } catch (e) {}
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-5 rounded-elite-lg border-2 transition-elite flex items-center gap-4 text-left group relative overflow-hidden",
+                            profile.selected_theme === t.id 
+                              ? "border-primary bg-primary/5 shadow-elite scale-[1.02]" 
+                              : "border-border-main bg-card-bg hover:bg-primary/5"
+                          )}
+                        >
+                          <div className={cn("w-12 h-12 rounded-elite-sm flex items-center justify-center shadow-sm group-hover:scale-110 transition-elite", t.color)}>
+                            {t.icon}
+                          </div>
+                          <div className="flex-1">
+                            <span className="block font-black text-sm text-main" style={{ color: 'var(--text-main)' }}>{t.name}</span>
+                            <span className="text-[10px] text-text-muted font-bold uppercase tracking-tight">{t.desc}</span>
+                          </div>
+                          {profile.selected_theme === t.id && (
+                            <div className="absolute top-2 right-2">
+                              <CheckCircle2 size={16} className="text-primary" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. IDENTITÉ VISUELLE */}
+                  <div className="space-y-6 pt-10 border-t border-slate-100">
+                    <label className={labelClass}>Identité Visuelle (Couleurs Signature)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {BRAND_IDENTITIES.map(id => (
+                        <button
+                          key={id.id}
+                          onClick={() => {
+                            setProfile({ 
+                              ...profile, 
+                              primary_color: id.primary, 
+                              secondary_color: id.secondary, 
+                              accent_color: id.accent 
+                            });
+                            document.documentElement.style.setProperty('--primary', id.primary);
+
+                            // Sync Demo Mode
+                            if (safeStorage.get('appMode') === 'demo') {
+                              const stored = sessionStorage.getItem('demoConfig');
+                              if (stored) {
+                                try {
+                                  const config = JSON.parse(stored);
+                                  config.primary_color = id.primary;
+                                  config.secondary_color = id.secondary;
+                                  config.accent_color = id.accent;
+                                  sessionStorage.setItem('demoConfig', JSON.stringify(config));
+                                } catch (e) {}
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-5 rounded-elite-lg border-2 transition-elite text-left flex flex-col gap-4 group relative overflow-hidden",
+                            profile.primary_color === id.primary ? "border-primary bg-white shadow-elite scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white"
+>>>>>>> 0866abb (feat(ui): finalize Ghost Elite header integration, orb stabilization and visibility fixes)
                           )}
                         >
                           <div className="flex items-center justify-between">
@@ -1189,6 +1296,7 @@ export const Settings = () => {
                     </div>
                   </div>
 
+<<<<<<< HEAD
                   {/* AJUSTEMENT COULEURS MANUEL */}
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center gap-6">
                     <div className="flex-1">
@@ -1254,8 +1362,120 @@ export const Settings = () => {
                           </button>
                         ))}
                       </div>
+=======
+                  {/* 3. COULEUR PERSONNALISÉE */}
+                  <div className="p-8 bg-slate-50 rounded-elite-lg border border-slate-200/60 flex items-center gap-10">
+                    <div className="flex-1">
+                      <h4 className="text-lg font-black text-slate-800">Ajustement Manuel</h4>
+                      <p className="text-sm text-slate-500 mt-1 font-medium">Choisissez vos teintes HEX pour une personnalisation totale.</p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primaire</span>
+                        <input 
+                          type="color" 
+                          value={profile.primary_color} 
+                          onChange={(e) => {
+                            setProfile({ ...profile, primary_color: e.target.value });
+                            document.documentElement.style.setProperty('--primary', e.target.value);
+                          }}
+                          className="w-12 h-12 rounded-elite-sm cursor-pointer border-2 border-white shadow-md bg-transparent"
+                        />
+                      </div>
                     </div>
                   </div>
+                </div>
+
+                {/* COLONNE PRÉVISUALISATION LIVE */}
+                <div className="xl:col-span-2 space-y-6">
+                  <label className={labelClass}>Aperçu Elite en Direct</label>
+                  <div className="bg-slate-900 rounded-[2.5rem] p-4 shadow-2xl relative overflow-hidden h-[600px] border-[8px] border-slate-800">
+                    {/* MINI INTERFACE SIMULÉE */}
+                    <div className={cn(
+                      "w-full h-full rounded-[1.5rem] overflow-hidden flex flex-col relative transition-elite",
+                      profile.selected_theme === 'dark' ? "bg-black" : 
+                      profile.selected_theme === 'prestige' ? "bg-slate-900" :
+                      profile.selected_theme === 'emerald' ? "bg-emerald-50" :
+                      profile.selected_theme === 'rose' ? "bg-rose-50" : "bg-medical-pearl"
+                    )}>
+                      {/* Sidebar simulée */}
+                      <div className={cn(
+                        "absolute left-0 top-0 bottom-0 w-12 border-r flex flex-col items-center py-4 gap-4 transition-elite",
+                        profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' 
+                          ? "bg-slate-900/50 border-slate-800" 
+                          : "bg-white/80 border-slate-100"
+                      )}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${profile.primary_color}22`, color: profile.primary_color }}>
+                          <Building size={14}/>
+                        </div>
+                        <div className={cn("w-6 h-6 rounded-md", profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' ? "bg-slate-800" : "bg-slate-50")} />
+                        <div className={cn("w-6 h-6 rounded-md", profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' ? "bg-slate-800" : "bg-slate-50")} />
+                        <div className="w-6 h-6 rounded-md" style={{ backgroundColor: `${profile.primary_color}44` }} />
+                      </div>
+                      
+                      {/* Header simulé */}
+                      <div className={cn(
+                        "ml-12 h-10 border-b flex items-center px-4 justify-between transition-elite",
+                        profile.selected_theme === 'dark' || profile.selected_theme === 'prestige'
+                          ? "bg-slate-900/40 border-slate-800"
+                          : "bg-white/40 border-slate-100"
+                      )}>
+                        <div className={cn("w-20 h-2 rounded-full", profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' ? "bg-slate-800" : "bg-slate-100")} />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `${profile.primary_color}33` }} />
+                      </div>
+
+                      {/* Contenu simulé */}
+                      <div className="ml-12 p-4 space-y-4">
+                        <div className="space-y-2">
+                          <div className="w-24 h-4 rounded-full mb-4" style={{ backgroundColor: `${profile.primary_color}22` }} />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="h-16 rounded-xl shadow-sm p-2 flex flex-col justify-end" style={{ backgroundColor: profile.primary_color }}>
+                              <div className="w-8 h-1 bg-white/40 rounded-full" />
+                            </div>
+                            <div className={cn(
+                              "h-16 rounded-xl border shadow-sm",
+                              profile.selected_theme === 'dark' || profile.selected_theme === 'prestige'
+                                ? "bg-slate-800 border-slate-700"
+                                : "bg-white border-slate-200"
+                            )} />
+                          </div>
+                        </div>
+
+                        <div className={cn(
+                          "p-4 rounded-elite bg-white/60 backdrop-blur-sm border border-white/20 transition-elite",
+                          profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' 
+                            ? "bg-slate-900/60 border-slate-800/40" 
+                            : "bg-white/60 border-white/20"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: profile.primary_color }}>
+                              <Activity size={14} />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className={cn("h-2 w-full rounded-full", profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' ? "bg-slate-700" : "bg-slate-200")} />
+                              <div className={cn("h-2 w-2/3 rounded-full", profile.selected_theme === 'dark' || profile.selected_theme === 'prestige' ? "bg-slate-700" : "bg-slate-200")} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Overlay Thème */}
+                      <div 
+                        className="absolute inset-0 pointer-events-none transition-all duration-500 mix-blend-multiply opacity-10"
+                        style={{ 
+                          backgroundColor: profile.selected_theme === 'emerald' ? '#10b981' : 
+                                          profile.selected_theme === 'rose' ? '#f43f5e' : 
+                                          profile.selected_theme === 'prestige' ? '#0f172a' : 'transparent'
+                        }}
+                      />
+                    </div>
+
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-2 rounded-full border border-slate-200 shadow-xl">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Rendu Elite Temps Réel</span>
+>>>>>>> 0866abb (feat(ui): finalize Ghost Elite header integration, orb stabilization and visibility fixes)
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic text-center px-6">L'aperçu simule la disposition globale de votre tableau de bord avec les couleurs choisies.</p>
                 </div>
               </div>
 
