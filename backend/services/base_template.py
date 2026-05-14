@@ -87,11 +87,14 @@ class BaseTemplate:
         # Assets par défaut
         self.default_logo_path = os.path.join(self.base_path, "static", "assets", "logo.png")
         self.font_path = os.path.join(self.base_path, "static", "assets", "fonts", "Amiri-Regular.ttf")
+        self.montserrat_reg = os.path.join(self.base_path, "static", "assets", "fonts", "Montserrat-Regular.ttf")
+        self.montserrat_bold = os.path.join(self.base_path, "static", "assets", "fonts", "Montserrat-Bold.ttf")
         
         # Enregistrement des polices
         self._register_fonts()
 
     def _register_fonts(self):
+        # 1. Arabe (Amiri)
         if os.path.exists(self.font_path):
             try:
                 pdfmetrics.registerFont(TTFont('ArabicFont', self.font_path))
@@ -100,6 +103,29 @@ class BaseTemplate:
                 self.arabic_font = 'Helvetica'
         else:
             self.arabic_font = 'Helvetica'
+
+        # 2. Latin Premium (Montserrat)
+        self.premium_font = "Helvetica" # Fallback
+        self.premium_bold = "Helvetica-Bold"
+        
+        if os.path.exists(self.montserrat_reg) and os.path.exists(self.montserrat_bold):
+            try:
+                pdfmetrics.registerFont(TTFont('Montserrat', self.montserrat_reg))
+                pdfmetrics.registerFont(TTFont('Montserrat-Bold', self.montserrat_bold))
+                self.premium_font = 'Montserrat'
+                self.premium_bold = 'Montserrat-Bold'
+                
+                # Outfit (Elite Header Premium)
+                font_dir = os.path.dirname(self.montserrat_reg)
+                pdfmetrics.registerFont(TTFont('Outfit', os.path.join(font_dir, 'Outfit-Regular.ttf')))
+                pdfmetrics.registerFont(TTFont('Outfit-Bold', os.path.join(font_dir, 'Outfit-Bold.ttf')))
+                self.header_font = 'Outfit'
+                self.header_bold = 'Outfit-Bold'
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Erreur enregistrement Montserrat: {e}")
+                self.header_font = self.premium_font
+                self.header_bold = self.premium_bold
 
     def _prepare_arabic(self, text):
         if not text: return ""
@@ -112,6 +138,42 @@ class BaseTemplate:
         if isinstance(obj, dict):
             return obj.get(key, default)
         return getattr(obj, key, default)
+
+    @staticmethod
+    def get_adaptive_font_size(text, font_name, base_fs, max_width, min_fs=6.5):
+        """
+        Calcule la taille de police optimale pour faire tenir un texte sur une seule ligne.
+        Utilise pdfmetrics.stringWidth pour une précision absolue.
+        """
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        import re
+        
+        # Nettoyage des balises HTML pour le calcul de largeur
+        clean_text = re.sub(r'<[^>]+>', '', text)
+        
+        fs = base_fs
+        while stringWidth(clean_text, font_name, fs) > max_width and fs > min_fs:
+            fs -= 0.5
+        return fs
+
+    def get_adaptive_style(self, base_style, text, max_width, min_fs=6.5):
+        """Retourne un nouveau ParagraphStyle avec une fontSize adaptée."""
+        from reportlab.lib.styles import ParagraphStyle
+        
+        new_fs = self.get_adaptive_font_size(
+            text, 
+            base_style.fontName, 
+            base_style.fontSize, 
+            max_width,
+            min_fs=min_fs
+        )
+        
+        return ParagraphStyle(
+            name=f"{base_style.name}_adaptive",
+            parent=base_style,
+            fontSize=new_fs,
+            leading=new_fs * 1.2
+        )
 
     def draw_static_elements(self, canvas, doc, config=None, draw_legal_ids=False, user=None):
         """
@@ -163,10 +225,12 @@ class BaseTemplate:
 
     def _draw_auto_header(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height):
         """
-        En-tête Premium en 3 colonnes:
-        Gauche (Français), Centre (Logo), Droite (Arabe).
+        En-tête Elite Structuré en 3 Cadres (v6.2):
+        [FR Info] | [Logo] | [AR Info]
         """
-        y_pos = p_height - 1.5*cm
+        margin = 1.5*cm
+        y_top = p_height - 1.5*cm
+        column_w = (p_width - 2*margin) / 3.0
         
         fr_lines = self._get_val(config, 'header_lines_fr')
         if not fr_lines: fr_lines = ["Dr. Nom Prénom", "Chirurgien Dentiste"]
@@ -174,58 +238,84 @@ class BaseTemplate:
         ar_lines = self._get_val(config, 'header_lines_ar')
         if not ar_lines: ar_lines = ["د. الإسم الكامل", "طبيب جراح للأسنان"]
 
-        # Centre : Logo
-        if logo_path:
-            logo_size = 2.8*cm
-            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.5*cm, width=logo_size, height=logo_size, mask='auto')
-
-        # Police dynamique
-        font_name = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        # --- 1. CADRE GAUCHE (Français) ---
+        line_height = 0.45*cm # Interligne 'Elite Ultra-Dense' (v7.5)
         
-        # Gauche : FR
-        curr_y = y_pos
+        # On calcule d'abord la taille de police minimale commune
+        fs_list = []
         for i, line in enumerate(fr_lines):
+            base_fs = 30 # Version 'Ultra-Elite' (v7.5)
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w - 0.5*cm))
+        
+        common_fs = min(fs_list) if fs_list else 30
+        
+        curr_y = y_top
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
             canvas.setFillColor(p_color)
-            canvas.setFont('Helvetica-Bold' if i == 0 else 'Helvetica', 12 if i == 0 else 10)
-            canvas.drawString(1.5*cm, curr_y, line)
-            curr_y -= 0.55*cm
+            canvas.setFont(font, common_fs)
+            canvas.drawString(margin, curr_y, line)
+            curr_y -= line_height
 
-        # Droite : AR
-        canvas.setFont(font_name, 13 if font_name != 'Helvetica' else 11)
-        curr_y = y_pos
+        # --- 2. CADRE CENTRAL (Logo) ---
+        if logo_path:
+            logo_size = 2.4*cm
+            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.4*cm, width=logo_size, height=logo_size, mask='auto')
+
+        # --- 3. CADRE DROIT (Arabe) ---
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        
+        # Même logique d'unification pour l'arabe
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = 32 if font_ar != 'Helvetica' else 22 # Version 'Ultra-Elite' (v7.5)
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w - 0.5*cm))
+        
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else 32
+        
+        curr_y = y_top
         for i, line in enumerate(ar_lines):
             canvas.setFillColor(p_color)
+            canvas.setFont(font_ar, common_fs_ar)
             prepared_text = self._prepare_arabic(line)
-            canvas.drawRightString(p_width - 1.5*cm, curr_y, prepared_text)
-            curr_y -= 0.60*cm
+            canvas.drawRightString(p_width - margin, curr_y, prepared_text)
+            curr_y -= line_height
+
+        # NOTE: La ligne de séparation a été supprimée selon le feedback utilisateur (v6.2)
 
     def _draw_footer(self, canvas, doc, config, draw_legal_ids=False, user=None):
-        """Pied de page premium Architecture 2 Colonnes (70% Texte / 30% QR)."""
+        """Pied de page Elite Dynamique (v6.4)."""
         p_width, _ = doc.pagesize
-        left_margin = 1.5 * cm
+        margin = 1.5 * cm
+        qr_size = 1.6 * cm # Taille standard du QR
         
-        # Couleurs
+        # Calcul de la zone de texte : de la marge gauche au début du QR
+        # Cela garantit un centrage parfait dans l'espace restant
+        qr_x_start = p_width - margin - qr_size
+        text_zone_w = qr_x_start - margin
+        text_center_x = margin + (text_zone_w / 2.0)
+        
         p_color = self._get_val(config, 'primary_color', '#003380')
         s_color = self._get_val(config, 'secondary_color', '#666666')
         
-        # Trait de séparation
+        # Trait de séparation épuré
         canvas.setStrokeColor(colors.HexColor(p_color))
         canvas.setLineWidth(0.5)
-        canvas.line(left_margin, 2.5*cm, p_width - left_margin, 2.5*cm)
+        canvas.line(margin, 2.5*cm, p_width - margin, 2.5*cm)
         
-        # Colonne Gauche (Texte) : Centrée dans les 70% d'espace libre
-        font_name = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
-        center_text_x = (p_width / 2) - 1.0 * cm
-        
+        # 1. Adresse
         address = self._get_val(config, 'footer_address')
         if not address:
             address = self._get_val(user, "adresse_complete") or "Votre adresse de cabinet"
             
-        canvas.setFont(font_name, 9)
+        fs_addr = self.get_adaptive_font_size(address, self.premium_font, 9, text_zone_w - 0.4*cm)
+        canvas.setFont(self.premium_font, fs_addr)
         canvas.setFillColor(colors.HexColor(p_color))
-        canvas.drawCentredString(center_text_x, 2.0*cm, self._prepare_arabic(address))
+        # Centrage vertical (v7.6) : Ajusté pour desserrer légèrement
+        canvas.drawCentredString(text_center_x, 1.85*cm, self._prepare_arabic(address))
         
-        # Contacts
+        # 2. Contacts (Interligne serré v6.6)
         contacts_to_show = []
         c_json = self._get_val(config, 'contacts_json')
         if c_json:
@@ -236,25 +326,23 @@ class BaseTemplate:
                     contacts_to_show.append(f"{labels[key]} : {info['value'].strip()}")
         
         if not contacts_to_show:
-            phones = self._get_val(config, 'footer_phones')
-            if not phones:
-                phones = self._get_val(user, "telephone_fixe") or self._get_val(user, "telephone_mobile") or "Contactez-nous"
+            phones = self._get_val(config, 'footer_phones') or self._get_val(user, "telephone_mobile") or "Contact"
             contacts_to_show = [phones]
             
         contact_str = " / ".join(contacts_to_show)
-        
-        canvas.setFont(font_name, 8)
+        fs_contact = self.get_adaptive_font_size(contact_str, self.premium_font, 8, text_zone_w - 0.4*cm)
+        canvas.setFont(self.premium_font, fs_contact)
         canvas.setFillColor(colors.HexColor(s_color))
-        canvas.drawCentredString(center_text_x, 1.5*cm, self._prepare_arabic(contact_str))
+        # Centrage vertical (v7.6)
+        canvas.drawCentredString(text_center_x, 1.45*cm, self._prepare_arabic(contact_str))
         
-        # Identifiants Légaux
+        # 3. Identifiants Légaux
         if draw_legal_ids:
             identifiants = []
             if config:
                 c_ice = str(self._get_val(config, 'ice', "")).strip()
                 c_if = str(self._get_val(config, 'if_', "")).strip()
                 c_inpe = str(self._get_val(config, 'inpe', "")).strip()
-                
                 if c_ice: identifiants.append(f"ICE : {c_ice}")
                 if c_inpe: identifiants.append(f"INP : {c_inpe}")
                 if c_if: identifiants.append(f"IF : {c_if}")
@@ -267,9 +355,11 @@ class BaseTemplate:
                 
             if identifiants:
                 legal_str = "  |  ".join(identifiants)
-                canvas.setFont("Helvetica", 7)
+                fs_legal = self.get_adaptive_font_size(legal_str, self.premium_font, 7.5, text_zone_w - 0.4*cm)
+                canvas.setFont(self.premium_font, fs_legal)
                 canvas.setFillColor(colors.HexColor("#777777"))
-                canvas.drawCentredString(center_text_x, 1.1*cm, legal_str)
+                # Centrage vertical (v7.6) : Ajusté à 1.10cm
+                canvas.drawCentredString(text_center_x, 1.10*cm, legal_str)
 
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         """Dessine le QR Code stratégique configuré par le docteur."""
@@ -354,7 +444,7 @@ class BaseTemplate:
 
                 # Label "Scannez pour nous écrire" : placé proprement sous ou à gauche du QR
                 if qr_label:
-                    canvas.setFont("Helvetica-Bold", 6)
+                    canvas.setFont(self.premium_bold, 6)
                     canvas.setFillColor(colors.HexColor("#334155"))  # Slate-700
                     # On centre le label exactement au milieu du QR Code, en dessous
                     canvas.drawCentredString(x_pos + (qr_size / 2), y_pos - 0.3 * cm, self._prepare_arabic(qr_label))

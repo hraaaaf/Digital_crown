@@ -49,8 +49,8 @@ class CertificatGenerator:
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
 
-        font_name = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_name = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         patient_style = ParagraphStyle(
             name='PatientInfo',
@@ -69,8 +69,12 @@ class CertificatGenerator:
             fontSize=11,
         )
 
+        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        patient_w = 7.5 * cm
+        adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
+        
         header_content = [[
-            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style),
+            Paragraph(patient_text, adaptive_patient_style),
             Paragraph(f"Le : <u>{current_date}</u>", style_right),
         ]]
 
@@ -92,8 +96,8 @@ class CertificatGenerator:
             user_obj = db.query(User).filter(User.id == user_id).first()
 
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        font_main = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_main = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         title_style = ParagraphStyle(
             name='TitleA5',
