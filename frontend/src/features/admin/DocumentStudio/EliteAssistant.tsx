@@ -285,14 +285,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
             <div className="absolute -inset-1 bg-primary/20 rounded-full animate-ping opacity-40" />
           </div>
         )}
-
-        {/* Status Tooltip */}
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[8px] font-black rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-tighter whitespace-nowrap">
-          Ghost Brain
-        </div>
-
       </motion.button>
-
     </div>
   );
 

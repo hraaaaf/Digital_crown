@@ -55,12 +55,6 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ isEmbedded = false }
               className="group relative p-2.5 rounded-xl flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800 transition-all duration-300 pointer-events-auto"
             >
               <Compass size={20} className="relative z-10 group-hover:scale-110 transition-transform duration-300" />
-              
-              {/* Tooltip local pour le nom */}
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[8px] font-black rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-tighter">
-                Guide
-              </div>
-
               {/* Badge "Nouveau" */}
               {isFirstVisit && (
                 <span className="absolute top-2 right-2 w-2 h-2 bg-amber-400 rounded-full border-2 border-white dark:border-slate-800 animate-pulse" />

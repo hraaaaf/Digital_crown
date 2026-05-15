@@ -1,19 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bell, UserCircle, Settings, LogOut, Calculator } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cabinetApi } from '../services/templateApi';
 import { api } from '../services/api';
 import { safeStorage } from '../hooks/useLocalStorage';
-import { EliteAssistant } from '../features/admin/DocumentStudio/EliteAssistant';
-import { TourLauncher } from './GuidedTour/TourLauncher';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
   const [praticienName, setPraticienName] = useState('Dr. Benmoussa');
   const [treasuryCount, setTreasuryCount] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [hoveredOrb, setHoveredOrb] = useState<'brain' | 'guide' | null>('brain');
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +27,6 @@ export const Header = () => {
       try {
         const config = await cabinetApi.getMine();
         setCabinetName(config.nom_cabinet || 'Mon Cabinet');
-        // On suppose que le premier nom dans header_lines_fr est le nom du praticien
         if (config.header_lines_fr && config.header_lines_fr.length > 0) {
           setPraticienName(config.header_lines_fr[0]);
         }
@@ -49,7 +44,7 @@ export const Header = () => {
     fetchData();
     fetchTreasury();
 
-    const interval = setInterval(fetchTreasury, 60000); // Rafraîchissement toutes les 60s
+    const interval = setInterval(fetchTreasury, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -62,49 +57,9 @@ export const Header = () => {
   return (
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
       
-      {/* ELITE ORBS & SETTINGS & NOTIFS */}
+      {/* SETTINGS & NOTIFS */}
       <div className="flex items-center gap-3">
         
-        {/* Elite Orbs Group */}
-        <motion.div 
-          layout 
-          className="flex items-center gap-1 bg-white/10 dark:bg-black/10 backdrop-blur-md rounded-2xl p-1 border border-white/10 shadow-sm mr-2 min-h-[44px] justify-center overflow-visible relative group/capsule cursor-pointer"
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            setHoveredOrb(x < rect.width / 2 ? 'guide' : 'brain');
-          }}
-          onMouseLeave={() => setHoveredOrb('brain')}
-        >
-           <AnimatePresence>
-             {(!hoveredOrb || hoveredOrb === 'guide') && (
-               <motion.div 
-                 layout
-                 key="guide"
-                 initial={{ opacity: 0, scale: 0.8, width: 0 }}
-                 animate={{ opacity: 1, scale: 1, width: 'auto' }}
-                 exit={{ opacity: 0, scale: 0.8, width: 0 }}
-                 className="relative z-10 overflow-hidden pointer-events-auto"
-               >
-                 <TourLauncher isEmbedded />
-               </motion.div>
-             )}
-             
-             {(!hoveredOrb || hoveredOrb === 'brain') && (
-               <motion.div 
-                 layout
-                 key="brain"
-                 initial={{ opacity: 0, scale: 0.8, width: 0 }}
-                 animate={{ opacity: 1, scale: 1, width: 'auto' }}
-                 exit={{ opacity: 0, scale: 0.8, width: 0 }}
-                 className="relative z-10 overflow-hidden pointer-events-auto"
-               >
-                 <EliteAssistant isEmbedded />
-               </motion.div>
-             )}
-           </AnimatePresence>
-        </motion.div>
-
         <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite">
           <Settings size={20} />
         </Link>

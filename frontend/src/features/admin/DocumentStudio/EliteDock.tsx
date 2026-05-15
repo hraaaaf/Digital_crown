@@ -24,7 +24,7 @@ export const EliteDock: React.FC<EliteDockProps> = ({ insights = [], intelligenc
       }}
       initial={{ x: dockPosition.x, y: dockPosition.y, opacity: 0 }}
       animate={{ x: dockPosition.x, y: dockPosition.y, opacity: 1 }}
-      className="fixed top-5 right-[360px] z-[999] flex items-center gap-1.5 pointer-events-auto cursor-grab active:cursor-grabbing group"
+      className="fixed top-5 right-[360px] z-[10001] flex items-center gap-1.5 pointer-events-auto cursor-grab active:cursor-grabbing group"
     >
       {/* GUIDE ORB (Embedded) */}
       <TourLauncher isEmbedded />
