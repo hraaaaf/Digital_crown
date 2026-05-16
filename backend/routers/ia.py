@@ -211,34 +211,15 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
 
 @router.get("/panoramic/{analysis_id}/pdf")
 def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    """Génère et retourne l'URL du bilan PDF professionnel."""
-    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analyse introuvable")
-    
-    assert_patient_access(analysis.patient_id, current_user, db)
-    
+    """Génère et retourne l'URL du bilan PDF professionnel Élite."""
     try:
-        from backend.services.generators.panoramic_gen import panoramic_generator
-        
-        # Récupération du nom du patient
-        patient = db.query(models.Patient).filter(models.Patient.id == analysis.patient_id).first()
-        patient_name = f"{patient.prenom} {patient.nom}"
-        
-        # Récupération de la configuration du cabinet
-        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == current_user.id).first()
-
-        
-        pdf_url = panoramic_generator.generate_pdf(
-            patient_name=patient_name,
-            img_rel_path=analysis.image_path,
-            report_markdown=analysis.report_narrative or "Bilan en cours de rédaction...",
-            config=config,
-            user=current_user
+        from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator
+        pdf_url = panoramic_elite_generator.generate(
+            db=db,
+            analysis_id=analysis_id,
+            current_user=current_user
         )
-        
         return {"pdf_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{pdf_url}"}
-        
     except Exception as e:
-        logger.exception(f"Erreur lors de la génération du PDF panoramique: {e}")
+        logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
         raise HTTPException(status_code=500, detail=str(e))

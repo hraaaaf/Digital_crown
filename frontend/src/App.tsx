@@ -24,6 +24,12 @@ const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 
+// MOBILE PWA
+const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
+const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDashboard').then(m => ({ default: m.MobileDashboard })));
+
+import { MobileStorage } from './services/zka/MobileStorage';
+
 const PageLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[60vh]">
     <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--primary)' }} />
@@ -116,6 +122,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   return <>{children}</>;
 };
 
+// ==============================================================================
+// PROTECTION PWA MOBILE (ZKA)
+// ==============================================================================
+
+const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [isPaired, setIsPaired] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    MobileStorage.isPaired().then(setIsPaired);
+  }, []);
+
+  if (isPaired === null) return <PageLoader />;
+  if (!isPaired) return <Navigate to="/mobile/onboarding" replace />;
+
+  return <>{children}</>;
+};
+
 
 
 // =============================================================================
@@ -172,6 +195,16 @@ function App() {
         {/* Route d'entrée absolue (sans protection) */}
         <Route path="/welcome" element={<WelcomeScreen />} />
         
+        {/* ROUTES PWA MOBILE (Accès Direct) */}
+        <Route path="/mobile/onboarding" element={
+          <Suspense fallback={<PageLoader />}><OnboardingScanner /></Suspense>
+        } />
+        <Route path="/mobile/dashboard" element={
+          <MobileProtectedRoute>
+            <Suspense fallback={<PageLoader />}><MobileDashboard /></Suspense>
+          </MobileProtectedRoute>
+        } />
+
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>

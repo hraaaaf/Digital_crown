@@ -55,9 +55,9 @@ export const CROWN_MESSAGES: Record<number, string> = {
 };
 
 export const PREMIUM_FONTS = [
-  { id: 'inter', name: 'Inter', desc: 'Professionnel & Clair', class: 'font-sans' },
-  { id: 'outfit', name: 'Outfit', desc: 'Moderne & Dynamique', class: 'font-outfit' },
-  { id: 'playfair', name: 'Playfair', desc: 'Élégant & Classique', class: 'font-serif' }
+  { id: 'inter', name: 'Inter Tight', desc: 'Clarté clinique absolue, lecture rapide.', class: 'font-sans' },
+  { id: 'outfit', name: 'Outfit', desc: 'Design premium, élégance moderne.', class: 'font-outfit' },
+  { id: 'playfair', name: 'Playfair Display', desc: 'Prestige traditionnel, haute spécialité.', class: 'font-playfair' }
 ];
 
 export const DESIGN_VARIANTS = [

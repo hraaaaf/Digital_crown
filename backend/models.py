@@ -434,6 +434,7 @@ class CabinetConfig(Base):
     app_accent_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True, default=None)
     selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
+    header_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     
     # Gestion des contacts granulaires (Sprint 59)
     contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
@@ -444,6 +445,7 @@ class CabinetConfig(Base):
     qr_code_value: Mapped[Optional[str]] = mapped_column(String(500), nullable=True) # URL ou @handle
     qr_code_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     qr_code_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Ex: "Suivez-nous sur Instagram"
+    qr_code_style: Mapped[str] = mapped_column(String(20), default="dots", nullable=False) # classic, dots, rounded, elite
     
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de : {total_words}.")

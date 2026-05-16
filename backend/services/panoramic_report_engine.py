@@ -146,17 +146,19 @@ class PanoramicReportEngine:
             all_findings = [item for sublist in teeth_map.values() for item in sublist]
             
             # Priorités Endo/Cons
-            endo_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Carie profonde", "Lésion périapicale", "Tr. incomplet"] for x in fs)]
+            endo_keywords = ["carie profonde", "périapicale", "incomplet", "pulpaire", "kyste"]
+            endo_targets = [f"D{f}" for f, fs in teeth_map.items() if any(any(kw in x.lower() for kw in endo_keywords) for x in fs)]
             if endo_targets:
                 summary.append(f"- **Thérapeutique Endodontique** : Assainissement et/ou retraitement requis pour {', '.join(endo_targets)}.")
             
             # Priorités Chirurgie
-            surg_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Inclusion", "Dent incluse", "Reste radiculaire"] for x in fs)]
+            surg_keywords = ["incluse", "enclavée", "reste radiculaire", "surnuméraire", "résorption"]
+            surg_targets = [f"D{f}" for f, fs in teeth_map.items() if any(any(kw in x.lower() for kw in surg_keywords) for x in fs)]
             if surg_targets:
                 summary.append(f"- **Chirurgie Orale** : Extraction ou dégagement à planifier pour {', '.join(surg_targets)}.")
 
             # Paro
-            if any("Alvéolyse" in f or "Tartre" in f for f in all_findings):
+            if any(any(kw in f.lower() for kw in ["alvéolyse", "tartre", "furcation"]) for f in all_findings):
                 summary.append("- **Parodontologie** : Traitement parodontal non-chirurgical (surfaçage) préconisé pour stabiliser l'alvéolyse.")
 
             if not summary:

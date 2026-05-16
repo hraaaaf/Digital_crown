@@ -1,10 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Sparkles, 
   ChevronRight,
-  ShieldCheck,
-  Zap
+  ShieldCheck
 } from 'lucide-react';
 import Logo from '../assets/logo.png';
 

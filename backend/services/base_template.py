@@ -431,7 +431,8 @@ class BaseTemplate:
             if actual_logo_path and not os.path.exists(actual_logo_path):
                 actual_logo_path = self.default_logo_path if os.path.exists(self.default_logo_path) else None
 
-            qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path)
+            qr_style = self._get_val(config, 'qr_code_style', 'dots')
+            qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path, qr_style=qr_style)
             if qr_bytes:
                 p_width, _ = doc.pagesize
                 qr_size = 1.6 * cm

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>ZKA Interop Test</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; padding: 40px; }
+        .success { color: #10b981; font-weight: bold; border: 1px solid #10b981; padding: 20px; border-radius: 10px; }
+        .error { color: #f43f5e; font-weight: bold; border: 1px solid #f43f5e; padding: 20px; border-radius: 10px; }
+        pre { background: #1e293b; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Test d'Interopérabilité ZKA</h1>
+    <div id="result">Initialisation du test...</div>
+
+    <script type="module">
+        // Importation simulée du moteur (copié ici pour le test autonome)
+        class ZKAEngine {
+            static async importMasterKey(hexKey) {
+                const keyBuffer = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                return window.crypto.subtle.importKey("raw", keyBuffer, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+            }
+            static async decryptPayload(base64Blob, hexKey) {
+                const binaryString = window.atob(base64Blob);
+                const buffer = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) { buffer[i] = binaryString.charCodeAt(i); }
+                const iv = buffer.slice(0, 12);
+                const data = buffer.slice(12);
+                const cryptoKey = await this.importMasterKey(hexKey);
+                const decryptedBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv, tagLength: 128 }, cryptoKey, data);
+                return new TextDecoder().decode(decryptedBuffer);
+            }
+        }
+
+        // Vecteur de test généré par Python
+        const testKey = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+        const testBlob = "7yAR5pxEsEUXMs0DvvV7m6/kgmR3N94djouYlI+aPX2tmZlcVSKW3qvdVYFgHxckmd4pi9wV53UvyJJM20xHShDXh3LfHjwhB2s98cQWJi0=";
+        const expected = '{"status": "ZKA_SUCCESS", "clinic": "Digital Crown"}';
+
+        async function runTest() {
+            const container = document.getElementById('result');
+            try {
+                const decrypted = await ZKAEngine.decryptPayload(testBlob, testKey);
+                if (decrypted === expected) {
+                    container.innerHTML = `
+                        <div class="success">
+                            ✅ SUCCÈS : Déchiffrement parfait !<br><br>
+                            Données déchiffrées : <pre>${decrypted}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error("Mismatch: " + decrypted);
+                }
+            } catch (e) {
+                container.innerHTML = `
+                    <div class="error">
+                        ❌ ÉCHEC : Erreur de déchiffrement<br><br>
+                        Détails : ${e.message}
+                    </div>
+                `;
+            }
+        }
+
+        runTest();
+    </script>
+</body>
+</html>

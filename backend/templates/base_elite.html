@@ -52,13 +52,12 @@
         .doctor-name {
             color: var(--primary);
             font-weight: 900;
-            font-size: 14pt;
+            font-size: calc(14pt * var(--header-scale));
             margin: 0;
         }
-
         .doctor-specialty {
             color: var(--primary);
-            font-size: 10pt;
+            font-size: calc(10pt * var(--header-scale));
             margin: 2px 0;
         }
 
@@ -156,7 +155,7 @@
         {% block extra_css %}{% endblock %}
     {{ '<' + '/style' + '>' | safe }}
 </head>
-<body style="--primary: {{ primary_color | default('#003380') }}; --secondary: {{ secondary_color | default('#64748B') }};">
+<body style="--primary: {{ primary_color | default('#003380') }}; --secondary: {{ secondary_color | default('#64748B') }}; --header-scale: {{ config.header_scale or 1.0 }};">
     <div class="header">
         <div class="header-left">
             <p class="doctor-name">{{ config.nom_praticien | default('Dr. Nom Prénom') }}</p>

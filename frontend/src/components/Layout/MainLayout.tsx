@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
-import { cabinetApi } from '../../services/templateApi';
 import { useEliteStore } from '../../stores/useEliteStore';
+import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
 import { useLocation } from 'react-router-dom';
 import { EliteDock } from '../../features/admin/DocumentStudio/EliteDock';
 
@@ -24,23 +24,14 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [location.pathname, fetchPatientIntelligence]);
 
-  // Rigueur CTO : Application du thème persisté au chargement
+  const { profile, fetchProfile } = useSettingsStore();
+  
+  // Rigueur CTO : Chargement du profil et application du thème au montage du layout
   useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const config = await cabinetApi.getMine();
-        document.documentElement.dataset.theme = (config.selected_theme && config.selected_theme !== 'elite') ? config.selected_theme : '';
-        
-        if (config.primary_color) document.documentElement.style.setProperty('--primary', config.primary_color);
-        if (config.secondary_color) document.documentElement.style.setProperty('--secondary', config.secondary_color);
-        if (config.accent_color) document.documentElement.style.setProperty('--accent', config.accent_color);
-        
-      } catch (error) {
-        console.error("Erreur chargement thème:", error);
-      }
-    };
-    loadTheme();
-  }, []);
+    if (!profile.nom) {
+      fetchProfile();
+    }
+  }, [profile.nom, fetchProfile]);
 
   return (
     <div className="flex flex-row h-screen overflow-hidden font-sans selection:bg-primary selection:text-white relative bg-medical-pearl" style={{ color: 'var(--text-main)' }}>

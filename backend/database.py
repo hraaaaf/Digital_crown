@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
+from backend.core.paths import AppPaths
 
 # Charger les variables d'environnement depuis le fichier .env dans le dossier backend
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,20 +12,26 @@ load_dotenv(os.path.join(base_dir, ".env"))
 # --- PASSWORD HASHING ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- CONFIGURATION DE LA CONNEXION (POSTGRESQL) ---
-# Priorité à la variable d'environnement DATABASE_URL, sinon fallback sécurisé.
-DEFAULT_DB_URL = "postgresql://postgres:admin@localhost/digitalcrown_db?client_encoding=utf8"
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
+# --- CONFIGURATION DE LA CONNEXION ---
+# En mode dev/prod locale, on utilise SQLite via AppPaths.
+# En mode Cloud (si DATABASE_URL est présent), on garde PostgreSQL.
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", AppPaths.get_db_url())
 
 # --- INITIALISATION DU MOTEUR ---
-# Augmentation du pool pour supporter la charge Ghost Elite v4.2
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800,
-)
+# Si SQLite, on désactive les paramètres spécifiques PostgreSQL (pool_size, etc.)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL, 
+        connect_args={"check_same_thread": False} # Requis pour FastAPI + SQLite
+    )
+else:
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_size=20,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800,
+    )
 
 SessionLocal = sessionmaker(
     autocommit=False, 

@@ -19,7 +19,7 @@ export const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      await authService.login(email, password, rememberMe);
+      await authService.login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Une erreur est survenue lors de la connexion.');

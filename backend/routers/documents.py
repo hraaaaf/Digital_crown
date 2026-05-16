@@ -23,9 +23,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
 
 # Configuration
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-DOCS_DIR = os.path.join(STATIC_DIR, "documents")
+from backend.core.paths import AppPaths
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+DOCS_DIR = str(MEDIA_DIR / "documents")
+STATIC_DIR = str(AppPaths.get_static_dir())
+
+os.makedirs(DOCS_DIR, exist_ok=True)
 doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
 # Logic moved to backend.utils.accounting_utils
@@ -97,7 +100,12 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
 
         # Nettoyage du chemin pour le frontend
         pdf_url = pdf_path.replace("\\", "/")
-        if "static/" in pdf_url:
+        
+        # Si le chemin contient MEDIA_DIR, on le rend relatif à MEDIA_DIR et on préfixe par 'static/'
+        media_path_str = str(MEDIA_DIR).replace("\\", "/")
+        if media_path_str in pdf_url:
+            pdf_url = "static" + pdf_url.split(media_path_str)[1]
+        elif "static/" in pdf_url:
             pdf_url = pdf_url[pdf_url.find("static/"):]
         
         # Apprentissage des habitudes d'actes (Phase 5)

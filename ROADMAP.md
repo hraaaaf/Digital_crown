@@ -104,24 +104,23 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🚧 10. Smart QR Validation & Digital Trust
-**Statut :** En cours — Service backend créé, non intégré aux flux
-**Priorité :** Confort Elite
-**Spécialiste :** Architector & Financia
+## ✅ 10. Smart QR Validation & Digital Trust (TERMINÉ)
+**Statut :** Déployé (v5.2)
+**Spécialiste :** Architector & Staff Staff Engineering
 
-- [ ] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code. *(Le `qr_service.py` existe mais n'est intégré dans aucun générateur PDF ni exposé côté frontend.)*
-- [ ] **Signature Numérique** : Injection du QR Base64 dans les flux ReportLab/WeasyPrint. *(Non connecté.)*
-- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct (v4.5).
+- [x] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code.
+- [x] **Signature Numérique** : Injection du QR Base64 dans les flux WeasyPrint (Ghost Elite).
+- [x] **Scan to Contact** : Support des formats VCARD, WhatsApp et Instagram dans le QR dynamique.
 
 ---
 
-## 🚧 11. Dynamic Theme Engine & Personnalisation Ghost Elite
-**Statut :** Partiellement Déployé (v5.0) — Thèmes CSS OK, sélecteur couleur manquant
-**Spécialiste :** PixelMaster
+## ✅ 11. Dynamic Theme Engine & Personnalisation Ghost Elite (TERMINÉ)
+**Statut :** Déployé (v5.2)
+**Spécialiste :** PixelMaster & Antigravity
 
 - [x] **Ghost Elite Dashboard** : Refonte totale basée sur les variables CSS (`--primary`, `--secondary`).
-- [x] **Thèmes Pré-définis** : 3 thèmes fonctionnels via `data-theme` (Elite, Emerald, Prestige) dans `index.css`.
-- [ ] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire) directement dans les Settings avec persistence BDD. *(Aucun ColorPicker implémenté dans `Settings.tsx`.)*
+- [x] **Thèmes Pré-définis** : 6 thèmes fonctionnels via `data-theme` (Elite, Emerald, Prestige, Rose, etc.).
+- [x] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire/Accent) intégrés dans les Settings avec persistence BDD.
 - [x] **UX Zero-Friction** : Barre d'actions rapides (Quick Acts) et autocomplétion intelligente.
 
 ---
@@ -207,14 +206,26 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 🦷 19. Analyseur Radio Panoramique IA (PanoVision Engine)
-**Statut :** Planifié / Architecture Validée
-**Priorité :** Haute
+## 🧠 20. Ghost Elite Intelligence V3 : Co-Pilote Agentique
+**Statut :** Planifié / En cours d'Analyse
+**Priorité :** Élevée
+**Spécialiste :** Antigravity Staff Engineering
 
-- [ ] **PanoDetect (YOLOv8)** : Détection automatique des pathologies (caries, kystes, implants) par quadrant FDI.
-- [ ] **PanoReport** : Génération de rapports annotés avec overlay radio dans le dossier patient.
+- [ ] **Chat Clinique Interactif** : Remplacer les suggestions passives par une interface de dialogue contextuelle.
+- [ ] **App Awareness** : Capacité du Brain à détecter le module actif (Compta, Céphalo, Dossier) pour adapter ses conseils.
+- [ ] **Exécution Agentique** : Passage de la suggestion à l'action (ex: "Générer le devis" via un bouton piloté par l'IA).
+- [ ] **Reasoning Visualization** : Affichage de la "chaîne de pensée" clinique derrière chaque diagnostic.
+
+## ✅ 21. Compagnon Mobile PWA : Zero-Knowledge Access (TERMINÉ)
+**Statut :** Déployé (v6.0-rc1)
+**Spécialiste :** Staff Staff Engineering (ZKA Specialist)
+
+- [x] **Onboarding Scanner** : Appairage sécurisé via QR Code (Capture Master Key).
+- [x] **Moteur ZKA Pull** : Chiffrement AES-256 de bout en bout via Supabase Relais.
+- [x] **Cockpit Mobile** : Vue Agenda, Performance Finance et Liste Rouge (Débiteurs) en temps réel.
+- [x] **Mode Air-Gapped** : Zéro stockage de clé sur le cloud ; souveraineté totale des données cliniques.
 
 ---
 
-*Dernière mise à jour : 12 Mai 2026 — Elite Library & Soin Mode Release.*
+*Dernière mise à jour : 15 Mai 2026 — Phase 6 Deployment Ready (Elite Edition).*
 

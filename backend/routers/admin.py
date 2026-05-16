@@ -10,6 +10,12 @@ import logging
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.services.zka_service import zka_service
+from backend.services.sync_manager import sync_manager
+from backend.services.qr_service import QRService
+import qrcode
+import io
+import base64
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin & Dashboard"])
@@ -139,3 +145,55 @@ def export_database(db: Session = Depends(database.get_db), current_user: models
         subprocess.run(["pg_dump", "-h", url.host or "localhost", "-U", url.username or "postgres", "-f", dump_path, url.database], env=env, check=True)
         return FileResponse(path=dump_path, filename=f"backup_{now_str}.sql")
     raise HTTPException(status_code=400, detail="Moteur non supporté")
+
+
+@router.get("/zka-key-qr")
+def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Génère le QR Code combiné (ID|Key) pour l'appairage mobile avec fiabilité maximale."""
+    emp_id = current_user.get_employer_id()
+    
+    # 1. Récupération de la config et de la clé
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == emp_id).first()
+    master_key = os.getenv("CABINET_MASTER_KEY_HEX")
+    
+    if not config or not master_key:
+        raise HTTPException(status_code=404, detail="Configuration ZKA incomplète")
+    
+    # 2. Construction du payload : PUBLIC_ID|MASTER_KEY
+    combined_payload = f"{config.public_id}|{master_key}"
+    
+    # 3. Génération via QRService (Style Square pour fiabilité maximale de scan)
+    try:
+        qr_bytes = QRService.generate_qr_bytes(
+            combined_payload, 
+            color="#4F46E5", # Indigo-600
+            box_size=10,
+            add_logo=False,
+            qr_style="classic" # On évite l'arrondi ici pour la robustesse du scan critique
+        )
+        img_str = base64.b64encode(qr_bytes.getvalue()).decode()
+        return {"qr_code": f"data:image/png;base64,{img_str}"}
+    except Exception as e:
+        logger.error(f"Erreur génération QR ZKA: {e}")
+        raise HTTPException(status_code=500, detail="Échec de génération du QR Code")
+
+
+@router.post("/revoke-mobile")
+def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Révoque l'accès mobile en changeant la clé maître et en forçant une synchro."""
+    try:
+        emp_id = current_user.get_employer_id()
+        env_path = os.path.join(os.getcwd(), "backend", ".env")
+        
+        # 1. Rotation de la clé (Mémoire + .env)
+        new_key = zka_service.rotate_master_key(env_path)
+        
+        # 2. Force une synchronisation immédiate avec la nouvelle clé
+        # Cela rendra les anciens snapshots sur Supabase obsolètes ou illisibles avec l'ancienne clé
+        sync_manager._perform_sync(emp_id)
+        
+        logger.info(f"🚨 Accès mobile révoqué par l'utilisateur {current_user.id}")
+        return {"status": "success", "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter."}
+    except Exception as e:
+        logger.error(f"Erreur lors de la révocation ZKA: {e}")
+        raise HTTPException(status_code=500, detail="Échec de la révocation")

@@ -60,12 +60,14 @@ export const SetupWizard: React.FC = () => {
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
   const [margins, setMargins] = useState({ top: 3.0, bottom: 2.5 });
+  const [headerScale, setHeaderScale] = useState(1.1);
   const [qrConfig, setQrConfig] = useState({
     enabled: true,
     type: 'VCARD' as 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'VALIDATION' | 'PAYMENT' | 'WHATSAPP' | 'LOCATION',
     value: '',
     label: 'Scannez pour me contacter',
     color: null as string | null,
+    style: 'dots' as string
   });
   const [showPreview, setShowPreview] = useState(true);
 
@@ -212,6 +214,8 @@ export const SetupWizard: React.FC = () => {
         qr_code_value: qrConfig.value,
         qr_code_label: qrConfig.label,
         qr_code_color: qrConfig.color || identityData.primary,
+        qr_code_style: qrConfig.style,
+        header_scale: headerScale,
       };
 
       await cabinetApi.create(payload as any);
@@ -262,7 +266,7 @@ export const SetupWizard: React.FC = () => {
             {currentStep === 2 && <Step2Specialties handleCardImport={handleCardImport} isExtracting={isExtracting} selectedSpecialties={selectedSpecialties} setSelectedSpecialties={setSelectedSpecialties} customSpecialty={customSpecialty} setCustomSpecialty={setCustomSpecialty} showCustomModal={showCustomModal} setShowCustomModal={setShowCustomModal} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
             {currentStep === 3 && <Step3Contacts contacts={contacts} setContacts={setContacts} identity={identity} setIdentity={setIdentity} errors={errors} />}
             {currentStep === 4 && <StepQR qrConfig={qrConfig} setQrConfig={setQrConfig} />}
-            {currentStep === 5 && <Step5Design headerOption={headerOption} setHeaderOption={setHeaderOption} selectedIdentity={selectedIdentity} setSelectedIdentity={setSelectedIdentity} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate} logoPreview={logoPreview} letterheadPreview={letterheadPreview} logoInputRef={logoInputRef} letterheadInputRef={letterheadInputRef} handleLogoChange={handleLogoChange} handleLetterheadChange={handleLetterheadChange} margins={margins} setMargins={setMargins} />}
+            {currentStep === 5 && <Step5Design headerOption={headerOption} setHeaderOption={setHeaderOption} selectedIdentity={selectedIdentity} setSelectedIdentity={setSelectedIdentity} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate} logoPreview={logoPreview} letterheadPreview={letterheadPreview} logoInputRef={logoInputRef} letterheadInputRef={letterheadInputRef} handleLogoChange={handleLogoChange} handleLetterheadChange={handleLetterheadChange} margins={margins} setMargins={setMargins} headerScale={headerScale} setHeaderScale={setHeaderScale} />}
             {currentStep === 6 && <Step6Theme selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} />}
             {currentStep === 7 && <Step7Confirmation identity={identity} specialtyStrings={specialtyStrings} contactString={contactString} selectedFont={selectedFont} selectedIdentity={selectedIdentity} selectedTheme={selectedTheme} qrConfig={qrConfig} errors={errors} />}
 
@@ -325,6 +329,7 @@ export const SetupWizard: React.FC = () => {
                   specialtyStrings={specialtyStrings}
                   contactString={contactString}
                   qrConfig={qrConfig}
+                  headerScale={headerScale}
                 />
               ) : (
                 <div className="w-full aspect-[1/1.414] bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-12">

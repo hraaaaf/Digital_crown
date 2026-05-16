@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import contextlib
 from fastapi import FastAPI, Request, HTTPException
@@ -8,9 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 
 from backend import models, database
+from backend.services.sync_manager import sync_manager
 from backend.seed_templates import run_full_seed
 from backend.seed_user import seed_admin_user
 from backend.services.panoramic_service import panoramic_engine
+from backend.core.paths import AppPaths
+from backend.services.license_service import LicenseService
+import webbrowser
 
 # --- CONFIGURATION LOGGING ---
 logging.basicConfig(level=logging.INFO)
@@ -25,8 +30,23 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Demarrage de Digital Crown API...")
+    
+    # 1. Vérification du Kill-Switch Firebase
+    clinic_id = os.getenv("CLINIC_ID", "default_clinic")
+    license_ok = await LicenseService().validate_license(clinic_id)
+    
+    if not license_ok:
+        logger.error("❌ LICENCE EXPIREE OU DESACTIVEE. L'application va s'arreter.")
+        # On pourrait lever une exception ici pour empêcher le démarrage
+        # raise SystemExit("Licence invalide")
+    
     try:
+        # 2. Initialisation DB dans %APPDATA% via AppPaths
         models.Base.metadata.create_all(bind=database.engine)
+        
+        # Activation de la synchronisation Zero-Knowledge (Observer Mode)
+        sync_manager.start_listening()
+        
         with database.SessionLocal() as db:
             run_full_seed(db)
         
@@ -35,6 +55,11 @@ async def lifespan(app: FastAPI):
         
         # Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
+
+        # 3. Ouverture automatique du navigateur (Build mode uniquement)
+        if hasattr(sys, '_MEIPASS'):
+            webbrowser.open("http://127.0.0.1:8000")
+
     except Exception as e:
         logger.error(f"Erreur Initialisation : {e}")
     yield
@@ -84,11 +109,21 @@ app.include_router(accounting.router, prefix="/api/accounting", tags=["Accountin
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
 
-# --- STATIC FILES ---
-# Placé à la fin pour éviter de masquer des routes d'API
-app.mount("/api/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static_legacy")
+# --- STATIC FILES & UI ---
 
-@app.get("/")
-def root():
-    return {"status": "online", "message": "Digital Crown API is running."}
+# 1. Dossier Static des Médias (Photos patients, etc.)
+# En prod, on utilise un dossier dans %APPDATA%
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/static", StaticFiles(directory=str(MEDIA_DIR)), name="static")
+
+# 2. Servage du Frontend React (SPA)
+FRONTEND_DIST = AppPaths.get_static_dir()
+
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+    logger.info(f"Frontend servit depuis : {FRONTEND_DIST}")
+else:
+    @app.get("/")
+    def root():
+        return {"status": "online", "message": "API Active (Frontend non trouve)"}

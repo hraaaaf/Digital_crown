@@ -72,6 +72,11 @@ interface AccountingStudioProps {
   setIsGlobalNote: (val: boolean) => void;
   validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
+  groupTreatmentName: string;
+  setGroupTreatmentName: (val: string) => void;
+  groupTreatmentPrice: number | '';
+  setGroupTreatmentPrice: (val: number | '') => void;
+  applyGroupTreatment: () => void;
 }
 
 
@@ -103,6 +108,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     setPaymentStatus,
     isGlobalNote,
     setIsGlobalNote,
+    groupTreatmentName,
+    setGroupTreatmentName,
+    groupTreatmentPrice,
+    setGroupTreatmentPrice,
+    applyGroupTreatment,
     validationErrors = [],
     coherenceWarnings = [],
   } = props;
@@ -354,6 +364,50 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                             showNumbers={false}
                             className="w-full drop-shadow-xl"
                           />
+
+                          {/* 💎 Floating Group Action Bar */}
+                          {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
+                            <motion.div 
+                              initial={{ y: 20, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-6"
+                            >
+                              <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-4 border border-white/10 shadow-2xl flex items-center gap-4">
+                                <div className="flex -space-x-2">
+                                  {groupSelectedTeeth.slice(0, 3).map(n => (
+                                    <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
+                                  ))}
+                                  {groupSelectedTeeth.length > 3 && (
+                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 3}</div>
+                                  )}
+                                </div>
+
+                                <div className="flex-1 flex gap-2">
+                                  <input 
+                                    type="text"
+                                    placeholder="Nom de l'acte..."
+                                    className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
+                                    value={groupTreatmentName}
+                                    onChange={(e) => setGroupTreatmentName(e.target.value)}
+                                  />
+                                  <input 
+                                    type="number"
+                                    placeholder="Prix"
+                                    className="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 w-24"
+                                    value={groupTreatmentPrice}
+                                    onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                  />
+                                </div>
+
+                                <button 
+                                  onClick={applyGroupTreatment}
+                                  className="p-3 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20"
+                                >
+                                  <Plus size={18} />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
                         </div>
                       </motion.div>
                     ) : (
