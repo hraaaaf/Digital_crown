@@ -135,7 +135,7 @@ export const BrandingTab: React.FC = () => {
   };
 
   return (
-    <div className={cn("transition-all duration-500 ease-in-out", showPdfPreview ? "lg:mr-[620px] xl:mr-[640px]" : "mr-0")}>
+    <div className={cn("transition-all duration-500 ease-in-out max-w-[760px] w-full", showPdfPreview ? "lg:mr-[620px] xl:mr-[640px]" : "mr-0")}>
       <div className="space-y-12">
       <div 
         className="rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center gap-8 shadow-2xl relative overflow-hidden border border-white/10 transition-all duration-700"
@@ -173,7 +173,7 @@ export const BrandingTab: React.FC = () => {
             <div className="space-y-10">
               <div className="space-y-6">
                 <label className={labelClass}>Palettes Signature</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {BRAND_IDENTITIES.map(id => (
                     <button
                       key={id.id}
@@ -195,7 +195,7 @@ export const BrandingTab: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="flex flex-col gap-8">
                 <div className="space-y-4">
                   <label className={labelClass}>Typographie Signature</label>
                   <div className="space-y-2">
@@ -225,7 +225,7 @@ export const BrandingTab: React.FC = () => {
         </SettingsSection>
 
         <SettingsSection title="Rendu & Papier" icon={<FileText size={24} />}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex flex-col gap-8">
                <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 space-y-6">
                   <label className={labelClass}>Utiliser mon papier en-tête physique</label>
                   <div onClick={() => document.getElementById('letterhead-input-branding')?.click()} className="w-full h-48 rounded-[1.5rem] border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden shadow-inner">
@@ -278,7 +278,7 @@ export const BrandingTab: React.FC = () => {
         </SettingsSection>
 
         <SettingsSection title="Stratégie QR Code" icon={<QrCode size={24} />}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex flex-col gap-8">
               <div className="space-y-6 p-8 border border-slate-100 rounded-[2.5rem] bg-white shadow-xl">
                 <div className="flex items-center justify-between pb-6 border-b border-slate-50">
                    <h4 className="font-black text-slate-900 text-sm uppercase tracking-tighter">Action du QR</h4>
@@ -290,7 +290,7 @@ export const BrandingTab: React.FC = () => {
                   <>
                   <div className="space-y-6 pt-6 border-t border-slate-50">
                     <label className={labelClass}>Modèles Visuels QR (Elite v4.5)</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       {[
                         { id: 'classic', label: 'Classic', desc: 'Carré', icon: <div className="grid grid-cols-2 gap-0.5 w-4 h-4"><div className="bg-current"/><div className="bg-current"/><div className="bg-current"/><div className="bg-current"/></div> },
                         { id: 'dots', label: 'Modern', desc: 'Points', icon: <div className="grid grid-cols-2 gap-0.5 w-4 h-4"><div className="bg-current rounded-full"/><div className="bg-current rounded-full"/><div className="bg-current rounded-full"/><div className="bg-current rounded-full"/></div> },
@@ -314,7 +314,7 @@ export const BrandingTab: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
                       { id: 'VCARD', label: 'Contact', icon: <UserCircle size={14}/> },
                       { id: 'WEBSITE', label: 'Site Web', icon: <Link size={14}/> },
@@ -369,17 +369,6 @@ export const BrandingTab: React.FC = () => {
                   </>
                 )}
               </div>
-               <div 
-                 className="rounded-[2.5rem] p-10 flex flex-col items-center justify-center text-center text-white relative overflow-hidden shadow-2xl transition-all duration-700"
-                 style={{ 
-                   background: `linear-gradient(135deg, ${profile.primary_color || '#003380'} 0%, ${profile.secondary_color || '#1e293b'} 100%)` 
-                 }}
-               >
-                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                  <QrCode size={100} className="text-white mb-6 relative z-10" />
-                  <h4 className="font-black uppercase tracking-[0.2em] text-lg relative z-10">Digital Crown QR</h4>
-                  <p className="text-[10px] text-white/60 mt-2 uppercase tracking-widest relative z-10">Stratégie : {profile.qr_code_type || 'Défaut'}</p>
-               </div>
             </div>
         </SettingsSection>
       </div>
