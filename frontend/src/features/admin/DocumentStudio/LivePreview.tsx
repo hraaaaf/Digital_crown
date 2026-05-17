@@ -149,4 +149,3 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     document.body
   );
 };
-};
