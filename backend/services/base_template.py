@@ -336,15 +336,20 @@ class BaseTemplate:
         margin = 1.5*cm
         y_top = p_height - 1.5*cm
         column_w = (p_width - 2*margin) / 3.0
-        line_height = 0.45*cm * h_scale
+
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        line_height = 0.45*cm * lh_scale
         
         # Calculate adaptive common font size for alignment
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 30 * h_scale
+            base_fs = 30 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w - 0.5*cm))
-        common_fs = min(fs_list) if fs_list else 30 * h_scale
+        common_fs = min(fs_list) if fs_list else 30 * hf_scale
         
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -355,15 +360,18 @@ class BaseTemplate:
             curr_y -= line_height
 
         if logo_path:
-            logo_size = 2.4*cm * h_scale
-            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.4*cm, width=logo_size, height=logo_size, mask='auto')
+            logo_size = 2.4*cm * hl_scale
+            # Dynamic vertical centering relative to French text lines
+            text_center_y = y_top - ((len(fr_lines) - 1) * line_height) / 2.0 + 0.08*cm
+            logo_y = text_center_y - (logo_size / 2.0)
+            canvas.drawImage(logo_path, (p_width - logo_size)/2, logo_y, width=logo_size, height=logo_size, mask='auto')
 
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (32 if font_ar != 'Helvetica' else 22) * h_scale
+            base_fs = (32 if font_ar != 'Helvetica' else 22) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w - 0.5*cm))
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else (32 if font_ar != 'Helvetica' else 22) * h_scale
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (32 if font_ar != 'Helvetica' else 22) * hf_scale
         
         curr_y = y_top
         for i, line in enumerate(ar_lines):
@@ -394,12 +402,16 @@ class BaseTemplate:
 
         margin = 1.5*cm
         y_top = p_height - 1.6*cm
-        line_height = 0.42*cm * h_scale
+
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        line_height = 0.42*cm * lh_scale
         
         logo_x = margin
-        logo_size = 2.0*cm * h_scale
+        logo_size = 2.0*cm * hl_scale
         if logo_path:
-            canvas.drawImage(logo_path, logo_x, p_height - 3.2*cm, width=logo_size, height=logo_size, mask='auto')
             fr_x = logo_x + logo_size + 0.4*cm
         else:
             fr_x = margin
@@ -409,10 +421,16 @@ class BaseTemplate:
         # Français
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 28 * h_scale
+            base_fs = 28 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
-        common_fs = min(fs_list) if fs_list else 28 * h_scale
+        common_fs = min(fs_list) if fs_list else 28 * hf_scale
+
+        # Dynamic vertical centering for the logo
+        text_center_y = y_top - ((len(fr_lines) - 1) * line_height) / 2.0 + 0.08*cm
+        if logo_path:
+            logo_y = text_center_y - (logo_size / 2.0)
+            canvas.drawImage(logo_path, logo_x, logo_y, width=logo_size, height=logo_size, mask='auto')
 
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -433,16 +451,18 @@ class BaseTemplate:
         canvas.saveState()
         canvas.setStrokeColor(a_color)
         canvas.setLineWidth(1)
-        canvas.line(sep_x, p_height - 1.2*cm, sep_x, p_height - 3.4*cm)
+        sep_top = text_center_y + 1.1*cm
+        sep_bottom = text_center_y - 1.1*cm
+        canvas.line(sep_x, sep_bottom, sep_x, sep_top)
         canvas.restoreState()
 
         # Arabe
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (30 if font_ar != 'Helvetica' else 20) * h_scale
+            base_fs = (30 if font_ar != 'Helvetica' else 20) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * h_scale
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * hf_scale
 
         ar_start_x = sep_x + 0.2*cm
         curr_y = y_top
@@ -490,11 +510,15 @@ class BaseTemplate:
         left_margin = 1.4*cm
         right_margin = 1.2*cm
         y_top = p_height - 1.6*cm
-        line_height = 0.42*cm * h_scale
 
-        logo_size = 1.8*cm * h_scale
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        line_height = 0.42*cm * lh_scale
+
+        logo_size = 1.8*cm * hl_scale
         if logo_path:
-            canvas.drawImage(logo_path, left_margin, p_height - 3.2*cm, width=logo_size, height=logo_size, mask='auto')
             fr_x = left_margin + logo_size + 0.4*cm
         else:
             fr_x = left_margin
@@ -504,10 +528,16 @@ class BaseTemplate:
         # Français
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 26 * h_scale
+            base_fs = 26 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
-        common_fs = min(fs_list) if fs_list else 26 * h_scale
+        common_fs = min(fs_list) if fs_list else 26 * hf_scale
+
+        # Dynamic vertical centering for the logo
+        if logo_path:
+            text_center_y = y_top - ((len(fr_lines) - 1) * line_height) / 2.0 + 0.08*cm
+            logo_y = text_center_y - (logo_size / 2.0)
+            canvas.drawImage(logo_path, left_margin, logo_y, width=logo_size, height=logo_size, mask='auto')
 
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -521,9 +551,9 @@ class BaseTemplate:
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (28 if font_ar != 'Helvetica' else 18) * h_scale
+            base_fs = (28 if font_ar != 'Helvetica' else 18) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else (28 if font_ar != 'Helvetica' else 18) * h_scale
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (28 if font_ar != 'Helvetica' else 18) * hf_scale
 
         curr_y = y_top
         for i, line in enumerate(ar_lines):
@@ -534,8 +564,12 @@ class BaseTemplate:
             curr_y -= line_height
 
     def _draw_header_royal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
         # Draw elegant dual monogram rings around centered logo
-        logo_size = 1.8*cm * h_scale
+        logo_size = 1.8*cm * hl_scale
         if logo_path:
             canvas.saveState()
             canvas.setStrokeColor(a_color)
@@ -548,16 +582,16 @@ class BaseTemplate:
         else:
             y_start = p_height - 1.5*cm
 
-        line_height = 0.38*cm * h_scale
+        line_height = 0.38*cm * lh_scale
         column_w = p_width - 3.0*cm
 
         # Français
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 24 * h_scale
+            base_fs = 24 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
-        common_fs = min(fs_list) if fs_list else 24 * h_scale
+        common_fs = min(fs_list) if fs_list else 24 * hf_scale
 
         curr_y = y_start
         for i, line in enumerate(fr_lines):
@@ -588,7 +622,7 @@ class BaseTemplate:
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (26 if font_ar != 'Helvetica' else 16) * h_scale
+            base_fs = (26 if font_ar != 'Helvetica' else 16) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
         common_fs_ar = min(fs_list_ar) if fs_list_ar else (26 if font_ar != 'Helvetica' else 16) * h_scale
 
@@ -616,15 +650,20 @@ class BaseTemplate:
         margin = 1.5*cm
         y_top = p_height - 1.6*cm
         column_w = (p_width - 2*margin) / 3.0
-        line_height = 0.45*cm * h_scale
+
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        line_height = 0.45*cm * lh_scale
 
         # Français (crisp gold and white text)
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 28 * h_scale
+            base_fs = 28 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w - 0.5*cm))
-        common_fs = min(fs_list) if fs_list else 28 * h_scale
+        common_fs = min(fs_list) if fs_list else 28 * hf_scale
 
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -636,20 +675,22 @@ class BaseTemplate:
 
         # Shielded centered logo
         if logo_path:
-            logo_size = 2.0*cm * h_scale
+            logo_size = 2.0*cm * hl_scale
             canvas.saveState()
             canvas.setFillColor(colors.white)
-            canvas.circle(p_width/2, p_height - 2.1*cm, logo_size/2 + 0.12*cm, fill=True, stroke=False)
+            text_center_y = y_top - ((len(fr_lines) - 1) * line_height) / 2.0 + 0.08*cm
+            logo_y = text_center_y - (logo_size / 2.0)
+            canvas.circle(p_width/2, text_center_y, logo_size/2 + 0.12*cm, fill=True, stroke=False)
             canvas.restoreState()
-            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.1*cm, width=logo_size, height=logo_size, mask='auto')
+            canvas.drawImage(logo_path, (p_width - logo_size)/2, logo_y, width=logo_size, height=logo_size, mask='auto')
 
         # Arabe
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (30 if font_ar != 'Helvetica' else 20) * h_scale
+            base_fs = (30 if font_ar != 'Helvetica' else 20) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w - 0.5*cm))
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * h_scale
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * hf_scale
 
         curr_y = y_top
         for i, line in enumerate(ar_lines):
@@ -662,11 +703,15 @@ class BaseTemplate:
     def _draw_header_minimal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
         margin = 1.5*cm
         y_top = p_height - 1.4*cm
-        line_height = 0.36*cm * h_scale
 
-        logo_size = 1.2*cm * h_scale
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        line_height = 0.36*cm * lh_scale
+
+        logo_size = 1.2*cm * hl_scale
         if logo_path:
-            canvas.drawImage(logo_path, margin, p_height - 2.2*cm, width=logo_size, height=logo_size, mask='auto')
             fr_x = margin + logo_size + 0.3*cm
         else:
             fr_x = margin
@@ -676,10 +721,16 @@ class BaseTemplate:
         # Français
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 18 * h_scale
+            base_fs = 18 * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
-        common_fs = min(fs_list) if fs_list else 18 * h_scale
+        common_fs = min(fs_list) if fs_list else 18 * hf_scale
+
+        # Dynamic vertical centering for the logo
+        if logo_path:
+            text_center_y = y_top - ((len(fr_lines) - 1) * line_height) / 2.0 + 0.08*cm
+            logo_y = text_center_y - (logo_size / 2.0)
+            canvas.drawImage(logo_path, margin, logo_y, width=logo_size, height=logo_size, mask='auto')
 
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -693,9 +744,9 @@ class BaseTemplate:
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = (20 if font_ar != 'Helvetica' else 14) * h_scale
+            base_fs = (20 if font_ar != 'Helvetica' else 14) * hf_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else (20 if font_ar != 'Helvetica' else 14) * h_scale
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (20 if font_ar != 'Helvetica' else 14) * hf_scale
 
         curr_y = y_top
         for i, line in enumerate(ar_lines):
@@ -723,7 +774,12 @@ class BaseTemplate:
         """Pied de page Elite Dynamique (v6.4)."""
         p_width, _ = doc.pagesize
         margin = 1.5 * cm
-        qr_size = 1.6 * cm # Taille standard du QR
+        
+        f_font_scale = self._get_val(config, 'footer_font_scale', 1.0)
+        f_qr_scale = self._get_val(config, 'footer_qr_scale', 1.0)
+        f_lh_scale = self._get_val(config, 'footer_line_height', 1.0)
+
+        qr_size = 1.6 * cm * f_qr_scale
         
         # Calcul de la zone de texte : de la marge gauche au début du QR
         # Cela garantit un centrage parfait dans l'espace restant
@@ -744,11 +800,13 @@ class BaseTemplate:
         if not address:
             address = self._get_val(user, "adresse_complete") or "Votre adresse de cabinet"
             
-        fs_addr = self.get_adaptive_font_size(address, self.premium_font, 9, text_zone_w - 0.4*cm)
+        fs_addr = self.get_adaptive_font_size(address, self.premium_font, 9 * f_font_scale, text_zone_w - 0.4*cm)
         canvas.setFont(self.premium_font, fs_addr)
         canvas.setFillColor(colors.HexColor(p_color))
-        # Centrage vertical (v7.6) : Ajusté pour desserrer légèrement
-        canvas.drawCentredString(text_center_x, 1.85*cm, self._prepare_arabic(address))
+        
+        # Centrage vertical avec interligne adaptatif
+        addr_y = (1.45 + 0.40 * f_lh_scale) * cm
+        canvas.drawCentredString(text_center_x, addr_y, self._prepare_arabic(address))
         
         # 2. Contacts (Interligne serré v6.6)
         contacts_to_show = []
@@ -765,10 +823,11 @@ class BaseTemplate:
             contacts_to_show = [phones]
             
         contact_str = " / ".join(contacts_to_show)
-        fs_contact = self.get_adaptive_font_size(contact_str, self.premium_font, 8, text_zone_w - 0.4*cm)
+        fs_contact = self.get_adaptive_font_size(contact_str, self.premium_font, 8 * f_font_scale, text_zone_w - 0.4*cm)
         canvas.setFont(self.premium_font, fs_contact)
         canvas.setFillColor(colors.HexColor(s_color))
-        # Centrage vertical (v7.6)
+        
+        # Centrage vertical
         canvas.drawCentredString(text_center_x, 1.45*cm, self._prepare_arabic(contact_str))
         
         # 3. Identifiants Légaux
@@ -790,11 +849,13 @@ class BaseTemplate:
                 
             if identifiants:
                 legal_str = "  |  ".join(identifiants)
-                fs_legal = self.get_adaptive_font_size(legal_str, self.premium_font, 7.5, text_zone_w - 0.4*cm)
+                fs_legal = self.get_adaptive_font_size(legal_str, self.premium_font, 7.5 * f_font_scale, text_zone_w - 0.4*cm)
                 canvas.setFont(self.premium_font, fs_legal)
                 canvas.setFillColor(colors.HexColor("#777777"))
-                # Centrage vertical (v7.6) : Ajusté à 1.10cm
-                canvas.drawCentredString(text_center_x, 1.10*cm, legal_str)
+                
+                # Centrage vertical
+                legal_y = (1.45 - 0.35 * f_lh_scale) * cm
+                canvas.drawCentredString(text_center_x, legal_y, legal_str)
 
     def _draw_qr_code(self, canvas, doc, config, user, p_color):
         """Dessine le QR Code stratégique configuré par le docteur."""
@@ -846,7 +907,7 @@ class BaseTemplate:
                 phone = phone.split("/")[0].strip()
                 
             # Message bilingue pour une expérience patient optimale (Prise de RDV)
-            msg = "Bonjour Dr, je souhaite prendre rendez-vous. / السلام عليكم دكتور، أود حجز موعد."
+            msg = "Bonjour Dr, je souhaite prendre rendez-vous. / السلام عليكم دكتور، أود حجز moعد."
             qr_data = QRService.generate_whatsapp_url(phone, msg)
         elif qr_type == 'LOCATION':
             # Localisation Google Maps (v4.2)
@@ -872,7 +933,9 @@ class BaseTemplate:
             qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path, qr_style=qr_style)
             if qr_bytes:
                 p_width, _ = doc.pagesize
-                qr_size = 1.6 * cm
+                f_qr_scale = self._get_val(config, 'footer_qr_scale', 1.0)
+                qr_size = 1.6 * cm * f_qr_scale
+                
                 # Colonne Droite (Action/Interaction) : Ancré en bas à droite
                 x_pos = p_width - 1.5 * cm - qr_size
                 y_pos = 0.8 * cm

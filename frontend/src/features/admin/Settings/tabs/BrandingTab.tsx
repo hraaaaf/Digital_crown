@@ -82,6 +82,12 @@ export const BrandingTab: React.FC = () => {
         qr_code_style: profile.qr_code_style,
         qr_code_value: profile.qr_code_value,
         qr_code_label: profile.qr_code_label,
+        header_font_scale: profile.header_font_scale,
+        header_logo_scale: profile.header_logo_scale,
+        header_line_height: profile.header_line_height,
+        footer_font_scale: profile.footer_font_scale,
+        footer_qr_scale: profile.footer_qr_scale,
+        footer_line_height: profile.footer_line_height,
       });
       if (res.data.pdf_url) {
         const cleanPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
@@ -115,6 +121,12 @@ export const BrandingTab: React.FC = () => {
     profile.qr_code_value,
     profile.qr_code_label,
     profile.letterhead_path,
+    profile.header_font_scale,
+    profile.header_logo_scale,
+    profile.header_line_height,
+    profile.footer_font_scale,
+    profile.footer_qr_scale,
+    profile.footer_line_height,
   ]);
 
   const getImageUrl = (path: string | null | undefined) => {
@@ -243,42 +255,166 @@ export const BrandingTab: React.FC = () => {
                       </div>
                       <input id="letterhead-input-branding" type="file" className="hidden" accept="image/*,application/pdf" onChange={handleLetterheadUpload} />
                    </div>
-                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-10">
-                      <label className={labelClass}>Ajustement Précis des Marges (CM)</label>
-                      <div className="space-y-8">
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-end"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Marge Supérieure</span><span className="text-lg font-black text-primary">{(profile.margin_top ?? 3.6).toFixed(1)}cm</span></div>
-                          <input type="range" min="0" max="10" step="0.2" value={profile.margin_top ?? 3.6} onChange={(e) => updateProfile({ margin_top: parseFloat(e.target.value) })} className="w-full h-2 bg-slate-100 rounded-full cursor-pointer accent-primary" />
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-end"><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Marge Inférieure</span><span className="text-lg font-black text-emerald-600">{(profile.margin_bottom ?? 3.2).toFixed(1)}cm</span></div>
-                          <input type="range" min="0" max="6" step="0.2" value={profile.margin_bottom ?? 3.2} onChange={(e) => updateProfile({ margin_bottom: parseFloat(e.target.value) })} className="w-full h-2 bg-slate-100 rounded-full cursor-pointer accent-emerald-600" />
-                        </div>
+                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-8">
+                       <div className="flex flex-col gap-2">
+                         <label className={labelClass}>Ajustement de la Mise en Page</label>
+                         <p className="text-[11px] text-slate-400">Personnalisez finement les proportions et espacements de vos documents.</p>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                         {/* En-tête Group */}
+                         <div className="space-y-6 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100/80">
+                           <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2 mb-4">
+                             <span className="w-1.5 h-3 rounded-full bg-primary" /> En-tête de Page
+                           </h3>
+                           
+                           {/* 1. Marge Supérieure */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Marge Supérieure (cm)</span>
+                               <span className="text-sm font-black text-primary">{(profile.margin_top ?? 3.6).toFixed(1)}cm</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0" 
+                               max="10" 
+                               step="0.2" 
+                               value={profile.margin_top ?? 3.6} 
+                               onChange={(e) => updateProfile({ margin_top: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                             />
+                           </div>
 
-                        <div className="pt-6 border-t border-slate-100 space-y-4">
-                          <div className="flex justify-between items-end">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Taille de l'en-tête</span>
-                              <p className="text-[9px] text-slate-400 italic">Configurez les textes dans l'onglet <span className="text-primary font-bold">Profil</span></p>
-                            </div>
-                            <span className="text-lg font-black text-primary">
-                              {Math.round((profile.header_scale || 1.0) * 100)}%
-                            </span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="0.5" 
-                            max="1.8" 
-                            step="0.05"
-                            value={profile.header_scale || 1.0} 
-                            onChange={(e) => updateProfile({ header_scale: parseFloat(e.target.value) })}
-                            className="w-full h-2 bg-slate-100 rounded-full cursor-pointer accent-primary" 
-                          />
-                        </div>
-                      </div>
-                   </div>
-                </div>
-            </SettingsSection>
+                           {/* 2. Police de l'en-tête */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police de l'en-tête</span>
+                               <span className="text-sm font-black text-primary">{Math.round((profile.header_font_scale ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.header_font_scale ?? 1.0} 
+                               onChange={(e) => updateProfile({ header_font_scale: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                             />
+                           </div>
+
+                           {/* 3. Taille du logo */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du logo</span>
+                               <span className="text-sm font-black text-primary">{Math.round((profile.header_logo_scale ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.header_logo_scale ?? 1.0} 
+                               onChange={(e) => updateProfile({ header_logo_scale: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                             />
+                           </div>
+
+                           {/* 4. Interligne de l'en-tête */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne de l'en-tête</span>
+                               <span className="text-sm font-black text-primary">{Math.round((profile.header_line_height ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.header_line_height ?? 1.0} 
+                               onChange={(e) => updateProfile({ header_line_height: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                             />
+                           </div>
+                         </div>
+
+                         {/* Pied de Page Group */}
+                         <div className="space-y-6 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100/80">
+                           <h3 className="text-[12px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2 mb-4">
+                             <span className="w-1.5 h-3 rounded-full bg-emerald-600" /> Pied de Page
+                           </h3>
+
+                           {/* 1. Marge Inférieure */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Marge Inférieure (cm)</span>
+                               <span className="text-sm font-black text-emerald-600">{(profile.margin_bottom ?? 3.2).toFixed(1)}cm</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0" 
+                               max="6" 
+                               step="0.2" 
+                               value={profile.margin_bottom ?? 3.2} 
+                               onChange={(e) => updateProfile({ margin_bottom: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                             />
+                           </div>
+
+                           {/* 2. Police du pied de page */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police du pied de page</span>
+                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_font_scale ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.footer_font_scale ?? 1.0} 
+                               onChange={(e) => updateProfile({ footer_font_scale: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                             />
+                           </div>
+
+                           {/* 3. Taille du QR Code */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du QR Code</span>
+                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_qr_scale ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.footer_qr_scale ?? 1.0} 
+                               onChange={(e) => updateProfile({ footer_qr_scale: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                             />
+                           </div>
+
+                           {/* 4. Interligne du pied de page */}
+                           <div className="space-y-2">
+                             <div className="flex justify-between items-end">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne du pied de page</span>
+                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_line_height ?? 1.0) * 100)}%</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0.5" 
+                               max="2.0" 
+                               step="0.05" 
+                               value={profile.footer_line_height ?? 1.0} 
+                               onChange={(e) => updateProfile({ footer_line_height: parseFloat(e.target.value) })} 
+                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                             />
+                           </div>
+                         </div>
+                       </div>
+                    </div>
+                 </div>
+             </SettingsSection>
 
             <SettingsSection title="Stratégie QR Code" icon={<QrCode size={24} />}>
                 <div className="flex flex-col gap-8">

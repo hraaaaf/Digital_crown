@@ -5,6 +5,7 @@ import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
+import { useEliteStore } from '../../stores/useEliteStore';
 
 interface Patient {
   id: number;
@@ -29,6 +30,7 @@ interface AgendaModalProps {
 }
 
 export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, editingAppointment }) => {
+  const { fetchPatientIntelligence } = useEliteStore();
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
@@ -95,32 +97,37 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       const fetchPatients = async () => {
         try {
           const res = await api.get('/patients/', { params: { limit: 10, search: patientSearch } });
-          // Filter locally if backend doesn't support search yet
           const filtered = res.data.filter((p: Patient) => 
             `${p.nom} ${p.prenom}`.toLowerCase().includes(patientSearch.toLowerCase()) ||
             p.numero_dossier?.toLowerCase().includes(patientSearch.toLowerCase())
           );
-          setPatientsList(filtered);
+          setPatientsList(filtered.length > 0 ? filtered : res.data);
           setShowPatientResults(true);
         } catch (e) {
           console.error(e);
         }
       };
       fetchPatients();
+    } else {
+      setShowPatientResults(false);
     }
   }, [patientSearch, selectedPatient]);
 
   useEffect(() => {
     if (selectedPatient) {
       setLoadingIntel(true);
+      // 1. Récupération des suggestions d'agenda locales
       api.get(`/patients/${selectedPatient.id}/appointment-intel`)
         .then(res => setSmartIntel(res.data))
         .catch(e => console.error(e))
         .finally(() => setLoadingIntel(false));
+      
+      // 2. Synchronisation globale avec le Ghost Hub Brain
+      fetchPatientIntelligence(selectedPatient.id).catch(e => console.error(e));
     } else {
       setSmartIntel(null);
     }
-  }, [selectedPatient]);
+  }, [selectedPatient, fetchPatientIntelligence]);
 
   const applySmartIntel = () => {
     if (smartIntel) {
@@ -141,21 +148,38 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
 
   useEffect(() => {
-    if (actSearch.length > 1 && !selectedAct) {
-      const fetchActs = async () => {
+    const fetchActs = async () => {
+      try {
+        const res = await api.get('/actes/catalog/search', { params: { q: actSearch } });
+        setActsList(res.data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    if (isOpen && !selectedAct) {
+      fetchActs();
+    }
+  }, [actSearch, selectedAct, isOpen]);
+
+  useEffect(() => {
+    const actName = selectedAct ? selectedAct.name : actSearch;
+    if (actName && actName.trim().length > 1) {
+      const fetchRecommendedDuration = async () => {
         try {
-          const res = await api.get('/actes/catalog/search', { params: { q: actSearch } });
-          setActsList(res.data);
-          setShowActResults(true);
+          const res = await api.get('/actes/duration', { params: { q: actName } });
+          if (res.data && res.data.duration) {
+            setDuration(res.data.duration);
+          }
         } catch (e) {
           console.error(e);
         }
       };
-      fetchActs();
-    } else {
-      setShowActResults(false);
+      const timer = setTimeout(() => {
+        fetchRecommendedDuration();
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [actSearch, selectedAct]);
+  }, [selectedAct, actSearch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -362,6 +386,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       placeholder="Saisir l'acte ou rechercher dans le catalogue..."
                       value={actSearch}
                       onChange={e => setActSearch(e.target.value)}
+                      onFocus={() => setShowActResults(true)}
                       className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
                     />
                   </>

@@ -52,9 +52,25 @@ def check_dossier_availability(numero: str, db: Session = Depends(database.get_d
     }
 
 @router.get("/", response_model=List[schemas.PatientOut])
-def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def read_patients(
+    skip: int = 0, 
+    limit: int = 100, 
+    search: Optional[str] = None, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     user_employer_id = current_user.get_employer_id()
-    return db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id).offset(skip).limit(limit).all()
+    query = db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id)
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                models.Patient.nom.ilike(search_term),
+                models.Patient.prenom.ilike(search_term),
+                models.Patient.numero_dossier.ilike(search_term)
+            )
+        )
+    return query.offset(skip).limit(limit).all()
 
 from backend.services.audit_service import audit_service
 

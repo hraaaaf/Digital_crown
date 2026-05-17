@@ -48,7 +48,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     selected_template: 'classic',
     header_lines_fr: [],
     header_lines_ar: [],
-    qr_code_style: 'dots'
+    qr_code_style: 'dots',
+    header_font_scale: 1.0,
+    header_logo_scale: 1.0,
+    header_line_height: 1.0,
+    footer_font_scale: 1.0,
+    footer_qr_scale: 1.0,
+    footer_line_height: 1.0
   },
   contacts: {
     fixe: { enabled: true, value: '' },
@@ -95,7 +101,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           header_lines_fr: res.data.header_lines_fr || [],
           header_lines_ar: res.data.header_lines_ar || [],
           header_scale: res.data.header_scale ?? 1.1,
-          qr_code_style: res.data.qr_code_style || 'dots'
+          qr_code_style: res.data.qr_code_style || 'dots',
+          header_font_scale: res.data.header_font_scale ?? 1.0,
+          header_logo_scale: res.data.header_logo_scale ?? 1.0,
+          header_line_height: res.data.header_line_height ?? 1.0,
+          footer_font_scale: res.data.footer_font_scale ?? 1.0,
+          footer_qr_scale: res.data.footer_qr_scale ?? 1.0,
+          footer_line_height: res.data.footer_line_height ?? 1.0
         };
         
         set({ profile });

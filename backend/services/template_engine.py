@@ -281,6 +281,44 @@ class TemplateEngine:
     ) -> str:
         """Génération via WeasyPrint (haute qualité)."""
         
+        # Process medications to add adaptive styles and prevent wrapping
+        processed_meds = []
+        for med in context.get('medications', []):
+            def get_val(o, k):
+                if isinstance(o, dict): return o.get(k, '')
+                return getattr(o, k, '')
+                
+            nom = get_val(med, 'nom') or ''
+            dosage = get_val(med, 'dosage') or ''
+            forme = get_val(med, 'forme') or ''
+            posologie = get_val(med, 'posologie') or ''
+            m_type = get_val(med, 'type') or 'MEDICAMENT'
+            
+            display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
+            
+            header_str = f"{nom} {dosage} {display_forme}"
+            header_len = len(header_str)
+            header_style = "white-space: nowrap;"
+            if header_len > 40:
+                scale = max(0.65, 40.0 / header_len)
+                header_style += f" font-size: calc(11pt * {scale:.2f});"
+                
+            poso_len = len(posologie)
+            poso_style = "white-space: nowrap;"
+            if poso_len > 60:
+                scale = max(0.65, 60.0 / poso_len)
+                poso_style += f" font-size: calc(10pt * {scale:.2f});"
+                
+            processed_meds.append({
+                'nom': nom,
+                'dosage': dosage,
+                'forme': display_forme,
+                'posologie': posologie,
+                'type': m_type,
+                'header_style': header_style,
+                'poso_style': poso_style
+            })
+
         # 1. Préparer le contexte
         render_context = {
             'patient': context.get('patient', {}),
@@ -302,7 +340,7 @@ class TemplateEngine:
             'date_generation': context.get('date', datetime.now().strftime('%d/%m/%Y')),
             'titre': context.get('titre', template.name),
             'content': context.get('content', ''),
-            'medications': context.get('medications', []),
+            'medications': processed_meds,
             'actes': context.get('actes', []),
             'qr_code_url': context.get('custom', {}).get('qr_code_url', ''), # Pour base_elite.html
             'logo_url': f"file://{os.path.abspath(os.path.join(self.static_dir, 'uploads', cabinet.logo_path))}" if cabinet.logo_path else None,

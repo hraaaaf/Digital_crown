@@ -75,16 +75,18 @@
         <div class="medications-list">
             {% for med in medications %}
             <div class="medication-item">
-                <div class="medication-header">
+                <div class="medication-header" style="{{ med.header_style }}">
                     <span class="med-number">{{ loop.index }}-</span>
                     <span class="med-name">{{ med.nom.upper() }}</span>
                     {% if med.dosage or med.forme %}
                     <span class="med-specs"> — {{ med.dosage }} ({{ med.forme }})</span>
                     {% endif %}
                 </div>
-                <div class="medication-posology">
+                {% if med.posologie %}
+                <div class="medication-posology" style="{{ med.poso_style }}">
                     {{ med.posologie }}
                 </div>
+                {% endif %}
             </div>
             {% else %}
             <p style="color: var(--primary); font-style: italic;">Aucun médicament prescrit.</p>

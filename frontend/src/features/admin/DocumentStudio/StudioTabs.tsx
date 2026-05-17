@@ -50,7 +50,7 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
         active={activeTab === 'plan'} 
         onClick={() => onTabChange('plan')} 
         icon={<Brain size={16} />} 
-        label="Stratégie" 
+        label="Compagnon Diagnostique" 
         tourId="tab-strategie"
       />
     </div>

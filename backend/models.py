@@ -435,6 +435,12 @@ class CabinetConfig(Base):
     selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
     header_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_logo_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_line_height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_qr_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_line_height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     
     # Gestion des contacts granulaires (Sprint 59)
     contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)

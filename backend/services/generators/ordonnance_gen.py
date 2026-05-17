@@ -189,28 +189,31 @@ class OrdonnanceGenerator:
                 cols = []
                 col_widths = []
 
-                # Nom (toujours présent) - Application de la police adaptative
+                # Nom (toujours présent) - Application de la police adaptative sans retour à la ligne
                 name_text = f"{i}- <b>{nom.upper()}</b>"
+                name_text_nbsp = name_text.replace(" ", "\u00a0")
                 name_w = 7.0*cm
-                adaptive_name_style = self.base_template.get_adaptive_style(med_name_style, name_text, name_w - 0.5*cm)
-                cols.append(Paragraph(name_text, adaptive_name_style))
+                adaptive_name_style = self.base_template.get_adaptive_style(med_name_style, name_text_nbsp, name_w - 0.5*cm)
+                cols.append(Paragraph(name_text_nbsp, adaptive_name_style))
                 col_widths.append(name_w)
                 
                 # On n'affiche Forme/Dose que si c'est un médicament ET que les champs sont remplis
                 if not is_radio:
                     if display_forme:
-                        # Application de la police adaptative pour la forme (Bain de bouche, etc.)
+                        # Application de la police adaptative pour la forme sans retour à la ligne
                         form_w = 3.0*cm
-                        adaptive_form_style = self.base_template.get_adaptive_style(med_forme_style, display_forme, form_w - 0.2*cm)
-                        cols.append(Paragraph(f"<i>{display_forme}</i>", adaptive_form_style))
+                        display_forme_nbsp = display_forme.replace(" ", "\u00a0")
+                        adaptive_form_style = self.base_template.get_adaptive_style(med_forme_style, display_forme_nbsp, form_w - 0.2*cm)
+                        cols.append(Paragraph(f"<i>{display_forme_nbsp}</i>", adaptive_form_style))
                         col_widths.append(form_w)
                     else:
                         col_widths[0] += 1.0*cm
                         
                     if dose:
                         dose_w = 1.8*cm
-                        adaptive_dose_style = self.base_template.get_adaptive_style(med_dose_style, dose, dose_w - 0.1*cm)
-                        cols.append(Paragraph(f"{dose}", adaptive_dose_style))
+                        dose_nbsp = dose.replace(" ", "\u00a0")
+                        adaptive_dose_style = self.base_template.get_adaptive_style(med_dose_style, dose_nbsp, dose_w - 0.1*cm)
+                        cols.append(Paragraph(f"{dose_nbsp}", adaptive_dose_style))
                         col_widths.append(dose_w)
                     else:
                         col_widths[0] += 0.8*cm
@@ -233,14 +236,19 @@ class OrdonnanceGenerator:
                 
                 elements.append(med_line_table)
                 
-                # Ligne 2 : Posologie ou Avertissement Radio (Suppression du point devant)
+                # Ligne 2 : Posologie ou Avertissement Radio (Adaptatif et sans retour à la ligne)
+                poso_w = 10.3*cm
                 if is_radio:
                     warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
                     if posologie:
                         warning_msg += f" {posologie}"
-                    elements.append(Paragraph(warning_msg, warning_style))
+                    warning_msg_nbsp = warning_msg.replace(" ", "\u00a0")
+                    adaptive_warning_style = self.base_template.get_adaptive_style(warning_style, warning_msg_nbsp, poso_w - 0.2*cm)
+                    elements.append(Paragraph(warning_msg_nbsp, adaptive_warning_style))
                 elif posologie:
-                    elements.append(Paragraph(f"{posologie}", poso_style)) # Pas de point ici
+                    poso_nbsp = posologie.replace(" ", "\u00a0")
+                    adaptive_poso_style = self.base_template.get_adaptive_style(poso_style, poso_nbsp, poso_w - 0.2*cm)
+                    elements.append(Paragraph(poso_nbsp, adaptive_poso_style))
                 else:
                     elements.append(Spacer(1, 0.5*cm))
         else:

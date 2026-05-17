@@ -162,7 +162,7 @@ class CephaloPDFGenerator(BaseTemplate):
         for cat_name, measures in [("Dentaire", vm.analysis.metrics.analyse_dentaire), ("Osseuse", vm.analysis.metrics.analyse_osseuse), ("Esthétique", vm.analysis.metrics.analyse_esthetique)]:
             for metric_name, data in measures:
                 if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
-                    table_data.append([metric_name.replace("_", " "), str(data.valeur), f"{data.norm_mean} ({data.norm_min}-{data.norm_max})", data.status])
+                    table_data.append([metric_name.replace("_", "\u00a0"), str(data.valeur), f"{data.norm_mean}\u00a0({data.norm_min}-{data.norm_max})", data.status])
 
         if len(table_data) > 1:
             t = Table(table_data, colWidths=[6.5*cm, 3*cm, 4.5*cm, 3*cm])

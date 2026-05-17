@@ -44,6 +44,12 @@ export interface CabinetProfile {
   header_lines_fr?: string[];
   header_lines_ar?: string[];
   qr_code_style?: string;
+  header_font_scale?: number;
+  header_logo_scale?: number;
+  header_line_height?: number;
+  footer_font_scale?: number;
+  footer_qr_scale?: number;
+  footer_line_height?: number;
 }
 
 export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';

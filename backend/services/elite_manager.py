@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func
 from backend import models, schemas
@@ -94,6 +94,11 @@ class EliteManager:
                     "trust_level": 0.9
                 })
             
+            # --- MPL : PRÉDICTION STOCK PAR ANTICIPATION (Tips Confrère) ---
+            if doctor_id:
+                stock_insights = self._get_predictive_stock_insights(db, doctor_id)
+                insights.extend(stock_insights)
+
             # Conversion des warnings en insights standardisés
             for w in warnings:
                 insights.append({
@@ -116,6 +121,32 @@ class EliteManager:
                         "source_type": "DETERMINISTIC",
                         "trust_level": 1.0
                     })
+
+            # --- VIGILANCE FINANCIERE ACTIVE (Phase C) ---
+            total_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+            total_payments = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+            solde_impaye = max(0.0, total_acts - total_payments)
+            
+            if solde_impaye >= 1000.0:
+                insights.append({
+                    "id": f"financial_alert_{datetime.now().timestamp()}",
+                    "type": "financial_risk",
+                    "title": "Vigilance Trésorerie",
+                    "content": f"Reste à payer critique de {solde_impaye:,.2f} MAD sur les actes réalisés.",
+                    "actionLabel": "Consulter le solde",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 1.0
+                })
+            elif solde_impaye > 0.0:
+                insights.append({
+                    "id": f"financial_alert_{datetime.now().timestamp()}",
+                    "type": "financial",
+                    "title": "Solde Patient",
+                    "content": f"Solde débiteur restant : {solde_impaye:,.2f} MAD.",
+                    "actionLabel": "Détails paiements",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 1.0
+                })
 
             # 4. Score d'intelligence globale (Simulé pour l'instant basé sur la complétude des données)
             intel_score = self._calculate_intelligence_score(db, patient_id, summary, insights)
@@ -157,6 +188,13 @@ class EliteManager:
         # Pénalité si trop de risques non gérés (théorique)
         critical_count = sum(1 for i in insights if i["type"] == "safety")
         score -= min(20, critical_count * 5)
+
+        # Pénalité de solvabilité
+        total_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+        total_payments = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+        solde_impaye = max(0.0, total_acts - total_payments)
+        if solde_impaye >= 1000.0:
+            score -= 15
         
         return min(100, max(0, score))
 
@@ -242,6 +280,95 @@ class EliteManager:
                         "trust_level": 0.85
                     })
 
+        return insights
+
+    def _get_predictive_stock_insights(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
+        """
+        Analyse l'agenda de la semaine à venir pour suggérer proactivement de vérifier les stocks requis.
+        """
+        insights = []
+        try:
+            today = datetime.now()
+            one_week_later = today + timedelta(days=7)
+            
+            # Récupérer les rendez-vous de la semaine
+            appointments = db.query(models.Appointment).filter(
+                models.Appointment.employer_id == doctor_id,
+                models.Appointment.datetime_start >= today,
+                models.Appointment.datetime_start <= one_week_later,
+                models.Appointment.status != models.AppointmentStatus.ANNULE
+            ).all()
+            
+            # Comptage des catégories d'actes
+            counts = {
+                "endo": 0,
+                "composite": 0,
+                "implant": 0,
+                "chirurgie": 0
+            }
+            
+            for app in appointments:
+                motif = (app.motif or "").lower()
+                notes = (app.notes or "").lower()
+                text = f"{motif} {notes}"
+                
+                if any(x in text for x in ["canalaire", "endo", "racine", "dévitalisation"]):
+                    counts["endo"] += 1
+                elif any(x in text for x in ["composite", "soin", "plombage", "restauration", "carie"]):
+                    counts["composite"] += 1
+                elif "implant" in text:
+                    counts["implant"] += 1
+                elif any(x in text for x in ["extraction", "avulsion", "sagesse", "chirurgie"]):
+                    counts["chirurgie"] += 1
+            
+            # Génération des insights proactifs (tips de confrère dentiste)
+            if counts["endo"] > 1:
+                insights.append({
+                    "id": f"stock_endo_{today.timestamp()}",
+                    "type": "suggestion",
+                    "title": "Tips Confrère : Stock Endo",
+                    "content": f"Cher confrère, je vois que tu prévois {counts['endo']} traitements canalaires cette semaine. Pense à vérifier ton stock de limes rotatives (ProTaper, WaveOne) et de pointes de papier absorbantes.",
+                    "actionLabel": "Vérifier le stock",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 0.95
+                })
+            
+            if counts["composite"] > 1:
+                insights.append({
+                    "id": f"stock_composite_{today.timestamp()}",
+                    "type": "suggestion",
+                    "title": "Tips Confrère : Stock Soins",
+                    "content": f"Pour info, {counts['composite']} soins composites sont programmés cette semaine. Assure-toi d'avoir un niveau suffisant de seringues de composite (teintes A2, A3) et d'adhésif universel (bonding).",
+                    "actionLabel": "Consulter le stock",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 0.95
+                })
+                
+            if counts["implant"] > 0:
+                insights.append({
+                    "id": f"stock_implant_{today.timestamp()}",
+                    "type": "suggestion",
+                    "title": "Tips Confrère : Chirurgie Implant",
+                    "content": f"Alerte chirurgicale : {counts['implant']} pose(s) d'implants de prévue(s). Valide bien la présence des diamètres requis, des vis de cicatrisation adaptées et des piliers de transfert dans ton tiroir.",
+                    "actionLabel": "Checklist Implant",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 0.95
+                })
+                
+            if counts["chirurgie"] > 1:
+                insights.append({
+                    "id": f"stock_chirurgie_{today.timestamp()}",
+                    "type": "suggestion",
+                    "title": "Tips Confrère : Logistique Chir",
+                    "content": f"Avec {counts['chirurgie']} chirurgies/extractions à venir, vérifie ton approvisionnement en fils de suture (résorbables 4-0/5-0) et en carpules d'anesthésique à l'articaïne.",
+                    "actionLabel": "Checklist Chirurgie",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 0.95
+                })
+                
+        except Exception as e:
+            logger.error(f"Error generating stock insights: {e}")
+            
         return insights
 
     async def get_treatment_plan(self, db: Session, patient_id: int) -> Dict[str, Any]:

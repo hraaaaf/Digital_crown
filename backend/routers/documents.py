@@ -135,6 +135,12 @@ class BrandingPreviewPayload(BaseModel):
     margin_top: Optional[float] = None
     margin_bottom: Optional[float] = None
     header_scale: Optional[float] = None
+    header_font_scale: Optional[float] = None
+    header_logo_scale: Optional[float] = None
+    header_line_height: Optional[float] = None
+    footer_font_scale: Optional[float] = None
+    footer_qr_scale: Optional[float] = None
+    footer_line_height: Optional[float] = None
     qr_code_enabled: Optional[bool] = None
     qr_code_type: Optional[str] = None
     qr_code_style: Optional[str] = None

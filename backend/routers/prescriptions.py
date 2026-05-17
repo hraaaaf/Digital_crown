@@ -74,9 +74,45 @@ async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.g
     return prescription_service.resolve_smart_prescription(db, patient_id, act_names, doctor_id=current_user.id)
 
 @actes_router.get("/catalog/search", response_model=List[dict])
-def search_clinical_acts(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     from backend.services.accounting_service import accounting_service
+    
+    if not q.strip():
+        # Renvoyer les actes fréquents du médecin
+        frequent = accounting_service.get_frequent_acts(db, current_user.id, limit=20)
+        if frequent:
+            return frequent
+            
+        # Fallback vers un catalogue d'actes standard de base si aucune habitude n'est enregistrée
+        fallback_names = [
+            ("Consultation dentaire", 200, "Diagnostic"),
+            ("Détartrage et polissage", 400, "Prévention"),
+            ("Extraction simple", 300, "Chirurgie"),
+            ("Extraction molaire", 450, "Chirurgie"),
+            ("Traitement canalaire (Monoradiculaire)", 500, "Endodontie"),
+            ("Traitement canalaire (Pluriradiculaire)", 800, "Endodontie"),
+            ("Composite 2 faces", 350, "Conservatrice"),
+            ("Composite 3 faces", 500, "Conservatrice"),
+            ("Couronne céramo-métallique", 2500, "Prothèse"),
+            ("Implant dentaire", 6000, "Implantologie"),
+        ]
+        return [
+            {
+                "id": f"default_{i}",
+                "name": name,
+                "base_price": price,
+                "category": cat,
+                "is_habit": False
+            } for i, (name, price, cat) in enumerate(fallback_names)
+        ]
+        
     return accounting_service.search_acts(db, current_user.id, q)
+
+@actes_router.get("/duration")
+def get_act_recommended_duration(q: str = "", current_user: models.User = Depends(get_current_user)):
+    from backend.services.habits_engine import habits_engine
+    duration = habits_engine.get_recommended_duration(q)
+    return {"duration": duration}
 
 @actes_router.post("/catalog/bundles")
 def get_act_bundles(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
