@@ -100,9 +100,9 @@ class DocumentFactory:
     # MÉTHODES PUBLIQUES
     # ==========================================================================
     
-    def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None):
+    def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None, custom_config: dict = None):
         """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
-        return self.ord_gen.generate(patient, data, db=db, user_id=user_id)
+        return self.ord_gen.generate(patient, data, db=db, user_id=user_id, custom_config=custom_config)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
         """Génère un certificat médical PDF via ReportLab (Stable v1.2 Ghost Elite)."""
@@ -127,7 +127,7 @@ class DocumentFactory:
                 user = db.query(models.User).filter(models.User.id == user_id).first()
             
             results_dict = analysis.results if hasattr(analysis, 'results') else analysis.get('results', analysis)
-            radio_image_path = analysis.image_path if hasattr(analysis, 'image_path') else analysis.get('image_path')
+            radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
 
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
@@ -137,9 +137,13 @@ class DocumentFactory:
                 analysis=schemas.CephaloAnalysisResult.model_validate(results_dict),
                 cabinet_config={
                     "primary_color": cabinet.primary_color if cabinet else "#1A365D",
+                    "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
                     "logo_path": cabinet.logo_path if cabinet else None,
                     "margin_top": cabinet.margin_top if cabinet else 4.5,
-                    "margin_bottom": cabinet.margin_bottom if cabinet else 3.5
+                    "margin_bottom": cabinet.margin_bottom if cabinet else 3.5,
+                    "qr_code_style": cabinet.qr_code_style if cabinet else "dots",
+                    "qr_code_color": cabinet.qr_code_color if cabinet else None,
+                    "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
                 },
                 doctor_name=f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova",
                 radio_image_path=radio_image_path

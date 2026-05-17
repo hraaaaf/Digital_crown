@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, and_, or_
 from typing import List, Optional, Dict
@@ -121,6 +121,71 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
     except Exception as e:
         logger.error(f"Erreur Génération : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+from pydantic import BaseModel
+
+class BrandingPreviewPayload(BaseModel):
+    selected_template: Optional[str] = None
+    font_fr: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    accent_color: Optional[str] = None
+    margin_top: Optional[float] = None
+    margin_bottom: Optional[float] = None
+    header_scale: Optional[float] = None
+    qr_code_enabled: Optional[bool] = None
+    qr_code_type: Optional[str] = None
+    qr_code_style: Optional[str] = None
+    qr_code_value: Optional[str] = None
+    qr_code_label: Optional[str] = None
+
+@router.post("/sample-preview")
+async def generate_sample_preview(
+    payload: Optional[BrandingPreviewPayload] = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Patient fictif pour l'aperçu dynamique
+    mock_patient = models.Patient(
+        nom="EL ALAMI",
+        prenom="Youssef",
+        date_naissance=datetime(1990, 5, 12),
+        sexe="M",
+        telephone="06 61 23 45 67",
+        email="youssef.elalami@email.ma",
+        employer_id=current_user.id
+    )
+    
+    # Ordonnance fictive représentative
+    mock_data = schemas.OrdonnanceData(
+        medications=[
+            schemas.MedicationItem(nom="ZAMOC (Amoxicilline)", dosage="500 mg", forme="Sachets", posologie="1 sachet 3 fois par jour après les repas", type="MEDICAMENT"),
+            schemas.MedicationItem(nom="DOLIPRANE", dosage="1000 mg", forme="Comprimés", posologie="1 comprimé toutes les 6 heures en cas de douleur", type="MEDICAMENT")
+        ],
+        doc_date=date.today()
+    )
+    
+    custom_config = None
+    if payload:
+        dump_func = getattr(payload, "model_dump", getattr(payload, "dict", None))
+        if dump_func:
+            custom_config = {k: v for k, v in dump_func().items() if v is not None}
+            
+    try:
+        pdf_path = doc_factory.create_ordonnance(mock_patient, mock_data, db, current_user.id, custom_config=custom_config)
+        
+        pdf_url = pdf_path.replace("\\", "/")
+        media_path_str = str(MEDIA_DIR).replace("\\", "/")
+        if media_path_str in pdf_url:
+            pdf_url = "static" + pdf_url.split(media_path_str)[1]
+        elif "static/" in pdf_url:
+            pdf_url = pdf_url[pdf_url.find("static/"):]
+            
+        return {"pdf_url": pdf_url}
+    except Exception as e:
+        logger.error(f"Erreur Génération Aperçu Échantillon : {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
@@ -390,3 +455,378 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+
+def get_verification_html(title: str, subtitle: str, doc_type: str, patient_name: str, doc_date: str, primary_color: str = "#003380", status_text: str = "Authentique & Signé", status_color: str = "#10b981", is_valid: bool = True, warning_msg: str = "") -> str:
+    icon_svg = '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 11l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>' if is_valid else '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    gradient_color = "rgba(16, 185, 129, 0.05)" if is_valid else "rgba(239, 68, 68, 0.05)"
+    shield_bg = "linear-gradient(135deg, #10b981 0%, #047857 100%)" if is_valid else "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)"
+    shield_shadow = "rgba(16, 185, 129, 0.3)" if is_valid else "rgba(239, 68, 68, 0.3)"
+    pulse_bg = "rgba(16, 185, 129, 0.15)" if is_valid else "rgba(239, 68, 68, 0.15)"
+    
+    warning_html = f'<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 12px; margin-top: 20px; font-size: 12px; color: #ef4444; font-weight: 600;">{warning_msg}</div>' if warning_msg else ''
+
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portail de Vérification de Document Clinique</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{
+            --primary: {primary_color};
+            --accent: {status_color};
+        }}
+        body {{
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            color: #f8fafc;
+            font-family: 'Outfit', 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }}
+        .container {{
+            max-width: 500px;
+            width: 90%;
+            margin: 20px auto;
+            text-align: center;
+        }}
+        .card {{
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 40px;
+            padding: 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }}
+        .card::before {{
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, {gradient_color} 0%, transparent 60%);
+            pointer-events: none;
+        }}
+        @keyframes slideIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        .shield-container {{
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .pulse-ring {{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: {pulse_bg};
+            animation: pulse 2s infinite;
+        }}
+        @keyframes pulse {{
+            0% {{ transform: scale(0.9); opacity: 1; }}
+            100% {{ transform: scale(1.4); opacity: 0; }}
+        }}
+        .shield {{
+            width: 70px;
+            height: 70px;
+            background: {shield_bg};
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px {shield_shadow};
+            position: relative;
+            z-index: 10;
+        }}
+        .shield svg {{
+            width: 32px;
+            height: 32px;
+            fill: none;
+            stroke: white;
+            stroke-width: 2.5;
+        }}
+        h1 {{
+            font-size: 26px;
+            font-weight: 900;
+            margin: 0 0 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+        .subtitle {{
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }}
+        .details-list {{
+            text-align: left;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }}
+        .detail-item {{
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }}
+        .detail-item:last-child {{
+            border-bottom: none;
+        }}
+        .detail-label {{
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+        }}
+        .detail-val {{
+            color: #f1f5f9;
+            font-weight: 600;
+        }}
+        .footer-brand {{
+            margin-top: 40px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #475569;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        .footer-brand svg {{
+            width: 14px;
+            height: 14px;
+            stroke: #475569;
+            stroke-width: 2;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="shield-container">
+                <div class="pulse-ring"></div>
+                <div class="shield">
+                    {icon_svg}
+                </div>
+            </div>
+            <h1>{title}</h1>
+            <div class="subtitle">{subtitle}</div>
+            
+            <div class="details-list">
+                <div class="detail-item">
+                    <span class="detail-label">Type</span>
+                    <span class="detail-val">{doc_type}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Patient</span>
+                    <span class="detail-val">{patient_name}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Date d'Émission</span>
+                    <span class="detail-val">{doc_date}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Statut</span>
+                    <span class="detail-val" style="color: {status_color};">{status_text}</span>
+                </div>
+            </div>
+            
+            {warning_html}
+            
+            <div class="footer-brand">
+                <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Digital Crown Elite v4.6
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+@router.get("/verify/{public_id}/{document_type}", response_class=HTMLResponse)
+def verify_special_document(public_id: str, document_type: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        if document_type == "RADIO":
+            # C'est un rapport radio ou une analyse
+            analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == int(public_id)).first()
+            if not analysis:
+                analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == int(public_id)).first()
+            
+            if analysis:
+                patient = db.query(models.Patient).filter(models.Patient.id == analysis.patient_id).first()
+                p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+                doc_date = analysis.created_at.strftime("%d/%m/%Y à %H:%M")
+                return HTMLResponse(content=get_verification_html(
+                    title="Rapport Radiographique Certifié",
+                    subtitle=cabinet_name,
+                    doc_type="IMAGERIE / RADIO DENTEX IA",
+                    patient_name=p_name,
+                    doc_date=doc_date,
+                    primary_color=p_color
+                ))
+        
+        elif document_type == "BILAN":
+            patient = db.query(models.Patient).filter(models.Patient.id == int(public_id)).first()
+            if patient:
+                p_name = f"{patient.nom.upper()} {patient.prenom[0]}."
+                doc_date = patient.created_at.strftime("%d/%m/%Y")
+                return HTMLResponse(content=get_verification_html(
+                    title="Bilan Orthodontique Certifié",
+                    subtitle=cabinet_name,
+                    doc_type="DOSSIER & BILAN CLINIQUE",
+                    patient_name=p_name,
+                    doc_date=doc_date,
+                    primary_color=p_color
+                ))
+    except Exception as e:
+        logger.error(f"Error verifying special document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Document Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Certifié / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce document n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un document falsifié ou expiré."
+    ))
+
+@router.get("/verify/{doc_id}", response_class=HTMLResponse)
+def verify_document(doc_id: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        # Recherche par ID ou nom de fichier
+        doc = None
+        if doc_id.isdigit():
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(doc_id)).first()
+        if not doc:
+            doc = db.query(models.DocumentArchive).filter(
+                or_(
+                    models.DocumentArchive.filename.contains(doc_id),
+                    models.DocumentArchive.original_filename.contains(doc_id)
+                )
+            ).first()
+            
+        if doc:
+            patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
+            p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+            doc_date = doc.created_at.strftime("%d/%m/%Y à %H:%M")
+            return HTMLResponse(content=get_verification_html(
+                title="Document Médical Certifié",
+                subtitle=cabinet_name,
+                doc_type=doc.document_type.value,
+                patient_name=p_name,
+                doc_date=doc_date,
+                primary_color=p_color
+            ))
+    except Exception as e:
+        logger.error(f"Error verifying document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Document Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Certifié / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce document n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un document falsifié ou expiré."
+    ))
+
+@router.get("/track/{doc_id}", response_class=HTMLResponse)
+def track_document(doc_id: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        doc = None
+        if doc_id.isdigit():
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(doc_id)).first()
+        if not doc:
+            doc = db.query(models.DocumentArchive).filter(
+                or_(
+                    models.DocumentArchive.filename.contains(doc_id),
+                    models.DocumentArchive.original_filename.contains(doc_id)
+                )
+            ).first()
+            
+        if doc:
+            patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
+            p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+            doc_date = doc.created_at.strftime("%d/%m/%Y à %H:%M")
+            
+            p_status = doc.payment_status.value if doc.payment_status else "NON DÉFINI"
+            p_color_map = {
+                "PAYE": "#10b981",
+                "PARTIEL": "#f59e0b",
+                "EN_ATTENTE": "#94a3b8",
+                "A_ENCAISSER": "#3b82f6"
+            }
+            status_color = p_color_map.get(doc.payment_status.name if hasattr(doc.payment_status, 'name') else doc.payment_status, "#10b981")
+            
+            return HTMLResponse(content=get_verification_html(
+                title="Suivi de Dossier Trésorerie",
+                subtitle=cabinet_name,
+                doc_type=f"HONORAIRES / {doc.document_type.value}",
+                patient_name=p_name,
+                doc_date=doc_date,
+                primary_color=p_color,
+                status_text=f"Statut Réglement : {p_status}",
+                status_color=status_color
+            ))
+    except Exception as e:
+        logger.error(f"Error tracking document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Dossier Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Référencé / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce dossier de suivi de trésorerie n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un dossier inexistant ou archivé."
+    ))

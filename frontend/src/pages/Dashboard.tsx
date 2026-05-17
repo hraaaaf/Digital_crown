@@ -83,7 +83,7 @@ export const Dashboard: React.FC = () => {
 
     const fetchConfig = async () => {
       try {
-        const response = await api.get('/admin/cabinet/mine');
+        const response = await api.get('/admin/cabinet/me');
         const config = response.data;
         if (config.header_lines_fr && config.header_lines_fr.length > 0) {
           setPraticienName(config.header_lines_fr[0]);

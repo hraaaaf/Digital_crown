@@ -34,6 +34,16 @@ export const ProfileTab: React.FC = () => {
   
   const [showArKeyboard, setShowArKeyboard] = useState<{type: 'header' | 'name', idx?: number} | null>(null);
 
+  const getImageUrl = (path: string | null | undefined) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.replace(/^\/+/, '');
+    if (cleanPath.startsWith('api/static/') || cleanPath.startsWith('static/uploads/')) {
+      return `${API_BASE}/${cleanPath}`;
+    }
+    return `${API_BASE}/static/uploads/${cleanPath}`;
+  };
+
   const generateHeaders = (nom: string, nomAr: string, specialtyIds: string[]) => {
     const linesFr = [];
     const linesAr = [];
@@ -210,7 +220,7 @@ export const ProfileTab: React.FC = () => {
                 {profile.logo_path ? (
                   <>
                     <img 
-                      src={profile.logo_path.startsWith('http') ? profile.logo_path : `${API_BASE}/static/uploads/${profile.logo_path}`} 
+                      src={getImageUrl(profile.logo_path)} 
                       alt="Logo" 
                       className="w-full h-full object-contain p-4" 
                     />
@@ -265,7 +275,7 @@ export const ProfileTab: React.FC = () => {
             onClick={loadBenmoussaTemplate}
             className="px-4 py-2 bg-primary/5 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center gap-2"
           >
-            <Settings2 size={14} /> Modèle Dr Benmoussa
+            <Settings2 size={14} /> Modèle par défaut
           </button>
         </div>
 

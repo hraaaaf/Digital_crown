@@ -254,6 +254,7 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import CabinetConfig
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
         font_main = self.base_template.premium_font
@@ -364,6 +365,7 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import CabinetConfig
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
         font_main = self.base_template.premium_font

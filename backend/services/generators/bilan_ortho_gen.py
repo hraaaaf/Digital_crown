@@ -74,12 +74,21 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         
         radio_url = None
         if vm.radio_image_path:
-            img_path = vm.radio_image_path
-            if "8000/" in img_path:
-                img_path = img_path.split("8000/")[-1]
-            abs_path = os.path.abspath(img_path)
+            img_path = vm.radio_image_path.replace("api/", "")
+            # On cherche dans le dossier backend (dev)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            abs_path = os.path.join(base_dir, img_path)
+            
+            if not os.path.exists(abs_path):
+                # Backup mode prod
+                from backend.core.paths import AppPaths
+                media_dir = AppPaths.get_user_data_dir() / "media"
+                abs_path = str(media_dir / img_path.replace("static/", ""))
+                
             if os.path.exists(abs_path):
-                radio_url = f"file:///{abs_path.replace('\\', '/')}"
+                radio_url = f"file:///{os.path.abspath(abs_path).replace('\\', '/')}"
+            else:
+                logger.warning(f"Image radio introuvable pour le Bilan Ortho: {vm.radio_image_path}")
 
         # Recuperation des 4 blocs du Bilan Ortho
         ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
@@ -98,7 +107,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             synthese_diagnostique = "Bilan généré à partir de données existantes."
 
         from backend.services.qr_service import qr_service
-        qr_base64 = qr_service.generate_document_qr_base64("BILAN", str(vm.patient_id or "TEMP"))
+        qr_color = config.get('qr_code_color') or p_color
+        qr_style = config.get('qr_code_style', 'dots')
+        qr_base64 = qr_service.generate_document_qr_base64("BILAN", str(vm.patient_id or "TEMP"), color=qr_color, qr_style=qr_style)
 
         context = {
             "primary_color": p_color,

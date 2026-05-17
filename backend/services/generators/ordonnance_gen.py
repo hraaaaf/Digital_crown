@@ -84,17 +84,39 @@ class OrdonnanceGenerator:
         ]))
         return header_table
 
-    def generate(self, patient, data, db=None, user_id=None):
+    def _get_val(self, obj, key, default=None):
+        if obj is None: return default
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
+    def generate(self, patient, data, db=None, user_id=None, custom_config=None):
         filepath = self._get_save_path(patient, data)
 
         config = None
         user_obj = None
         if db and user_id:
             from backend.models import CabinetConfig, User
-            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+            db_config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
             user_obj = db.query(User).filter(User.id == user_id).first()
+            
+            if db_config:
+                # Si db_config existe, on construit un dictionnaire avec ses valeurs
+                config = {}
+                for col in db_config.__table__.columns:
+                    config[col.name] = getattr(db_config, col.name)
+                # Et on surcharge avec les valeurs reçues en temps réel
+                if custom_config:
+                    for k, v in custom_config.items():
+                        if v is not None:
+                            config[k] = v
+            else:
+                config = custom_config
+        else:
+            config = custom_config
 
-        p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
+        p_color = colors.HexColor(self._get_val(config, 'primary_color', '#003380'))
+        self.base_template.update_active_fonts(config)
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
@@ -240,8 +262,10 @@ class OrdonnanceGenerator:
         elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
         # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
-        m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
-        m_bottom = (max(config.margin_bottom, 4.5) if config and config.margin_bottom is not None else 4.5) * cm
+        m_top_val = self._get_val(config, 'margin_top', 4.8)
+        m_bottom_val = self._get_val(config, 'margin_bottom', 4.5)
+        m_top = (max(m_top_val, 4.8) if m_top_val is not None else 4.8) * cm
+        m_bottom = (max(m_bottom_val, 4.5) if m_bottom_val is not None else 4.5) * cm
 
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,

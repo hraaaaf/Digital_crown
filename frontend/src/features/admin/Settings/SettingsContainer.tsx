@@ -106,7 +106,7 @@ const SettingsContainer: React.FC = () => {
         </div>
 
         {/* CONTENU DES ONGLETS */}
-        <div className="flex-1 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden min-h-[800px] relative">
+        <div className="flex-1 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative">
           <div className="p-8 sm:p-12">
              {activeTab === 'profil' && <ProfileTab />}
              {activeTab === 'branding' && <BrandingTab />}

@@ -35,6 +35,7 @@ export const Step5Design: React.FC<Props> = ({
   logoInputRef, letterheadInputRef,
   handleLogoChange, handleLetterheadChange,
   margins, setMargins,
+  headerScale, setHeaderScale,
 }) => (
   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
     <div className="text-center">

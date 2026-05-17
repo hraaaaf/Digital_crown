@@ -120,7 +120,26 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
-        raise HTTPException(status_code=404, detail="Cabinet non configuré")
+        # Création à la volée pour les nouveaux utilisateurs / admins (auto-corrective)
+        config = models.CabinetConfig(
+            owner_id=employer_id,
+            nom_cabinet=current_user.nom_complet or "Mon Cabinet",
+            nom_praticien=current_user.nom_complet or "Docteur",
+            primary_color="#003380",
+            secondary_color="#1e40af",
+            accent_color="#60a5fa",
+            font_fr="Inter",
+            font_ar="Amiri",
+            qr_code_enabled=False,
+            qr_code_style="dots",
+            qr_code_type="VCARD",
+            watermark_enabled=False,
+            margin_top=3.6,
+            margin_bottom=3.2
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
     
     return config
 
@@ -136,7 +155,25 @@ def update_my_clinic(
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
     
     if not config:
-        raise HTTPException(status_code=404, detail="Cabinet non trouvé")
+        # Création à la volée pour les nouveaux utilisateurs / admins (auto-corrective)
+        config = models.CabinetConfig(
+            owner_id=employer_id,
+            nom_cabinet=current_user.nom_complet or "Mon Cabinet",
+            nom_praticien=current_user.nom_complet or "Docteur",
+            primary_color="#003380",
+            secondary_color="#1e40af",
+            accent_color="#60a5fa",
+            font_fr="Inter",
+            font_ar="Amiri",
+            qr_code_enabled=False,
+            qr_code_style="dots",
+            qr_code_type="VCARD",
+            watermark_enabled=False,
+            margin_top=3.6,
+            margin_bottom=3.2
+        )
+        db.add(config)
+        db.flush()
     
     update_dict = config_update.model_dump(exclude_unset=True)
     

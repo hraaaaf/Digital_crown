@@ -15,7 +15,7 @@ class QRService:
         """Génère un QR code moderne avec styles nommés (classic, dots, rounded, elite)."""
         from qrcode.image.styledpil import StyledPilImage
         from qrcode.image.styles.moduledrawers import (
-            RoundedModuleDrawer, SquareModuleDrawer, CircleModuleDrawer, GaliModuleDrawer
+            RoundedModuleDrawer, SquareModuleDrawer, CircleModuleDrawer, GappedSquareModuleDrawer
         )
         from qrcode.image.styles.colormasks import SolidFillColorMask
         
@@ -45,7 +45,7 @@ class QRService:
             "classic": SquareModuleDrawer(),
             "dots": CircleModuleDrawer(),
             "rounded": RoundedModuleDrawer(),
-            "elite": GaliModuleDrawer()
+            "elite": GappedSquareModuleDrawer()
         }
         drawer = style_map.get(qr_style, CircleModuleDrawer())
 
@@ -107,8 +107,11 @@ class QRService:
         import urllib.parse
         return f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(address)}"
 
-    def generate_document_qr_base64(self, document_id: str, public_id: str, base_url: str = "https://digitalcrown.ai", color: str = "#003380", qr_style: str = "dots") -> str:
+    def generate_document_qr_base64(self, document_id: str, public_id: str, base_url: str = None, color: str = "#003380", qr_style: str = "dots") -> str:
         """Méthode legacy mise à jour pour supporter les styles Elite."""
+        if not base_url:
+            import os
+            base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
         verify_url = f"{base_url}/verify/{public_id}/{document_id}"
         buffered = self.generate_qr_bytes(verify_url, color=color, qr_style=qr_style)
         qr_base64 = base64.b64encode(buffered.getvalue()).decode()

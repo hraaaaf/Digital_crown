@@ -115,7 +115,17 @@ app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite
 # En prod, on utilise un dossier dans %APPDATA%
 MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount pour les uploads locaux (dev & reports)
+UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# /api/static/uploads est prioritaire pour le dossier local dev
+app.mount("/api/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="api_uploads")
+# /api/static sert le reste depuis MEDIA_DIR (logo, etc.)
 app.mount("/api/static", StaticFiles(directory=str(MEDIA_DIR)), name="static")
+# Mount legacy pour compatibilité
+app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # 2. Servage du Frontend React (SPA)
 FRONTEND_DIST = AppPaths.get_static_dir()

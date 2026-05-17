@@ -107,6 +107,8 @@ class BaseTemplate:
         # 2. Latin Premium (Montserrat)
         self.premium_font = "Helvetica" # Fallback
         self.premium_bold = "Helvetica-Bold"
+        self.header_font = "Helvetica"
+        self.header_bold = "Helvetica-Bold"
         
         if os.path.exists(self.montserrat_reg) and os.path.exists(self.montserrat_bold):
             try:
@@ -121,11 +123,69 @@ class BaseTemplate:
                 pdfmetrics.registerFont(TTFont('Outfit-Bold', os.path.join(font_dir, 'Outfit-Bold.ttf')))
                 self.header_font = 'Outfit'
                 self.header_bold = 'Outfit-Bold'
+
+                # Inter Tight
+                inter_reg = os.path.join(font_dir, 'InterTight-Regular.ttf')
+                inter_bold = os.path.join(font_dir, 'InterTight-Bold.ttf')
+                if os.path.exists(inter_reg) and os.path.exists(inter_bold):
+                    pdfmetrics.registerFont(TTFont('InterTight', inter_reg))
+                    pdfmetrics.registerFont(TTFont('InterTight-Bold', inter_bold))
+                    
+                # Playfair Display
+                playfair_reg = os.path.join(font_dir, 'PlayfairDisplay-Regular.ttf')
+                playfair_bold = os.path.join(font_dir, 'PlayfairDisplay-Bold.ttf')
+                if os.path.exists(playfair_reg) and os.path.exists(playfair_bold):
+                    pdfmetrics.registerFont(TTFont('PlayfairDisplay', playfair_reg))
+                    pdfmetrics.registerFont(TTFont('PlayfairDisplay-Bold', playfair_bold))
+
             except Exception as e:
                 import logging
-                logging.getLogger(__name__).error(f"Erreur enregistrement Montserrat: {e}")
+                logging.getLogger(__name__).error(f"Erreur enregistrement Montserrat/Premium Fonts: {e}")
                 self.header_font = self.premium_font
                 self.header_bold = self.premium_bold
+
+    def update_active_fonts(self, config):
+        """
+        Met à jour dynamiquement les polices actives du template en fonction de la configuration de l'utilisateur.
+        """
+        font_fr = self._get_val(config, 'font_fr', 'inter')
+        
+        # Mappings des polices pré-enregistrées
+        if font_fr == 'outfit':
+            self.premium_font = 'Outfit'
+            self.premium_bold = 'Outfit-Bold'
+            self.header_font = 'Outfit'
+            self.header_bold = 'Outfit-Bold'
+        elif font_fr == 'inter':
+            # Fallback à Helvetica ou Montserrat si InterTight n'est pas présent
+            try:
+                pdfmetrics.getFont('InterTight')
+                self.premium_font = 'InterTight'
+                self.premium_bold = 'InterTight-Bold'
+                self.header_font = 'InterTight'
+                self.header_bold = 'InterTight-Bold'
+            except Exception:
+                self.premium_font = 'Montserrat'
+                self.premium_bold = 'Montserrat-Bold'
+                self.header_font = 'Outfit'
+                self.header_bold = 'Outfit-Bold'
+        elif font_fr == 'playfair':
+            try:
+                pdfmetrics.getFont('PlayfairDisplay')
+                self.premium_font = 'PlayfairDisplay'
+                self.premium_bold = 'PlayfairDisplay-Bold'
+                self.header_font = 'PlayfairDisplay'
+                self.header_bold = 'PlayfairDisplay-Bold'
+            except Exception:
+                self.premium_font = 'Montserrat'
+                self.premium_bold = 'Montserrat-Bold'
+                self.header_font = 'Outfit'
+                self.header_bold = 'Outfit-Bold'
+        else:
+            self.premium_font = 'Montserrat'
+            self.premium_bold = 'Montserrat-Bold'
+            self.header_font = 'Outfit'
+            self.header_bold = 'Outfit-Bold'
 
     def _prepare_arabic(self, text):
         if not text: return ""
@@ -204,6 +264,19 @@ class BaseTemplate:
         # 1. Fond de page / Letterhead (Supprimé pour privilégier le rendu natif "Ghost Elite")
         # Le système n'utilise plus d'image de fond statique pour éviter les flous d'impression.
         
+        # Récupération de la mise en page choisie
+        selected_template = self._get_val(config, 'selected_template', 'classic')
+        
+        # Dessin du sidebar s'il est sélectionné
+        if selected_template == 'sidebar':
+            canvas.saveState()
+            canvas.setFillColor(colors.HexColor('#f8fafc'))
+            canvas.rect(0, 0, 0.8*cm, p_height, fill=True, stroke=False)
+            canvas.setStrokeColor(primary_color)
+            canvas.setLineWidth(2)
+            canvas.line(0.8*cm, 0, 0.8*cm, p_height)
+            canvas.restoreState()
+
         # 2. Watermark Central (Opalescent)
         # Transparent et majestueux
         watermark_enabled = self._get_val(config, 'watermark_enabled', False)
@@ -225,12 +298,9 @@ class BaseTemplate:
 
     def _draw_auto_header(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height):
         """
-        En-tête Elite Structuré en 3 Cadres (v6.2):
-        [FR Info] | [Logo] | [AR Info]
+        En-tête Elite : Répartit et applique le design selon selected_template.
         """
-        margin = 1.5*cm
-        y_top = p_height - 1.5*cm
-        column_w = (p_width - 2*margin) / 3.0
+        selected_template = self._get_val(config, 'selected_template', 'classic')
         
         fr_lines = self._get_val(config, 'header_lines_fr')
         if not fr_lines: fr_lines = ["Dr. Nom Prénom", "Chirurgien Dentiste"]
@@ -238,17 +308,43 @@ class BaseTemplate:
         ar_lines = self._get_val(config, 'header_lines_ar')
         if not ar_lines: ar_lines = ["د. الإسم الكامل", "طبيب جراح للأسنان"]
 
-        # --- 1. CADRE GAUCHE (Français) ---
-        line_height = 0.45*cm # Interligne 'Elite Ultra-Dense' (v7.5)
+        # Échelle globale de l'en-tête (Elite Scaler L180)
+        h_scale = self._get_val(config, 'header_scale', 1.0)
+
+        if selected_template == 'elite':
+            self._draw_header_elite(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        elif selected_template == 'sidebar':
+            self._draw_header_sidebar(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        elif selected_template == 'royal':
+            self._draw_header_royal(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        elif selected_template == 'prestige':
+            self._draw_header_prestige(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        elif selected_template == 'minimal':
+            self._draw_header_minimal(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        else: # classic
+            self._draw_header_classic(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+
+    def _draw_header_classic(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        # 1. Dual premium top accent line
+        canvas.saveState()
+        canvas.setFillColor(p_color)
+        canvas.rect(0, p_height - 4, p_width, 4, fill=True, stroke=False)
+        canvas.setFillColor(a_color)
+        canvas.rect(0, p_height - 6, p_width, 2, fill=True, stroke=False)
+        canvas.restoreState()
+
+        margin = 1.5*cm
+        y_top = p_height - 1.5*cm
+        column_w = (p_width - 2*margin) / 3.0
+        line_height = 0.45*cm * h_scale
         
-        # On calcule d'abord la taille de police minimale commune
+        # Calculate adaptive common font size for alignment
         fs_list = []
         for i, line in enumerate(fr_lines):
-            base_fs = 30 # Version 'Ultra-Elite' (v7.5)
+            base_fs = 30 * h_scale
             font = self.header_bold if i == 0 else self.header_font
             fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w - 0.5*cm))
-        
-        common_fs = min(fs_list) if fs_list else 30
+        common_fs = min(fs_list) if fs_list else 30 * h_scale
         
         curr_y = y_top
         for i, line in enumerate(fr_lines):
@@ -258,21 +354,16 @@ class BaseTemplate:
             canvas.drawString(margin, curr_y, line)
             curr_y -= line_height
 
-        # --- 2. CADRE CENTRAL (Logo) ---
         if logo_path:
-            logo_size = 2.4*cm
+            logo_size = 2.4*cm * h_scale
             canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.4*cm, width=logo_size, height=logo_size, mask='auto')
 
-        # --- 3. CADRE DROIT (Arabe) ---
         font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
-        
-        # Même logique d'unification pour l'arabe
         fs_list_ar = []
         for i, line in enumerate(ar_lines):
-            base_fs = 32 if font_ar != 'Helvetica' else 22 # Version 'Ultra-Elite' (v7.5)
+            base_fs = (32 if font_ar != 'Helvetica' else 22) * h_scale
             fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w - 0.5*cm))
-        
-        common_fs_ar = min(fs_list_ar) if fs_list_ar else 32
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (32 if font_ar != 'Helvetica' else 22) * h_scale
         
         curr_y = y_top
         for i, line in enumerate(ar_lines):
@@ -281,6 +372,350 @@ class BaseTemplate:
             prepared_text = self._prepare_arabic(line)
             canvas.drawRightString(p_width - margin, curr_y, prepared_text)
             curr_y -= line_height
+
+        # Elegant centered divider rule with diamond symbol
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor('#E2E8F0'))
+        canvas.setLineWidth(0.75)
+        canvas.line(margin, p_height - 3.6*cm, p_width - margin, p_height - 3.6*cm)
+        canvas.setFillColor(a_color)
+        canvas.setFont(self.header_bold, 7)
+        canvas.drawCentredString(p_width/2, p_height - 3.68*cm, "◆")
+        canvas.restoreState()
+
+    def _draw_header_elite(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        # Bandeau de couleur supérieur moderne avec sous-bande dorée
+        canvas.saveState()
+        canvas.setFillColor(p_color)
+        canvas.rect(0, p_height - 0.4*cm, p_width, 0.4*cm, fill=True, stroke=False)
+        canvas.setFillColor(a_color)
+        canvas.rect(0, p_height - 0.46*cm, p_width, 0.06*cm, fill=True, stroke=False)
+        canvas.restoreState()
+
+        margin = 1.5*cm
+        y_top = p_height - 1.6*cm
+        line_height = 0.42*cm * h_scale
+        
+        logo_x = margin
+        logo_size = 2.0*cm * h_scale
+        if logo_path:
+            canvas.drawImage(logo_path, logo_x, p_height - 3.2*cm, width=logo_size, height=logo_size, mask='auto')
+            fr_x = logo_x + logo_size + 0.4*cm
+        else:
+            fr_x = margin
+
+        column_w = (p_width - fr_x - margin) / 2.0 - 0.2*cm
+
+        # Français
+        fs_list = []
+        for i, line in enumerate(fr_lines):
+            base_fs = 28 * h_scale
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
+        common_fs = min(fs_list) if fs_list else 28 * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
+            canvas.setFillColor(p_color)
+            canvas.setFont(font, common_fs)
+            canvas.drawString(fr_x, curr_y, line)
+            curr_y -= line_height
+
+        # Accent bar indicating modernity next to French text
+        canvas.saveState()
+        canvas.setFillColor(a_color)
+        canvas.rect(fr_x - 0.25*cm, y_top - (len(fr_lines) - 0.5)*line_height, 2, len(fr_lines)*line_height + 0.1*cm, fill=True, stroke=False)
+        canvas.restoreState()
+
+        # Séparateur vertical moderne
+        sep_x = fr_x + column_w + 0.1*cm
+        canvas.saveState()
+        canvas.setStrokeColor(a_color)
+        canvas.setLineWidth(1)
+        canvas.line(sep_x, p_height - 1.2*cm, sep_x, p_height - 3.4*cm)
+        canvas.restoreState()
+
+        # Arabe
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = (30 if font_ar != 'Helvetica' else 20) * h_scale
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * h_scale
+
+        ar_start_x = sep_x + 0.2*cm
+        curr_y = y_top
+        for i, line in enumerate(ar_lines):
+            canvas.setFillColor(p_color)
+            canvas.setFont(font_ar, common_fs_ar)
+            prepared_text = self._prepare_arabic(line)
+            canvas.drawString(ar_start_x, curr_y, prepared_text)
+            curr_y -= line_height
+
+        # Horizontal separator beneath
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor('#E2E8F0'))
+        canvas.setLineWidth(0.75)
+        canvas.line(margin, p_height - 3.6*cm, p_width - margin, p_height - 3.6*cm)
+        canvas.restoreState()
+
+    def _draw_header_sidebar(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        # Precise technical sidebar ticks
+        canvas.saveState()
+        canvas.setStrokeColor(p_color)
+        canvas.setLineWidth(0.5)
+        for y_tick in range(2, int(p_height/cm), 2):
+            canvas.line(0.8*cm, y_tick*cm, 0.65*cm, y_tick*cm)
+            
+        # Draw vertical rotated signature text in technical sidebar
+        canvas.translate(0.4*cm, p_height/2)
+        canvas.rotate(90)
+        canvas.setFillColor(colors.HexColor('#94A3B8'))
+        canvas.setFont(self.header_bold, 5)
+        canvas.drawCentredString(0, 0, "• E L I T E   C L I N I C A L   S Y S T E M •")
+        canvas.restoreState()
+
+        # Capsule high-end badge at top right
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor('#FEF3C7'))
+        canvas.setStrokeColor(colors.HexColor('#FCD34D'))
+        canvas.setLineWidth(0.5)
+        canvas.roundRect(p_width - 3.8*cm, p_height - 0.75*cm, 2.6*cm, 0.4*cm, 0.1*cm, fill=True, stroke=True)
+        canvas.setFillColor(colors.HexColor('#D97706'))
+        canvas.setFont(self.header_bold, 6)
+        canvas.drawCentredString(p_width - 2.5*cm, p_height - 0.58*cm, "CLINIC PROFILE")
+        canvas.restoreState()
+
+        left_margin = 1.4*cm
+        right_margin = 1.2*cm
+        y_top = p_height - 1.6*cm
+        line_height = 0.42*cm * h_scale
+
+        logo_size = 1.8*cm * h_scale
+        if logo_path:
+            canvas.drawImage(logo_path, left_margin, p_height - 3.2*cm, width=logo_size, height=logo_size, mask='auto')
+            fr_x = left_margin + logo_size + 0.4*cm
+        else:
+            fr_x = left_margin
+
+        column_w = (p_width - fr_x - right_margin) / 2.0 - 0.2*cm
+
+        # Français
+        fs_list = []
+        for i, line in enumerate(fr_lines):
+            base_fs = 26 * h_scale
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
+        common_fs = min(fs_list) if fs_list else 26 * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
+            canvas.setFillColor(p_color)
+            canvas.setFont(font, common_fs)
+            canvas.drawString(fr_x, curr_y, line)
+            curr_y -= line_height
+
+        # Arabe
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = (28 if font_ar != 'Helvetica' else 18) * h_scale
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (28 if font_ar != 'Helvetica' else 18) * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(ar_lines):
+            canvas.setFillColor(p_color)
+            canvas.setFont(font_ar, common_fs_ar)
+            prepared_text = self._prepare_arabic(line)
+            canvas.drawRightString(p_width - right_margin, curr_y, prepared_text)
+            curr_y -= line_height
+
+    def _draw_header_royal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        # Draw elegant dual monogram rings around centered logo
+        logo_size = 1.8*cm * h_scale
+        if logo_path:
+            canvas.saveState()
+            canvas.setStrokeColor(a_color)
+            canvas.setLineWidth(0.5)
+            canvas.circle(p_width/2, p_height - 1.8*cm, logo_size/2 + 0.12*cm, fill=False, stroke=True)
+            canvas.circle(p_width/2, p_height - 1.8*cm, logo_size/2 + 0.18*cm, fill=False, stroke=True)
+            canvas.restoreState()
+            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 2.7*cm, width=logo_size, height=logo_size, mask='auto')
+            y_start = p_height - 3.0*cm
+        else:
+            y_start = p_height - 1.5*cm
+
+        line_height = 0.38*cm * h_scale
+        column_w = p_width - 3.0*cm
+
+        # Français
+        fs_list = []
+        for i, line in enumerate(fr_lines):
+            base_fs = 24 * h_scale
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
+        common_fs = min(fs_list) if fs_list else 24 * h_scale
+
+        curr_y = y_start
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
+            canvas.setFillColor(p_color)
+            canvas.setFont(font, common_fs)
+            canvas.drawCentredString(p_width/2, curr_y, line)
+            curr_y -= line_height
+
+        # Centered fading divider with gold diamond crest
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor('#CBD5E1'))
+        canvas.setLineWidth(0.5)
+        canvas.line(p_width/2 - 2.5*cm, curr_y, p_width/2 - 0.4*cm, curr_y)
+        canvas.line(p_width/2 + 0.4*cm, curr_y, p_width/2 + 2.5*cm, curr_y)
+        canvas.setFillColor(a_color)
+        p = canvas.beginPath()
+        p.moveTo(p_width/2, curr_y + 0.08*cm)
+        p.lineTo(p_width/2 + 0.08*cm, curr_y)
+        p.lineTo(p_width/2, curr_y - 0.08*cm)
+        p.lineTo(p_width/2 - 0.08*cm, curr_y)
+        p.close()
+        canvas.drawPath(p, fill=True, stroke=False)
+        canvas.restoreState()
+        curr_y -= 0.35*cm
+
+        # Arabe
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = (26 if font_ar != 'Helvetica' else 16) * h_scale
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (26 if font_ar != 'Helvetica' else 16) * h_scale
+
+        for i, line in enumerate(ar_lines):
+            canvas.setFillColor(p_color)
+            canvas.setFont(font_ar, common_fs_ar)
+            prepared_text = self._prepare_arabic(line)
+            canvas.drawCentredString(p_width/2, curr_y, prepared_text)
+            curr_y -= line_height
+
+    def _draw_header_prestige(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        # Luxury dark header box
+        canvas.saveState()
+        canvas.setFillColor(p_color)
+        canvas.rect(0, p_height - 4.2*cm, p_width, 4.2*cm, fill=True, stroke=False)
+        canvas.setFillColor(colors.HexColor('#F59E0B')) # Solid Gold Accent Stripe
+        canvas.rect(0, p_height - 4.35*cm, p_width, 0.15*cm, fill=True, stroke=False)
+        
+        # Inset luxury gold border frame
+        canvas.setStrokeColor(colors.HexColor('#F59E0B'))
+        canvas.setLineWidth(0.5)
+        canvas.rect(0.2*cm, p_height - 4.0*cm, p_width - 0.4*cm, 3.8*cm, fill=False, stroke=True)
+        canvas.restoreState()
+
+        margin = 1.5*cm
+        y_top = p_height - 1.6*cm
+        column_w = (p_width - 2*margin) / 3.0
+        line_height = 0.45*cm * h_scale
+
+        # Français (crisp gold and white text)
+        fs_list = []
+        for i, line in enumerate(fr_lines):
+            base_fs = 28 * h_scale
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w - 0.5*cm))
+        common_fs = min(fs_list) if fs_list else 28 * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
+            canvas.setFillColor(colors.HexColor('#FCD34D') if i == 0 else colors.white)
+            canvas.setFont(font, common_fs)
+            canvas.drawString(margin, curr_y, line)
+            curr_y -= line_height
+
+        # Shielded centered logo
+        if logo_path:
+            logo_size = 2.0*cm * h_scale
+            canvas.saveState()
+            canvas.setFillColor(colors.white)
+            canvas.circle(p_width/2, p_height - 2.1*cm, logo_size/2 + 0.12*cm, fill=True, stroke=False)
+            canvas.restoreState()
+            canvas.drawImage(logo_path, (p_width - logo_size)/2, p_height - 3.1*cm, width=logo_size, height=logo_size, mask='auto')
+
+        # Arabe
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = (30 if font_ar != 'Helvetica' else 20) * h_scale
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w - 0.5*cm))
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (30 if font_ar != 'Helvetica' else 20) * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(ar_lines):
+            canvas.setFillColor(colors.white)
+            canvas.setFont(font_ar, common_fs_ar)
+            prepared_text = self._prepare_arabic(line)
+            canvas.drawRightString(p_width - margin, curr_y, prepared_text)
+            curr_y -= line_height
+
+    def _draw_header_minimal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
+        margin = 1.5*cm
+        y_top = p_height - 1.4*cm
+        line_height = 0.36*cm * h_scale
+
+        logo_size = 1.2*cm * h_scale
+        if logo_path:
+            canvas.drawImage(logo_path, margin, p_height - 2.2*cm, width=logo_size, height=logo_size, mask='auto')
+            fr_x = margin + logo_size + 0.3*cm
+        else:
+            fr_x = margin
+
+        column_w = (p_width - fr_x - margin) / 2.0 - 0.2*cm
+
+        # Français
+        fs_list = []
+        for i, line in enumerate(fr_lines):
+            base_fs = 18 * h_scale
+            font = self.header_bold if i == 0 else self.header_font
+            fs_list.append(self.get_adaptive_font_size(line, font, base_fs, column_w))
+        common_fs = min(fs_list) if fs_list else 18 * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(fr_lines):
+            font = self.header_bold if i == 0 else self.header_font
+            canvas.setFillColor(colors.HexColor('#475569'))
+            canvas.setFont(font, common_fs)
+            canvas.drawString(fr_x, curr_y, line)
+            curr_y -= line_height
+
+        # Arabe
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        fs_list_ar = []
+        for i, line in enumerate(ar_lines):
+            base_fs = (20 if font_ar != 'Helvetica' else 14) * h_scale
+            fs_list_ar.append(self.get_adaptive_font_size(line, font_ar, base_fs, column_w))
+        common_fs_ar = min(fs_list_ar) if fs_list_ar else (20 if font_ar != 'Helvetica' else 14) * h_scale
+
+        curr_y = y_top
+        for i, line in enumerate(ar_lines):
+            canvas.setFillColor(colors.HexColor('#475569'))
+            canvas.setFont(font_ar, common_fs_ar)
+            prepared_text = self._prepare_arabic(line)
+            canvas.drawRightString(p_width - margin, curr_y, prepared_text)
+            curr_y -= line_height
+
+        # Trait fin gris clair
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor('#E2E8F0'))
+        canvas.setLineWidth(0.3)
+        canvas.line(margin, p_height - 2.6*cm, p_width - margin, p_height - 2.6*cm)
+        
+        # Modern microscopic tracked category label
+        canvas.setFillColor(colors.HexColor('#94A3B8'))
+        canvas.setFont(self.header_bold, 5.5)
+        canvas.drawCentredString(p_width/2, p_height - 2.85*cm, "•  O R D O N N A N C E   M É D I C A L E  •")
+        canvas.restoreState()
 
         # NOTE: La ligne de séparation a été supprimée selon le feedback utilisateur (v6.2)
 
@@ -387,10 +822,12 @@ class BaseTemplate:
                 qr_data = f"https://instagram.com/{qr_value.replace('@', '')}"
         elif qr_type == 'VALIDATION':
             # Mode validation : pointe vers le portail de vérification (URL de base + ID document)
-            qr_data = f"https://digitalcrown.ai/verify/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
+            b_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+            qr_data = f"{b_url}/verify/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
         elif qr_type == 'PAYMENT':
             # Suivi de paiement / Progression (nouveau mode Elite v4.2)
-            qr_data = f"https://digitalcrown.ai/track/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
+            b_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+            qr_data = f"{b_url}/track/{getattr(doc, 'doc_id', 'DOC-TEMP')}"
         elif qr_type == 'WHATSAPP':
             # Contact direct WhatsApp (v4.2) - Priorité absolue à qr_value
             # car c'est là que le docteur saisit le numéro spécifique au QR

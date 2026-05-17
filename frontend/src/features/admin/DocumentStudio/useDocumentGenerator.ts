@@ -345,7 +345,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       if (res.data.pdf_url) {
         const baseUrl = `${API_BASE}/api`;
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
-        const fullUrl = `${baseUrl}/${cleanPdfPath}#view=FitH&t=${Date.now()}`;
+        const fullUrl = `${baseUrl}/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
         setPdfUrl(fullUrl);
 
         // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)

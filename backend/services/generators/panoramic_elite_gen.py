@@ -46,7 +46,7 @@ class PanoramicEliteGenerator(BaseTemplate):
 
         # 2. Préparation des images
         pano_url = self._format_image_url(analysis.image_path)
-        cephalo_url = self._format_image_url(cephalo.image_path) if cephalo else None
+        cephalo_url = self._format_image_url(cephalo.image_original_path) if cephalo else None
 
         # 3. Catégorisation des résultats (IA + Manuel)
         categories = self._categorize_findings(analysis.report_narrative or "")
@@ -101,11 +101,30 @@ class PanoramicEliteGenerator(BaseTemplate):
 
     def _format_image_url(self, db_path: str) -> Optional[str]:
         if not db_path: return None
-        # Convertir le chemin DB en URL absolue file:// pour WeasyPrint
+        
+        # On nettoie le préfixe api/ utilisé pour le routage frontend
         clean_path = db_path.replace("api/", "")
-        abs_path = os.path.abspath(clean_path)
-        if os.path.exists(abs_path):
+        
+        # 1. Tentative en mode Dev (relatif au dossier backend)
+        # self.base_path est déjà 'backend'
+        dev_path = os.path.join(self.base_path, clean_path)
+        
+        # 2. Tentative en mode Prod (via AppPaths et dossier media)
+        from backend.core.paths import AppPaths
+        media_dir = AppPaths.get_user_data_dir() / "media"
+        # En prod, 'static' est souvent omis ou mappé différemment dans le stockage
+        prod_path = str(media_dir / clean_path.replace("static/", ""))
+        
+        abs_path = None
+        if os.path.exists(dev_path):
+            abs_path = os.path.abspath(dev_path)
+        elif os.path.exists(prod_path):
+            abs_path = os.path.abspath(prod_path)
+            
+        if abs_path:
             return f"file:///{abs_path.replace('\\', '/')}"
+            
+        logger.warning(f"Image introuvable pour le PDF: {db_path} (tenté: {dev_path} et {prod_path})")
         return None
 
     def _calculate_age(self, born):
