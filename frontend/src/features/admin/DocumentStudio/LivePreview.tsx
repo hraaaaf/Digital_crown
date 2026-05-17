@@ -8,9 +8,17 @@ interface LivePreviewProps {
   onClose: () => void;
   onRefresh?: () => void;
   title: string;
+  inline?: boolean;
 }
 
-export const LivePreview: React.FC<LivePreviewProps> = ({ pdfUrl, loading, onClose, onRefresh, title }) => {
+export const LivePreview: React.FC<LivePreviewProps> = ({ 
+  pdfUrl, 
+  loading, 
+  onClose, 
+  onRefresh, 
+  title,
+  inline = false
+}) => {
   const [iframeReady, setIframeReady] = useState(false);
 
   // Reset skeleton whenever pdfUrl changes
@@ -20,12 +28,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ pdfUrl, loading, onClo
 
   const showSkeleton = loading || (pdfUrl && !iframeReady);
 
-  return createPortal(
-    <div 
-      className="fixed right-6 top-6 bottom-6 w-[600px] z-[20000] flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-[0_32px_64px_rgba(0,0,0,0.2)] overflow-hidden rounded-[3rem] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500"
-      style={{ pointerEvents: 'auto' }}
-    >
-
+  const containerContent = (
+    <div className="w-full h-full flex flex-col bg-white relative">
       {/* TOOLBAR */}
       <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-white/40 backdrop-blur-md">
         <div className="flex items-center gap-4">
@@ -124,7 +128,25 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ pdfUrl, loading, onClo
           </>
         )}
       </div>
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="w-full h-full flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-xl overflow-hidden rounded-[2.5rem] ring-1 ring-black/5 animate-in fade-in duration-300">
+        {containerContent}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed right-6 top-6 bottom-6 w-[600px] z-[20000] flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-[0_32px_64px_rgba(0,0,0,0.2)] overflow-hidden rounded-[3rem] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500"
+      style={{ pointerEvents: 'auto' }}
+    >
+      {containerContent}
     </div>,
     document.body
   );
+};
 };
