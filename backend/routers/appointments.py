@@ -110,8 +110,14 @@ def create_bulk_appointments(
 
 @router.post("/reminders/send")
 def trigger_reminders(
-    # Existing implementation unchanged
-    )
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Déclenche manuellement ou via un service planifié l'envoi de rappels automatisés de rendez-vous pour les prochaines 24h.
+    """
+    sent_count = notification_service.cron_send_reminders(db)
+    return {"status": "success", "reminders_sent": sent_count}
 
 @router.get("/suggest/{patient_id}", response_model=schemas.AppointmentSuggestionOut)
 async def suggest_appointment(
@@ -161,11 +167,3 @@ async def suggest_appointment(
         duration_minutes=15,
         notes="Aucun acte pending – suggestion générique"
     )
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Déclenche manuellement ou via un service planifié l'envoi de rappels automatisés de rendez-vous pour les prochaines 24h.
-    """
-    sent_count = notification_service.cron_send_reminders(db)
-    return {"status": "success", "reminders_sent": sent_count}
