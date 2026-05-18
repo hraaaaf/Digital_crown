@@ -141,6 +141,11 @@ This document defines the core recurring workflows, procedures, and rules for ag
 - **Taxonomie Spécialisée** : Classification structurée des anomalies en 6 spécialités cliniques (Conservatrice, Endo, Paro, Chirurgie, Prothèse, ATM).
 - **Moteur de Rapport** : Hybridation déterministe entre détection IA YOLOv11 (ONNX) et annotations manuelles. Génération PDF structurée par secteurs.
 
+### 🦷 Bilan Parodontal Clinique Graphique v2.0
+- **Sondage 6 points & Mobilité** : Saisie interactive et graphique des profondeurs de poches (PD), récessions (GR), saignements (BOP) et indice de plaque (PLQ) sur 6 points par dent, avec indices de mobilité (0-3) et atteintes de furcation (0-3).
+- **Moteur Diagnostique Déterministe EFP/AAP 2017** : Calcul du CAL ($CAL = PD + GR$) maximal global pour déterminer le *Staging* (I à IV), croisé avec les toggles réactifs de facteurs de risques (tabagisme, diabète HbA1c $\ge 7.0\%$) pour évaluer le *Grading* (A à C).
+- **Prescription d'Ordonnance Intégrée (1 Clic)** : Recommandation automatique de la bi-antibiothérapie d'accompagnement HAS (Amoxicilline 500mg + Métronidazole 500mg) en cas de Grade C actif de parodontite, avec bouton d'édition instantanée lié au dossier.
+
 ### 🧠 Intelligence Artificielle Cephalo
 - **Vision Engine** : U-Net CephLD-CCA (PyTorch).
 - **Géométrie** : Moteur Python pur pour les calculs d'angles (Tweed, Steiner, Normes COM).
