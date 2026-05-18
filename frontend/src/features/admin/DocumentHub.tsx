@@ -211,7 +211,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
        }, ...prev]);
     }
 
-    // 4. Sécurité Clinique : Vérification des antécédents
+    // 4. Sécurité Clinique : Double-contrôle CRE, DDI et Omissions
     const drugNames = drugs.map(d => d.name).filter(Boolean);
     if (drugNames.length > 0 && patientId) {
       const timer = setTimeout(() => {
@@ -223,9 +223,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               if (!insights.find(ins => ins.id === id)) {
                 setInsights(prev => [{
                   id: id,
-                  type: 'safety',
-                  title: 'Alerte Sécurité',
+                  type: w.type === 'omission' ? 'suggestion' : 'safety',
+                  title: w.type === 'coherence' ? 'Incohérence Clinique' :
+                         w.type === 'omission' ? 'Prévention' :
+                         w.type === 'ddi' ? 'Interaction Médicamenteuse' : 'Contre-indication',
                   content: w.message,
+                  source_type: 'DETERMINISTIC'
                 }, ...prev]);
               }
             });
