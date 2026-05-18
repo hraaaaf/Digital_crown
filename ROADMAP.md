@@ -14,12 +14,15 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Synchronisation d'Historique** : Import automatique de 50+ dossiers patients "Legacy" avec extraction des montants via PyPDF2.
 - [x] **Navigation Fluide** : Liens directs entre la comptabilité et le hub de documents du patient.
 
-## 🚧 2. Agenda Clinique (PARTIELLEMENT TERMINÉ)
-**Statut :** Déployé (v1.2) — IA Booking non implémentée
-**Spécialiste :** PixelMaster & Architector
+---
+
+## ✅ 2. Agenda Clinique & Rappels Automatiques (TERMINÉ)
+**Statut :** Déployé (v1.5)
+**Spécialiste :** PixelMaster, Architector & Staff Software Engineer
 
 - [x] **Modèle de Données** : Implémentation complète `Appointment` avec gestion des statuts.
 - [x] **Modification Interactive** : Édition des créneaux en direct via modal intelligent.
+- [x] **Rappels Automatiques (WhatsApp Reminders)** : Service cron automatisé de rappels de rendez-vous sous 24h avec logs d'audit et détection de créneaux.
 - [ ] **Smart Booking** : Intégration de l'IA pour suggérer les durées de RDV selon l'historique.
 
 ---
@@ -125,13 +128,13 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 💎 12. CRM & Fidélisation : Patient Scoring
-**Statut :** Idée / Recherche
-**Priorité :** Basse
+## ✅ 12. CRM & Fidélisation : Patient Scoring (TERMINÉ)
+**Statut :** Déployé (v1.5)
 **Spécialiste :** Architector & Financia
 
-- [ ] **Logique de Scoring Discret** : Attribution d'un grade (Bronze, Silver, Gold, Platinum) basé sur un algorithme interne.
-- [ ] **Indice d'Assiduité** : Calcul du ratio RDV honorés / RDV annulés ou "No-Show" (impacte le score négativement).
+- [x] **Calculateur d'Intelligence Patient (Score 0-100)** : Évalue instantanément la complétude du dossier patient (antécédents, radiographies, données cliniques).
+- [x] **Vigilance Financière Active (Pénalité Solvabilité)** : Soustraction automatique de `-15 points` en cas de dettes échues non réglées ($\ge 1000$ MAD) sur les actes cliniques finalisés.
+- [x] **Gradation & Badges Élite** : Menu de grade interactif ("Bronze", "Silver", "Gold", "Platinum") avec persistance BDD et interaction zero-friction.
 
 ---
 
@@ -196,17 +199,19 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 🎙️ 18. Assistant Vocal "Hands-Free" & Vision Advanced (Prochaine Étape)
-**Statut :** Planifié
+## 🎙️ 18. Assistant Vocal "Hands-Free" & Vision Advanced (En cours)
+**Statut :** Planifié / Module Clinique Déployé
 **Priorité :** Élevée
 
-### 🛡️ Module 4 IA : Cohérence Clinique (Priorité Haute)
+### ✅ Module 4 IA : Cohérence Clinique & Interactions (TERMINÉ)
+- [x] **Moteur d'Interactions Médicamenteuses (DDI)** : Détection dynamique et résiliente des conflits médicamenteux de sévérité élevée ou moyenne (Macrolides/Statines, Macrolides/Amiodarone, Métronidazole/Alcool, AINS/AINS, AINS/Anticoagulants) dans le Studio de Prescription.
+- [x] **Bannière de Pharmacovigilance Active** : Affichage d'alertes instantanées et d'avertissements de sécurité dans le Compagnon Diagnostique.
 - [ ] **Cross-Check Intelligent** : Alerte automatique si une ordonnance d'antibiotiques est générée sans acte chirurgical ou endodontique lié dans la séance.
 - [ ] **Détection d'Omissions** : Suggestion d'actes de prévention (Détartrage/Fluor) basée sur l'historique du patient.
 
 ---
 
-## 🧠 20. Ghost Elite Intelligence V3 : Co-Pilote Agentique
+## 🧠 20. Ghost Elite Intelligence V3 : Co-Pilote Agentique (En cours)
 **Statut :** Planifié / En cours d'Analyse
 **Priorité :** Élevée
 **Spécialiste :** Antigravity Staff Engineering
@@ -215,6 +220,8 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [x] **App Awareness & Header Integration** : Capacité du Brain et de la Guide Tower à détecter le module actif (Compta, Céphalo, Dossier) pour adapter leurs conseils. Intégration finalisée dans le Header principal aux côtés des réglages.
 - [ ] **Exécution Agentique** : Passage de la suggestion à l'action (ex: "Générer le devis" via un bouton piloté par l'IA).
 - [ ] **Reasoning Visualization** : Affichage de la "chaîne de pensée" clinique derrière chaque diagnostic.
+
+---
 
 ## ✅ 21. Compagnon Mobile PWA : Zero-Knowledge Access (TERMINÉ)
 **Statut :** Déployé (v6.0-rc1)
@@ -225,16 +232,40 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [x] **Cockpit Mobile** : Vue Agenda, Performance Finance et Liste Rouge (Débiteurs) en temps réel.
 - [x] **Mode Air-Gapped** : Zéro stockage de clé sur le cloud ; souveraineté totale des données cliniques.
 
-## 🧠 22. Agenda Intelligent & Plan de Traitement (Odontogramme)
-**Statut :** Architecture Validée (Prochaine Étape)
+---
+
+## 🧠 22. Agenda Intelligent & Plan de Traitement (Odontogramme) (EN COURS)
+**Statut :** Compagnon Diagnostique Déployé (v2.0)
 **Priorité :** Critique (Agentique)
 **Spécialiste :** Antigravity Staff Engineering
 
 L'objectif est d'interconnecter le cerveau de l'application, l'agenda et l'odontogramme pour créer un "Smart Booking" ultra-performant.
-- [ ] **Structuration du Plan** : Intégration d'un "Schéma dentaire" (Odontogramme) avec des cases à cocher pour diviser un traitement complexe en séquences (Séance 1, Séance 2).
+- [x] **Compagnon Diagnostique & Decision Tree (v2.0)** : Arbre décisionnel interactif multiniveau prenant en charge les urgences (douleurs, abcès), motifs esthétiques (dyschromie, alignement), problèmes prothétiques (dent manquante, casse), traumatismes (chocs, expulsion) et bilans de routine/tartre dans le TreatmentPlanStudio.
+- [x] **Génération de Plan Scientifique** : Traduction automatique des réponses en un plan de traitement structuré en 5 phases cliniques avec panier de soins interactif.
 - [ ] **Agenda Contextuel** : Lors de la proposition du prochain RDV, l'Agenda "lit" le plan de traitement inachevé du patient.
 - [ ] **Questions Proactives** : L'agenda demande explicitement au praticien la nature de la suite (ex: *"S'agit-il de la 2ème séance de traitement canalaire, ou attaque-t-on le composite ?"*).
 - [ ] **Durée Auto-Calculée** : Le temps réservé dans l'agenda s'adapte automatiquement à la réponse (ex: 30min pour séance 2 endo vs 1h pour couronne).
+
+---
+
+## ✅ 23. Bilan Parodontal Interactif EFP/AAP 2017 (TERMINÉ)
+**Statut :** Déployé (v1.0)
+**Spécialiste :** Staff Software Engineering & PixelMaster
+
+- [x] **Periodontal Charting Complet** : Interface interactive et fluide de saisie des profondeurs de poches, perte d'attache clinique (CAL) et saignements au sondage (BOP) pour les 32 dents.
+- [x] **Standards AAP 2017** : Intégration des règles d'évaluation clinique et de gradation (Staging I à IV, Grading A à C).
+- [x] **Co-prescription Adjuvante** : Recommandation automatique d'antibiothérapie d'accompagnement (Amoxicilline + Métronidazole) pour les parodontites agressives (Grade C).
+
+---
+
+## ✅ 24. Sécurité, Licences Off-line & Sauvegardes AES-256 (TERMINÉ)
+**Statut :** Déployé (v1.0)
+**Spécialiste :** Staff Software Engineering & Architector
+
+- [x] **Elite Offline License System** : Gestionnaire de licences en ligne et hors-ligne via coffre-fort chiffré (`license_vault.bin`).
+- [x] **Anti-Fraude Temporelle** : Détection automatique des retours en arrière de l'horloge système (clock rollback) et période de grâce de 72h sans Internet.
+- [x] **Sauvegardes AES-256 Automatisées** : Script de sauvegarde chiffrée de la base de données SQLite locale avec exportation sécurisée vers Supabase Cloud.
+- [x] **Logs d'Audit Systématiques** : Traçabilité totale des opérations de licence, de restauration et de sauvegarde dans l'AuditLog.
 
 ---
 
