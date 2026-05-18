@@ -25,12 +25,20 @@ export const Header = () => {
   }, []);
 
   useEffect(() => {
+    const activeId = localStorage.getItem('active_cabinet_id') || 'benmoussa';
+    if (activeId === 'benmoussa') {
+      setCabinetName('Centre Dentaire Benmoussa');
+      setPraticienName('Dr. Benmoussa');
+    }
+
     const fetchData = async () => {
       try {
         const config = await cabinetApi.getMine();
-        setCabinetName(config.nom_cabinet || 'Mon Cabinet');
-        if (config.header_lines_fr && config.header_lines_fr.length > 0) {
-          setPraticienName(config.header_lines_fr[0]);
+        if (!localStorage.getItem('active_cabinet_id')) {
+          setCabinetName(config.nom_cabinet || 'Mon Cabinet');
+          if (config.header_lines_fr && config.header_lines_fr.length > 0) {
+            setPraticienName(config.header_lines_fr[0]);
+          }
         }
       } catch (error) {
         console.error("Erreur header config:", error);
@@ -46,8 +54,18 @@ export const Header = () => {
     fetchData();
     fetchTreasury();
 
+    const handleCabinetChange = (e: any) => {
+      const { cabinet } = e.detail;
+      setCabinetName(cabinet.nom);
+      setPraticienName(cabinet.specialty);
+    };
+    window.addEventListener('cabinet-changed', handleCabinetChange);
+
     const interval = setInterval(fetchTreasury, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('cabinet-changed', handleCabinetChange);
+    };
   }, []);
 
   const handleLogout = () => {

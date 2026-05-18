@@ -1,3 +1,18 @@
+import type { User } from '@supabase/supabase-js';
+
+/**
+ * Supabase User étendu avec les champs métier injectés par le backend `/auth/me`.
+ * Toutes les propriétés métier sont optionnelles car getFullProfile() peut
+ * retourner uniquement le User Supabase brut en cas d'échec de la sync backend.
+ */
+export interface AppUser extends User {
+  role?: string;
+  is_licensed?: boolean;
+  license_expires_at?: string | null;
+  full_name?: string;
+  cabinet_name?: string;
+}
+
 export interface Patient {
   id: number;
   numero_dossier: string;

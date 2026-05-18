@@ -7,6 +7,7 @@ from datetime import datetime
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
 from backend.utils.access_control import assert_patient_access
+from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["Appointments"])
 
@@ -105,3 +106,14 @@ def create_bulk_appointments(
         db.refresh(appt)
         
     return created_appts
+
+@router.post("/reminders/send")
+def trigger_reminders(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Déclenche manuellement ou via un service planifié l'envoi de rappels automatisés de rendez-vous pour les prochaines 24h.
+    """
+    sent_count = notification_service.cron_send_reminders(db)
+    return {"status": "success", "reminders_sent": sent_count}

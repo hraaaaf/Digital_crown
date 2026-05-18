@@ -17,9 +17,12 @@ from backend.models import DocumentType, DocumentStatus
 from backend.schemas import ConflictResolution
 
 # Configuration
+from backend.core.paths import AppPaths
+
 BASE_DIR = Path(__file__).parent.parent
-ARCHIVE_BASE_DIR = BASE_DIR / "static" / "archives"
-LEGACY_DOCS_DIR = BASE_DIR / "static" / "documents"
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+ARCHIVE_BASE_DIR = MEDIA_DIR / "archives"
+LEGACY_DOCS_DIR = MEDIA_DIR / "documents"
 TRASH_RETENTION_DAYS = 365  # 1 an
 THUMBNAIL_SIZE = (300, 400)
 
@@ -222,7 +225,7 @@ class ArchiveService:
             is_latest_version=True,
             file_hash=file_hash,
             file_size=file_size,
-            file_path=str(storage_path.relative_to(BASE_DIR)).replace("\\", "/"),
+            file_path=("static/archives/" + str(storage_path.relative_to(ARCHIVE_BASE_DIR))).replace("\\", "/"),
             title=title or filename,
             description=description,
             tags=tags,

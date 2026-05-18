@@ -46,7 +46,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         if email is None or token_type != "access":
             raise credentials_exception
 
-        if jti and token_blacklist.is_revoked(jti):
+        if jti and token_blacklist.is_revoked(jti, db):
             raise credentials_exception
 
         token_data = TokenData(email=email)
@@ -138,7 +138,7 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
 
         if email is None or token_type != "refresh":
             raise credentials_exception
-        if jti and token_blacklist.is_revoked(jti):
+        if jti and token_blacklist.is_revoked(jti, db):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
@@ -148,7 +148,7 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
         raise credentials_exception
 
     # Rotation : le vieux refresh token est révoqué, on en émet un nouveau
-    token_blacklist.revoke(body.refresh_token)
+    token_blacklist.revoke(body.refresh_token, db)
     new_access = create_access_token(data={"sub": user.email})
     new_refresh = create_refresh_token(data={"sub": user.email})
 
@@ -167,8 +167,8 @@ async def logout(
     current_user: models.User = Depends(get_current_user),
 ):
     # Révoquer l'access token courant et le refresh token fourni
-    token_blacklist.revoke(token)
-    token_blacklist.revoke(body.refresh_token)
+    token_blacklist.revoke(token, db)
+    token_blacklist.revoke(body.refresh_token, db)
 
     audit_service.log(
         db=db,

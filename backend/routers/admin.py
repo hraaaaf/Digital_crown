@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, text
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -38,7 +38,13 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     
     total_p = db.query(models.Patient).filter(models.Patient.employer_id == emp_id).count()
     total_a = db.query(models.CephaloAnalysis).join(models.Patient).filter(models.Patient.employer_id == emp_id).count()
-    db_recent = db.query(models.Patient).filter(models.Patient.employer_id == emp_id).order_by(models.Patient.created_at.desc()).limit(5).all()
+    db_recent = db.query(models.Patient).filter(
+        models.Patient.employer_id == emp_id
+    ).options(
+        joinedload(models.Patient.actes)
+    ).order_by(
+        models.Patient.created_at.desc()
+    ).limit(5).all()
     
     # Calcul de l'activité sur les 7 derniers jours
     weekly_activity = []

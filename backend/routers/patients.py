@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime
@@ -60,7 +60,9 @@ def read_patients(
     current_user: models.User = Depends(get_current_user)
 ):
     user_employer_id = current_user.get_employer_id()
-    query = db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id)
+    query = db.query(models.Patient).options(
+        joinedload(models.Patient.dossier)
+    ).filter(models.Patient.employer_id == user_employer_id)
     if search:
         search_term = f"%{search.strip()}%"
         query = query.filter(

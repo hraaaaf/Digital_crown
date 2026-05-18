@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { api } from '../../../services/api';
+import { useEliteStore } from '../../../stores/useEliteStore';
 
 interface HouseWizardProps {
   onClose: () => void;
@@ -56,6 +57,18 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
   const [newActPhase, setNewActPhase] = useState<string>('CONSERVATRICE');
   const [newActName, setNewActName] = useState<string>('');
   const [newActPrice, setNewActPrice] = useState<string>('');
+
+  // Active Pharmacovigilance
+  const { lastPatientId } = useEliteStore();
+  const [medicalHistory, setMedicalHistory] = useState('');
+
+  useEffect(() => {
+    if (lastPatientId) {
+      api.get(`/patients/${lastPatientId}`)
+         .then(res => setMedicalHistory(res.data.antecedents_medicaux || ''))
+         .catch(err => console.error("Failed to fetch patient history for HouseWizard pharmacovigilance", err));
+    }
+  }, [lastPatientId]);
 
   // 1. MOTIF OPTIONS
   const motifs = [
@@ -199,6 +212,24 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
       }
     }
 
+    // APPLY PHARMACOVIGILANCE
+    const atcd = medicalHistory.toLowerCase();
+    const hasPenicillinAllergy = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
+    const hasAinsAllergy = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
+
+    protocol = protocol.map(p => {
+      let modifiedP = p;
+      if (hasPenicillinAllergy && modifiedP.toLowerCase().includes('amoxicilline')) {
+        modifiedP = modifiedP.replace('AMOXICILLINE', 'CLINDAMYCINE/MACROLIDE (⚠️ Substitution cause Allergie Pénicilline)');
+        warnings.push("⚠️ Allergie à la Pénicilline détectée. Antibiothérapie modifiée automatiquement vers une classe alternative.");
+      }
+      if (hasAinsAllergy && modifiedP.toLowerCase().includes('ains')) {
+        modifiedP = modifiedP.replace('AINS', 'CORTICOSTÉROÏDES (⚠️ Substitution cause Allergie AINS)');
+        warnings.push("⚠️ Allergie aux AINS détectée. Modification du protocole anti-inflammatoire suggérée.");
+      }
+      return modifiedP;
+    });
+
     return { title, description, protocol, treatmentPlan, warnings };
   };
 
@@ -313,7 +344,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
               <Brain size={16} className="text-white" />
             </div>
             <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-white">Dr. House Diagnostic</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-white">Diagnostic Expert</h3>
               <p className="text-[9px] font-bold text-slate-400">Arbre Décisionnel Interactif</p>
             </div>
           </div>
@@ -327,7 +358,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
 
         {/* STEP PROGRESS BAR */}
         <div className="px-6 pt-3 flex gap-1">
-          {['MOTIF', 'CLINICAL', 'RADIOLOGY', 'RESULT'].map((s, idx) => {
+          {['MOTIF', 'CLINICAL', 'RADIOLOGY', 'RESULT'].map((s) => {
             const steps = ['MOTIF', 'CLINICAL', 'RADIOLOGY', 'RESULT'];
             const currentIdx = steps.indexOf(step);
             const active = steps.indexOf(s) <= currentIdx;

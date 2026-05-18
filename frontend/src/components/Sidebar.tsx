@@ -16,11 +16,13 @@ import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
 import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
 import { clinicalTips } from '../data/clinical_tips';
+import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
 
 export const Sidebar = () => {
+  const { activeCabinetId, cabinets, switchCabinet } = useSettingsStore();
   const location = useLocation();
   const [isAiActive, setIsAiActive] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -129,6 +131,31 @@ export const Sidebar = () => {
           </Link>
           
           <ClinicalTipBubble show={showTip} tip={currentTip} onClose={() => setShowTip(false)} />
+        </div>
+
+        {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
+        <div className="px-6 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-1">Cabinet Actif</div>
+          <div className="relative group">
+            <select
+              value={activeCabinetId}
+              onChange={(e) => switchCabinet(e.target.value)}
+              className="w-full bg-card-bg/60 border border-border-main rounded-elite px-3 py-2.5 text-xs font-black tracking-tight text-text-main cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/40 transition-elite appearance-none"
+              style={{ 
+                backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")',
+                backgroundPosition: 'right 0.75rem center',
+                backgroundSize: '1.25em 1.25em',
+                backgroundRepeat: 'no-repeat',
+                paddingRight: '2rem'
+              }}
+            >
+              {cabinets.map(cab => (
+                <option key={cab.id} value={cab.id} className="text-black bg-white font-bold">
+                  🏢 {cab.nom}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* STACKED NAVIGATION */}

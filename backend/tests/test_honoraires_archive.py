@@ -1,0 +1,72 @@
+import pytest
+from datetime import datetime, date
+from backend import models, schemas
+
+VALID_PATIENT = {
+    "nom": "Ait",
+    "prenom": "Yassine",
+    "date_naissance": "1988-04-20",
+    "sexe": "M",
+    "telephone": "0612345678",
+}
+
+@pytest.mark.anyio
+class TestHonorairesArchive:
+    
+    def test_note_honoraires_tpe_mapping_and_archiving(self, client, auth_headers, db):
+        # 1. Créer un patient
+        resp_patient = client.post("/api/patients/", json=VALID_PATIENT, headers=auth_headers)
+        assert resp_patient.status_code in (200, 201), resp_patient.text
+        patient_id = resp_patient.json()["id"]
+        
+        # 2. Préparer les données pour la note d'honoraires avec règlement "TPE"
+        req_data = {
+            "type": "note",
+            "patient_id": patient_id,
+            "is_accounted": True,
+            "payment_status": "PAYE",
+            "data": {
+                "payments": [
+                    {
+                        "date": "2026-05-18",
+                        "acte": "Détartrage",
+                        "dent": "-",
+                        "montant": 400.0,
+                        "mode_reglement": "TPE"
+                    }
+                ],
+                "doc_date": "2026-05-18",
+                "teeth_data": []
+            }
+        }
+        
+        # 3. Appeler /api/documents/generate pour générer et archiver
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+        assert "pdf_url" in resp_gen.json()
+        
+        # 4. Vérifier que l'encaissement (Payment) a bien été créé avec le mode de règlement "CARTE"
+        payment_db = db.query(models.Payment).filter(models.Payment.patient_id == patient_id).first()
+        assert payment_db is not None
+        assert payment_db.amount == 400.0
+        assert payment_db.payment_method == models.PaymentMethod.CARTE
+        
+        # 5. Tenter de régénérer le même document sans forcer -> Doit lever un conflit DOUBLE_DETECTED
+        resp_conflict = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_conflict.status_code == 500
+        assert "DOUBLE_DETECTED" in resp_conflict.json()["detail"]
+        
+        # 6. Régénérer en passant force=True -> Doit réussir
+        resp_forced = client.post("/api/documents/generate?force=true", json=req_data, headers=auth_headers)
+        assert resp_forced.status_code == 200, resp_forced.text
+        assert "pdf_url" in resp_forced.json()
+        
+        # 7. Vérifier que nous avons maintenant 2 versions du document archivé
+        docs = db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.patient_id == patient_id,
+            models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES
+        ).all()
+        assert len(docs) == 2
+        # La plus récente doit être marquée is_latest_version=True, l'ancienne False
+        versions = {d.version_number: d.is_latest_version for d in docs}
+        assert versions == {1: False, 2: True}

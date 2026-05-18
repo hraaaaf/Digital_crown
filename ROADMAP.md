@@ -225,7 +225,17 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [x] **Cockpit Mobile** : Vue Agenda, Performance Finance et Liste Rouge (Débiteurs) en temps réel.
 - [x] **Mode Air-Gapped** : Zéro stockage de clé sur le cloud ; souveraineté totale des données cliniques.
 
+## 🧠 22. Agenda Intelligent & Plan de Traitement (Odontogramme)
+**Statut :** Architecture Validée (Prochaine Étape)
+**Priorité :** Critique (Agentique)
+**Spécialiste :** Antigravity Staff Engineering
+
+L'objectif est d'interconnecter le cerveau de l'application, l'agenda et l'odontogramme pour créer un "Smart Booking" ultra-performant.
+- [ ] **Structuration du Plan** : Intégration d'un "Schéma dentaire" (Odontogramme) avec des cases à cocher pour diviser un traitement complexe en séquences (Séance 1, Séance 2).
+- [ ] **Agenda Contextuel** : Lors de la proposition du prochain RDV, l'Agenda "lit" le plan de traitement inachevé du patient.
+- [ ] **Questions Proactives** : L'agenda demande explicitement au praticien la nature de la suite (ex: *"S'agit-il de la 2ème séance de traitement canalaire, ou attaque-t-on le composite ?"*).
+- [ ] **Durée Auto-Calculée** : Le temps réservé dans l'agenda s'adapte automatiquement à la réponse (ex: 30min pour séance 2 endo vs 1h pour couronne).
+
 ---
 
-*Dernière mise à jour : 15 Mai 2026 — Phase 6 Deployment Ready (Elite Edition).*
-
+*Dernière mise à jour : 18 Mai 2026 — Phase 6 Deployment Ready (Elite Edition).*

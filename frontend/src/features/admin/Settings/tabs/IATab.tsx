@@ -21,6 +21,7 @@ export const IATab: React.FC = () => {
     const newVal = !clinicalTipsEnabled;
     setClinicalTipsEnabled(newVal);
     safeStorage.set('clinicalTipsEnabled', String(newVal));
+    window.dispatchEvent(new Event('settings-changed'));
   };
 
   return (

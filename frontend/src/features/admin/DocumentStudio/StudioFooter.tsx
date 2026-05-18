@@ -1,5 +1,6 @@
 import React from 'react';
-import { Archive, Printer, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { Archive, Printer, Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 
 interface StudioFooterProps {
   loading: boolean;
@@ -13,6 +14,8 @@ interface StudioFooterProps {
   onGenerateAI?: () => void;
   loadingAi?: boolean;
   total?: number;
+  sideStudioType: 'NONE' | 'PREVIEW';
+  onTogglePreview: () => void;
 }
 
 export const StudioFooter: React.FC<StudioFooterProps> = ({
@@ -26,7 +29,9 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   aiReport,
   onGenerateAI,
   loadingAi,
-  total
+  total,
+  sideStudioType,
+  onTogglePreview
 }) => {
   if (activeTab === 'ai') {
     return (
@@ -37,7 +42,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           className="px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50"
           style={{ backgroundColor: 'var(--primary)' }}
         >
-          {loadingAi ? <Loader2 className="animate-spin mr-2 inline" /> : <Save className="mr-2 inline" />}
+          {loadingAi ? <Loader2 className="animate-spin mr-2 inline" /> : <Eye className="mr-2 inline" />}
           {aiReport ? "Régénérer Analyse" : "Lancer Analyse IA"}
         </button>
       </div>
@@ -89,13 +94,16 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         </button>
 
         <button 
-          onClick={() => onGenerate(false, false, false, false)}
-          disabled={loading}
-          className="group flex items-center gap-3 px-8 py-3.5 bg-primary text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-2xl shadow-primary/30 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--primary)' }}
+          onClick={onTogglePreview}
+          className={cn(
+            "group flex items-center gap-3 px-8 py-3.5 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-2xl active:scale-95 border",
+            sideStudioType === 'PREVIEW' 
+              ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
+              : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
+          )}
         >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-          Générer PDF
+          <Eye size={18} className="group-hover:scale-110 transition-transform" />
+          {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Live"}
         </button>
       </div>
 

@@ -15,6 +15,8 @@ class AppointmentBase(BaseModel):
     status: AppointmentStatus = AppointmentStatus.PREVU
     notes: Optional[str] = None
     employer_id: Optional[int] = None
+    reminder_sent: bool = False
+    reminder_sent_at: Optional[datetime.datetime] = None
 
 
 class AppointmentCreate(AppointmentBase):
@@ -30,6 +32,8 @@ class AppointmentUpdate(BaseModel):
     motif: Optional[str] = None
     status: Optional[AppointmentStatus] = None
     notes: Optional[str] = None
+    reminder_sent: Optional[bool] = None
+    reminder_sent_at: Optional[datetime.datetime] = None
 
 
 class AppointmentOut(AppointmentBase):

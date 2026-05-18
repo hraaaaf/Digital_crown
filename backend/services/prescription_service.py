@@ -230,39 +230,204 @@ class PrescriptionService:
             "posologies": posologies[:5]
         }
 
-    def check_safety(self, db: Session, patient_id: int, drug_names: List[str]) -> List[Dict[str, Any]]:
-        """
-        Vérifie les contre-indications entre les antécédents du patient et les médicaments.
-        """
-        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-        if not patient or not patient.antecedents_medicaux:
-            return []
+    def _normalize_to_molecule(self, drug_name: str) -> str:
+        name = drug_name.upper().strip()
         
-        antecedents = patient.antecedents_medicaux.lower()
-        warnings = []
-        
-        # Logique de détection sémantique simple
-        risk_map = {
-            "diabète": ["sucre", "glucose", "corticoïde"],
-            "hypertension": ["anti-inflammatoire", "nsaid", "ibuprofène", "diclofénac", "adrénaline"],
-            "allergie": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
-            "pénicilline": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
-            "asthme": ["aspirine", "ibuprofène", "nsaid"],
-            "grossesse": ["tétracycline", "ibuprofène", "aspirine"],
-            "cardiaque": ["adrénaline", "anesthésie avec adrénaline"]
+        brand_to_molecule = {
+            "CLAMEXYL": "AMOXICILLINE",
+            "AMOXIL": "AMOXICILLINE",
+            "AMOXIPEN": "AMOXICILLINE",
+            "BRISTAMOX": "AMOXICILLINE",
+            
+            "AUGMENTIN": "AMOXICILLINE/ACIDE_CLAVULANIQUE",
+            "CLAVULIN": "AMOXICILLINE/ACIDE_CLAVULANIQUE",
+            "AMOKLAVIN": "AMOXICILLINE/ACIDE_CLAVULANIQUE",
+            "CURAM": "AMOXICILLINE/ACIDE_CLAVULANIQUE",
+            
+            "ADVIL": "IBUPROFENE",
+            "NUREFLEX": "IBUPROFENE",
+            "IBUPRON": "IBUPROFENE",
+            "ALGOFENE": "IBUPROFENE",
+            "DOLIPRANE": "PARACETAMOL",
+            "DAFALGAN": "PARACETAMOL",
+            "EFFERALGAN": "PARACETAMOL",
+            
+            "PROFENID": "KETOPROFENE",
+            "KETUM": "KETOPROFENE",
+            "BI-PROFENID": "KETOPROFENE",
+            
+            "VOLTARENE": "DICLOFENAC",
+            "CLOFEN": "DICLOFENAC",
+            
+            "ZECLAR": "CLARITHROMYCINE",
+            "CLACID": "CLARITHROMYCINE",
+            "ROVAMYCINE": "SPIRAMYCINE",
+            "BIRODOGYL": "SPIRAMYCINE/METRONIDAZOLE",
+            "RODOGYL": "SPIRAMYCINE/METRONIDAZOLE",
+            
+            "FLAGYL": "METRONIDAZOLE",
+            
+            "TAHOR": "SIMVASTATINE",
+            "ZOCOR": "SIMVASTATINE",
+            "LIPITOR": "SIMVASTATINE",
+            
+            "CORDARONE": "AMIODARONE",
+            
+            "PREVISCAN": "WARFARINE",
+            "COUMADINE": "WARFARINE",
+            "SINTROM": "WARFARINE",
+            "XARELTO": "RIVAROXABAN",
+            "ELIQUIS": "APIXABAN",
+            
+            "ALCOOL": "ALCOOL"
         }
         
-        for ant, risks in risk_map.items():
-            if ant in antecedents:
-                for drug in drug_names:
-                    if any(r in drug.lower() for r in risks):
-                        warnings.append({
-                            "type": "safety",
-                            "severity": "high",
-                            "antecedent": ant.capitalize(),
-                            "drug": drug,
-                            "message": f"⚠️ Attention : Antécédent ({ant.capitalize()}) détecté. Risque avec {drug}."
-                        })
+        for brand, molecule in brand_to_molecule.items():
+            if brand in name:
+                return molecule
+                
+        if "AMOXICILLINE" in name or "AMOXICILLIN" in name:
+            return "AMOXICILLINE"
+        if "IBUPROFENE" in name or "IBUPROFEN" in name:
+            return "IBUPROFENE"
+        if "PARACETAMOL" in name:
+            return "PARACETAMOL"
+        if "KETOPROFENE" in name or "KETOPROFEN" in name:
+            return "KETOPROFENE"
+        if "DICLOFENAC" in name:
+            return "DICLOFENAC"
+        if "CLARITHROMYCINE" in name or "CLARITHROMYCIN" in name:
+            return "CLARITHROMYCINE"
+        if "METRONIDAZOLE" in name or "METRONIDAZOL" in name:
+            return "METRONIDAZOLE"
+        if "SPIRAMYCINE" in name:
+            return "SPIRAMYCINE"
+        if "AMIODARONE" in name:
+            return "AMIODARONE"
+        if "SIMVASTATINE" in name or "SIMVASTATIN" in name:
+            return "SIMVASTATINE"
+        if "ASPIRINE" in name or "ASPIRIN" in name:
+            return "ASPIRINE"
+        
+        return name
+
+    def check_drug_interactions(self, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """
+        Analyse les interactions dangereuses entre les molécules co-prescrites.
+        """
+        if len(drug_names) < 2:
+            return []
+            
+        molecules = [self._normalize_to_molecule(d) for d in drug_names]
+        warnings = []
+        
+        mol_set = set(molecules)
+        
+        ains_family = {"IBUPROFENE", "KETOPROFENE", "DICLOFENAC"}
+        macrolide_family = {"CLARITHROMYCINE", "SPIRAMYCINE", "SPIRAMYCINE/METRONIDAZOLE"}
+        anticoagulant_family = {"WARFARINE", "RIVAROXABAN", "APIXABAN"}
+        metronidazole_family = {"METRONIDAZOLE", "SPIRAMYCINE/METRONIDAZOLE"}
+        
+        # 1. Macrolides + Statines (CRITICAL)
+        if mol_set.intersection(macrolide_family) and "SIMVASTATINE" in mol_set:
+            macrolide_present = list(mol_set.intersection(macrolide_family))[0]
+            warnings.append({
+                "type": "ddi",
+                "severity": "high",
+                "drug": "macrolides-simvastatine",
+                "message": f"❌ Contre-indication absolue : Association Macrolides ({macrolide_present.title()}) + Simvastatine. Risque majeur de rhabdomyolyse sévère (destruction musculaire)."
+            })
+            
+        # 2. Macrolides + Amiodarone (CRITICAL)
+        if mol_set.intersection(macrolide_family) and "AMIODARONE" in mol_set:
+            macrolide_present = list(mol_set.intersection(macrolide_family))[0]
+            warnings.append({
+                "type": "ddi",
+                "severity": "high",
+                "drug": "macrolides-amiodarone",
+                "message": f"❌ Contre-indication absolue : Association Macrolides ({macrolide_present.title()}) + Amiodarone. Risque d'arythmie cardiaque fatale (torsades de pointes)."
+            })
+            
+        # 3. Métronidazole + Alcool (CRITICAL)
+        if mol_set.intersection(metronidazole_family) and "ALCOOL" in mol_set:
+            metro_present = list(mol_set.intersection(metronidazole_family))[0]
+            warnings.append({
+                "type": "ddi",
+                "severity": "high",
+                "drug": "metronidazole-alcool",
+                "message": f"❌ Contre-indication absolue : Association Métronidazole ({metro_present.title()}) + Alcool. Effet antabuse sévère (vomissements, détresse respiratoire)."
+            })
+            
+        # 4. AINS + AINS duplication (WARNING)
+        ains_present = list(mol_set.intersection(ains_family))
+        if len(ains_present) >= 2:
+            warnings.append({
+                "type": "ddi",
+                "severity": "medium",
+                "drug": "ains-ains",
+                "message": f"⚠️ Association déconseillée : Co-prescription de plusieurs AINS ({', '.join([a.title() for a in ains_present])}). Majoration critique de la toxicité rénale et digestive sans gain thérapeutique."
+            })
+            
+        # 5. AINS + Aspirine (WARNING)
+        if mol_set.intersection(ains_family) and "ASPIRINE" in mol_set:
+            ains_present_name = list(mol_set.intersection(ains_family))[0]
+            warnings.append({
+                "type": "ddi",
+                "severity": "medium",
+                "drug": "ains-aspirine",
+                "message": f"⚠️ Précaution d'emploi : Association AINS ({ains_present_name.title()}) + Aspirine. Majoration des risques hémorragiques gastro-intestinaux."
+            })
+            
+        # 6. AINS + Anticoagulants (WARNING)
+        if mol_set.intersection(ains_family) and mol_set.intersection(anticoagulant_family):
+            ains_present_name = list(mol_set.intersection(ains_family))[0]
+            anti_present_name = list(mol_set.intersection(anticoagulant_family))[0]
+            warnings.append({
+                "type": "ddi",
+                "severity": "medium",
+                "drug": "ains-anticoagulant",
+                "message": f"⚠️ Précaution d'emploi : Association AINS ({ains_present_name.title()}) + Anticoagulant ({anti_present_name.title()}). Augmentation critique du risque d'hémorragie digestive majeure."
+            })
+            
+        return warnings
+
+    def check_safety(self, db: Session, patient_id: int, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """
+        Vérifie la sécurité complète d'une ordonnance :
+        1. Les contre-indications sémantiques liées aux antécédents du patient.
+        2. Les interactions médicamenteuses croisées (DDI) au sein de l'ordonnance.
+        """
+        warnings = []
+        
+        # 1. Vérification par rapport aux antécédents si disponibles
+        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+        if patient and patient.antecedents_medicaux:
+            antecedents = patient.antecedents_medicaux.lower()
+            risk_map = {
+                "diabète": ["sucre", "glucose", "corticoïde"],
+                "hypertension": ["anti-inflammatoire", "nsaid", "ibuprofène", "diclofénac", "adrénaline"],
+                "allergie": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
+                "pénicilline": ["amoxicilline", "augmentin", "pénicilline", "clamexyl"],
+                "asthme": ["aspirine", "ibuprofène", "nsaid"],
+                "grossesse": ["tétracycline", "ibuprofène", "aspirine"],
+                "cardiaque": ["adrénaline", "anesthésie avec adrénaline"]
+            }
+            
+            for ant, risks in risk_map.items():
+                if ant in antecedents:
+                    for drug in drug_names:
+                        if any(r in drug.lower() for r in risks):
+                            warnings.append({
+                                "type": "safety",
+                                "severity": "high",
+                                "antecedent": ant.capitalize(),
+                                "drug": drug,
+                                "message": f"⚠️ Attention : Antécédent ({ant.capitalize()}) détecté. Risque avec {drug}."
+                            })
+        
+        # 2. Vérification systématique des interactions médicamenteuses croisées (DDI)
+        ddi_warnings = self.check_drug_interactions(drug_names)
+        warnings.extend(ddi_warnings)
         
         return warnings
 

@@ -355,8 +355,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           docDate={docDate}
           onDateChange={setDocDate}
           activeTab={activeTab}
-          sideStudioType={sideStudioType}
-          onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
           showOdontoPanoramique={showOdontoPanoramique}
           onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
         />
@@ -566,6 +564,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onGenerateAI={generator.handleGenerateAI}
           loadingAi={generator.loadingAi}
           total={items.reduce((acc, i) => acc + (Number(i.price) || 0), 0)}
+          sideStudioType={sideStudioType}
+          onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
       </div>
 

@@ -24,6 +24,10 @@ interface SettingsState {
   uploadLetterhead: (file: File) => Promise<void>;
   deleteLogo: () => Promise<void>;
   applyTheme: () => void;
+  // Multi-Cabinet Support
+  activeCabinetId: string;
+  cabinets: Array<{ id: string; nom: string; specialty: string; primary_color: string; accent_color: string; theme: string; caisse: number }>;
+  switchCabinet: (id: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -71,8 +75,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const res = await api.get('/clinics/me');
       if (res.data) {
+        const activeId = localStorage.getItem('active_cabinet_id') || 'benmoussa';
+        const cabinet = get().cabinets.find(c => c.id === activeId);
+
         const profile = {
-          nom: res.data.header_lines_fr?.[0] || res.data.nom_praticien || '',
+          nom: cabinet ? cabinet.nom : (res.data.header_lines_fr?.[0] || res.data.nom_praticien || ''),
           adresse: res.data.footer_address || res.data.adresse || '',
           telephone: res.data.footer_phones || res.data.telephone || '',
           inpe: res.data.inpe || '',
@@ -82,13 +89,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           margin_bottom: res.data.margin_bottom ?? 3.2,
           watermark_enabled: res.data.watermark_enabled ?? true,
           letterhead_path: res.data.letterhead_path || undefined,
-          selected_theme: res.data.selected_theme || 'elite',
+          selected_theme: cabinet ? cabinet.theme : (res.data.selected_theme || 'elite'),
           app_accent_color: res.data.app_accent_color || undefined,
           font_fr: res.data.font_fr || 'inter',
           selected_template: res.data.selected_template || 'classic',
-          primary_color: res.data.primary_color || '#003380',
+          primary_color: cabinet ? cabinet.primary_color : (res.data.primary_color || '#003380'),
           secondary_color: res.data.secondary_color || '#1e40af',
-          accent_color: res.data.accent_color || '#60a5fa',
+          accent_color: cabinet ? cabinet.accent_color : (res.data.accent_color || '#60a5fa'),
           qr_code_enabled: res.data.qr_code_enabled ?? false,
           qr_code_type: res.data.qr_code_type || 'VCARD',
           qr_code_value: res.data.qr_code_value || '',
@@ -98,7 +105,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           nom_praticien_ar: res.data.nom_praticien_ar || '',
           specialty_ids: res.data.specialty_ids || [],
           logo_path: res.data.logo_path || '',
-          header_lines_fr: res.data.header_lines_fr || [],
+          header_lines_fr: cabinet ? [cabinet.nom, cabinet.specialty] : (res.data.header_lines_fr || []),
           header_lines_ar: res.data.header_lines_ar || [],
           header_scale: res.data.header_scale ?? 1.1,
           qr_code_style: res.data.qr_code_style || 'dots',
@@ -279,5 +286,35 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch (err) {
       toast.error("Erreur suppression logo");
     }
+  },
+
+  // Multi-Cabinet Support
+  activeCabinetId: localStorage.getItem('active_cabinet_id') || 'benmoussa',
+  cabinets: [
+    { id: 'benmoussa', nom: 'Centre Dentaire Benmoussa', specialty: 'Dr. Benmoussa', primary_color: '#1E40AF', accent_color: '#3B82F6', theme: 'elite', caisse: 85400 }
+  ],
+  switchCabinet: (id: string) => {
+    const cabinet = get().cabinets.find(c => c.id === id);
+    if (!cabinet) return;
+    
+    set({ activeCabinetId: id });
+    localStorage.setItem('active_cabinet_id', id);
+    
+    // Morph profile settings dynamically
+    const updatedProfile = {
+      ...get().profile,
+      nom: cabinet.nom,
+      primary_color: cabinet.primary_color,
+      accent_color: cabinet.accent_color,
+      selected_theme: cabinet.theme,
+      header_lines_fr: [cabinet.nom, cabinet.specialty]
+    };
+    
+    set({ profile: updatedProfile });
+    get().applyTheme();
+    
+    // Send standard custom event to refresh cash register and header balances globally
+    window.dispatchEvent(new CustomEvent('cabinet-changed', { detail: { cabinet } }));
+    toast.success(`Transition réussie vers ${cabinet.nom}`);
   }
 }));

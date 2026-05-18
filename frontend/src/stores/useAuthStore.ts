@@ -1,16 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User } from '../types';
+import type { AppUser } from '../types';
 import { authService } from '../services/auth';
 
 interface AuthState {
-  user: User | null;
+  user: AppUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   
   // Actions
-  setUser: (user: User | null) => void;
+  setUser: (user: AppUser | null) => void;
   checkAuth: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;

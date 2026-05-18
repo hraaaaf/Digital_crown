@@ -157,6 +157,10 @@ class Appointment(Base):
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
+    # Suivi des rappels automatisés (Twilio/WhatsMate)
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
     # Multi-tenant
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
@@ -682,3 +686,14 @@ class AuditLog(Base):
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     user: Mapped[Optional["User"]] = relationship("User")
+
+
+class RevokedToken(Base):
+    """
+    Stockage persistant des tokens révoqués (JTI Blacklist).
+    """
+    __tablename__ = "revoked_tokens"
+    
+    jti: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+

@@ -10,7 +10,8 @@ import {
   Loader2,
   Archive,
   FileDigit,
-  Target
+  Target,
+  HeartPulse
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -19,6 +20,7 @@ import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
+import { PeriodontalChart } from './components/PeriodontalChart';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -35,7 +37,7 @@ interface Patient {
   assurance: string;
 }
 
-type TabType = 'radiology' | 'admin' | 'archives';
+type TabType = 'radiology' | 'periodontal' | 'admin' | 'archives';
 
 export const PatientDetails = () => {
   const { id } = useParams();
@@ -139,7 +141,7 @@ export const PatientDetails = () => {
                       Dossier Actif
                     </span>
                   )}
-                </h1>
+                </div>
                 
                 <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
                   <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
@@ -170,6 +172,7 @@ export const PatientDetails = () => {
 
           <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
+            <TabButton active={activeTab === 'periodontal'} onClick={() => handleTabChange('periodontal')} icon={<HeartPulse size={18} />} label="Parodontologie" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
           </div>
@@ -224,6 +227,10 @@ export const PatientDetails = () => {
             </div>
           )}
           
+          {activeTab === 'periodontal' && (
+            <PeriodontalChart patientId={Number(id)} />
+          )}
+
           {activeTab === 'admin' && (
             <DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />
           )}

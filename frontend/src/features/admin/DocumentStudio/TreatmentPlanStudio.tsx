@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb } from 'lucide-react';
+import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb, ShieldCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { safeStorage } from '../../../hooks/useLocalStorage';
 
-type DiagnosticState = 'MOTIF' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'RESULT';
+type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'RESULT';
 
 interface ChatMessage {
   role: 'bot' | 'user';
@@ -17,7 +17,7 @@ interface ProposedAct {
   act: string;
 }
 
-export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote }) => {
+export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote: _onConvertToQuote }) => {
   const [currentState, setCurrentState] = useState<DiagnosticState>('MOTIF');
   const [history, setHistory] = useState<ChatMessage[]>([
     { role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }
@@ -26,7 +26,38 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
   const [proposedActs, setProposedActs] = useState<ProposedAct[]>([]);
   const [newActText, setNewActText] = useState('');
   const [newActPhase, setNewActPhase] = useState('CONSERVATRICE');
-  const clinicalTipsEnabled = safeStorage.get('clinicalTipsEnabled') !== 'false';
+  const [medicalHistory, setMedicalHistory] = useState('');
+  const [allergyWarning, setAllergyWarning] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Fetch patient data for active pharmacovigilance
+    const fetchPatient = async () => {
+      try {
+        // Assuming api.get exists and is imported from '../../../services/api'
+        // If api is not imported in this file, we should import it.
+        const { api } = await import('../../../services/api');
+        const response = await api.get(`/patients/${patientId}`);
+        setMedicalHistory(response.data.antecedents_medicaux || '');
+      } catch (err) {
+        console.error("Failed to fetch patient history for pharmacovigilance", err);
+      }
+    };
+    if (patientId) fetchPatient();
+  }, [patientId]);
+
+  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(safeStorage.get('clinicalTipsEnabled') !== 'false');
+
+  React.useEffect(() => {
+    const handleSettingsChange = () => {
+      setClinicalTipsEnabled(safeStorage.get('clinicalTipsEnabled') !== 'false');
+    };
+    window.addEventListener('settings-changed', handleSettingsChange);
+    window.addEventListener('storage', handleSettingsChange);
+    return () => {
+      window.removeEventListener('settings-changed', handleSettingsChange);
+      window.removeEventListener('storage', handleSettingsChange);
+    };
+  }, []);
 
   const getClinicalTip = (diagnosis: string) => {
     if (diagnosis.includes('Pulpite Irréversible')) return "Rappel scientifique: Le succès d'une pulpectomie d'urgence dépend d'un parage canalaire minimal d'au moins le tiers cervical pour éliminer le maximum de charge bactérienne aiguë.";
@@ -35,6 +66,16 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     if (diagnosis.includes('Hyperhémie Pulpaire')) return "Recommandation: L'utilisation d'une base de silicate de calcium (MTA/Biodentine) améliore de 65% la réparation dentinaire comparé à l'hydroxyde de calcium classique.";
     if (diagnosis.includes('Abcès Sous-Muqueux')) return "Guidance: Un drainage sans incision large et sans lavage à la chlorhexidine 0.2% augmente le risque de diffusion cellulaire de 40%.";
     if (diagnosis.includes('Cellulite')) return "Alerte: La prescription d'AINS est formellement contre-indiquée en première intention sans une couverture antibiotique adaptée (ex: Amoxicilline 2g/j).";
+    if (diagnosis.includes('Dyschromie dentaire')) return "Esthétique: Un éclaircissement interne est indiqué avant toute facette si la dent est dépulpée et fortement dyschromiée.";
+    if (diagnosis.includes('Malocclusion')) return "Orthodontie: L'évaluation de la classe squelettique et de la DDM est préalable à tout plan de traitement par aligneurs.";
+    if (diagnosis.includes('Usure dentaire')) return "Prothèse: La perte de dimension verticale doit être évaluée; une réhabilitation globale par onlays/overlays peut être nécessaire.";
+    if (diagnosis.includes('Édendement')) return "Implantologie: Prévoir un CBCT pour évaluer le volume osseux résiduel avant de proposer une solution implantaire.";
+    if (diagnosis.includes('Descellement prothétique')) return "Prothèse: Vérifier l'absence de reprise carieuse sous-jacente et l'adaptation marginale avant le rescellement.";
+    if (diagnosis.includes('Trouble ATM')) return "ATM: La prescription d'une gouttière de reconditionnement musculaire (gouttière occlusale) est le traitement de première intention.";
+    if (diagnosis.includes('Fracture corono-radiculaire')) return "Traumatologie: Une radiographie rétro-alvéolaire est indispensable. Si la fracture s'étend sous la crête osseuse, l'extraction peut être envisagée.";
+    if (diagnosis.includes('Subluxation')) return "Traumatologie: Tester la vitalité pulpaire (au froid) immédiatement puis à 2, 4 et 12 semaines post-traumatisme.";
+    if (diagnosis.includes('Avulsion traumatique')) return "Urgence: La réimplantation doit idéalement être réalisée dans les 60 minutes. Prescrire antibiotiques (Amoxicilline) et vérifier le statut tétanique.";
+    if (diagnosis.includes('Gingivite') || diagnosis.includes('Parodontite')) return "Parodontie: Le sondage parodontal (charting) est indispensable pour objectiver la perte d'attache avant le surfaçage radiculaire.";
     return "Optimisation: Vérifiez toujours les antécédents médicaux avant d'initier la phase thérapeutique.";
   };
 
@@ -42,13 +83,38 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     setHistory(prev => [...prev, { role: 'user', text: answerText }]);
     
     if (diagnosis && acts) {
+      let finalActs = [...acts];
+      let warning: string | null = null;
+      
+      // ACTIVE PHARMACOVIGILANCE INTERCEPTION
+      const atcd = medicalHistory.toLowerCase();
+      const hasPenicillinAllergy = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
+      const hasAinsAllergy = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
+      
+      finalActs = finalActs.map(act => {
+        let modifiedAct = act.act;
+        if (hasPenicillinAllergy && modifiedAct.toLowerCase().includes('antibiothérapie')) {
+          modifiedAct = modifiedAct.replace('Antibiothérapie', 'Antibiothérapie (Clindamycine/Macrolide - ⚠️ Allergie Pénicilline adapt.)');
+          warning = "⚠️ Allergie à la Pénicilline détectée dans les ATCD. Le protocole antibiotique a été automatiquement basculé sur macrolides/lincosamides.";
+        }
+        if (hasAinsAllergy && modifiedAct.toLowerCase().includes('anti-inflammatoire')) {
+          modifiedAct = modifiedAct.replace('anti-inflammatoires', 'corticostéroïdes (⚠️ Allergie AINS adapt.)');
+          if (!warning) warning = "⚠️ Allergie aux AINS détectée. Protocole anti-inflammatoire modifié.";
+        }
+        return { ...act, act: modifiedAct };
+      });
+
       setFinalDiagnosis(diagnosis);
-      setProposedActs(acts.map((a, i) => ({ ...a, id: `act-${Date.now()}-${i}` })));
+      setProposedActs(finalActs.map((a, i) => ({ ...a, id: `act-${Date.now()}-${i}` })));
+      if (warning) setAllergyWarning(warning);
     }
 
     setTimeout(() => {
       let nextQuestion = '';
       switch (nextState) {
+        case 'URGENCE_DOULEUR':
+          nextQuestion = 'Quel est le caractère principal de la douleur ?';
+          break;
         case 'DOULEUR_SPONTANEE':
           nextQuestion = 'La douleur vous réveille-t-elle la nuit (caractère pulsatile) ?';
           break;
@@ -60,6 +126,18 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
           break;
         case 'ABCES':
           nextQuestion = 'Y a-t-il une fluctuation palpable au fond du vestibule ?';
+          break;
+        case 'ESTHETIQUE':
+          nextQuestion = 'Quelle est la principale demande esthétique du patient ?';
+          break;
+        case 'PROTHESE_FONCTION':
+          nextQuestion = 'Quel est le problème fonctionnel ou prothétique rencontré ?';
+          break;
+        case 'TRAUMATISME':
+          nextQuestion = 'Quelle est la nature du traumatisme subi ?';
+          break;
+        case 'CONTROLE':
+          nextQuestion = 'Quel est le type de contrôle souhaité ?';
           break;
         case 'RESULT':
           nextQuestion = 'Diagnostic établi. Voici le plan de traitement scientifique recommandé :';
@@ -76,10 +154,20 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     switch (currentState) {
       case 'MOTIF':
         return (
+          <div className="flex flex-wrap gap-2 justify-end">
+            <OptionButton text="Urgence / Douleur aiguë" onClick={() => handleAnswer("Urgence / Douleur aiguë", 'URGENCE_DOULEUR')} />
+            <OptionButton text="Motif Esthétique" onClick={() => handleAnswer("Motif Esthétique", 'ESTHETIQUE')} />
+            <OptionButton text="Problème Prothétique / Fonctionnel" onClick={() => handleAnswer("Problème Prothétique / Fonctionnel", 'PROTHESE_FONCTION')} />
+            <OptionButton text="Traumatisme" onClick={() => handleAnswer("Traumatisme Dentaire", 'TRAUMATISME')} />
+            <OptionButton text="Contrôle de routine / Tartre" onClick={() => handleAnswer("Contrôle de routine / Tartre", 'CONTROLE')} />
+          </div>
+        );
+      case 'URGENCE_DOULEUR':
+        return (
           <>
-            <OptionButton text="Douleur spontanée aiguë" onClick={() => handleAnswer("Douleur spontanée aiguë", 'DOULEUR_SPONTANEE')} />
-            <OptionButton text="Douleur provoquée (Froid/Chaud)" onClick={() => handleAnswer("Douleur provoquée (Froid/Chaud)", 'DOULEUR_PROVOQUEE')} />
-            <OptionButton text="Abcès ou Gonflement" onClick={() => handleAnswer("Abcès ou Gonflement", 'ABCES')} />
+            <OptionButton text="Douleur spontanée aiguë" onClick={() => handleAnswer("Douleur spontanée", 'DOULEUR_SPONTANEE')} />
+            <OptionButton text="Douleur provoquée (Froid/Chaud)" onClick={() => handleAnswer("Douleur provoquée", 'DOULEUR_PROVOQUEE')} />
+            <OptionButton text="Abcès ou Gonflement" onClick={() => handleAnswer("Abcès/Gonflement", 'ABCES')} />
           </>
         );
       case 'DOULEUR_SPONTANEE':
@@ -152,6 +240,74 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
             />
           </>
         );
+      case 'ESTHETIQUE':
+        return (
+          <>
+            <OptionButton text="Coloration / Taches" onClick={() => handleAnswer("Coloration ou Taches", 'RESULT', 'Dyschromie dentaire', [
+              { phase: 'INITIALE', act: 'Photographies et prise de teinte initiale' },
+              { phase: 'CONSERVATRICE', act: 'Éclaircissement dentaire (Blanchiment interne/externe)' },
+              { phase: 'REHABILITATION', act: 'Facettes céramiques si dyschromie sévère' }
+            ])} />
+            <OptionButton text="Dents mal alignées" onClick={() => handleAnswer("Dents mal alignées", 'RESULT', 'Malocclusion / Encombrement', [
+              { phase: 'INITIALE', act: 'Bilan orthodontique (Moulages, Photos, Céphalo)' },
+              { phase: 'REHABILITATION', act: 'Traitement par Aligneurs transparents ou Multi-attaches' }
+            ])} />
+            <OptionButton text="Dents usées ou cassées" onClick={() => handleAnswer("Usure/Casse esthétique", 'RESULT', 'Usure dentaire / Attrition', [
+              { phase: 'INITIALE', act: 'Analyse occlusale et dimension verticale' },
+              { phase: 'REHABILITATION', act: 'Facettes, Onlays ou Reconstitution au composite' }
+            ])} />
+          </>
+        );
+      case 'PROTHESE_FONCTION':
+        return (
+          <>
+            <OptionButton text="Dent(s) manquante(s)" onClick={() => handleAnswer("Dent manquante", 'RESULT', 'Édendement partiel/total', [
+              { phase: 'INITIALE', act: 'Examen radiologique 3D (CBCT)' },
+              { phase: 'CHIRURGIE', act: 'Pose d\'implant(s) ou chirurgie pré-implantaire' },
+              { phase: 'REHABILITATION', act: 'Prothèse sur implant ou Bridge conventionnel' }
+            ])} />
+            <OptionButton text="Couronne/Bridge cassé ou descellé" onClick={() => handleAnswer("Problème prothétique existant", 'RESULT', 'Descellement prothétique', [
+              { phase: 'URGENCE', act: 'Nettoyage et essai de repositionnement' },
+              { phase: 'REHABILITATION', act: 'Rescellement ou réalisation d\'une nouvelle empreinte' }
+            ])} />
+            <OptionButton text="Difficulté à mastiquer / Douleur ATM" onClick={() => handleAnswer("Douleur à la mastication (ATM)", 'RESULT', 'Trouble ATM / Perte de DVO', [
+              { phase: 'INITIALE', act: 'Examen palpation ATM et muscles masticateurs' },
+              { phase: 'CONSERVATRICE', act: 'Gouttière de reconditionnement occlusal' }
+            ])} />
+          </>
+        );
+      case 'TRAUMATISME':
+        return (
+          <>
+            <OptionButton text="Choc avec dent cassée" onClick={() => handleAnswer("Choc / Dent cassée", 'RESULT', 'Fracture corono-radiculaire', [
+              { phase: 'URGENCE', act: 'Bilan radiographique (Rétro-alvéolaire)' },
+              { phase: 'CONSERVATRICE', act: 'Reconstitution composite ou Traitement Endodontique si pulpe exposée' }
+            ])} />
+            <OptionButton text="Dent mobile après un choc" onClick={() => handleAnswer("Mobilité dentaire post-traumatique", 'RESULT', 'Subluxation / Luxation', [
+              { phase: 'URGENCE', act: 'Contention semi-rigide (composite/fil) pour 2 à 4 semaines' },
+              { phase: 'INITIALE', act: 'Surveillance régulières de la vitalité pulpaire' }
+            ])} />
+            <OptionButton text="Dent complètement expulsée" onClick={() => handleAnswer("Dent expulsée", 'RESULT', 'Avulsion traumatique', [
+              { phase: 'URGENCE', act: 'Réimplantation immédiate si < 60 min, sinon conditionnement' },
+              { phase: 'CHIRURGIE', act: 'Contention flexible et antibiothérapie prophylactique' },
+              { phase: 'CONSERVATRICE', act: 'Traitement endodontique différé (7-10 jours)' }
+            ])} />
+          </>
+        );
+      case 'CONTROLE':
+        return (
+          <>
+            <OptionButton text="Visite de contrôle annuelle" onClick={() => handleAnswer("Contrôle annuel", 'RESULT', 'Bilan bucco-dentaire de routine', [
+              { phase: 'INITIALE', act: 'Examen clinique complet et radiographies (Bite-wing)' },
+              { phase: 'CONSERVATRICE', act: 'Détartrage, polissage et prophylaxie' }
+            ])} />
+            <OptionButton text="Gencives qui saignent (Tartre)" onClick={() => handleAnswer("Saignement gingival", 'RESULT', 'Gingivite / Parodontite', [
+              { phase: 'INITIALE', act: 'Sondage parodontal et bilan radiographique long cône' },
+              { phase: 'CONSERVATRICE', act: 'Surfaçage radiculaire (Assainissement parodontal)' },
+              { phase: 'INITIALE', act: 'Enseignement à l\'hygiène orale' }
+            ])} />
+          </>
+        );
       default:
         return null;
     }
@@ -172,6 +328,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     setHistory([{ role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }]);
     setFinalDiagnosis('');
     setProposedActs([]);
+    setAllergyWarning(null);
   };
 
   return (
@@ -241,6 +398,21 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
             </div>
             
             <div className="p-6">
+              {/* Active Pharmacovigilance Warning Banner */}
+              {allergyWarning && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3"
+                >
+                  <ShieldCheck size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Pharmacovigilance Active</h5>
+                    <p className="text-xs font-bold text-rose-700 leading-snug">{allergyWarning}</p>
+                  </div>
+                </motion.div>
+              )}
+
               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FileText size={14} /> Plan de Traitement Scientifique
               </h5>

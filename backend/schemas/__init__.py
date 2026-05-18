@@ -163,6 +163,10 @@ from .auth import (
     SupabaseSyncRequest,
 )
 
+from .branding import (
+    BrandingPreviewPayload,
+)
+
 __all__ = [
     # base
     "QRCodeType", "StyleKey", "AppointmentStatus",
@@ -218,4 +222,6 @@ __all__ = [
     "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
     "SupabaseSyncRequest",
+    # branding
+    "BrandingPreviewPayload",
 ]

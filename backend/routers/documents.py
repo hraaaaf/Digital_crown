@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
 
 # Configuration
+import pathlib
 from backend.core.paths import AppPaths
+BASE_DIR = pathlib.Path(__file__).parent.parent
 MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
 DOCS_DIR = str(MEDIA_DIR / "documents")
 STATIC_DIR = str(AppPaths.get_static_dir())
@@ -74,7 +76,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 doc_type=enum_map.get(req.type, models.DocumentType.AUTRE), uploaded_by_id=user_id, clinical_data=req.data,
                 is_accounted=req.is_accounted, 
                 payment_status=p_status,
-                is_collected=p_collected
+                is_collected=p_collected,
+                on_conflict=schemas.ConflictResolution.CREATE_VERSION if force else schemas.ConflictResolution.CANCEL
             )
             pdf_path = doc.file_path
 
@@ -122,7 +125,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             pm_str = str(payments_arr[0].get('mode_reglement', 'Espèces')).upper()
                             if "VIREMENT" in pm_str: pm = "VIREMENT"
                             elif "CH" in pm_str: pm = "CHEQUE"
-                            elif "TPE" in pm_str or "CARTE" in pm_str: pm = "TPE"
+                            elif "TPE" in pm_str or "CARTE" in pm_str: pm = "CARTE"
                             
                         # Si partiel, idéalement on aurait le montant partiel, sinon on met 0 ou on attend une màj manuelle
                         paid_amount = total_amount if p_status == models.PaiementStatut.PAYE else total_amount / 2.0
@@ -166,28 +169,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         raise HTTPException(status_code=500, detail=str(e))
 
 
-from pydantic import BaseModel
-
-class BrandingPreviewPayload(BaseModel):
-    selected_template: Optional[str] = None
-    font_fr: Optional[str] = None
-    primary_color: Optional[str] = None
-    secondary_color: Optional[str] = None
-    accent_color: Optional[str] = None
-    margin_top: Optional[float] = None
-    margin_bottom: Optional[float] = None
-    header_scale: Optional[float] = None
-    header_font_scale: Optional[float] = None
-    header_logo_scale: Optional[float] = None
-    header_line_height: Optional[float] = None
-    footer_font_scale: Optional[float] = None
-    footer_qr_scale: Optional[float] = None
-    footer_line_height: Optional[float] = None
-    qr_code_enabled: Optional[bool] = None
-    qr_code_type: Optional[str] = None
-    qr_code_style: Optional[str] = None
-    qr_code_value: Optional[str] = None
-    qr_code_label: Optional[str] = None
+from backend.schemas.branding import BrandingPreviewPayload
 
 @router.post("/sample-preview")
 async def generate_sample_preview(
@@ -312,7 +294,10 @@ def download_document(
     assert_patient_access(doc.patient_id, current_user, db)
     
     # Résolution du chemin absolu (pour éviter FileNotFoundError si lancé hors du dossier backend)
-    abs_path = os.path.join(BASE_DIR, doc.file_path)
+    if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+        abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
+    else:
+        abs_path = os.path.join(BASE_DIR, doc.file_path)
     return FileResponse(path=abs_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
