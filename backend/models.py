@@ -83,6 +83,7 @@ class User(Base):
     telephone_fixe: Mapped[Optional[str]] = mapped_column(String(20))
     telephone_mobile: Mapped[Optional[str]] = mapped_column(String(20))
     identifiants_legaux: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    permissions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=dict)
     
     # Hiérarchie : Sous-comptes rattachés à un employeur (Dentiste/Admin)
     employer_id: Mapped[Optional[int]] = mapped_column(

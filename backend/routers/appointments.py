@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
@@ -17,7 +17,7 @@ def get_appointments(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     user_employer_id = current_user.get_employer_id()
     query = db.query(models.Appointment).filter(models.Appointment.employer_id == user_employer_id)
@@ -31,7 +31,7 @@ def get_appointments(
 def create_appointment(
     appt: schemas.AppointmentCreate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     if appt.patient_id:
         assert_patient_access(appt.patient_id, current_user, db)
@@ -49,7 +49,7 @@ def update_appointment(
     id: int,
     appt_update: schemas.AppointmentUpdate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     user_employer_id = current_user.get_employer_id()
     db_appt = db.query(models.Appointment).filter(
@@ -67,7 +67,7 @@ def update_appointment(
     return db_appt
 
 @router.delete("/{id}")
-def delete_appointment(id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def delete_appointment(id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
     user_employer_id = current_user.get_employer_id()
     db_appt = db.query(models.Appointment).filter(
         models.Appointment.id == id,
@@ -82,7 +82,7 @@ def delete_appointment(id: int, db: Session = Depends(database.get_db), current_
 def create_bulk_appointments(
     payload: schemas.AppointmentBulkCreate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     created_appts = []
     user_employer_id = current_user.get_employer_id()
@@ -111,7 +111,7 @@ def create_bulk_appointments(
 @router.post("/reminders/send")
 def trigger_reminders(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     """
     Déclenche manuellement ou via un service planifié l'envoi de rappels automatisés de rendez-vous pour les prochaines 24h.
@@ -123,7 +123,7 @@ def trigger_reminders(
 async def suggest_appointment(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("agenda"))
 ):
     """Renvoie une proposition d'appel basée sur le plan de traitement actif.
     Algorithme déterministe :

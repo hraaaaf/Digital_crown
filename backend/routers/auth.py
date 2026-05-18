@@ -59,6 +59,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
+def require_permission(permission_name: str):
+    """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
+    def dependency(current_user: models.User = Depends(get_current_user)):
+        if current_user.role in [models.UserRole.ADMIN, models.UserRole.DENTISTE]:
+            return current_user
+        perms = current_user.permissions or {}
+        if not perms.get(permission_name, False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé. Vous n'avez pas la permission '{permission_name}'."
+            )
+        return current_user
+    return dependency
+
+
 from backend.services.audit_service import audit_service
 
 

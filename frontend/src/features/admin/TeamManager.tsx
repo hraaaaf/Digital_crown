@@ -27,6 +27,15 @@ interface TeamMember {
   telephone_mobile: string | null;
   is_active: boolean;
   created_at: string | null;
+  permissions?: {
+    agenda?: boolean;
+    patients?: boolean;
+    prescriptions?: boolean;
+    accounting?: boolean;
+    panoramic?: boolean;
+    cephalo?: boolean;
+    settings?: boolean;
+  } | null;
 }
 
 interface CreateForm {
@@ -34,6 +43,15 @@ interface CreateForm {
   password: string;
   nom_complet: string;
   telephone_mobile: string;
+  permissions: {
+    agenda: boolean;
+    patients: boolean;
+    prescriptions: boolean;
+    accounting: boolean;
+    panoramic: boolean;
+    cephalo: boolean;
+    settings: boolean;
+  };
 }
 
 // --- COMPOSANT PRINCIPAL ---
@@ -46,12 +64,22 @@ export const TeamManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [editingPermissionsMember, setEditingPermissionsMember] = useState<TeamMember | null>(null);
 
   const [form, setForm] = useState<CreateForm>({
     email: '',
     password: '',
     nom_complet: '',
-    telephone_mobile: ''
+    telephone_mobile: '',
+    permissions: {
+      agenda: true,
+      patients: true,
+      prescriptions: false,
+      accounting: false,
+      panoramic: false,
+      cephalo: false,
+      settings: false
+    }
   });
 
   const fetchMembers = useCallback(async () => {
@@ -78,7 +106,21 @@ export const TeamManager: React.FC = () => {
     try {
       await api.post('/team/', form);
       setSuccess(`Compte créé pour ${form.nom_complet} !`);
-      setForm({ email: '', password: '', nom_complet: '', telephone_mobile: '' });
+      setForm({
+        email: '',
+        password: '',
+        nom_complet: '',
+        telephone_mobile: '',
+        permissions: {
+          agenda: true,
+          patients: true,
+          prescriptions: false,
+          accounting: false,
+          panoramic: false,
+          cephalo: false,
+          settings: false
+        }
+      });
       setShowForm(false);
       fetchMembers();
       setTimeout(() => setSuccess(null), 4000);
@@ -241,6 +283,50 @@ export const TeamManager: React.FC = () => {
                 />
               </div>
             </div>
+
+            <div className="md:col-span-2 border-t border-slate-200 pt-6">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4 ml-1">
+                Permissions d'accès granulaires
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { key: 'agenda', label: 'Studio Agenda', desc: 'Gestion des rendez-vous et plannings' },
+                  { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
+                  { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
+                  { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
+                  { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
+                  { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
+                  { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
+                ].map((perm) => (
+                  <label
+                    key={perm.key}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      form.permissions[perm.key as keyof typeof form.permissions]
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.permissions[perm.key as keyof typeof form.permissions]}
+                      onChange={(e) => setForm(f => ({
+                        ...f,
+                        permissions: {
+                          ...f.permissions,
+                          [perm.key]: e.target.checked
+                        }
+                      }))}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
+                    />
+                    <div>
+                      <span className="block text-sm font-black text-slate-800" style={form.permissions[perm.key as keyof typeof form.permissions] ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
+                      <span className="block text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-2">
@@ -321,6 +407,14 @@ export const TeamManager: React.FC = () => {
               {/* Actions */}
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
+                  onClick={() => setEditingPermissionsMember(member)}
+                  className="p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all text-xs font-bold flex items-center gap-2"
+                  title="Gérer les permissions"
+                >
+                  <Lock size={14} />
+                  <span className="hidden xl:inline">Permissions</span>
+                </button>
+                <button
                   onClick={() => toggleActive(member)}
                   className={cn(
                     "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
@@ -343,6 +437,103 @@ export const TeamManager: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* MODAL D'ÉDITION DES PERMISSIONS */}
+      {editingPermissionsMember && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[11000] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 space-y-6">
+            <button
+              onClick={() => setEditingPermissionsMember(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-xl transition-all"
+            >
+              <X size={20} />
+            </button>
+
+            <div>
+              <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                <Lock size={22} style={{ color: 'var(--primary)' }} />
+                Droits d'accès : {editingPermissionsMember.nom_complet || editingPermissionsMember.email}
+              </h3>
+              <p className="text-slate-500 text-xs font-medium mt-1">
+                Configurez les accès précis de votre collaborateur aux modules cliniques et administratifs.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {[
+                { key: 'agenda', label: 'Studio Agenda', desc: 'Gestion des rendez-vous et plannings' },
+                { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
+                { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
+                { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
+                { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
+                { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
+                { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
+              ].map((perm) => {
+                const isChecked = editingPermissionsMember.permissions?.[perm.key as keyof typeof editingPermissionsMember.permissions] ?? false;
+                return (
+                  <label
+                    key={perm.key}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      isChecked ? "bg-primary/5 border-primary/20" : "bg-slate-50/50 border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        const newPerms = {
+                          ...(editingPermissionsMember.permissions || {}),
+                          [perm.key]: e.target.checked
+                        };
+                        setEditingPermissionsMember(prev => prev ? {
+                          ...prev,
+                          permissions: newPerms
+                        } : null);
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
+                    />
+                    <div>
+                      <span className="block text-sm font-black text-slate-800" style={isChecked ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
+                      <span className="block text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingPermissionsMember(null)}
+                className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await api.put(`/team/${editingPermissionsMember.id}`, {
+                      permissions: editingPermissionsMember.permissions
+                    });
+                    setSuccess(`Permissions de ${editingPermissionsMember.nom_complet || editingPermissionsMember.email} mises à jour !`);
+                    setEditingPermissionsMember(null);
+                    fetchMembers();
+                    setTimeout(() => setSuccess(null), 3000);
+                  } catch (err: any) {
+                    setError(err.response?.data?.detail || "Erreur de mise à jour.");
+                  }
+                }}
+                className="px-6 py-2.5 text-xs font-black text-white rounded-xl shadow-md transition-all hover:brightness-110"
+                style={{ backgroundColor: 'var(--primary)' }}
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

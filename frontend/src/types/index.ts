@@ -10,7 +10,9 @@ export interface AppUser extends User {
   is_licensed?: boolean;
   license_expires_at?: string | null;
   full_name?: string;
+  nom_complet?: string | null;
   cabinet_name?: string;
+  permissions?: Record<string, boolean> | null;
 }
 
 export interface Patient {

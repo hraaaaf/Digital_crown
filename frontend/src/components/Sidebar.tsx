@@ -17,13 +17,36 @@ import { authService } from '../services/auth';
 import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
 import { clinicalTips } from '../data/clinical_tips';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
+import { useAuthStore } from '../stores/useAuthStore';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
 
 export const Sidebar = () => {
   const { activeCabinetId, cabinets, switchCabinet } = useSettingsStore();
+  const { user } = useAuthStore();
   const location = useLocation();
+
+  const hasAccess = (permission: string) => {
+    if (!user) return true;
+    if (user.role === 'ADMIN' || user.role === 'DENTISTE') return true;
+    if (user.permissions && typeof user.permissions === 'object') {
+      return user.permissions[permission] ?? false;
+    }
+    if (user.role === 'SECRETAIRE') {
+      const defaults: Record<string, boolean> = {
+        agenda: true,
+        patients: true,
+        prescriptions: false,
+        accounting: false,
+        panoramic: false,
+        cephalo: false,
+        settings: false
+      };
+      return defaults[permission] ?? false;
+    }
+    return true;
+  };
   const [isAiActive, setIsAiActive] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
   const [showTip, setShowTip] = useState(false);
@@ -163,9 +186,9 @@ export const Sidebar = () => {
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
-          <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />
-          <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />
-          <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />
+          {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
+          {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
+          {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* ACTIVE PATIENT NAVIGATION */}
@@ -183,12 +206,14 @@ export const Sidebar = () => {
                 Dossier Actif
               </div>
               
-              <NavItem 
-                to={`/patients/${currentPatientId}?tab=analysis`} 
-                icon={<Activity size={20} />} 
-                label="Studio Céphalométrique"
-                forceActive={isInPatientDossier && currentTab === 'analysis'}
-              />
+              {hasAccess('cephalo') && (
+                <NavItem 
+                  to={`/patients/${currentPatientId}?tab=analysis`} 
+                  icon={<Activity size={20} />} 
+                  label="Studio Céphalométrique"
+                  forceActive={isInPatientDossier && currentTab === 'analysis'}
+                />
+              )}
               
               <NavItem 
                 to={`/patients/${currentPatientId}?tab=admin`} 

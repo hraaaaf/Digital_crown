@@ -9,7 +9,7 @@ import shutil
 import logging
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.cephalo_engine import cephalo_engine
 from backend.services.ai_advisor import ai_advisor
@@ -26,7 +26,7 @@ RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
 os.makedirs(RADIO_DIR, exist_ok=True)
 
 @router.post("/upload-radio")
-async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
@@ -51,7 +51,7 @@ async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Sessio
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/analyses/{analysis_id}", response_model=schemas.CephaloAnalysisOut)
-def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
@@ -59,7 +59,7 @@ def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), curre
     return analysis
 
 @router.put("/analyses/{analysis_id}")
-def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
     if not analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
     assert_patient_access(analysis.patient_id, current_user, db)
@@ -73,7 +73,7 @@ def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session =
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload-panoramic")
-async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
@@ -130,7 +130,7 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/patients/{patient_id}/panoramic-analyses", response_model=List[schemas.PanoramicAnalysisOut])
-def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     """Récupère l'historique des analyses panoramiques d'un patient."""
     assert_patient_access(patient_id, current_user, db)
     analyses = db.query(models.PanoramicAnalysis).filter(
@@ -139,7 +139,7 @@ def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(databa
     return analyses
 
 @router.post("/analyses/{analysis_id}/calibrate")
-def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     """Calibrage manuel mm/pixel."""
     analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
     if not analysis: raise HTTPException(status_code=404, detail="Analyse introuvable")
@@ -176,7 +176,7 @@ def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Se
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-panoramic-report")
-async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     """Génère un bilan professionnel basé sur les détections IA et les annotations manuelles."""
     analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == req.analysis_id).first()
     if not analysis:
@@ -210,7 +210,7 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/panoramic/{analysis_id}/pdf")
-def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     """Génère et retourne l'URL du bilan PDF professionnel Élite."""
     try:
         from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator

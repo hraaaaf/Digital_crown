@@ -75,7 +75,7 @@
         <div class="medications-list">
             {% for med in medications %}
             <div class="medication-item">
-                <div class="medication-header" style="{{ med.header_style }}">
+                <div class="medication-header" {{ 'style' ~ '="' ~ med.header_style ~ '"' | safe }}>
                     <span class="med-number">{{ loop.index }}-</span>
                     <span class="med-name">{{ med.nom.upper() }}</span>
                     {% if med.dosage or med.forme %}
@@ -83,7 +83,7 @@
                     {% endif %}
                 </div>
                 {% if med.posologie %}
-                <div class="medication-posology" style="{{ med.poso_style }}">
+                <div class="medication-posology" {{ 'style' ~ '="' ~ med.poso_style ~ '"' | safe }}>
                     {{ med.posologie }}
                 </div>
                 {% endif %}

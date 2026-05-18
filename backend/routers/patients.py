@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Patients"])
@@ -39,11 +39,11 @@ def generate_next_dossier_number(db: Session, employer_id: int) -> str:
 # --- ROUTES CRUD ---
 
 @router.get("/next-dossier-number")
-def get_next_dossier_number(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_next_dossier_number(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     return {"next_number": generate_next_dossier_number(db, current_user.get_employer_id())}
 
 @router.get("/check-dossier/{numero}")
-def check_dossier_availability(numero: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def check_dossier_availability(numero: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     exists = db.query(models.Patient).filter(models.Patient.numero_dossier == numero).first()
     return {
         "exists": bool(exists),
@@ -57,7 +57,7 @@ def read_patients(
     limit: int = 100, 
     search: Optional[str] = None, 
     db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("patients"))
 ):
     user_employer_id = current_user.get_employer_id()
     query = db.query(models.Patient).options(
@@ -77,7 +77,7 @@ def read_patients(
 from backend.services.audit_service import audit_service
 
 @router.post("/", response_model=schemas.PatientOut)
-def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance)
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
@@ -111,13 +111,13 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     return db_patient
 
 @router.get("/{patient_id}", response_model=schemas.PatientOut)
-def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     return patient
 
 @router.get("/{patient_id}/score")
-def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     
     # 1. Calcul Assiduité (Rendez-vous)
@@ -176,7 +176,7 @@ def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), c
     }
 
 @router.patch("/{patient_id}/grade")
-def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if not patient:
@@ -194,7 +194,7 @@ def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(data
 # --- CLINICAL INTELLIGENCE ---
 
 @router.get("/{patient_id}/documents")
-def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
 
@@ -230,7 +230,7 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
     return results
 
 @router.get("/{patient_id}/appointment-intel")
-def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     # Logique originale restaurée
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
@@ -241,28 +241,28 @@ def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), c
     }
 
 @router.get("/{patient_id}/analyses", response_model=List[schemas.CephaloAnalysisOut])
-def get_patient_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     return db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).all()
 
 # --- CLINICAL INTELLIGENCE V2.0 ---
 
 @router.get("/{patient_id}/ai-summary")
-def get_patient_ai_summary(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_ai_summary(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     """Module 2 — Résumé Flash Patient (P0)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_patient_summary(db, patient_id)
 
 @router.get("/{patient_id}/ai-diagnostic")
-def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     """Module 3 — Panneau Conseil Clinique (P2)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
-def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
@@ -309,7 +309,7 @@ def generate_cephalo_pdf(
     patient_id: int, 
     req: schemas.CephaloPDFRequest, 
     db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("patients"))
 ):
     """Génération du rapport céphalo PDF (Route de compatibilité Ghost Elite)."""
     from backend.routers.documents import doc_factory

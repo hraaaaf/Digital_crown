@@ -192,6 +192,11 @@ def check_and_update_db():
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE")
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP WITH TIME ZONE")
     
+    # --- MIGRATIONS USERS PERMISSIONS & MULTI-TENANCY ---
+    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'")
+    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSON DEFAULT '{}'")
+    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_id INTEGER")
+    
     def add_column(table, column, type, default):
         try:
             with engine.begin() as conn:
