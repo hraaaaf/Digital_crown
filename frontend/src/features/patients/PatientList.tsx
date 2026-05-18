@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types'; 
-import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight } from 'lucide-react';
+import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight, LayoutGrid, List } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -15,6 +15,11 @@ export const PatientList = () => {
   const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
+  // État du mode d'affichage (Table ou Grille) avec persistance localStorage
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
+    return (localStorage.getItem('patient_list_view_mode') as 'table' | 'grid') || 'table';
+  });
+
   // NOUVEAU : État de la modale de suppression
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; name: string }>({
     open: false,
@@ -25,6 +30,10 @@ export const PatientList = () => {
   useEffect(() => {
     fetchPatients();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('patient_list_view_mode', viewMode);
+  }, [viewMode]);
 
   const fetchPatients = async () => {
     try {
@@ -100,11 +109,11 @@ export const PatientList = () => {
           />
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
           <select 
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as any)}
-            className="bg-card-bg border border-border-main text-text-muted font-bold px-4 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-primary/10 cursor-pointer min-w-[180px]"
+            className="bg-card-bg border border-border-main text-text-muted font-bold px-4 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-primary/10 cursor-pointer min-w-[180px] h-[52px]"
           >
             <option value="newest">Plus Récents</option>
             <option value="oldest">Plus Anciens</option>
@@ -113,10 +122,40 @@ export const PatientList = () => {
             <option value="dossier">N° Dossier</option>
             <option value="created">Date de création</option>
           </select>
+
+          {/* Commutateur de vue Table / Grille */}
+          <div className="flex items-center bg-card-bg/80 border border-border-main p-1 rounded-2xl gap-1 h-[52px]">
+            <button
+              onClick={() => setViewMode('table')}
+              className={cn(
+                "p-2.5 rounded-xl transition-all h-full flex items-center justify-center aspect-square",
+                viewMode === 'table' 
+                  ? "bg-primary text-white shadow-md shadow-primary/20" 
+                  : "text-text-muted hover:text-text-main hover:bg-primary/5"
+              )}
+              style={viewMode === 'table' ? { backgroundColor: 'var(--primary)' } : {}}
+              title="Vue Table"
+            >
+              <List size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "p-2.5 rounded-xl transition-all h-full flex items-center justify-center aspect-square",
+                viewMode === 'grid' 
+                  ? "bg-primary text-white shadow-md shadow-primary/20" 
+                  : "text-text-muted hover:text-text-main hover:bg-primary/5"
+              )}
+              style={viewMode === 'grid' ? { backgroundColor: 'var(--primary)' } : {}}
+              title="Vue Grille"
+            >
+              <LayoutGrid size={20} />
+            </button>
+          </div>
         </div>
       </div>    
 
-      {/* TABLEAU DES DOSSIERS */}
+      {/* TABLEAU OU GRILLE DES DOSSIERS */}
       <div className="bg-card-bg backdrop-blur-2xl rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden">
         {loading ? (
           <div className="p-32 flex flex-col items-center justify-center gap-6">
@@ -149,7 +188,7 @@ export const PatientList = () => {
               <ArrowRight size={18} />
             </button>
           </div>
-        ) : (
+        ) : viewMode === 'table' ? (
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border-main font-black text-text-muted uppercase tracking-widest text-[10px]">
               <tr>
@@ -235,6 +274,91 @@ export const PatientList = () => {
               })}
             </tbody>
           </table>
+        ) : (
+          /* GRILLE DE DOSSIERS PATIENTS GHOST ELITE */
+          <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 bg-card-bg/10">
+            {filtered.map((p, index) => {
+              const cardKey = p.id ?? `patient-card-${index}`;
+              return (
+                <div
+                  key={cardKey}
+                  onClick={() => p.id && navigate(`/patients/${p.id}`)}
+                  className="bg-card-bg/60 backdrop-blur-xl border border-border-main/60 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group relative flex flex-col justify-between min-h-[220px]"
+                >
+                  <div>
+                    {/* Ligne du haut: Bulle Patient et Actions rapides */}
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div className="w-14 h-14 rounded-[1.2rem] bg-gradient-to-br from-primary/10 to-card-bg flex items-center justify-center text-primary font-black text-xl border border-primary/20 shadow-sm group-hover:shadow-md transition-all">
+                        {(p.prenom?.charAt(0) || '')}{(p.nom?.charAt(0) || '')}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if(p.id) navigate(`/patients/${p.id}/edit`); 
+                          }}
+                          className="p-2.5 text-text-muted hover:text-primary hover:bg-card-bg border border-border-main/50 rounded-xl transition-all shadow-sm"
+                          title="Modifier"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if(p.id) setDeleteModal({ open: true, id: p.id, name: `${p.prenom} ${p.nom}` });
+                          }}
+                          className="p-2.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-xl transition-all shadow-sm"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Informations textuelles */}
+                    <div className="space-y-1">
+                      <h4 className="font-black text-primary text-lg tracking-tight leading-tight group-hover:text-primary-dark transition-colors">
+                        {p.nom.toUpperCase()} {p.prenom}
+                      </h4>
+                      <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono">
+                        {p.numero_dossier || `ID-${p.id}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ligne du bas : Badges CRM, Assurances et téléphone */}
+                  <div className="mt-6 pt-4 border-t border-border-main/40 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {p.assurance && p.assurance !== 'AUCUNE' ? (
+                        <span className={cn(
+                          "px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border shadow-sm",
+                          p.assurance === 'CNOPS' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                          p.assurance === 'CNSS' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          p.assurance === 'MUTUELLE_FAR' ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                          "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                        )}>
+                          {p.assurance === 'MUTUELLE_FAR' ? 'MUT_FAR' : p.assurance}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted text-[8px] font-black uppercase tracking-widest border border-border-main/40 px-2 py-0.5 rounded-md">Privé</span>
+                      )}
+
+                      {show_patient_badges && p.id && (
+                        <div onClick={(e) => e.stopPropagation()} className="scale-90 origin-left">
+                          <PatientScoreBadge patientId={p.id} onUpdate={fetchPatients} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-[11px] font-mono text-text-muted font-bold tracking-tight">
+                      {p.telephone || "—"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
