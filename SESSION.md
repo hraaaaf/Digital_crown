@@ -89,9 +89,12 @@
    * **Toggle Premium** : Bouton de bascule fluide s'intégrant au panneau des filtres, utilisant les icônes Lucide `LayoutGrid` et `List`.
    * **Persistance Locale** : Synchronisation immédiate avec le `localStorage` pour mémoriser le choix de vue du praticien.
 
-3. **Validation de Qualité**
+3. **Intégration du Double-Contrôle Clinique (CRE, DDI & Omissions)**
+   * **Visualisation Deterministic** : Cartographie des alertes cliniques issues du moteur de sécurité dans `DocumentHub.tsx` vers les badges spécifiques du `EliteAssistant` (Incohérence Clinique, Interaction Médicamenteuse, Prévention, Contre-indication) avec marquage de confiance ultra-fiable `🛡️ VÉRIFIÉ`.
+
+4. **Validation de Qualité**
    * **TypeScript Strict** : Rapprochement et compilation 100% propre (`npx tsc --noEmit` validé à 0 erreur).
    * **Suite de Tests Backend** : Validation complète du pipeline et des 71 tests backend sans régression.
 
 ---
-*Fin de session - Digital Crown v1.6 Tablet Grid-View Edition.*
+*Fin de session - Digital Crown v1.7 Tablet Grid-View & Safety Edition.*
