@@ -160,8 +160,8 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🚧 15. Gestion des Rôles : Mode Assistante du Cabinet
-**Statut :** En cours (Phase 1 & 2 déployées)
+## ✅ 15. Gestion des Rôles : Mode Assistante du Cabinet (TERMINÉ)
+**Statut :** Déployé (v1.5)
 **Priorité :** Élevée
 **Spécialiste :** Architector & PixelMaster
 
@@ -171,9 +171,9 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [x] **Interface de Gestion d'Équipe** : Onglet "Mon Équipe" dans les Settings pour créer, suspendre et supprimer des sous-comptes.
 - [x] **Suspension d'Accès** : Bouton de suspension instantanée (toggle `is_active`) avec blocage du login.
 - [x] **RBAC Backend** : Dépendance `require_employer()` pour bloquer les opérations de gestion aux sous-comptes.
-- [ ] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante mettra en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, plutôt que les statistiques financières.
-- [ ] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès aux données sensibles (Chiffre d'affaires global, diagnostics IA poussés, honoraires spécifiques) selon les permissions accordées par le médecin.
-- [ ] **Workflow de Pré-Saisie** : Capacité pour l'assistante de créer le dossier patient, de remplir le questionnaire médical de base et de scanner les documents (carte d'identité, mutuelle) avant l'entrée en salle de soins.
+- [x] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante met en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, sans les statistiques financières.
+- [x] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès et étanchéité totale aux données sensibles (Comptabilité, prescriptions, tracés IA avancés) selon les permissions de l'assistante.
+- [x] **Workflow de Pré-Saisie** : Capacité complète pour l'assistante de créer le dossier patient, d'éditer la fiche d'informations et de gérer les données de base avant l'entrée en salle de soins.
 
 ---
 
