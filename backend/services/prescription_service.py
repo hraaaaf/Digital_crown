@@ -396,6 +396,8 @@ class PrescriptionService:
         Vérifie la sécurité complète d'une ordonnance :
         1. Les contre-indications sémantiques liées aux antécédents du patient.
         2. Les interactions médicamenteuses croisées (DDI) au sein de l'ordonnance.
+        3. Double-contrôle (Cross-Check) clinique : alerte si antibiotiques sans acte étiologique lié dans la séance du jour.
+        4. Détection d'Omissions : suggestion de prophylaxie si aucun détartrage depuis 12 mois.
         """
         warnings = []
         
@@ -428,6 +430,104 @@ class PrescriptionService:
         # 2. Vérification systématique des interactions médicamenteuses croisées (DDI)
         ddi_warnings = self.check_drug_interactions(drug_names)
         warnings.extend(ddi_warnings)
+
+        # 3. Double-contrôle (Cross-Check) clinique : antibiotiques sans acte étiologique
+        # Déterminer si un antibiotique est présent
+        antibiotic_mols = {
+            "AMOXICILLINE", "AMOXICILLINE/ACIDE_CLAVULANIQUE", "METRONIDAZOLE",
+            "SPIRAMYCINE", "SPIRAMYCINE/METRONIDAZOLE", "CLINDAMYCINE",
+            "PRISTINAMYCINE", "AZITHROMYCINE"
+        }
+        has_antibiotic = False
+        for drug in drug_names:
+            mol = self._normalize_to_molecule(drug)
+            if mol in antibiotic_mols:
+                has_antibiotic = True
+                break
+
+        if has_antibiotic:
+            from datetime import date
+            today_date = date.today()
+            # Rechercher les rendez-vous du jour
+            appts_today = db.query(models.Appointment).filter(
+                models.Appointment.patient_id == patient_id,
+                func.date(models.Appointment.datetime_start) == today_date,
+                models.Appointment.status != models.AppointmentStatus.ANNULE
+            ).all()
+
+            # Rechercher les actes du jour
+            acts_today = db.query(models.Acte).filter(
+                models.Acte.patient_id == patient_id,
+                func.date(models.Acte.date_debut) == today_date
+            ).all()
+
+            surgical_keywords = {
+                "extraction", "avulsion", "implant", "endo", "canal", "pulpite", 
+                "dépulper", "depulper", "chirurgie", "parodontite", "paro", 
+                "curetage", "sinus", "greffe", "lambeau", "suture", "sagesse"
+            }
+
+            has_surgical_context = False
+            for appt in appts_today:
+                text = f"{appt.motif or ''} {appt.notes or ''}".lower()
+                if any(kw in text for kw in surgical_keywords):
+                    has_surgical_context = True
+                    break
+
+            if not has_surgical_context:
+                for acte in acts_today:
+                    text = (acte.libelle or "").lower()
+                    if any(kw in text for kw in surgical_keywords):
+                        has_surgical_context = True
+                        break
+
+            if not has_surgical_context:
+                warnings.append({
+                    "type": "coherence",
+                    "severity": "medium",
+                    "drug": "antibiotique-injustifie",
+                    "message": "🤖 Incohérence clinique : Prescription d'antibiothérapie sans acte chirurgical ou endodontique associé à la séance du jour."
+                })
+
+        # 4. Détection d'Omissions prophylactiques (détartrage depuis 12 mois)
+        from datetime import datetime, timedelta
+        one_year_ago = datetime.now() - timedelta(days=365)
+        prophy_keywords = {
+            "détartrage", "detartrage", "prophylaxie", "surfaçage", 
+            "surfaciage", "polissage", "fluoration", "hygiène", "hygiene"
+        }
+
+        # Rechercher les actes des 12 derniers mois
+        recent_acts = db.query(models.Acte).filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.date_debut >= one_year_ago
+        ).all()
+
+        has_prophy_recently = False
+        for act in recent_acts:
+            if any(kw in (act.libelle or "").lower() for kw in prophy_keywords):
+                has_prophy_recently = True
+                break
+
+        if not has_prophy_recently:
+            recent_appts = db.query(models.Appointment).filter(
+                models.Appointment.patient_id == patient_id,
+                models.Appointment.datetime_start >= one_year_ago,
+                models.Appointment.status == models.AppointmentStatus.TERMINE
+            ).all()
+            for appt in recent_appts:
+                text = f"{appt.motif or ''} {appt.notes or ''}".lower()
+                if any(kw in text for kw in prophy_keywords):
+                    has_prophy_recently = True
+                    break
+
+        if not has_prophy_recently:
+            warnings.append({
+                "type": "omission",
+                "severity": "info",
+                "drug": "omission-prophylaxie",
+                "message": "🤖 Prévention : Aucun détartrage ou soin prophylactique détecté au cours des 12 derniers mois."
+            })
         
         return warnings
 
