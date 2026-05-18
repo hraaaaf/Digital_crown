@@ -5,6 +5,7 @@ import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, Arro
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
+import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export const PatientList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
+  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   // NOUVEAU : État de la modale de suppression
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; name: string }>({
@@ -177,7 +179,7 @@ export const PatientList = () => {
                             <div className="font-black text-primary text-lg tracking-tight">
                               {p.nom.toUpperCase()} {p.prenom}
                             </div>
-                            <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={fetchPatients} />
+                            {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={fetchPatients} />}
                           </div>
                           <div className="text-[11px] font-bold text-text-muted mt-1 uppercase tracking-wider font-mono">
                             {p.numero_dossier || `ID-${p.id}`}

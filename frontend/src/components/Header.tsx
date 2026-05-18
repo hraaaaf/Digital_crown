@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { cabinetApi } from '../services/templateApi';
 import { api } from '../services/api';
 import { safeStorage } from '../hooks/useLocalStorage';
+import { GuideTower } from './GuidedTour/GuideTower';
+import { EliteAssistant } from '../features/admin/DocumentStudio/EliteAssistant';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
@@ -57,10 +59,14 @@ export const Header = () => {
   return (
     <header className="h-20 bg-transparent flex items-center justify-end gap-6 px-8 shrink-0 relative z-[1000]">
       
-      {/* SETTINGS & NOTIFS */}
-      <div className="flex items-center gap-3">
+      {/* SETTINGS, AI, GUIDE & NOTIFS */}
+      <div className="flex items-center gap-2">
+        <GuideTower />
+        <div className="relative">
+          <EliteAssistant isEmbedded={true} />
+        </div>
         
-        <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite">
+        <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite" title="Réglages">
           <Settings size={20} />
         </Link>
         <div className="relative" ref={notifRef}>

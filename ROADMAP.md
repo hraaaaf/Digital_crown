@@ -212,7 +212,7 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 **Spécialiste :** Antigravity Staff Engineering
 
 - [ ] **Chat Clinique Interactif** : Remplacer les suggestions passives par une interface de dialogue contextuelle.
-- [ ] **App Awareness** : Capacité du Brain à détecter le module actif (Compta, Céphalo, Dossier) pour adapter ses conseils.
+- [x] **App Awareness & Header Integration** : Capacité du Brain et de la Guide Tower à détecter le module actif (Compta, Céphalo, Dossier) pour adapter leurs conseils. Intégration finalisée dans le Header principal aux côtés des réglages.
 - [ ] **Exécution Agentique** : Passage de la suggestion à l'action (ex: "Générer le devis" via un bouton piloté par l'IA).
 - [ ] **Reasoning Visualization** : Affichage de la "chaîne de pensée" clinique derrière chaque diagnostic.
 

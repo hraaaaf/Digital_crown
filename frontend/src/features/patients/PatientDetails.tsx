@@ -22,6 +22,7 @@ import { PatientDocuments } from './PatientDocuments';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
+import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { Banknote } from 'lucide-react';
 
 interface Patient {
@@ -42,6 +43,7 @@ export const PatientDetails = () => {
   
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabType) || 'admin';
+  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,9 +118,11 @@ export const PatientDetails = () => {
               </button>
               
               <div>
-                <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
-                  {fullName}
-                  <PatientScoreBadge patientId={Number(id)} />
+                <div className="flex items-center gap-3">
+                  <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
+                    {fullName}
+                  </h1>
+                  {show_patient_badges && <PatientScoreBadge patientId={Number(id)} />}
                   {patient.assurance && patient.assurance !== 'AUCUNE' && (
                     <span className={cn(
                       "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border shadow-sm",

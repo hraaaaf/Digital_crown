@@ -13,6 +13,7 @@ import {
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
+import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 import { motion, type Variants } from 'framer-motion';
 
 const containerVariants: Variants = {
@@ -53,6 +54,7 @@ export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [praticienName, setPraticienName] = useState('Praticien');
+  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   const today = new Date().toLocaleDateString('fr-FR', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
@@ -194,7 +196,7 @@ export const Dashboard: React.FC = () => {
                           <h4 className="font-black text-primary text-lg leading-none font-outfit">
                             {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
                           </h4>
-                          <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />
+                          {show_patient_badges && <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />}
                         </div>
                         <p className="text-xs font-bold text-text-muted mt-2 flex items-center gap-2">
                           <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}

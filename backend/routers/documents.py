@@ -65,35 +65,77 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 "lettre": models.DocumentType.LETTRE_MEDICALE
             }
             
-            # Logique automatique de statut (Elite v4)
-            p_status = models.PaiementStatut.EN_ATTENTE
-            p_collected = False
-            
-            payments = req.data.get('payments', [])
-            if payments:
-                # Si au moins un paiement est en espèces ou TPE, on considère comme payé/encaissé pour simplifier
-                # ou alors on regarde si TOUS sont encaissables
-                all_instant = all(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
-                any_instant = any(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
-                
-                if all_instant:
-                    p_status = models.PaiementStatut.PAYE
-                    p_collected = True
-                elif any_instant:
-                    p_status = models.PaiementStatut.PARTIEL
-                    p_collected = False
-                else:
-                    p_status = models.PaiementStatut.A_ENCAISSER
-                    p_collected = False
+            # Logique de statut stricte respectant l'UI (Ghost Treasury v4.6)
+            p_status = req.payment_status if req.payment_status else models.PaiementStatut.EN_ATTENTE
+            p_collected = p_status == models.PaiementStatut.PAYE
             
             doc, _ = archive_service.archive_document(
                 patient_id=patient.id, file_content=pdf_content, filename=os.path.basename(pdf_path),
                 doc_type=enum_map.get(req.type, models.DocumentType.AUTRE), uploaded_by_id=user_id, clinical_data=req.data,
                 is_accounted=req.is_accounted, 
-                payment_status=req.payment_status if req.payment_status != "EN_ATTENTE" else p_status,
+                payment_status=p_status,
                 is_collected=p_collected
             )
             pdf_path = doc.file_path
+
+            # Étape 2 & 3 : Trésorerie Relationnelle (Ghost Treasury v4.6)
+            if req.type in ["honoraires", "note"]:
+                installments_data = req.data.get('installments', [])
+                is_global = req.data.get('is_global_note', False)
+                total_amount = sum(float(p.get('montant', 0)) for p in req.data.get('payments', []))
+                
+                if is_global and installments_data:
+                    # Création d'un plan de paiement
+                    plan = models.InstallmentPlan(
+                        patient_id=patient.id,
+                        title=f"Plan de paiement - {datetime.now().strftime('%d/%m/%Y')}",
+                        total_amount=total_amount
+                    )
+                    db.add(plan)
+                    db.flush() # Pour avoir l'ID du plan
+                    
+                    for inst in installments_data:
+                        # try parsing date or fallback
+                        due_date_str = inst.get('date', datetime.now().strftime('%Y-%m-%d'))
+                        try:
+                            due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                        except ValueError:
+                            due_date = datetime.now()
+                            
+                        inst_amount = float(inst.get('amount', 0))
+                        db.add(models.Installment(
+                            plan_id=plan.id,
+                            label=inst.get('label', 'Échéance'),
+                            amount=inst_amount,
+                            due_date=due_date,
+                            status="EN_ATTENTE"
+                        ))
+                    db.commit()
+                else:
+                    # Structure Unique (Pas de plan global)
+                    if p_status in [models.PaiementStatut.PAYE, models.PaiementStatut.PARTIEL]:
+                        # Création de l'encaissement (Payment)
+                        # S'il y a des paiements avec mode de règlement, on les utilise, sinon on prend le premier
+                        payments_arr = req.data.get('payments', [])
+                        pm = "ESPECES"
+                        if payments_arr:
+                            pm_str = str(payments_arr[0].get('mode_reglement', 'Espèces')).upper()
+                            if "VIREMENT" in pm_str: pm = "VIREMENT"
+                            elif "CH" in pm_str: pm = "CHEQUE"
+                            elif "TPE" in pm_str or "CARTE" in pm_str: pm = "TPE"
+                            
+                        # Si partiel, idéalement on aurait le montant partiel, sinon on met 0 ou on attend une màj manuelle
+                        paid_amount = total_amount if p_status == models.PaiementStatut.PAYE else total_amount / 2.0
+                        
+                        payment_obj = models.Payment(
+                            patient_id=patient.id,
+                            amount=paid_amount,
+                            payment_method=pm,
+                            payment_date=datetime.now(),
+                            notes=f"Lien Doc ID: {doc.id}"
+                        )
+                        db.add(payment_obj)
+                        db.commit()
 
         # Analyse de cohérence (Phase 1 & 2)
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)

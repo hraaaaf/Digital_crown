@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useSettingsStore } from '../hooks/useSettingsStore';
 import { SettingsSection, labelClass, inputClass } from '../components/SharedUI';
-import { BRAND_IDENTITIES, PREMIUM_FONTS, DESIGN_VARIANTS } from '../../constants';
+import { BRAND_IDENTITIES, PREMIUM_FONTS, DESIGN_VARIANTS, APP_THEMES } from '../../constants';
 import { cn } from '../../../../utils/cn';
 import { api, API_BASE } from '../../../../services/api';
 import { motion } from 'framer-motion';
@@ -187,12 +187,36 @@ export const BrandingTab: React.FC = () => {
             <SettingsSection title="Design & Polices" icon={<PaletteIcon size={32} />}>
                 <div className="space-y-10">
                   <div className="space-y-6">
-                    <label className={labelClass}>Palettes Signature</label>
+                    <label className={labelClass}>Thème de l'Interface</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {APP_THEMES.map(theme => (
+                        <button
+                          key={theme.id}
+                          onClick={() => { updateProfile({ selected_theme: theme.id }); }}
+                          className={cn("p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden", profile.selected_theme === theme.id ? "border-primary bg-white shadow-xl scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white")}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <h5 className="text-[11px] font-black uppercase tracking-tighter text-slate-900">{theme.name}</h5>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase">{theme.desc}</span>
+                            </div>
+                            <div className="flex -space-x-2">
+                              <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: theme.preview.bg }} />
+                              <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: theme.preview.accent }} />
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <label className={labelClass}>Couleurs du Document</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {BRAND_IDENTITIES.map(id => (
                         <button
                           key={id.id}
-                          onClick={() => { updateProfile({ primary_color: id.primary, secondary_color: id.secondary, accent_color: id.accent }); document.documentElement.style.setProperty('--primary', id.primary); }}
+                          onClick={() => { updateProfile({ primary_color: id.primary, secondary_color: id.secondary, accent_color: id.accent }); }}
                           className={cn("p-5 rounded-3xl border-2 transition-all text-left flex flex-col gap-4 group relative overflow-hidden", profile.primary_color === id.primary ? "border-primary bg-white shadow-xl scale-[1.02]" : "border-slate-100 bg-slate-50/50 hover:bg-white")}
                         >
                           <div className="flex items-center justify-between">

@@ -10,13 +10,13 @@ This document defines the core recurring workflows, procedures, and rules for ag
 3. Apply "Ghost Elite" aesthetics: backdrop-blur (`bg-white/40`), subtle shadows, and CSS variables (`--primary`, `--secondary`) synced with `CabinetConfig`.
 4. Define complex sub-components outside the main component body (use `React.memo` if necessary).
 5. Ensure navigation elements (Sidebar) maintain extreme z-index (`z-[10000]`).
-6. **EliteDock Centralization**: All clinical intelligence orbs (Brain, Guide) must be grouped in the `EliteDock` (`z-[10001]`) to avoid UI clutter and ensure platform-wide accessibility.
+6. **Header Centralization**: All clinical intelligence orbs (Ghost Brain) and contextual help (Guide Tower) must be placed in the `Header` next to the Settings icon to ensure a unified navigation experience across the platform.
 **Output**: A highly responsive, visually premium, and optimized React component.
 **Rules**:
 - NEVER define a React component inside another component's render body.
 - NEVER use low-contrast text (e.g., `text-slate-900` on translucent backgrounds); prefer `text-primary` or pure black on pure white for financial data.
 - NEVER add redundant visual labels ("Posologie :") if typography and layout can provide context.
-- NEVER duplicate clinical assistants in the Header; use the centralized `EliteDock`.
+- NEVER use floating orbs for global tools; keep them in the `Header` next to settings and notifications.
 
 ## 2. Massive Code Replacement Protocol
 **Trigger**: Executing `replace_file_content` or `multi_replace_file_content` for large blocks (> 50 lines).

@@ -4,7 +4,6 @@ import { Header } from '../Header';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
 import { useLocation } from 'react-router-dom';
-import { EliteDock } from '../../features/admin/DocumentStudio/EliteDock';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -46,9 +45,6 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <Header />
-
-        {/* Dock d'Elite : Guide + Brain (Groupés & Déplaçables) */}
-        <EliteDock />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
           <AnimatePresence mode="wait">
