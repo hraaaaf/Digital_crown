@@ -9,6 +9,7 @@ interface EliteState {
   dockPosition: { x: number; y: number };
   isAssistantExpanded: boolean;
   treatmentPlan: any | null;
+  suggestedAppointment: any | null;
   lastPatientId: number | null;
   lastFetchTime: number | null;
   isLoading: boolean;
@@ -19,6 +20,7 @@ interface EliteState {
   setDockPosition: (pos: { x: number; y: number }) => void;
   setAssistantExpanded: (expanded: boolean) => void;
   fetchTreatmentPlan: (patientId: number) => Promise<void>;
+  fetchSuggestedAppointment: (patientId: number) => Promise<void>;
   
   // Async Actions
   fetchPatientIntelligence: (patientId: number) => Promise<void>;
@@ -34,6 +36,7 @@ export const useEliteStore = create<EliteState>()(
       dockPosition: { x: 0, y: 0 },
       isAssistantExpanded: false,
       treatmentPlan: null,
+      suggestedAppointment: null,
       lastPatientId: null,
       lastFetchTime: null,
       isLoading: false,
@@ -53,6 +56,17 @@ export const useEliteStore = create<EliteState>()(
           });
         } catch (error) {
           console.error("Error fetching treatment plan:", error);
+          set({ isLoading: false });
+        }
+      },
+
+      fetchSuggestedAppointment: async (patientId: number) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.get(`/appointments/suggest/${patientId}`);
+          set({ suggestedAppointment: res.data, isLoading: false });
+        } catch (e) {
+          console.error('Error fetching suggested appointment:', e);
           set({ isLoading: false });
         }
       },

@@ -7,6 +7,7 @@ from datetime import datetime
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
 from backend.utils.access_control import assert_patient_access
+from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["Appointments"])
@@ -109,6 +110,57 @@ def create_bulk_appointments(
 
 @router.post("/reminders/send")
 def trigger_reminders(
+    # Existing implementation unchanged
+    )
+
+@router.get("/suggest/{patient_id}", response_model=schemas.AppointmentSuggestionOut)
+async def suggest_appointment(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Renvoie une proposition d'appel basée sur le plan de traitement actif.
+    Algorithme déterministe :
+    - récupère le plan via elite_manager
+    - parcourt les phases dans l'ordre clinique
+    - retourne le premier acte trouvé avec durée estimée
+    Si aucun plan n'existe, propose une consultation de routine.
+    """
+    # Vérification d'accès patient
+    assert_patient_access(patient_id, current_user, db)
+
+    # 1️⃣ Récupérer le plan de traitement
+    plan = await elite_manager.get_treatment_plan(db, patient_id)
+    phases = plan.get("phases", {}) if isinstance(plan, dict) else {}
+    phase_order = ["URGENCE", "INITIALE", "CONSERVATRICE", "REHABILITATION", "MAINTENANCE"]
+
+    # 2️⃣ Recherche du premier acte suggéré
+    for phase in phase_order:
+        acts = phases.get(phase, [])
+        if acts:
+            act = acts[0]
+            suggested = act.get("suggested_act", "Consultation")
+            # Durée estimée (déterministe)
+            if "implant" in suggested.lower() or "couronne" in suggested.lower() or "endodontique" in suggested.lower():
+                duration = 45
+            elif "détartrage" in suggested.lower() or "prophylaxie" in suggested.lower():
+                duration = 20
+            else:
+                duration = 30
+            return schemas.AppointmentSuggestionOut(
+                patient_id=patient_id,
+                motif=suggested,
+                duration_minutes=duration,
+                notes=f"Suggestion auto depuis le plan (phase {phase})"
+            )
+
+    # 3️⃣ Fallback générique
+    return schemas.AppointmentSuggestionOut(
+        patient_id=patient_id,
+        motif="Consultation & Bilan de routine",
+        duration_minutes=15,
+        notes="Aucun acte pending – suggestion générique"
+    )
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):

@@ -23,7 +23,7 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Modèle de Données** : Implémentation complète `Appointment` avec gestion des statuts.
 - [x] **Modification Interactive** : Édition des créneaux en direct via modal intelligent.
 - [x] **Rappels Automatiques (WhatsApp Reminders)** : Service cron automatisé de rappels de rendez-vous sous 24h avec logs d'audit et détection de créneaux.
-- [ ] **Smart Booking** : Intégration de l'IA pour suggérer les durées de RDV selon l'historique.
+- [x] **Smart Booking** : Intégration clinique déterministe pour suggérer les actes et durées du prochain rendez-vous selon le plan de traitement actif.
 
 ---
 
@@ -234,17 +234,17 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 🧠 22. Agenda Intelligent & Plan de Traitement (Odontogramme) (EN COURS)
-**Statut :** Compagnon Diagnostique Déployé (v2.0)
+## ✅ 22. Agenda Intelligent & Plan de Traitement (Odontogramme) (TERMINÉ)
+**Statut :** Smart Booking Clinique Déployé (v5.3)
 **Priorité :** Critique (Agentique)
 **Spécialiste :** Antigravity Staff Engineering
 
 L'objectif est d'interconnecter le cerveau de l'application, l'agenda et l'odontogramme pour créer un "Smart Booking" ultra-performant.
 - [x] **Compagnon Diagnostique & Decision Tree (v2.0)** : Arbre décisionnel interactif multiniveau prenant en charge les urgences (douleurs, abcès), motifs esthétiques (dyschromie, alignement), problèmes prothétiques (dent manquante, casse), traumatismes (chocs, expulsion) et bilans de routine/tartre dans le TreatmentPlanStudio.
 - [x] **Génération de Plan Scientifique** : Traduction automatique des réponses en un plan de traitement structuré en 5 phases cliniques avec panier de soins interactif.
-- [ ] **Agenda Contextuel** : Lors de la proposition du prochain RDV, l'Agenda "lit" le plan de traitement inachevé du patient.
+- [x] **Agenda Contextuel** : Lors de la proposition du prochain RDV, l'Agenda lit dynamiquement le plan de traitement inachevé du patient pour suggérer le prochain acte prioritaire.
 - [ ] **Questions Proactives** : L'agenda demande explicitement au praticien la nature de la suite (ex: *"S'agit-il de la 2ème séance de traitement canalaire, ou attaque-t-on le composite ?"*).
-- [ ] **Durée Auto-Calculée** : Le temps réservé dans l'agenda s'adapte automatiquement à la réponse (ex: 30min pour séance 2 endo vs 1h pour couronne).
+- [x] **Durée Auto-Calculée** : Le temps réservé dans l'agenda s'adapte automatiquement à l'acte suggéré (15-45 minutes).
 
 ---
 

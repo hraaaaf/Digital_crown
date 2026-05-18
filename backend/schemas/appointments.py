@@ -54,3 +54,10 @@ class AppointmentImportItem(BaseModel):
 
 class AppointmentBulkCreate(BaseModel):
     appointments: List[AppointmentImportItem]
+
+class AppointmentSuggestionOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    patient_id: int
+    motif: Optional[str] = None
+    duration_minutes: int = 15
+    notes: Optional[str] = None
