@@ -1,0 +1,33 @@
+{
+  "name": "Digital Crown Elite",
+  "short_name": "DC Elite",
+  "description": "Gestion de cabinet dentaire — Compagnon Mobile",
+  "start_url": "/mobile/dashboard",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/logo_gold.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo_gold.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Agenda du jour",
+      "url": "/mobile/dashboard",
+      "description": "Voir les rendez-vous du jour"
+    }
+  ]
+}

@@ -223,6 +223,22 @@ def check_and_update_db():
     safe_execute("CREATE INDEX IF NOT EXISTS idx_appointments_employer_date ON appointments(employer_id, datetime_start)")
     safe_execute("CREATE INDEX IF NOT EXISTS idx_documents_patient_created ON document_archives(patient_id, created_at)")
 
+    # --- APPAIRAGE MOBILE ZKA (tokens éphémères) ---
+    safe_execute("""
+        CREATE TABLE IF NOT EXISTS zka_pairing_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token VARCHAR(36) NOT NULL UNIQUE,
+            employer_id INTEGER NOT NULL REFERENCES users(id),
+            public_id VARCHAR(16) NOT NULL,
+            master_key VARCHAR(64) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_token ON zka_pairing_tokens(token)")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_expires ON zka_pairing_tokens(expires_at)")
+
     print("Database self-healing migration successfully completed.")
 
 # Exécuter au chargement du module

@@ -109,7 +109,7 @@ async def request_logging_middleware(request: Request, call_next):
     return response
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -125,6 +125,7 @@ app.include_router(accounting.router, prefix="/api/accounting", tags=["Accountin
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
 app.include_router(clinical_data.router, prefix="/api/clinical-data", tags=["Données Cliniques"])
+app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
 
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)

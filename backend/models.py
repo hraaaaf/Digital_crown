@@ -742,3 +742,23 @@ class ClinicalProtocolDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
+
+# ==============================================================================
+# APPAIRAGE MOBILE ZKA — TOKEN ÉPHÉMÈRE
+# La masterKey ne transite jamais dans une URL. Le QR encode un UUID 5min.
+# Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
+# ==============================================================================
+
+class ZKAPairingToken(Base):
+    """Token éphémère à usage unique pour l'appairage mobile ZKA."""
+    __tablename__ = "zka_pairing_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    master_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+

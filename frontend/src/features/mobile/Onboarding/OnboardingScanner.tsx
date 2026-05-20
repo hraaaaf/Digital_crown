@@ -1,100 +1,210 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Shield, Camera, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 export const OnboardingScanner = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const [status, setStatus] = useState<'idle' | 'scanning' | 'success' | 'error' | 'denied'>('idle');
+  const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'error' | 'denied'>('welcome');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Si un token arrive en query param (lien direct depuis QR), on l'échange immédiatement
   useEffect(() => {
-    // Initialisation du scanner au montage
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-    };
-
-    const scanner = new Html5QrcodeScanner("reader", config, false);
-    scannerRef.current = scanner;
-
-    scanner.render(onScanSuccess, onScanFailure);
-
-    return () => {
-      // Nettoyage impératif pour couper le flux caméra
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Erreur cleanup scanner", err));
-      }
-    };
+    const token = searchParams.get('token');
+    if (token) {
+      setPhase('claiming');
+      exchangeToken(token);
+    }
   }, []);
 
-  async function onScanSuccess(decodedText: string) {
-    let publicId = '';
-    let masterKey = '';
-
-    // Nouveau format : URL avec query params (?id=...&key=...)
-    if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
-      try {
-        const url = new URL(decodedText);
-        publicId = url.searchParams.get('id') || '';
-        masterKey = url.searchParams.get('key') || '';
-      } catch {
-        setErrorMessage("QR Code invalide. Veuillez scanner le code 'Compagnon Mobile' affiché sur votre PC.");
-        setStatus('error');
-        return;
-      }
-    } else {
-      // Rétrocompatibilité : ancien format brut ID_16|KEY_64
-      const [rawId, rawKey] = decodedText.split('|');
-      publicId = rawId || '';
-      masterKey = rawKey || '';
-    }
-
-    // Validation des valeurs extraites
-    const isValid = /^[0-9a-fA-F]{16}$/.test(publicId) && /^[0-9a-fA-F]{64}$/.test(masterKey);
-    if (!isValid) {
-      setErrorMessage("QR Code invalide. Veuillez scanner le code 'Compagnon Mobile' affiché sur votre PC.");
-      setStatus('error');
-      return;
-    }
-
+  async function exchangeToken(token: string) {
     try {
-      // Arrêt immédiat de la caméra
-      if (scannerRef.current) {
-        await scannerRef.current.clear();
+      const res = await fetch(`${API_BASE}/api/mobile/claim-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ?? `Erreur ${res.status}`);
       }
 
-      // 4. Stockage sécurisé
+      const { publicId, masterKey } = await res.json();
+
+      if (!/^[0-9a-fA-F]{16}$/.test(publicId) || !/^[0-9a-fA-F]{64}$/.test(masterKey)) {
+        throw new Error('Credentials reçus invalides.');
+      }
+
       await MobileStorage.saveCredentials({ publicId, masterKey });
-      
-      setStatus('success');
-      
-      // 5. Redirection
-      setTimeout(() => navigate('/mobile/dashboard'), 1500);
-      
-    } catch (err) {
-      setErrorMessage("Échec du stockage des identifiants.");
-      setStatus('error');
+      setPhase('success');
+      setTimeout(() => navigate('/mobile/dashboard', { replace: true }), 1500);
+    } catch (err: any) {
+      setErrorMessage(err.message ?? 'Token invalide ou expiré. Régénérez le QR Code.');
+      setPhase('error');
     }
   }
 
-  function onScanFailure(error: any) {
-    // On ignore les échecs de scan (quand rien n'est dans le champ)
-    // Sauf si c'est un problème de permission
-    if (error?.includes?.("NotAllowedError") || error?.includes?.("Permission denied")) {
-      setStatus('denied');
-      setErrorMessage("Accès caméra refusé. Veuillez autoriser l'accès dans les réglages de votre navigateur.");
-    }
+  function startScanner() {
+    setPhase('scanning');
   }
 
+  useEffect(() => {
+    if (phase !== 'scanning') return;
+
+    const scanner = new Html5QrcodeScanner(
+      'reader',
+      {
+        fps: 10,
+        qrbox: { width: 260, height: 260 },
+        aspectRatio: 1.0,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      },
+      false,
+    );
+    scannerRef.current = scanner;
+
+    scanner.render(
+      async (decodedText: string) => {
+        // Extraire le token depuis l'URL scannée
+        let token: string | null = null;
+        try {
+          const url = new URL(decodedText);
+          token = url.searchParams.get('token');
+        } catch {
+          // format non-URL — invalide
+        }
+
+        if (!token) {
+          setErrorMessage("QR Code non reconnu. Scannez le code 'Compagnon Mobile' affiché sur votre PC.");
+          setPhase('error');
+          return;
+        }
+
+        await scanner.clear().catch(() => null);
+        setPhase('claiming');
+        exchangeToken(token);
+      },
+      (error: any) => {
+        if (error?.includes?.('NotAllowedError') || error?.includes?.('Permission denied')) {
+          setPhase('denied');
+        }
+      },
+    );
+
+    return () => {
+      scannerRef.current?.clear().catch(() => null);
+    };
+  }, [phase]);
+
+  // ── ÉCRAN D'ACCUEIL ──────────────────────────────────────────────────────────
+  if (phase === 'welcome') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-8 font-outfit">
+        <div className="w-24 h-24 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-8 shadow-2xl shadow-indigo-500/10">
+          <Smartphone size={44} />
+        </div>
+
+        <h1 className="text-3xl font-black tracking-tight text-center mb-3">
+          Compagnon Mobile
+        </h1>
+        <p className="text-slate-400 text-sm text-center leading-relaxed mb-2 max-w-xs">
+          Synchronisez votre cabinet sur ce téléphone en scannant le QR Code affiché dans la section{' '}
+          <span className="text-indigo-400 font-bold">Sécurité Mobile</span> de votre PC.
+        </p>
+
+        <div className="w-full max-w-xs mt-8 p-5 bg-white/5 rounded-3xl border border-white/5 flex gap-4 mb-10">
+          <Lock size={20} className="text-indigo-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Zero-Knowledge</p>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              La clé AES-256 reste sur ce téléphone. Aucune donnée lisible ne quitte votre réseau local.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={startScanner}
+          className="w-full max-w-xs py-5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20"
+        >
+          Scanner le QR Code
+        </button>
+      </div>
+    );
+  }
+
+  // ── ÉTAT CLAIMING ────────────────────────────────────────────────────────────
+  if (phase === 'claiming') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-6 font-outfit">
+        <Loader2 size={48} className="text-indigo-400 animate-spin" />
+        <p className="font-black text-slate-300 text-sm uppercase tracking-widest">Vérification en cours…</p>
+      </div>
+    );
+  }
+
+  // ── ÉTAT SUCCESS ─────────────────────────────────────────────────────────────
+  if (phase === 'success') {
+    return (
+      <div className="min-h-screen bg-emerald-600 text-white flex flex-col items-center justify-center gap-6 font-outfit animate-in fade-in duration-500">
+        <CheckCircle2 size={72} className="text-white" />
+        <p className="font-black text-2xl tracking-tight">Appairage réussi</p>
+        <p className="text-emerald-100 text-sm">Redirection vers le tableau de bord…</p>
+      </div>
+    );
+  }
+
+  // ── ÉTAT ERREUR ──────────────────────────────────────────────────────────────
+  if (phase === 'error') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-8 gap-8 font-outfit">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+          <AlertCircle size={40} className="text-rose-400" />
+        </div>
+        <div className="text-center max-w-xs">
+          <p className="font-black text-rose-400 text-lg mb-2">Échec de l'appairage</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">{errorMessage}</p>
+        </div>
+        <button
+          onClick={() => { setErrorMessage(null); setPhase('welcome'); }}
+          className="px-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  // ── ÉTAT CAMÉRA REFUSÉE ───────────────────────────────────────────────────────
+  if (phase === 'denied') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-8 gap-8 font-outfit">
+        <Camera size={48} className="text-rose-400" />
+        <div className="text-center max-w-xs">
+          <p className="font-black text-rose-400 mb-2">Caméra bloquée</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Autorisez l'accès à la caméra dans les réglages de votre navigateur, puis rechargez la page.
+          </p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  // ── ÉCRAN DE SCAN ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6 flex flex-col font-outfit">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-12">
+      <div className="flex items-center gap-3 mb-10">
         <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
           <Shield size={20} />
         </div>
@@ -102,64 +212,29 @@ export const OnboardingScanner = () => {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        {/* Scanner Container */}
         <div className="w-full max-w-[320px] aspect-square relative rounded-[2.5rem] overflow-hidden border-2 border-white/10 bg-slate-900 shadow-2xl">
-          <div id="reader" className="w-full h-full"></div>
-          
-          {/* Overlay Status */}
-          {status === 'success' && (
-            <div className="absolute inset-0 bg-emerald-500 flex flex-col items-center justify-center z-20 animate-in fade-in zoom-in duration-500">
-              <CheckCircle2 size={64} className="mb-4 text-white" />
-              <p className="font-black text-white text-lg">CLÉ VALIDÉE</p>
-            </div>
-          )}
-
-          {status === 'denied' && (
-            <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-20 p-8 text-center animate-in fade-in">
-              <Camera size={48} className="mb-4 text-rose-500" />
-              <p className="font-bold text-rose-400 mb-2">Caméra Bloquée</p>
-              <p className="text-[10px] text-slate-400 leading-relaxed mb-6">
-                Pour synchroniser vos données, nous avons besoin de scanner le code QR. Activez la caméra dans les réglages de votre site.
-              </p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="px-6 py-2 bg-white text-slate-900 rounded-full font-black text-xs uppercase tracking-widest"
-              >
-                Réessayer
-              </button>
-            </div>
-          )}
+          <div id="reader" className="w-full h-full" />
         </div>
 
-        {/* Info & Error Section */}
-        <div className="w-full max-w-[320px] text-center">
-          {status === 'error' ? (
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 animate-in slide-in-from-top-4">
-              <AlertCircle size={20} className="shrink-0" />
-              <p className="text-xs font-bold text-left leading-tight">{errorMessage}</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-400 font-medium">
-                Pointez votre téléphone vers l'écran de votre PC dans la section <span className="text-indigo-400 font-bold">Sécurité Mobile</span>.
-              </p>
-              <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                <Loader2 size={12} className="animate-spin" />
-                Recherche du QR Code...
-              </div>
-            </div>
-          )}
+        <div className="w-full max-w-[320px] text-center space-y-3">
+          <p className="text-sm text-slate-400 font-medium">
+            Pointez vers le QR Code affiché sur votre PC dans{' '}
+            <span className="text-indigo-400 font-bold">Sécurité Mobile</span>.
+          </p>
+          <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-600 uppercase tracking-widest">
+            <Loader2 size={12} className="animate-spin" />
+            Recherche du QR Code…
+          </div>
         </div>
       </div>
 
-      {/* Footer Security Note */}
       <div className="mt-auto p-6 bg-white/5 rounded-3xl border border-white/5">
         <div className="flex gap-4">
           <Shield size={24} className="text-indigo-500 shrink-0" />
           <div className="space-y-1">
             <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Sécurité Critique</p>
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              La clé est stockée uniquement sur ce téléphone. Ne partagez jamais votre QR code avec un tiers.
+              La clé est stockée uniquement sur ce téléphone. Ne partagez jamais votre QR code.
             </p>
           </div>
         </div>

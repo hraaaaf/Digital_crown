@@ -155,34 +155,56 @@ def export_database(db: Session = Depends(database.get_db), current_user: models
 
 @router.get("/zka-key-qr")
 def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    """Génère le QR Code combiné (ID|Key) pour l'appairage mobile avec fiabilité maximale."""
+    """
+    Génère un QR d'appairage mobile ZKA sécurisé.
+    La masterKey NE transite PAS dans l'URL — le QR encode un token éphémère UUID (TTL 5 min).
+    Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
+    """
+    import uuid
+    from datetime import timedelta
+
     emp_id = current_user.get_employer_id()
-    
-    # 1. Récupération de la config et de la clé
+
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == emp_id).first()
     master_key = os.getenv("CABINET_MASTER_KEY_HEX")
-    
+
     if not config or not master_key:
-        raise HTTPException(status_code=404, detail="Configuration ZKA incomplète")
-    
-    # 2. Construction du payload : URL complète pointant vers l'onboarding mobile
+        raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
+
+    # Purger les tokens expirés de cet employeur (nettoyage passif)
+    db.query(models.ZKAPairingToken).filter(
+        models.ZKAPairingToken.employer_id == emp_id,
+        models.ZKAPairingToken.expires_at < datetime.utcnow(),
+    ).delete()
+
+    # Générer un token éphémère à usage unique (5 min)
+    pairing_token = str(uuid.uuid4())
+    db.add(models.ZKAPairingToken(
+        token=pairing_token,
+        employer_id=emp_id,
+        public_id=config.public_id,
+        master_key=master_key,
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+    ))
+    db.commit()
+
+    # Le QR encode uniquement l'URL avec le token — jamais la clé
     base_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    combined_payload = f"{base_url}/mobile/onboarding?id={config.public_id}&key={master_key}"
-    
-    # 3. Génération via QRService (Style Square pour fiabilité maximale de scan)
+    qr_payload = f"{base_url}/mobile/onboarding?token={pairing_token}"
+
     try:
         qr_bytes = QRService.generate_qr_bytes(
-            combined_payload, 
-            color="#4F46E5", # Indigo-600
+            qr_payload,
+            color="#4F46E5",
             box_size=10,
             add_logo=False,
-            qr_style="classic" # On évite l'arrondi ici pour la robustesse du scan critique
+            qr_style="classic",
         )
         img_str = base64.b64encode(qr_bytes.getvalue()).decode()
-        return {"qr_code": f"data:image/png;base64,{img_str}"}
+        return {"qr_code": f"data:image/png;base64,{img_str}", "expires_in": 300}
     except Exception as e:
         logger.error(f"Erreur génération QR ZKA: {e}")
-        raise HTTPException(status_code=500, detail="Échec de génération du QR Code")
+        raise HTTPException(status_code=500, detail="Échec de génération du QR Code.")
 
 
 @router.post("/revoke-mobile")
