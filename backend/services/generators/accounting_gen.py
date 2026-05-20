@@ -165,7 +165,7 @@ class AccountingGenerator:
         canvas.restoreState()
 
     def _create_header(self, patient, data, p_color):
-        doc_date = getattr(data, 'doc_date', date.today())
+        doc_date = getattr(data, 'doc_date', None) or date.today()
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
         
