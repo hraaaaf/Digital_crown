@@ -282,12 +282,14 @@ async def sync_supabase_user(
         except ValueError:
             pass
 
-    # 4. Générer un token local pour les requêtes suivantes
+    # 4. Générer les tokens locaux pour les requêtes suivantes
     local_token = create_access_token(data={"sub": user.email})
-    
+    local_refresh = create_refresh_token(data={"sub": user.email})
+
     return {
         "status": "synchronized",
         "user_id": user.id,
         "role": user.role,
-        "token": local_token
+        "token": local_token,
+        "refresh_token": local_refresh
     }

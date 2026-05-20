@@ -36,6 +36,9 @@ export const authService = {
       });
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
+        if (response.data.refresh_token) {
+          localStorage.setItem('refresh_token', response.data.refresh_token);
+        }
         return true;
       }
     } catch (err) {
@@ -63,8 +66,18 @@ export const authService = {
    * Logout (Cloud + Local)
    */
   async logout() {
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (token && refreshToken) {
+      try {
+        await axios.post(`${API_URL}/auth/logout`, { refresh_token: refreshToken }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch { /* blacklist best-effort */ }
+    }
     await supabase.auth.signOut();
     localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
     window.location.href = '/login';
   },
 
