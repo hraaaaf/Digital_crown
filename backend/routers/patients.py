@@ -211,12 +211,16 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
+    static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
     results = []
     for doc in docs:
+        rel_path = doc.file_path.split('static/')[-1]
+        abs_path = os.path.join(static_root, rel_path)
         results.append({
             "id": str(doc.id), "name": doc.original_filename, "type": doc.document_type.value,
-            "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{doc.file_path.split('static/')[-1]}",
-            "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp()
+            "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
+            "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp(),
+            "file_exists": os.path.isfile(abs_path),
         })
         
     # 2. Legacy
@@ -230,7 +234,8 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
                 results.append({
                     "id": f"legacy:{patient_id}:{f}", "name": f, "type": "LEGACY",
                     "date": "Ancien", "url": f"static/patients/{p_folder}/Documents/{f}",
-                    "timestamp": os.path.getmtime(os.path.join(legacy_dir, f))
+                    "timestamp": os.path.getmtime(os.path.join(legacy_dir, f)),
+                    "file_exists": True,
                 })
     results.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     return results
