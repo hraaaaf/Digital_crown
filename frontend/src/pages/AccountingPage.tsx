@@ -806,7 +806,7 @@ export const AccountingPage = () => {
                         <td className="px-8 py-5">
                           <div className="flex justify-center gap-2">
                              <button 
-                                onClick={() => handleViewDocument(`api/documents/${item.id}/download`)}
+                                onClick={() => handleViewDocument(`documents/${item.id}/download`)}
                                 className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
                                 title="Voir la note"
                              >

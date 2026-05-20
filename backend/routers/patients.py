@@ -243,12 +243,16 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 @router.get("/{patient_id}/appointment-intel")
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
-    # Logique originale restaurée
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
+    solde_attente = db.query(func.sum(models.Acte.montant)).filter(
+        models.Acte.patient_id == patient_id,
+        models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
+    ).scalar() or 0.0
     return {
         "suggestion": "Suite de traitement" if devis else "Consultation",
         "duration": 45 if devis else 30,
-        "has_active_plan": bool(devis)
+        "has_active_plan": bool(devis),
+        "solde_attente": round(float(solde_attente), 2),
     }
 
 @router.get("/{patient_id}/analyses", response_model=List[schemas.CephaloAnalysisOut])

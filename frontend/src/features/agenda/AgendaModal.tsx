@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
@@ -215,6 +215,18 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   if (!isOpen) return null;
 
+  const handleDelete = async () => {
+    if (!editingAppointment) return;
+    if (!window.confirm('Supprimer ce rendez-vous ?')) return;
+    try {
+      await api.delete(`/appointments/${editingAppointment.id}`);
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert('Erreur lors de la suppression.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate) return;
@@ -242,7 +254,6 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
       onSaved();
       onClose();
-      // Reset
       setPatientSearch('');
       setSelectedPatient(null);
       setActSearch('');
@@ -537,37 +548,61 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Statut Initial</label>
-              <div className="grid grid-cols-3 gap-3">
-                {['PRÉVU', 'EN_S_ATTENTE', 'ANNULÉ'].map(s => (
-                  <button 
-                    key={s}
-                    type="button"
-                    onClick={() => setStatus(s as AppointmentStatus)}
-                    className={cn(
-                      "py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border",
-                      status === s 
-                        ? "bg-[#003380] text-white border-[#003380] shadow-lg shadow-blue-900/20" 
-                        : "bg-white text-slate-500 border-slate-100 hover:border-slate-300"
-                    )}
-                  >
-                    {s === 'EN_S_ATTENTE' ? 'SALLE ATTENTE' : s}
-                  </button>
-                ))}
+              <div className="grid grid-cols-5 gap-2">
+                {(['PRÉVU', 'EN_S_ATTENTE', 'EN_FAUTEUIL', 'TERMINÉ', 'ANNULÉ'] as AppointmentStatus[]).map(s => {
+                  const labels: Record<string, string> = {
+                    'PRÉVU': 'Prévu', 'EN_S_ATTENTE': 'Attente', 'EN_FAUTEUIL': 'Fauteuil',
+                    'TERMINÉ': 'Terminé', 'ANNULÉ': 'Annulé',
+                  };
+                  const colors: Record<string, string> = {
+                    'PRÉVU': 'bg-[#003380] border-[#003380] shadow-blue-900/20',
+                    'EN_S_ATTENTE': 'bg-amber-500 border-amber-500 shadow-amber-500/20',
+                    'EN_FAUTEUIL': 'bg-emerald-600 border-emerald-600 shadow-emerald-600/20',
+                    'TERMINÉ': 'bg-slate-500 border-slate-500 shadow-slate-500/20',
+                    'ANNULÉ': 'bg-rose-500 border-rose-500 shadow-rose-500/20',
+                  };
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={cn(
+                        "py-2.5 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border",
+                        status === s
+                          ? `${colors[s]} text-white shadow-lg`
+                          : "bg-white text-slate-500 border-slate-100 hover:border-slate-300"
+                      )}
+                    >
+                      {labels[s]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
           </div>
 
           <div className="pt-8 flex justify-between items-center border-t border-slate-100">
-            {selectedPatient && (
-                <button 
-                    type="button" 
-                    onClick={openWhatsApp}
-                    className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-black text-xs transition-colors"
+            <div className="flex items-center gap-3">
+              {selectedPatient && (
+                <button
+                  type="button"
+                  onClick={openWhatsApp}
+                  className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-black text-xs transition-colors"
                 >
-                    <MessageCircle size={16} /> Rappel WhatsApp
+                  <MessageCircle size={16} /> Rappel WhatsApp
                 </button>
-            )}
+              )}
+              {editingAppointment && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 text-rose-500 hover:text-rose-700 font-black text-xs transition-colors"
+                >
+                  <Trash2 size={16} /> Supprimer
+                </button>
+              )}
+            </div>
             <div className="flex gap-4">
                 <button type="button" onClick={onClose} className="px-8 py-4 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-2xl font-black transition-all">
                 Annuler
