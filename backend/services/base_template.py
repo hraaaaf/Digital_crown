@@ -200,23 +200,39 @@ class BaseTemplate:
         return getattr(obj, key, default)
 
     @staticmethod
-    def get_adaptive_font_size(text, font_name, base_fs, max_width, min_fs=6.5):
+    def get_adaptive_font_size(text, font_name, base_fs, max_width, min_fs=6.5, max_fs=None):
         """
         Calcule la taille de police optimale pour faire tenir un texte sur une seule ligne.
-        Utilise pdfmetrics.stringWidth pour une précision absolue.
+        Agrandit ou réduit proportionnellement pour s'adapter parfaitement à l'espace.
         """
         from reportlab.pdfbase.pdfmetrics import stringWidth
         import re
         
         # Nettoyage des balises HTML pour le calcul de largeur
         clean_text = re.sub(r'<[^>]+>', '', text)
+        if not clean_text:
+            return base_fs
+            
+        current_width = stringWidth(clean_text, font_name, base_fs)
+        if current_width <= 0:
+            return base_fs
+            
+        # Calcul de la taille idéale par ratio
+        ratio = max_width / current_width
+        new_fs = base_fs * ratio
         
-        fs = base_fs
-        while stringWidth(clean_text, font_name, fs) > max_width and fs > min_fs:
-            fs -= 0.5
-        return fs
+        # Application des contraintes
+        if new_fs < min_fs:
+            new_fs = min_fs
+        if max_fs is not None and new_fs > max_fs:
+            new_fs = max_fs
+        elif max_fs is None and new_fs > (base_fs * 1.25):
+            # Limite l'agrandissement démesuré (ex: un mot court qui prendrait toute la page)
+            new_fs = base_fs * 1.25
+            
+        return new_fs
 
-    def get_adaptive_style(self, base_style, text, max_width, min_fs=6.5):
+    def get_adaptive_style(self, base_style, text, max_width, min_fs=6.5, max_fs=None):
         """Retourne un nouveau ParagraphStyle avec une fontSize adaptée."""
         from reportlab.lib.styles import ParagraphStyle
         
@@ -225,7 +241,8 @@ class BaseTemplate:
             base_style.fontName, 
             base_style.fontSize, 
             max_width,
-            min_fs=min_fs
+            min_fs=min_fs,
+            max_fs=max_fs
         )
         
         return ParagraphStyle(
