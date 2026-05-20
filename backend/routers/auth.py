@@ -77,7 +77,9 @@ def require_permission(permission_name: str):
 from backend.services.audit_service import audit_service
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.Token,
+    summary="Connexion locale",
+    description="Authentification email/mot de passe. Retourne un access token (JWT, 60 min) et un refresh token (7 jours).")
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -138,7 +140,9 @@ async def login_for_access_token(
     }
 
 
-@router.post("/refresh", response_model=schemas.Token)
+@router.post("/refresh", response_model=schemas.Token,
+    summary="Renouveler l'access token",
+    description="Échange un refresh token valide contre un nouveau couple access/refresh token (rotation automatique).")
 async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -174,7 +178,9 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
     }
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT,
+    summary="Déconnexion",
+    description="Révoque l'access token courant et le refresh token fourni (blacklist JTI en DB).")
 async def logout(
     body: schemas.RefreshRequest,
     token: str = Depends(oauth2_scheme),

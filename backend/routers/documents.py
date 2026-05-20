@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
@@ -35,23 +36,35 @@ doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
 # Logic moved to backend.utils.accounting_utils
 
-@router.post("/generate")
+@router.post("/generate",
+    summary="Générer un document PDF",
+    description="Génère une ordonnance, certificat, devis ou note d'honoraires. La génération ReportLab tourne dans un thread dédié pour ne pas bloquer l'event loop.")
 async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     assert_patient_access(req.patient_id, current_user, db)
-    patient = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
-    
+    patient_id = req.patient_id
     user_id = current_user.id
+
+    # Génération ReportLab dans un thread dédié (non-bloquant pour l'event loop FastAPI).
+    # Chaque thread crée sa propre session SQLAlchemy (thread-safety SQLite/SQLCipher).
+    def _generate_pdf_in_thread() -> str:
+        with database.SessionLocal() as thread_db:
+            thread_patient = thread_db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+            if req.type == "ordonnance":
+                return doc_factory.create_ordonnance(thread_patient, schemas.OrdonnanceData(**req.data), thread_db, user_id)
+            elif req.type == "certificat":
+                return doc_factory.create_certificat(thread_patient, schemas.CertificatData(**req.data), thread_db, user_id)
+            elif req.type == "devis":
+                return doc_factory.create_devis(thread_patient, schemas.DevisData(**req.data), thread_db, user_id)
+            elif req.type in ["honoraires", "note"]:
+                return doc_factory.create_note_honoraires(thread_patient, schemas.HonorairesData(**req.data), thread_db, user_id)
+            elif req.type in ["libre", "lettre"]:
+                return doc_factory.create_document_libre(thread_patient, schemas.LibreData(**req.data), thread_db, user_id)
+            raise ValueError(f"Type de document non supporté : {req.type}")
+
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+
     try:
-        if req.type == "ordonnance":
-            pdf_path = doc_factory.create_ordonnance(patient, schemas.OrdonnanceData(**req.data), db, user_id)
-        elif req.type == "certificat":
-            pdf_path = doc_factory.create_certificat(patient, schemas.CertificatData(**req.data), db, user_id)
-        elif req.type == "devis":
-            pdf_path = doc_factory.create_devis(patient, schemas.DevisData(**req.data), db, user_id)
-        elif req.type in ["honoraires", "note"]:
-            pdf_path = doc_factory.create_note_honoraires(patient, schemas.HonorairesData(**req.data), db, user_id)
-        elif req.type in ["libre", "lettre"]:
-            pdf_path = doc_factory.create_document_libre(patient, schemas.LibreData(**req.data), db, user_id)
+        pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
         
         is_financial = req.type in ["honoraires", "note", "devis"]
         should_archive = (archive or is_financial) and not preview

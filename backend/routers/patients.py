@@ -51,7 +51,9 @@ def check_dossier_availability(numero: str, db: Session = Depends(database.get_d
         "patient_name": f"{exists.nom.upper()} {exists.prenom.capitalize()}" if exists else None
     }
 
-@router.get("/", response_model=List[schemas.PatientOut])
+@router.get("/", response_model=List[schemas.PatientOut],
+    summary="Lister les patients",
+    description="Retourne tous les patients du cabinet (multi-tenant isolé). Supporte la recherche par nom/prénom/dossier. Header X-Total-Count disponible pour la pagination future.")
 def read_patients(
     response: Response,
     skip: int = 0,
@@ -78,7 +80,9 @@ def read_patients(
 
 from backend.services.audit_service import audit_service
 
-@router.post("/", response_model=schemas.PatientOut)
+@router.post("/", response_model=schemas.PatientOut,
+    summary="Créer un patient",
+    description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
 def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance)
     if existing and not force_create:

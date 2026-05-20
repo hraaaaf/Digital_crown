@@ -694,7 +694,51 @@ class RevokedToken(Base):
     Stockage persistant des tokens révoqués (JTI Blacklist).
     """
     __tablename__ = "revoked_tokens"
-    
+
     jti: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+
+# ==============================================================================
+# DONNÉES CLINIQUES (Contre-indications, Pharmacopée, Protocoles)
+# Versionnées en DB pour permettre les mises à jour sans redéploiement.
+# ==============================================================================
+
+class ClinicalContraindication(Base):
+    """Antécédent → liste de molécules contre-indiquées."""
+    __tablename__ = "clinical_contraindications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    antecedent: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    molecule: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ClinicalDrug(Base):
+    """Molécule → noms commerciaux marocains, dosages, forme galénique."""
+    __tablename__ = "clinical_drugs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    molecule: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    brand_names: Mapped[list] = mapped_column(JSON, default=list)
+    dosages: Mapped[list] = mapped_column(JSON, default=list)
+    form: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ClinicalProtocolDB(Base):
+    """Procédure → molécules recommandées + conseil post-opératoire (versionnées en DB)."""
+    __tablename__ = "clinical_protocols_db"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    procedure: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    molecules: Mapped[list] = mapped_column(JSON, default=list)
+    advice: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 

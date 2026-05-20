@@ -13,6 +13,7 @@ from backend import models, database
 from backend.services.sync_manager import sync_manager
 from backend.seed_templates import run_full_seed
 from backend.seed_user import seed_admin_user
+from backend.seed_clinical import seed_clinical_data
 from backend.services.panoramic_service import panoramic_engine
 from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
@@ -50,7 +51,8 @@ async def lifespan(app: FastAPI):
         
         with database.SessionLocal() as db:
             run_full_seed(db)
-        
+            seed_clinical_data(db)
+
         # S'assure que l'admin par defaut existe
         seed_admin_user()
         
@@ -107,7 +109,7 @@ async def request_logging_middleware(request: Request, call_next):
     return response
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -122,6 +124,7 @@ app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes
 app.include_router(accounting.router, prefix="/api/accounting", tags=["Accounting & Payments"])
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
+app.include_router(clinical_data.router, prefix="/api/clinical-data", tags=["Données Cliniques"])
 
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)
