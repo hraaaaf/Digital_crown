@@ -164,7 +164,22 @@ app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 FRONTEND_DIST = AppPaths.get_static_dir()
 
 if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+    from fastapi.responses import FileResponse
+
+    # Assets statiques (JS, CSS, images, sw.js, manifest.json…)
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="frontend_assets")
+
+    # Fichiers à la racine du dist (sw.js, manifest.json, logo_gold.png…)
+    _dist_root_files = {p.name for p in FRONTEND_DIST.iterdir() if p.is_file()}
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        # Fichier statique connu à la racine du dist → le servir directement
+        if full_path in _dist_root_files:
+            return FileResponse(str(FRONTEND_DIST / full_path))
+        # Toute autre route SPA → index.html (React Router gère)
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+
     logger.info(f"Frontend servit depuis : {FRONTEND_DIST}")
 else:
     @app.get("/")
