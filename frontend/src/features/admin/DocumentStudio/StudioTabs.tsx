@@ -10,14 +10,7 @@ interface StudioTabsProps {
 
 export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 'data-tour': dataTour }) => {
   return (
-    <div data-tour={dataTour} className="flex bg-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto shrink-0 relative z-50">
-      <TabButton 
-        active={activeTab === 'plan'} 
-        onClick={() => onTabChange('plan')} 
-        icon={<Brain size={16} />} 
-        label="Stratégie" 
-        tourId="tab-strategie"
-      />
+    <div data-tour={dataTour} className="flex justify-center bg-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto shrink-0 relative z-50">
       <TabButton 
         active={activeTab === 'ordonnance'} 
         onClick={() => onTabChange('ordonnance')} 
@@ -47,18 +40,18 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
         tourId="tab-honoraires"
       />
       <TabButton 
-        active={activeTab === 'lettre'} 
-        onClick={() => onTabChange('lettre')} 
-        icon={<Type size={16} />} 
-        label="Lettre Médicale" 
-        tourId="tab-lettre"
-      />
-      <TabButton 
         active={activeTab === 'libre'} 
         onClick={() => onTabChange('libre')} 
         icon={<Type size={16} />} 
         label="Document Libre" 
         tourId="tab-libre"
+      />
+      <TabButton 
+        active={activeTab === 'plan'} 
+        onClick={() => onTabChange('plan')} 
+        icon={<Brain size={16} />} 
+        label="Compagnon Diagnostique" 
+        tourId="tab-strategie"
       />
     </div>
   );

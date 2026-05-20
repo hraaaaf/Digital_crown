@@ -29,6 +29,17 @@ class TreatmentPlanEngine:
         "suivi": 6           # Phase Maintenance
     }
 
+    # Tarification moyenne Marocaine (MAD)
+    PRICING_MAP = {
+        "carie": 400.0,
+        "carie_profonde": 1200.0,
+        "abcès": 500.0,
+        "détartrage": 500.0,
+        "implant": 8000.0,
+        "couronne": 3500.0,
+        "extraction": 500.0
+    }
+
     def generate_plan(self, detections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Transforme une liste de détections panoramiques en un plan de traitement structuré.
@@ -50,12 +61,20 @@ class TreatmentPlanEngine:
                 # Détermination de la phase basée sur le label
                 phase_key = self._map_to_phase(label)
                 
+                # Résilience de mapping tarifaire
+                cost = 0.0
+                for k, v in self.PRICING_MAP.items():
+                    if k in label or label in k:
+                        cost = v
+                        break
+                
                 # Création de l'acte suggéré
                 act_suggestion = {
                     "id": f"act_{datetime.now().timestamp()}_{fdi}",
                     "fdi": fdi,
                     "diagnosis": label.capitalize(),
                     "suggested_act": self._suggest_act(label),
+                    "estimated_cost": cost,
                     "priority": self.PRIORITY_MAP.get(label, 99),
                     "status": "SUGGESTED"
                 }
@@ -66,11 +85,14 @@ class TreatmentPlanEngine:
             for key in phases:
                 phases[key] = sorted(phases[key], key=lambda x: x["priority"])
 
+            total_cost = sum(act["estimated_cost"] for phase in phases.values() for act in phase)
+
             return {
                 "patient_id": None, # Sera injecté par le service appelant
                 "created_at": datetime.now().isoformat(),
                 "phases": phases,
-                "summary": self._generate_summary(phases)
+                "total_cost": total_cost,
+                "summary": self._generate_summary(phases, total_cost)
             }
 
         except Exception as e:
@@ -100,15 +122,18 @@ class TreatmentPlanEngine:
             "couronne": "Pose de couronne céramo-métallique",
             "extraction": "Extraction d'une dent monoradiculée"
         }
-        return suggestions.get(label, "Examen approfondi requis")
+        for k, v in suggestions.items():
+            if k in label or label in k:
+                return v
+        return "Examen approfondi requis"
 
-    def _generate_summary(self, phases: Dict) -> str:
+    def _generate_summary(self, phases: Dict, total_cost: float) -> str:
         """Génère un résumé textuel de la stratégie."""
         counts = {k: len(v) for k, v in phases.items() if v}
         if not counts:
             return "Aucun traitement particulier suggéré. Maintenance périodique."
         
         main_focus = max(counts, key=counts.get)
-        return f"Plan de traitement orienté vers la {main_focus.lower()}. Priorité aux soins de la phase {list(counts.keys())[0]}."
+        return f"Plan de traitement orienté vers la {main_focus.lower()} pour un budget estimé de {total_cost:,.2f} MAD. Priorité aux soins de la phase {list(counts.keys())[0]}."
 
 treatment_plan_engine = TreatmentPlanEngine()

@@ -83,96 +83,80 @@ class PanoramicReportEngine:
                     label = ANOMALY_LABELS.get(a, a)
                     teeth_map[fdi].add(label)
 
-            lines = []
-            lines.append("# COMPTE-RENDU D'EXPERTISE RADIOGRAPHIQUE (ELITE)")
-            lines.append(f"*Généré le {datetime.datetime.now().strftime('%d/%m/%Y à %H:%M')}*")
-            lines.append("\n---")
-
-            # 1. QUALITÉ TECHNIQUE ET ANALYSE GÉNÉRALE
-            lines.append("\n## 1. QUALITÉ TECHNIQUE ET CADRAGE")
-            lines.append("- **Exposition** : Satisfaisante, contraste optimal permettant l'analyse fine des structures trabéculaires.")
-            lines.append("- **Centrage** : Correct, inclusion complète des condyles mandibulaires et des sinus maxillaires.")
-            lines.append("- **Articulé** : Bout à bout incisif respecté, absence de superposition majeure.")
-
-            # 2. REVUE ANATOMIQUE (STRUCTURES NON-DENTAIRES)
-            lines.append("\n## 2. REVUE ANATOMIQUE DES STRUCTURES NOBLES")
-            
-            # Analyse Sinusienne
-            sinus_status = "Libres, absence d'épaississement muqueux ou d'opacité suspecte."
-            if any(f in [18, 17, 16, 15, 25, 26, 27, 28] for f in teeth_map.keys()):
-                sinus_status += " À noter la proximité immédiate de certaines racines avec le plancher sinusien (Dents antrales)."
-            lines.append(f"### Cavités et Sinus Maxillaires\n- {sinus_status}")
-
-            # Analyse Osseuse et ATM
-            lines.append("### Structures Osseuses et Articulaires")
-            lines.append("- **Mandibule** : Aspect symétrique des branches montantes. Continuité de la ligne basilaire.")
-            lines.append("- **ATM** : Morphologie condylienne normale, absence de signes d'érosion ou d'aplatissement (arthrose).")
-            lines.append("- **Canal Dentaire Inférieur** : Trajet régulier, rapports de proximité à évaluer sur les secteurs postérieurs.")
-
-            # 3. ANALYSE ODONTOLOGIQUE (TOPOGRAPHIE FDI)
-            if not teeth_map:
-                lines.append("\n## 3. ANALYSE ODONTOLOGIQUE\n- Absence d'anomalie dentaire, carieuse ou périapicale décelable.")
-            else:
-                sectors = {
-                    "Secteur 1 (Haut-Droit)": [18, 17, 16, 15, 14, 13, 12, 11],
-                    "Secteur 2 (Haut-Gauche)": [21, 22, 23, 24, 25, 26, 27, 28],
-                    "Secteur 3 (Bas-Gauche)": [31, 32, 33, 34, 35, 36, 37, 38],
-                    "Secteur 4 (Bas-Droit)": [41, 42, 43, 44, 45, 46, 47, 48]
-                }
-
-                lines.append("\n## 3. ANALYSE ODONTOLOGIQUE DÉTAILLÉE")
-                for sector_name, fdi_list in sectors.items():
-                    sector_findings = []
-                    for fdi in fdi_list:
-                        if fdi in teeth_map:
-                            findings = ", ".join(sorted(list(teeth_map[fdi])))
-                            # Enrichissement terminologique
-                            ccam_hits = [CCAM_SUGGESTIONS[a] for a in list(teeth_map[fdi]) if a in CCAM_SUGGESTIONS]
-                            ccam_str = f" [Code suggéré: {', '.join(ccam_hits)}]" if ccam_hits else ""
-                            
-                            if "Carie" in findings: findings = findings.replace("Carie", "Lésion carieuse")
-                            if "Kyste" in findings: findings = findings.replace("Kyste", "Image radio-claire périapicale")
-                            sector_findings.append(f"- **Dent {fdi}** : {findings}{ccam_str}")
+            pathology_map = {}
+            for fdi, pathologies in teeth_map.items():
+                for p in pathologies:
+                    if p not in pathology_map:
+                        pathology_map[p] = []
+                    pathology_map[p].append(fdi)
                     
-                    if sector_findings:
-                        lines.append(f"### {sector_name}")
-                        lines.extend(sector_findings)
+            for p in pathology_map:
+                pathology_map[p].sort()
 
-            # 4. SYNTHÈSE ET PRÉCONISATIONS CLINIQUES (CALLOUT)
-            lines.append("\n## 4. SYNTHÈSE DES TRAITEMENTS ET ORIENTATIONS")
+            lines = []
             
-            # Reconstruction du résumé basé sur les découvertes
-            summary = []
-            all_findings = [item for sublist in teeth_map.values() for item in sublist]
+            lines.append("### TECHNIQUE")
+            lines.append("- Examen réalisé par un appareil numérique permettant un seul scannage à faible dose de rayonnement.")
+            lines.append("")
             
-            # Priorités Endo/Cons
-            endo_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Carie profonde", "Lésion périapicale", "Tr. incomplet"] for x in fs)]
-            if endo_targets:
-                summary.append(f"- **Thérapeutique Endodontique** : Assainissement et/ou retraitement requis pour {', '.join(endo_targets)}.")
+            lines.append("### RÉSULTATS")
+            lines.append("- Dentition de type adulte.")
             
-            # Priorités Chirurgie
-            surg_targets = [f"D{f}" for f, fs in teeth_map.items() if any(x in ["Inclusion", "Dent incluse", "Reste radiculaire"] for x in fs)]
-            if surg_targets:
-                summary.append(f"- **Chirurgie Orale** : Extraction ou dégagement à planifier pour {', '.join(surg_targets)}.")
+            for path, fdis in pathology_map.items():
+                if len(fdis) == 1:
+                    fdis_str = f"la dent {fdis[0]}"
+                elif len(fdis) == 2:
+                    fdis_str = f"les dents {fdis[0]} et {fdis[1]}"
+                else:
+                    fdis_str = f"les dents {', '.join(str(f) for f in fdis[:-1])} et {fdis[-1]}"
+                    
+                path_lower = path.lower()
+                
+                if "carie" in path_lower:
+                    lines.append(f"- Lésions carieuses au niveau de {fdis_str}.")
+                elif "kyste" in path_lower or "périapicale" in path_lower:
+                    lines.append(f"- Lésion périapicale / Granulome sur {fdis_str}.")
+                elif "couronne" in path_lower or "implant" in path_lower or "bridge" in path_lower:
+                    lines.append(f"- Matériel prothétique ({path}) en place sur {fdis_str}.")
+                elif "incluse" in path_lower or "enclavée" in path_lower:
+                    lines.append(f"- Dent(s) en inclusion / enclavée(s) : {fdis_str}.")
+                elif "reste" in path_lower or "radiculaire" in path_lower:
+                    lines.append(f"- Racines résiduelles de {fdis_str}.")
+                elif "obturation" in path_lower or "composite" in path_lower:
+                    lines.append(f"- Matériel radio-opaque (obturation) sur {fdis_str}.")
+                elif "canalaire" in path_lower:
+                    lines.append(f"- Traitement canalaire sur {fdis_str}.")
+                elif "alvéolyse" in path_lower:
+                    lines.append(f"- Alvéolyse visible au niveau de {fdis_str}.")
+                else:
+                    lines.append(f"- {path} objectivé(e) sur {fdis_str}.")
 
-            # Paro
-            if any("Alvéolyse" in f or "Tartre" in f for f in all_findings):
-                summary.append("- **Parodontologie** : Traitement parodontal non-chirurgical (surfaçage) préconisé pour stabiliser l'alvéolyse.")
+            sinus_roots = [f for f in teeth_map.keys() if f in [17, 16, 15, 27, 26, 25]]
+            if sinus_roots:
+                if len(sinus_roots) == 1:
+                    lines.append(f"- La racine de la dent {sinus_roots[0]} arrive au contact du plancher sinusien.")
+                else:
+                    s_str = ", ".join(str(f) for f in sorted(sinus_roots))
+                    lines.append(f"- Les racines des dents {s_str} font saillie ou arrivent au contact du plancher sinusien.")
 
-            if not summary:
-                summary.append("Examen de routine : À reconduire selon le protocole de surveillance habituel.")
-            
-            lines.extend(summary)
+            mandibular_roots = [f for f in teeth_map.keys() if f in [38, 37, 48, 47]]
+            if mandibular_roots:
+                if len(mandibular_roots) == 1:
+                    lines.append(f"- La racine de la dent {mandibular_roots[0]} arrive au contact du canal mandibulaire.")
+                else:
+                    m_str = ", ".join(str(f) for f in sorted(mandibular_roots))
+                    lines.append(f"- Proximité entre les racines des dents {m_str} et le canal mandibulaire.")
+            else:
+                lines.append("- Canal mandibulaire à distance des racines dentaires.")
 
-            # Disclaimer
-            lines.append("\n---\n> *Ce bilan automatisé constitue une aide au diagnostic. L'interprétation finale et la décision thérapeutique incombent exclusivement au praticien référent.*")
-            
+            lines.append("- Transparence normale des cuvettes des sinus maxillaires.")
+            lines.append("- Cloison nasale médiane.")
+            lines.append("- Absence de lésion osseuse d'allure suspecte et respect des articulations temporo-mandibulaires.")
+
             return "\n".join(lines)
-
             
         except Exception as e:
             logger.error(f"Erreur Report Engine : {e}")
             return "## Erreur lors de la génération du rapport."
 
 panoramic_report_engine = PanoramicReportEngine()
-

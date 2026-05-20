@@ -82,6 +82,40 @@ class HabitsEngine:
 
         return min(0.95, (habit.usage_count / total_doctor_usages) * 10)
 
+    def get_recommended_duration(self, act_name: str) -> int:
+        """
+        Calcule dynamiquement la durée optimale recommandée (en minutes) 
+        selon la complexité de l'acte clinique.
+        """
+        name = act_name.upper().strip()
+        
+        if "CANAL" in name or "ENDO" in name:
+            if "PLURI" in name or "MOLAIRE" in name:
+                return 60
+            return 45
+            
+        if "IMPLANT" in name:
+            return 90
+        if "CHIRURGIE" in name or "BIOPSIE" in name:
+            return 60
+            
+        if "EXTRACTION" in name or "AVULSION" in name:
+            if "SAGESSE" in name or "INCLUS" in name or "COMPLEXE" in name:
+                return 45
+            return 30
+            
+        if "COURONNE" in name or "PROTHÈSE" in name or "FACETTE" in name:
+            return 45
+        if "COMPOSITE" in name or "RECONSTRUCTION" in name:
+            return 30
+            
+        if "DÉTARTRAGE" in name or "PROPHYLAXIE" in name:
+            return 30
+        if "CONSULTATION" in name or "EXAMEN" in name or "BILAN" in name:
+            return 15
+            
+        return 30
+
     def check_proactive_triggers(self, db: Session, patient_id: int) -> List[Dict[str, Any]]:
         """
         Machine à états : analyse le dossier patient pour déclencher des actions.

@@ -123,7 +123,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   activePointId: null,
   imgFilters: { brightness: 100, contrast: 110, invert: false },
   imgDim: { w: 800, h: 1000 },
-  mode: 'light',
+  mode: (document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige') ? 'dark' : 'light',
   magnifierEnabled: false,
   performanceMode: false,
   isStep1Fullscreen: false,

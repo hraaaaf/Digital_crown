@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, text
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -10,6 +10,12 @@ import logging
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
+from backend.services.zka_service import zka_service
+from backend.services.sync_manager import sync_manager
+from backend.services.qr_service import QRService
+import qrcode
+import io
+import base64
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin & Dashboard"])
@@ -32,7 +38,13 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     
     total_p = db.query(models.Patient).filter(models.Patient.employer_id == emp_id).count()
     total_a = db.query(models.CephaloAnalysis).join(models.Patient).filter(models.Patient.employer_id == emp_id).count()
-    db_recent = db.query(models.Patient).filter(models.Patient.employer_id == emp_id).order_by(models.Patient.created_at.desc()).limit(5).all()
+    db_recent = db.query(models.Patient).filter(
+        models.Patient.employer_id == emp_id
+    ).options(
+        joinedload(models.Patient.actes)
+    ).order_by(
+        models.Patient.created_at.desc()
+    ).limit(5).all()
     
     # Calcul de l'activité sur les 7 derniers jours
     weekly_activity = []
@@ -139,3 +151,83 @@ def export_database(db: Session = Depends(database.get_db), current_user: models
         subprocess.run(["pg_dump", "-h", url.host or "localhost", "-U", url.username or "postgres", "-f", dump_path, url.database], env=env, check=True)
         return FileResponse(path=dump_path, filename=f"backup_{now_str}.sql")
     raise HTTPException(status_code=400, detail="Moteur non supporté")
+
+
+@router.get("/zka-key-qr")
+def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Génère un QR d'appairage mobile ZKA sécurisé.
+    La masterKey NE transite PAS dans l'URL — le QR encode un token éphémère UUID (TTL 5 min).
+    Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
+    """
+    import uuid
+    from datetime import timedelta
+
+    emp_id = current_user.get_employer_id()
+
+    config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == emp_id).first()
+    master_key = os.getenv("CABINET_MASTER_KEY_HEX")
+
+    if not config or not master_key:
+        raise HTTPException(status_code=404, detail="Configuration ZKA incomplète.")
+
+    # Purger les tokens expirés de cet employeur (nettoyage passif)
+    db.query(models.ZKAPairingToken).filter(
+        models.ZKAPairingToken.employer_id == emp_id,
+        models.ZKAPairingToken.expires_at < datetime.utcnow(),
+    ).delete()
+
+    # Générer un token éphémère à usage unique (5 min)
+    pairing_token = str(uuid.uuid4())
+    db.add(models.ZKAPairingToken(
+        token=pairing_token,
+        employer_id=emp_id,
+        public_id=config.public_id,
+        master_key=master_key,
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+    ))
+    db.commit()
+
+    # Le QR encode l'URL LAN du serveur avec le token — jamais la clé
+    from backend.routers.mobile import get_lan_base_url
+    base_url = get_lan_base_url()
+    qr_payload = f"{base_url}/mobile/onboarding?token={pairing_token}"
+
+    try:
+        qr_bytes = QRService.generate_qr_bytes(
+            qr_payload,
+            color="#4F46E5",
+            box_size=10,
+            add_logo=False,
+            qr_style="classic",
+        )
+        img_str = base64.b64encode(qr_bytes.getvalue()).decode()
+        return {
+            "qr_code": f"data:image/png;base64,{img_str}",
+            "expires_in": 300,
+            "lan_url": base_url,
+        }
+    except Exception as e:
+        logger.error(f"Erreur génération QR ZKA: {e}")
+        raise HTTPException(status_code=500, detail="Échec de génération du QR Code.")
+
+
+@router.post("/revoke-mobile")
+def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """Révoque l'accès mobile en changeant la clé maître et en forçant une synchro."""
+    try:
+        emp_id = current_user.get_employer_id()
+        env_path = os.path.join(os.getcwd(), "backend", ".env")
+        
+        # 1. Rotation de la clé (Mémoire + .env)
+        new_key = zka_service.rotate_master_key(env_path)
+        
+        # 2. Force une synchronisation immédiate avec la nouvelle clé
+        # Cela rendra les anciens snapshots sur Supabase obsolètes ou illisibles avec l'ancienne clé
+        sync_manager._perform_sync(emp_id)
+        
+        logger.info(f"🚨 Accès mobile révoqué par l'utilisateur {current_user.id}")
+        return {"status": "success", "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter."}
+    except Exception as e:
+        logger.error(f"Erreur lors de la révocation ZKA: {e}")
+        raise HTTPException(status_code=500, detail="Échec de la révocation")

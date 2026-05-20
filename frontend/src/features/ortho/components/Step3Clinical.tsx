@@ -254,7 +254,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
                     className="w-full bg-transparent font-bold text-sm outline-none"
                     style={{ color: P.text }}
                   >
-                    <option value="DAMON">Damon (Passif)</option>
+                    <option value="DAMON">Damon (Actif)</option>
                     <option value="CLASSIC">Classique</option>
                     <option value="ALIGNEURS">Aligneurs</option>
                   </select>
@@ -305,6 +305,33 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
                       <option value="modéré">Modéré</option>
                       <option value="sévère">Sévère</option>
                       <option value="excès">Excès de place</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Division (Cl. II)</span>
+                    <select 
+                      value={data.division || ''}
+                      onChange={(e) => onChange(prev => ({ ...prev, division: e.target.value as any }))}
+                      className="bg-transparent text-xs font-black outline-none text-right"
+                      style={{ color: P.text }}
+                    >
+                      <option value="">N/A</option>
+                      <option value="1">Division 1</option>
+                      <option value="2">Division 2</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Type d'Arcade</span>
+                    <select 
+                      value={data.type_arcade || ''}
+                      onChange={(e) => onChange(prev => ({ ...prev, type_arcade: e.target.value as any }))}
+                      className="bg-transparent text-xs font-black outline-none text-right"
+                      style={{ color: P.text }}
+                    >
+                      <option value="">Indéterminé</option>
+                      <option value="U">Forme U</option>
+                      <option value="V">Forme V</option>
+                      <option value="CARREE">Forme Carrée</option>
                     </select>
                   </div>
                 </div>

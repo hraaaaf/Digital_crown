@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, CheckCircle2, AlertCircle, Zap, RefreshCcw, ChevronRight,
   ShieldCheck, Stethoscope, Pill, Trash2, Plus, Microscope,
-  Package, Droplets, FlaskConical, Wind, BadgeMinus, Hash,
+  Package, Droplets, FlaskConical, Wind, BadgeMinus, Hash, Loader2,
+  ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import { api } from '../../../../services/api';
+import toast from 'react-hot-toast';
 import type { ValidationError } from '../useDocumentGenerator';
 
 export interface DrugItem {
@@ -47,6 +49,63 @@ const FORMES = [
   { l: 'AUTRE', icon: Hash },
 ];
 
+const DEFAULT_MOROCCO_PRESETS = [
+  {
+    label: 'Avulsion Simple',
+    color: 'blue',
+    drugs: [
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour pendant 4 jours' },
+      { name: 'HEXTRIL', dosage: '-', forme: 'BAIN DE BOUCHE', posologie: '2 rincages / jour pendant 7 jours' }
+    ]
+  },
+  {
+    label: 'Extraction Sagesse / Chirurgie',
+    color: 'rose',
+    drugs: [
+      { name: 'CLAMOXYL', dosage: '1G', forme: 'GÉLULES', posologie: '1 gél Matin et Soir pendant 6 jours' },
+      { name: 'ANTADYS', dosage: '100MG', forme: 'COMPRIMÉS', posologie: '1 cp Matin et Soir pendant 3 jours (au milieu des repas)' },
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour si douleur' },
+      { name: 'HEXTRIL', dosage: '-', forme: 'BAIN DE BOUCHE', posologie: '2 rincages / jour à partir de demain' }
+    ]
+  },
+  {
+    label: 'Abcès / Infection',
+    color: 'emerald',
+    drugs: [
+      { name: 'AUGMENTIN', dosage: '1G', forme: 'SACHETS', posologie: '1 sach Matin et Soir pendant 7 jours' },
+      { name: 'BI-RODOGYL', dosage: '-', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour pendant 7 jours' },
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour' }
+    ]
+  },
+  {
+    label: 'Gingivite / Parodontite',
+    color: 'teal',
+    drugs: [
+      { name: 'BI-RODOGYL', dosage: '-', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour pendant 6 jours' },
+      { name: 'HEXTRIL', dosage: '-', forme: 'BAIN DE BOUCHE', posologie: '2 rincages / jour pendant 10 jours' },
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour si douleur' }
+    ]
+  },
+  {
+    label: 'Pulpite / Douleur Aiguë',
+    color: 'amber',
+    drugs: [
+      { name: 'ALGODONT', dosage: '-', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour' },
+      { name: 'SOLUPRED', dosage: '20MG', forme: 'COMPRIMÉS', posologie: '3 cp le matin pendant 3 jours' }
+    ]
+  },
+  {
+    label: 'Chirurgie Implantaire',
+    color: 'indigo',
+    drugs: [
+      { name: 'AUGMENTIN', dosage: '1G', forme: 'SACHETS', posologie: '1 sach Matin et Soir pendant 7 jours' },
+      { name: 'SOLUPRED', dosage: '20MG', forme: 'COMPRIMÉS', posologie: '3 cp le matin pendant 3 jours' },
+      { name: 'ANTADYS', dosage: '100MG', forme: 'COMPRIMÉS', posologie: '1 cp Matin et Soir pendant 3 jours' },
+      { name: 'HEXTRIL', dosage: '-', forme: 'BAIN DE BOUCHE', posologie: '2 rincages / jour' }
+    ]
+  }
+];
+
 function getFormeIcon(forme: string) {
   const match = FORMES.find(f => forme.startsWith(f.l) || forme.toUpperCase().startsWith(f.l));
   const Icon = match?.icon || Pill;
@@ -84,6 +143,22 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [formeDropdownCoords, setFormeDropdownCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [presets, setPresets] = useState<any[]>([]);
   const [showPresets, setShowPresets] = useState(true);
+  const [savingAsPreset, setSavingAsPreset] = useState(false);
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+
+  // --- MOVE DRUG LOGIC ---
+  const moveDrug = useCallback((id: number, direction: 'up' | 'down') => {
+    const idx = drugs.findIndex(d => d.id === id);
+    if (idx === -1) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === drugs.length - 1) return;
+
+    const newDrugs = [...drugs];
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    [newDrugs[idx], newDrugs[targetIdx]] = [newDrugs[targetIdx], newDrugs[idx]];
+    setDrugs(newDrugs);
+  }, [drugs, setDrugs]);
 
   // --- QUICK ENTRY EVOLVED ---
   const [quickVal, setQuickVal] = useState('');
@@ -303,6 +378,68 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       }).catch(() => {});
     }
   }, [onUpdateDrug]);
+
+  const applyPresetWithSafety = useCallback((presetDrugs: any[]) => {
+    // 1. Détection de l'âge du patient (si dispo dans assessment)
+    const isChild = assessment?.age < 15 || assessment?.is_child;
+    const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
+
+    const adaptedDrugs = presetDrugs.map((d: any, i: number) => {
+      let drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
+      
+      // LOGIQUE D'ADAPTATION SMART
+      // a. Allergie Pénicilline
+      if (history.includes('ALLERGIE') && (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'))) {
+        if (drug.name.includes('CLAMOXYL') || drug.name.includes('AMOXICILLINE') || drug.name.includes('AUGMENTIN')) {
+          drug.name = 'RODOGYL';
+          drug.dosage = '-';
+          drug.posologie = '1 cp x 3 / jour pendant 7 jours (Substitution Allergie)';
+        }
+      }
+
+      // b. Ajustement Pédiatrique (Simplifié)
+      if (isChild) {
+        if (drug.name === 'DOLIPRANE' && drug.dosage === '1G') {
+          drug.dosage = '500MG';
+          drug.posologie = drug.posologie.replace('1 cp', '1/2 cp');
+        }
+        if (drug.name === 'ANTADYS') {
+          drug.name = 'PARACETAMOL'; // On évite les AINS forts chez le petit enfant par précaution ici
+          drug.dosage = '500MG';
+        }
+      }
+
+      return drug;
+    });
+
+    setDrugs(adaptedDrugs);
+    setStep('PLANNING');
+    
+    if (isChild) {
+      toast("Ordonnance adaptée au profil pédiatrique.", { icon: '👶' });
+    }
+  }, [assessment, setDrugs]);
+
+  const saveCurrentAsPreset = async () => {
+    if (!newPresetName.trim()) return;
+    setSavingAsPreset(true);
+    try {
+      await api.post('/prescriptions/preferences', {
+        act_code: newPresetName.toUpperCase(),
+        drugs: drugs.map(d => ({
+          name: d.name, dosage: d.dosage, forme: d.forme, posologie: d.posologie
+        }))
+      });
+      setShowSavePresetModal(false);
+      setNewPresetName('');
+      fetchPresets();
+      toast.success(`Preset "${newPresetName}" enregistré !`);
+    } catch {
+      toast.error("Erreur lors de l'enregistrement du preset.");
+    } finally {
+      setSavingAsPreset(false);
+    }
+  };
 
   // Ajouter une molécule depuis les suggestions IA — sans race condition
   const addMolecule = useCallback((molecule: string) => {
@@ -524,65 +661,60 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             </div>
           </div>
 
-        {/* SPEED-PILLS : Favoris du Docteur */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide px-2">
-          {['DOLIPRANE 1G', 'AUGMENTIN 1G', 'ANTADYS 100MG', 'SOLUPRED 20MG', 'HEXTRIL'].map(fav => (
-            <button
-              key={fav}
-              onClick={() => {
-                const [name, dose] = fav.split(' ');
-                setDrugs([{
-                  id: Date.now(),
-                  name,
-                  dosage: dose || '',
-                  forme: fav.includes('HEXTRIL') ? 'BAIN DE BOUCHE' : 'COMPRIMÉS',
-                  posologie: '',
-                  type: 'MEDICAMENT',
-                  quantite: 1
-                }, ...drugs]);
-                setStep('PLANNING');
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black text-slate-600 uppercase hover:bg-primary hover:text-white hover:border-primary transition-all whitespace-nowrap shadow-sm group"
-            >
-              <Pill size={10} className="group-hover:rotate-12 transition-transform" />
-              {fav}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* PRESETS BAR */}
       <AnimatePresence>
-        {presets.length > 0 && showPresets && (
+        {showPresets && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide"
+            className="flex flex-col gap-3"
           >
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 ml-4">Presets :</span>
-            {presets.map(p => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  const newDrugs = p.drugs.map((d: any, i: number) => ({
-                    id: Date.now() + i,
-                    name: d.name,
-                    dosage: d.dosage,
-                    forme: d.forme || 'COMPRIMÉS',
-                    posologie: d.posologie,
-                    type: 'MEDICAMENT',
-                    quantite: 1
-                  }));
-                  setDrugs(newDrugs);
-                }}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-2xl text-[9px] font-black text-slate-600 uppercase hover:border-primary hover:text-primary hover:bg-primary/5 transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip"
-              >
-                <div className="w-1 h-1 rounded-full bg-slate-300 group-hover/chip:bg-primary transition-colors" />
-                {p.act_context}
-              </button>
-            ))}
-            <button onClick={() => setShowPresets(false)} className="p-1.5 text-slate-300 hover:text-slate-500"><BadgeMinus size={14} /></button>
+            <div className="flex items-center justify-between px-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocoles Cliniques Marocains</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                <span className="text-[8px] font-bold text-slate-300 uppercase italic">Smart Adaptation active</span>
+              </div>
+              <button onClick={() => setShowPresets(false)} className="text-[9px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-tighter transition-colors">Masquer</button>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide px-4">
+              {/* SYSTEM PRESETS */}
+              {DEFAULT_MOROCCO_PRESETS.map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => applyPresetWithSafety(p.drugs)}
+                  className={cn(
+                    "px-4 py-2 bg-white border rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip",
+                    p.color === 'blue' ? "border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
+                    p.color === 'rose' ? "border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
+                    p.color === 'emerald' ? "border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white" :
+                    p.color === 'amber' ? "border-amber-100 text-amber-600 hover:bg-amber-600 hover:text-white" :
+                    p.color === 'indigo' ? "border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white" :
+                    "border-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white"
+                  )}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover/chip:opacity-100" />
+                  {p.label}
+                </button>
+              ))}
+
+              {/* USER PRESETS */}
+              {presets.length > 0 && <div className="h-4 w-px bg-slate-200 mx-2 shrink-0" />}
+              {presets.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => applyPresetWithSafety(p.drugs)}
+                  className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip"
+                >
+                  <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
+                  {p.act_context}
+                </button>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -728,35 +860,58 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                       isRadio && 'border-amber-100 bg-amber-50/5'
                     )}
                   >
-                    <div className="grid grid-cols-12 gap-4 items-center">
-                      {/* Toggle Type (Icone Seule pour gain de place) */}
-                      <div className="col-span-12 lg:col-span-1 flex flex-col items-center gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/30 self-stretch justify-center">
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      {/* MOVE ACTIONS (LEFT) */}
+                      <div className="col-span-12 lg:col-span-1 flex flex-col items-center justify-center self-stretch border-r border-slate-100/50 pr-2">
+                        <div className="flex flex-col gap-0.5 opacity-40 group-hover:opacity-100 transition-all duration-500">
+                          <button
+                            onClick={() => moveDrug(drug.id, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all disabled:opacity-0 active:scale-90"
+                            title="Monter"
+                          >
+                            <ChevronUp size={16} strokeWidth={3} />
+                          </button>
+                          <div className="w-1 h-1 rounded-full bg-slate-200 mx-auto my-0.5 group-hover:bg-primary/30" />
+                          <button
+                            onClick={() => moveDrug(drug.id, 'down')}
+                            disabled={idx === drugs.length - 1}
+                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all disabled:opacity-0 active:scale-90"
+                            title="Descendre"
+                          >
+                            <ChevronDown size={16} strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Toggle Type */}
+                      <div className="col-span-12 lg:col-span-1 flex flex-col items-center gap-1 p-1 bg-slate-50/50 rounded-2xl border border-slate-100/50 self-stretch justify-center">
                         <button
                           type="button"
                           onClick={() => { onUpdateDrug(drug.id, 'type', 'MEDICAMENT'); if (!drug.forme) onUpdateDrug(drug.id, 'forme', 'COMPRIMÉS'); }}
                           className={cn(
                             'p-2 rounded-xl transition-all',
-                            !isRadio ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-500',
+                            !isRadio ? 'bg-white text-primary shadow-md shadow-primary/5 ring-1 ring-primary/5' : 'text-slate-300 hover:text-slate-400',
                           )}
                           title="Médicament"
                         >
-                          <Pill size={16} style={!isRadio ? { color: 'var(--primary)' } : {}} />
+                          <Pill size={15} />
                         </button>
                         <button
                           type="button"
                           onClick={() => { onUpdateDrug(drug.id, 'type', 'EXAMEN'); onUpdateDrug(drug.id, 'dosage', ''); onUpdateDrug(drug.id, 'forme', ''); onUpdateDrug(drug.id, 'posologie', ''); }}
                           className={cn(
                             'p-2 rounded-xl transition-all',
-                            isRadio ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-500',
+                            isRadio ? 'bg-white text-amber-600 shadow-md shadow-amber-500/5 ring-1 ring-amber-500/5' : 'text-slate-300 hover:text-slate-400',
                           )}
                           title="Radio / Examen"
                         >
-                          <Microscope size={16} />
+                          <Microscope size={15} />
                         </button>
                       </div>
 
                       {/* Main Entry Area */}
-                      <div className={cn('relative col-span-12', isRadio ? 'lg:col-span-10' : 'lg:col-span-10')}>
+                      <div className={cn('relative col-span-12 lg:col-span-9')}>
                         <div className="grid grid-cols-10 gap-4 items-center">
                           {/* Name & Metadata */}
                           <div className={cn("space-y-2", isRadio ? "col-span-10" : "col-span-4")}>
@@ -776,7 +931,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                 <button
                                   type="button"
                                   onClick={e => handleFormeOpen(e, drug.id)}
-                                  className="bg-slate-100/50 px-2.5 py-1.5 rounded-xl text-[8px] font-black text-primary uppercase tracking-widest border border-transparent hover:bg-white hover:border-primary/20 transition-all flex items-center gap-1.5"
+                                  className="bg-white/80 px-2.5 py-1.5 rounded-xl text-[8px] font-black text-primary uppercase tracking-widest border border-slate-100 hover:border-primary/20 hover:shadow-sm transition-all flex items-center gap-1.5"
                                   style={{ color: 'var(--primary)' }}
                                 >
                                   {getFormeIcon(drug.forme)}
@@ -793,7 +948,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                   />
                                 )}
                                 
-                                <div className="flex items-center gap-1 bg-white/50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-1 bg-white/80 px-2.5 py-1.5 rounded-xl border border-slate-100 shadow-sm">
                                   <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Dose:</span>
                                   <input
                                     type="text"
@@ -811,7 +966,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                           {/* Posologie (Medicament Only) */}
                           {!isRadio && (
                             <div className="col-span-6 relative h-full animate-in fade-in slide-in-from-right-2">
-                              <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 group-hover:bg-white transition-all focus-within:ring-2 focus-within:ring-primary/5 focus-within:border-primary/20">
+                              <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 group-hover:bg-white transition-all focus-within:ring-2 focus-within:ring-primary/5 focus-within:border-primary/20 focus-within:shadow-sm">
                                 <textarea
                                   rows={1}
                                   className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
@@ -854,13 +1009,14 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                         </AnimatePresence>
                       </div>
 
-                      {/* Remove Action */}
-                      <div className="col-span-12 lg:col-span-1 flex justify-end">
+                      {/* REMOVE ACTION (RIGHT) */}
+                      <div className="col-span-12 lg:col-span-1 flex items-center justify-end">
                         <button
                           onClick={() => onRemoveDrug(drug.id)}
-                          className="p-2.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 active:scale-95"
+                          title="Supprimer"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
@@ -885,26 +1041,97 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             </div>
 
             {/* Actions bas de formulaire */}
-            <div className="flex gap-4 mt-6">
+            <div className="flex flex-wrap justify-center gap-4 mt-6">
               <button
                 onClick={onAddDrug}
-                className="flex-1 py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-[2.5rem] flex items-center justify-center gap-3 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-black text-xs uppercase tracking-widest"
+                className="flex-1 min-w-[200px] py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-[2.5rem] flex items-center justify-center gap-3 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-black text-xs uppercase tracking-widest"
               >
                 <Plus size={20} /> Ajouter une ligne
               </button>
 
+              {drugs.length > 0 && (
+                <button
+                  onClick={() => setShowSavePresetModal(true)}
+                  className="flex-1 min-w-[200px] py-5 bg-slate-800 text-white rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-primary transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-900/10"
+                >
+                  <ShieldCheck size={20} className="text-blue-400" /> Mémoriser ce Preset
+                </button>
+              )}
+
               <button
                 onClick={handleBatchSave}
                 disabled={savingHabits}
-                className="ml-auto px-8 py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
-                title="Action globale : enregistre vos habitudes en base de données"
+                className="flex-1 min-w-[200px] py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
+                title="Enregistre la fréquence d'utilisation de chaque médicament"
               >
                 <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
-                {savingHabits ? 'Mémorisation...' : 'Mémoriser mes habitudes'}
+                {savingHabits ? 'Mémorisation...' : 'Habitudes Apprises'}
               </button>
             </div>
 
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODALE ENREGISTREMENT PRESET */}
+      <AnimatePresence>
+        {showSavePresetModal && (
+          <div className="fixed inset-0 z-[30000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+              onClick={() => setShowSavePresetModal(false)} 
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[3rem] p-10 w-full max-w-md shadow-2xl border border-white/20"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-14 h-14 bg-primary/10 rounded-[1.5rem] flex items-center justify-center text-primary">
+                  <Brain size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Mémoriser le Preset</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Intelligence Ghost Elite</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-2">Nom de l'Acte (Ex: Implantologie)</label>
+                  <input
+                    type="text"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/30 transition-all placeholder:text-slate-300"
+                    placeholder="Saisissez le contexte clinique..."
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && saveCurrentAsPreset()}
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={() => setShowSavePresetModal(false)}
+                    className="flex-1 py-4 bg-slate-50 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={saveCurrentAsPreset}
+                    disabled={savingAsPreset || !newPresetName.trim()}
+                    className="flex-1 py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: 'var(--primary)' }}
+                  >
+                    {savingAsPreset ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

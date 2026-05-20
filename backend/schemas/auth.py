@@ -29,6 +29,7 @@ class UserOut(BaseModel):
     nom_complet: Optional[str] = None
     is_active: bool = True
     employer_id: Optional[int] = None
+    permissions: Optional[dict] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -38,6 +39,7 @@ class TeamMemberCreate(BaseModel):
     password: str = Field(min_length=8)
     nom_complet: str = Field(min_length=2)
     telephone_mobile: Optional[str] = None
+    permissions: Optional[dict] = None
 
 
 class TeamMemberUpdate(BaseModel):
@@ -47,6 +49,7 @@ class TeamMemberUpdate(BaseModel):
     telephone_mobile: Optional[str] = None
     is_active: Optional[bool] = None
     new_password: Optional[str] = Field(None, min_length=8)
+    permissions: Optional[dict] = None
 
 
 class TeamMemberOut(BaseModel):
@@ -57,6 +60,7 @@ class TeamMemberOut(BaseModel):
     telephone_mobile: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime.datetime] = None
+    permissions: Optional[dict] = None
     model_config = ConfigDict(from_attributes=True)
 
 

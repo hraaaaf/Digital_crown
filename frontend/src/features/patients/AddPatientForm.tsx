@@ -35,7 +35,7 @@ export const AddPatientForm = () => {
   // État pour la validation du numéro de dossier
   const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
 
-  const [formData, setFormData] = useState<Patient & { antecedents_medicaux?: string }>({
+  const [formData, setFormData] = useState<Omit<Patient, 'id' | 'created_at' | 'updated_at'> & { antecedents_medicaux?: string }>({
     numero_dossier: '',
     nom: prefillNom,
     prenom: prefillPrenom,
@@ -174,6 +174,10 @@ export const AddPatientForm = () => {
       if (hasDuplicate) return; // Arrêter ici, attendre la décision de l'utilisateur
     }
 
+    await performSubmit(forceCreate);
+  };
+
+  const performSubmit = async (isForced: boolean) => {
     setLoading(true);
 
     // Sanitization
@@ -186,8 +190,8 @@ export const AddPatientForm = () => {
     };
 
     try {
-      // Si forceCreate est true, on ajoute le paramètre force_create
-      const url = forceCreate ? '/patients/?force_create=true' : '/patients/';
+      // Si isForced est true, on ajoute le paramètre force_create
+      const url = isForced ? '/patients/?force_create=true' : '/patients/';
       await api.post(url, payload);
       navigate('/patients');
     } catch (err: any) {
@@ -556,11 +560,7 @@ export const AddPatientForm = () => {
                 onClick={() => {
                   setForceCreate(true);
                   setShowDuplicateModal(false);
-                  // Relancer la soumission
-                  setTimeout(() => {
-                    const event = new Event('submit') as any;
-                    document.querySelector('form')?.dispatchEvent(event);
-                  }, 100);
+                  performSubmit(true);
                 }}
                 className="w-full py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
               >

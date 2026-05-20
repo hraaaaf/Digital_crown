@@ -8,6 +8,7 @@ interface QRConfig {
   value: string;
   label: string;
   color: string | null;
+  style: string;
 }
 
 interface Props {

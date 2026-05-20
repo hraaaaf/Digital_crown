@@ -46,4 +46,55 @@
 3. **Génération PDF Stratégique** : Permettre au patient d'imprimer son plan de traitement phasé (esthétique ReportLab Elite).
 
 ---
-*Fin de session - Digital Crown v2.0 stable.*
+
+### 📅 Date : 15 Mai 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Centralisation de l'interface Ghost Elite et fiabilisation du Patient Scoring.
+
+#### 🚀 Accomplissements Techniques
+
+1. **Elite Docking Centralisé**
+   - **Unification UI** : Déportation du Ghost Brain et du Guide vers un `EliteDock` flottant, draggable et omniprésent.
+   - **Nettoyage Header** : Suppression des orbes doublons dans le header pour un design plus pur et professionnel.
+   - **Correction Interactivité** : Résolution définitive du conflit de `z-index` (10001) bloquant les clics sur les orbes.
+
+2. **Patient Scoring & Badges v1.5**
+   - **Correction CORS Backend** : Activation de la méthode `PATCH` pour autoriser la mise à jour des grades patients.
+   - **UX Discrète** : Suppression du tooltip au survol des badges pour éviter les nuisances visuelles, conformément aux standards "Ghost Elite".
+   - **Fiabilisation Interaction** : Refonte de la logique "Click-Outside" via `useRef` pour garantir que le menu de grade réagit parfaitement au clic.
+
+3. **Analyse Stratégique Intelligence V3**
+   - **Audit Ghost Brain** : Identification du passage d'une "Machine à État" (heuristiques) vers un "Co-Pilote Agentique" (LLM Conversationnel).
+   - **Roadmap V3** : Planification du Chat Clinique et de la conscience de contexte applicatif.
+
+#### 🛠️ Correctifs & Régularisations
+- **backend/main.py** : Mise à jour de la politique CORS.
+- **Header.tsx** : Nettoyage des imports inutilisés (`framer-motion`).
+- **PatientScoreBadge.tsx** : Isolation du menu via Ref et suppression du hover.
+
+---
+
+### 📅 Date : 18 Mai 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Implémentation du mode "Vue Grille" (Cards) persistant pour la liste des patients.
+
+#### 🚀 Accomplissements Techniques
+
+1. **Vue Grille Haute Fidélité (Ghost Elite)**
+   * **Conception Esthétique** : Intégration de cartes glassmorphic (`bg-card-bg/60 backdrop-blur-xl border border-border-main/60`) avec ombres premium, gradients de profil, et micro-animations de survol (translation active de -4px).
+   * **Intégration CRM & Badges** : Réutilisation dynamique du `PatientScoreBadge` pour le CRM Scoring et rendu contrasté des affiliations d'assurance.
+   * **Raccourcis & Actions Rapides** : Boutons d'édition et de suppression intégrés de façon élégante, apparaissant au survol de chaque carte.
+
+2. **Commutateur de Vue Persistant**
+   * **Toggle Premium** : Bouton de bascule fluide s'intégrant au panneau des filtres, utilisant les icônes Lucide `LayoutGrid` et `List`.
+   * **Persistance Locale** : Synchronisation immédiate avec le `localStorage` pour mémoriser le choix de vue du praticien.
+
+3. **Intégration du Double-Contrôle Clinique (CRE, DDI & Omissions)**
+   * **Visualisation Deterministic** : Cartographie des alertes cliniques issues du moteur de sécurité dans `DocumentHub.tsx` vers les badges spécifiques du `EliteAssistant` (Incohérence Clinique, Interaction Médicamenteuse, Prévention, Contre-indication) avec marquage de confiance ultra-fiable `🛡️ VÉRIFIÉ`.
+
+4. **Validation de Qualité**
+   * **TypeScript Strict** : Rapprochement et compilation 100% propre (`npx tsc --noEmit` validé à 0 erreur).
+   * **Suite de Tests Backend** : Validation complète du pipeline et des 71 tests backend sans régression.
+
+---
+*Fin de session - Digital Crown v1.7 Tablet Grid-View & Safety Edition.*

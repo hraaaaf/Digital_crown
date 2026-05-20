@@ -83,6 +83,7 @@ class User(Base):
     telephone_fixe: Mapped[Optional[str]] = mapped_column(String(20))
     telephone_mobile: Mapped[Optional[str]] = mapped_column(String(20))
     identifiants_legaux: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    permissions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=dict)
     
     # Hiérarchie : Sous-comptes rattachés à un employeur (Dentiste/Admin)
     employer_id: Mapped[Optional[int]] = mapped_column(
@@ -156,6 +157,10 @@ class Appointment(Base):
     motif: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Suivi des rappels automatisés (Twilio/WhatsMate)
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Multi-tenant
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -434,6 +439,13 @@ class CabinetConfig(Base):
     app_accent_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True, default=None)
     selected_template: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     cabinet_type: Mapped[CabinetType] = mapped_column(SQLEnum(CabinetType), default=CabinetType.PRIVE, nullable=False)
+    header_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_logo_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    header_line_height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_qr_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    footer_line_height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     
     # Gestion des contacts granulaires (Sprint 59)
     contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
@@ -444,6 +456,7 @@ class CabinetConfig(Base):
     qr_code_value: Mapped[Optional[str]] = mapped_column(String(500), nullable=True) # URL ou @handle
     qr_code_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     qr_code_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Ex: "Suivez-nous sur Instagram"
+    qr_code_style: Mapped[str] = mapped_column(String(20), default="dots", nullable=False) # classic, dots, rounded, elite
     
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de : {total_words}.")
@@ -674,3 +687,78 @@ class AuditLog(Base):
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     user: Mapped[Optional["User"]] = relationship("User")
+
+
+class RevokedToken(Base):
+    """
+    Stockage persistant des tokens révoqués (JTI Blacklist).
+    """
+    __tablename__ = "revoked_tokens"
+
+    jti: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+
+# ==============================================================================
+# DONNÉES CLINIQUES (Contre-indications, Pharmacopée, Protocoles)
+# Versionnées en DB pour permettre les mises à jour sans redéploiement.
+# ==============================================================================
+
+class ClinicalContraindication(Base):
+    """Antécédent → liste de molécules contre-indiquées."""
+    __tablename__ = "clinical_contraindications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    antecedent: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    molecule: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ClinicalDrug(Base):
+    """Molécule → noms commerciaux marocains, dosages, forme galénique."""
+    __tablename__ = "clinical_drugs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    molecule: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    brand_names: Mapped[list] = mapped_column(JSON, default=list)
+    dosages: Mapped[list] = mapped_column(JSON, default=list)
+    form: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ClinicalProtocolDB(Base):
+    """Procédure → molécules recommandées + conseil post-opératoire (versionnées en DB)."""
+    __tablename__ = "clinical_protocols_db"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    procedure: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    molecules: Mapped[list] = mapped_column(JSON, default=list)
+    advice: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+
+# ==============================================================================
+# APPAIRAGE MOBILE ZKA — TOKEN ÉPHÉMÈRE
+# La masterKey ne transite jamais dans une URL. Le QR encode un UUID 5min.
+# Le mobile échange ce token contre les credentials via POST /api/mobile/claim-token.
+# ==============================================================================
+
+class ZKAPairingToken(Base):
+    """Token éphémère à usage unique pour l'appairage mobile ZKA."""
+    __tablename__ = "zka_pairing_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    master_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+

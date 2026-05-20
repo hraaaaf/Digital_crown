@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
-  Calculator, 
   Plus, 
   Trash2, 
-  Search,
   Zap,
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Banknote
+  Banknote,
+  Brain,
+  History,
+  LayoutGrid,
+  ArrowLeft,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
-import { useClinicalRef } from '../clinical-ref/useClinicalRef';
-import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
-import { Brain } from 'lucide-react';
-import { Odontogram } from '../../components/odontogram';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
+import { TREATMENTS_BY_CATEGORY, CATEGORY_LABELS } from '../../components/odontogram/types';
 import { api } from '../../services/api';
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
+import { PriceBrain } from '../../components/odontogram/PriceBrain';
 
 interface PriceItem { 
   id: number; 
@@ -52,11 +53,6 @@ interface AccountingStudioProps {
   groupSelectedTeeth: number[];
   handleToothDirectClick: (toothNumber: number) => void;
   selectTeethGroup: (group: 'all' | 'maxillaire' | 'mandibule' | 'none') => void;
-  groupTreatmentName: string;
-  setGroupTreatmentName: (val: string) => void;
-  groupTreatmentPrice: number | '';
-  setGroupTreatmentPrice: (val: number | '') => void;
-  applyGroupTreatment: () => void;
   handleTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
   addEmptyRow: () => void;
   removeItem: (id: number) => void;
@@ -76,23 +72,19 @@ interface AccountingStudioProps {
   setIsGlobalNote: (val: boolean) => void;
   validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
+  groupTreatmentName: string;
+  setGroupTreatmentName: (val: string) => void;
+  groupTreatmentPrice: number | '';
+  setGroupTreatmentPrice: (val: number | '') => void;
+  applyGroupTreatment: () => void;
 }
 
-const getCategoryColor = (cat: string) => {
-  switch (cat) {
-    case 'CHIR': return 'bg-rose-50 text-rose-600 border-rose-100';
-    case 'PROTH': return 'bg-blue-50 text-blue-600 border-blue-100';
-    case 'CONS': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-    case 'PREV': return 'bg-amber-50 text-amber-600 border-amber-100';
-    default: return 'bg-slate-50 text-slate-500 border-slate-100';
-  }
-};
 
 export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   const {
     isDevis = false,
-    patientId,
     items,
+    setItems,
     paymentMode,
     setPaymentMode,
     showOdontoPanoramique,
@@ -100,13 +92,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     setOdontogramMode,
     groupSelectedTeeth,
     handleToothDirectClick,
-    selectTeethGroup,
-    groupTreatmentName,
-    setGroupTreatmentName,
-    groupTreatmentPrice,
-    setGroupTreatmentPrice,
-    applyGroupTreatment,
-    handleTeethFromOdontogram,
     addEmptyRow,
     removeItem,
     updateItem,
@@ -123,17 +108,22 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     setPaymentStatus,
     isGlobalNote,
     setIsGlobalNote,
+    groupTreatmentName,
+    setGroupTreatmentName,
+    groupTreatmentPrice,
+    setGroupTreatmentPrice,
+    applyGroupTreatment,
     validationErrors = [],
     coherenceWarnings = [],
   } = props;
 
-  // Zen-Elite state: Collapsible Odontogram
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
   const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const [activeTooth, setActiveTooth] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   
-  const [activeGuideAct, setActiveGuideAct] = useState<string | null>(null);
-  const protocol = useClinicalRef(activeGuideAct || undefined);
 
   useEffect(() => {
     fetchQuickActs();
@@ -145,11 +135,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
       if (res.data && res.data.length > 0) {
         setQuickActs(res.data);
       } else {
-        setQuickActs([
-          { name: 'Consultation', price: 300, category: 'CONS' },
-          { name: 'Détartrage', price: 500, category: 'PREV' },
-          { name: 'Composite 1 face', price: 400, category: 'CONS' },
-          { name: 'Extraction simple', price: 600, category: 'CHIR' },
+        const top = PriceBrain.getTopFrequent(4);
+        setQuickActs(top.length > 0 ? top.map(t => ({ name: t.name, price: t.price || 0, category: t.category })) : [
+          { name: 'Consultation', price: 300, category: 'CONSERVATRICE' },
+          { name: 'Détartrage', price: 500, category: 'PREVENTION' },
+          { name: 'Composite 1 face', price: 400, category: 'CONSERVATRICE' },
+          { name: 'Extraction simple', price: 600, category: 'CHIRURGIE' },
         ]);
       }
     } catch (err) {
@@ -158,7 +149,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   };
 
   useEffect(() => {
-    // Détection des Bundles (Smart Bundling)
     const lastItem = items[items.length - 1];
     if (lastItem && lastItem.description.trim().length > 2) {
       const timer = setTimeout(async () => {
@@ -177,44 +167,37 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
 
   const saveActAsHabit = async (name: string, price: number, category?: string) => {
     try {
+      PriceBrain.recordAct(name, price, category || 'CONSERVATRICE');
       await api.post('/accounting/record-act', { name, price, category });
       fetchQuickActs();
     } catch (err) { console.error(err); }
   };
 
-  // Ensure at least one empty line if items is empty
   useEffect(() => {
     if (items.length === 0) {
-      addEmptyRow();
+      setIsOdontoOpen(true);
     }
-  }, [items.length, addEmptyRow]);
+  }, [items.length]);
 
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2 ml-1";
-  const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
+  const labelClass = "text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1.5 ml-1";
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-7xl mx-auto">
 
-      {/* Erreurs de validation */}
-      {validationErrors.length > 0 && (
-        <div className="space-y-2">
+      {/* ⚠️ Alertes Section */}
+      {(validationErrors.length > 0 || coherenceWarnings.length > 0) && (
+        <div className="space-y-2 px-2">
           {validationErrors.map((err, idx) => (
-            <div key={idx} className="px-6 py-3 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-600 font-bold flex items-center gap-3 animate-in slide-in-from-top-2">
+            <div key={`v-${idx}`} className="px-6 py-3 bg-red-50 border border-red-100 rounded-2xl text-[11px] text-red-600 font-black flex items-center gap-3 animate-in slide-in-from-top-2">
               <AlertCircle size={16} /> {err.message}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Alertes de cohérence (1.2) */}
-      {coherenceWarnings.length > 0 && (
-        <div className="space-y-2">
           {coherenceWarnings.map((w, idx) => (
-            <div key={idx} className={cn(
-              "px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-3 animate-in slide-in-from-top-2",
-              w.level === 'warning' ? "bg-amber-50 border border-amber-200 text-amber-700"
-                : w.level === 'critical' ? "bg-red-50 border border-red-200 text-red-600"
-                : "bg-blue-50 border border-blue-200 text-blue-600"
+            <div key={`c-${idx}`} className={cn(
+              "px-6 py-3 rounded-2xl text-[11px] font-black flex items-center gap-3 animate-in slide-in-from-top-2",
+              w.level === 'warning' ? "bg-amber-50 border border-amber-100 text-amber-700"
+                : w.level === 'critical' ? "bg-red-50 border border-red-100 text-red-600"
+                : "bg-blue-50 border border-blue-100 text-blue-600"
             )}>
               <AlertCircle size={16} className="shrink-0" /> {w.message}
             </div>
@@ -222,97 +205,96 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
       )}
 
-      {/* 1. RACCOURCIS RAPIDES & SMART BUNDLES */}
-      <div className="flex flex-col gap-4 p-6 bg-white/60 backdrop-blur-2xl rounded-[2rem] border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] relative z-20">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-3 pr-6 border-r border-slate-200">
-            <div className="w-9 h-9 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100">
-              <Zap size={18} />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Habitudes</span>
+      {/* ⚡ Elite Quick Bar : Light Glassmorphism */}
+      <div className="flex flex-col gap-4 p-6 bg-white/60 backdrop-blur-xl rounded-[2.5rem] shadow-xl relative z-20 border border-white">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 pl-4 pr-6 border-r border-slate-100 shrink-0">
+            <Zap className="w-5 h-5 text-amber-400 fill-amber-400/20" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Smart Acts</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 flex-1">
             {quickActs.map((act, i) => (
-              <motion.button
+              <button
                 key={i}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   props.setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
                   saveActAsHabit(act.name, act.price, act.category);
                 }}
-                className={cn(
-                  "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
-                  getCategoryColor(act.category || '')
-                )}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all flex items-center gap-2 group shadow-sm"
               >
-                {act.name} <span className="opacity-40 font-bold">+{act.price}</span>
-              </motion.button>
+                {act.name} <span className="text-primary transition-colors">+{act.price} MAD</span>
+              </button>
             ))}
+            <button
+               onClick={addEmptyRow}
+               className="px-5 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
+            >
+              <Plus size={14} /> Nouvel Acte
+            </button>
           </div>
         </div>
 
-        {suggestedBundles.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="pt-4 border-t border-slate-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-500"
-          >
-            <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary rounded-lg">
-              <Brain size={14} className="animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest">Séquence Détectée :</span>
-            </div>
-            <button 
-              onClick={() => {
-                const newItems = [...items];
-                suggestedBundles.forEach(b => {
-                  if (!newItems.find(it => it.description.toLowerCase() === b.name.toLowerCase())) {
-                    newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
-                  }
-                });
-                props.setItems(newItems);
-                setSuggestedBundles([]);
-                toast.success("Pack Habitude appliqué avec succès !");
-              }}
-              className="flex items-center gap-3 px-6 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-primary transition-all active:scale-95"
-              style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
+        <AnimatePresence>
+          {suggestedBundles.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pt-4 border-t border-slate-100 flex items-center justify-between"
             >
-              <Plus size={16} /> Valider et Facturer le Pack Habitude
-            </button>
-            <div className="flex gap-2">
-              {suggestedBundles.map((b, i) => (
-                <span key={i} className="text-[10px] font-bold text-slate-400 italic">+ {b.name}</span>
-              ))}
-            </div>
-          </motion.div>
-        )}
+              <div className="flex items-center gap-3">
+                <Brain className="w-5 h-5 text-primary animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Combo IA Détecté :</span>
+                <div className="flex gap-2">
+                  {suggestedBundles.map((b, i) => (
+                    <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">+{b.name}</span>
+                  ))}
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  const newItems = [...items];
+                  suggestedBundles.forEach(b => {
+                    if (!newItems.find(it => it.description.toLowerCase() === b.name.toLowerCase())) {
+                      newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
+                    }
+                  });
+                  props.setItems(newItems);
+                  setSuggestedBundles([]);
+                  toast.success("Intelligence appliquée");
+                }}
+                className="px-6 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl font-black uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-white transition-all"
+              >
+                Appliquer le Pack
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* 2. ASSISTANT CLINIQUE (Sélecteur de Dents) */}
+      {/* 🦷 Assistant Odontogramme & Catalogue Split-View */}
       {showOdontoPanoramique && (
-        <motion.div 
-          layout
-          className="bg-slate-50/50 rounded-[2rem] border border-slate-200/50 overflow-hidden transition-all duration-500"
-        >
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group">
           <button 
             onClick={() => setIsOdontoOpen(!isOdontoOpen)}
-            className="w-full px-8 py-4 flex items-center justify-between hover:bg-white/40 transition-all group"
+            className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-50 transition-all"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <Calculator size={16} />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                <LayoutGrid size={20} />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest block text-slate-500">
-                {odontogramMode === 'ortho' ? 'Configuration Globale' : 'Sélecteur de Dents / Odontogramme'}
-              </span>
+              <div className="text-left">
+                <h4 className="text-sm font-black text-slate-800 tracking-tight">Studio Clinique Elite</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Odontogramme & Catalogue Ghost</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              {!isOdontoOpen && odontogramMode !== 'ortho' && groupSelectedTeeth.length > 0 && (
-                <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-[9px] font-black">
-                  {groupSelectedTeeth.length} dent(s) sélectionnée(s)
+            <div className="flex items-center gap-4">
+              {groupSelectedTeeth.length > 0 && !isOdontoOpen && (
+                <span className="px-4 py-1.5 bg-primary text-white rounded-full text-[9px] font-black uppercase tracking-widest" style={{ backgroundColor: 'var(--primary)' }}>
+                  {groupSelectedTeeth.length} Sélectionnée(s)
                 </span>
               )}
-              {isOdontoOpen ? <ChevronUp size={16} className="text-slate-300" /> : <ChevronDown size={16} className="text-slate-300" />}
+              {isOdontoOpen ? <ChevronUp size={20} className="text-slate-300" /> : <ChevronDown size={20} className="text-slate-300" />}
             </div>
           </button>
 
@@ -322,342 +304,378 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="px-6 pb-6 space-y-6"
+                className="px-4 pb-4"
               >
-                <div className="flex bg-slate-200/40 p-1 rounded-xl gap-1 w-fit transition-all border border-slate-200/20 mx-auto">
-                  {(['individual', 'group', 'ortho'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setOdontogramMode(mode)}
-                      className={cn(
-                        "px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                        odontogramMode === mode ? "bg-white shadow-md text-primary" : "text-slate-400 hover:text-slate-600"
-                      )}
-                      style={odontogramMode === mode ? { color: 'var(--primary)' } : {}}
-                    >
-                      {mode === 'individual' ? 'Unitaire' : mode === 'group' ? 'Multi-Dents' : 'Global'}
-                    </button>
-                  ))}
-                </div>
-
-                {odontogramMode === 'ortho' ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in zoom-in-95 duration-500">
-                    <div className="lg:col-span-8 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className={labelClass}>Libellé</label>
-                          <input type="text" className={cn(inputClass, "py-3 text-xs")} value={groupTreatmentName} onChange={(e) => setGroupTreatmentName(e.target.value)} placeholder="Traitement..." />
-                        </div>
-                        <div className="space-y-1">
-                          <label className={labelClass}>Prix</label>
-                          <input type="number" className={cn(inputClass, "py-3 text-xs font-black text-primary")} style={{ color: 'var(--primary)' }} value={groupTreatmentPrice} onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))} />
-                        </div>
-                      </div>
-                      <div className="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-600">
-                             <Banknote size={20} />
-                          </div>
-                          <div>
-                            <span className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest block">Flexible</span>
-                            <span className="text-xs font-black text-emerald-800">Échéancier auto</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            applyGroupTreatment();
-                            setIsOdontoOpen(false);
-                          }}
-                          className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all"
-                        >
-                          Valider
-                        </button>
-                      </div>
+                <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] border border-white/80 shadow-2xl overflow-hidden relative min-h-[450px] flex flex-col">
+                  {/* 🛠️ Top Controls : Centered & Clear */}
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white/20">
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+                      {(['ADULT', 'PEDIATRIC'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setOdontogramType(type)}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                            odontogramType === type ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                          )}
+                        >{type === 'ADULT' ? 'Adulte' : 'Enfant'}</button>
+                      ))}
                     </div>
-                    <div className="lg:col-span-4 bg-white/50 rounded-2xl border border-slate-100 p-6 flex flex-col justify-center text-center">
-                       <span className="text-3xl font-black text-slate-800 tracking-tighter mb-1">{installments.reduce((s, i) => s + i.amount, 0)} <span className="text-[10px] uppercase opacity-30">MAD</span></span>
-                       <span className={labelClass}>Planifié</span>
-                       <button 
-                        onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: `Versement ${installments.length + 1}` }])}
-                        className="mt-3 text-[8px] font-black uppercase tracking-widest text-emerald-600 hover:underline"
-                       >
-                         + Échéance
-                       </button>
+
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+                      {(['individual', 'group', 'ortho'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setOdontogramMode(mode)}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                            odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                          )}
+                        >{mode === 'individual' ? 'Unitaire' : mode === 'group' ? 'Groupe' : 'Global'}</button>
+                      ))}
+                    </div>
+
+                    <div className="w-24 flex justify-end">
+                      <Zap size={14} className="text-primary" />
                     </div>
                   </div>
-                ) : (
-                  <div className="animate-in fade-in zoom-in-95 duration-500 max-w-xl mx-auto">
-                    {odontogramMode === 'individual' ? (
-                      <div className="transform scale-90 origin-top transition-transform duration-500">
-                        <Odontogram 
-                          patientId={parseInt(patientId, 10)} 
-                          mode="SELECT_FOR_DOCUMENT"
-                          onChange={handleTeethFromOdontogram}
-                          compact={true}
-                          naked={true}
-                        />
-                      </div>
-                    ) : (
-                      <div className="animate-in fade-in duration-500">
-                        <div className="transform scale-90 origin-top transition-transform duration-500">
+
+                  <AnimatePresence mode="wait">
+                    {!activeTooth ? (
+                      <motion.div 
+                        key="odontogram"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.05 }}
+                        className="flex-1 flex items-center justify-center p-8 bg-slate-50/20"
+                      >
+                        <div className="w-full max-w-3xl transform scale-[0.75] origin-center">
                           <OdontogramSVG 
-                            type="ADULT" 
+                            type={odontogramType} 
                             teethSurfaces={{}}
                             selectedTooth={null}
                             selectedSurface={null}
                             onSurfaceClick={() => {}}
                             multiSelectedTeeth={groupSelectedTeeth} 
-                            onToothDirectClick={handleToothDirectClick} 
+                            onToothDirectClick={(n) => {
+                              handleToothDirectClick(n);
+                              if (odontogramMode === 'individual') setActiveTooth(n);
+                            }} 
                             showNumbers={false}
+                            className="w-full drop-shadow-xl"
                           />
-                        </div>
-                        <div className="flex justify-center gap-2 mt-[-60px] pb-6">
-                          {(['maxillaire', 'mandibule', 'none'] as const).map(g => (
-                            <button 
-                              key={g} 
-                              onClick={() => selectTeethGroup(g)} 
-                              className="px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white shadow-sm hover:shadow-md hover:text-primary transition-all text-slate-400"
+
+                          {/* 💎 Floating Group Action Bar */}
+                          {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
+                            <motion.div 
+                              initial={{ y: 20, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-6"
                             >
-                              {g === 'none' ? 'Effacer' : g}
-                            </button>
-                          ))}
+                              <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-4 border border-white/10 shadow-2xl flex items-center gap-4">
+                                <div className="flex -space-x-2">
+                                  {groupSelectedTeeth.slice(0, 3).map(n => (
+                                    <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
+                                  ))}
+                                  {groupSelectedTeeth.length > 3 && (
+                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 3}</div>
+                                  )}
+                                </div>
+
+                                <div className="flex-1 flex gap-2">
+                                  <input 
+                                    type="text"
+                                    placeholder="Nom de l'acte..."
+                                    className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
+                                    value={groupTreatmentName}
+                                    onChange={(e) => setGroupTreatmentName(e.target.value)}
+                                  />
+                                  <input 
+                                    type="number"
+                                    placeholder="Prix"
+                                    className="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 w-24"
+                                    value={groupTreatmentPrice}
+                                    onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                  />
+                                </div>
+
+                                <button 
+                                  onClick={applyGroupTreatment}
+                                  className="p-3 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20"
+                                >
+                                  <Plus size={18} />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
                         </div>
-                      </div>
-                     )}
-                    {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
+                      </motion.div>
+                    ) : (
                       <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-6 p-5 bg-white/80 rounded-2xl border border-primary/20 shadow-xl shadow-primary/5 flex flex-col lg:flex-row items-center gap-4"
+                        key="selection"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="flex-1 flex flex-col p-8 bg-white/40"
                       >
-                        <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <input 
-                            type="text" 
-                            className={cn(inputClass, "py-3 text-xs")} 
-                            placeholder="Acte pour ce groupe..." 
-                            value={groupTreatmentName}
-                            onChange={(e) => setGroupTreatmentName(e.target.value)}
-                          />
-                          <div className="relative">
-                            <input 
-                              type="number" 
-                              className={cn(inputClass, "py-3 text-xs pr-12 font-black text-primary")} 
-                              style={{ color: 'var(--primary)' }}
-                              placeholder="Prix total..." 
-                              value={groupTreatmentPrice}
-                              onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300 uppercase">MAD</span>
+                        <div className="flex items-center justify-between mb-8">
+                          <div className="flex items-center gap-4">
+                            <button 
+                              onClick={() => { setActiveTooth(null); setActiveCategory(null); }}
+                              className="p-3 bg-white rounded-2xl border border-slate-100 hover:border-primary/30 transition-all shadow-sm"
+                            >
+                              <ArrowLeft size={16} className="text-slate-600" />
+                            </button>
+                            <div>
+                              <h3 className="text-lg font-black text-slate-800 tracking-tight">Dent {activeTooth}</h3>
+                              <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Saisie des prestations</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 bg-slate-100/50 p-1 rounded-xl overflow-x-auto max-w-[60%] no-scrollbar">
+                             {Object.keys(TREATMENTS_BY_CATEGORY).map((cat) => (
+                               <button
+                                 key={cat}
+                                 onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
+                                 className={cn(
+                                   "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                                   activeCategory === cat 
+                                     ? "bg-white text-primary shadow-sm border border-slate-100" 
+                                     : "text-slate-400 hover:text-slate-600"
+                                 )}
+                               >
+                                 {CATEGORY_LABELS[cat] || cat}
+                               </button>
+                             ))}
                           </div>
                         </div>
-                        <button 
-                          onClick={() => {
-                            applyGroupTreatment();
-                            setIsOdontoOpen(false);
-                          }}
-                          className="w-full lg:w-auto px-8 py-3.5 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all"
-                        >
-                          Appliquer au groupe
-                        </button>
+
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          {activeCategory ? (
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                 {TREATMENTS_BY_CATEGORY[activeCategory].map((template) => (
+                                   <button
+                                     key={template.id}
+                                     onClick={() => {
+                                        const price = PriceBrain.suggestPrice(template.name) || 0;
+                                        setItems([...items, { 
+                                          id: Date.now() + Math.random(), 
+                                          description: template.name, 
+                                          dent: activeTooth.toString(), 
+                                          price,
+                                          toothNumbers: [activeTooth],
+                                          category: template.category
+                                        }]);
+                                        toast.success(`Ajouté : ${template.name}`, {
+                                          style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
+                                        });
+                                        setActiveTooth(null);
+                                        setActiveCategory(null);
+                                     }}
+                                     className="group relative p-5 rounded-2xl bg-white/60 border border-slate-100 hover:bg-white hover:border-primary/20 hover:shadow-xl transition-all text-left flex flex-col gap-2"
+                                   >
+                                     <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-800 transition-colors">
+                                          {template.name}
+                                        </span>
+                                        <Plus size={14} className="text-primary opacity-0 group-hover:opacity-100 transition-all" />
+                                     </div>
+                                     <div className="flex items-center gap-1">
+                                        <span className="text-[10px] font-black text-primary/40 group-hover:text-primary transition-colors">
+                                          {PriceBrain.suggestPrice(template.name) || '---'} MAD
+                                        </span>
+                                     </div>
+                                   </button>
+                                 ))}
+                                 
+                                 {/* ➕ Add Custom Act Button */}
+                                 <button
+                                   onClick={addEmptyRow}
+                                   className="group relative p-5 rounded-2xl bg-primary/5 border border-primary/20 border-dashed hover:bg-primary/10 hover:border-primary/40 transition-all text-center flex flex-col items-center justify-center gap-2"
+                                 >
+                                   <Plus size={20} className="text-primary" />
+                                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">Ajouter un acte manuel</span>
+                                 </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-200 gap-4">
+                               <Sparkles size={40} strokeWidth={1} />
+                               <p className="text-[10px] font-black uppercase tracking-[0.3em]">Séléctionner une spécialité</p>
+                            </div>
+                          )}
+                        </div>
                       </motion.div>
                     )}
-                  </div>
-                )}
+                  </AnimatePresence>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
+        </div>
       )}
 
-      {/* 2. LISTE DES SOINS */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Détail des actes</h3>
+      {/* 📊 Elite Table : Détail des actes */}
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden">
+        <div className="px-10 py-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+             <History className="w-5 h-5 text-slate-400" />
+             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Détail des prestations</h3>
+          </div>
           <button
             onClick={addEmptyRow}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/20 transition-all"
-            style={{ color: 'var(--primary)' }}
-          >
-            <Plus size={14} /> Ajouter un acte
-          </button>
+            className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+          >+ Ligne Manuelle</button>
         </div>
 
-        <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="group flex items-center gap-4 bg-white/50 hover:bg-white backdrop-blur-sm p-5 rounded-[2rem] border border-white/60 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300"
-              >
-                <div className="w-10 h-10 bg-slate-100/50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-all font-black text-xs">
-                  {idx + 1}
-                </div>
-                <div className="flex-1 relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-primary transition-colors">
-                    <Search size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    className={cn(inputClass, "pl-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 transition-colors")}
-                    value={item.description}
-                    onChange={(e) => {
-                      const isLast = idx === items.length - 1;
-                      const wasEmpty = !item.description.trim();
-                      handleActSearch(e.target.value, item.id);
-                      
-                      // Smart Add: Only add if last, previously empty, now filled, AND no empty row follows
-                      const hasNextEmpty = items[idx + 1] && !items[idx + 1].description.trim();
-                      if (isLast && wasEmpty && e.target.value.trim() && !hasNextEmpty) {
-                        addEmptyRow();
-                      }
-                    }}
-                    onBlur={() => setTimeout(() => setActiveActSearchId(null), 150)}
-                    placeholder="Désignation du soin..."
-                  />
-                  {activeActSearchId === item.id && actSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[1.5rem] shadow-2xl mt-3 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                      {actSuggestions.map((act) => (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16 text-center">#</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description de l'acte</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-center">Dent</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44 text-right">Honoraires (MAD)</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              <AnimatePresence mode="popLayout">
+                {items.map((item, idx) => (
+                  <motion.tr
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="group hover:bg-slate-50/50 transition-colors"
+                  >
+                    <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
+                    <td className="px-8 py-4 relative">
+                      <div className="relative group/search">
+                         <input
+                          type="text"
+                          className="w-full bg-white border border-slate-100 focus:border-primary/50 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-all"
+                          value={item.description}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleActSearch(val, item.id);
+                            if (idx === items.length - 1 && !item.description && val.trim()) addEmptyRow();
+                          }}
+                          onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
+                          placeholder="Rechercher ou saisir un acte..."
+                        />
+                        {activeActSearchId === item.id && actSuggestions.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                            {actSuggestions.map((act) => (
+                              <button
+                                key={act.id}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyActSuggestion(item.id, act)}
+                                className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
+                              >
+                                <div>
+                                  <p className="font-bold text-sm text-slate-800">{act.name}</p>
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
+                                </div>
+                                <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <input
+                        type="text"
+                        className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all"
+                        value={item.dent}
+                        onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
+                        placeholder="--"
+                      />
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all"
+                          style={{ color: 'var(--primary)' }}
+                          value={item.price || ''}
+                          onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          key={act.id}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => applyActSuggestion(item.id, act)}
-                          className="w-full text-left px-6 py-4 hover:bg-primary/5 border-b border-slate-50 last:border-0 transition-all flex items-center justify-between group/suggest"
+                          onClick={() => removeItem(item.id)}
+                          className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                         >
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-sm group-hover/suggest:text-primary transition-colors">{act.name}</span>
-                              {act.is_habit && (
-                                <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-lg text-[7px] font-black uppercase tracking-widest border border-amber-200/50">
-                                  Souvenir Praticien
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5 mt-0.5">
-                              {act.category === 'CHIR' ? '🦷 Chirurgie' : 
-                               act.category === 'PROTH' ? '💎 Prothèse' : 
-                               act.category === 'CONS' ? '🩺 Consultation' : 
-                               act.category === 'PREV' ? '✨ Prévention' : act.category}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-sm font-black text-slate-800" style={act.is_habit ? { color: 'var(--primary)' } : {}}>{act.base_price} <span className="text-[8px] opacity-40">MAD</span></span>
-                          </div>
+                          <Trash2 size={16} />
                         </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="w-24">
-                  <input
-                    type="text"
-                    className={cn(inputClass, "text-center px-2 border-transparent bg-transparent shadow-none hover:bg-slate-50/50")}
-                    value={item.dent}
-                    onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
-                    placeholder="Dent"
-                  />
-                </div>
-                <div className="w-36 relative">
-                  <input
-                    type="number"
-                    className={cn(inputClass, "text-right pr-12 border-transparent bg-transparent shadow-none hover:bg-slate-50/50 text-primary")}
-                    style={{ color: 'var(--primary)' }}
-                    value={item.price}
-                    onChange={(e) => updateItem(item.id, 'price', e.target.value)}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">MAD</span>
-                </div>
-                
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={() => {
-                      if (!item.description.trim()) {
-                        toast.error("Veuillez saisir un acte pour consulter le guide.");
-                        return;
-                      }
-                      setActiveGuideAct(item.description);
-                      toast.success(`Chargement du guide : ${item.description.substring(0, 20)}...`, { icon: '🧠', duration: 2000 });
-                    }}
-                    className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group/brain relative"
-                    title="Guide Clinique IA"
-                  >
-                    <Brain size={18} className={cn(activeGuideAct === item.description ? "text-primary animate-pulse" : "")} />
-                  </button>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* 2.6 TRÉSORERIE & COMPTABILITÉ (Elite Hub) */}
+      {/* 💰 Ghost Treasury Hub : Light Glassmorphism */}
       {!isDevis && (
-        <div className="p-8 bg-slate-900/5 backdrop-blur-3xl rounded-[2.5rem] border border-slate-200/50 shadow-inner space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600/10 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100/50">
-                <Calculator size={24} />
+        <div className="p-10 bg-white/60 backdrop-blur-xl rounded-[3rem] border border-white shadow-xl space-y-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+          
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-primary/10 text-primary rounded-[1.25rem] flex items-center justify-center border border-primary/20 shadow-inner">
+                <Banknote size={28} />
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Ghost Treasury Hub</h4>
-                <p className="text-[10px] text-slate-400 font-bold">Intégration comptable & workflow d'encaissement</p>
+                <h4 className="text-lg font-black text-slate-800 tracking-tight uppercase">Ghost Treasury</h4>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Flux d'encaissement intelligent</p>
               </div>
             </div>
             
             <div className="flex items-center gap-6">
-               <div className="flex flex-col items-end gap-1">
-                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intégrer CA</span>
+               <div className="flex flex-col items-end gap-2">
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Comptabiliser CA</span>
                   <button 
-                   onClick={() => {
-                     if (isAccounted) {
-                       if (window.confirm("En désactivant l'intégration CA, cette note ne sera pas comptabilisée dans vos statistiques financières. Confirmer ?")) {
-                         setIsAccounted(false);
-                         toast.success("Note exclue de la comptabilité.");
-                       }
-                     } else {
-                       setIsAccounted(true);
-                       toast.success("Note intégrée à la comptabilité.");
-                     }
-                   }}
+                   onClick={() => setIsAccounted(!isAccounted)}
                    className={cn(
-                     "relative w-12 h-6 rounded-full transition-all duration-500",
-                     isAccounted ? "bg-emerald-500" : "bg-slate-300"
+                     "relative w-14 h-7 rounded-full transition-all duration-500",
+                     isAccounted ? "bg-primary" : "bg-slate-100"
                    )}
                   >
                    <div className={cn(
-                     "absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-500",
-                     isAccounted ? "left-7" : "left-1"
+                     "absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-500",
+                     isAccounted ? "left-8" : "left-1"
                    )} />
-                 </button>
+                  </button>
                </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {/* Statut de Paiement */}
-            <div className="space-y-3">
-              <label className={labelClass}>Statut d'Encaissement</label>
-              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 relative z-10">
+            {/* Statut */}
+            <div className="space-y-4">
+              <label className={cn(labelClass, "text-slate-400")}>Statut de Règlement</label>
+              <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
                 {[
-                  { id: 'EN_ATTENTE', label: 'En Attente', color: 'text-amber-600' },
-                  { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600' },
-                  { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600' }
+                  { id: 'EN_ATTENTE', label: 'Attente', color: 'text-amber-600 bg-white shadow-sm border border-slate-100' },
+                  { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600 bg-white shadow-sm border border-slate-100' },
+                  { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600 bg-white shadow-sm border border-slate-100' }
                 ].map((s) => (
                   <button
                     key={s.id}
                     onClick={() => setPaymentStatus(s.id)}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      paymentStatus === s.id ? "bg-white shadow-lg " + s.color : "text-slate-400 hover:text-slate-600"
+                      "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      paymentStatus === s.id ? s.color : "text-slate-400 hover:text-slate-600"
                     )}
                   >
                     {s.label}
@@ -666,19 +684,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               </div>
             </div>
 
-            {/* Mode de Règlement (Nouveau) */}
-            <div className="space-y-3">
-              <label className={labelClass}>Mode de Règlement</label>
-              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+            {/* Mode */}
+            <div className="space-y-4">
+              <label className={cn(labelClass, "text-slate-400")}>Mode d'Encaissement</label>
+              <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1 overflow-x-auto no-scrollbar">
                 {['Espèces', 'Chèque', 'TPE', 'Virement'].map((m) => (
                   <button
                     key={m}
                     onClick={() => setPaymentMode(m)}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      paymentMode === m ? "bg-white shadow-lg text-primary" : "text-slate-400 hover:text-slate-600"
+                      "flex-1 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                      paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                     )}
-                    style={paymentMode === m ? { color: 'var(--primary)' } : {}}
                   >
                     {m === 'Espèces' ? 'Cash' : m}
                   </button>
@@ -686,111 +703,89 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               </div>
             </div>
 
-            {/* Note Globale / Échelonné */}
-            <div className="space-y-3">
-              <label className={labelClass}>Type de Note</label>
-              <div className="flex bg-white/50 p-1.5 rounded-2xl border border-slate-200/40 gap-1">
+            {/* Type */}
+            <div className="space-y-4">
+              <label className={cn(labelClass, "text-slate-400")}>Structure de Facturation</label>
+              <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
                 <button
                   onClick={() => setIsGlobalNote(false)}
                   className={cn(
-                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    !isGlobalNote ? "bg-white shadow-lg text-indigo-600" : "text-slate-400 hover:text-slate-600"
+                    "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    !isGlobalNote ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                   )}
-                >
-                  Standard
-                </button>
+                >Unique</button>
                 <button
                   onClick={() => setIsGlobalNote(true)}
                   className={cn(
-                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    isGlobalNote ? "bg-white shadow-lg text-purple-600" : "text-slate-400 hover:text-slate-600"
+                    "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    isGlobalNote ? "bg-white text-purple-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                   )}
-                >
-                  Global
-                </button>
+                >Global / Planifié</button>
               </div>
             </div>
           </div>
 
-          {isGlobalNote && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100/50 border-dashed"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                  <Banknote size={14} /> Plan de financement activé
-                </span>
-                <button 
-                  onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: `Versement ${installments.length + 1}` }])}
-                  className="text-[9px] font-black text-indigo-600 hover:underline uppercase tracking-widest"
-                >
-                  + Ajouter échéance
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                {installments.map((inst) => (
-                  <div key={inst.id} className="grid grid-cols-12 gap-3 items-center">
-                    <div className="col-span-5">
-                      <input 
-                        type="text" 
-                        className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-bold outline-none"
-                        value={inst.label}
-                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <input 
-                        type="date" 
-                        className="w-full px-3 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-bold outline-none"
-                        value={inst.date}
-                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
-                      />
-                    </div>
-                    <div className="col-span-3 relative">
-                      <input 
-                        type="number" 
-                        className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-[11px] font-black text-indigo-600 outline-none pr-8"
-                        value={inst.amount}
-                        onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-indigo-300">MAD</span>
-                    </div>
-                    <div className="col-span-1">
-                      <button 
-                        onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
-                        className="p-2 text-rose-400 hover:bg-rose-50 rounded-lg transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                
-                <div className="pt-4 border-t border-indigo-100/50 flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Planifié</span>
-                  <span className={cn(
-                    "text-sm font-black",
-                    installments.reduce((s, i) => s + i.amount, 0) === items.reduce((s, i) => s + i.price, 0) ? "text-emerald-600" : "text-amber-600"
-                  )}>
-                    {installments.reduce((s, i) => s + i.amount, 0)} / {items.reduce((s, i) => s + i.price, 0)} MAD
+          <AnimatePresence>
+            {isGlobalNote && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 border-dashed space-y-6 relative z-10"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                    <History className="w-4 h-4 text-primary" /> Configuration des Échéances
                   </span>
+                  <button 
+                    onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: `Versement ${installments.length + 1}` }])}
+                    className="px-4 py-2 bg-white border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest transition-all hover:bg-slate-50 shadow-sm"
+                  >+ Nouvelle Échéance</button>
                 </div>
-              </div>
-            </motion.div>
-          )}
-
+                
+                <div className="space-y-4">
+                  {installments.map((inst) => (
+                    <div key={inst.id} className="grid grid-cols-12 gap-4 items-center">
+                      <div className="col-span-5">
+                        <input 
+                          type="text" 
+                          className="w-full px-5 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                          value={inst.label}
+                          onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <input 
+                          type="date" 
+                          className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                          value={inst.date}
+                          onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
+                        />
+                      </div>
+                      <div className="col-span-3 relative">
+                        <input 
+                          type="number" 
+                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
+                          value={inst.amount}
+                          onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">MAD</span>
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <button 
+                          onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
+                          className="p-3 text-slate-300 hover:text-rose-400 transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
-
-      {protocol && (
-        <ClinicalRefSidebar 
-          protocol={protocol} 
-          isOpen={!!activeGuideAct} 
-          onClose={() => setActiveGuideAct(null)} 
-        />
       )}
     </div>
   );

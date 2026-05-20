@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, RefreshCw } from 'lucide-react';
+import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
+import { useEliteStore } from '../../stores/useEliteStore';
 
 interface Patient {
   id: number;
@@ -29,6 +30,7 @@ interface AgendaModalProps {
 }
 
 export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, editingAppointment }) => {
+  const { fetchPatientIntelligence, fetchSuggestedAppointment, suggestedAppointment, isLoading: isLoadingSuggested } = useEliteStore();
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
@@ -95,32 +97,40 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       const fetchPatients = async () => {
         try {
           const res = await api.get('/patients/', { params: { limit: 10, search: patientSearch } });
-          // Filter locally if backend doesn't support search yet
           const filtered = res.data.filter((p: Patient) => 
             `${p.nom} ${p.prenom}`.toLowerCase().includes(patientSearch.toLowerCase()) ||
             p.numero_dossier?.toLowerCase().includes(patientSearch.toLowerCase())
           );
-          setPatientsList(filtered);
+          setPatientsList(filtered.length > 0 ? filtered : res.data);
           setShowPatientResults(true);
         } catch (e) {
           console.error(e);
         }
       };
       fetchPatients();
+    } else {
+      setShowPatientResults(false);
     }
   }, [patientSearch, selectedPatient]);
 
   useEffect(() => {
     if (selectedPatient) {
       setLoadingIntel(true);
+      // 1. Récupération des suggestions d'agenda locales
       api.get(`/patients/${selectedPatient.id}/appointment-intel`)
         .then(res => setSmartIntel(res.data))
         .catch(e => console.error(e))
         .finally(() => setLoadingIntel(false));
+      
+      // 2. Synchronisation globale avec le Ghost Hub Brain
+      fetchPatientIntelligence(selectedPatient.id).catch(e => console.error(e));
+
+      // 3. Smart Booking : fetch la suggestion clinique
+      fetchSuggestedAppointment(selectedPatient.id).catch(e => console.error(e));
     } else {
       setSmartIntel(null);
     }
-  }, [selectedPatient]);
+  }, [selectedPatient, fetchPatientIntelligence, fetchSuggestedAppointment]);
 
   const applySmartIntel = () => {
     if (smartIntel) {
@@ -128,6 +138,26 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setDuration(smartIntel.duration);
       if (!selectedAct) {
           setActSearch(smartIntel.suggestion);
+      }
+    }
+  };
+
+  const applyClinicalSuggestion = () => {
+    if (suggestedAppointment) {
+      setMotif(suggestedAppointment.motif || '');
+      setDuration(suggestedAppointment.duration_minutes || 30);
+      setActSearch(suggestedAppointment.motif || '');
+      if (suggestedAppointment.motif) {
+        api.get('/actes/catalog/search', { params: { q: suggestedAppointment.motif } })
+          .then(res => {
+            if (res.data && res.data.length > 0) {
+              const exactMatch = res.data.find((a: any) => a.name.toLowerCase() === suggestedAppointment.motif.toLowerCase());
+              if (exactMatch) {
+                setSelectedAct(exactMatch);
+              }
+            }
+          })
+          .catch(e => console.error(e));
       }
     }
   };
@@ -141,21 +171,38 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
 
   useEffect(() => {
-    if (actSearch.length > 1 && !selectedAct) {
-      const fetchActs = async () => {
+    const fetchActs = async () => {
+      try {
+        const res = await api.get('/actes/catalog/search', { params: { q: actSearch } });
+        setActsList(res.data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    if (isOpen && !selectedAct) {
+      fetchActs();
+    }
+  }, [actSearch, selectedAct, isOpen]);
+
+  useEffect(() => {
+    const actName = selectedAct ? selectedAct.name : actSearch;
+    if (actName && actName.trim().length > 1) {
+      const fetchRecommendedDuration = async () => {
         try {
-          const res = await api.get('/actes/catalog/search', { params: { q: actSearch } });
-          setActsList(res.data);
-          setShowActResults(true);
+          const res = await api.get('/actes/duration', { params: { q: actName } });
+          if (res.data && res.data.duration) {
+            setDuration(res.data.duration);
+          }
         } catch (e) {
           console.error(e);
         }
       };
-      fetchActs();
-    } else {
-      setShowActResults(false);
+      const timer = setTimeout(() => {
+        fetchRecommendedDuration();
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [actSearch, selectedAct]);
+  }, [selectedAct, actSearch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -290,46 +337,99 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   )}
                 </div>
               )}
-              {/* SMART INTEL CARD */}
-              {(selectedPatient && (smartIntel || loadingIntel)) && (
-                <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl animate-in slide-in-from-top-4 duration-300">
-                  <div className="flex justify-between items-start mb-2">
+              {/* SMART INTEL CARD (GHOST ELITE INTELLIGENCE HUB) */}
+              {(selectedPatient && (smartIntel || suggestedAppointment || loadingIntel || isLoadingSuggested)) && (
+                <div className="mt-6 p-5 bg-gradient-to-br from-slate-50 to-blue-50/20 border border-slate-100 rounded-[2rem] shadow-sm animate-in slide-in-from-top-4 duration-300">
+                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2 text-[#003380]">
-                      <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center text-white">
-                        {loadingIntel ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                      <div className="w-7 h-7 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/10">
+                        <Sparkles size={14} className={cn((loadingIntel || isLoadingSuggested) && "animate-pulse")} />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider">
-                        {loadingIntel ? "Analyse clinique..." : "Intelligence Clinique"}
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {(loadingIntel || isLoadingSuggested) ? "Analyse en cours..." : "Ghost Intelligence"}
                       </span>
                     </div>
                     {smartIntel?.solde_attente > 0 && (
-                      <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[10px] font-black italic">
+                      <span className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-3 py-1 rounded-xl text-[10px] font-black tracking-tight">
+                        <AlertCircle size={12} />
                         RESTE À PAYER : {smartIntel.solde_attente} MAD
                       </span>
                     )}
                   </div>
                   
-                  {loadingIntel ? (
-                    <div className="h-10 flex items-center justify-center">
-                        <div className="flex gap-1">
-                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
-                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  {(loadingIntel || isLoadingSuggested) ? (
+                    <div className="py-6 flex items-center justify-center">
+                        <div className="flex gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                         </div>
                     </div>
-                  ) : smartIntel && (
-                    <div className="flex items-center justify-between">
-                      <div>
-                          <p className="text-xs font-bold text-slate-600 mb-1">Motif suggéré : <span className="text-[#003380]">{smartIntel.suggestion}</span></p>
-                          <p className="text-[10px] text-slate-400">Basé sur le dernier devis actif</p>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={applySmartIntel}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                      >
-                        APPLIQUER
-                      </button>
+                  ) : (
+                    <div className="space-y-3 animate-in fade-in duration-200">
+                      
+                      {/* OPTION CLINIQUE - SMART BOOKING (PLAN DE TRAITEMENT) */}
+                      {suggestedAppointment && (
+                        <div className="bg-white/80 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-200 transition-all group">
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-wider">
+                              Plan Clinique Actif
+                            </span>
+                            <p className="text-sm font-black text-slate-800 tracking-tight group-hover:text-blue-900 transition-colors">
+                              {suggestedAppointment.motif}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold">
+                              <span className="flex items-center gap-1 text-slate-500">
+                                <Clock size={12} className="text-blue-500" />
+                                {suggestedAppointment.duration_minutes} min
+                              </span>
+                              {suggestedAppointment.notes && (
+                                <span className="text-slate-400 italic">
+                                  — {suggestedAppointment.notes}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={applyClinicalSuggestion}
+                            className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            Planifier <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* OPTION ADMINISTRATIVE (DEVIS / OPPORTUNITÉ LOCALE) */}
+                      {smartIntel && smartIntel.suggestion && (!suggestedAppointment || smartIntel.suggestion !== suggestedAppointment.motif) && (
+                        <div className="bg-white/80 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-emerald-200 transition-all group">
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                              Proposition Devis
+                            </span>
+                            <p className="text-sm font-black text-slate-800 tracking-tight group-hover:text-emerald-950 transition-colors">
+                              {smartIntel.suggestion}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold">
+                              <span className="flex items-center gap-1 text-slate-500">
+                                <Clock size={12} className="text-emerald-500" />
+                                {smartIntel.duration} min
+                              </span>
+                              <span className="text-slate-400">
+                                — Basé sur l'historique administratif
+                              </span>
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={applySmartIntel}
+                            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            Appliquer <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      )}
+
                     </div>
                   )}
                 </div>
@@ -362,6 +462,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       placeholder="Saisir l'acte ou rechercher dans le catalogue..."
                       value={actSearch}
                       onChange={e => setActSearch(e.target.value)}
+                      onFocus={() => setShowActResults(true)}
                       className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
                     />
                   </>

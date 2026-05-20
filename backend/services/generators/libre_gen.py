@@ -55,8 +55,8 @@ class LibreGenerator:
         if hide_patient:
             return Spacer(1, 0.1*cm)
 
-        font_name = self.base_template.arabic_font
-        font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        font_name = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         patient_style = ParagraphStyle(
             name='PatientInfo', 
@@ -111,9 +111,10 @@ class LibreGenerator:
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
             user_obj = db.query(User).filter(User.id == user_id).first()
         
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        font_name = self.base_template.arabic_font
-        font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        font_name = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         title_style = ParagraphStyle(
             name='TitleA5', 

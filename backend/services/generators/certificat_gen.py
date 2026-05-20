@@ -49,8 +49,8 @@ class CertificatGenerator:
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
 
-        font_name = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_name = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         patient_style = ParagraphStyle(
             name='PatientInfo',
@@ -69,8 +69,12 @@ class CertificatGenerator:
             fontSize=11,
         )
 
+        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        patient_w = 7.5 * cm
+        adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
+        
         header_content = [[
-            Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style),
+            Paragraph(patient_text, adaptive_patient_style),
             Paragraph(f"Le : <u>{current_date}</u>", style_right),
         ]]
 
@@ -91,9 +95,10 @@ class CertificatGenerator:
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
             user_obj = db.query(User).filter(User.id == user_id).first()
 
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
-        font_main = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_main = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         title_style = ParagraphStyle(
             name='TitleA5',
@@ -117,22 +122,22 @@ class CertificatGenerator:
 
         age = self._calculate_age(patient.date_naissance)
         is_minor = age < 16
-        gender = getattr(patient, 'genre', 'M')
-        is_male = gender in ["Homme", "Garçon", "M"]
+        gender = getattr(patient, 'sexe', getattr(patient, 'genre', 'M'))
+        is_male = gender in ["Homme", "Garçon", "M", "m", "Male", "male"]
         
         # Honorifiques Pédiatriques vs Adultes
         if is_minor:
             hon = "l'enfant"
             pres = "présent" if is_male else "présente"
-            int_ = "l'intéressé(e)" # Pour les mineurs on peut rester neutre ou accorder
-            work_term = "scolaire"
+            int_ = "l'intéressé" if is_male else "l'intéressée"
+            eviction_term = "une éviction scolaire"
             reprise_term = "une reprise des cours"
         else:
             hon = "Monsieur" if is_male else "Madame"
             pres = "présent" if is_male else "présente"
             int_ = "l'intéressé" if is_male else "l'intéressée"
-            work_term = "professionnelle"
-            reprise_term = "une reprise de travail"
+            eviction_term = "un arrêt de travail"
+            reprise_term = "une reprise du travail"
         
         # Déterminer la spécialité (Ortho vs Dentaire)
         is_ortho = False
@@ -150,10 +155,26 @@ class CertificatGenerator:
         # Initialisation par défaut
         certif_text = ""
         
+        # Calcul précis des dates d'arrêt/éviction
+        from datetime import timedelta
+        doc_date_obj = getattr(data, 'doc_date', date.today())
+        if isinstance(doc_date_obj, str):
+            try:
+                doc_date_obj = datetime.strptime(doc_date_obj, '%Y-%m-%d').date()
+            except Exception:
+                doc_date_obj = date.today()
+        
+        days_int = int(days)
+        if days_int > 0:
+            end_date = doc_date_obj + timedelta(days=days_int - 1)
+            date_phrase = f"allant du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
+        else:
+            date_phrase = f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>"
+
         if "post-opératoire" in reason_lower:
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b> nécessite un <b>repos {work_term} de {days} jours</b> à compter de ce jour, "
+                f"{hon} <b>{nom_complet}</b> nécessite <b>{eviction_term} de {days} jours</b>, {date_phrase}, "
                 f"suite à une intervention chirurgicale buccale.<br/><br/>"
             )
         elif "intervention" in reason_lower:
@@ -161,31 +182,37 @@ class CertificatGenerator:
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
                 f"{hon} <b>{nom_complet}</b> nécessite des <b>soins de suite d'intervention</b> "
-                f"{spec} pour une période de <b>{days} jours</b>.<br/><br/>"
+                f"{spec} pour une période de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
             )
         elif "présence" in reason_lower:
             spec = "orthodontiques" if is_ortho else "dentaires"
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> a été "
-                f"<b>{pres} au cabinet</b> ce jour pour recevoir des soins {spec} professionnels.<br/><br/>"
+                f"<b>{pres} au cabinet</b> {date_phrase} pour y recevoir des soins {spec} professionnels.<br/><br/>"
             )
-        elif "aptitude" in reason_lower:
-            spec = "vie scolaire" if is_minor else "traitement/activité"
+        elif "aptitude" in reason_lower or "sport" in reason_lower:
+            spec = "à la pratique de l'éducation physique et sportive" if is_minor else "à la pratique du sport en compétition"
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que {hon} <b>{nom_complet}</b> "
-                f"nécessite une <b>aptitude clinique</b> pour la poursuite de sa {spec} suite à l'examen réalisé ce jour.<br/><br/>"
+                f"<b>ne présente à ce jour aucune contre-indication clinique apparente</b> {spec}.<br/><br/>"
             )
         elif "reprise" in reason_lower:
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> est en état "
-                f"d'assurer <b>{reprise_term}</b> suite à l'acte professionnel réalisé ce jour.<br/><br/>"
+                f"d'assurer <b>{reprise_term}</b> à compter du {doc_date_obj.strftime('%d/%m/%Y')}.<br/><br/>"
+            )
+        elif "contre-indication" in reason_lower:
+            certif_text = (
+                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b> présente une <b>contre-indication médicale temporaire</b> "
+                f"à la pratique ou à l'acte mentionné, pour une durée de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
             )
         else:
-            phrase_motif = f"<b>{reason}</b>" if reason else "un repos médical"
+            phrase_motif = f"<b>{reason}</b>" if reason else f"<b>{eviction_term}</b>"
             certif_text = (
                 f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
                 f"{hon} <b>{nom_complet}</b> nécessite {phrase_motif} "
-                f"pour une durée de <b>{days} jours</b>.<br/><br/>"
+                f"de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
             )
 
         body_style = ParagraphStyle(

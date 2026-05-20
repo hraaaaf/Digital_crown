@@ -16,12 +16,37 @@ import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
 import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
 import { clinicalTips } from '../data/clinical_tips';
+import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
+import { useAuthStore } from '../stores/useAuthStore';
 
 // --- OFFICIAL ASSET IMPORT (Digital Crown Logo) ---
 import Logo from '../assets/logo.png';
 
 export const Sidebar = () => {
+  const { activeCabinetId, cabinets, switchCabinet } = useSettingsStore();
+  const { user } = useAuthStore();
   const location = useLocation();
+
+  const hasAccess = (permission: string) => {
+    if (!user) return true;
+    if (user.role === 'ADMIN' || user.role === 'DENTISTE') return true;
+    if (user.permissions && typeof user.permissions === 'object') {
+      return user.permissions[permission] ?? false;
+    }
+    if (user.role === 'SECRETAIRE') {
+      const defaults: Record<string, boolean> = {
+        agenda: true,
+        patients: true,
+        prescriptions: false,
+        accounting: false,
+        panoramic: false,
+        cephalo: false,
+        settings: false
+      };
+      return defaults[permission] ?? false;
+    }
+    return true;
+  };
   const [isAiActive, setIsAiActive] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
   const [showTip, setShowTip] = useState(false);
@@ -91,35 +116,30 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* Animation adapted for light background */}
+      {/* Animation adaptée pour le fond clair */}
       <style>{`
         @keyframes logo-pulse-light {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--primary-rgb, rgba(0,51,128,0.1))); }
-          50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary-rgb, rgba(0,51,128,0.3))); }
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--primary)); }
+          50% { transform: scale(1.02); filter: drop-shadow(0 0 15px var(--primary)); }
         }
         @keyframes logo-slingshot {
           0% { transform: translateX(0) scale(1); filter: brightness(1); }
-          30% { transform: translateX(-25px) scale(0.9) skewX(-5deg); filter: brightness(1.1); } /* Tension */
-          50% { transform: translateX(30px) scale(1.1) skewX(10deg); filter: brightness(1.3) drop-shadow(0 0 20px var(--primary)); } /* Launch */
-          70% { transform: translateX(-5px) scale(1.05); } /* Rebond */
+          30% { transform: translateX(-25px) scale(0.9) skewX(-5deg); filter: brightness(1.1); }
+          50% { transform: translateX(30px) scale(1.1) skewX(10deg); filter: brightness(1.3) drop-shadow(0 0 20px var(--primary)); }
+          70% { transform: translateX(-5px) scale(1.05); }
           100% { transform: translateX(0) scale(1); filter: brightness(1); }
         }
-        .animate-logo-pulse-light {
-          animation: logo-pulse-light 2s ease-in-out infinite;
-        }
-        .animate-tooth-slingshot {
-          animation: logo-slingshot 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
+        .animate-logo-pulse-light { animation: logo-pulse-light 2s ease-in-out infinite; }
+        .animate-tooth-slingshot { animation: logo-slingshot 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       `}</style>
-
-      {/* SIDEBAR : Clinical Premium Light */}
-      <aside className="w-72 bg-sidebar backdrop-blur-2xl border-r border-border-main shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col h-screen fixed lg:relative z-[10000] shrink-0">
+      {/* SIDEBAR : Clinical Premium Elite */}
+      <aside className="w-72 bg-sidebar backdrop-blur-2xl border-r border-border-main shadow-elite flex flex-col h-screen fixed lg:relative z-[10000] shrink-0 transition-elite">
         
         {/* PRODUCT IDENTITY: DIGITAL CROWN LOGO (Centered) */}
         <div className="p-6 flex items-center justify-center border-b border-border-main shrink-0 h-28 relative group/logo">
           <Link 
             to="/dashboard" 
-            className="transition-all duration-500 block w-full hover:opacity-80 flex items-center justify-center"
+            className="transition-elite block w-full hover:opacity-80 flex items-center justify-center"
           >
             <img 
               src={Logo} 
@@ -129,46 +149,71 @@ export const Sidebar = () => {
                 (isAiActive && tipsEnabled) && "animate-logo-pulse-light",
                 (isFlipping && tipsEnabled) && "animate-tooth-slingshot"
               )} 
+              style={{ filter: document.body.dataset.theme === 'dark' ? 'brightness(0) invert(1)' : 'none' }}
             />
-
           </Link>
           
-          {/* Elite Clinical Tips Module */}
           <ClinicalTipBubble show={showTip} tip={currentTip} onClose={() => setShowTip(false)} />
+        </div>
 
+        {/* CABINET SWITCHER SECTION (Premium Glassmorphic Switcher) */}
+        <div className="px-6 py-4 border-b border-border-main shrink-0 bg-white/5 backdrop-blur-md">
+          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-1">Cabinet Actif</div>
+          <div className="relative group">
+            <select
+              value={activeCabinetId}
+              onChange={(e) => switchCabinet(e.target.value)}
+              className="w-full bg-card-bg/60 border border-border-main rounded-elite px-3 py-2.5 text-xs font-black tracking-tight text-text-main cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/40 transition-elite appearance-none"
+              style={{ 
+                backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")',
+                backgroundPosition: 'right 0.75rem center',
+                backgroundSize: '1.25em 1.25em',
+                backgroundRepeat: 'no-repeat',
+                paddingRight: '2rem'
+              }}
+            >
+              {cabinets.map(cab => (
+                <option key={cab.id} value={cab.id} className="text-black bg-white font-bold">
+                  🏢 {cab.nom}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* STACKED NAVIGATION */}
-        <nav className="flex-1 p-5 space-y-2 overflow-y-auto custom-scrollbar">
-          <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest px-4 mb-4 mt-2">Navigation</div>
+        <nav className="flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
+          <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
-          <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />
-          <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />
-          <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />
+          {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
+          {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
+          {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* ACTIVE PATIENT NAVIGATION */}
           {currentPatientId && (
-            <div className="mt-8 animate-in fade-in slide-in-from-left-4 duration-300">
+            <div className="mt-8 animate-in fade-in slide-in-from-left-4 duration-500">
               <div 
-                className="text-[10px] font-black uppercase tracking-widest mx-2 mb-3 border shadow-sm flex items-center gap-2 py-2 px-4 rounded-xl"
+                className="text-[10px] font-black uppercase tracking-widest mx-2 mb-3 shadow-sm flex items-center gap-2 py-2.5 px-4 rounded-elite-sm border transition-elite"
                 style={{ 
-                  backgroundColor: 'var(--primary-bg, #f0f7ff)', 
+                  backgroundColor: 'var(--primary-bg, rgba(99, 102, 241, 0.1))', 
                   color: 'var(--primary)',
-                  borderColor: 'var(--primary-border, #e0e7ff)'
+                  borderColor: 'var(--glass-border)'
                 }}
               >
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary)' }} />
+                <div className="w-2 h-2 rounded-full animate-pulse bg-primary" />
                 Dossier Actif
               </div>
               
-              <NavItem 
-                to={`/patients/${currentPatientId}?tab=analysis`} 
-                icon={<Activity size={20} />} 
-                label="Studio Céphalométrique"
-                forceActive={isInPatientDossier && currentTab === 'analysis'}
-              />
+              {hasAccess('cephalo') && (
+                <NavItem 
+                  to={`/patients/${currentPatientId}?tab=analysis`} 
+                  icon={<Activity size={20} />} 
+                  label="Studio Céphalométrique"
+                  forceActive={isInPatientDossier && currentTab === 'analysis'}
+                />
+              )}
               
               <NavItem 
                 to={`/patients/${currentPatientId}?tab=admin`} 
@@ -186,26 +231,26 @@ export const Sidebar = () => {
             </div>
           )}
 
-          {/* EXPERIMENTAL / DEMO SECTION */}
-          <div className="mt-8 pt-8 border-t border-slate-200/60">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-4">Expérimental</div>
+          {/* EXPERIMENTAL SECTION */}
+          <div className="mt-8 pt-8 border-t border-border-main">
+            <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-4">Système</div>
             <button
                onClick={() => {
                  localStorage.removeItem('appMode');
                  window.location.href = '/welcome';
                }}
-               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group cursor-pointer hover:bg-slate-100"
+               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-elite-sm transition-elite group cursor-pointer hover:bg-primary/10"
                style={{ color: 'var(--primary)' }}
             >
               <FlaskConical size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold tracking-wide">Activer Lab Mode</span>
+              <span className="text-sm font-bold tracking-tight">Activer Lab Mode</span>
             </button>
             <button
                onClick={() => authService.logout()}
-               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group cursor-pointer hover:bg-red-50 text-red-500 mt-2"
+               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-elite-sm transition-elite group cursor-pointer hover:bg-red-500/10 text-red-500 mt-2"
             >
               <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold tracking-wide">Déconnexion</span>
+              <span className="text-sm font-bold tracking-tight">Déconnexion</span>
             </button>
           </div>
         </nav>
@@ -214,22 +259,22 @@ export const Sidebar = () => {
   );
 };
 
-// NavItem Component Adapted for Light Theme
+// NavItem Component Adapted for Elite Design System
 const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.ReactNode, label: string, forceActive?: boolean }) => (
   <NavLink
     to={to}
     className={({ isActive }) => {
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
       return cn(
-        "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden cursor-pointer mb-1",
+        "flex items-center gap-3 px-4 py-3 rounded-elite-sm transition-elite group relative overflow-hidden cursor-pointer mb-1",
           isActuallyActive 
-          ? "bg-card shadow-sm border border-border-main" 
-          : "text-text-muted hover:bg-card/80"
+          ? "shadow-elite border border-border-main" 
+          : "text-text-muted hover:bg-primary/5 hover:text-primary"
       );
     }}
     style={({ isActive }) => {
       const isActuallyActive = forceActive !== undefined ? forceActive : isActive;
-      return isActuallyActive ? { color: 'var(--primary)' } : {};
+      return isActuallyActive ? { backgroundColor: 'var(--card-bg)' } : {};
     }}
   >
     {({ isActive }) => {
@@ -238,20 +283,20 @@ const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.Rea
         <>
           {isActuallyActive && (
             <div 
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-r-full" 
-              style={{ 
-                backgroundColor: 'var(--primary)',
-                boxShadow: '0 0 8px var(--primary-glow, rgba(0,51,128,0.2))'
-              }} 
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full" 
+              style={{ backgroundColor: 'var(--primary)' }} 
             />
           )}
           <span 
-            className={cn("relative z-10 transition-transform duration-300", isActuallyActive ? "scale-110" : "group-hover:scale-110")}
+            className={cn("relative z-10 transition-elite", isActuallyActive ? "scale-110 text-primary" : "group-hover:scale-110")}
             style={isActuallyActive ? { color: 'var(--primary)' } : {}}
           >
             {icon}
           </span>
-          <span className={cn("text-sm relative z-10 tracking-wide", isActuallyActive ? "font-black" : "font-bold")}>
+          <span 
+            className={cn("text-sm relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
+            style={isActuallyActive ? { color: 'var(--primary)' } : {}}
+          >
             {label}
           </span>
         </>

@@ -46,7 +46,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         if email is None or token_type != "access":
             raise credentials_exception
 
-        if jti and token_blacklist.is_revoked(jti):
+        if jti and token_blacklist.is_revoked(jti, db):
             raise credentials_exception
 
         token_data = TokenData(email=email)
@@ -59,10 +59,27 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
+def require_permission(permission_name: str):
+    """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
+    def dependency(current_user: models.User = Depends(get_current_user)):
+        if current_user.role in [models.UserRole.ADMIN, models.UserRole.DENTISTE]:
+            return current_user
+        perms = current_user.permissions or {}
+        if not perms.get(permission_name, False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé. Vous n'avez pas la permission '{permission_name}'."
+            )
+        return current_user
+    return dependency
+
+
 from backend.services.audit_service import audit_service
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.Token,
+    summary="Connexion locale",
+    description="Authentification email/mot de passe. Retourne un access token (JWT, 60 min) et un refresh token (7 jours).")
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -123,7 +140,9 @@ async def login_for_access_token(
     }
 
 
-@router.post("/refresh", response_model=schemas.Token)
+@router.post("/refresh", response_model=schemas.Token,
+    summary="Renouveler l'access token",
+    description="Échange un refresh token valide contre un nouveau couple access/refresh token (rotation automatique).")
 async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -138,7 +157,7 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
 
         if email is None or token_type != "refresh":
             raise credentials_exception
-        if jti and token_blacklist.is_revoked(jti):
+        if jti and token_blacklist.is_revoked(jti, db):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
@@ -148,7 +167,7 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
         raise credentials_exception
 
     # Rotation : le vieux refresh token est révoqué, on en émet un nouveau
-    token_blacklist.revoke(body.refresh_token)
+    token_blacklist.revoke(body.refresh_token, db)
     new_access = create_access_token(data={"sub": user.email})
     new_refresh = create_refresh_token(data={"sub": user.email})
 
@@ -159,7 +178,9 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
     }
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT,
+    summary="Déconnexion",
+    description="Révoque l'access token courant et le refresh token fourni (blacklist JTI en DB).")
 async def logout(
     body: schemas.RefreshRequest,
     token: str = Depends(oauth2_scheme),
@@ -167,8 +188,8 @@ async def logout(
     current_user: models.User = Depends(get_current_user),
 ):
     # Révoquer l'access token courant et le refresh token fourni
-    token_blacklist.revoke(token)
-    token_blacklist.revoke(body.refresh_token)
+    token_blacklist.revoke(token, db)
+    token_blacklist.revoke(body.refresh_token, db)
 
     audit_service.log(
         db=db,
@@ -195,15 +216,11 @@ async def sync_supabase_user(
     Vérifie également la validité de la licence (Kill-Switch).
     """
     if not settings.SUPABASE_URL:
-        # En mode dev sans config, on laisse passer si c'est l'admin par défaut
-        if body.email == "admin@digitalcrown.com":
-             user = db.query(models.User).filter(models.User.email == body.email).first()
-             return {"status": "ok", "token": create_access_token(data={"sub": user.email})}
         raise HTTPException(status_code=500, detail="Supabase n'est pas configuré sur le serveur.")
 
     # 1. Valider le token auprès de Supabase
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {
                 "Authorization": f"Bearer {body.access_token}",
                 "apikey": settings.SUPABASE_ANON_KEY

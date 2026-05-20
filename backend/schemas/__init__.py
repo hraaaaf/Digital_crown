@@ -33,6 +33,7 @@ from .appointments import (
     AppointmentOut,
     AppointmentImportItem,
     AppointmentBulkCreate,
+    AppointmentSuggestionOut,
 )
 
 from .clinical import (
@@ -163,6 +164,10 @@ from .auth import (
     SupabaseSyncRequest,
 )
 
+from .branding import (
+    BrandingPreviewPayload,
+)
+
 __all__ = [
     # base
     "QRCodeType", "StyleKey", "AppointmentStatus",
@@ -172,7 +177,7 @@ __all__ = [
     "PatientBase", "PatientUpdate", "PatientCreate", "PatientOut",
     # appointments
     "AppointmentBase", "AppointmentCreate", "AppointmentUpdate",
-    "AppointmentOut", "AppointmentImportItem", "AppointmentBulkCreate",
+    "AppointmentOut", "AppointmentImportItem", "AppointmentBulkCreate", "AppointmentSuggestionOut",
     # clinical
     "DiagnosticSLM", "MeasureData", "DentalAnalysis", "SkeletalAnalysis",
     "EstheticAnalysis", "AnalysisMetrics", "CephaloAnalysisOut",
@@ -218,4 +223,6 @@ __all__ = [
     "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
     "SupabaseSyncRequest",
+    # branding
+    "BrandingPreviewPayload",
 ]

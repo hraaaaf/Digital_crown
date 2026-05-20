@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Crown, Gem, ShieldCheck, AlertCircle, Loader2, RefreshCcw } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
@@ -29,6 +29,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const fetchScore = async () => {
     if (!patientId) return;
@@ -66,7 +67,11 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
   // Fermeture au clic extérieur
   useEffect(() => {
     if (!showMenu) return;
-    const handleClickOutside = () => setShowMenu(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
@@ -143,6 +148,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
 
       {showMenu && (
         <div 
+          ref={menuRef}
           onClick={(e) => e.stopPropagation()}
           className="absolute right-0 top-full mt-3 w-72 bg-white rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-100 p-4 z-[9999] animate-in fade-in zoom-in-95 duration-200 origin-top-right"
         >
@@ -194,36 +200,6 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
         </div>
       )}
 
-      {!showMenu && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 p-4 bg-white/95 backdrop-blur-xl border border-slate-200/60 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-          <div className="flex items-center gap-2 mb-3">
-            <div className={cn("p-1.5 rounded-lg", config.bg, config.text)}>
-              {config.icon}
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fiabilité Patient</p>
-              <p className={cn("text-xs font-black uppercase tracking-wide", config.text)}>
-                {config.label} {data.is_manual ? '(Manuel)' : `(${data.score}/100)`}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3 pt-3 border-t border-slate-100">
-             <p className="text-[10px] text-slate-500 font-medium italic">"{config.desc}"</p>
-             {!data.is_manual && (
-               <div className="space-y-2">
-                 <div className="flex justify-between text-[9px] font-bold">
-                   <span className="text-slate-400">Assiduité</span>
-                   <span>{data.details?.assiduite_score ?? 0}/100</span>
-                 </div>
-                 <div className="flex justify-between text-[9px] font-bold">
-                   <span className="text-slate-400">Paiements</span>
-                   <span>{data.details?.solvabilite_score ?? 0}% réglé</span>
-                 </div>
-               </div>
-             )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

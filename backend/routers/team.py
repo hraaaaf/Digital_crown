@@ -54,6 +54,18 @@ def create_team_member(
             detail=f"L'email '{member.email}' est déjà utilisé par un autre compte."
         )
 
+    # Permissions par défaut pour une assistante (SECRETAIRE)
+    default_permissions = {
+        "agenda": True,
+        "patients": True,
+        "prescriptions": False,
+        "accounting": False,
+        "panoramic": False,
+        "cephalo": False,
+        "settings": False
+    }
+    user_perms = member.permissions if member.permissions is not None else default_permissions
+
     new_user = models.User(
         email=member.email,
         hashed_password=get_password_hash(member.password),
@@ -61,7 +73,8 @@ def create_team_member(
         nom_complet=member.nom_complet,
         telephone_mobile=member.telephone_mobile,
         employer_id=current_user.id,
-        is_active=True
+        is_active=True,
+        permissions=user_perms
     )
     db.add(new_user)
     db.commit()
@@ -76,7 +89,7 @@ def update_team_member(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_employer)
 ):
-    """Met à jour un sous-compte existant (nom, email, statut, mot de passe)."""
+    """Met à jour un sous-compte existant (nom, email, statut, mot de passe, permissions)."""
     member = db.query(models.User).filter(
         models.User.id == member_id,
         models.User.employer_id == current_user.id
@@ -101,6 +114,8 @@ def update_team_member(
         member.is_active = updates.is_active
     if updates.new_password is not None:
         member.hashed_password = get_password_hash(updates.new_password)
+    if updates.permissions is not None:
+        member.permissions = updates.permissions
 
     db.commit()
     db.refresh(member)

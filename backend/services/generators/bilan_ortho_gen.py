@@ -69,17 +69,26 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                     })
 
         config = vm.cabinet_config
-        p_color = config.get('primary_color', '#1A365D') if config else '#1A365D'
+        p_color = config.get('primary_color', '#003380') if config else '#003380'
         s_color = config.get('secondary_color', '#64748B') if config else '#64748B'
         
         radio_url = None
         if vm.radio_image_path:
-            img_path = vm.radio_image_path
-            if "8000/" in img_path:
-                img_path = img_path.split("8000/")[-1]
-            abs_path = os.path.abspath(img_path)
+            img_path = vm.radio_image_path.replace("api/", "")
+            # On cherche dans le dossier backend (dev)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            abs_path = os.path.join(base_dir, img_path)
+            
+            if not os.path.exists(abs_path):
+                # Backup mode prod
+                from backend.core.paths import AppPaths
+                media_dir = AppPaths.get_user_data_dir() / "media"
+                abs_path = str(media_dir / img_path.replace("static/", ""))
+                
             if os.path.exists(abs_path):
-                radio_url = f"file:///{abs_path.replace('\\', '/')}"
+                radio_url = f"file:///{os.path.abspath(abs_path).replace('\\', '/')}"
+            else:
+                logger.warning(f"Image radio introuvable pour le Bilan Ortho: {vm.radio_image_path}")
 
         # Recuperation des 4 blocs du Bilan Ortho
         ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
@@ -98,8 +107,9 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             synthese_diagnostique = "Bilan généré à partir de données existantes."
 
         from backend.services.qr_service import qr_service
-        qr_data = f"https://digitalcrown.ai/verify/ortho/{vm.patient_id}/{datetime.now().strftime('%Y%m%d')}"
-        qr_base64 = qr_service.generate_document_qr_base64("BILAN", str(vm.patient_id or "TEMP"))
+        qr_color = config.get('qr_code_color') or p_color
+        qr_style = config.get('qr_code_style', 'dots')
+        qr_base64 = qr_service.generate_document_qr_base64("BILAN", str(vm.patient_id or "TEMP"), color=qr_color, qr_style=qr_style)
 
         context = {
             "primary_color": p_color,
@@ -127,34 +137,56 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         return output_path
 
     def _generate_reportlab(self, vm: schemas.CephaloViewModel, file_path: str):
-        # Fallback simple (identique au précédent, avec titres adaptés)
+        """Mode de secours ReportLab avec intégration du Design System."""
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
         
+        config = vm.cabinet_config
+        p_color_hex = config.get('primary_color', '#003380') if config else '#003380'
+        p_color = colors.HexColor(p_color_hex)
+        
         styles = getSampleStyleSheet()
-        p_color = colors.HexColor('#1A365D')
-        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
-        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=p_color, spaceBefore=15, spaceAfter=10)
-        narrative_style = ParagraphStyle('Narrative', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=15, alignment=TA_JUSTIFY, spaceAfter=6)
+        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
+        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=14, textColor=p_color, spaceBefore=15, spaceAfter=10)
+        narrative_style = ParagraphStyle('Narrative', parent=styles['Normal'], fontName='Helvetica', fontSize=11, leading=16, alignment=TA_JUSTIFY, spaceAfter=8)
 
-        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=4.5*cm, bottomMargin=3.5*cm)
-        elements = [Paragraph("BILAN ORTHODONTIQUE (Fallback)", report_title_style)]
+        # Marges configurables
+        m_top = (max(config.get('margin_top', 4.5), 4.5) if config else 4.5) * cm
+        m_bottom = (max(config.get('margin_bottom', 3.5), 3.5) if config else 3.5) * cm
+
+        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        elements = [
+            Spacer(1, 1*cm),
+            Paragraph("BILAN ORTHODONTIQUE COMPLET", report_title_style),
+            Spacer(1, 0.5*cm)
+        ]
         
         ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
         if hasattr(ai_diag, "model_dump"):
             ai_diag = ai_diag.model_dump()
             
-        for k, v in ai_diag.items():
-            if k not in ["is_fallback"] and v:
-                elements.append(Paragraph(k.replace('_', ' ').capitalize(), section_title_style))
-                elements.append(Paragraph(str(v).replace('\n', '<br/>'), narrative_style))
-                
+        sections = [
+            ("Diagnostic Squelettique", ai_diag.get("diagnostic_squelettique")),
+            ("Analyse des Moulages", ai_diag.get("analyse_moulages")),
+            ("Synthèse Diagnostique", ai_diag.get("synthese_diagnostique")),
+            ("Stratégie Thérapeutique", ai_diag.get("strategie_therapeutique"))
+        ]
+
+        for title, content in sections:
+            if content:
+                elements.append(Paragraph(title.upper(), section_title_style))
+                elements.append(Paragraph(str(content).replace('\n', '<br/>'), narrative_style))
+                elements.append(Spacer(1, 0.5*cm))
+
+        # Intégration du Header/Footer Master
+        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
+        
         try:
-            doc.build(elements)
+            doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
             return file_path
         except Exception as e:
             logger.error(f"Échec ReportLab Bilan: {e}")

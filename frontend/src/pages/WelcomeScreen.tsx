@@ -1,23 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Sparkles, 
   ChevronRight,
-  ShieldCheck,
-  Zap
+  ShieldCheck
 } from 'lucide-react';
 import Logo from '../assets/logo.png';
 
 export const WelcomeScreen: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleSelectMode = (mode: 'prod' | 'demo') => {
-    localStorage.setItem('appMode', mode);
-    if (mode === 'demo') {
-      navigate('/setup');
-    } else {
-      navigate('/dashboard');
-    }
+  const handleSelectMode = () => {
+    localStorage.setItem('appMode', 'prod');
+    navigate('/dashboard');
   };
 
   return (
@@ -38,15 +32,14 @@ export const WelcomeScreen: React.FC = () => {
           </h1>
           <p className="text-slate-500 text-lg max-w-lg mx-auto">
             Bienvenue dans votre nouvel écosystème clinique intelligent.
-            Comment souhaitez-vous commencer aujourd'hui ?
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="max-w-md mx-auto">
           {/* Mode Production (Mon Cabinet) */}
           <button
-            onClick={() => handleSelectMode('prod')}
-            className="group relative bg-white rounded-3xl border-2 border-slate-100 p-8 text-left transition-all duration-500 hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 overflow-hidden"
+            onClick={handleSelectMode}
+            className="w-full group relative bg-white rounded-3xl border-2 border-slate-100 p-8 text-left transition-all duration-500 hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 overflow-hidden"
           >
             <div className="relative z-10">
               <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-500">
@@ -64,28 +57,6 @@ export const WelcomeScreen: React.FC = () => {
             {/* Background Accent */}
             <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-slate-50 rounded-full group-hover:bg-primary/5 transition-colors duration-500" />
           </button>
-
-          {/* Mode Démo (Lab Exploration) */}
-          <button
-            onClick={() => handleSelectMode('demo')}
-            className="group relative bg-white rounded-3xl border-2 border-slate-100 p-8 text-left transition-all duration-500 hover:border-indigo-600 hover:shadow-2xl hover:shadow-indigo-600/10 hover:-translate-y-2 overflow-hidden"
-          >
-            <div className="relative z-10">
-              <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-500">
-                <Zap className="w-7 h-7" />
-              </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Mode Démo</h2>
-              <p className="text-slate-500 mb-8">
-                Explorez l'interface et testez les thèmes sans modifier vos données cliniques.
-              </p>
-              <div className="flex items-center gap-2 text-indigo-600 font-bold group-hover:gap-4 transition-all">
-                Lancer l'exploration
-                <Sparkles className="w-5 h-5" />
-              </div>
-            </div>
-            {/* Background Accent */}
-            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-indigo-50/50 rounded-full group-hover:bg-indigo-600/5 transition-colors duration-500" />
-          </button>
         </div>
 
         <p className="text-center mt-12 text-slate-400 text-sm">
@@ -95,3 +66,4 @@ export const WelcomeScreen: React.FC = () => {
     </div>
   );
 };
+

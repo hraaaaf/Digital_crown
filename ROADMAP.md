@@ -14,13 +14,16 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 - [x] **Synchronisation d'Historique** : Import automatique de 50+ dossiers patients "Legacy" avec extraction des montants via PyPDF2.
 - [x] **Navigation Fluide** : Liens directs entre la comptabilité et le hub de documents du patient.
 
-## 🚧 2. Agenda Clinique (PARTIELLEMENT TERMINÉ)
-**Statut :** Déployé (v1.2) — IA Booking non implémentée
-**Spécialiste :** PixelMaster & Architector
+---
+
+## ✅ 2. Agenda Clinique & Rappels Automatiques (TERMINÉ)
+**Statut :** Déployé (v1.5)
+**Spécialiste :** PixelMaster, Architector & Staff Software Engineer
 
 - [x] **Modèle de Données** : Implémentation complète `Appointment` avec gestion des statuts.
 - [x] **Modification Interactive** : Édition des créneaux en direct via modal intelligent.
-- [ ] **Smart Booking** : Intégration de l'IA pour suggérer les durées de RDV selon l'historique.
+- [x] **Rappels Automatiques (WhatsApp Reminders)** : Service cron automatisé de rappels de rendez-vous sous 24h avec logs d'audit et détection de créneaux.
+- [x] **Smart Booking** : Intégration clinique déterministe pour suggérer les actes et durées du prochain rendez-vous selon le plan de traitement actif.
 
 ---
 
@@ -104,35 +107,34 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🚧 10. Smart QR Validation & Digital Trust
-**Statut :** En cours — Service backend créé, non intégré aux flux
-**Priorité :** Confort Elite
-**Spécialiste :** Architector & Financia
+## ✅ 10. Smart QR Validation & Digital Trust (TERMINÉ)
+**Statut :** Déployé (v5.2)
+**Spécialiste :** Architector & Staff Staff Engineering
 
-- [ ] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code. *(Le `qr_service.py` existe mais n'est intégré dans aucun générateur PDF ni exposé côté frontend.)*
-- [ ] **Signature Numérique** : Injection du QR Base64 dans les flux ReportLab/WeasyPrint. *(Non connecté.)*
-- [ ] **Scan to Pay** : Intégration QR sur documents financiers pour paiement mobile direct (v4.5).
+- [x] **Ordonnance E-Verify** : Validation de l'authenticité via portail sécurisé par QR Code.
+- [x] **Signature Numérique** : Injection du QR Base64 dans les flux WeasyPrint (Ghost Elite).
+- [x] **Scan to Contact** : Support des formats VCARD, WhatsApp et Instagram dans le QR dynamique.
 
 ---
 
-## 🚧 11. Dynamic Theme Engine & Personnalisation Ghost Elite
-**Statut :** Partiellement Déployé (v5.0) — Thèmes CSS OK, sélecteur couleur manquant
-**Spécialiste :** PixelMaster
+## ✅ 11. Dynamic Theme Engine & Personnalisation Ghost Elite (TERMINÉ)
+**Statut :** Déployé (v5.2)
+**Spécialiste :** PixelMaster & Antigravity
 
 - [x] **Ghost Elite Dashboard** : Refonte totale basée sur les variables CSS (`--primary`, `--secondary`).
-- [x] **Thèmes Pré-définis** : 3 thèmes fonctionnels via `data-theme` (Elite, Emerald, Prestige) dans `index.css`.
-- [ ] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire) directement dans les Settings avec persistence BDD. *(Aucun ColorPicker implémenté dans `Settings.tsx`.)*
+- [x] **Thèmes Pré-définis** : 6 thèmes fonctionnels via `data-theme` (Elite, Emerald, Prestige, Rose, etc.).
+- [x] **Dynamic Color Selectors** : Curseurs de couleurs (Primaire/Secondaire/Accent) intégrés dans les Settings avec persistence BDD.
 - [x] **UX Zero-Friction** : Barre d'actions rapides (Quick Acts) et autocomplétion intelligente.
 
 ---
 
-## 💎 12. CRM & Fidélisation : Patient Scoring
-**Statut :** Idée / Recherche
-**Priorité :** Basse
+## ✅ 12. CRM & Fidélisation : Patient Scoring (TERMINÉ)
+**Statut :** Déployé (v1.5)
 **Spécialiste :** Architector & Financia
 
-- [ ] **Logique de Scoring Discret** : Attribution d'un grade (Bronze, Silver, Gold, Platinum) basé sur un algorithme interne.
-- [ ] **Indice d'Assiduité** : Calcul du ratio RDV honorés / RDV annulés ou "No-Show" (impacte le score négativement).
+- [x] **Calculateur d'Intelligence Patient (Score 0-100)** : Évalue instantanément la complétude du dossier patient (antécédents, radiographies, données cliniques).
+- [x] **Vigilance Financière Active (Pénalité Solvabilité)** : Soustraction automatique de `-15 points` en cas de dettes échues non réglées ($\ge 1000$ MAD) sur les actes cliniques finalisés.
+- [x] **Gradation & Badges Élite** : Menu de grade interactif ("Bronze", "Silver", "Gold", "Platinum") avec persistance BDD et interaction zero-friction.
 
 ---
 
@@ -158,8 +160,8 @@ Ce document centralise les fonctionnalités prévues et les architectures valid�
 
 ---
 
-## 🚧 15. Gestion des Rôles : Mode Assistante du Cabinet
-**Statut :** En cours (Phase 1 & 2 déployées)
+## ✅ 15. Gestion des Rôles : Mode Assistante du Cabinet (TERMINÉ)
+**Statut :** Déployé (v1.5)
 **Priorité :** Élevée
 **Spécialiste :** Architector & PixelMaster
 
@@ -169,9 +171,9 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 - [x] **Interface de Gestion d'Équipe** : Onglet "Mon Équipe" dans les Settings pour créer, suspendre et supprimer des sous-comptes.
 - [x] **Suspension d'Accès** : Bouton de suspension instantanée (toggle `is_active`) avec blocage du login.
 - [x] **RBAC Backend** : Dépendance `require_employer()` pour bloquer les opérations de gestion aux sous-comptes.
-- [ ] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante mettra en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, plutôt que les statistiques financières.
-- [ ] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès aux données sensibles (Chiffre d'affaires global, diagnostics IA poussés, honoraires spécifiques) selon les permissions accordées par le médecin.
-- [ ] **Workflow de Pré-Saisie** : Capacité pour l'assistante de créer le dossier patient, de remplir le questionnaire médical de base et de scanner les documents (carte d'identité, mutuelle) avant l'entrée en salle de soins.
+- [x] **Tableau de Bord Dédié (Task-Driven)** : L'écran d'accueil de l'assistante met en évidence l'**Agenda** (arrivées, retards, confirmations) et la file d'attente du jour, sans les statistiques financières.
+- [x] **Masquage Stratégique (Feature Hiding)** : Restriction d'accès et étanchéité totale aux données sensibles (Comptabilité, prescriptions, tracés IA avancés) selon les permissions de l'assistante.
+- [x] **Workflow de Pré-Saisie** : Capacité complète pour l'assistante de créer le dossier patient, d'éditer la fiche d'informations et de gérer les données de base avant l'entrée en salle de soins.
 
 ---
 
@@ -197,24 +199,74 @@ Ce module vise à créer une expérience utilisateur (UX) sur mesure pour le per
 
 ---
 
-## 🎙️ 18. Assistant Vocal "Hands-Free" & Vision Advanced (Prochaine Étape)
-**Statut :** Planifié
+## 🎙️ 18. Assistant Vocal "Hands-Free" & Vision Advanced (En cours)
+**Statut :** Planifié / Module Clinique Déployé
 **Priorité :** Élevée
 
-### 🛡️ Module 4 IA : Cohérence Clinique (Priorité Haute)
+### ✅ Module 4 IA : Cohérence Clinique & Interactions (TERMINÉ)
+- [x] **Moteur d'Interactions Médicamenteuses (DDI)** : Détection dynamique et résiliente des conflits médicamenteux de sévérité élevée ou moyenne (Macrolides/Statines, Macrolides/Amiodarone, Métronidazole/Alcool, AINS/AINS, AINS/Anticoagulants) dans le Studio de Prescription.
+- [x] **Bannière de Pharmacovigilance Active** : Affichage d'alertes instantanées et d'avertissements de sécurité dans le Compagnon Diagnostique.
 - [ ] **Cross-Check Intelligent** : Alerte automatique si une ordonnance d'antibiotiques est générée sans acte chirurgical ou endodontique lié dans la séance.
 - [ ] **Détection d'Omissions** : Suggestion d'actes de prévention (Détartrage/Fluor) basée sur l'historique du patient.
 
 ---
 
-## 🦷 19. Analyseur Radio Panoramique IA (PanoVision Engine)
-**Statut :** Planifié / Architecture Validée
-**Priorité :** Haute
+## 🧠 20. Ghost Elite Intelligence V3 : Co-Pilote Agentique (En cours)
+**Statut :** Planifié / En cours d'Analyse
+**Priorité :** Élevée
+**Spécialiste :** Antigravity Staff Engineering
 
-- [ ] **PanoDetect (YOLOv8)** : Détection automatique des pathologies (caries, kystes, implants) par quadrant FDI.
-- [ ] **PanoReport** : Génération de rapports annotés avec overlay radio dans le dossier patient.
+- [ ] **Chat Clinique Interactif** : Remplacer les suggestions passives par une interface de dialogue contextuelle.
+- [x] **App Awareness & Header Integration** : Capacité du Brain et de la Guide Tower à détecter le module actif (Compta, Céphalo, Dossier) pour adapter leurs conseils. Intégration finalisée dans le Header principal aux côtés des réglages.
+- [ ] **Exécution Agentique** : Passage de la suggestion à l'action (ex: "Générer le devis" via un bouton piloté par l'IA).
+- [ ] **Reasoning Visualization** : Affichage de la "chaîne de pensée" clinique derrière chaque diagnostic.
 
 ---
 
-*Dernière mise à jour : 12 Mai 2026 — Elite Library & Soin Mode Release.*
+## ✅ 21. Compagnon Mobile PWA : Zero-Knowledge Access (TERMINÉ)
+**Statut :** Déployé (v6.0-rc1)
+**Spécialiste :** Staff Staff Engineering (ZKA Specialist)
 
+- [x] **Onboarding Scanner** : Appairage sécurisé via QR Code (Capture Master Key).
+- [x] **Moteur ZKA Pull** : Chiffrement AES-256 de bout en bout via Supabase Relais.
+- [x] **Cockpit Mobile** : Vue Agenda, Performance Finance et Liste Rouge (Débiteurs) en temps réel.
+- [x] **Mode Air-Gapped** : Zéro stockage de clé sur le cloud ; souveraineté totale des données cliniques.
+
+---
+
+## ✅ 22. Agenda Intelligent & Plan de Traitement (Odontogramme) (TERMINÉ)
+**Statut :** Smart Booking Clinique Déployé (v5.3)
+**Priorité :** Critique (Agentique)
+**Spécialiste :** Antigravity Staff Engineering
+
+L'objectif est d'interconnecter le cerveau de l'application, l'agenda et l'odontogramme pour créer un "Smart Booking" ultra-performant.
+- [x] **Compagnon Diagnostique & Decision Tree (v2.0)** : Arbre décisionnel interactif multiniveau prenant en charge les urgences (douleurs, abcès), motifs esthétiques (dyschromie, alignement), problèmes prothétiques (dent manquante, casse), traumatismes (chocs, expulsion) et bilans de routine/tartre dans le TreatmentPlanStudio.
+- [x] **Génération de Plan Scientifique** : Traduction automatique des réponses en un plan de traitement structuré en 5 phases cliniques avec panier de soins interactif.
+- [x] **Agenda Contextuel** : Lors de la proposition du prochain RDV, l'Agenda lit dynamiquement le plan de traitement inachevé du patient pour suggérer le prochain acte prioritaire.
+- [ ] **Questions Proactives** : L'agenda demande explicitement au praticien la nature de la suite (ex: *"S'agit-il de la 2ème séance de traitement canalaire, ou attaque-t-on le composite ?"*).
+- [x] **Durée Auto-Calculée** : Le temps réservé dans l'agenda s'adapte automatiquement à l'acte suggéré (15-45 minutes).
+
+---
+
+## ✅ 23. Bilan Parodontal Interactif EFP/AAP 2017 (TERMINÉ)
+**Statut :** Déployé (v1.0)
+**Spécialiste :** Staff Software Engineering & PixelMaster
+
+- [x] **Periodontal Charting Complet** : Interface interactive et fluide de saisie des profondeurs de poches, perte d'attache clinique (CAL) et saignements au sondage (BOP) pour les 32 dents.
+- [x] **Standards AAP 2017** : Intégration des règles d'évaluation clinique et de gradation (Staging I à IV, Grading A à C).
+- [x] **Co-prescription Adjuvante** : Recommandation automatique d'antibiothérapie d'accompagnement (Amoxicilline + Métronidazole) pour les parodontites agressives (Grade C).
+
+---
+
+## ✅ 24. Sécurité, Licences Off-line & Sauvegardes AES-256 (TERMINÉ)
+**Statut :** Déployé (v1.0)
+**Spécialiste :** Staff Software Engineering & Architector
+
+- [x] **Elite Offline License System** : Gestionnaire de licences en ligne et hors-ligne via coffre-fort chiffré (`license_vault.bin`).
+- [x] **Anti-Fraude Temporelle** : Détection automatique des retours en arrière de l'horloge système (clock rollback) et période de grâce de 72h sans Internet.
+- [x] **Sauvegardes AES-256 Automatisées** : Script de sauvegarde chiffrée de la base de données SQLite locale avec exportation sécurisée vers Supabase Cloud.
+- [x] **Logs d'Audit Systématiques** : Traçabilité totale des opérations de licence, de restauration et de sauvegarde dans l'AuditLog.
+
+---
+
+*Dernière mise à jour : 18 Mai 2026 — Phase 6 Deployment Ready (Elite Edition).*

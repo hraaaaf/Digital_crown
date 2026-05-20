@@ -1,16 +1,23 @@
 import os
+import sys
+import time
 import logging
 import contextlib
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 
 from backend import models, database
+from backend.services.sync_manager import sync_manager
 from backend.seed_templates import run_full_seed
 from backend.seed_user import seed_admin_user
+from backend.seed_clinical import seed_clinical_data
 from backend.services.panoramic_service import panoramic_engine
+from backend.core.paths import AppPaths
+from backend.services.license_service import LicenseService
+import webbrowser
 
 # --- CONFIGURATION LOGGING ---
 logging.basicConfig(level=logging.INFO)
@@ -25,16 +32,37 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Demarrage de Digital Crown API...")
+    
+    # 1. Vérification du Kill-Switch Firebase
+    clinic_id = os.getenv("CLINIC_ID", "default_clinic")
+    license_ok = await LicenseService().validate_license(clinic_id)
+    
+    if not license_ok:
+        logger.error("❌ LICENCE EXPIREE OU DESACTIVEE. L'application va s'arreter.")
+        # On pourrait lever une exception ici pour empêcher le démarrage
+        # raise SystemExit("Licence invalide")
+    
     try:
+        # 2. Initialisation DB dans %APPDATA% via AppPaths
         models.Base.metadata.create_all(bind=database.engine)
+        
+        # Activation de la synchronisation Zero-Knowledge (Observer Mode)
+        sync_manager.start_listening()
+        
         with database.SessionLocal() as db:
             run_full_seed(db)
-        
+            seed_clinical_data(db)
+
         # S'assure que l'admin par defaut existe
         seed_admin_user()
         
         # Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
+
+        # 3. Ouverture automatique du navigateur (Build mode uniquement)
+        if hasattr(sys, '_MEIPASS'):
+            webbrowser.open("http://127.0.0.1:8000")
+
     except Exception as e:
         logger.error(f"Erreur Initialisation : {e}")
     yield
@@ -62,13 +90,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
     expose_headers=["X-Total-Count"],
 )
 
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = round((time.time() - start) * 1000)
+    # Ne pas logger les assets statiques pour éviter le bruit
+    if not request.url.path.startswith(("/static", "/api/static")):
+        user_agent = request.headers.get("user-agent", "")[:40]
+        logger.info(
+            f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)"
+        )
+    return response
+
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -83,12 +124,64 @@ app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes
 app.include_router(accounting.router, prefix="/api/accounting", tags=["Accounting & Payments"])
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
+app.include_router(clinical_data.router, prefix="/api/clinical-data", tags=["Données Cliniques"])
+app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
 
-# --- STATIC FILES ---
-# Placé à la fin pour éviter de masquer des routes d'API
-app.mount("/api/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static_legacy")
+# --- HEALTH CHECK ---
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    try:
+        with database.SessionLocal() as db:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": str(e)})
 
-@app.get("/")
-def root():
-    return {"status": "online", "message": "Digital Crown API is running."}
+# --- STATIC FILES & UI ---
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+# 1. Dossier Static des Médias (Photos patients, etc.)
+# En prod, on utilise un dossier dans %APPDATA%
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount pour les uploads locaux (dev & reports)
+UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# /api/static/uploads est prioritaire pour le dossier local dev
+app.mount("/api/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="api_uploads")
+# /api/static sert le reste depuis MEDIA_DIR (logo, etc.)
+app.mount("/api/static", StaticFiles(directory=str(MEDIA_DIR)), name="static")
+# Mount legacy pour compatibilité
+app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# 2. Servage du Frontend React (SPA)
+FRONTEND_DIST = AppPaths.get_static_dir()
+
+if FRONTEND_DIST.exists():
+    from fastapi.responses import FileResponse
+
+    # Assets statiques (JS, CSS, images, sw.js, manifest.json…)
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="frontend_assets")
+
+    # Fichiers à la racine du dist (sw.js, manifest.json, logo_gold.png…)
+    _dist_root_files = {p.name for p in FRONTEND_DIST.iterdir() if p.is_file()}
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        # Fichier statique connu à la racine du dist → le servir directement
+        if full_path in _dist_root_files:
+            return FileResponse(str(FRONTEND_DIST / full_path))
+        # Toute autre route SPA → index.html (React Router gère)
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+    logger.info(f"Frontend servit depuis : {FRONTEND_DIST}")
+else:
+    @app.get("/")
+    def root():
+        return {"status": "online", "message": "API Active (Frontend non trouve)"}

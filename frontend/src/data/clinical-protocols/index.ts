@@ -124,14 +124,22 @@ export const CLINICAL_PROTOCOLS: ClinicalProtocol[] = [
 ];
 
 export const getProtocolByActName = (actName: string): ClinicalProtocol | undefined => {
-  if (!actName) return undefined;
+  if (!actName || actName.trim().length < 3) return undefined;
 
   const normalizedSearch = actName.toLowerCase().trim();
 
+  // 1. Essayer une correspondance exacte en premier
+  const exactMatch = CLINICAL_PROTOCOLS.find(p =>
+    p.act_names.some(name => name.toLowerCase() === normalizedSearch)
+  );
+  if (exactMatch) return exactMatch;
+
+  // 2. Sinon essayer une correspondance par préfixe ou mot-clé propre
   return CLINICAL_PROTOCOLS.find(p =>
-    p.act_names.some(name =>
-      normalizedSearch.includes(name.toLowerCase()) ||
-      name.toLowerCase().includes(normalizedSearch)
-    )
+    p.act_names.some(name => {
+      const lowerName = name.toLowerCase();
+      return lowerName.startsWith(normalizedSearch) || 
+             (normalizedSearch.length >= 4 && lowerName.includes(normalizedSearch));
+    })
   );
 };

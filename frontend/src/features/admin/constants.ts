@@ -55,18 +55,18 @@ export const CROWN_MESSAGES: Record<number, string> = {
 };
 
 export const PREMIUM_FONTS = [
-  { id: 'inter', name: 'Inter', desc: 'Professionnel & Clair', class: 'font-sans' },
-  { id: 'outfit', name: 'Outfit', desc: 'Moderne & Dynamique', class: 'font-outfit' },
-  { id: 'playfair', name: 'Playfair', desc: 'Élégant & Classique', class: 'font-serif' }
+  { id: 'inter', name: 'Inter Tight', desc: 'Clarté clinique absolue, lecture rapide.', class: 'font-sans' },
+  { id: 'outfit', name: 'Outfit', desc: 'Design premium, élégance moderne.', class: 'font-outfit' },
+  { id: 'playfair', name: 'Playfair Display', desc: 'Prestige traditionnel, haute spécialité.', class: 'font-playfair' }
 ];
 
 export const DESIGN_VARIANTS = [
-  { id: 'classic', name: 'Elite Classic', icon: Building2 },
-  { id: 'elite', name: 'Elite Modern', icon: Sparkles },
-  { id: 'sidebar', name: 'Elite Sidebar', icon: LayoutGrid },
-  { id: 'royal', name: 'Royal Centered', icon: Wand2 },
-  { id: 'prestige', name: 'Prestige Dark', icon: Moon },
-  { id: 'minimal', name: 'Minimal Zen', icon: Layers }
+  { id: 'classic', name: 'Haute Couture (Classique)', icon: Building2 },
+  { id: 'elite', name: 'Ghost Elite (Signature)', icon: Sparkles },
+  { id: 'sidebar', name: 'Clinique Technique (Latéral)', icon: LayoutGrid },
+  { id: 'royal', name: 'Royal Prestige (Centré)', icon: Wand2 },
+  { id: 'prestige', name: 'Nuit Noire (Luxe Sombre)', icon: Moon },
+  { id: 'minimal', name: 'Épure Zen (Minimaliste)', icon: Layers }
 ];
 
 export const BRAND_IDENTITIES = [

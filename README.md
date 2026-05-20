@@ -1,7 +1,7 @@
 # 👑 Digital Crown - SANINOVA Edition
 ## *L'Intelligence Clinique au service de l'Orthodontie Moderne*
 
-![Version](https://img.shields.io/badge/Version-v1.3_Elite_Panoramic-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-v1.5_Elite_Docking-blue?style=for-the-badge)
 
 ![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?style=for-the-badge&logo=react)
@@ -27,9 +27,9 @@ Le système d'assistance cognitive le plus discret au monde.
 - **Auto-Hide Tips** : Conseils cliniques apparaissant en haut à gauche pendant 2 secondes pour une concentration maximale.
 - **Predictive Habits** : Suggestions de prescriptions basées sur les habitudes cliniques réelles du praticien.
 
-### 🧠 Clinical Intelligence v1.2
+### 🧠 Clinical Intelligence v1.5
 
-Le cerveau de l'application. Plus qu'un simple gestionnaire, Digital Crown analyse le dossier patient en temps réel pour générer des **Flash Summaries** et des diagnostics structurés (Squelettique, Dentaire, Stratégie) via des modèles SLM locaux (Ollama/Llama3.2) et Gemini 1.5 Flash.
+Le cerveau de l'application. Plus qu'un simple gestionnaire, Digital Crown analyse le dossier patient en temps réel pour générer des **Flash Summaries** et des diagnostics structurés (Squelettique, Dentaire, Stratégie) via des modèles SLM locaux (Ollama/Llama3.2) et Gemini 1.5 Flash. Désormais centralisé dans l'**Elite Dock** interactif.
 
 ### 💎 Ghost Elite UI
 Une interface fluide, transparente et immersive. 

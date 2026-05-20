@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bilan Radiographique Élite - {{ patient_nom }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --dc-primary: {{ primary_color }};
+            --dc-secondary: {{ secondary_color }};
+            --dc-accent: #0f172a;
+            --dc-slate-50: #f8fafc;
+            --dc-slate-100: #f1f5f9;
+            --dc-slate-200: #e2e8f0;
+            --dc-slate-400: #94a3b8;
+            --dc-slate-500: #64748b;
+            --dc-slate-700: #334155;
+            --dc-slate-900: #0f172a;
+        }
+
+        @page {
+            size: A4;
+            margin: 0; /* On gère les marges en interne pour un contrôle total */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--dc-slate-900);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            background-color: white;
+        }
+
+        .page-container {
+            padding: 4.5cm 1.5cm 3.5cm 1.5cm; /* Marges standard Digital Crown */
+        }
+
+        .elite-header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .elite-header h1 {
+            font-family: 'Outfit', sans-serif;
+            color: var(--dc-primary);
+            font-size: 24pt;
+            font-weight: 700;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .elite-header .badge-ia {
+            display: inline-block;
+            background-color: var(--dc-primary);
+            color: white;
+            font-size: 8pt;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-weight: 600;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Patient Info Grid */
+        .patient-card {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            background-color: var(--dc-slate-50);
+            border: 1px solid var(--dc-slate-200);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 7pt;
+            text-transform: uppercase;
+            color: var(--dc-slate-500);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--dc-slate-900);
+            margin-top: 4px;
+        }
+
+        /* Images Grid */
+        .imaging-grid {
+            margin-bottom: 30px;
+            display: block;
+        }
+
+        .main-radio {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .main-radio img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--dc-slate-200);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .secondary-imaging {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .secondary-img {
+            flex: 1;
+            max-width: 45%;
+        }
+
+        .secondary-img img {
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--dc-slate-200);
+        }
+
+        .img-caption {
+            font-size: 7pt;
+            color: var(--dc-slate-400);
+            text-align: center;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        /* Clinical Content */
+        .findings-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            color: var(--dc-primary);
+            font-size: 14pt;
+            font-weight: 600;
+            border-bottom: 2px solid var(--dc-slate-100);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .finding-category {
+            background-color: white;
+            border: 1px solid var(--dc-slate-100);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .category-header {
+            font-size: 9pt;
+            font-weight: 700;
+            color: var(--dc-slate-700);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-header .dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--dc-primary);
+            border-radius: 50%;
+        }
+
+        .finding-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .finding-list li {
+            font-size: 9.5pt;
+            color: var(--dc-slate-900);
+            margin-bottom: 6px;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .finding-list li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--dc-primary);
+        }
+
+        /* Cephalo Table Inspired by Example 3 */
+        .cephalo-annex {
+            margin-top: 40px;
+            page-break-before: auto;
+        }
+
+        .metric-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+        }
+
+        .metric-table th {
+            text-align: left;
+            background-color: var(--dc-slate-900);
+            color: white;
+            padding: 10px 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .metric-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--dc-slate-100);
+            white-space: nowrap;
+        }
+
+        .metric-row:nth-child(even) {
+            background-color: var(--dc-slate-50);
+        }
+
+        .metric-name { font-weight: 600; }
+        
+        /* Visual Indicator like Riverside */
+        .visual-bar-container {
+            width: 140px;
+            height: 12px;
+            background-color: #e2e8f0;
+            border-radius: 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .norm-zone {
+            position: absolute;
+            left: 35%;
+            width: 30%;
+            height: 100%;
+            background-color: #dcfce7; /* Green zone */
+            border-left: 1px dashed #22c55e;
+            border-right: 1px dashed #22c55e;
+        }
+
+        .value-pointer {
+            position: absolute;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background-color: var(--dc-primary);
+            border-radius: 2px;
+            z-index: 2;
+        }
+
+        .status-badge {
+            font-size: 7.5pt;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .status-High { background-color: #fee2e2; color: #dc2626; }
+        .status-Low { background-color: #fee2e2; color: #dc2626; }
+        .status-Normal { background-color: #dcfce7; color: #16a34a; }
+        .status-Compensated { background-color: #ffedd5; color: #ea580c; }
+
+        .confidentiality-note {
+            margin-top: 40px;
+            font-size: 6.5pt;
+            color: var(--dc-slate-400);
+            text-align: center;
+            font-style: italic;
+            border-top: 1px dashed var(--dc-slate-100);
+            padding-top: 15px;
+        }
+
+        /* Signature & Verification */
+        .validation-footer {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-top: 1px solid var(--dc-slate-200);
+            padding-top: 30px;
+        }
+
+        .qr-seal {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .qr-seal img {
+            width: 85px;
+            height: 85px;
+            border: 1px solid var(--dc-slate-200);
+            padding: 5px;
+            background: white;
+        }
+
+        .qr-text {
+            max-width: 180px;
+        }
+
+        .qr-text .title {
+            font-size: 8pt;
+            font-weight: 700;
+            color: var(--dc-slate-900);
+            text-transform: uppercase;
+        }
+
+        .qr-text .desc {
+            font-size: 7pt;
+            color: var(--dc-slate-500);
+            margin-top: 3px;
+        }
+
+        .signature-block {
+            text-align: right;
+        }
+
+        .doctor-signature {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14pt;
+            font-weight: 700;
+            color: var(--dc-primary);
+        }
+
+        .sig-status {
+            font-size: 8pt;
+            color: var(--dc-slate-500);
+            margin-top: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        
+        <div class="elite-header">
+            <h1>Bilan Radiographique & Clinique</h1>
+            <div class="badge-ia">Intelligence Artificielle Loki-Silvres v4.0</div>
+        </div>
+
+        <div class="patient-card">
+            <div class="info-item">
+                <span class="info-label">Identité du Patient</span>
+                <span class="info-value">{{ patient_nom.upper() }} {{ patient_prenom.capitalize() }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Identifiant Dossier</span>
+                <span class="info-value">#{{ patient_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Date d'Examen</span>
+                <span class="info-value">{{ date_analyse }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Âge Clinique</span>
+                <span class="info-value">{{ patient_age }} ans</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Praticien Requérant</span>
+                <span class="info-value">{{ doctor_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Statut Dentaire</span>
+                <span class="info-value">{{ denture_type or 'Denture Adulte' }}</span>
+            </div>
+        </div>
+
+        <div class="imaging-grid">
+            {% if pano_url %}
+            <div class="main-radio">
+                <img src="{{ pano_url }}" alt="Radiographie Panoramique">
+                <div class="img-caption">Orthopantomogramme (Panoramique Dentaire) - Analyse IA Multi-Quadrant</div>
+            </div>
+            {% endif %}
+            
+            {% if cephalo_url %}
+            <div class="secondary-imaging">
+                <div class="secondary-img">
+                    <img src="{{ cephalo_url }}" alt="Téléradiographie de Profil">
+                    <div class="img-caption">Téléradiographie Latérale (Profil)</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="findings-section">
+            <h2 class="section-title">Analyse Clinique & Diagnostics</h2>
+            
+            <div class="category-grid">
+                {% for cat in categories %}
+                <div class="finding-category">
+                    <div class="category-header">
+                        <span class="dot"></span>
+                        {{ cat.name }}
+                    </div>
+                    <ul class="finding-list">
+                        {% for item in cat.items %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if metrics %}
+        <div class="cephalo-annex">
+            <h2 class="section-title">Synthèse Céphalométrique (Profil)</h2>
+            <table class="metric-table">
+                <thead>
+                    <tr>
+                        <th>Paramètre</th>
+                        <th>Valeur</th>
+                        <th>Norme</th>
+                        <th>Positionnement Visuel</th>
+                        <th>Évaluation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in metrics %}
+                    <tr class="metric-row">
+                        <td class="metric-name">{{ m.name }}</td>
+                        <td>{{ m.valeur }} {{ m.unite }}</td>
+                        <td>{{ m.norme }}</td>
+                        <td>
+                            <div class="visual-bar-container">
+                                <div class="norm-zone"></div>
+                                <div class="value-pointer" style="--v-pos: {{ m.visual_percent | default(50) }}%; left: var(--v-pos);"></div>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-{{ m.status }}">{{ m.status_label }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="validation-footer">
+            <div class="qr-seal">
+                {% if qr_code_base64 %}
+                <img src="{{ qr_code_base64 }}" alt="QR Code Elite Verification">
+                <div class="qr-text">
+                    <div class="title">Sceau d'Authenticité</div>
+                    <div class="desc">Ce document est cryptographiquement signé. Scannez pour consulter l'original sur le portail Digital Crown.</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="signature-block">
+                <div class="sig-status">Rapport validé numériquement par</div>
+                <div class="doctor-signature">{{ doctor_name }}</div>
+                <div class="sig-status">Spécialiste en Orthodontie</div>
+            </div>
+        </div>
+
+        <div class="confidentiality-note">
+            Ce document contient des informations médicales confidentielles protégées par le secret professionnel. 
+            Toute divulgation non autorisée est strictement interdite. Digital Crown Elite Compliance v4.0.
+        </div>
+
+    </div>
+</body>
+</html>

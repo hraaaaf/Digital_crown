@@ -16,12 +16,14 @@ interface Props {
   setSelectedTemplate: (v: TemplateOption) => void;
   logoPreview: string | null;
   letterheadPreview: string | null;
-  logoInputRef: React.RefObject<HTMLInputElement>;
-  letterheadInputRef: React.RefObject<HTMLInputElement>;
+  logoInputRef: React.RefObject<HTMLInputElement | null>;
+  letterheadInputRef: React.RefObject<HTMLInputElement | null>;
   handleLogoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleLetterheadChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   margins: { top: number; bottom: number };
   setMargins: React.Dispatch<React.SetStateAction<{ top: number; bottom: number }>>;
+  headerScale: number;
+  setHeaderScale: (v: number) => void;
 }
 
 export const Step5Design: React.FC<Props> = ({
@@ -33,6 +35,7 @@ export const Step5Design: React.FC<Props> = ({
   logoInputRef, letterheadInputRef,
   handleLogoChange, handleLetterheadChange,
   margins, setMargins,
+  headerScale, setHeaderScale,
 }) => (
   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
     <div className="text-center">
@@ -170,6 +173,23 @@ export const Step5Design: React.FC<Props> = ({
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Header Scale Control (Elite v4.2) */}
+        <div className="pt-4 border-t border-slate-200/60 space-y-4">
+           <div className="flex justify-between items-end">
+             <div className="flex items-center gap-2">
+               <Type size={14} className="text-primary" />
+               <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Dimension des Textes (En-tête)</span>
+             </div>
+             <span className="text-sm font-black text-primary">{Math.round(headerScale * 100)}%</span>
+           </div>
+           <input 
+             type="range" min="0.5" max="1.8" step="0.05" value={headerScale}
+             onChange={e => setHeaderScale(parseFloat(e.target.value))}
+             className="w-full h-1.5 bg-slate-200 rounded-lg accent-primary cursor-pointer"
+           />
+           <p className="text-[9px] text-slate-400 italic">Ajustez cette valeur si vous trouvez que les noms sont trop petits ou trop grands.</p>
         </div>
 
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">

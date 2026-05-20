@@ -215,12 +215,44 @@ class AccountingService:
 
         items.sort(key=lambda x: x["date"], reverse=True)
 
+        # 3. Intelligence Proactive : Détection des échéances (Installments)
+        today = datetime.now()
+        installments = db.query(models.Installment).join(models.InstallmentPlan).join(models.Patient).filter(
+            models.Installment.status == "EN_ATTENTE",
+            models.Patient.employer_id == user_employer_id
+        ).all()
+        
+        proactive_alerts = []
+        for inst in installments:
+            days_diff = (inst.due_date.date() - today.date()).days
+            if days_diff < 0:
+                proactive_alerts.append({
+                    "id": f"alert_inst_{inst.id}",
+                    "type": "OVERDUE",
+                    "severity": "critical" if days_diff < -7 else "warning",
+                    "message": f"Échéance en retard de {abs(days_diff)} jours pour {inst.plan.patient.nom} {inst.plan.patient.prenom} ({inst.amount} MAD)",
+                    "patient_id": inst.plan.patient_id,
+                    "amount": inst.amount,
+                    "action": "Relancer le patient"
+                })
+            elif days_diff <= 3:
+                proactive_alerts.append({
+                    "id": f"alert_inst_{inst.id}",
+                    "type": "UPCOMING",
+                    "severity": "info",
+                    "message": f"Échéance imminente (dans {days_diff} j) pour {inst.plan.patient.nom} {inst.plan.patient.prenom} ({inst.amount} MAD)",
+                    "patient_id": inst.plan.patient_id,
+                    "amount": inst.amount,
+                    "action": "Préparer l'encaissement"
+                })
+
         return {
             "pending_count": len(items),
             "pending_total": pending_total_docs + pending_total_actes,
             "partial_total": partial_total_docs + partial_total_actes,
             "cheques_count": len([i for i in items if i["status"] == models.PaiementStatut.A_ENCAISSER]),
-            "items": items
+            "items": items,
+            "proactive_alerts": sorted(proactive_alerts, key=lambda x: -1 if x["severity"] == "critical" else 1)
         }
 
 accounting_service = AccountingService()

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar as CalendarIcon, Eye } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 interface StudioHeaderProps {
@@ -7,8 +7,6 @@ interface StudioHeaderProps {
   docDate: string;
   onDateChange: (date: string) => void;
   activeTab: string;
-  sideStudioType: 'NONE' | 'PREVIEW';
-  onTogglePreview: () => void;
   showOdontoPanoramique: boolean;
   onToggleOdonto: () => void;
 }
@@ -18,8 +16,6 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   docDate,
   onDateChange,
   activeTab,
-  sideStudioType,
-  onTogglePreview,
   showOdontoPanoramique,
   onToggleOdonto
 }) => {
@@ -27,7 +23,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
     <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-2xl border border-white/50 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
-          <Eye size={20} />
+          <CalendarIcon size={20} />
         </div>
         <div>
           <h2 className="text-lg font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
@@ -56,17 +52,20 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
 
         {activeTab !== 'ai' && (
-          <button 
-            onClick={onTogglePreview}
-            className={cn(
-              "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-              sideStudioType === 'PREVIEW' 
-                ? "bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/30" 
-                : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
-            )}
-          >
-            <Eye size={14}/> {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Direct"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2 px-5 py-3 bg-white text-slate-400 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
+            >
+              Actualiser
+            </button>
+            <button 
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+            >
+              Quitter
+            </button>
+          </div>
         )}
 
         <div className="bg-white/80 dark:bg-slate-900/50 p-2.5 rounded-2xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col items-start gap-1 min-w-[130px]">

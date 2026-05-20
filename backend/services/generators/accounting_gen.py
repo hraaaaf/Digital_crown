@@ -21,8 +21,8 @@ class AccountingGenerator:
 
     def _init_styles(self):
         """Styles Premium unifiés avec contraste maximal Gras/Normal."""
-        font_main = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_main = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         self.styles.add(ParagraphStyle(
             name='TitleA5',
@@ -138,7 +138,7 @@ class AccountingGenerator:
         left_x   = 1.5 * cm
         # L'espace à droite est désormais libéré grâce au nouveau placement du QR Code
         usable_w = p_width - 3.0 * cm
-        font_name = 'Helvetica-Bold'
+        font_name = self.base_template.premium_bold
         font_size = 8.5
 
         canvas.saveState()
@@ -165,12 +165,12 @@ class AccountingGenerator:
         canvas.restoreState()
 
     def _create_header(self, patient, data, p_color):
-        doc_date = getattr(data, 'doc_date', date.today())
+        doc_date = getattr(data, 'doc_date', None) or date.today()
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
         
-        font_name = self.base_template.arabic_font
-        font_bold = f"{font_name}-Bold" if font_name == "Helvetica" else font_name
+        font_name = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
         patient_style = ParagraphStyle(
             name='PatientInfo', 
@@ -189,36 +189,27 @@ class AccountingGenerator:
             fontSize=11
         )
         
+        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        patient_w = 7.0 * cm
+        adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
+        
         header_content = [
             [
-                Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>", patient_style), 
+                Paragraph(patient_text, adaptive_patient_style), 
                 Paragraph(f"Le : <u>{current_date}</u>", style_right)
             ]
         ]
         return Table(header_content, colWidths=[7.0*cm, 4.8*cm])
 
-    def _get_dynamic_acte_style(self, base_style, text, max_chars_at_10pt):
-        """Ajuste dynamiquement la taille de la police pour tenir sur une ligne."""
-        text_len = len(text) if text else 0
-        fs = 10.0
-        if text_len > max_chars_at_10pt:
-            # On réduit proportionnellement pour tout faire rentrer, avec une taille minimum de 5.5
-            fs = max(5.5, 10.0 * (max_chars_at_10pt / text_len))
-            
-        return ParagraphStyle(
-            name='DynamicActeText',
-            parent=base_style,
-            fontSize=fs,
-            leading=fs + 3.0
-        )
+    # _get_dynamic_acte_style is now replaced by self.base_template.get_adaptive_style
 
     def _create_installments_table(self, installments, total_honoraires, p_color):
         """Crée un tableau de suivi des règlements (échéancier)."""
         if not installments:
             return None
             
-        font_bold = "Helvetica-Bold"
-        font_main = "Helvetica"
+        font_bold = self.base_template.premium_bold
+        font_main = self.base_template.premium_font
         
         header_style = ParagraphStyle(name='InstHeader', fontName=font_bold, fontSize=9, textColor=colors.white, alignment=TA_CENTER)
         text_style = ParagraphStyle(name='InstText', fontName=font_main, fontSize=9, textColor=p_color, alignment=TA_CENTER)
@@ -263,27 +254,40 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import CabinetConfig
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
-        font_main = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_main = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
         
         is_global = getattr(data, 'is_global_note', False)
         title_text = "NOTE D'HONORAIRES GLOBALE" if is_global else "NOTE D'HONORAIRES"
         if facture_number:
             title_text += f" N° {facture_number}"
 
-        title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>{title_text}</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
+        # Détermination du facteur de compression si trop d'actes (Single Page Force)
+        num_acts = len(data.payments)
+        compression_factor = 1.0
+        if num_acts > 8:
+            compression_factor = 0.9
+        elif num_acts > 12:
+            compression_factor = 0.8
+            
+        title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17 * compression_factor, textColor=p_color, alignment=TA_CENTER, spaceAfter=12 * compression_factor)
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>{title_text}</b></u>", title_style), Spacer(1, 0.8*cm if num_acts > 8 else 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.0*cm if num_acts > 8 else 1.2*cm)]
         
-        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
+        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10 * compression_factor, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PAIEMENT", header_style), Paragraph("HONORAIRES", header_style)]]
-        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=10, textColor=p_color, alignment=TA_CENTER, leading=14)
-        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=10, textColor=p_color, alignment=TA_LEFT, leading=14)
+        
+        base_fs = 10 * compression_factor
+        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.4)
+        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
         for p in data.payments:
-            dyn_style = self._get_dynamic_acte_style(acte_style, p.acte, max_chars_at_10pt=24)
+            # Application de la police adaptative pour l'acte (précision absolue)
+            acte_w = 4.8*cm
+            dyn_style = self.base_template.get_adaptive_style(acte_style, p.acte, acte_w - 0.2*cm)
             acte_para = Paragraph(p.acte, dyn_style)
             dent_display = getattr(p, 'dent', '-')
             if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
@@ -297,6 +301,8 @@ class AccountingGenerator:
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
         
         t = Table(table_data, colWidths=[4.8*cm, 2.0*cm, 3.0*cm, 3.0*cm])
+        # Ajustement du padding pour gagner de l'espace si num_acts est élevé
+        v_pad = 8 if num_acts < 8 else 5
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
@@ -305,10 +311,10 @@ class AccountingGenerator:
             ('SPAN', (0, -1), (2, -1)),
             ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
-            ('TOPPADDING', (0,-1), (-1,-1), 12),
+            ('BOTTOMPADDING', (0,0), (-1,-1), v_pad),
+            ('TOPPADDING', (0,0), (-1,-1), v_pad),
+            ('BOTTOMPADDING', (0,-1), (-1,-1), v_pad + 4),
+            ('TOPPADDING', (0,-1), (-1,-1), v_pad + 4),
             ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
@@ -359,22 +365,35 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import CabinetConfig
             config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+        self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         
-        font_main = "Helvetica"
-        font_bold = "Helvetica-Bold"
+        font_main = self.base_template.premium_font
+        font_bold = self.base_template.premium_bold
 
-        title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.2*cm)]
+        # Détermination du facteur de compression si trop d'items (Single Page Force)
+        num_items = len(data.items)
+        compression_factor = 1.0
+        if num_items > 8:
+            compression_factor = 0.9
+        elif num_items > 12:
+            compression_factor = 0.8
+            
+        title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17 * compression_factor, textColor=p_color, alignment=TA_CENTER, spaceAfter=12 * compression_factor)
+        elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 0.8*cm if num_items > 8 else 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.0*cm if num_items > 8 else 1.2*cm)]
         
-        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10, textColor=colors.white, alignment=TA_CENTER)
+        header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10 * compression_factor, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
-        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=10, textColor=p_color, alignment=TA_CENTER, leading=14)
-        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=10, textColor=p_color, alignment=TA_LEFT, leading=14)
+        
+        base_fs = 10 * compression_factor
+        text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.4)
+        acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
         for item in data.items:
-            dyn_style = self._get_dynamic_acte_style(acte_style, item.acte, max_chars_at_10pt=36)
+            # Application de la police adaptative pour l'acte (précision absolue)
+            acte_w = 6.8*cm
+            dyn_style = self.base_template.get_adaptive_style(acte_style, item.acte, acte_w - 0.3*cm)
             acte_para = Paragraph(item.acte, dyn_style)
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
@@ -388,6 +407,8 @@ class AccountingGenerator:
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
         
         t = Table(table_data, colWidths=[6.8*cm, 3.0*cm, 3.0*cm])
+        # Ajustement du padding pour gagner de l'espace si num_items est élevé
+        v_pad = 8 if num_items < 8 else 5
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
@@ -396,10 +417,10 @@ class AccountingGenerator:
             ('SPAN', (0, -1), (1, -1)),
             ('ALIGN', (0, -1), (0, -1), 'RIGHT'),
             ('TEXTCOLOR', (0,1), (-1,-1), p_color), 
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
-            ('TOPPADDING', (0,-1), (-1,-1), 12),
+            ('BOTTOMPADDING', (0,0), (-1,-1), v_pad),
+            ('TOPPADDING', (0,0), (-1,-1), v_pad),
+            ('BOTTOMPADDING', (0,-1), (-1,-1), v_pad + 4),
+            ('TOPPADDING', (0,-1), (-1,-1), v_pad + 4),
             ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)

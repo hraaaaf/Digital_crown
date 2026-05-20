@@ -57,3 +57,12 @@ arborescence.txt
 
 # Rate limit persistence
 backend/utils/.rate_limit_store.json
+
+# ========================================
+# AI AGENT & SCRATCHPAD
+# ========================================
+brain/
+scratch/
+frontend/tsc_output.txt
+.gemini/
+.antigravity/

@@ -205,15 +205,15 @@ export function initializeDefaultApexes(landmarks: Landmark[]): Landmark[] {
 /**
  * Distance d'un point à une droite définie par deux points.
  */
-export function computeDistanceToLine(p: Landmark, l1: Landmark, l2: Landmark, ratio: number): number {
+export function computeDistanceToLine(p: Landmark, l1: Landmark, l2: Landmark, ratio: number, signed: boolean = false): number {
   const x0 = p.x; const y0 = p.y;
   const x1 = l1.x; const y1 = l1.y;
   const x2 = l2.x; const y2 = l2.y;
   
-  const num = Math.abs((x2 - x1) * (y1 - y0) - (x1 - x0) * (y2 - y1));
+  const num = (x2 - x1) * (y1 - y0) - (x1 - x0) * (y2 - y1);
   const den = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   if (den === 0) return 0;
-  return (num / den) * ratio;
+  return signed ? (num / den) * ratio : (Math.abs(num) / den) * ratio;
 }
 
 export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null, etape2: DonneesEtape2 | null = null): Partial<DonneesEtape3> {
@@ -395,14 +395,14 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   }
 
   // Analyse Esthétique
-  if (prn && pogSoft && po && or_) {
-    const projectOnE = (p: Landmark) => computeDistanceToVertical(p, pogSoft, pogSoft, prn, ratio);
+  if (prn && pogSoft) {
+    const projectOnE = (p: Landmark) => computeDistanceToLine(p, prn, pogSoft, ratio, true);
     if (ls) results.esthetique!.ligne_e_ls = Math.round(projectOnE(ls) * 10) / 10;
     if (li) results.esthetique!.ligne_e_li = Math.round(projectOnE(li) * 10) / 10;
     
     if (results.esthetique?.ligne_e_ls !== undefined && results.esthetique.ligne_e_ls !== '') {
       const ls_e = Number(results.esthetique.ligne_e_ls);
-      if (ls_e > 0) results.profil = 'convexe';
+      if (ls_e > 2) results.profil = 'convexe';
       else if (ls_e < -4) results.profil = 'concave';
       else results.profil = 'droit';
     }
@@ -431,7 +431,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
  * Génère un plan de traitement suggéré basé sur les données diagnostiques.
  */
 export function generateTreatmentPlan(data: DonneesEtape3): string {
-  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade } = data;
+  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade, preference_technique } = data;
   const anb = data.osseuse.anb === '' ? 0 : Number(data.osseuse.anb);
   const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
   const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
@@ -470,7 +470,7 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
       if (division === '1') {
         plan += '• Division 1 : Appareil fonctionnel de choix (Herbst ou Twin Block)\n';
         plan += '• Timing optimal : CS3-CS4 (pic de croissance)\n';
-        if (type_arcade === 'I') plan += '• Arcade en V : ERM simultanée pour expansion\n';
+        if (type_arcade === 'V') plan += '• Arcade en V : ERM simultanée pour expansion\n';
         plan += '• Préserver arcades (pas d\'extraction avant fin du pic)\n';
         if (impa > 100) plan += '• Surveiller IMPA, ne pas corriger incisives avant fonctionnel\n';
       } else if (division === '2') {
@@ -507,7 +507,23 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
     } else if (classe?.includes('Classe I') && ddmSev === 'sévère') {
       plan += '• Classe I avec DDM sévère : Extraction 4 prémolaires\n';
       plan += '• Mécanique de fermeture avec TADs ancrage\n';
+    } else if (classe?.includes('Classe I')) {
+      plan += '• Classe I : Alignement et nivellement standard\n';
     }
+  }
+
+  plan += '\n**TECHNIQUE & BIOMÉCANIQUE**\n';
+  if (preference_technique === 'DAMON') {
+    plan += '• Dispositif : Système auto-ligaturant actif/passif (Damon)\n';
+    plan += '• Biomécanique : Forces légères continues, expansion alvéolaire favorisée\n';
+    plan += '• Avantage : Séquence d\'arcs simplifiée, diminution potentielle du besoin d\'extractions\n';
+  } else if (preference_technique === 'ALIGNEURS') {
+    plan += '• Dispositif : Aligneurs transparents (Invisalign / Spark / ClearCorrect)\n';
+    plan += '• Biomécanique : Distalisation séquentielle, IPR (Stripping) planifié par ClinCheck\n';
+    plan += '• Avantage : Esthétique optimale, contrôle vertical accru, hygiène facilitée\n';
+  } else {
+    plan += '• Dispositif : Multi-attaches Classique (Twin brackets)\n';
+    plan += '• Biomécanique : Séquence d\'arcs NiTi puis Acier, ligatures élastomériques ou métalliques\n';
   }
   
   return plan;

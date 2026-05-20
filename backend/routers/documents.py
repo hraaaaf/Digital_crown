@@ -1,5 +1,6 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, and_, or_
 from typing import List, Optional, Dict
@@ -23,30 +24,47 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
 
 # Configuration
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-DOCS_DIR = os.path.join(STATIC_DIR, "documents")
+import pathlib
+from backend.core.paths import AppPaths
+BASE_DIR = pathlib.Path(__file__).parent.parent
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+DOCS_DIR = str(MEDIA_DIR / "documents")
+STATIC_DIR = str(AppPaths.get_static_dir())
+
+os.makedirs(DOCS_DIR, exist_ok=True)
 doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
 # Logic moved to backend.utils.accounting_utils
 
-@router.post("/generate")
+@router.post("/generate",
+    summary="Générer un document PDF",
+    description="Génère une ordonnance, certificat, devis ou note d'honoraires. La génération ReportLab tourne dans un thread dédié pour ne pas bloquer l'event loop.")
 async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     assert_patient_access(req.patient_id, current_user, db)
-    patient = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
-    
+    patient_id = req.patient_id
     user_id = current_user.id
+
+    # Génération ReportLab dans un thread dédié (non-bloquant pour l'event loop FastAPI).
+    # Chaque thread crée sa propre session SQLAlchemy (thread-safety SQLite/SQLCipher).
+    def _generate_pdf_in_thread() -> str:
+        with database.SessionLocal() as thread_db:
+            thread_patient = thread_db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+            if req.type == "ordonnance":
+                return doc_factory.create_ordonnance(thread_patient, schemas.OrdonnanceData(**req.data), thread_db, user_id)
+            elif req.type == "certificat":
+                return doc_factory.create_certificat(thread_patient, schemas.CertificatData(**req.data), thread_db, user_id)
+            elif req.type == "devis":
+                return doc_factory.create_devis(thread_patient, schemas.DevisData(**req.data), thread_db, user_id)
+            elif req.type in ["honoraires", "note"]:
+                return doc_factory.create_note_honoraires(thread_patient, schemas.HonorairesData(**req.data), thread_db, user_id)
+            elif req.type in ["libre", "lettre"]:
+                return doc_factory.create_document_libre(thread_patient, schemas.LibreData(**req.data), thread_db, user_id)
+            raise ValueError(f"Type de document non supporté : {req.type}")
+
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+
     try:
-        if req.type == "ordonnance":
-            pdf_path = doc_factory.create_ordonnance(patient, schemas.OrdonnanceData(**req.data), db, user_id)
-        elif req.type == "certificat":
-            pdf_path = doc_factory.create_certificat(patient, schemas.CertificatData(**req.data), db, user_id)
-        elif req.type == "devis":
-            pdf_path = doc_factory.create_devis(patient, schemas.DevisData(**req.data), db, user_id)
-        elif req.type in ["honoraires", "note"]:
-            pdf_path = doc_factory.create_note_honoraires(patient, schemas.HonorairesData(**req.data), db, user_id)
-        elif req.type in ["libre", "lettre"]:
-            pdf_path = doc_factory.create_document_libre(patient, schemas.LibreData(**req.data), db, user_id)
+        pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
         
         is_financial = req.type in ["honoraires", "note", "devis"]
         should_archive = (archive or is_financial) and not preview
@@ -62,42 +80,90 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 "lettre": models.DocumentType.LETTRE_MEDICALE
             }
             
-            # Logique automatique de statut (Elite v4)
-            p_status = models.PaiementStatut.EN_ATTENTE
-            p_collected = False
-            
-            payments = req.data.get('payments', [])
-            if payments:
-                # Si au moins un paiement est en espèces ou TPE, on considère comme payé/encaissé pour simplifier
-                # ou alors on regarde si TOUS sont encaissables
-                all_instant = all(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
-                any_instant = any(p.get('mode_reglement') in ['Espèces', 'TPE'] for p in payments)
-                
-                if all_instant:
-                    p_status = models.PaiementStatut.PAYE
-                    p_collected = True
-                elif any_instant:
-                    p_status = models.PaiementStatut.PARTIEL
-                    p_collected = False
-                else:
-                    p_status = models.PaiementStatut.A_ENCAISSER
-                    p_collected = False
+            # Logique de statut stricte respectant l'UI (Ghost Treasury v4.6)
+            p_status = req.payment_status if req.payment_status else models.PaiementStatut.EN_ATTENTE
+            p_collected = p_status == models.PaiementStatut.PAYE
             
             doc, _ = archive_service.archive_document(
                 patient_id=patient.id, file_content=pdf_content, filename=os.path.basename(pdf_path),
                 doc_type=enum_map.get(req.type, models.DocumentType.AUTRE), uploaded_by_id=user_id, clinical_data=req.data,
                 is_accounted=req.is_accounted, 
-                payment_status=req.payment_status if req.payment_status != "EN_ATTENTE" else p_status,
-                is_collected=p_collected
+                payment_status=p_status,
+                is_collected=p_collected,
+                on_conflict=schemas.ConflictResolution.CREATE_VERSION if force else schemas.ConflictResolution.CANCEL
             )
             pdf_path = doc.file_path
+
+            # Étape 2 & 3 : Trésorerie Relationnelle (Ghost Treasury v4.6)
+            if req.type in ["honoraires", "note"]:
+                installments_data = req.data.get('installments', [])
+                is_global = req.data.get('is_global_note', False)
+                total_amount = sum(float(p.get('montant', 0)) for p in req.data.get('payments', []))
+                
+                if is_global and installments_data:
+                    # Création d'un plan de paiement
+                    plan = models.InstallmentPlan(
+                        patient_id=patient.id,
+                        title=f"Plan de paiement - {datetime.now().strftime('%d/%m/%Y')}",
+                        total_amount=total_amount
+                    )
+                    db.add(plan)
+                    db.flush() # Pour avoir l'ID du plan
+                    
+                    for inst in installments_data:
+                        # try parsing date or fallback
+                        due_date_str = inst.get('date', datetime.now().strftime('%Y-%m-%d'))
+                        try:
+                            due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                        except ValueError:
+                            due_date = datetime.now()
+                            
+                        inst_amount = float(inst.get('amount', 0))
+                        db.add(models.Installment(
+                            plan_id=plan.id,
+                            label=inst.get('label', 'Échéance'),
+                            amount=inst_amount,
+                            due_date=due_date,
+                            status="EN_ATTENTE"
+                        ))
+                    db.commit()
+                else:
+                    # Structure Unique (Pas de plan global)
+                    if p_status in [models.PaiementStatut.PAYE, models.PaiementStatut.PARTIEL]:
+                        # Création de l'encaissement (Payment)
+                        # S'il y a des paiements avec mode de règlement, on les utilise, sinon on prend le premier
+                        payments_arr = req.data.get('payments', [])
+                        pm = "ESPECES"
+                        if payments_arr:
+                            pm_str = str(payments_arr[0].get('mode_reglement', 'Espèces')).upper()
+                            if "VIREMENT" in pm_str: pm = "VIREMENT"
+                            elif "CH" in pm_str: pm = "CHEQUE"
+                            elif "TPE" in pm_str or "CARTE" in pm_str: pm = "CARTE"
+                            
+                        # Si partiel, idéalement on aurait le montant partiel, sinon on met 0 ou on attend une màj manuelle
+                        paid_amount = total_amount if p_status == models.PaiementStatut.PAYE else total_amount / 2.0
+                        
+                        payment_obj = models.Payment(
+                            patient_id=patient.id,
+                            amount=paid_amount,
+                            payment_method=pm,
+                            payment_date=datetime.now(),
+                            notes=f"Lien Doc ID: {doc.id}"
+                        )
+                        db.add(payment_obj)
+                        db.commit()
 
         # Analyse de cohérence (Phase 1 & 2)
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
 
         # Nettoyage du chemin pour le frontend
         pdf_url = pdf_path.replace("\\", "/")
-        if "static/" in pdf_url:
+        
+        # Si le chemin contient MEDIA_DIR, on le rend relatif à MEDIA_DIR et on préfixe par 'static/'
+        media_path_str = str(MEDIA_DIR).replace("\\", "/")
+        if media_path_str in pdf_url:
+            pdf_url = "static" + pdf_url.split(media_path_str)[1]
+        elif "static/" in pdf_url:
             pdf_url = pdf_url[pdf_url.find("static/"):]
         
         # Apprentissage des habitudes d'actes (Phase 5)
@@ -115,6 +181,56 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+from backend.schemas.branding import BrandingPreviewPayload
+
+@router.post("/sample-preview")
+async def generate_sample_preview(
+    payload: Optional[BrandingPreviewPayload] = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Patient fictif pour l'aperçu dynamique
+    mock_patient = models.Patient(
+        nom="EL ALAMI",
+        prenom="Youssef",
+        date_naissance=datetime(1990, 5, 12),
+        sexe="M",
+        telephone="06 61 23 45 67",
+        email="youssef.elalami@email.ma",
+        employer_id=current_user.id
+    )
+    
+    # Ordonnance fictive représentative
+    mock_data = schemas.OrdonnanceData(
+        medications=[
+            schemas.MedicationItem(nom="ZAMOC (Amoxicilline)", dosage="500 mg", forme="Sachets", posologie="1 sachet 3 fois par jour après les repas", type="MEDICAMENT"),
+            schemas.MedicationItem(nom="DOLIPRANE", dosage="1000 mg", forme="Comprimés", posologie="1 comprimé toutes les 6 heures en cas de douleur", type="MEDICAMENT")
+        ],
+        doc_date=date.today()
+    )
+    
+    custom_config = None
+    if payload:
+        dump_func = getattr(payload, "model_dump", getattr(payload, "dict", None))
+        if dump_func:
+            custom_config = {k: v for k, v in dump_func().items() if v is not None}
+            
+    try:
+        pdf_path = doc_factory.create_ordonnance(mock_patient, mock_data, db, current_user.id, custom_config=custom_config)
+        
+        pdf_url = pdf_path.replace("\\", "/")
+        media_path_str = str(MEDIA_DIR).replace("\\", "/")
+        if media_path_str in pdf_url:
+            pdf_url = "static" + pdf_url.split(media_path_str)[1]
+        elif "static/" in pdf_url:
+            pdf_url = pdf_url[pdf_url.find("static/"):]
+            
+        return {"pdf_url": pdf_url}
+    except Exception as e:
+        logger.error(f"Erreur Génération Aperçu Échantillon : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
 async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file: UploadFile = File(...), title: Optional[str] = None, on_conflict: schemas.ConflictResolution = schemas.ConflictResolution.CREATE_VERSION, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     assert_patient_access(patient_id, current_user, db)
@@ -130,14 +246,27 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     
     archive_service = get_archive_service(db)
     docs, total = archive_service.search_documents(
-        patient_id=patient_id, 
-        doc_type=doc_type, 
-        search_query=search, 
-        page=page, 
+        patient_id=patient_id,
+        doc_type=doc_type,
+        search_query=search,
+        page=page,
         page_size=page_size,
         employer_id=current_user.get_employer_id()
     )
-    return {"total": total, "page": page, "page_size": page_size, "documents": docs}
+
+    # Enrichir chaque doc avec file_exists pour que le frontend sache quoi afficher
+    def _resolve_abs(file_path: str) -> str:
+        if file_path.startswith("static/archives/") or file_path.startswith("static/documents/"):
+            return str(MEDIA_DIR / file_path.replace("static/", "", 1))
+        return os.path.join(BASE_DIR, file_path)
+
+    docs_out = []
+    for d in docs:
+        d_dict = {c.key: getattr(d, c.key) for c in d.__table__.columns}
+        d_dict["file_exists"] = bool(d.file_path and os.path.exists(_resolve_abs(d.file_path)))
+        docs_out.append(d_dict)
+
+    return {"total": total, "page": page, "page_size": page_size, "documents": docs_out}
 
 @router.get("/{document_id}/download")
 def download_document(
@@ -189,9 +318,18 @@ def download_document(
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
-    
-    # Résolution du chemin absolu (pour éviter FileNotFoundError si lancé hors du dossier backend)
-    abs_path = os.path.join(BASE_DIR, doc.file_path)
+
+    # Résolution du chemin absolu
+    if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+        abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
+    else:
+        abs_path = os.path.join(BASE_DIR, doc.file_path)
+
+    if not os.path.exists(abs_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Fichier introuvable sur ce serveur. Le document existe en base mais le fichier physique est manquant (migration ou réinstallation)."
+        )
     return FileResponse(path=abs_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
@@ -382,3 +520,378 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+
+def get_verification_html(title: str, subtitle: str, doc_type: str, patient_name: str, doc_date: str, primary_color: str = "#003380", status_text: str = "Authentique & Signé", status_color: str = "#10b981", is_valid: bool = True, warning_msg: str = "") -> str:
+    icon_svg = '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 11l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>' if is_valid else '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    gradient_color = "rgba(16, 185, 129, 0.05)" if is_valid else "rgba(239, 68, 68, 0.05)"
+    shield_bg = "linear-gradient(135deg, #10b981 0%, #047857 100%)" if is_valid else "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)"
+    shield_shadow = "rgba(16, 185, 129, 0.3)" if is_valid else "rgba(239, 68, 68, 0.3)"
+    pulse_bg = "rgba(16, 185, 129, 0.15)" if is_valid else "rgba(239, 68, 68, 0.15)"
+    
+    warning_html = f'<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 12px; margin-top: 20px; font-size: 12px; color: #ef4444; font-weight: 600;">{warning_msg}</div>' if warning_msg else ''
+
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portail de Vérification de Document Clinique</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{
+            --primary: {primary_color};
+            --accent: {status_color};
+        }}
+        body {{
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            color: #f8fafc;
+            font-family: 'Outfit', 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }}
+        .container {{
+            max-width: 500px;
+            width: 90%;
+            margin: 20px auto;
+            text-align: center;
+        }}
+        .card {{
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 40px;
+            padding: 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }}
+        .card::before {{
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, {gradient_color} 0%, transparent 60%);
+            pointer-events: none;
+        }}
+        @keyframes slideIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        .shield-container {{
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .pulse-ring {{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: {pulse_bg};
+            animation: pulse 2s infinite;
+        }}
+        @keyframes pulse {{
+            0% {{ transform: scale(0.9); opacity: 1; }}
+            100% {{ transform: scale(1.4); opacity: 0; }}
+        }}
+        .shield {{
+            width: 70px;
+            height: 70px;
+            background: {shield_bg};
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px {shield_shadow};
+            position: relative;
+            z-index: 10;
+        }}
+        .shield svg {{
+            width: 32px;
+            height: 32px;
+            fill: none;
+            stroke: white;
+            stroke-width: 2.5;
+        }}
+        h1 {{
+            font-size: 26px;
+            font-weight: 900;
+            margin: 0 0 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+        .subtitle {{
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }}
+        .details-list {{
+            text-align: left;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }}
+        .detail-item {{
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }}
+        .detail-item:last-child {{
+            border-bottom: none;
+        }}
+        .detail-label {{
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+        }}
+        .detail-val {{
+            color: #f1f5f9;
+            font-weight: 600;
+        }}
+        .footer-brand {{
+            margin-top: 40px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #475569;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        .footer-brand svg {{
+            width: 14px;
+            height: 14px;
+            stroke: #475569;
+            stroke-width: 2;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="shield-container">
+                <div class="pulse-ring"></div>
+                <div class="shield">
+                    {icon_svg}
+                </div>
+            </div>
+            <h1>{title}</h1>
+            <div class="subtitle">{subtitle}</div>
+            
+            <div class="details-list">
+                <div class="detail-item">
+                    <span class="detail-label">Type</span>
+                    <span class="detail-val">{doc_type}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Patient</span>
+                    <span class="detail-val">{patient_name}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Date d'Émission</span>
+                    <span class="detail-val">{doc_date}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Statut</span>
+                    <span class="detail-val" style="color: {status_color};">{status_text}</span>
+                </div>
+            </div>
+            
+            {warning_html}
+            
+            <div class="footer-brand">
+                <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Digital Crown Elite v4.6
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+@router.get("/verify/{public_id}/{document_type}", response_class=HTMLResponse)
+def verify_special_document(public_id: str, document_type: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        if document_type == "RADIO":
+            # C'est un rapport radio ou une analyse
+            analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == int(public_id)).first()
+            if not analysis:
+                analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == int(public_id)).first()
+            
+            if analysis:
+                patient = db.query(models.Patient).filter(models.Patient.id == analysis.patient_id).first()
+                p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+                doc_date = analysis.created_at.strftime("%d/%m/%Y à %H:%M")
+                return HTMLResponse(content=get_verification_html(
+                    title="Rapport Radiographique Certifié",
+                    subtitle=cabinet_name,
+                    doc_type="IMAGERIE / RADIO DENTEX IA",
+                    patient_name=p_name,
+                    doc_date=doc_date,
+                    primary_color=p_color
+                ))
+        
+        elif document_type == "BILAN":
+            patient = db.query(models.Patient).filter(models.Patient.id == int(public_id)).first()
+            if patient:
+                p_name = f"{patient.nom.upper()} {patient.prenom[0]}."
+                doc_date = patient.created_at.strftime("%d/%m/%Y")
+                return HTMLResponse(content=get_verification_html(
+                    title="Bilan Orthodontique Certifié",
+                    subtitle=cabinet_name,
+                    doc_type="DOSSIER & BILAN CLINIQUE",
+                    patient_name=p_name,
+                    doc_date=doc_date,
+                    primary_color=p_color
+                ))
+    except Exception as e:
+        logger.error(f"Error verifying special document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Document Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Certifié / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce document n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un document falsifié ou expiré."
+    ))
+
+@router.get("/verify/{doc_id}", response_class=HTMLResponse)
+def verify_document(doc_id: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        # Recherche par ID ou nom de fichier
+        doc = None
+        if doc_id.isdigit():
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(doc_id)).first()
+        if not doc:
+            doc = db.query(models.DocumentArchive).filter(
+                or_(
+                    models.DocumentArchive.filename.contains(doc_id),
+                    models.DocumentArchive.original_filename.contains(doc_id)
+                )
+            ).first()
+            
+        if doc:
+            patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
+            p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+            doc_date = doc.created_at.strftime("%d/%m/%Y à %H:%M")
+            return HTMLResponse(content=get_verification_html(
+                title="Document Médical Certifié",
+                subtitle=cabinet_name,
+                doc_type=doc.document_type.value,
+                patient_name=p_name,
+                doc_date=doc_date,
+                primary_color=p_color
+            ))
+    except Exception as e:
+        logger.error(f"Error verifying document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Document Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Certifié / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce document n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un document falsifié ou expiré."
+    ))
+
+@router.get("/track/{doc_id}", response_class=HTMLResponse)
+def track_document(doc_id: str, db: Session = Depends(database.get_db)):
+    config = db.query(models.CabinetConfig).first()
+    p_color = config.primary_color if config else "#003380"
+    cabinet_name = config.nom_cabinet if config else "Cabinet Digital Crown"
+    
+    try:
+        doc = None
+        if doc_id.isdigit():
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(doc_id)).first()
+        if not doc:
+            doc = db.query(models.DocumentArchive).filter(
+                or_(
+                    models.DocumentArchive.filename.contains(doc_id),
+                    models.DocumentArchive.original_filename.contains(doc_id)
+                )
+            ).first()
+            
+        if doc:
+            patient = db.query(models.Patient).filter(models.Patient.id == doc.patient_id).first()
+            p_name = f"{patient.nom.upper()} {patient.prenom[0]}." if patient else "PATIENT INCONNU"
+            doc_date = doc.created_at.strftime("%d/%m/%Y à %H:%M")
+            
+            p_status = doc.payment_status.value if doc.payment_status else "NON DÉFINI"
+            p_color_map = {
+                "PAYE": "#10b981",
+                "PARTIEL": "#f59e0b",
+                "EN_ATTENTE": "#94a3b8",
+                "A_ENCAISSER": "#3b82f6"
+            }
+            status_color = p_color_map.get(doc.payment_status.name if hasattr(doc.payment_status, 'name') else doc.payment_status, "#10b981")
+            
+            return HTMLResponse(content=get_verification_html(
+                title="Suivi de Dossier Trésorerie",
+                subtitle=cabinet_name,
+                doc_type=f"HONORAIRES / {doc.document_type.value}",
+                patient_name=p_name,
+                doc_date=doc_date,
+                primary_color=p_color,
+                status_text=f"Statut Réglement : {p_status}",
+                status_color=status_color
+            ))
+    except Exception as e:
+        logger.error(f"Error tracking document: {str(e)}")
+        
+    return HTMLResponse(content=get_verification_html(
+        title="Dossier Introuvable",
+        subtitle="Erreur de Sécurité",
+        doc_type="INCONNU",
+        patient_name="NON DISPONIBLE",
+        doc_date="NON SPÉCIFIÉE",
+        primary_color="#ef4444",
+        status_text="Non Référencé / Invalide",
+        status_color="#ef4444",
+        is_valid=False,
+        warning_msg="Ce dossier de suivi de trésorerie n'a pas été authentifié par notre plateforme. Il s'agit potentiellement d'un dossier inexistant ou archivé."
+    ))

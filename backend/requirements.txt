@@ -19,7 +19,7 @@ dill==0.4.1
 dnspython==2.8.0
 ecdsa==0.19.2
 email-validator==2.3.0
-fastapi==0.110.0
+fastapi==0.115.6
 filelock==3.24.3
 flatbuffers==25.12.19
 fonttools==4.61.1
@@ -100,8 +100,9 @@ rsa==4.9.1
 scipy==1.17.1
 setuptools==82.0.0
 six==1.17.0
+sqlcipher3==0.6.2
 SQLAlchemy==2.0.28
-starlette==0.36.3
+starlette==0.41.3
 sympy==1.14.0
 tensorboard==2.20.0
 tensorboard-data-server==0.7.2

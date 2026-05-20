@@ -45,21 +45,21 @@
         }
 
         .logo {
-            max-height: 2.5cm;
+            max-height: calc(2.5cm * var(--header-scale) * var(--header-logo-scale));
             max-width: 100%;
         }
 
         .doctor-name {
             color: var(--primary);
             font-weight: 900;
-            font-size: 14pt;
+            font-size: calc(14pt * var(--header-scale) * var(--header-font-scale));
             margin: 0;
+            line-height: var(--header-line-height);
         }
-
         .doctor-specialty {
             color: var(--primary);
-            font-size: 10pt;
-            margin: 2px 0;
+            font-size: calc(10pt * var(--header-scale) * var(--header-font-scale));
+            margin: calc(2px * var(--header-line-height)) 0;
         }
 
         .footer {
@@ -68,27 +68,28 @@
             text-align: center;
             border-top: 1px solid #e2e8f0;
             padding-top: 10px;
-            font-size: 8pt;
+            font-size: calc(8pt * var(--footer-font-scale));
             color: var(--primary);
+            line-height: var(--footer-line-height);
         }
 
         .footer-address {
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: calc(4px * var(--footer-line-height));
         }
 
         .legal-ids {
-            font-size: 7pt;
+            font-size: calc(7pt * var(--footer-font-scale));
             color: var(--primary);
-            margin-top: 5px;
+            margin-top: calc(5px * var(--footer-line-height));
         }
 
         .qr-code {
             position: absolute;
             bottom: 4cm;
             right: 0;
-            width: 2.5cm;
-            height: 2.5cm;
+            width: calc(2.5cm * var(--footer-qr-scale));
+            height: calc(2.5cm * var(--footer-qr-scale));
         }
 
         .qr-code img {
@@ -156,7 +157,7 @@
         {% block extra_css %}{% endblock %}
     {{ '<' + '/style' + '>' | safe }}
 </head>
-<body style="--primary: {{ primary_color | default('#003380') }}; --secondary: {{ secondary_color | default('#64748B') }};">
+<body style="--primary: {{ primary_color | default('#003380') }}; --secondary: {{ secondary_color | default('#64748B') }}; --header-scale: {{ config.header_scale or 1.0 }}; --header-font-scale: {{ config.header_font_scale or 1.0 }}; --header-logo-scale: {{ config.header_logo_scale or 1.0 }}; --header-line-height: {{ config.header_line_height or 1.0 }}; --footer-font-scale: {{ config.footer_font_scale or 1.0 }}; --footer-qr-scale: {{ config.footer_qr_scale or 1.0 }}; --footer-line-height: {{ config.footer_line_height or 1.0 }};">
     <div class="header">
         <div class="header-left">
             <p class="doctor-name">{{ config.nom_praticien | default('Dr. Nom Prénom') }}</p>

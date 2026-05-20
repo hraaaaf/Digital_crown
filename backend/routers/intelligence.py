@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 
 from backend import database, models
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.services.elite_manager import elite_manager
 from backend.utils.access_control import assert_patient_access
 
@@ -13,7 +13,7 @@ router = APIRouter(tags=["Elite Intelligence"])
 async def get_patient_intelligence(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("patients"))
 ):
     """
     Récupère l'intelligence globale pour un patient (Résumé + Insights + Score).
@@ -31,7 +31,7 @@ async def audit_document_context(
     context_type: str,
     doc_data: Dict[str, Any] = Body(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("patients"))
 ):
     """
     Audit spécifique d'un contexte de document (ex: audit d'une ordonnance en cours).
@@ -49,7 +49,7 @@ async def audit_document_context(
 async def get_treatment_plan(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission("patients"))
 ):
     """
     Génère et récupère le plan de traitement méthodique basé sur les dernières analyses.

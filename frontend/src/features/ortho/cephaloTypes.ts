@@ -21,8 +21,8 @@ export interface LocalState {
 
 // --- ÉTAPE 3 : PROTOCOLE COM ---
 export type ClasseAngle = 'I' | 'II' | 'III';
-export type DivisionClasseII = '1' | '2' | null;
-export type TypeArcade = 'I' | 'II' | null;
+export type DivisionClasseII = '1' | '2' | '' | null;
+export type TypeArcade = 'U' | 'V' | 'CARREE' | '' | null;
 export type PatternVertical = 'hypodivergent' | 'normodivergent' | 'hyperdivergent';
 export type ProfilFacial = 'convexe' | 'droit' | 'concave';
 export type SeveriteDDM = 'léger' | 'modéré' | 'sévère' | 'excès';

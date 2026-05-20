@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.prescription_service import prescription_service
 
@@ -12,27 +12,27 @@ prescription_router = APIRouter(tags=["Prescriptions"])
 actes_router = APIRouter(tags=["Actes Cliniques"])
 
 @prescription_router.get("/search", response_model=List[schemas.MedicationOut])
-def search_medications(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def search_medications(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return db.query(models.Medication).filter(models.Medication.nom.ilike(f"%{q}%")).order_by(models.Medication.usage_count.desc()).limit(20).all()
 
 @prescription_router.get("/suggest", response_model=List[schemas.ClinicalProtocolOut])
-def suggest_protocols(category_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def suggest_protocols(category_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return db.query(models.ClinicalProtocol).filter(models.ClinicalProtocol.category_id == category_id).all()
 
 @prescription_router.get("/habits/suggest")
-def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_medication_habits(q: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return prescription_service.get_personalized_suggestions(db, current_user.id, q)
 
 @prescription_router.get("/habits/details")
-def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_medication_habit_details(med_name: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return prescription_service.get_medication_details(db, current_user.id, med_name)
 
 @prescription_router.get("/habits/presets")
-def get_prescription_presets(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_prescription_presets(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return prescription_service.get_doctor_presets(db, current_user.id)
 
 @prescription_router.post("/habits/record")
-def record_medication_habit(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def record_medication_habit(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     med_name = req.get("medication_name")
     dosage = req.get("dosage")
     posologie = req.get("posologie")
@@ -42,7 +42,7 @@ def record_medication_habit(req: dict, db: Session = Depends(database.get_db), c
     return {"status": "success"}
 
 @prescription_router.post("/habits/record-batch")
-def record_medication_habits_batch(req: List[dict], db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def record_medication_habits_batch(req: List[dict], db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     for item in req:
         med_name = item.get("medication_name")
         dosage = item.get("dosage")
@@ -52,7 +52,7 @@ def record_medication_habits_batch(req: List[dict], db: Session = Depends(databa
     return {"status": "success"}
 
 @prescription_router.post("/safety/check")
-def check_prescription_safety(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def check_prescription_safety(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """
     Vérifie la sécurité d'une ordonnance pour un patient donné.
     """
@@ -63,7 +63,7 @@ def check_prescription_safety(req: dict, db: Session = Depends(database.get_db),
     return prescription_service.check_safety(db, patient_id, drug_names)
 
 @prescription_router.get("/smart-suggest/{patient_id}")
-async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     assert_patient_access(patient_id, current_user, db)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     rdvs = db.query(models.Appointment).filter(
@@ -74,9 +74,45 @@ async def get_smart_suggestion(patient_id: int, db: Session = Depends(database.g
     return prescription_service.resolve_smart_prescription(db, patient_id, act_names, doctor_id=current_user.id)
 
 @actes_router.get("/catalog/search", response_model=List[dict])
-def search_clinical_acts(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     from backend.services.accounting_service import accounting_service
+    
+    if not q.strip():
+        # Renvoyer les actes fréquents du médecin
+        frequent = accounting_service.get_frequent_acts(db, current_user.id, limit=20)
+        if frequent:
+            return frequent
+            
+        # Fallback vers un catalogue d'actes standard de base si aucune habitude n'est enregistrée
+        fallback_names = [
+            ("Consultation dentaire", 200, "Diagnostic"),
+            ("Détartrage et polissage", 400, "Prévention"),
+            ("Extraction simple", 300, "Chirurgie"),
+            ("Extraction molaire", 450, "Chirurgie"),
+            ("Traitement canalaire (Monoradiculaire)", 500, "Endodontie"),
+            ("Traitement canalaire (Pluriradiculaire)", 800, "Endodontie"),
+            ("Composite 2 faces", 350, "Conservatrice"),
+            ("Composite 3 faces", 500, "Conservatrice"),
+            ("Couronne céramo-métallique", 2500, "Prothèse"),
+            ("Implant dentaire", 6000, "Implantologie"),
+        ]
+        return [
+            {
+                "id": f"default_{i}",
+                "name": name,
+                "base_price": price,
+                "category": cat,
+                "is_habit": False
+            } for i, (name, price, cat) in enumerate(fallback_names)
+        ]
+        
     return accounting_service.search_acts(db, current_user.id, q)
+
+@actes_router.get("/duration")
+def get_act_recommended_duration(q: str = "", current_user: models.User = Depends(get_current_user)):
+    from backend.services.habits_engine import habits_engine
+    duration = habits_engine.get_recommended_duration(q)
+    return {"duration": duration}
 
 @actes_router.post("/catalog/bundles")
 def get_act_bundles(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -107,7 +143,7 @@ from backend.services.prescription_agentic_service import prescription_agentic
 # --- AGENTIC PRESCRIPTION (V2.0) ---
 
 @prescription_router.get("/agentic/assessment/{patient_id}")
-async def get_clinical_assessment(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def get_clinical_assessment(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """
     Étape 1 : Agent Chercheur.
     Analyse le dossier et les actes prévus pour générer un bilan scientifique.
@@ -128,7 +164,7 @@ async def get_clinical_assessment(patient_id: int, db: Session = Depends(databas
     return prescription_agentic.generate_clinical_assessment(db, patient_id, act_names, doctor_id=current_user.id)
 
 @prescription_router.post("/agentic/design")
-async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """
     Étape 2 : Agent Architecte.
     Transforme le bilan en plan de traitement concret (Noms commerciaux Maroc).
@@ -141,7 +177,7 @@ async def design_agentic_plan(req: dict, db: Session = Depends(database.get_db),
     return prescription_agentic.design_treatment_plan(assessment, patient_context)
 
 @prescription_router.post("/preferences")
-async def save_prescription_preference(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def save_prescription_preference(req: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """
     Enregistre une habitude de prescription pour le médecin actuel.
     """
@@ -154,7 +190,7 @@ async def save_prescription_preference(req: dict, db: Session = Depends(database
     return {"status": "success", "message": "Habitude enregistrée avec succès"}
 
 @prescription_router.get("/certif-suggest/{patient_id}")
-async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """
     Analyse les actes récents pour suggérer un type de certificat.
     """

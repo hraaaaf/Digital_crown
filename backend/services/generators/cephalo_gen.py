@@ -78,8 +78,8 @@ class CephaloPDFGenerator(BaseTemplate):
 
         # 2. Préparation du contexte Jinja
         config = vm.cabinet_config
-        p_color = config.get('primary_color', '#1A365D')
-        s_color = config.get('secondary_color', '#64748B')
+        p_color = config.get('primary_color', '#003380') if config else '#003380'
+        s_color = config.get('secondary_color', '#64748B') if config else '#64748B'
         
         # Image URL absolue pour WeasyPrint
         radio_url = None
@@ -121,26 +121,32 @@ class CephaloPDFGenerator(BaseTemplate):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, KeepTogether
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
         
         styles = getSampleStyleSheet()
         config = vm.cabinet_config
-        p_color = colors.HexColor(config.get('primary_color', '#1A365D')) if config else NAVY_BLUE
+        p_color_hex = config.get('primary_color', '#003380') if config else '#003380'
+        p_color = colors.HexColor(p_color_hex)
         s_color = colors.HexColor(config.get('secondary_color', '#666666')) if config else colors.grey
         
-        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
-        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=p_color, spaceBefore=15, spaceAfter=10)
-        patient_info_style = ParagraphStyle('PatientInfo', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, leading=14)
+        report_title_style = ParagraphStyle('ReportTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=p_color, alignment=TA_CENTER, spaceAfter=20)
+        section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=14, textColor=p_color, spaceBefore=15, spaceAfter=10)
+        patient_info_style = ParagraphStyle('PatientInfo', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.black, leading=14)
         narrative_style = ParagraphStyle('Narrative', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=15, alignment=TA_JUSTIFY, spaceAfter=6)
 
-        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=4.5*cm, bottomMargin=3.5*cm)
-        elements = []
+        # Marges configurables
+        m_top = (max(config.get('margin_top', 4.5), 4.5) if config else 4.5) * cm
+        m_bottom = (max(config.get('margin_bottom', 3.5), 3.5) if config else 3.5) * cm
 
-        elements.append(Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA (Fallback)", report_title_style))
-        elements.append(Paragraph(f"<b>Patient(e):</b> {vm.patient_nom.upper()} {vm.patient_prenom.capitalize()}<br/><b>Âge:</b> {vm.patient_age} ans<br/><b>Date:</b> {vm.date_generation}", patient_info_style))
-        elements.append(Spacer(1, 0.5*cm))
+        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        elements = [
+            Spacer(1, 0.5*cm),
+            Paragraph("RAPPORT D'ANALYSE CÉPHALOMÉTRIQUE IA", report_title_style),
+            Paragraph(f"<b>Patient(e):</b> {vm.patient_nom.upper()} {vm.patient_prenom.capitalize()}<br/><b>Âge:</b> {vm.patient_age} ans<br/><b>Date:</b> {vm.date_generation}", patient_info_style),
+            Spacer(1, 0.5*cm)
+        ]
 
         # Image
         if vm.radio_image_path:
@@ -156,15 +162,22 @@ class CephaloPDFGenerator(BaseTemplate):
         for cat_name, measures in [("Dentaire", vm.analysis.metrics.analyse_dentaire), ("Osseuse", vm.analysis.metrics.analyse_osseuse), ("Esthétique", vm.analysis.metrics.analyse_esthetique)]:
             for metric_name, data in measures:
                 if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
-                    table_data.append([metric_name.replace("_", " "), str(data.valeur), f"{data.norm_mean} ({data.norm_min}-{data.norm_max})", data.status])
+                    table_data.append([metric_name.replace("_", "\u00a0"), str(data.valeur), f"{data.norm_mean}\u00a0({data.norm_min}-{data.norm_max})", data.status])
 
         if len(table_data) > 1:
             t = Table(table_data, colWidths=[6.5*cm, 3*cm, 4.5*cm, 3*cm])
-            t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), p_color), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('FONTSIZE', (0,0), (-1,-1), 9)]))
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), p_color), 
+                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), 
+                ('GRID', (0,0), (-1,-1), 0.5, colors.grey), 
+                ('FONTSIZE', (0,0), (-1,-1), 9),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER')
+            ]))
             elements.append(t)
 
         # Narrative
-        elements.append(Paragraph("Synthèse Clinique IA", section_title_style))
+        elements.append(Paragraph("SYNTHÈSE CLINIQUE IA", section_title_style))
         diag = vm.analysis.ai_narrative or {}
         if isinstance(diag, dict):
             for k, v in diag.items():
@@ -172,9 +185,10 @@ class CephaloPDFGenerator(BaseTemplate):
         else:
             elements.append(Paragraph(str(diag), narrative_style))
 
-        # Build
+        # Intégration du Template Maître
+        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
+
         try:
-            draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config, user=vm.doctor_name)
             doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
             return file_path
         except Exception as e:

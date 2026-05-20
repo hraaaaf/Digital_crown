@@ -113,6 +113,38 @@ export const authService = {
     } catch {
       return user;
     }
+  },
+
+  /**
+   * Envoyer un email de réinitialisation de mot de passe
+   */
+  async resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    });
+    if (error) throw error;
+  },
+
+  /**
+   * Créer un nouveau compte (Cloud + sync Backend)
+   */
+  async register(email: string, password: string, fullName: string) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+      },
+    });
+
+    if (error) throw error;
+
+    // Synchroniser avec le backend local après la création du compte
+    if (data.session && data.user?.email) {
+      await this.syncWithBackend(data.session.access_token, data.user.email);
+    }
+
+    return data;
   }
 };
 

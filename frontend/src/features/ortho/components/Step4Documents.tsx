@@ -1,6 +1,6 @@
 import React from 'react';
 import { Camera, Printer, Clock, FileText, CheckCircle2 } from 'lucide-react';
-import type { PhotoUpload } from '../cephaloTypes';
+
 
 import { useOrthoStore } from '../stores/useOrthoStore';
 

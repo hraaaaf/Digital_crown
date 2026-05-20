@@ -164,8 +164,8 @@ class BilanPDFGenerator(BaseTemplate):
             for name, data in measures.items():
                 if data.get('status') in ["High", "Low", "Compensated"]:
                     has_deviants = True
-                    norm_str = f"{data.get('norm_mean')} ({data.get('norm_min')} - {data.get('norm_max')})"
-                    table_data.append([name.replace("_", " "), str(data.get('value')), norm_str, data.get('status')])
+                    norm_str = f"{data.get('norm_mean')}\u00a0({data.get('norm_min')}\u00a0-\u00a0{data.get('norm_max')})"
+                    table_data.append([name.replace("_", "\u00a0"), str(data.get('value')), norm_str, data.get('status')])
 
         if not has_deviants: table_data.append(["Aucune déviation détectée.", "-", "-", "Normal"])
         
