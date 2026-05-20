@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, API_BASE } from '../../services/api';
-import { 
-  FileText, 
-  Eye, 
-  Search, 
-  Loader2, 
-  Calendar, 
+import {
+  FileText,
+  Eye,
+  Search,
+  Loader2,
+  Calendar,
   Download,
   Archive,
   ArchiveX,
@@ -15,7 +15,8 @@ import {
   FileBadge,
   Receipt,
   Trash2,
-  Edit
+  Edit,
+  FileX2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -26,6 +27,7 @@ interface DocumentInfo {
   type: string;
   date: string;
   url: string;
+  file_exists?: boolean;
   clinical_data?: any;
   isDuplicate?: boolean;
 }
@@ -143,12 +145,22 @@ export const PatientDocuments = () => {
         {docsWithDuplicates.map((doc) => (
           <div key={doc.id} className={cn(
             "group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-hidden",
-            doc.isDuplicate ? "bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]" : "bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]"
+            doc.isDuplicate
+              ? "bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]"
+              : doc.file_exists === false
+                ? "bg-amber-50/60 border border-amber-200 opacity-80"
+                : "bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]"
           )}>
-            
+
             {doc.isDuplicate && (
               <div className="absolute top-0 inset-x-0 bg-rose-500 text-white text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 shadow-md">
                 Doublon de contenu détecté
+              </div>
+            )}
+
+            {doc.file_exists === false && !doc.isDuplicate && (
+              <div className="absolute top-0 inset-x-0 bg-amber-400 text-amber-900 text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 flex items-center justify-center gap-1.5">
+                <FileX2 size={10} /> Fichier physique manquant
               </div>
             )}
 
@@ -183,21 +195,29 @@ export const PatientDocuments = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3 relative z-10">
-              <a 
-                href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
-                target="_blank" 
-                rel="noreferrer" 
-                className="flex items-center justify-center gap-2 py-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
-              >
-                <Eye size={16} /> Voir
-              </a>
-              <a 
-                href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
-                download={doc.name}
-                className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
-              >
-                <Download size={16} /> Fichier
-              </a>
+              {doc.file_exists === false ? (
+                <div className="col-span-2 flex items-center justify-center gap-2 py-3.5 bg-amber-50 border border-amber-200 text-amber-600 rounded-2xl font-black text-xs uppercase tracking-widest">
+                  <FileX2 size={16} /> Fichier introuvable
+                </div>
+              ) : (
+                <>
+                  <a
+                    href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-2 py-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+                  >
+                    <Eye size={16} /> Voir
+                  </a>
+                  <a
+                    href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
+                    download={doc.name}
+                    className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
+                  >
+                    <Download size={16} /> Fichier
+                  </a>
+                </>
+              )}
             </div>
           </div>
         ))}
