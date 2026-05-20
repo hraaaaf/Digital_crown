@@ -18,52 +18,40 @@ const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
+  /** JWT mobile 24h pour /api/mobile/snapshot */
+  access_token: string;
+  /** URL du backend LAN (ex: http://192.168.1.50:8000) */
+  api_base_url: string;
 }
 
 export const MobileStorage = {
-  /**
-   * Sauvegarde le duo ID Cabinet + Clé Maître.
-   */
   async saveCredentials(creds: ZKACredentials): Promise<void> {
-    if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error("ID Cabinet invalide.");
-    if (!/^[0-9a-fA-F]{64}$/.test(creds.masterKey)) throw new Error("Clé Maître invalide.");
+    if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
+    if (!/^[0-9a-fA-F]{64}$/.test(creds.masterKey)) throw new Error('Clé Maître invalide.');
+    if (!creds.access_token) throw new Error('Token mobile manquant.');
     await localforage.setItem(STORE_CREDENTIALS_ID, creds);
   },
 
-  /**
-   * Cache le dernier snapshot déchiffré (SWR).
-   */
   async saveLastSnapshot(data: any): Promise<void> {
-    await localforage.setItem(STORE_SNAPSHOT_ID, data);
+    await localforage.setItem(STORE_SNAPSHOT_ID, { data, saved_at: Date.now() });
   },
 
-  /**
-   * Récupère le snapshot en cache.
-   */
   async getLastSnapshot(): Promise<any | null> {
-    return await localforage.getItem(STORE_SNAPSHOT_ID);
+    const entry = await localforage.getItem<{ data: any; saved_at: number }>(STORE_SNAPSHOT_ID);
+    return entry?.data ?? null;
   },
 
-  /**
-   * Récupère les identifiants complets.
-   */
   async getCredentials(): Promise<ZKACredentials | null> {
-    return await localforage.getItem<ZKACredentials>(STORE_CREDENTIALS_ID);
+    return localforage.getItem<ZKACredentials>(STORE_CREDENTIALS_ID);
   },
 
-  /**
-   * Effacement complet (Révocation / Logout).
-   */
   async clearAll(): Promise<void> {
     await localforage.removeItem(STORE_CREDENTIALS_ID);
     await localforage.removeItem(STORE_SNAPSHOT_ID);
   },
 
-  /**
-   * Vérifie si l'appairage est actif.
-   */
   async isPaired(): Promise<boolean> {
     const creds = await this.getCredentials();
-    return !!(creds?.publicId && creds?.masterKey);
-  }
+    return !!(creds?.publicId && creds?.masterKey && creds?.access_token);
+  },
 };

@@ -4,7 +4,19 @@ import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+/**
+ * Résout l'URL du backend :
+ * - En production (app servie depuis LAN IP) → window.location.origin
+ * - En dev (Vite :5173) → VITE_API_URL ou localhost:8000
+ */
+function resolveApiBase(): string {
+  const origin = window.location.origin;
+  const isDevServer = origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes(':5173');
+  if (!isDevServer) return origin;
+  return import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+}
+
+const API_BASE = resolveApiBase();
 
 export const OnboardingScanner = () => {
   const navigate = useNavigate();
@@ -35,13 +47,14 @@ export const OnboardingScanner = () => {
         throw new Error(err.detail ?? `Erreur ${res.status}`);
       }
 
-      const { publicId, masterKey } = await res.json();
+      const { publicId, masterKey, access_token } = await res.json();
 
       if (!/^[0-9a-fA-F]{16}$/.test(publicId) || !/^[0-9a-fA-F]{64}$/.test(masterKey)) {
         throw new Error('Credentials reçus invalides.');
       }
+      if (!access_token) throw new Error('JWT mobile manquant dans la réponse.');
 
-      await MobileStorage.saveCredentials({ publicId, masterKey });
+      await MobileStorage.saveCredentials({ publicId, masterKey, access_token, api_base_url: API_BASE });
       setPhase('success');
       setTimeout(() => navigate('/mobile/dashboard', { replace: true }), 1500);
     } catch (err: any) {

@@ -188,8 +188,9 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
     ))
     db.commit()
 
-    # Le QR encode uniquement l'URL avec le token — jamais la clé
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    # Le QR encode l'URL LAN du serveur avec le token — jamais la clé
+    from backend.routers.mobile import get_lan_base_url
+    base_url = get_lan_base_url()
     qr_payload = f"{base_url}/mobile/onboarding?token={pairing_token}"
 
     try:
@@ -201,7 +202,11 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
             qr_style="classic",
         )
         img_str = base64.b64encode(qr_bytes.getvalue()).decode()
-        return {"qr_code": f"data:image/png;base64,{img_str}", "expires_in": 300}
+        return {
+            "qr_code": f"data:image/png;base64,{img_str}",
+            "expires_in": 300,
+            "lan_url": base_url,
+        }
     except Exception as e:
         logger.error(f"Erreur génération QR ZKA: {e}")
         raise HTTPException(status_code=500, detail="Échec de génération du QR Code.")

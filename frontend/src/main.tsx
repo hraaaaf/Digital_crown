@@ -4,6 +4,12 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import './index.css' // <--- VERIFIE BIEN CETTE LIGNE
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => null);
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
