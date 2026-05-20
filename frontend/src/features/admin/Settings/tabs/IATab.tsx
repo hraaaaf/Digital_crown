@@ -7,13 +7,18 @@ import { safeStorage } from '../../../../hooks/useLocalStorage';
 
 export const IATab: React.FC = () => {
   const { profile, updateProfile } = useSettingsStore();
-  const [performanceMode, setPerformanceMode] = useState(safeStorage.get('performanceMode') === 'true');
-  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(safeStorage.get('clinicalTipsEnabled') !== 'false');
+  const [performanceMode, setPerformanceMode] = useState(
+    profile.performance_mode ?? safeStorage.get('performanceMode') === 'true'
+  );
+  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(
+    profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false'
+  );
 
   const togglePerformanceMode = () => {
     const newVal = !performanceMode;
     setPerformanceMode(newVal);
     safeStorage.set('performanceMode', String(newVal));
+    updateProfile({ performance_mode: newVal });
     window.dispatchEvent(new Event('performance-mode-changed'));
   };
 
@@ -21,6 +26,7 @@ export const IATab: React.FC = () => {
     const newVal = !clinicalTipsEnabled;
     setClinicalTipsEnabled(newVal);
     safeStorage.set('clinicalTipsEnabled', String(newVal));
+    updateProfile({ clinical_tips_enabled: newVal });
     window.dispatchEvent(new Event('settings-changed'));
   };
 

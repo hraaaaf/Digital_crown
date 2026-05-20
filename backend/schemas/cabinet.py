@@ -138,6 +138,10 @@ class CabinetConfigBase(BaseModel):
     cloture_note_template: str = Field(default="Arrêtée la présente note à la somme de {total_words} TTC.")
     cloture_devis_template: str = Field(default="Arrêté le présent devis à la somme de {total_words} TTC.")
     show_patient_badges: bool = Field(default=True)
+    performance_mode: bool = Field(default=False)
+    clinical_tips_enabled: bool = Field(default=True)
+    hide_header: bool = Field(default=True)
+    hide_footer: bool = Field(default=True)
 
 
 class CabinetConfigCreate(CabinetConfigBase):

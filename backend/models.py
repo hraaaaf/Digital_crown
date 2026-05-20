@@ -464,7 +464,11 @@ class CabinetConfig(Base):
     
     # Options d'affichage UI (Elite v4.1)
     show_patient_badges: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+    performance_mode: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    clinical_tips_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    hide_header: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    hide_footer: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 

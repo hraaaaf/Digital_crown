@@ -35,6 +35,7 @@ interface Patient {
   date_naissance: string;
   telephone: string;
   assurance: string;
+  adresse?: string;
 }
 
 type TabType = 'radiology' | 'periodontal' | 'admin' | 'archives';
@@ -50,7 +51,9 @@ export const PatientDetails = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingDoc, setEditingDoc] = useState<any>(null);
-  const [radioTab, setRadioTab] = useState<'cephalo' | 'panoramic'>('cephalo');
+  const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';
+  const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>
+    setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   useEffect(() => {
@@ -199,7 +202,7 @@ export const PatientDetails = () => {
               <div className="flex justify-center">
                 <div className="inline-flex bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner">
                   <button 
-                    onClick={() => setRadioTab('cephalo')}
+                    onClick={() => handleRadioTabChange('cephalo')}
                     className={cn(
                       "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
                       radioTab === 'cephalo' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"
@@ -209,7 +212,7 @@ export const PatientDetails = () => {
                     Céphalométrie COM
                   </button>
                   <button 
-                    onClick={() => setRadioTab('panoramic')}
+                    onClick={() => handleRadioTabChange('panoramic')}
                     className={cn(
                       "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
                       radioTab === 'panoramic' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"

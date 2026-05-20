@@ -178,6 +178,11 @@ def check_and_update_db():
     safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_note_template TEXT DEFAULT 'Arrêtée la présente note à la somme de {total_words} TTC.'")
     safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_devis_template TEXT DEFAULT 'Arrêté le présent devis à la somme de {total_words} TTC.'")
     
+    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS performance_mode BOOLEAN DEFAULT FALSE")
+    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS clinical_tips_enabled BOOLEAN DEFAULT TRUE")
+    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS hide_header BOOLEAN DEFAULT TRUE")
+    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS hide_footer BOOLEAN DEFAULT TRUE")
+
     # --- QR CODE STRATEGY ---
     safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_enabled BOOLEAN DEFAULT FALSE")
     safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_type VARCHAR DEFAULT 'VCARD'")

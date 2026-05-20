@@ -38,6 +38,10 @@ export interface CabinetProfile {
   qr_code_color?: string;
   qr_code_label?: string;
   show_patient_badges?: boolean;
+  performance_mode?: boolean;
+  clinical_tips_enabled?: boolean;
+  hide_header?: boolean;
+  hide_footer?: boolean;
   nom_praticien_ar?: string;
   specialty_ids?: string[];
   logo_path?: string;
