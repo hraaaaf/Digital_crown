@@ -229,7 +229,7 @@ export const EliteLibrary: React.FC = () => {
           
           <h3 className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-bold mt-9 mb-2 ml-2">Aide</h3>
           <button onClick={() => setShowCmd(true)} className="flex items-center px-3 py-2 text-[12.5px] text-[var(--text-muted)] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">⌨ Raccourcis clavier</button>
-          <button className="flex items-center px-3 py-2 text-[var(--text-muted)] text-[12.5px] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">↗ Suggérer un protocole</button>
+          <button onClick={() => window.open('mailto:lafabriquedapollon@gmail.com?subject=Suggestion%20protocole%20DigitalCrown', '_blank')} className="flex items-center px-3 py-2 text-[var(--text-muted)] text-[12.5px] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">↗ Suggérer un protocole</button>
         </aside>
 
         {/* MAIN */}
@@ -248,7 +248,7 @@ export const EliteLibrary: React.FC = () => {
               Bibliothèque <em className="italic text-[var(--primary)] font-serif">clinique</em>
             </h1>
             <p className="text-[var(--text-muted)] text-[16px] max-w-[640px] leading-relaxed mb-10">
-              Cent treize protocoles cliniques certifiés, prêts à consulter au fauteuil. Cherche, classe, marque tes favoris, ouvre un protocole en deux clics.
+              {CLINICAL_PROTOCOLS.length} protocoles cliniques certifiés, prêts à consulter au fauteuil. Cherche, classe, marque tes favoris, ouvre un protocole en deux clics.
             </p>
 
 

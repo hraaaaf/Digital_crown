@@ -334,11 +334,16 @@ def download_document(
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    doc_id = int(document_id)
+    if document_id.startswith("legacy:"):
+        raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
+    try:
+        doc_id = int(document_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
-    
+
     archive_service = get_archive_service(db)
     doc = archive_service.move_to_trash(doc_id)
     return {"message": "Mis à la corbeille", "id": doc.id}
