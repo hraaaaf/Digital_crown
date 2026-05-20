@@ -398,10 +398,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       }
       if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');
     } catch (e: any) {
-      if (e.response?.data?.detail?.includes('DOUBLE_DETECTED')) {
+      if (e.response?.status === 409 && e.response?.data?.detail?.code === 'DOUBLE_DETECTED') {
         setDuplicateArgs({ archive, print });
       } else {
-        toast.error('Erreur : ' + (e.response?.data?.detail || 'Impossible de générer le document.'), { duration: 6000 });
+        const detail = e.response?.data?.detail;
+        const msg = typeof detail === 'string' ? detail : detail?.message || 'Impossible de générer le document.';
+        toast.error('Erreur : ' + msg, { duration: 6000 });
       }
     } finally {
       setLoading(false);

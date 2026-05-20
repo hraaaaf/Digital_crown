@@ -177,6 +177,12 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
 
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
+    except ValueError as e:
+        msg = str(e)
+        if msg.startswith("DOUBLE_DETECTED:"):
+            raise HTTPException(status_code=409, detail={"code": "DOUBLE_DETECTED", "message": msg[len("DOUBLE_DETECTED:"):].strip()})
+        logger.error(f"Erreur Génération (ValueError) : {e}")
+        raise HTTPException(status_code=422, detail=msg)
     except Exception as e:
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
