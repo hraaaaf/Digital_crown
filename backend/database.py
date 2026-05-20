@@ -217,6 +217,12 @@ def check_and_update_db():
     add_column("actes", "is_accounted", "BOOLEAN", "0")
     add_column("actes", "is_collected", "BOOLEAN", "0")
     
+    # --- INDEX CRÉATION (idempotent via IF NOT EXISTS) ---
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_actes_patient_id ON actes(patient_id)")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_actes_date_debut ON actes(date_debut)")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_appointments_employer_date ON appointments(employer_id, datetime_start)")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_documents_patient_created ON document_archives(patient_id, created_at)")
+
     print("Database self-healing migration successfully completed.")
 
 # Exécuter au chargement du module

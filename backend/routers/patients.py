@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
@@ -53,26 +53,28 @@ def check_dossier_availability(numero: str, db: Session = Depends(database.get_d
 
 @router.get("/", response_model=List[schemas.PatientOut])
 def read_patients(
-    skip: int = 0, 
-    limit: int = 100, 
-    search: Optional[str] = None, 
-    db: Session = Depends(database.get_db), 
+    response: Response,
+    skip: int = 0,
+    limit: int = 1000,
+    search: Optional[str] = None,
+    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
     user_employer_id = current_user.get_employer_id()
-    query = db.query(models.Patient).options(
-        joinedload(models.Patient.dossier)
-    ).filter(models.Patient.employer_id == user_employer_id)
+    base_query = db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id)
     if search:
         search_term = f"%{search.strip()}%"
-        query = query.filter(
+        base_query = base_query.filter(
             or_(
                 models.Patient.nom.ilike(search_term),
                 models.Patient.prenom.ilike(search_term),
                 models.Patient.numero_dossier.ilike(search_term)
             )
         )
-    return query.offset(skip).limit(limit).all()
+    total = base_query.count()
+    response.headers["X-Total-Count"] = str(total)
+    patients = base_query.options(joinedload(models.Patient.dossier)).offset(skip).limit(limit).all()
+    return patients
 
 from backend.services.audit_service import audit_service
 
