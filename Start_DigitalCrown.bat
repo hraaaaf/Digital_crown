@@ -9,7 +9,7 @@ echo.
 
 REM 1. Demarrage du Backend (FastAPI) depuis la racine
 echo [1/2] Allumage du Moteur Backend...
-start "" cmd /k "title SERVEUR BACKEND && if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat && uvicorn backend.main:app --reload --reload-delay 2 --port 8000"
+start "" cmd /k "title SERVEUR BACKEND && if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat && uvicorn backend.main:app --host 0.0.0.0 --reload --reload-delay 2 --port 8000"
 
 REM 2. Demarrage du Frontend (React)
 echo [2/2] Lancement de l'Interface Utilisateur...
