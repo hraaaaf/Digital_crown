@@ -244,6 +244,33 @@ def check_and_update_db():
     safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_token ON zka_pairing_tokens(token)")
     safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_expires ON zka_pairing_tokens(expires_at)")
 
+    # --- GHOST HUB : FTS5 FULL-TEXT SEARCH (RAG) ---
+    safe_execute("""CREATE VIRTUAL TABLE IF NOT EXISTS patient_fts USING fts5(
+        patient_id UNINDEXED,
+        content,
+        content_type,
+        date_str UNINDEXED,
+        tokenize='unicode61'
+    )""")
+    safe_execute("""CREATE TABLE IF NOT EXISTS patient_fts_indexed (
+        patient_id INTEGER PRIMARY KEY,
+        indexed_at DATETIME
+    )""")
+
+    # --- GHOST HUB : FEEDBACK LOOP ---
+    safe_execute("""CREATE TABLE IF NOT EXISTS ai_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id INTEGER NOT NULL,
+        insight_type VARCHAR(50),
+        insight_content TEXT,
+        action VARCHAR(20) NOT NULL,
+        corrected_text TEXT,
+        employer_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )""")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_ai_feedback_patient ON ai_feedback(patient_id)")
+    safe_execute("CREATE INDEX IF NOT EXISTS idx_ai_feedback_employer ON ai_feedback(employer_id)")
+
     print("Database self-healing migration successfully completed.")
 
 # Exécuter au chargement du module

@@ -703,6 +703,20 @@ class RevokedToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
 
 
+class AIFeedback(Base):
+    """Retours praticien sur les insights IA — alimente le learning loop."""
+    __tablename__ = "ai_feedback"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    insight_type: Mapped[str] = mapped_column(String(50))
+    insight_content: Mapped[str] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(String(20))  # accept / reject / edit
+    corrected_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    employer_id: Mapped[int] = mapped_column(Integer, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
 # ==============================================================================
 # DONNÉES CLINIQUES (Contre-indications, Pharmacopée, Protocoles)
 # Versionnées en DB pour permettre les mises à jour sans redéploiement.

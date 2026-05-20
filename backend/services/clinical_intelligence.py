@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Dict, Any, List, Optional
@@ -86,12 +86,49 @@ class ClinicalIntelligenceService:
         if alerts: risk_level = "moderate"
         if any("Alerte Médicale" in a for a in alerts): risk_level = "high"
 
+        # Enrichissement : actes des 90 derniers jours
+        cutoff_90d = datetime.now() - timedelta(days=90)
+        acts_last_90d = db.query(models.Acte).filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.date_debut >= cutoff_90d
+        ).count()
+
+        # Enrichissement : top findings panoramique le plus récent
+        last_pano = db.query(models.PanoramicAnalysis).filter(
+            models.PanoramicAnalysis.patient_id == patient_id
+        ).order_by(desc(models.PanoramicAnalysis.created_at)).first()
+        last_panoramic_findings: list = []
+        if last_pano:
+            detections = (last_pano.detections_data or {}).get("detections", [])
+            for d in detections[:3]:
+                label = d.get("class_name") or d.get("label", "")
+                tooth = d.get("tooth_fdi", "")
+                if label:
+                    last_panoramic_findings.append(label + (f" dent {tooth}" if tooth else ""))
+
+        # Enrichissement : tendance céphalométrique
+        cephalo_trend = "données insuffisantes"
+        last_2_cephalos = db.query(models.CephaloAnalysis).filter(
+            models.CephaloAnalysis.patient_id == patient_id
+        ).order_by(desc(models.CephaloAnalysis.created_at)).limit(2).all()
+        if len(last_2_cephalos) >= 2:
+            a1 = (last_2_cephalos[0].angles_data or {})
+            a2 = (last_2_cephalos[1].angles_data or {})
+            impa1 = a1.get("IMPA", {}).get("valeur")
+            impa2 = a2.get("IMPA", {}).get("valeur")
+            if impa1 is not None and impa2 is not None:
+                diff = impa1 - impa2
+                cephalo_trend = "stable" if abs(diff) <= 2 else ("amélioration" if diff < 0 else "dégradation")
+
         return {
             "last_visit": last_visit,
             "next_visit": next_visit,
             "clinical_summary": clinical_summary,
             "alerts": alerts,
-            "risk_level": risk_level
+            "risk_level": risk_level,
+            "acts_last_90d": acts_last_90d,
+            "last_panoramic_findings": last_panoramic_findings,
+            "cephalo_trend": cephalo_trend,
         }
 
     def get_full_diagnostic(self, db: Session, patient_id: int) -> Dict[str, Any]:

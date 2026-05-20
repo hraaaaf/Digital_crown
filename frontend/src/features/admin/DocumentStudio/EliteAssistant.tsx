@@ -9,11 +9,15 @@ import {
   ShieldCheck,
   Clock,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useEliteStore } from '../../../stores/useEliteStore';
 import { HouseWizard } from './HouseWizard';
+import { api } from '../../../services/api';
+import toast from 'react-hot-toast';
 
 export interface Insight {
   id: string;
@@ -44,6 +48,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     isAssistantExpanded: isExpanded,
     setAssistantExpanded: setIsExpanded,
     lastFetchTime,
+    lastPatientId,
     analyzeAgendaDensity,
     setInsights,
     setIntelligenceScore
@@ -58,6 +63,23 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [showStats, setShowStats] = useState(false);
   const [showHouseWizard, setShowHouseWizard] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState<Record<string, boolean>>({});
+
+  const submitFeedback = async (insight: Insight, action: 'accept' | 'reject') => {
+    if (!lastPatientId || feedbackSent[insight.id]) return;
+    try {
+      await api.post('/ai/feedback', {
+        patient_id: lastPatientId,
+        insight_type: insight.type,
+        insight_content: insight.content,
+        action,
+      });
+      setFeedbackSent(prev => ({ ...prev, [insight.id]: true }));
+      toast.success('Retour enregistré — merci !', { duration: 1500 });
+    } catch {
+      // best-effort, no blocking toast
+    }
+  };
 
   // Initialize Global Agenda Insight
   useEffect(() => {
@@ -196,6 +218,29 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                         {currentInsight.actionLabel}
                         <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
                       </button>
+                    )}
+
+                    {/* Feedback loop — practitioner reaction */}
+                    {!feedbackSent[currentInsight.id] ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest flex-1">Utile ?</span>
+                        <button
+                          onClick={() => submitFeedback(currentInsight, 'accept')}
+                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-500 transition-all"
+                          title="Oui, pertinent"
+                        >
+                          <ThumbsUp size={10} />
+                        </button>
+                        <button
+                          onClick={() => submitFeedback(currentInsight, 'reject')}
+                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-400 transition-all"
+                          title="Non, pas pertinent"
+                        >
+                          <ThumbsDown size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[7px] font-bold text-emerald-500 text-center mt-1">✓ Retour enregistré</p>
                     )}
 
                     <button

@@ -3,6 +3,8 @@ import json
 import requests
 from typing import Dict, Optional, Any
 from backend import schemas
+from backend.config import settings
+from backend.services.llm_cache import llm_cache
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +14,10 @@ class AIAdvisor:
     Interfaces the Geometric Engine with a local LLM (Llama-3/Mistral) for COM synthesis and Pharmacology.
     Produces strictly structured diagnostic reports (Structured JSON Output).
     """
-    
-    def __init__(self, llm_endpoint: str = "http://localhost:11434/api/generate"):
-        self.llm_endpoint = llm_endpoint
-        self.model_name = "llama3.2" 
+
+    def __init__(self, llm_endpoint: str = None):
+        self.llm_endpoint = llm_endpoint or f"{settings.OLLAMA_URL}/api/generate"
+        self.model_name = "llama3.2"
         
         # Prompt Engineering - Role and Output Locking
         self.system_prompt = """
@@ -77,7 +79,12 @@ class AIAdvisor:
         
         # SLM Mode: attempt with extended timeout (5s), fallback on failure
         prompt = f"Analyse ces données cliniques et génère le JSON attendu :\n{json.dumps(clinical_data, ensure_ascii=False, indent=2)}"
-        
+
+        # Cache check (avoids re-inference for identical clinical data)
+        cached = llm_cache.get(self.model_name, prompt)
+        if cached:
+            return self._parse_json_safe(cached)
+
         try:
             logger.info("AI Advisor: SLM Attempt (5s timeout)...")
             response = requests.post(
@@ -86,15 +93,16 @@ class AIAdvisor:
                     "model": self.model_name,
                     "system": self.system_prompt,
                     "prompt": prompt,
-                    "format": "json", 
+                    "format": "json",
                     "stream": False,
                     "options": {"temperature": 0.1}
                 },
-                timeout=5.0  # Timeout adapted for Elite Edition
+                timeout=5.0
             )
             response.raise_for_status()
-            
+
             raw_text = response.json().get("response", "{}")
+            llm_cache.set(self.model_name, prompt, raw_text)
             parsed = self._parse_json_safe(raw_text)
             
             # Minimal consistency check
@@ -371,6 +379,12 @@ class AIAdvisor:
         - Format exigé : [{{"nom": "Médicament", "dosage": "Dose", "forme": "Comprimés/Sachets", "posologie": "Instructions"}}]
         - Ne mets AUCUN texte avant ou après le JSON.
         """
+        cached = llm_cache.get(self.model_name, prompt)
+        if cached:
+            try:
+                return json.loads(cached)
+            except Exception:
+                pass
         try:
             response = requests.post(
                 self.llm_endpoint,
@@ -378,10 +392,12 @@ class AIAdvisor:
                 timeout=5.0
             )
             response.raise_for_status()
-            return json.loads(response.json().get("response", "[]"))
+            raw = response.json().get("response", "[]")
+            llm_cache.set(self.model_name, prompt, raw)
+            return json.loads(raw)
         except Exception as e:
             logger.error(f"AI Advisor Prescription Error: {e}")
-            return [] # Empty fallback, doctor will fill manually
+            return []
 
 # Backend singleton instance
 ai_advisor = AIAdvisor()
