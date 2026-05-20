@@ -1,8 +1,9 @@
 import os
 import sys
+import time
 import logging
 import contextlib
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -92,6 +93,19 @@ app.add_middleware(
     expose_headers=["X-Total-Count"],
 )
 
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = round((time.time() - start) * 1000)
+    # Ne pas logger les assets statiques pour éviter le bruit
+    if not request.url.path.startswith(("/static", "/api/static")):
+        user_agent = request.headers.get("user-agent", "")[:40]
+        logger.info(
+            f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)"
+        )
+    return response
+
 # --- INCLUSION DES ROUTERS ---
 from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence
 
@@ -109,7 +123,22 @@ app.include_router(accounting.router, prefix="/api/accounting", tags=["Accountin
 app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
 
+# --- HEALTH CHECK ---
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    try:
+        with database.SessionLocal() as db:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": str(e)})
+
 # --- STATIC FILES & UI ---
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 # 1. Dossier Static des Médias (Photos patients, etc.)
 # En prod, on utilise un dossier dans %APPDATA%

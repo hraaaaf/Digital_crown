@@ -66,10 +66,13 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                     # Créer la base chiffrée avec SQLCipher
                     from sqlcipher3 import dbapi2 as sqlcipher
                     enc_conn = sqlcipher.connect(db_file_path)
-                    enc_conn.execute(f"PRAGMA key = '{passphrase}'")
-                    
+                    # Escape single quotes to prevent SQL injection in PRAGMA statements
+                    safe_passphrase = passphrase.replace("'", "''")
+                    safe_temp_path = temp_unencrypted.replace("'", "''")
+                    enc_conn.execute(f"PRAGMA key = '{safe_passphrase}'")
+
                     # Attacher et copier
-                    enc_conn.execute(f"ATTACH DATABASE '{temp_unencrypted}' AS plaintext KEY ''")
+                    enc_conn.execute(f"ATTACH DATABASE '{safe_temp_path}' AS plaintext KEY ''")
                     enc_conn.execute("SELECT sqlcipher_export('main', 'plaintext')")
                     enc_conn.execute("DETACH DATABASE plaintext")
                     enc_conn.close()
@@ -141,7 +144,7 @@ def check_and_update_db():
             with engine.begin() as conn:
                 conn.execute(text(sql))
         except Exception as e:
-            pass # Ignorer si la colonne existe déjà ou autre erreur (ex: SQLite compatibility)
+            logger.debug(f"Migration (ignoré): {sql[:60]!r} — {e}")
 
     # Vérifier et ajouter les colonnes de branding et structure manquantes
     safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_theme VARCHAR DEFAULT 'elite'")

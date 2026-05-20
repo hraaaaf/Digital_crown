@@ -210,15 +210,11 @@ async def sync_supabase_user(
     Vérifie également la validité de la licence (Kill-Switch).
     """
     if not settings.SUPABASE_URL:
-        # En mode dev sans config, on laisse passer si c'est l'admin par défaut
-        if body.email == "admin@digitalcrown.com":
-             user = db.query(models.User).filter(models.User.email == body.email).first()
-             return {"status": "ok", "token": create_access_token(data={"sub": user.email})}
         raise HTTPException(status_code=500, detail="Supabase n'est pas configuré sur le serveur.")
 
     # 1. Valider le token auprès de Supabase
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {
                 "Authorization": f"Bearer {body.access_token}",
                 "apikey": settings.SUPABASE_ANON_KEY
