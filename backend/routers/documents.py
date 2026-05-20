@@ -246,14 +246,27 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     
     archive_service = get_archive_service(db)
     docs, total = archive_service.search_documents(
-        patient_id=patient_id, 
-        doc_type=doc_type, 
-        search_query=search, 
-        page=page, 
+        patient_id=patient_id,
+        doc_type=doc_type,
+        search_query=search,
+        page=page,
         page_size=page_size,
         employer_id=current_user.get_employer_id()
     )
-    return {"total": total, "page": page, "page_size": page_size, "documents": docs}
+
+    # Enrichir chaque doc avec file_exists pour que le frontend sache quoi afficher
+    def _resolve_abs(file_path: str) -> str:
+        if file_path.startswith("static/archives/") or file_path.startswith("static/documents/"):
+            return str(MEDIA_DIR / file_path.replace("static/", "", 1))
+        return os.path.join(BASE_DIR, file_path)
+
+    docs_out = []
+    for d in docs:
+        d_dict = {c.key: getattr(d, c.key) for c in d.__table__.columns}
+        d_dict["file_exists"] = bool(d.file_path and os.path.exists(_resolve_abs(d.file_path)))
+        docs_out.append(d_dict)
+
+    return {"total": total, "page": page, "page_size": page_size, "documents": docs_out}
 
 @router.get("/{document_id}/download")
 def download_document(
@@ -305,12 +318,18 @@ def download_document(
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
-    
-    # Résolution du chemin absolu (pour éviter FileNotFoundError si lancé hors du dossier backend)
+
+    # Résolution du chemin absolu
     if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
         abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
     else:
         abs_path = os.path.join(BASE_DIR, doc.file_path)
+
+    if not os.path.exists(abs_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Fichier introuvable sur ce serveur. Le document existe en base mais le fichier physique est manquant (migration ou réinstallation)."
+        )
     return FileResponse(path=abs_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
