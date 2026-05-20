@@ -33,9 +33,29 @@ export const OnboardingScanner = () => {
   }, []);
 
   async function onScanSuccess(decodedText: string) {
-    // 1. Validation du format combiné (ID_16|KEY_64)
-    const isValid = /^[0-9a-fA-F]{16}\|[0-9a-fA-F]{64}$/.test(decodedText);
-    
+    let publicId = '';
+    let masterKey = '';
+
+    // Nouveau format : URL avec query params (?id=...&key=...)
+    if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+      try {
+        const url = new URL(decodedText);
+        publicId = url.searchParams.get('id') || '';
+        masterKey = url.searchParams.get('key') || '';
+      } catch {
+        setErrorMessage("QR Code invalide. Veuillez scanner le code 'Compagnon Mobile' affiché sur votre PC.");
+        setStatus('error');
+        return;
+      }
+    } else {
+      // Rétrocompatibilité : ancien format brut ID_16|KEY_64
+      const [rawId, rawKey] = decodedText.split('|');
+      publicId = rawId || '';
+      masterKey = rawKey || '';
+    }
+
+    // Validation des valeurs extraites
+    const isValid = /^[0-9a-fA-F]{16}$/.test(publicId) && /^[0-9a-fA-F]{64}$/.test(masterKey);
     if (!isValid) {
       setErrorMessage("QR Code invalide. Veuillez scanner le code 'Compagnon Mobile' affiché sur votre PC.");
       setStatus('error');
@@ -43,10 +63,7 @@ export const OnboardingScanner = () => {
     }
 
     try {
-      // 2. Parsing du payload
-      const [publicId, masterKey] = decodedText.split('|');
-
-      // 3. Arrêt immédiat de la caméra
+      // Arrêt immédiat de la caméra
       if (scannerRef.current) {
         await scannerRef.current.clear();
       }

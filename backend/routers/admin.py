@@ -165,8 +165,9 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
     if not config or not master_key:
         raise HTTPException(status_code=404, detail="Configuration ZKA incomplète")
     
-    # 2. Construction du payload : PUBLIC_ID|MASTER_KEY
-    combined_payload = f"{config.public_id}|{master_key}"
+    # 2. Construction du payload : URL complète pointant vers l'onboarding mobile
+    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    combined_payload = f"{base_url}/mobile/onboarding?id={config.public_id}&key={master_key}"
     
     # 3. Génération via QRService (Style Square pour fiabilité maximale de scan)
     try:
