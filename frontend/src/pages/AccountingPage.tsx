@@ -102,6 +102,7 @@ export const AccountingPage = () => {
   };
 
   // Filters
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssurance, setSelectedAssurance] = useState('ALL');
   const [treasuryStatusFilter, setTreasuryStatusFilter] = useState('ALL');
@@ -206,16 +207,22 @@ export const AccountingPage = () => {
     }
   };
 
-  const handleDelete = async (id: number | string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note d'honoraires ? Elle sera déplacée dans la corbeille.")) {
-      try {
-        await api.post(`/documents/${id}/trash`);
-        setItems(prev => prev.filter(item => item.id !== id));
-        fetchHonoraires();
-      } catch (err) {
-        console.error("Erreur suppression honoraire:", err);
-        alert("Erreur lors de la suppression.");
-      }
+  const handleDelete = (id: number | string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    try {
+      await api.post(`/documents/${confirmDeleteId}/trash`);
+      setItems(prev => prev.filter(item => item.id !== confirmDeleteId));
+      fetchHonoraires();
+      toast.success("Note déplacée dans la corbeille.");
+    } catch (err) {
+      console.error("Erreur suppression honoraire:", err);
+      toast.error("Erreur lors de la suppression.");
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -540,6 +547,15 @@ export const AccountingPage = () => {
           ))}
         </select>
       </section>
+
+      {/* CONFIRMATION SUPPRESSION */}
+      {confirmDeleteId && (
+        <div className="flex items-center gap-4 px-5 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-sm font-bold text-rose-700">
+          <span className="flex-1">Supprimer cette note définitivement ?</span>
+          <button onClick={confirmDelete} className="px-4 py-1.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all">Confirmer</button>
+          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all">Annuler</button>
+        </div>
+      )}
 
       {/* LISTE DES HONORAIRES */}
       <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">

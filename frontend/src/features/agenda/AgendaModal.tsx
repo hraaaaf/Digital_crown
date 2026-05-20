@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Clock, User, FileText, Search, Plus, Check, MessageCircle, Calendar, Sparkles, AlertCircle, ArrowRight, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
@@ -252,6 +253,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
           await api.post('/appointments/', payload);
       }
 
+      toast.success(editingAppointment ? 'Rendez-vous modifié.' : 'Rendez-vous créé.');
       onSaved();
       onClose();
       setPatientSearch('');
@@ -264,7 +266,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setStatus('PRÉVU');
     } catch (err) {
       console.error("Erreur saving appt", err);
-      alert("Erreur lors de la création du rendez-vous.");
+      toast.error("Erreur lors de la sauvegarde du rendez-vous.");
     } finally {
       setLoading(false);
     }

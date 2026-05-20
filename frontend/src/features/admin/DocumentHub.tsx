@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 
 // Composants Modulaires
@@ -329,7 +330,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- DATA FETCHING ---
   useEffect(() => {
     if (!patientId) return;
-    api.get(`/patients/${patientId}`).then(res => setPatientDetails(res.data)).catch(console.error);
+    api.get(`/patients/${patientId}`)
+      .then(res => setPatientDetails(res.data))
+      .catch((err) => {
+        console.error('DocumentHub: patient fetch failed', err);
+        const status = err.response?.status;
+        if (status === 403 || status === 404) {
+          setPatientDetails(null);
+          toast.error("Dossier patient introuvable ou accès non autorisé.");
+        }
+      });
     if (activeTab === 'ordonnance') {
       api.get(`/prescriptions/smart-suggest/${patientId}`)
         .then(res => setSmartSuggestion(res.data))
