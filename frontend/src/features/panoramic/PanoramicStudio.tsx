@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { API_BASE } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Upload, Loader2, Activity, ShieldAlert, CheckCircle2, 
-  History, Sun, Contrast, FlipHorizontal, 
+import toast from 'react-hot-toast';
+import {
+  Upload, Loader2, Activity, ShieldAlert, CheckCircle2,
+  History, Sun, Contrast, FlipHorizontal,
   RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan
 } from 'lucide-react';
 import { api } from '../../services/api';
@@ -96,7 +97,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       setResult(response.data);
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
-      alert("Une erreur est survenue lors de l'analyse.");
+      toast.error("Erreur lors de l'analyse panoramique.");
     } finally {
       setLoading(false);
     }
@@ -117,11 +118,11 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         report_narrative: response.data.report_narrative
       }));
       
-      alert("Bilan professionnel généré et archivé avec succès.");
+      toast.success("Bilan professionnel généré et archivé.");
       resetAll();
     } catch (err) {
       console.error("Erreur lors de la finalisation du bilan :", err);
-      alert("Une erreur est survenue lors de la génération du bilan.");
+      toast.error("Erreur lors de la génération du bilan.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +136,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       window.open(response.data.pdf_url, '_blank');
     } catch (err) {
       console.error("Erreur téléchargement PDF :", err);
-      alert("Une erreur est survenue lors de la génération du PDF.");
+      toast.error("Erreur lors de la génération du PDF.");
     } finally {
       setDownloading(false);
     }
@@ -150,7 +151,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       setPreviewPdfUrl(response.data.pdf_url);
     } catch (err) {
       console.error("Erreur aperçu PDF :", err);
-      alert("Impossible de charger l'aperçu.");
+      toast.error("Impossible de charger l'aperçu PDF.");
     } finally {
       setIsPreviewLoading(false);
     }

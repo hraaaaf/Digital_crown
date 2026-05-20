@@ -67,12 +67,17 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
             "acte": last_acte.libelle if last_acte else "Consultation",
             "time": "Récent", "type": last_acte.type_acte.value if last_acte else "Ortho"
         })
+    in_waiting = db.query(models.Appointment).filter(
+        models.Appointment.employer_id == emp_id,
+        models.Appointment.status == 'EN_S_ATTENTE'
+    ).count()
+
     return {
-        "total_patients": total_p, 
-        "total_analyses": total_a, 
+        "total_patients": total_p,
+        "total_analyses": total_a,
         "recent_patients": recent_list,
         "weekly_activity": weekly_activity,
-        "in_waiting": 0
+        "in_waiting": in_waiting
     }
 
 

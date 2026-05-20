@@ -63,6 +63,12 @@ export const PatientDetails = () => {
   }, [setSearchParams]);
 
   useEffect(() => {
+    const handlePrescription = () => setSearchParams({ tab: 'admin' });
+    window.addEventListener('perio-create-prescription', handlePrescription);
+    return () => window.removeEventListener('perio-create-prescription', handlePrescription);
+  }, [setSearchParams]);
+
+  useEffect(() => {
     const fetchPatient = async () => {
       if (!id) return;
       try {
@@ -184,9 +190,7 @@ export const PatientDetails = () => {
         isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-10 py-10 space-y-10"
       )}>
         
-        {!isCompact && (
-          <FlashSummary patientId={Number(id)} patientName={fullName} />
-        )}
+        <FlashSummary patientId={Number(id)} patientName={fullName} />
 
         <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
           {activeTab === 'radiology' && (

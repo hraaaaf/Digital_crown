@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FileSpreadsheet, 
-  HeartPulse, 
-  Save, 
-  Trash2, 
-  PlusCircle, 
-  AlertTriangle, 
+import toast from 'react-hot-toast';
+import {
+  FileSpreadsheet,
+  HeartPulse,
+  Save,
+  Trash2,
+  PlusCircle,
+  AlertTriangle,
   CheckCircle,
   Activity
 } from 'lucide-react';
@@ -444,7 +445,8 @@ export const PeriodontalChart: React.FC<PeriodontalChartProps> = ({ patientId })
               </div>
               <button
                 onClick={() => {
-                  alert("Prescription déterministe générée d'un clic ! Le protocole clinique a été lié au dossier.");
+                  window.dispatchEvent(new CustomEvent('perio-create-prescription', { detail: { patientId } }));
+                  toast.success('Redirection vers Documents A5 — choisissez le modèle Ordonnance.');
                 }}
                 className="w-full sm:w-auto px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 flex-shrink-0"
               >
