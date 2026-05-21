@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  UserPlus, 
-  Calendar, 
-  Clock, 
-  FileText, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  UserPlus,
+  Calendar,
+  Clock,
+  FileText,
   ChevronRight,
   TrendingUp,
   Loader2,
-  Users
+  Users,
+  Bell,
+  CheckCheck,
+  BarChart2
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
@@ -51,7 +54,28 @@ interface DashboardStats {
   weekly_activity: number[];
 }
 
+interface ProactiveAlert {
+  id: number;
+  patient_id: number;
+  nom: string;
+  prenom: string;
+  type: string;
+  title: string;
+  message: string;
+  action: string;
+  priority: number;
+}
+
+interface ForecastData {
+  week_start: string;
+  week_end: string;
+  rdv_count: number;
+  forecast_revenue: number;
+  avg_per_rdv: number;
+}
+
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [praticienName, setPraticienName] = useState('Praticien');
@@ -60,6 +84,8 @@ export const Dashboard: React.FC = () => {
 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
   const [loadingAppts, setLoadingAppts] = useState(false);
+  const [proactiveAlerts, setProactiveAlerts] = useState<ProactiveAlert[]>([]);
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
 
   const hasAccess = (permission: string) => {
     if (!user) return true;
@@ -152,7 +178,16 @@ export const Dashboard: React.FC = () => {
     fetchStats();
     fetchConfig();
     fetchTodayAppointments();
+    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(() => {});
+    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(() => {});
   }, []);
+
+  const markAlertRead = async (alertId: number) => {
+    try {
+      await api.patch(`/intelligence/alerts/${alertId}/read`);
+      setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
+    } catch {}
+  };
 
   if (loading) return (
     <div className="h-full flex items-center justify-center">
@@ -499,6 +534,78 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
             </div>
+          </motion.section>
+        )}
+
+        {/* C1 — Forecast Semaine + E4 — Alertes du Jour */}
+        {(forecast || proactiveAlerts.length > 0) && (
+          <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* C1 — Forecast Semaine */}
+            {forecast && (
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-emerald-500/10 rounded-elite-sm flex items-center justify-center border border-emerald-500/20">
+                    <BarChart2 size={18} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Forecast Semaine</h3>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{forecast.rdv_count} RDV planifiés</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-end gap-2">
+                    <span className="text-3xl font-black text-emerald-400 font-outfit">{forecast.forecast_revenue.toLocaleString('fr-FR')}</span>
+                    <span className="text-sm text-text-muted font-bold mb-1">MAD estimés</span>
+                  </div>
+                  <p className="text-[11px] text-text-muted font-medium">
+                    Basé sur {forecast.rdv_count} RDV × {forecast.avg_per_rdv.toFixed(0)} MAD moyen/RDV (30 derniers jours)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* E4 — Alertes du Jour */}
+            {proactiveAlerts.length > 0 && (
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-amber-500/10 rounded-elite-sm flex items-center justify-center border border-amber-500/20">
+                      <Bell size={18} className="text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Alertes du Jour</h3>
+                      <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{proactiveAlerts.length} alerte{proactiveAlerts.length > 1 ? 's' : ''} active{proactiveAlerts.length > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <span className="w-6 h-6 bg-amber-500 text-white rounded-full text-[10px] font-black flex items-center justify-center">
+                    {proactiveAlerts.length}
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {proactiveAlerts.map(alert => (
+                    <div key={alert.id} className="flex items-center gap-3 p-3 bg-white/30 border border-border-main rounded-elite-sm hover:bg-white/50 transition-all group">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full flex-shrink-0",
+                        alert.priority === 1 ? "bg-red-500" : "bg-amber-400"
+                      )} />
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/patients/${alert.patient_id}`)}>
+                        <p className="text-[11px] font-black text-primary truncate">
+                          {alert.nom} {alert.prenom} — <span className="text-amber-500">{alert.title}</span>
+                        </p>
+                        <p className="text-[10px] text-text-muted font-medium truncate">{alert.action}</p>
+                      </div>
+                      <button
+                        onClick={() => markAlertRead(alert.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-text-muted hover:text-emerald-400"
+                        title="Marquer comme lu"
+                      >
+                        <CheckCheck size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.section>
         )}
       </div>

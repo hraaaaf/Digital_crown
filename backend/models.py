@@ -717,6 +717,25 @@ class AIFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
 
+class ProactiveAlert(Base):
+    """E2 — Alertes proactives générées par le scheduler quotidien."""
+    __tablename__ = "proactive_alerts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    alert_type: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(255))
+    message: Mapped[str] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(String(255), default="")
+    priority: Mapped[int] = mapped_column(Integer, default=2)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
+
+
 # ==============================================================================
 # DONNÉES CLINIQUES (Contre-indications, Pharmacopée, Protocoles)
 # Versionnées en DB pour permettre les mises à jour sans redéploiement.

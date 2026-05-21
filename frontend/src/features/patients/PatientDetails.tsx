@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
+import toast from 'react-hot-toast';
 
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
@@ -85,6 +86,18 @@ export const PatientDetails = () => {
       }
     };
     fetchPatient();
+  }, [id]);
+
+  // D1 — NBA : afficher la prochaine meilleure action quand on quitte la fiche patient
+  useEffect(() => {
+    if (!id) return;
+    return () => {
+      api.get(`/intelligence/patient/${id}/nba`).then(res => {
+        if (res.data.nba) {
+          toast(`💡 ${res.data.nba.title} — ${res.data.nba.action}`, { duration: 6000 });
+        }
+      }).catch(() => {});
+    };
   }, [id]);
 
   const handleTabChange = (tab: TabType) => {
