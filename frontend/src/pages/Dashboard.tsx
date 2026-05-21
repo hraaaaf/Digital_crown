@@ -74,6 +74,16 @@ interface ForecastData {
   avg_per_rdv: number;
 }
 
+interface ConversionData {
+  devis_count: number;
+  converted_count: number;
+  taux: number;
+  avg_days: number | null;
+}
+
+interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'forecast'; }
+interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -86,6 +96,8 @@ export const Dashboard: React.FC = () => {
   const [loadingAppts, setLoadingAppts] = useState(false);
   const [proactiveAlerts, setProactiveAlerts] = useState<ProactiveAlert[]>([]);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [conversion, setConversion] = useState<ConversionData | null>(null);
+  const [projection, setProjection] = useState<ProjectionData | null>(null);
 
   const hasAccess = (permission: string) => {
     if (!user) return true;
@@ -180,6 +192,8 @@ export const Dashboard: React.FC = () => {
     fetchTodayAppointments();
     api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(() => {});
     api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(() => {});
+    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(() => {});
+    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(() => {});
   }, []);
 
   const markAlertRead = async (alertId: number) => {
@@ -601,6 +615,74 @@ export const Dashboard: React.FC = () => {
                       >
                         <CheckCheck size={14} />
                       </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+
+        {/* C4 — Taux Conversion + C5 — Projection Mensuelle */}
+        {(conversion || projection) && (
+          <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            {/* C4 — Taux de Conversion Devis */}
+            {conversion && conversion.devis_count > 0 && (
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-blue-500/10 rounded-elite-sm flex items-center justify-center border border-blue-500/20">
+                    <TrendingUp size={18} className="text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Taux de Conversion</h3>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{conversion.devis_count} devis émis</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-end gap-2">
+                    <span className={cn("text-3xl font-black font-outfit", conversion.taux >= 60 ? "text-emerald-400" : conversion.taux >= 40 ? "text-amber-400" : "text-red-400")}>
+                      {conversion.taux}%
+                    </span>
+                    <span className="text-sm text-text-muted font-bold mb-1">de conversion</span>
+                  </div>
+                  <div className="w-full bg-slate-200/50 rounded-full h-2">
+                    <div className={cn("h-2 rounded-full transition-all", conversion.taux >= 60 ? "bg-emerald-400" : conversion.taux >= 40 ? "bg-amber-400" : "bg-red-400")}
+                      style={{ width: `${Math.min(conversion.taux, 100)}%` }} />
+                  </div>
+                  <p className="text-[11px] text-text-muted font-medium">
+                    {conversion.converted_count} / {conversion.devis_count} devis suivis d'un acte
+                    {conversion.avg_days ? ` · délai moyen ${conversion.avg_days}j` : ''}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* C5 — Projection Mensuelle */}
+            {projection && (
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-violet-500/10 rounded-elite-sm flex items-center justify-center border border-violet-500/20">
+                    <BarChart2 size={18} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Projection Mensuelle</h3>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Moy. {projection.avg_monthly.toLocaleString('fr-FR')} MAD/mois</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                  {[...projection.historical, ...projection.projections].map(entry => (
+                    <div key={entry.month} className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-text-muted">{entry.month}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("font-black", entry.type === 'actual' ? "text-primary" : "text-violet-400")}>
+                          {entry.revenue.toLocaleString('fr-FR')} MAD
+                        </span>
+                        <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider",
+                          entry.type === 'actual' ? "bg-slate-100 text-slate-500" : "bg-violet-500/10 text-violet-500")}>
+                          {entry.type === 'actual' ? 'réel' : 'estimé'}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
