@@ -116,6 +116,70 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     db.commit(); db.refresh(db_patient)
     return db_patient
 
+@router.get("/fantomes")
+def get_fantome_patients(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """A1 — Patients fantômes : traitement actif + aucun RDV futur."""
+    from sqlalchemy import exists, and_, desc as _desc
+    employer_id = current_user.get_employer_id()
+    now = datetime.now()
+    cutoff_90d = now - timedelta(days=90)
+
+    # IDs ortho actifs
+    ortho_ids = {
+        row[0] for row in db.query(models.DossierClinique.patient_id).join(
+            models.Patient, models.Patient.id == models.DossierClinique.patient_id
+        ).filter(
+            models.Patient.employer_id == employer_id,
+            models.DossierClinique.is_ortho_active == True
+        ).all()
+    }
+
+    # IDs avec acte récent
+    recent_ids = {
+        row[0] for row in db.query(models.Acte.patient_id).join(
+            models.Patient, models.Patient.id == models.Acte.patient_id
+        ).filter(
+            models.Patient.employer_id == employer_id,
+            models.Acte.date_debut >= cutoff_90d
+        ).distinct().all()
+    }
+
+    active_ids = ortho_ids | recent_ids
+    if not active_ids:
+        return []
+
+    # Ceux qui ont un RDV futur non-annulé
+    has_future_rdv = {
+        row[0] for row in db.query(models.Appointment.patient_id).filter(
+            models.Appointment.patient_id.in_(active_ids),
+            models.Appointment.datetime_start > now,
+            models.Appointment.status != "ANNULÉ"
+        ).distinct().all()
+    }
+
+    fantome_ids = active_ids - has_future_rdv
+    if not fantome_ids:
+        return []
+
+    fantomes = []
+    for pid in fantome_ids:
+        last_appt = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == pid,
+            models.Appointment.datetime_start <= now,
+            models.Appointment.status != "ANNULÉ"
+        ).order_by(_desc(models.Appointment.datetime_start)).first()
+        days_since = (now - last_appt.datetime_start).days if last_appt else None
+        fantomes.append({
+            "patient_id": pid,
+            "days_since_last_appt": days_since,
+            "is_ortho_active": pid in ortho_ids,
+        })
+    return fantomes
+
+
 @router.get("/{patient_id}", response_model=schemas.PatientOut)
 def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
@@ -356,51 +420,3 @@ def generate_cephalo_pdf(
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 
 
-# --- PROACTIVE INTELLIGENCE ---
-
-@router.get("/fantomes")
-def get_fantome_patients(
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
-):
-    """A1 — Patients fantômes : traitement actif + aucun RDV futur depuis 60+ jours."""
-    employer_id = current_user.get_employer_id()
-    now = datetime.now()
-    cutoff_90d = now - timedelta(days=90)
-
-    patients = db.query(models.Patient).filter(
-        models.Patient.employer_id == employer_id
-    ).options(
-        joinedload(models.Patient.dossier),
-        joinedload(models.Patient.actes),
-        joinedload(models.Patient.appointments)
-    ).all()
-
-    fantomes = []
-    for p in patients:
-        is_ortho_active = p.dossier and p.dossier.is_ortho_active
-        last_acte = max((a.date_debut for a in p.actes if a.date_debut), default=None)
-        recent_treatment = is_ortho_active or (last_acte and last_acte >= cutoff_90d)
-        if not recent_treatment:
-            continue
-
-        has_future_rdv = any(
-            a.datetime_start > now and a.status != "ANNULÉ"
-            for a in p.appointments
-        )
-        if has_future_rdv:
-            continue
-
-        past_rdvs = sorted(
-            [a for a in p.appointments if a.datetime_start <= now and a.status != "ANNULÉ"],
-            key=lambda a: a.datetime_start, reverse=True
-        )
-        days_since_last = (now - past_rdvs[0].datetime_start).days if past_rdvs else None
-
-        fantomes.append({
-            "patient_id": p.id,
-            "days_since_last_appt": days_since_last,
-            "is_ortho_active": bool(is_ortho_active),
-        })
-
-    return fantomes
