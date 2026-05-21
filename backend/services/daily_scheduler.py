@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from backend import models, database
 from backend.services.habits_engine import habits_engine as _engine
+from backend.services.push_service import send_push_to_employer
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ def run_daily_alerts():
         ).delete(synchronize_session=False)
 
         new_count = 0
+        new_by_employer: dict[int, int] = {}
         for patient_id in all_ids:
             patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
             if not patient:
@@ -51,8 +53,18 @@ def run_daily_alerts():
                         expires_at=datetime.now() + timedelta(days=7)
                     ))
                     new_count += 1
+                    new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
         db.commit()
         logger.info("Daily alerts: %d new alerts for %d active patients", new_count, len(all_ids))
+
+        for emp_id, count in new_by_employer.items():
+            sent = send_push_to_employer(
+                db, emp_id,
+                title=f"Digital Crown — {count} alerte(s) aujourd'hui",
+                body="Consultez votre tableau de bord pour les actions prioritaires."
+            )
+            if sent:
+                logger.info("Push sent to employer %s: %d device(s)", emp_id, sent)
 
 
 def start_daily_scheduler():

@@ -736,6 +736,18 @@ class ProactiveAlert(Base):
     patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
 
 
+class DeviceToken(Base):
+    """E5 — Token FCM pour les notifications push mobiles."""
+    __tablename__ = "device_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    fcm_token: Mapped[str] = mapped_column(String(512), unique=True)
+    platform: Mapped[str] = mapped_column(String(16), default="android")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
 # ==============================================================================
 # DONNÉES CLINIQUES (Contre-indications, Pharmacopée, Protocoles)
 # Versionnées en DB pour permettre les mises à jour sans redéploiement.
