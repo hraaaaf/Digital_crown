@@ -70,6 +70,10 @@ async def lifespan(app: FastAPI):
                 logger.warning("FTS bulk index startup failed: %s", _e)
         threading.Thread(target=_bulk_index, daemon=True).start()
 
+        # E1 — Scheduler quotidien alertes proactives
+        from backend.services.daily_scheduler import start_daily_scheduler
+        start_daily_scheduler()
+
         # 3. Ouverture automatique du navigateur (Build mode uniquement)
         if hasattr(sys, '_MEIPASS'):
             webbrowser.open("http://127.0.0.1:8000")

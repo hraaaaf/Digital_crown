@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Plus, Trash2, Zap, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
@@ -28,7 +28,17 @@ interface PrescriptionFormProps {
   onApplyPreset: (preset: { label: string, color: string, drugs: any[] }) => void;
   validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
+  contextLibelle?: string;
 }
+
+const detectPresetFromLibelle = (libelle: string): string | null => {
+  const l = libelle.toLowerCase();
+  if (l.includes('extrac') || l.includes('chirurg') || l.includes('alvéol') || l.includes('avulsion')) return 'Post-Op Standard';
+  if (l.includes('abcès') || l.includes('infect') || l.includes('amoxicil') || l.includes('purulent')) return 'Infection / Abcès';
+  if (l.includes('parodont') || l.includes('détartr') || l.includes('gingivit')) return 'Parodontie';
+  if (l.includes('douleur') || l.includes('kéto') || l.includes('urgence') || l.includes('névralg')) return 'Urgence Douleur';
+  return null;
+};
 
 const QUICK_PRESCRIPTIONS = [
   { label: 'Post-Op Standard', color: 'rose', drugs: [
@@ -58,10 +68,16 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
   onApplySmart,
   onApplyPreset,
   validationErrors = [],
-  coherenceWarnings = []
+  coherenceWarnings = [],
+  contextLibelle = ''
 }) => {
   const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
+
+  const suggestedPresetLabel = useMemo(
+    () => contextLibelle ? detectPresetFromLibelle(contextLibelle) : null,
+    [contextLibelle]
+  );
 
   // Check for global drug errors
   const globalDrugError = validationErrors.find(e => e.field === 'drugs');
@@ -82,22 +98,27 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
         </div>
 
         <div className="flex flex-wrap gap-2 relative z-10">
-          {QUICK_PRESCRIPTIONS.map(preset => (
-            <button
-              key={preset.label}
-              onClick={() => onApplyPreset(preset)}
-              className={cn(
-                "group px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2",
-                preset.color === 'rose' ? "bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
-                preset.color === 'emerald' ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white" :
-                preset.color === 'blue' ? "bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
-                "bg-amber-50 border-amber-100 text-amber-600 hover:bg-amber-600 hover:text-white"
-              )}
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover:opacity-100" />
-              {preset.label}
-            </button>
-          ))}
+          {QUICK_PRESCRIPTIONS.map(preset => {
+            const isSuggested = preset.label === suggestedPresetLabel;
+            return (
+              <button
+                key={preset.label}
+                onClick={() => onApplyPreset(preset)}
+                className={cn(
+                  "group px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2",
+                  isSuggested ? "ring-2 ring-offset-1 ring-primary scale-105 shadow-lg" : "",
+                  preset.color === 'rose' ? "bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
+                  preset.color === 'emerald' ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white" :
+                  preset.color === 'blue' ? "bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
+                  "bg-amber-50 border-amber-100 text-amber-600 hover:bg-amber-600 hover:text-white"
+                )}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover:opacity-100" />
+                {preset.label}
+                {isSuggested && <span className="ml-1 text-[8px] bg-primary text-white px-1.5 py-0.5 rounded-full">Suggéré</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 

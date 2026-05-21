@@ -239,6 +239,75 @@ class HabitsEngine:
                     "action": "Relancer le Paiement"
                 })
 
+        # A4: Traitement Abandonné
+        _devis = db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.patient_id == patient_id,
+            models.DocumentArchive.document_type == "DEVIS"
+        ).order_by(desc(models.DocumentArchive.created_at)).first()
+        if _devis:
+            _days_devis = (datetime.now() - _devis.created_at).days
+            _acte_after = db.query(models.Acte).filter(
+                models.Acte.patient_id == patient_id,
+                models.Acte.date_debut > _devis.created_at
+            ).first()
+            if _days_devis > 60 and not _acte_after:
+                triggers.append({
+                    "type": "TREATMENT_ABANDONED",
+                    "title": "Traitement Non Commencé",
+                    "message": f"Devis établi il y a {_days_devis}j sans acte commencé.",
+                    "action": "Rappeler le patient"
+                })
+
+        # A5: Rétention Post-Soin
+        _cutoff_low = datetime.now() - timedelta(days=10)
+        _cutoff_high = datetime.now() - timedelta(days=5)
+        _post_care = db.query(models.Acte).filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.libelle.ilike("%extrac%"),
+            models.Acte.date_debut >= _cutoff_low,
+            models.Acte.date_debut <= _cutoff_high
+        ).first()
+        if _post_care:
+            triggers.append({
+                "type": "POST_CARE_FOLLOWUP",
+                "title": "Suivi Post-Extraction",
+                "message": "Extraction réalisée il y a ~7 jours. Appel de suivi recommandé.",
+                "action": "Appeler le patient"
+            })
+
+        # B1: Score No-Show
+        _six_months_ago = datetime.now() - timedelta(days=180)
+        _rdvs_b1 = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient_id,
+            models.Appointment.datetime_start >= _six_months_ago
+        ).all()
+        if len(_rdvs_b1) >= 3:
+            _annules_b1 = sum(1 for r in _rdvs_b1 if r.status == "ANNULÉ")
+            _taux = _annules_b1 / len(_rdvs_b1)
+            if _taux > 0.4:
+                triggers.append({
+                    "type": "NOSHOW_RISK",
+                    "title": "Risque No-Show Élevé",
+                    "message": f"Taux d'annulation : {int(_taux * 100)}% sur {len(_rdvs_b1)} RDV.",
+                    "action": "Envoyer rappel WhatsApp"
+                })
+
+        # B4: Progression Traitement Ortho
+        dossier = patient.dossier
+        if dossier and dossier.is_ortho_active:
+            _semestres = db.query(func.count(models.Acte.id)).filter(
+                models.Acte.patient_id == patient_id,
+                models.Acte.type_acte == "ORTHO_SEMESTRE"
+            ).scalar() or 0
+            if _semestres > 0:
+                _progression = min(int((_semestres / 4) * 100), 100)
+                triggers.append({
+                    "type": "ORTHO_PROGRESSION",
+                    "title": "Progression Orthodontie",
+                    "message": f"{_semestres} séance(s) sur ~4 — {_progression}% d'avancement estimé.",
+                    "action": "Voir plan de traitement"
+                })
+
         return triggers
 
 habits_engine = HabitsEngine()
