@@ -9,11 +9,16 @@ import {
   ShieldCheck,
   Clock,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
+  CalendarDays,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useEliteStore } from '../../../stores/useEliteStore';
 import { HouseWizard } from './HouseWizard';
+import { api } from '../../../services/api';
+import toast from 'react-hot-toast';
 
 export interface Insight {
   id: string;
@@ -44,6 +49,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     isAssistantExpanded: isExpanded,
     setAssistantExpanded: setIsExpanded,
     lastFetchTime,
+    lastPatientId,
     analyzeAgendaDensity,
     setInsights,
     setIntelligenceScore
@@ -58,10 +64,32 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [showStats, setShowStats] = useState(false);
   const [showHouseWizard, setShowHouseWizard] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState<Record<string, boolean>>({});
+
+  type BriefingPatient = { patient_id: number; nom: string; prenom: string; appointment_time: string; solde_attente: number };
+  type BriefingData = { date: string; total_patients: number; total_outstanding: number; patients: BriefingPatient[] };
+  const [briefingData, setBriefingData] = useState<BriefingData | null>(null);
+
+  const submitFeedback = async (insight: Insight, action: 'accept' | 'reject') => {
+    if (!lastPatientId || feedbackSent[insight.id]) return;
+    try {
+      await api.post('/ai/feedback', {
+        patient_id: lastPatientId,
+        insight_type: insight.type,
+        insight_content: insight.content,
+        action,
+      });
+      setFeedbackSent(prev => ({ ...prev, [insight.id]: true }));
+      toast.success('Retour enregistré — merci !', { duration: 1500 });
+    } catch {
+      // best-effort, no blocking toast
+    }
+  };
 
   // Initialize Global Agenda Insight
   useEffect(() => {
     analyzeAgendaDensity();
+    api.get('/intelligence/briefing-j1').then(res => setBriefingData(res.data)).catch(() => {});
   }, [analyzeAgendaDensity]);
 
   const currentInsight = insights[activeInsightIndex];
@@ -198,6 +226,29 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                       </button>
                     )}
 
+                    {/* Feedback loop — practitioner reaction */}
+                    {!feedbackSent[currentInsight.id] ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest flex-1">Utile ?</span>
+                        <button
+                          onClick={() => submitFeedback(currentInsight, 'accept')}
+                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-500 transition-all"
+                          title="Oui, pertinent"
+                        >
+                          <ThumbsUp size={10} />
+                        </button>
+                        <button
+                          onClick={() => submitFeedback(currentInsight, 'reject')}
+                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-400 transition-all"
+                          title="Non, pas pertinent"
+                        >
+                          <ThumbsDown size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[7px] font-bold text-emerald-500 text-center mt-1">✓ Retour enregistré</p>
+                    )}
+
                     <button
                       onClick={() => setShowHouseWizard(true)}
                       className="w-full mt-2 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-1.5"
@@ -207,6 +258,34 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     </button>
                   </motion.div>
                 ) : (
+                  !lastPatientId && briefingData && briefingData.total_patients > 0 ? (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays size={12} className="text-primary" />
+                        <span className="text-[9px] font-black text-slate-700 dark:text-white uppercase tracking-widest">Briefing du Jour</span>
+                        <span className="ml-auto text-[7px] font-black text-slate-400">{briefingData.date}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 p-2 bg-primary/5 rounded-xl border border-primary/10 text-center">
+                          <div className="text-base font-black text-primary">{briefingData.total_patients}</div>
+                          <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Patients</div>
+                        </div>
+                        <div className="flex-1 p-2 bg-amber-500/5 rounded-xl border border-amber-500/10 text-center">
+                          <div className="text-base font-black text-amber-500">{briefingData.total_outstanding.toLocaleString()}</div>
+                          <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">MAD impayés</div>
+                        </div>
+                      </div>
+                      {briefingData.patients.filter(p => p.solde_attente > 0).slice(0, 3).map(p => (
+                        <div key={p.patient_id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">{p.prenom} {p.nom}</span>
+                            <div className="text-[7px] text-slate-400">{p.appointment_time}</div>
+                          </div>
+                          <span className="text-[9px] font-black text-amber-500">{p.solde_attente.toLocaleString()} MAD</span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  ) : (
                   <div className="text-center py-2 space-y-3">
                     <div className="w-10 h-10 bg-slate-100 dark:bg-white/5 rounded-xl mx-auto flex items-center justify-center text-slate-300 dark:text-white/20">
                       <Sparkles size={20} />
@@ -222,6 +301,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                       Mode Expert
                     </button>
                   </div>
+                  )
                 )
               )}
             </div>

@@ -15,6 +15,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [initialTime, setInitialTime] = useState('09:00');
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   
   // Configuration de la grille
   const startHour = 8;
@@ -156,8 +157,9 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
                   const height = (appt.duration_minutes / 60) * 80;
 
                   return (
-                    <div 
+                    <div
                       key={appt.id}
+                      onClick={(e) => { e.stopPropagation(); setEditingAppointment(appt); setIsModalOpen(true); }}
                       className={cn(
                         "appointment-item absolute left-1 right-1 p-2 rounded-lg border border-l-2 text-[10px] font-bold shadow-sm cursor-pointer z-10 break-words hover:scale-[1.02] transition-transform",
                         getStatusColor(appt.status)
@@ -174,12 +176,13 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
         </div>
       </div>
 
-      <AgendaModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSaved={fetchAppointments} 
-        selectedDate={modalDate || selectedDate} 
+      <AgendaModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditingAppointment(null); }}
+        onSaved={fetchAppointments}
+        selectedDate={modalDate || selectedDate}
         initialTime={initialTime}
+        editingAppointment={editingAppointment}
       />
     </div>
   );

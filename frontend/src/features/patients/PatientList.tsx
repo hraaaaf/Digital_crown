@@ -14,6 +14,7 @@ export const PatientList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
+  const [fantomeIds, setFantomeIds] = useState<Set<number>>(new Set());
 
   // État du mode d'affichage (Table ou Grille) avec persistance localStorage
   const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
@@ -29,6 +30,9 @@ export const PatientList = () => {
 
   useEffect(() => {
     fetchPatients();
+    api.get('/patients/fantomes').then(res => {
+      setFantomeIds(new Set((res.data as { patient_id: number }[]).map(f => f.patient_id)));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -219,6 +223,11 @@ export const PatientList = () => {
                               {p.nom.toUpperCase()} {p.prenom}
                             </div>
                             {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={fetchPatients} />}
+                            {p.id && fantomeIds.has(p.id) && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                <AlertTriangle size={10} /> Fantôme
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] font-bold text-text-muted mt-1 uppercase tracking-wider font-mono">
                             {p.numero_dossier || `ID-${p.id}`}
@@ -318,9 +327,16 @@ export const PatientList = () => {
 
                     {/* Informations textuelles */}
                     <div className="space-y-1">
-                      <h4 className="font-black text-primary text-lg tracking-tight leading-tight group-hover:text-primary-dark transition-colors">
-                        {p.nom.toUpperCase()} {p.prenom}
-                      </h4>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-black text-primary text-lg tracking-tight leading-tight group-hover:text-primary-dark transition-colors">
+                          {p.nom.toUpperCase()} {p.prenom}
+                        </h4>
+                        {p.id && fantomeIds.has(p.id) && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                            <AlertTriangle size={10} /> Fantôme
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono">
                         {p.numero_dossier || `ID-${p.id}`}
                       </div>

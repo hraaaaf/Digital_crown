@@ -38,26 +38,47 @@ api.interceptors.response.use(
     // Auto-refresh/Sync on 401
     if (status === 401 && !original._retried && !original.url?.includes('/auth/')) {
       original._retried = true;
-      
+
       if (!_refreshing) {
         _refreshing = (async () => {
+          // 1. Essayer le refresh token local (rotation côté backend)
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            try {
+              const res = await axios.post(`${API_BASE}/api/auth/refresh`, {
+                refresh_token: refreshToken
+              });
+              const { access_token, refresh_token: newRefresh } = res.data;
+              if (access_token) {
+                localStorage.setItem('token', access_token);
+                if (newRefresh) localStorage.setItem('refresh_token', newRefresh);
+                return true;
+              }
+            } catch {
+              localStorage.removeItem('refresh_token');
+            }
+          }
+
+          // 2. Fallback : re-sync via session Supabase active
           const { authService } = await import('./auth');
           const user = await authService.getCurrentUser();
-          const token = await authService.getToken(); // Supabase token if local is missing
-          
+          const token = await authService.getToken();
           if (user?.email && token) {
-            // Tentative de re-synchro silencieuse avec le backend local
             return await authService.syncWithBackend(token, user.email);
           }
           return false;
         })().finally(() => { _refreshing = null; });
       }
-      
+
       const ok = await _refreshing;
-      if (ok) return api(original);
-      
+      if (ok) {
+        original.headers['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
+        return api(original);
+      }
+
       // Échec total → logout
       localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
 

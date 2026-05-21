@@ -11,6 +11,7 @@ from backend.services.ai_advisor import ai_advisor
 from backend.services.prescription_service import prescription_service
 from backend.services.habits_engine import habits_engine
 from backend.services.treatment_plan_engine import treatment_plan_engine
+from backend.services.rag_context import build_patient_rag_context
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +48,11 @@ class EliteManager:
         try:
             # 1. Résumé Flash (Heuristique rapide)
             summary = clinical_intel.get_patient_summary(db, patient_id)
-            
+
+            # 1b. Enrichissement RAG — contexte historique patient
+            rag_ctx = build_patient_rag_context(patient_id, db)
+
             # 2. Audit de cohérence (Déterministe + IA Sémantique)
-            # Si doc_data est fourni, on fait un audit spécifique, sinon audit général du dossier
             warnings = []
             if doc_data:
                 warnings = await coherence_service.analyze_coherence(
@@ -81,6 +84,28 @@ class EliteManager:
                         "trust_level": 1.0
                     })
             
+            # --- RAG-BASED INSIGHTS (historique 24 mois) ---
+            if rag_ctx.get("acts_count_24m", 0) >= 5:
+                insights.append({
+                    "id": f"rag_history_{patient_id}",
+                    "type": "suggestion",
+                    "title": "Historique Clinique Enrichi",
+                    "content": f"{rag_ctx['acts_count_24m']} actes sur 24 mois. Tendance céphalométrique : {rag_ctx.get('cephalo_trend', 'N/A')}.",
+                    "actionLabel": "Voir le dossier",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 0.95,
+                })
+            pano_findings = rag_ctx.get("panoramic_findings", [])
+            if pano_findings:
+                insights.append({
+                    "id": f"rag_pano_{patient_id}",
+                    "type": "diagnostic",
+                    "title": "Findings Panoramiques Récents",
+                    "content": "Détections IA récentes : " + ", ".join(pano_findings[:3]) + ".",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 1.0,
+                })
+
             # --- MPL : TRIGGERS PROACTIFS (Habits Engine) ---
             proactive_triggers = habits_engine.check_proactive_triggers(db, patient_id)
             for t in proactive_triggers:

@@ -3,6 +3,8 @@ import logging
 import httpx
 from typing import Dict, List, Any
 from backend.config import settings
+from backend.services.llm_cache import llm_cache
+from backend.services.pii_masker import mask_patient_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +31,7 @@ class AICoherenceService:
         """
         try:
             context = {
-                "patient": {
-                    "age": patient_info.get("age"),
-                    "genre": patient_info.get("genre"),
-                    "antecedents": patient_info.get("antecedents", "Néant"),
-                },
+                "patient": mask_patient_context(patient_info),
                 "document": {"type": doc_type, "contenu": doc_data},
                 "actes_recents": recent_acts,
                 "doctor_habits": patient_info.get("doctor_habits", {}),
@@ -56,44 +54,66 @@ FORMAT DE RÉPONSE (JSON UNIQUEMENT) :
 
 Si aucun risque, renvoie []. JSON brut uniquement, aucun texte autour."""
 
-            # Master Elite Timeout Strategy: 2s pour se connecter, 10s pour générer.
-            # Si Ollama est éteint, on le sait en < 2s.
-            async with httpx.AsyncClient(timeout=httpx.Timeout(12.0, connect=2.0)) as client:
-                response = await client.post(
-                    OLLAMA_ENDPOINT,
-                    json={
-                        "model": MODEL,
-                        "prompt": prompt,
-                        "format": "json",
-                        "stream": False,
-                        "options": {"temperature": 0.1},
-                    }
-                )
-                response.raise_for_status()
-                
-                result = response.json()
-                text = result.get("response", "[]").strip()
-                
+            # Cache check — même contexte clinique = même réponse
+            cached = llm_cache.get(MODEL, prompt)
+            if cached:
+                text = cached.strip()
                 if "[" in text and "]" in text:
                     text = text[text.find("[") : text.rfind("]") + 1]
                 return json.loads(text)
 
-        except (httpx.ConnectError, httpx.ConnectTimeout):
-            # Ollama n'est pas lancé
-            logger.warning("AICoherenceService: Ollama hors-ligne. Analyse IA ignorée.")
-            return []
-        except httpx.HTTPStatusError as e:
-            # 404 = modèle non installé localement (ex: llama3.2 absent)
-            if e.response.status_code == 404:
-                logger.warning(
-                    f"AICoherenceService: Modèle '{MODEL}' introuvable dans Ollama. "
-                    f"Exécuter : ollama pull {MODEL}"
-                )
-            else:
-                logger.warning(f"AICoherenceService: Réponse HTTP inattendue ({e.response.status_code}). Analyse ignorée.")
-            return []
+            # Master Elite Timeout Strategy: 2s connect, 10s generate.
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(12.0, connect=2.0)) as client:
+                    response = await client.post(
+                        OLLAMA_ENDPOINT,
+                        json={
+                            "model": MODEL,
+                            "prompt": prompt,
+                            "format": "json",
+                            "stream": False,
+                            "options": {"temperature": 0.1},
+                        }
+                    )
+                    response.raise_for_status()
+
+                    result = response.json()
+                    text = result.get("response", "[]").strip()
+                    llm_cache.set(MODEL, prompt, text)
+
+                    if "[" in text and "]" in text:
+                        text = text[text.find("[") : text.rfind("]") + 1]
+                    return json.loads(text)
+
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.HTTPStatusError):
+                # Ollama unavailable — try Gemini fallback if configured
+                if settings.GEMINI_API_KEY:
+                    return await self._gemini_fallback(prompt)
+                logger.warning("AICoherenceService: Ollama hors-ligne, pas de fallback Gemini configuré.")
+                return []
+
         except Exception as e:
             logger.error(f"AICoherenceService: Erreur inattendue: {e}")
+            return []
+
+    async def _gemini_fallback(self, prompt: str) -> List[Dict[str, Any]]:
+        """Fallback to Gemini API when Ollama is unavailable."""
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            result = model.generate_content(
+                f"{prompt}\n\nRéponds UNIQUEMENT avec un tableau JSON valide."
+            )
+            text = result.text.strip()
+            if "[" in text and "]" in text:
+                text = text[text.find("[") : text.rfind("]") + 1]
+            parsed = json.loads(text)
+            llm_cache.set(f"gemini:{MODEL}", prompt, text)
+            logger.info("AICoherenceService: Gemini fallback utilisé avec succès.")
+            return parsed
+        except Exception as e:
+            logger.warning(f"AICoherenceService: Gemini fallback échoué: {e}")
             return []
 
 # Instance singleton

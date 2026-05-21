@@ -176,7 +176,27 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 for p in req.data.get('payments', []):
                     accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
 
-        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
+        # D2: Suggestion RDV après acte ortho
+        rdv_suggestion = None
+        if is_financial and not preview:
+            items = req.data.get('items', req.data.get('payments', []))
+            for item in items:
+                act_name = (item.get('acte') or item.get('description') or '').lower()
+                if any(k in act_name for k in ['ortho', 'semestr', 'contention', 'bagues', 'appareil ortho']):
+                    from datetime import timedelta as _td
+                    rdv_suggestion = {
+                        "message": "Planifier le prochain RDV dans 4 semaines",
+                        "suggested_date": (datetime.now() + _td(weeks=4)).strftime('%Y-%m-%d'),
+                    }
+                    break
+
+        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion}
+    except ValueError as e:
+        msg = str(e)
+        if msg.startswith("DOUBLE_DETECTED:"):
+            raise HTTPException(status_code=409, detail={"code": "DOUBLE_DETECTED", "message": msg[len("DOUBLE_DETECTED:"):].strip()})
+        logger.error(f"Erreur Génération (ValueError) : {e}")
+        raise HTTPException(status_code=422, detail=msg)
     except Exception as e:
         logger.error(f"Erreur Génération : {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -334,11 +354,16 @@ def download_document(
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    doc_id = int(document_id)
+    if document_id.startswith("legacy:"):
+        raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
+    try:
+        doc_id = int(document_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
-    
+
     archive_service = get_archive_service(db)
     doc = archive_service.move_to_trash(doc_id)
     return {"message": "Mis à la corbeille", "id": doc.id}

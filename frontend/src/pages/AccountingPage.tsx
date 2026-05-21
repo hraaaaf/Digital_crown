@@ -102,8 +102,10 @@ export const AccountingPage = () => {
   };
 
   // Filters
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssurance, setSelectedAssurance] = useState('ALL');
+  const [treasuryStatusFilter, setTreasuryStatusFilter] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -205,16 +207,22 @@ export const AccountingPage = () => {
     }
   };
 
-  const handleDelete = async (id: number | string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette note d'honoraires ? Elle sera déplacée dans la corbeille.")) {
-      try {
-        await api.post(`/documents/${id}/trash`);
-        setItems(prev => prev.filter(item => item.id !== id));
-        fetchHonoraires();
-      } catch (err) {
-        console.error("Erreur suppression honoraire:", err);
-        alert("Erreur lors de la suppression.");
-      }
+  const handleDelete = (id: number | string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    try {
+      await api.post(`/documents/${confirmDeleteId}/trash`);
+      setItems(prev => prev.filter(item => item.id !== confirmDeleteId));
+      fetchHonoraires();
+      toast.success("Note déplacée dans la corbeille.");
+    } catch (err) {
+      console.error("Erreur suppression honoraire:", err);
+      toast.error("Erreur lors de la suppression.");
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -312,6 +320,17 @@ export const AccountingPage = () => {
 
   const chartData = getChartData();
   const breakdown = getBreakdown();
+
+  const getTrend = (): { pct: number; up: boolean } | null => {
+    if (chartData.length < 2) return null;
+    const mid = Math.floor(chartData.length / 2);
+    const first = chartData.slice(0, mid).reduce((s, d) => s + d.amount, 0);
+    const second = chartData.slice(mid).reduce((s, d) => s + d.amount, 0);
+    if (first === 0) return null;
+    const pct = Math.round(((second - first) / first) * 100);
+    return { pct: Math.abs(pct), up: pct >= 0 };
+  };
+  const trend = getTrend();
 
   return (
     <div className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-8 animate-in fade-in duration-700">
@@ -420,10 +439,12 @@ export const AccountingPage = () => {
                 </span>
                 <span className="text-xs font-bold text-slate-400 ml-2">MAD</span>
               </div>
-              <div className="mt-4 flex items-center gap-2 text-emerald-500">
-                <TrendingUp size={14} />
-                <span className="text-[10px] font-bold">Stable sur 30 jours</span>
-              </div>
+              {trend && (
+                <div className={`mt-4 flex items-center gap-2 ${trend.up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  <TrendingUp size={14} className={trend.up ? '' : 'rotate-180'} />
+                  <span className="text-[10px] font-bold">{trend.up ? '+' : '-'}{trend.pct}% sur la période</span>
+                </div>
+              )}
             </div>
 
             <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
@@ -526,6 +547,15 @@ export const AccountingPage = () => {
           ))}
         </select>
       </section>
+
+      {/* CONFIRMATION SUPPRESSION */}
+      {confirmDeleteId && (
+        <div className="flex items-center gap-4 px-5 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-sm font-bold text-rose-700">
+          <span className="flex-1">Supprimer cette note définitivement ?</span>
+          <button onClick={confirmDelete} className="px-4 py-1.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all">Confirmer</button>
+          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all">Annuler</button>
+        </div>
+      )}
 
       {/* LISTE DES HONORAIRES */}
       <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">
@@ -737,20 +767,21 @@ export const AccountingPage = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
-                    <select 
+                    <select
                       className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/5"
-                      value={selectedAssurance === 'ALL' ? 'ALL' : selectedAssurance} 
-                      onChange={(e) => setSelectedAssurance(e.target.value)}
+                      value={treasuryStatusFilter}
+                      onChange={(e) => setTreasuryStatusFilter(e.target.value)}
                     >
                       <option value="ALL">Tous Statuts</option>
                       <option value="EN_ATTENTE">En Attente</option>
                       <option value="PARTIEL">Partiel</option>
                     </select>
-                    <button 
-                      onClick={() => toast.success("Module de relances automatiques activé (IA).")}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                    <button
+                      disabled
+                      title="Fonctionnalité disponible prochainement"
+                      className="px-4 py-2 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-slate-200"
                     >
-                      Lancer Rappels Auto
+                      Rappels Auto
                     </button>
                  </div>
               </div>
@@ -772,9 +803,9 @@ export const AccountingPage = () => {
                   </thead>
                   <tbody>
                     {(treasuryData?.items || [])
-                      .filter((item: any) => 
+                      .filter((item: any) =>
                         (item.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                        (selectedAssurance === 'ALL' || item.status === selectedAssurance)
+                        (treasuryStatusFilter === 'ALL' || item.status === treasuryStatusFilter)
                       )
                       .map((item: any) => (
                       <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-all group">
@@ -806,7 +837,7 @@ export const AccountingPage = () => {
                         <td className="px-8 py-5">
                           <div className="flex justify-center gap-2">
                              <button 
-                                onClick={() => handleViewDocument(`api/documents/${item.id}/download`)}
+                                onClick={() => handleViewDocument(`documents/${item.id}/download`)}
                                 className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
                                 title="Voir la note"
                              >

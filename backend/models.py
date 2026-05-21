@@ -464,7 +464,11 @@ class CabinetConfig(Base):
     
     # Options d'affichage UI (Elite v4.1)
     show_patient_badges: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+    performance_mode: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    clinical_tips_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    hide_header: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    hide_footer: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -697,6 +701,20 @@ class RevokedToken(Base):
 
     jti: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+
+class AIFeedback(Base):
+    """Retours praticien sur les insights IA — alimente le learning loop."""
+    __tablename__ = "ai_feedback"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    insight_type: Mapped[str] = mapped_column(String(50))
+    insight_content: Mapped[str] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(String(20))  # accept / reject / edit
+    corrected_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    employer_id: Mapped[int] = mapped_column(Integer, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
 
 # ==============================================================================

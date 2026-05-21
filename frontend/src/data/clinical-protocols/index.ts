@@ -9,6 +9,7 @@ import blanchimentFauteuil from './blanchiment-fauteuil.json';
 import pulpotomiePedo from './pulpotomie-pedodontie.json';
 import preparationCouronne from './preparation-couronne.json';
 // CONSERVATRICE
+import composite1Face from './composite-1-face.json';
 import composite2Faces from './composite-2-faces.json';
 import composite3Faces from './composite-3-faces.json';
 import reconstitutionCoronaire from './reconstitution-coronaire.json';
@@ -72,7 +73,8 @@ export const CLINICAL_PROTOCOLS: ClinicalProtocol[] = [
   blanchimentFauteuil as ClinicalProtocol,
   pulpotomiePedo as ClinicalProtocol,
   preparationCouronne as ClinicalProtocol,
-  // CONSERVATRICE (5)
+  // CONSERVATRICE (6)
+  composite1Face as ClinicalProtocol,
   composite2Faces as ClinicalProtocol,
   composite3Faces as ClinicalProtocol,
   reconstitutionCoronaire as ClinicalProtocol,

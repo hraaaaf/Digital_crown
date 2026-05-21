@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Upload, Loader2, Activity, ShieldAlert, CheckCircle2, 
-  History, Sun, Contrast, FlipHorizontal, 
-  RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan
+import toast from 'react-hot-toast';
+import {
+  Upload, Loader2, Activity, ShieldAlert, CheckCircle2,
+  History, Sun, Contrast, FlipHorizontal,
+  RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan,
+  TrendingUp, Minus, AlertTriangle
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -40,7 +42,9 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
   const [imgSize, setImgSize] = useState<{w: number, h: number} | null>(null);
   const [activeDet, setActiveDet] = useState<string | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<'diagnostics' | 'report'>('diagnostics');
+  const [sidebarTab, setSidebarTab] = useState<'diagnostics' | 'report' | 'evolution'>('diagnostics');
+  const [evolutionData, setEvolutionData] = useState<any>(null);
+  const [evolutionLoading, setEvolutionLoading] = useState(false);
   const [imgFilters, setImgFilters] = useState<ImageFilters>({ brightness: 100, contrast: 110, invert: false });
   const [magnifier, setMagnifier] = useState<{ x: number, y: number, show: boolean }>({ x: 0, y: 0, show: false });
   const [magnifierEnabled, setMagnifierEnabled] = useState(false);
@@ -52,6 +56,16 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toothAnomalies, resetAll, toggleAnomaly } = usePanoramicStore();
+
+  // Fetch temporal comparison whenever patientId changes
+  useEffect(() => {
+    if (!patientId) return;
+    setEvolutionLoading(true);
+    api.get(`/ia/patients/${patientId}/panoramic-comparison`)
+      .then(res => setEvolutionData(res.data))
+      .catch(() => setEvolutionData(null))
+      .finally(() => setEvolutionLoading(false));
+  }, [patientId]);
 
   const manualAnomaliesList = Object.entries(toothAnomalies).flatMap(([fdi, anomalies]) => 
     anomalies.map(anomaly => ({ fdi: parseInt(fdi), anomaly }))
@@ -96,7 +110,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       setResult(response.data);
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
-      alert("Une erreur est survenue lors de l'analyse.");
+      toast.error("Erreur lors de l'analyse panoramique.");
     } finally {
       setLoading(false);
     }
@@ -117,11 +131,11 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         report_narrative: response.data.report_narrative
       }));
       
-      alert("Bilan professionnel généré et archivé avec succès.");
+      toast.success("Bilan professionnel généré et archivé.");
       resetAll();
     } catch (err) {
       console.error("Erreur lors de la finalisation du bilan :", err);
-      alert("Une erreur est survenue lors de la génération du bilan.");
+      toast.error("Erreur lors de la génération du bilan.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +149,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       window.open(response.data.pdf_url, '_blank');
     } catch (err) {
       console.error("Erreur téléchargement PDF :", err);
-      alert("Une erreur est survenue lors de la génération du PDF.");
+      toast.error("Erreur lors de la génération du PDF.");
     } finally {
       setDownloading(false);
     }
@@ -150,7 +164,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       setPreviewPdfUrl(response.data.pdf_url);
     } catch (err) {
       console.error("Erreur aperçu PDF :", err);
-      alert("Impossible de charger l'aperçu.");
+      toast.error("Impossible de charger l'aperçu PDF.");
     } finally {
       setIsPreviewLoading(false);
     }
@@ -520,25 +534,99 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
               
               {/* TABS HEADER */}
               <div className="sticky top-0 z-[50] bg-white/90 backdrop-blur-md border-b border-slate-100 p-2 flex gap-2 shrink-0">
-                <button 
+                <button
                   onClick={() => setSidebarTab('diagnostics')}
                   className={cn("flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", sidebarTab === 'diagnostics' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-transparent text-slate-400 hover:bg-slate-50")}
                 >
                   Diagnostics
                 </button>
-                <button 
+                <button
                   onClick={() => setSidebarTab('report')}
                   className={cn("flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", sidebarTab === 'report' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-transparent text-slate-400 hover:bg-slate-50")}
                 >
                   Bilan PDF
                 </button>
+                <button
+                  onClick={() => setSidebarTab('evolution')}
+                  className={cn("flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", sidebarTab === 'evolution' ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-transparent text-slate-400 hover:bg-slate-50")}
+                >
+                  Évolution
+                </button>
               </div>
 
-              {sidebarTab === 'report' ? (
+              {sidebarTab === 'evolution' ? (
+                <div className="p-6 space-y-5 flex-1 flex flex-col">
+                  {evolutionLoading ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-indigo-400" />
+                    </div>
+                  ) : !evolutionData?.available ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center">
+                        <TrendingUp size={22} className="text-slate-300" />
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Évolution indisponible</p>
+                      <p className="text-[10px] text-slate-400 max-w-[180px]">
+                        {evolutionData?.reason || 'Analysez au moins 2 bilans pour voir l\'évolution temporelle.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Dates */}
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                        {evolutionData.older_date} → {evolutionData.newer_date}
+                      </div>
+
+                      {/* Summary counters */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3 text-center">
+                          <div className="text-2xl font-black text-rose-600">{evolutionData.new_findings?.length ?? 0}</div>
+                          <div className="text-[8px] font-bold text-rose-400 uppercase tracking-widest flex items-center justify-center gap-1 mt-0.5"><TrendingUp size={9} /> Nouvelles</div>
+                        </div>
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+                          <div className="text-2xl font-black text-emerald-600">{evolutionData.resolved_findings?.length ?? 0}</div>
+                          <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest flex items-center justify-center gap-1 mt-0.5"><CheckCircle2 size={9} /> Résolues</div>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center">
+                          <div className="text-2xl font-black text-amber-600">{evolutionData.worsened_findings?.length ?? 0}</div>
+                          <div className="text-[8px] font-bold text-amber-400 uppercase tracking-widest flex items-center justify-center gap-1 mt-0.5"><AlertTriangle size={9} /> Aggravées</div>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 text-center">
+                          <div className="text-2xl font-black text-slate-500">{evolutionData.stable_findings?.length ?? 0}</div>
+                          <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-center gap-1 mt-0.5"><Minus size={9} /> Stables</div>
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      {evolutionData.new_findings?.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h5 className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Nouvelles anomalies</h5>
+                          {evolutionData.new_findings.map((f: string, i: number) => (
+                            <div key={i} className="text-[10px] text-slate-600 bg-rose-50 px-3 py-1.5 rounded-xl">{f}</div>
+                          ))}
+                        </div>
+                      )}
+                      {evolutionData.worsened_findings?.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h5 className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Aggravations</h5>
+                          {evolutionData.worsened_findings.map((f: string, i: number) => (
+                            <div key={i} className="text-[10px] text-slate-600 bg-amber-50 px-3 py-1.5 rounded-xl">{f}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Narrative */}
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                        <p className="text-[10px] font-semibold text-indigo-700 leading-relaxed">{evolutionData.summary_text}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : sidebarTab === 'report' ? (
                 <div className="flex-1 flex flex-col">
-                  <ReportViewer 
-                    markdown={result.report_narrative} 
-                    isGenerating={loading} 
+                  <ReportViewer
+                    markdown={result.report_narrative}
+                    isGenerating={loading}
                     engineName="Loki-Silvres V8 (Déterministe)"
                     onDownload={handleDownloadPDF}
                     isDownloading={downloading}

@@ -12,14 +12,17 @@ interface SummaryData {
 export const FlashSummary: React.FC<{ patientId: number; patientName: string }> = ({ patientId, patientName }) => {
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchSummary = async () => {
+      setError(false);
       try {
         const resp = await api.get(`/patients/${patientId}/ai-summary`);
         setData(resp.data);
       } catch (e) {
         console.error('❌ Erreur fetch flash summary', e);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -31,6 +34,14 @@ export const FlashSummary: React.FC<{ patientId: number; patientName: string }> 
     return (
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <span className="animate-pulse">Chargement du résumé IA...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 font-medium">
+        <span>⚠️ Résumé clinique indisponible — vérifiez la connexion.</span>
       </div>
     );
   }

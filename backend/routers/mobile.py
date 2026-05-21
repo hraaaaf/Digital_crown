@@ -198,6 +198,34 @@ def get_mobile_snapshot(
             ((month_revenue - prev_month_revenue) / prev_month_revenue) * 100, 1
         )
 
+    # ── Recettes 7 derniers jours ─────────────────────────────────────────────
+    week_start = datetime.combine(today - timedelta(days=6), dt_time.min)
+    weekly_rows = (
+        db.query(
+            func.date(models.Payment.payment_date).label("day"),
+            func.sum(models.Payment.amount).label("total"),
+        )
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .filter(
+            models.Patient.employer_id == employer_id,
+            models.Payment.payment_date >= week_start,
+        )
+        .group_by(func.date(models.Payment.payment_date))
+        .all()
+    )
+    weekly_map = {str(r.day): float(r.total) for r in weekly_rows}
+    weekly_revenue = [
+        {"date": str(today - timedelta(days=6 - i)), "amount": weekly_map.get(str(today - timedelta(days=6 - i)), 0.0)}
+        for i in range(7)
+    ]
+
+    # ── Nombre total patients ─────────────────────────────────────────────────
+    total_patients = (
+        db.query(func.count(models.Patient.id))
+        .filter(models.Patient.employer_id == employer_id)
+        .scalar() or 0
+    )
+
     # ── Débiteurs (actes EN_ATTENTE) ──────────────────────────────────────────
     debtors_raw = (
         db.query(
@@ -229,6 +257,8 @@ def get_mobile_snapshot(
         for r in debtors_raw
     ]
 
+    total_debt = round(sum(d["amount"] for d in debtors), 2)
+
     return {
         "generated_at": datetime.utcnow().isoformat(),
         "appointments": appointments,
@@ -237,6 +267,41 @@ def get_mobile_snapshot(
             "month_revenue": round(month_revenue, 2),
             "month_variation": month_variation,
             "appointments_count": len(appointments),
+            "weekly_revenue": weekly_revenue,
+            "total_patients": total_patients,
+            "total_debt": total_debt,
         },
         "debtors": debtors,
     }
+
+
+# ── MISE À JOUR STATUT RENDEZ-VOUS ────────────────────────────────────────────
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str
+
+
+@router.patch(
+    "/appointments/{appointment_id}/status",
+    summary="Mettre à jour le statut d'un rendez-vous depuis le mobile",
+)
+def update_appointment_status(
+    appointment_id: int,
+    body: AppointmentStatusUpdate,
+    employer_id: int = Depends(get_mobile_employer_id),
+    db: Session = Depends(database.get_db),
+):
+    allowed = {"PLANIFIE", "EN_COURS", "TERMINE", "ANNULE"}
+    if body.status not in allowed:
+        raise HTTPException(status_code=422, detail=f"Statut invalide. Valeurs: {allowed}")
+
+    apt = db.query(models.Appointment).filter(
+        models.Appointment.id == appointment_id,
+        models.Appointment.employer_id == employer_id,
+    ).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
+
+    apt.status = models.AppointmentStatus(body.status)
+    db.commit()
+    return {"id": appointment_id, "status": body.status}

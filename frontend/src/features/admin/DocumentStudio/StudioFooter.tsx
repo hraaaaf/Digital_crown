@@ -33,6 +33,10 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   sideStudioType,
   onTogglePreview
 }) => {
+  if (activeTab === 'plan') {
+    return null;
+  }
+
   if (activeTab === 'ai') {
     return (
       <div className="flex justify-end p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 mt-6">

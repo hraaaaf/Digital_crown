@@ -24,6 +24,7 @@ export const EliteLibrary: React.FC = () => {
   const [openProtocolCode, setOpenProtocolCode] = useState<string | null>(routeCode || null);
   const [showCmd, setShowCmd] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
+  const [cmdSelectedIdx, setCmdSelectedIdx] = useState(0);
   const [soinModeCode, setSoinModeCode] = useState<string | null>(null);
   
   const cmdInputRef = useRef<HTMLInputElement>(null);
@@ -229,7 +230,7 @@ export const EliteLibrary: React.FC = () => {
           
           <h3 className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-bold mt-9 mb-2 ml-2">Aide</h3>
           <button onClick={() => setShowCmd(true)} className="flex items-center px-3 py-2 text-[12.5px] text-[var(--text-muted)] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">⌨ Raccourcis clavier</button>
-          <button className="flex items-center px-3 py-2 text-[var(--text-muted)] text-[12.5px] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">↗ Suggérer un protocole</button>
+          <button onClick={() => window.open('mailto:lafabriquedapollon@gmail.com?subject=Suggestion%20protocole%20DigitalCrown', '_blank')} className="flex items-center px-3 py-2 text-[var(--text-muted)] text-[12.5px] font-medium w-full hover:bg-[var(--bg-medical-pearl)] rounded-xl transition-colors">↗ Suggérer un protocole</button>
         </aside>
 
         {/* MAIN */}
@@ -248,7 +249,7 @@ export const EliteLibrary: React.FC = () => {
               Bibliothèque <em className="italic text-[var(--primary)] font-serif">clinique</em>
             </h1>
             <p className="text-[var(--text-muted)] text-[16px] max-w-[640px] leading-relaxed mb-10">
-              Cent treize protocoles cliniques certifiés, prêts à consulter au fauteuil. Cherche, classe, marque tes favoris, ouvre un protocole en deux clics.
+              {CLINICAL_PROTOCOLS.length} protocoles cliniques certifiés, prêts à consulter au fauteuil. Cherche, classe, marque tes favoris, ouvre un protocole en deux clics.
             </p>
 
 
@@ -445,7 +446,13 @@ export const EliteLibrary: React.FC = () => {
               <input
                 ref={cmdInputRef}
                 value={cmdSearch}
-                onChange={e => setCmdSearch(e.target.value)}
+                onChange={e => { setCmdSearch(e.target.value); setCmdSelectedIdx(0); }}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setCmdSelectedIdx(i => Math.min(i + 1, cmdFiltered.length - 1)); }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); setCmdSelectedIdx(i => Math.max(i - 1, 0)); }
+                  else if (e.key === 'Enter' && cmdFiltered[cmdSelectedIdx]) { setShowCmd(false); openPanel(cmdFiltered[cmdSelectedIdx].act_code); }
+                  else if (e.key === 'Escape') { setShowCmd(false); }
+                }}
                 placeholder="Rechercher un protocole ou une spécialité..."
                 className="flex-1 border-0 outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-muted)] bg-transparent font-medium"
               />
@@ -460,7 +467,7 @@ export const EliteLibrary: React.FC = () => {
                     <button
                       key={p.act_code}
                       onClick={() => { setShowCmd(false); openPanel(p.act_code); }}
-                      className={cn("w-full grid grid-cols-[1fr_auto] gap-4 px-4 py-3.5 rounded-2xl cursor-pointer items-center text-left transition-all", i === 0 && !cmdSearch ? "bg-[var(--bg-medical-pearl)]" : "hover:bg-[var(--bg-medical-pearl)]")}
+                      className={cn("w-full grid grid-cols-[1fr_auto] gap-4 px-4 py-3.5 rounded-2xl cursor-pointer items-center text-left transition-all", i === cmdSelectedIdx ? "bg-[var(--bg-medical-pearl)]" : "hover:bg-[var(--bg-medical-pearl)]")}
                     >
                       <div>
                         <div className="text-[15px] text-[var(--text-main)] font-bold">{p.act_names[0]}</div>

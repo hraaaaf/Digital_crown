@@ -45,6 +45,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     qr_code_color: '',
     qr_code_label: '',
     show_patient_badges: true,
+    performance_mode: false,
+    clinical_tips_enabled: true,
+    hide_header: true,
+    hide_footer: true,
     nom_praticien_ar: '',
     specialty_ids: [],
     logo_path: '',
@@ -102,6 +106,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           qr_code_color: res.data.qr_code_color || '',
           qr_code_label: res.data.qr_code_label || '',
           show_patient_badges: res.data.show_patient_badges ?? true,
+          performance_mode: res.data.performance_mode ?? false,
+          clinical_tips_enabled: res.data.clinical_tips_enabled ?? true,
+          hide_header: res.data.hide_header ?? true,
+          hide_footer: res.data.hide_footer ?? true,
           nom_praticien_ar: res.data.nom_praticien_ar || '',
           specialty_ids: res.data.specialty_ids || [],
           logo_path: res.data.logo_path || '',
@@ -259,6 +267,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { profile } = get();
     formData.append('margins_top', (profile.margin_top || 3.6).toString());
     formData.append('margins_bottom', (profile.margin_bottom || 3.2).toString());
+    formData.append('hide_header', String(profile.hide_header ?? true));
+    formData.append('hide_footer', String(profile.hide_footer ?? true));
     try {
       const res = await api.post('/clinics/me/letterhead', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

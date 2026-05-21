@@ -290,6 +290,8 @@ async def upload_clinic_letterhead(
     config.letterhead_path = relative_path
     config.margin_top = margins_top
     config.margin_bottom = margins_bottom
+    config.hide_header = hide_header
+    config.hide_footer = hide_footer
     db.commit()
     
     return {

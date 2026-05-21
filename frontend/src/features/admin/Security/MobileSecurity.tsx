@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { Shield, Smartphone, RefreshCw, Eye, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../../../services/api';
 
@@ -31,6 +32,7 @@ export const MobileSecurity = () => {
       setCountdown(30); // 30 secondes de visibilité
     } catch (error) {
       console.error("Erreur lors de la récupération du QR Code", error);
+      toast.error("Impossible de générer le QR code — vérifiez la configuration serveur.");
     }
   };
 

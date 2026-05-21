@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str = "SET_A_REAL_SECRET_KEY_IN_ENV"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8       # 8 heures (journée de travail)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30            # 30 minutes (rotation via refresh token)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30             # 30 jours
     
     # Database

@@ -59,6 +59,17 @@ async def lifespan(app: FastAPI):
         # Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
 
+        # Ghost Hub — FTS5 bulk index au démarrage (background)
+        import threading
+        def _bulk_index():
+            try:
+                from backend.services.fts_indexer import bulk_index_unindexed_patients
+                with database.SessionLocal() as idx_db:
+                    bulk_index_unindexed_patients(idx_db)
+            except Exception as _e:
+                logger.warning("FTS bulk index startup failed: %s", _e)
+        threading.Thread(target=_bulk_index, daemon=True).start()
+
         # 3. Ouverture automatique du navigateur (Build mode uniquement)
         if hasattr(sys, '_MEIPASS'):
             webbrowser.open("http://127.0.0.1:8000")
@@ -110,6 +121,7 @@ async def request_logging_middleware(request: Request, call_next):
 
 # --- INCLUSION DES ROUTERS ---
 from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile
+from backend.routers import ai_feedback as ai_feedback_router
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -126,6 +138,7 @@ app.include_router(team.router, prefix="/api/team", tags=["Team Management"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite Intelligence"])
 app.include_router(clinical_data.router, prefix="/api/clinical-data", tags=["Données Cliniques"])
 app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
+app.include_router(ai_feedback_router.router, prefix="/api/ai", tags=["Ghost Hub Feedback"])
 
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)

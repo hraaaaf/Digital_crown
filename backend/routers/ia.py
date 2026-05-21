@@ -111,19 +111,29 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         db.add(db_analysis)
         db.commit()
         db.refresh(db_analysis)
-        
-        # Merge results
+
+        # FTS5 re-index for this patient (background)
+        import threading
+        def _reindex():
+            try:
+                from backend.services.fts_indexer import index_patient
+                with database.SessionLocal() as idx_db:
+                    index_patient(patient_id, idx_db)
+            except Exception as _e:
+                logger.warning("FTS re-index after panoramic upload failed: %s", _e)
+        threading.Thread(target=_reindex, daemon=True).start()
+
         result = {
             "id": db_analysis.id,
             "patient_id": patient_id,
-            "file_url": f"{os.getenv("BACKEND_URL", "http://localhost:8000")}/{db_path}",
+            "file_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{db_path}",
             "vision": vision_data,
             "report_narrative": report_markdown,
             "created_at": db_analysis.created_at
         }
-        
+
         return result
-        
+
     except Exception as e:
         if os.path.exists(file_location): os.remove(file_location)
         logger.exception(f"Erreur critique lors de l'upload panoramique: {e}")
@@ -137,6 +147,28 @@ def get_patient_panoramic_analyses(patient_id: int, db: Session = Depends(databa
         models.PanoramicAnalysis.patient_id == patient_id
     ).order_by(models.PanoramicAnalysis.created_at.desc()).all()
     return analyses
+
+
+@router.get("/patients/{patient_id}/panoramic-comparison")
+def get_panoramic_comparison(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("panoramic")),
+):
+    """Compare the 2 most recent panoramic analyses to detect evolution."""
+    assert_patient_access(patient_id, current_user, db)
+    analyses = (
+        db.query(models.PanoramicAnalysis)
+        .filter(models.PanoramicAnalysis.patient_id == patient_id)
+        .order_by(desc(models.PanoramicAnalysis.created_at))
+        .limit(2)
+        .all()
+    )
+    if len(analyses) < 2:
+        return {"available": False, "reason": "Moins de 2 bilans panoramiques disponibles."}
+    from backend.services.temporal_comparator import compare_panoramic_analyses
+    diff = compare_panoramic_analyses(older=analyses[1], newer=analyses[0])
+    return {"available": True, **diff}
 
 @router.post("/analyses/{analysis_id}/calibrate")
 def calibrate_analysis(analysis_id: int, req: schemas.CalibrationRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import { Plus, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 
@@ -187,6 +187,14 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
                 backgroundImage: 'linear-gradient(to bottom, transparent 95%, rgba(226, 232, 240, 0.2) 95%)',
                 backgroundSize: '100% 1.5rem' // 1.5rem = 24px -> hauteur de 15 minutes
               }}></div>
+
+              {/* Empty state */}
+              {!loading && appointments.length === 0 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-30">
+                  <Calendar size={40} className="mb-2 text-primary" />
+                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Aucun rendez-vous ce jour</p>
+                </div>
+              )}
 
               {/* Rendu des Rendez-vous - On utilise `top` et `height` absolus */}
               {appointments.map((appt) => {

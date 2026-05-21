@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 from backend import models, schemas, database
@@ -211,12 +211,16 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
+    static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
     results = []
     for doc in docs:
+        rel_path = doc.file_path.split('static/')[-1]
+        abs_path = os.path.join(static_root, rel_path)
         results.append({
             "id": str(doc.id), "name": doc.original_filename, "type": doc.document_type.value,
-            "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{doc.file_path.split('static/')[-1]}",
-            "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp()
+            "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
+            "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp(),
+            "file_exists": os.path.isfile(abs_path),
         })
         
     # 2. Legacy
@@ -230,7 +234,8 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
                 results.append({
                     "id": f"legacy:{patient_id}:{f}", "name": f, "type": "LEGACY",
                     "date": "Ancien", "url": f"static/patients/{p_folder}/Documents/{f}",
-                    "timestamp": os.path.getmtime(os.path.join(legacy_dir, f))
+                    "timestamp": os.path.getmtime(os.path.join(legacy_dir, f)),
+                    "file_exists": True,
                 })
     results.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     return results
@@ -238,12 +243,16 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 @router.get("/{patient_id}/appointment-intel")
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
-    # Logique originale restaurée
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
+    solde_attente = db.query(func.sum(models.Acte.montant)).filter(
+        models.Acte.patient_id == patient_id,
+        models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
+    ).scalar() or 0.0
     return {
         "suggestion": "Suite de traitement" if devis else "Consultation",
         "duration": 45 if devis else 30,
-        "has_active_plan": bool(devis)
+        "has_active_plan": bool(devis),
+        "solde_attente": round(float(solde_attente), 2),
     }
 
 @router.get("/{patient_id}/analyses", response_model=List[schemas.CephaloAnalysisOut])
@@ -345,3 +354,53 @@ def generate_cephalo_pdf(
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+
+# --- PROACTIVE INTELLIGENCE ---
+
+@router.get("/fantomes")
+def get_fantome_patients(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """A1 — Patients fantômes : traitement actif + aucun RDV futur depuis 60+ jours."""
+    employer_id = current_user.get_employer_id()
+    now = datetime.now()
+    cutoff_90d = now - timedelta(days=90)
+
+    patients = db.query(models.Patient).filter(
+        models.Patient.employer_id == employer_id
+    ).options(
+        joinedload(models.Patient.dossier),
+        joinedload(models.Patient.actes),
+        joinedload(models.Patient.appointments)
+    ).all()
+
+    fantomes = []
+    for p in patients:
+        is_ortho_active = p.dossier and p.dossier.is_ortho_active
+        last_acte = max((a.date_debut for a in p.actes if a.date_debut), default=None)
+        recent_treatment = is_ortho_active or (last_acte and last_acte >= cutoff_90d)
+        if not recent_treatment:
+            continue
+
+        has_future_rdv = any(
+            a.datetime_start > now and a.status != "ANNULÉ"
+            for a in p.appointments
+        )
+        if has_future_rdv:
+            continue
+
+        past_rdvs = sorted(
+            [a for a in p.appointments if a.datetime_start <= now and a.status != "ANNULÉ"],
+            key=lambda a: a.datetime_start, reverse=True
+        )
+        days_since_last = (now - past_rdvs[0].datetime_start).days if past_rdvs else None
+
+        fantomes.append({
+            "patient_id": p.id,
+            "days_since_last_appt": days_since_last,
+            "is_ortho_active": bool(is_ortho_active),
+        })
+
+    return fantomes

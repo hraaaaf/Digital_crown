@@ -147,13 +147,22 @@ class HabitsEngine:
             models.Acte.libelle.ilike("%détartrage%")
         ).order_by(desc(models.Acte.date_debut)).first()
         
-        if last_detartrage and (datetime.now() - last_detartrage.date_debut).days > 180:
-            triggers.append({
-                "type": "PREVENTION",
-                "title": "Hygiène & Prévention",
-                "message": "Dernier détartrage il y a plus de 6 mois.",
-                "action": "Suggérer Détartrage"
-            })
+        if last_detartrage:
+            _days_detartrage = (datetime.now() - last_detartrage.date_debut).days
+            if _days_detartrage > 365:
+                triggers.append({
+                    "type": "CRITICAL_PREVENTION",
+                    "title": "Détartrage Annuel Dépassé",
+                    "message": f"Dernier détartrage il y a {_days_detartrage} jours. Risque parodontal élevé.",
+                    "action": "Planifier Détartrage"
+                })
+            elif _days_detartrage > 180:
+                triggers.append({
+                    "type": "PREVENTION",
+                    "title": "Hygiène & Prévention",
+                    "message": "Dernier détartrage il y a plus de 6 mois.",
+                    "action": "Suggérer Détartrage"
+                })
 
         # Exemple 3 : Dossier Incomplet (Trigger Qualité)
         if not patient.antecedents_medicaux or len(patient.antecedents_medicaux) < 5:
@@ -163,6 +172,72 @@ class HabitsEngine:
                 "message": "Antécédents médicaux non renseignés. Risque de contre-indication.",
                 "action": "Compléter Dossier"
             })
+
+        # A2: Gap Ortho Critique
+        if patient.dossier and patient.dossier.is_ortho_active:
+            _now = datetime.now()
+            _next_ortho_rdv = db.query(models.Appointment).filter(
+                models.Appointment.patient_id == patient_id,
+                models.Appointment.datetime_start > _now,
+                models.Appointment.status != "ANNULÉ"
+            ).order_by(models.Appointment.datetime_start).first()
+            if not _next_ortho_rdv:
+                triggers.append({
+                    "type": "ORTHO_GAP",
+                    "title": "Gap Ortho Critique",
+                    "message": "Traitement orthodontique actif — aucun RDV futur planifié.",
+                    "action": "Planifier RDV Ortho"
+                })
+            else:
+                _days_until = (_next_ortho_rdv.datetime_start - _now).days
+                if _days_until > 45:
+                    triggers.append({
+                        "type": "ORTHO_GAP",
+                        "title": "Gap Ortho Critique",
+                        "message": f"Prochain RDV ortho dans {_days_until}j (seuil critique : 45j).",
+                        "action": "Avancer le RDV"
+                    })
+
+        # B2: Abandon Pattern
+        _now_b2 = datetime.now()
+        _last_appts = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient_id,
+            models.Appointment.datetime_start < _now_b2
+        ).order_by(desc(models.Appointment.datetime_start)).limit(4).all()
+        if len(_last_appts) >= 2:
+            _consecutive_cancels = 0
+            for _appt in _last_appts:
+                if _appt.status == "ANNULÉ":
+                    _consecutive_cancels += 1
+                else:
+                    break
+            if _consecutive_cancels >= 2:
+                _has_future_rdv = db.query(models.Appointment).filter(
+                    models.Appointment.patient_id == patient_id,
+                    models.Appointment.datetime_start > _now_b2,
+                    models.Appointment.status != "ANNULÉ"
+                ).first()
+                if not _has_future_rdv:
+                    triggers.append({
+                        "type": "ABANDON_RISK",
+                        "title": "Risque Perte Patient",
+                        "message": f"{_consecutive_cancels} RDV annulés consécutifs sans rebooking.",
+                        "action": "Contacter le Patient"
+                    })
+
+        # C3: Patient Haute Valeur à Risque
+        if patient.manual_grade == "PLATINUM":
+            _solde = db.query(func.sum(models.Acte.montant)).filter(
+                models.Acte.patient_id == patient_id,
+                models.Acte.statut_paiement == "EN_ATTENTE"
+            ).scalar() or 0.0
+            if _solde > 2000:
+                triggers.append({
+                    "type": "HIGH_VALUE_RISK",
+                    "title": "Patient Premium — Impayé Critique",
+                    "message": f"Patient PLATINUM avec {_solde:.0f} MAD en attente de règlement.",
+                    "action": "Relancer le Paiement"
+                })
 
         return triggers
 
