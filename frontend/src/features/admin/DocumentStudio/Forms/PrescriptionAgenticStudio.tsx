@@ -146,6 +146,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [savingAsPreset, setSavingAsPreset] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+  const [patientAdvice, setPatientAdvice] = useState('');
+  const [showPatientAdvice, setShowPatientAdvice] = useState(false);
 
   // --- MOVE DRUG LOGIC ---
   const moveDrug = useCallback((id: number, direction: 'up' | 'down') => {
@@ -379,7 +381,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     }
   }, [onUpdateDrug]);
 
-  const applyPresetWithSafety = useCallback((presetDrugs: any[]) => {
+  const applyPresetWithSafety = useCallback((presetDrugs: any[], presetLabel?: string) => {
     // 1. Détection de l'âge du patient (si dispo dans assessment)
     const isChild = assessment?.age < 15 || assessment?.is_child;
     const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
@@ -414,9 +416,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
     setDrugs(adaptedDrugs);
     setStep('PLANNING');
-    
+
     if (isChild) {
       toast("Ordonnance adaptée au profil pédiatrique.", { icon: '👶' });
+    } else {
+      toast.success(presetLabel ? `Protocole "${presetLabel}" appliqué.` : "Protocole appliqué.");
     }
   }, [assessment, setDrugs]);
 
@@ -533,6 +537,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               IAmina Intelligence
               <span className="bg-primary/10 text-primary text-[7px] px-1.5 py-0.5 rounded-full">v4.8</span>
             </h3>
+            {drugs.length > 0 && (
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                {drugs.length} médicament{drugs.length > 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         </div>
 
@@ -686,7 +695,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               {DEFAULT_MOROCCO_PRESETS.map(p => (
                 <button
                   key={p.label}
-                  onClick={() => applyPresetWithSafety(p.drugs)}
+                  onClick={() => applyPresetWithSafety(p.drugs, p.label)}
                   className={cn(
                     "px-4 py-2 bg-white border rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip",
                     p.color === 'blue' ? "border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
@@ -699,6 +708,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover/chip:opacity-100" />
                   {p.label}
+                  <span className="bg-current/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
                 </button>
               ))}
 
@@ -707,11 +717,14 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               {presets.map(p => (
                 <button
                   key={p.id}
-                  onClick={() => applyPresetWithSafety(p.drugs)}
+                  onClick={() => applyPresetWithSafety(p.drugs, p.act_context)}
                   className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip"
                 >
                   <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
                   {p.act_context}
+                  {p.drugs?.length > 0 && (
+                    <span className="bg-white/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -959,6 +972,20 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                     onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
                                   />
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateDrug(drug.id, 'non_substituable', !drug.non_substituable)}
+                                  className={cn(
+                                    'px-2.5 py-1.5 rounded-xl border text-[8px] font-black uppercase tracking-widest transition-all select-none',
+                                    drug.non_substituable
+                                      ? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-500/20'
+                                      : 'bg-white/80 text-slate-300 border-slate-100 hover:border-slate-300 hover:text-slate-500'
+                                  )}
+                                  title="Non Substituable"
+                                >
+                                  NS
+                                </button>
                               </div>
                             )}
                           </div>
@@ -970,7 +997,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                 <textarea
                                   rows={1}
                                   className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
-                                  placeholder="Posologie et instructions..."
+                                  placeholder="ex : 1 gél. × 3/jour pendant 7j"
                                   value={drug.posologie}
                                   onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
                                   onChange={e => {
@@ -1013,7 +1040,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                       <div className="col-span-12 lg:col-span-1 flex items-center justify-end">
                         <button
                           onClick={() => onRemoveDrug(drug.id)}
-                          className="p-2.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 active:scale-95"
+                          className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                           title="Supprimer"
                         >
                           <Trash2 size={18} />
@@ -1067,6 +1094,39 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
                 {savingHabits ? 'Mémorisation...' : 'Habitudes Apprises'}
               </button>
+            </div>
+
+            {/* CONSEILS AU PATIENT */}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowPatientAdvice(v => !v)}
+                className="flex items-center gap-2 text-[9px] font-black text-slate-400 hover:text-primary uppercase tracking-widest transition-colors px-2"
+              >
+                <div className={cn("w-3 h-3 rounded-full border-2 border-current transition-colors", showPatientAdvice ? "bg-primary border-primary" : "border-slate-300")} />
+                Conseils au Patient
+                {patientAdvice.trim() && <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[7px]">✓</span>}
+              </button>
+              <AnimatePresence>
+                {showPatientAdvice && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 overflow-hidden"
+                  >
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-[1.5rem] p-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/20 transition-all">
+                      <textarea
+                        rows={3}
+                        className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-relaxed"
+                        placeholder="Ex : Éviter les aliments durs pendant 48h. Ne pas fumer. Rincer avec le bain de bouche après chaque repas..."
+                        value={patientAdvice}
+                        onChange={e => setPatientAdvice(e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
           </motion.div>

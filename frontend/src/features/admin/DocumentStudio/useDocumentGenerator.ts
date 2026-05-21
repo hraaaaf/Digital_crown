@@ -259,7 +259,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           dosage: d.dosage,
           forme: d.forme || 'Sachets',
           posologie: d.posologie,
-          type: d.type || 'MEDICAMENT'
+          type: d.type || 'MEDICAMENT',
+          non_substituable: d.non_substituable ?? false,
         })),
         doc_date: docDate,
       };
