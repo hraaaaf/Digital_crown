@@ -130,7 +130,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <label className={labelClass + " mb-1"}>Durée du repos</label>
-                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'interventions faciales.</p>
+                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'actes bucco-dentaires.</p>
                 </div>
                 <span className="text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
                   {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
@@ -140,7 +140,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <input
                 type="range"
                 min="1"
-                max="15"
+                max="30"
                 step="1"
                 value={certifDays}
                 onChange={(e) => setCertifDays(parseInt(e.target.value))}
