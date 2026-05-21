@@ -176,7 +176,21 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 for p in req.data.get('payments', []):
                     accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
 
-        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings}
+        # D2: Suggestion RDV après acte ortho
+        rdv_suggestion = None
+        if is_financial and not preview:
+            items = req.data.get('items', req.data.get('payments', []))
+            for item in items:
+                act_name = (item.get('acte') or item.get('description') or '').lower()
+                if any(k in act_name for k in ['ortho', 'semestr', 'contention', 'bagues', 'appareil ortho']):
+                    from datetime import timedelta as _td
+                    rdv_suggestion = {
+                        "message": "Planifier le prochain RDV dans 4 semaines",
+                        "suggested_date": (datetime.now() + _td(weeks=4)).strftime('%Y-%m-%d'),
+                    }
+                    break
+
+        return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion}
     except ValueError as e:
         msg = str(e)
         if msg.startswith("DOUBLE_DETECTED:"):

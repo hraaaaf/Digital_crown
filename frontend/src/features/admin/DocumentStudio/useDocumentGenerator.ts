@@ -397,6 +397,13 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         }
       }
       if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');
+      // D2: Suggestion RDV après acte ortho
+      if (res.data.rdv_suggestion && !isPreview) {
+        toast(`📅 ${res.data.rdv_suggestion.message} — Proposé : ${res.data.rdv_suggestion.suggested_date}`, {
+          duration: 8000,
+          icon: '📅',
+        });
+      }
     } catch (e: any) {
       if (e.response?.status === 409 && e.response?.data?.detail?.code === 'DOUBLE_DETECTED') {
         setDuplicateArgs({ archive, print });

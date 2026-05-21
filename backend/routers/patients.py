@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 from backend import models, schemas, database
@@ -354,3 +354,53 @@ def generate_cephalo_pdf(
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+
+# --- PROACTIVE INTELLIGENCE ---
+
+@router.get("/fantomes")
+def get_fantome_patients(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """A1 — Patients fantômes : traitement actif + aucun RDV futur depuis 60+ jours."""
+    employer_id = current_user.get_employer_id()
+    now = datetime.now()
+    cutoff_90d = now - timedelta(days=90)
+
+    patients = db.query(models.Patient).filter(
+        models.Patient.employer_id == employer_id
+    ).options(
+        joinedload(models.Patient.dossier),
+        joinedload(models.Patient.actes),
+        joinedload(models.Patient.appointments)
+    ).all()
+
+    fantomes = []
+    for p in patients:
+        is_ortho_active = p.dossier and p.dossier.is_ortho_active
+        last_acte = max((a.date_debut for a in p.actes if a.date_debut), default=None)
+        recent_treatment = is_ortho_active or (last_acte and last_acte >= cutoff_90d)
+        if not recent_treatment:
+            continue
+
+        has_future_rdv = any(
+            a.datetime_start > now and a.status != "ANNULÉ"
+            for a in p.appointments
+        )
+        if has_future_rdv:
+            continue
+
+        past_rdvs = sorted(
+            [a for a in p.appointments if a.datetime_start <= now and a.status != "ANNULÉ"],
+            key=lambda a: a.datetime_start, reverse=True
+        )
+        days_since_last = (now - past_rdvs[0].datetime_start).days if past_rdvs else None
+
+        fantomes.append({
+            "patient_id": p.id,
+            "days_since_last_appt": days_since_last,
+            "is_ortho_active": bool(is_ortho_active),
+        })
+
+    return fantomes
