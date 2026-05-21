@@ -6,7 +6,7 @@ import uuid
 import socket
 import os
 from datetime import datetime, date, timedelta, time as dt_time, timezone
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Body
 from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
@@ -305,3 +305,26 @@ def update_appointment_status(
     apt.status = models.AppointmentStatus(body.status)
     db.commit()
     return {"id": appointment_id, "status": body.status}
+
+
+@router.post("/register-device")
+def register_device(
+    payload: dict = Body(...),
+    employer_id: int = Depends(get_mobile_employer_id),
+    db: Session = Depends(database.get_db),
+):
+    """E5 — Enregistre ou met à jour le token FCM d'un appareil mobile."""
+    token = payload.get("fcm_token", "").strip()
+    platform = payload.get("platform", "android")
+    if not token:
+        raise HTTPException(status_code=422, detail="fcm_token required")
+    existing = db.query(models.DeviceToken).filter(
+        models.DeviceToken.fcm_token == token
+    ).first()
+    if existing:
+        existing.employer_id = employer_id
+        existing.platform = platform
+    else:
+        db.add(models.DeviceToken(employer_id=employer_id, fcm_token=token, platform=platform))
+    db.commit()
+    return {"status": "registered"}
