@@ -222,3 +222,118 @@ async def get_patient_nba(
             "action": top.get("action", ""),
         }
     }
+
+
+@router.get("/taux-conversion")
+def get_taux_conversion(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """C4 — Taux de conversion devis → actes (% devis suivis d'un acte dans 90j)."""
+    employer_id = current_user.get_employer_id()
+    devis_list = db.query(models.DocumentArchive).join(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.DocumentArchive.document_type == "DEVIS"
+    ).all()
+    if not devis_list:
+        return {"devis_count": 0, "converted_count": 0, "taux": 0.0, "avg_days": None}
+
+    converted = 0
+    total_days = []
+    for d in devis_list:
+        first_acte = db.query(models.Acte).filter(
+            models.Acte.patient_id == d.patient_id,
+            models.Acte.date_debut > d.created_at,
+            models.Acte.date_debut <= d.created_at + timedelta(days=90)
+        ).order_by(models.Acte.date_debut).first()
+        if first_acte:
+            converted += 1
+            total_days.append((first_acte.date_debut - d.created_at).days)
+
+    avg_days = round(sum(total_days) / len(total_days), 1) if total_days else None
+    return {
+        "devis_count": len(devis_list),
+        "converted_count": converted,
+        "taux": round(converted / len(devis_list) * 100, 1),
+        "avg_days": avg_days,
+    }
+
+
+@router.get("/projection-mensuelle")
+def get_projection_mensuelle(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast)."""
+    employer_id = current_user.get_employer_id()
+    now = datetime.now()
+
+    historical = []
+    for i in range(3, 0, -1):
+        month_start = (now.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+        rev = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
+            models.Patient.employer_id == employer_id,
+            models.Acte.date_debut >= month_start,
+            models.Acte.date_debut <= month_end
+        ).scalar() or 0.0
+        historical.append({"month": month_start.strftime("%Y-%m"), "revenue": round(float(rev), 2), "type": "actual"})
+
+    avg_monthly = sum(h["revenue"] for h in historical) / 3 if historical else 0
+
+    total_rdv_90d = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.Appointment.datetime_start >= now - timedelta(days=90)
+    ).scalar() or 1
+    avg_rdv_per_month = max(total_rdv_90d / 3, 1)
+
+    projections = []
+    for i in range(1, 7):
+        proj_month_start = (now.replace(day=1) + timedelta(days=32 * i)).replace(day=1)
+        proj_month_end = (proj_month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+        rdv_count = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
+            models.Patient.employer_id == employer_id,
+            models.Appointment.datetime_start >= proj_month_start,
+            models.Appointment.datetime_start <= proj_month_end,
+            models.Appointment.status != "ANNULÉ"
+        ).scalar() or 0
+        factor = min(rdv_count / avg_rdv_per_month, 1.5) if rdv_count else 1.0
+        projections.append({
+            "month": proj_month_start.strftime("%Y-%m"),
+            "revenue": round(avg_monthly * factor, 2),
+            "type": "forecast",
+        })
+
+    return {"historical": historical, "projections": projections, "avg_monthly": round(avg_monthly, 2)}
+
+
+@router.get("/patient/{patient_id}/upcoming-prescription")
+async def get_upcoming_prescription(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """D4 — Ordonnance anticipée : si RDV dans 14j, suggère le protocole à préparer."""
+    assert_patient_access(patient_id, current_user, db)
+    now = datetime.now()
+    next_appt = db.query(models.Appointment).filter(
+        models.Appointment.patient_id == patient_id,
+        models.Appointment.datetime_start > now,
+        models.Appointment.datetime_start <= now + timedelta(days=14),
+        models.Appointment.status != "ANNULÉ"
+    ).order_by(models.Appointment.datetime_start).first()
+
+    if not next_appt:
+        return {"upcoming": None}
+
+    from backend.routers.prescriptions import get_smart_suggestion
+    smart = await get_smart_suggestion(patient_id, db, current_user)
+
+    return {
+        "upcoming": {
+            "appointment_date": next_appt.datetime_start.strftime("%d/%m/%Y à %Hh%M"),
+            "motif": next_appt.motif or "",
+            "days_until": (next_appt.datetime_start - now).days,
+            "prescription_suggestion": smart,
+        }
+    }

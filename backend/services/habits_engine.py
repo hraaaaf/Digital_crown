@@ -308,6 +308,46 @@ class HabitsEngine:
                     "action": "Voir plan de traitement"
                 })
 
+        # B3: Créneau Maudit
+        _all_cancelled = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient_id,
+            models.Appointment.status == "ANNULÉ"
+        ).all()
+        if len(_all_cancelled) >= 3:
+            from collections import Counter
+            _hour_counts = Counter(a.datetime_start.hour for a in _all_cancelled)
+            _cursed_hour, _curse_count = _hour_counts.most_common(1)[0]
+            if _curse_count >= 3:
+                triggers.append({
+                    "type": "CURSED_SLOT",
+                    "title": "Créneau Récurrent Annulé",
+                    "message": f"Patient annule systématiquement à {_cursed_hour}h ({_curse_count} fois). Éviter ce créneau.",
+                    "action": "Reprogrammer à un autre créneau"
+                })
+
+        # B5: Prédiction Fin Traitement Ortho
+        if dossier and dossier.is_ortho_active:
+            _ortho_acts = db.query(models.Acte).filter(
+                models.Acte.patient_id == patient_id,
+                models.Acte.type_acte == "ORTHO_SEMESTRE"
+            ).order_by(models.Acte.date_debut).all()
+            if len(_ortho_acts) >= 2:
+                _intervals = [
+                    (_ortho_acts[i + 1].date_debut - _ortho_acts[i].date_debut).days
+                    for i in range(len(_ortho_acts) - 1)
+                ]
+                _avg_interval = sum(_intervals) / len(_intervals)
+                _remaining_semesters = max(0, 4 - len(_ortho_acts))
+                _predicted_end = _ortho_acts[-1].date_debut + timedelta(days=int(_avg_interval * _remaining_semesters))
+                _months_left = max(0, (_predicted_end - datetime.now()).days // 30)
+                if _months_left > 0:
+                    triggers.append({
+                        "type": "ORTHO_COMPLETION_ESTIMATE",
+                        "title": "Fin de Traitement Estimée",
+                        "message": f"Fin ortho estimée dans ~{_months_left} mois ({_predicted_end.strftime('%B %Y')}).",
+                        "action": "Voir progression"
+                    })
+
         return triggers
 
 habits_engine = HabitsEngine()

@@ -70,6 +70,9 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
   type BriefingData = { date: string; total_patients: number; total_outstanding: number; patients: BriefingPatient[] };
   const [briefingData, setBriefingData] = useState<BriefingData | null>(null);
 
+  type UpcomingPrescription = { appointment_date: string; motif: string; days_until: number; prescription_suggestion: any };
+  const [upcomingPrescription, setUpcomingPrescription] = useState<UpcomingPrescription | null>(null);
+
   const submitFeedback = async (insight: Insight, action: 'accept' | 'reject') => {
     if (!lastPatientId || feedbackSent[insight.id]) return;
     try {
@@ -91,6 +94,14 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     analyzeAgendaDensity();
     api.get('/intelligence/briefing-j1').then(res => setBriefingData(res.data)).catch(() => {});
   }, [analyzeAgendaDensity]);
+
+  // D4 — Ordonnance anticipée : fetch quand un patient est sélectionné
+  useEffect(() => {
+    if (!lastPatientId) { setUpcomingPrescription(null); return; }
+    api.get(`/intelligence/patient/${lastPatientId}/upcoming-prescription`)
+      .then(res => setUpcomingPrescription(res.data.upcoming))
+      .catch(() => setUpcomingPrescription(null));
+  }, [lastPatientId]);
 
   const currentInsight = insights[activeInsightIndex];
 
@@ -335,6 +346,29 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                   >
                     <ChevronRight size={14} />
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* D4 — Ordonnance Anticipée */}
+            {upcomingPrescription && (
+              <div className="mx-5 mb-3 p-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700/30 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <CalendarDays size={14} className="text-violet-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black text-violet-700 dark:text-violet-300 uppercase tracking-wider">
+                      RDV dans {upcomingPrescription.days_until}j — {upcomingPrescription.appointment_date}
+                    </p>
+                    {upcomingPrescription.motif && (
+                      <p className="text-[10px] text-violet-600 dark:text-violet-400 font-medium truncate">{upcomingPrescription.motif}</p>
+                    )}
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('perio-create-prescription'))}
+                      className="mt-1.5 px-3 py-1 bg-violet-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-600 transition-colors"
+                    >
+                      Préparer l'ordonnance
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
