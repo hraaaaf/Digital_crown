@@ -377,8 +377,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         }
       }
       if (data.landmarks) {
-        const landmarksWithApex = initializeDefaultApexes(data.landmarks);
-        set({ local: { landmarks: landmarksWithApex, version: 1 } });
+        set({ local: { landmarks: data.landmarks, version: 1 } });
       }
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
