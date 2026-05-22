@@ -98,7 +98,22 @@ This document defines the core recurring workflows, procedures, and rules for ag
 - NEVER silently overwrite existing clinical data.
 - NEVER bypass the `force=True` explicit user requirement to save a confirmed duplicate.
 
-## 8. Session Completion Protocol (Beads Tracker)
+## 8. Ghost Hub Intelligence — Pattern de Développement
+**Trigger**: Ajouter un nouveau trigger proactif, endpoint d'intelligence, ou widget de Dashboard.
+
+**Architecture à respecter :**
+1. **Trigger** → `backend/services/habits_engine.py` → méthode `check_proactive_triggers()` → `triggers.append({type, title, message, action})`.
+2. **Stockage** → `backend/services/daily_scheduler.py` → déduplication 24h, expiration 7j, comptage par `employer_id`.
+3. **Push** → `backend/services/push_service.py` → `send_push_to_employer()` appelé après `db.commit()`.
+4. **API** → `backend/routers/intelligence.py` → préfixe `/intelligence/`, guard `require_permission("patients")`, `assert_patient_access()` pour les routes par patient.
+5. **Frontend** → Widget dans `Dashboard.tsx` (hooks dans `useEffect` du premier chargement) **OU** card dans `EliteAssistant.tsx` (hook sur `lastPatientId`).
+
+**Règles :**
+- NEVER re-initialiser Firebase — `license_service.py` initialise l'app par défaut ; utiliser `firebase_admin.messaging` directement.
+- NEVER dupliquer une alerte dans les 24h — vérifier `ProactiveAlert.created_at >= now - 24h` avant insert.
+- Routes statiques (`/forecast-semaine`, `/alerts/today`) TOUJOURS avant routes paramétrisées (`/{patient_id}`) dans le router FastAPI.
+
+## 9. Session Completion Protocol (Beads Tracker)
 **Trigger**: Concluding a task, feature implementation, or ending an interactive session.
 **Steps**:
 1. File issues for remaining/future work using `bd` commands.

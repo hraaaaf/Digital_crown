@@ -156,17 +156,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     // Sauvegarde localStorage pour le flash au chargement (App.tsx)
     localStorage.setItem('digitalcrown_theme', theme);
     
-    // Application des couleurs accentuées
-    if (profile.primary_color) {
-      document.documentElement.style.setProperty('--primary', profile.primary_color);
-      document.body.style.setProperty('--primary', profile.primary_color);
-    }
-    if (profile.secondary_color) {
-      document.documentElement.style.setProperty('--secondary', profile.secondary_color);
-    }
-    if (profile.accent_color) {
-      document.documentElement.style.setProperty('--accent', profile.accent_color);
-    }
+    // Séparation stricte : on nettoie les variables en ligne pour laisser index.css (APP_THEMES) gérer les couleurs de l'UI
+    document.documentElement.style.removeProperty('--primary');
+    document.body.style.removeProperty('--primary');
+    document.documentElement.style.removeProperty('--secondary');
+    document.documentElement.style.removeProperty('--accent');
     
     // Support legacy pour la couleur d'accent d'application
     if (profile.app_accent_color) {

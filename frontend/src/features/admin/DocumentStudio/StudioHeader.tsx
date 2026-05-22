@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Archive, Printer, Eye } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 interface StudioHeaderProps {
@@ -9,6 +9,10 @@ interface StudioHeaderProps {
   activeTab: string;
   showOdontoPanoramique: boolean;
   onToggleOdonto: () => void;
+  onGenerate?: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
+  loading?: boolean;
+  sideStudioType?: 'NONE' | 'PREVIEW';
+  onTogglePreview?: () => void;
 }
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
@@ -17,30 +21,34 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onDateChange,
   activeTab,
   showOdontoPanoramique,
-  onToggleOdonto
+  onToggleOdonto,
+  onGenerate,
+  loading,
+  sideStudioType,
+  onTogglePreview
 }) => {
   return (
-    <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-2xl border border-white/50 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
+    <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-xl border border-white/50 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0 transition-all duration-300 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
-          <CalendarIcon size={20} />
+        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary border border-primary/10" style={{ color: 'var(--primary)' }}>
+          <CalendarIcon size={16} />
         </div>
         <div>
-          <h2 className="text-lg font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
+          <h2 className="text-base font-black text-primary tracking-tight leading-none" style={{ color: 'var(--primary)' }}>
             Studio Documentaire
           </h2>
-          <p className="text-slate-500 mt-1 text-[10px] font-medium uppercase tracking-widest flex items-center gap-2">
+          <p className="text-slate-500 mt-1 text-[9px] font-medium uppercase tracking-widest flex items-center gap-2">
             Patient : <span className="font-black text-slate-800 tracking-tight">{patientName}</span>
           </p>
         </div>
       </div>
       
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         {(activeTab === 'honoraires' || activeTab === 'devis') && (
           <button
             onClick={onToggleOdonto}
             className={cn(
-              "flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+              "flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
               showOdontoPanoramique 
                 ? "bg-primary text-white shadow-lg shadow-primary/30" 
                 : "bg-white text-primary border border-primary/20 hover:bg-primary/5"
@@ -53,15 +61,51 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
         {activeTab !== 'ai' && (
           <div className="flex items-center gap-2">
+            {onGenerate && (
+              <>
+                <button 
+                  onClick={() => onGenerate(true, false, false, false)}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50"
+                  title="Archiver"
+                >
+                  <Archive size={14} /> Archiver
+                </button>
+                <button 
+                  onClick={() => onGenerate(false, true, false, false)}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10 active:scale-95 disabled:opacity-50"
+                  title="Imprimer"
+                >
+                  <Printer size={14} /> Imprimer
+                </button>
+                {onTogglePreview && (
+                  <button 
+                    onClick={onTogglePreview}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 border",
+                      sideStudioType === 'PREVIEW' 
+                        ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
+                    )}
+                  >
+                    <Eye size={14} /> {sideStudioType === 'PREVIEW' ? "Fermer Aperçu" : "Aperçu"}
+                  </button>
+                )}
+                
+                <div className="w-px h-5 bg-slate-200 mx-1"></div>
+              </>
+            )}
+
             <button 
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-5 py-3 bg-white text-slate-400 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
+              className="flex items-center gap-2 px-3 py-2 bg-white text-slate-400 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
             >
               Actualiser
             </button>
             <button 
               onClick={() => window.history.back()}
-              className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+              className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
             >
               Quitter
             </button>

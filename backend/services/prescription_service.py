@@ -547,6 +547,14 @@ class PrescriptionService:
             } for p in presets
         ]
 
+    def delete_doctor_preset(self, db: Session, doctor_id: int, act_code: str):
+        db.query(models.DoctorActHabit).filter(
+            models.DoctorActHabit.doctor_id == doctor_id,
+            models.DoctorActHabit.act_context == act_code
+        ).delete()
+        db.commit()
+        return True
+
     def get_doctor_habits_summary(self, db: Session, doctor_id: int) -> Dict[str, Any]:
         """
         Récupère une synthèse des habitudes globales du docteur pour le contexte IA.

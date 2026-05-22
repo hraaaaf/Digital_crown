@@ -97,4 +97,36 @@
    * **Suite de Tests Backend** : Validation complète du pipeline et des 71 tests backend sans régression.
 
 ---
-*Fin de session - Digital Crown v1.7 Tablet Grid-View & Safety Edition.*
+
+### Date : 21 Mai 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Clôture du backlog Ghost Hub P3 (E5 FCM) + Démarrage audit UX Studio Documentaire.
+
+#### Accomplissements Techniques
+
+1. **E5 — Notifications Push Mobile FCM (P3 — 13 pts)**
+   - **DeviceToken model** : Table `device_tokens` (employer_id, fcm_token, platform, timestamps), créée via `create_all` au démarrage.
+   - **Endpoint d'enregistrement** : `POST /api/mobile/register-device` — protégé par JWT mobile (`get_mobile_employer_id`), upsert par token unique, 422 si token absent.
+   - **push_service.py** : Nouveau module — `send_push_to_employer()` envoie un `MulticastMessage` FCM (Android priority=high, iOS APNs sound=default), nettoie automatiquement les tokens invalides post-envoi.
+   - **Intégration scheduler** : `daily_scheduler.py` trackle `new_by_employer` (dict employer_id → count) et appelle `send_push_to_employer` après `db.commit()`.
+   - **Zéro re-init Firebase** : Réutilisation de l'app default initialisée par `license_service.py`.
+
+2. **Backlog Ghost Hub complet — 115 pts déployés (P0 → P3)**
+   - P0 (21 pts) : Flash Summary, E1 Scheduler, E2 ProactiveAlert.
+   - P1 (47 pts) : A4/A5/B1/B4 triggers, C1/E3/D1/D3 endpoints & widgets, Dashboard Ghost Hub.
+   - P2 (34 pts) : B3/B5 triggers, C4/C5/D4 endpoints, widgets Dashboard + EliteAssistant D4.
+   - P3 (13 pts) : E5 FCM Push Mobile.
+
+3. **Documentation mise à jour**
+   - `README.md` : Refonte complète v2.0 (Ghost Hub + architecture complète).
+   - `ROADMAP.md` : Sections 25 (Ghost Hub complet) + 26 (Audit Studio Documentaire).
+   - `SKILLS.md` : Skill #8 Ghost Hub Intelligence (pattern, règles FCM, routing).
+   - `SESSION.md` : Ce journal.
+
+#### Démarrage Audit UX Studio Documentaire
+
+Début du cycle d'audit UX systématique des 5 pages du Studio Documentaire.
+**Page #1 analysée : Ordonnance** — voir le rapport d'audit dans la conversation.
+
+---
+*Fin de session partielle — Digital Crown v2.0 Ghost Hub Complete Edition.*

@@ -141,6 +141,22 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
     if (antibiotics.length > 1) {
       warnings.push({ level: 'warning', message: `Association antibiotique détectée (${antibiotics.map(a => a.name).join(', ')}). Vérifiez la pertinence clinique.` });
     }
+
+    const ains = namedDrugs.filter(d => /ibuprofène|ibuprofene|antadys|nurofen|ketoprofène|biprofenid|diclofenac|voltarène/i.test(d.name));
+    const corticos = namedDrugs.filter(d => /solupred|prednisolone|cortancyl|celestene/i.test(d.name));
+    
+    if (ains.length > 0 && corticos.length > 0) {
+      warnings.push({ level: 'warning', message: `Association AINS et Corticoïdes détectée (${ains[0].name} + ${corticos[0].name}). Risque ulcérogène accru.` });
+    }
+    
+    if (ains.length > 1) {
+      warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
+    }
+
+    const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
+    if (paracetamol.length > 1) {
+      warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
+    }
   }
 
   if (activeTab === 'devis' || activeTab === 'honoraires') {

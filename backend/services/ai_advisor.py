@@ -97,7 +97,7 @@ class AIAdvisor:
                     "stream": False,
                     "options": {"temperature": 0.1}
                 },
-                timeout=5.0
+                timeout=15.0
             )
             response.raise_for_status()
 
@@ -370,34 +370,7 @@ class AIAdvisor:
             "is_fallback": True # UI marker
         }
 
-    def generate_prescription(self, acte: str, age: int = 30) -> list:
-        """Generates a medical protocol via local SLM."""
-        prompt = f"""
-        Tu es un chirurgien-dentiste. Génère une ordonnance standard pour l'acte suivant : "{acte}". Le patient a {age} ans.
-        Règles :
-        - Renvoie UNIQUEMENT un tableau JSON valide.
-        - Format exigé : [{{"nom": "Médicament", "dosage": "Dose", "forme": "Comprimés/Sachets", "posologie": "Instructions"}}]
-        - Ne mets AUCUN texte avant ou après le JSON.
-        """
-        cached = llm_cache.get(self.model_name, prompt)
-        if cached:
-            try:
-                return json.loads(cached)
-            except Exception:
-                pass
-        try:
-            response = requests.post(
-                self.llm_endpoint,
-                json={"model": self.model_name, "prompt": prompt, "format": "json", "stream": False, "options": {"temperature": 0.1}},
-                timeout=5.0
-            )
-            response.raise_for_status()
-            raw = response.json().get("response", "[]")
-            llm_cache.set(self.model_name, prompt, raw)
-            return json.loads(raw)
-        except Exception as e:
-            logger.error(f"AI Advisor Prescription Error: {e}")
-            return []
+
 
 # Backend singleton instance
 ai_advisor = AIAdvisor()

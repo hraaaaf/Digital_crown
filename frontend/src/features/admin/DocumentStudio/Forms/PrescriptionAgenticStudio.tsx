@@ -415,6 +415,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     });
 
     setDrugs(adaptedDrugs);
+    setNewPresetName(presetLabel || '');
     setStep('PLANNING');
 
     if (isChild) {
@@ -423,6 +424,17 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       toast.success(presetLabel ? `Protocole "${presetLabel}" appliqué.` : "Protocole appliqué.");
     }
   }, [assessment, setDrugs]);
+
+  const deletePreset = async (actCode: string) => {
+    if (!window.confirm(`Supprimer le preset "${actCode}" ?`)) return;
+    try {
+      await api.delete(`/prescriptions/preferences/${encodeURIComponent(actCode)}`);
+      toast.success('Preset supprimé');
+      fetchPresets();
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
 
   const saveCurrentAsPreset = async () => {
     if (!newPresetName.trim()) return;
@@ -715,17 +727,25 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               {/* USER PRESETS */}
               {presets.length > 0 && <div className="h-4 w-px bg-slate-200 mx-2 shrink-0" />}
               {presets.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => applyPresetWithSafety(p.drugs, p.act_context)}
-                  className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip"
-                >
-                  <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
-                  {p.act_context}
-                  {p.drugs?.length > 0 && (
-                    <span className="bg-white/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
-                  )}
-                </button>
+                <div key={p.id} className="relative group/chip flex items-center">
+                  <button
+                    onClick={() => applyPresetWithSafety(p.drugs, p.act_context)}
+                    className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2"
+                  >
+                    <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
+                    {p.act_context}
+                    {p.drugs?.length > 0 && (
+                      <span className="bg-white/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deletePreset(p.act_context); }}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/chip:opacity-100 transition-all hover:bg-red-600 hover:scale-110 shadow-sm text-[10px] pb-0.5"
+                    title="Supprimer ce preset"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
           </motion.div>
@@ -1085,15 +1105,15 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 </button>
               )}
 
-              <button
-                onClick={handleBatchSave}
-                disabled={savingHabits}
-                className="flex-1 min-w-[200px] py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
-                title="Enregistre la fréquence d'utilisation de chaque médicament"
-              >
-                <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
-                {savingHabits ? 'Mémorisation...' : 'Habitudes Apprises'}
-              </button>
+                <button
+                  onClick={handleBatchSave}
+                  disabled={savingHabits}
+                  className="flex-1 min-w-[200px] py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
+                  title="Enregistre la fréquence d'utilisation de chaque médicament"
+                >
+                  <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
+                  {savingHabits ? 'Mémorisation...' : 'Apprendre ces posologies'}
+                </button>
             </div>
 
             {/* CONSEILS AU PATIENT */}

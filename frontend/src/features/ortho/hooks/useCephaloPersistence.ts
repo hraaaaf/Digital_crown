@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { cephaloRepository } from '../cephaloRepository';
 import { 
-  buildPayload, computeMcNamaraProjections, initializeDefaultApexes, 
+  buildPayload, computeMcNamaraProjections, 
   calcDDMCephalo, computeLocalImpa 
 } from '../cephaloUtils';
-import type { Landmark, SyncState, ImageFilters } from '../cephaloShared';
+import { type Landmark, type SyncState, type ImageFilters, REQUIRED_LANDMARKS } from '../cephaloShared';
 import type { DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, LocalState } from '../cephaloTypes';
 
 export const useCephaloPersistence = (
@@ -127,9 +127,8 @@ export const useCephaloPersistence = (
           setTimeout(() => setAutoCalibMessage(null), 8000);
         }
       }
-      if (data.landmarks) {
-          const landmarksWithApex = initializeDefaultApexes(data.landmarks);
-          setLocal({ landmarks: landmarksWithApex, version: 1 });
+      if (data.landmarks && data.landmarks.length > 0) {
+        setLocal(prev => ({ ...prev, landmarks: data.landmarks }));
       }
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
@@ -204,10 +203,7 @@ export const useCephaloPersistence = (
     }
   }, [analysisId, calibrationClickPoints, calibrationDistance, local.landmarks]);
 
-  const REQUIRED_LANDMARKS = [
-    'Po', 'Or', 'N', 'S', 'A', 'B', 'Go', 'Me',
-    'U1_incisal', 'U1_apex', 'L1_incisal', 'L1_apex',
-  ];
+  // REQUIRED_LANDMARKS is now imported from cephaloShared
 
   const tracingPct = useMemo(() => {
     const n = REQUIRED_LANDMARKS.filter(id => local.landmarks.some(l => l.id === id)).length;

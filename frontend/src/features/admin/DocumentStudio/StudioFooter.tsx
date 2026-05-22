@@ -1,6 +1,5 @@
 import React from 'react';
-import { Archive, Printer, Loader2, AlertTriangle, Eye } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { Loader2, AlertTriangle, Eye } from 'lucide-react';
 
 interface StudioFooterProps {
   loading: boolean;
@@ -19,7 +18,6 @@ interface StudioFooterProps {
 }
 
 export const StudioFooter: React.FC<StudioFooterProps> = ({
-  loading,
   activeTab,
   onGenerate,
   showPrintWarning,
@@ -29,9 +27,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   aiReport,
   onGenerateAI,
   loadingAi,
-  total,
-  sideStudioType,
-  onTogglePreview
+  total
 }) => {
   if (activeTab === 'plan') {
     return null;
@@ -54,17 +50,10 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
       
       <div className="flex items-center gap-6">
-        {activeTab === 'ordonnance' && hasChanges && onSavePreference && (
-          <button 
-            onClick={onSavePreference}
-            className="px-5 py-2.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-          >
-            Sauver ce protocole
-          </button>
-        )}
+        {/* Le bouton de sauvegarde du protocole a été déplacé dans le composant de l'ordonnance lui-même pour éviter les doublons */}
         
         {(activeTab === 'devis' || activeTab === 'honoraires') && typeof total === 'number' && (
           <div className="flex items-center gap-4 px-6 border-r border-slate-200">
@@ -78,38 +67,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <button 
-          onClick={() => onGenerate(true, false, false, false)}
-          disabled={loading}
-          className="group flex items-center gap-2 px-5 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm active:scale-95 disabled:opacity-50"
-        >
-          <Archive size={16} className="group-hover:scale-110 transition-transform" />
-          Archive
-        </button>
-
-        <button 
-          onClick={() => onGenerate(false, true, false, false)}
-          disabled={loading}
-          className="group flex items-center gap-2 px-5 py-3.5 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="animate-spin" size={16} /> : <Printer size={16} className="group-hover:rotate-12 transition-transform" />}
-          Imprimer
-        </button>
-
-        <button 
-          onClick={onTogglePreview}
-          className={cn(
-            "group flex items-center gap-3 px-8 py-3.5 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-2xl active:scale-95 border",
-            sideStudioType === 'PREVIEW' 
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
-              : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-          )}
-        >
-          <Eye size={18} className="group-hover:scale-110 transition-transform" />
-          {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Live"}
-        </button>
-      </div>
+      {/* Les boutons Générer / Imprimer sont désormais dans le StudioHeader */}
 
       {showPrintWarning && (
         <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-[70] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">

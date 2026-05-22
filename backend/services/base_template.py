@@ -210,6 +210,7 @@ class BaseTemplate:
         
         # Nettoyage des balises HTML pour le calcul de largeur
         clean_text = re.sub(r'<[^>]+>', '', text)
+        clean_text = clean_text.replace('&nbsp;', ' ')
         if not clean_text:
             return base_fs
             
@@ -278,8 +279,20 @@ class BaseTemplate:
 
         p_width, p_height = doc.pagesize
         
-        # 1. Fond de page / Letterhead (Supprimé pour privilégier le rendu natif "Ghost Elite")
-        # Le système n'utilise plus d'image de fond statique pour éviter les flous d'impression.
+        # 1. Fond de page / Letterhead
+        lh_path_str = self._get_val(config, 'letterhead_path')
+        has_letterhead = lh_path_str and str(lh_path_str) not in ["null", "None", ""]
+        
+        if has_letterhead:
+            lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
+            if os.path.exists(lh_path):
+                canvas.saveState()
+                canvas.drawImage(lh_path, 0, 0, width=p_width, height=p_height, mask='auto')
+                canvas.restoreState()
+                
+                # Si le papier existe et est utilisé, on s'arrête ici
+                canvas.restoreState()
+                return
         
         # Récupération de la mise en page choisie
         selected_template = self._get_val(config, 'selected_template', 'classic')

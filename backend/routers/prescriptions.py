@@ -189,6 +189,14 @@ async def save_prescription_preference(req: dict, db: Session = Depends(database
     prescription_service.learn_habit(db, current_user.id, act_code, drugs)
     return {"status": "success", "message": "Habitude enregistrée avec succès"}
 
+@prescription_router.delete("/preferences/{act_code}")
+async def delete_prescription_preference(act_code: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
+    """
+    Supprime un preset (habitude de prescription par acte) pour le médecin actuel.
+    """
+    prescription_service.delete_doctor_preset(db, current_user.id, act_code)
+    return {"status": "success", "message": "Preset supprimé avec succès"}
+
 @prescription_router.get("/certif-suggest/{patient_id}")
 async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     """

@@ -28,13 +28,14 @@ interface EliteState {
   fetchPatientIntelligence: (patientId: number) => Promise<void>;
   auditDocument: (patientId: number, contextType: string, docData: any) => Promise<void>;
   analyzeAgendaDensity: () => Promise<void>;
+  computeIntelligenceScore: () => void;
 }
 
 export const useEliteStore = create<EliteState>()(
   persist(
     (set, get) => ({
       insights: [],
-      intelligenceScore: 85,
+      intelligenceScore: 0,
       dockPosition: { x: 0, y: 0 },
       isAssistantExpanded: false,
       treatmentPlan: null,
@@ -44,7 +45,29 @@ export const useEliteStore = create<EliteState>()(
       isLoading: false,
       error: null,
 
-      setInsights: (insights) => set({ insights }),
+      computeIntelligenceScore: () => {
+        try {
+          const history = JSON.parse(localStorage.getItem('ghost_act_brain') || '{}');
+          const actsCount = Object.keys(history).length;
+          
+          let score = 30; // Base score (système initialisé)
+          
+          // Bonus Apprentissage (PriceBrain)
+          score += Math.min(actsCount * 5, 40); // Jusqu'à +40% (8 actes maîtrisés)
+          
+          // Bonus Détection (Insights actifs)
+          score += Math.min(get().insights.length * 5, 30); // Jusqu'à +30% (6 alertes)
+
+          set({ intelligenceScore: Math.min(score, 100) });
+        } catch {
+          set({ intelligenceScore: 30 });
+        }
+      },
+
+      setInsights: (insights) => {
+        set({ insights });
+        get().computeIntelligenceScore();
+      },
       setIntelligenceScore: (intelligenceScore) => set({ intelligenceScore }),
       setDockPosition: (dockPosition) => set({ dockPosition }),
       setAssistantExpanded: (isAssistantExpanded) => set({ isAssistantExpanded }),
@@ -74,7 +97,6 @@ export const useEliteStore = create<EliteState>()(
         const state = get();
         const now = Date.now();
 
-        // Cache Logic: Si c'est le même patient et que le fetch date de moins de 5 min
         if (state.lastPatientId === patientId && state.lastFetchTime && (now - state.lastFetchTime < 300000)) {
           return;
         }
@@ -84,11 +106,11 @@ export const useEliteStore = create<EliteState>()(
           const response = await api.get(`/intelligence/patient/${patientId}`);
           set({
             insights: response.data.insights || [],
-            intelligenceScore: response.data.intelligence_score || 85,
             lastPatientId: patientId,
             lastFetchTime: now,
             isLoading: false
           });
+          get().computeIntelligenceScore();
         } catch (error: any) {
           set({ isLoading: false, error: error?.response?.data?.detail ?? 'Erreur intelligence patient' });
         }
@@ -185,6 +207,8 @@ export const useEliteStore = create<EliteState>()(
           } else if (existingFiltered.length !== get().insights.length) {
              set({ insights: existingFiltered });
           }
+
+          get().computeIntelligenceScore();
 
         } catch (err: any) {
           set({ error: err?.response?.data?.detail ?? 'Erreur analyse agenda' });

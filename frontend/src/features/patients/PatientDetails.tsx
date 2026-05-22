@@ -11,7 +11,8 @@ import {
   Archive,
   FileDigit,
   Target,
-  HeartPulse
+  HeartPulse,
+  Stethoscope
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -21,7 +22,7 @@ import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
-import { PeriodontalChart } from './components/PeriodontalChart';
+import { ClinicalHub } from './components/ClinicalHub';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -39,7 +40,7 @@ interface Patient {
   adresse?: string;
 }
 
-type TabType = 'radiology' | 'periodontal' | 'admin' | 'archives';
+type TabType = 'clinical' | 'radiology' | 'admin' | 'archives';
 
 export const PatientDetails = () => {
   const { id } = useParams();
@@ -88,7 +89,6 @@ export const PatientDetails = () => {
     fetchPatient();
   }, [id]);
 
-  // D1 — NBA : afficher la prochaine meilleure action quand on quitte la fiche patient
   useEffect(() => {
     if (!id) return;
     return () => {
@@ -177,7 +177,6 @@ export const PatientDetails = () => {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* Quick Pay Button */}
               <button
                 onClick={() => setIsPayModalOpen(true)}
                 className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
@@ -193,8 +192,8 @@ export const PatientDetails = () => {
           </div>
 
           <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
+            <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
-            <TabButton active={activeTab === 'periodontal'} onClick={() => handleTabChange('periodontal')} icon={<HeartPulse size={18} />} label="Parodontologie" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
           </div>
@@ -247,9 +246,7 @@ export const PatientDetails = () => {
             </div>
           )}
           
-          {activeTab === 'periodontal' && (
-            <PeriodontalChart patientId={Number(id)} />
-          )}
+          {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
           {activeTab === 'admin' && (
             <DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />

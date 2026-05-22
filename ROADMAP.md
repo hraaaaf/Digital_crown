@@ -269,4 +269,58 @@ L'objectif est d'interconnecter le cerveau de l'application, l'agenda et l'odont
 
 ---
 
-*Dernière mise à jour : 18 Mai 2026 — Phase 6 Deployment Ready (Elite Edition).*
+---
+
+## ✅ 25. Ghost Hub Intelligence v2.0 — Proactivité Totale (TERMINÉ)
+**Statut :** Déployé (v2.0) — 115 pts — Backlogs P0 → P3 complets
+**Spécialiste :** Antigravity Staff Engineering
+
+### P0 — Fondations (21 pts)
+- [x] **A1 Flash Summary** : Résumé IA temps réel (antécédents, traitements actifs, solde en attente).
+- [x] **A2 Score No-Show** (B1) : Taux d'annulation > 40% sur 6 mois → alerte proactive.
+- [x] **E1 Daily Scheduler** : Thread daemon récursif (10s init, 86400s cycle). Génère les ProactiveAlerts pour tous les patients actifs.
+- [x] **E2 ProactiveAlert Model** : Table SQLite avec déduplication 24h, expiration 7j, priorité.
+
+### P1 — Intelligence Opérationnelle (47 pts)
+- [x] **A4 Traitement Abandonné** : Devis > 60j sans acte commencé → trigger TREATMENT_ABANDONED.
+- [x] **A5 Suivi Post-Extraction** : Acte extraction entre J-5 et J-10 → trigger POST_CARE_FOLLOWUP.
+- [x] **B1 Score No-Show** : Taux annulation > 40% (min 3 RDV / 6 mois) → trigger NOSHOW_RISK.
+- [x] **B4 Progression Ortho** : % d'avancement estimé (nb séances ORTHO_SEMESTRE / 4).
+- [x] **C1 Forecast Semaine** : Endpoint `GET /intelligence/forecast-semaine` — RDVs × avg montant.
+- [x] **D1 Next Best Action** : `GET /intelligence/patient/{id}/nba` — toast actionnable au départ fiche patient.
+- [x] **D3 Protocole Auto-Suggéré** : Détection du preset ordonnance via `contextLibelle` (useMemo).
+- [x] **E3 Hub Alertes du Jour** : Widget Dashboard amber + `PATCH /alerts/{id}/read`.
+- [x] **E4 Dashboard Ghost Hub** : Grille de widgets (E4 alertes, C1 forecast, C4 conversion, C5 projection).
+
+### P2 — Intelligence Avancée (34 pts)
+- [x] **B3 Créneau Maudit** : Trigger `CURSED_SLOT` — heure annulée 3+ fois (Counter).
+- [x] **B5 Prédiction Fin Ortho** : Extrapolation date de fin via intervalles moyens inter-séances.
+- [x] **C4 Taux de Conversion** : `GET /intelligence/taux-conversion` — % devis → acte ≤ 90j.
+- [x] **C5 Projection Mensuelle** : `GET /intelligence/projection-mensuelle` — 3 mois réels + 6 mois forecast.
+- [x] **D4 Ordonnance Anticipée** : `GET /intelligence/patient/{id}/upcoming-prescription` — EliteAssistant card.
+
+### P3 — Notifications Push Mobile (13 pts)
+- [x] **E5 Push FCM** : `DeviceToken` model, `POST /api/mobile/register-device`, `push_service.send_push_to_employer()`.
+**Statut :** À planifier
+**Priorité :** Haute
+
+Interface optimisée pour une utilisation au fauteuil (Full Screen, interactions rapides).
+- [ ] **Protocoles** : Affichage plein écran étape par étape.
+- [ ] **Radio Panoramique** : Vue plein écran optimisée.
+- [ ] **Simulation Céphalométrique** : Affichage immersif du morphing/correction.
+- [ ] *Autres outils pertinents au fauteuil à définir...*
+
+---
+
+## 🚧 29. Chatbot Expert Orthodontie (Deterministic + SLM)
+**Statut :** À planifier
+**Priorité :** Haute
+
+Un assistant "Orthodontiste 20 ans d'expérience" conçu pour être 100% fiable, sans hallucination.
+- [ ] **Base de Connaissance Code-Driven** : Toute la terminologie, les traitements (actif/passif, Invisalign, orthopédie) intégrés dans la logique du code.
+- [ ] **Formatting SLM** : Le modèle local (SLM) ne sert *que* pour rédiger/formatter la réponse finale.
+- [ ] **Consultation de cas** : Discussion et recommandations basées sur des algorithmes stricts et la documentation à jour.
+
+---
+
+*Dernière mise à jour : 21 Mai 2026 — Ajout Agenda 3 modes, Mode Fauteuil et Chatbot Ortho.*

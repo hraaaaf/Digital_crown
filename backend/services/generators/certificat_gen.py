@@ -176,7 +176,14 @@ class CertificatGenerator:
         days = getattr(data, 'days', 1)
         observations = getattr(data, 'observations', '').strip()
         reason_lower = reason.lower()
-        dr_name = config.nom_praticien if config and config.nom_praticien else "BENMOUSSA Achraf"
+        if user_obj and getattr(user_obj, 'nom_complet', None):
+            dr_name = user_obj.nom_complet
+        else:
+            dr_name = "BENMOUSSA Achraf"
+            
+        # Nettoyage pour éviter "Dr Dr."
+        dr_name_clean = dr_name.replace("Dr.", "").replace("Dr ", "").replace("Docteur ", "").strip()
+            
         nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
 
         certif_text = ""
@@ -191,70 +198,33 @@ class CertificatGenerator:
 
         days_int = int(days)
         days_words = _days_in_words(days_int)
-        days_label = f"<b>{days_int} ({days_words}) jours</b>"
+        days_label = f"({days_int} jours)"
 
         if days_int > 0:
             end_date = doc_date_obj + timedelta(days=days_int - 1)
             date_phrase = (
-                f"allant du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> "
+                f"du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> "
                 f"au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
             )
         else:
             date_phrase = f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>"
 
-        if "post-opératoire" in reason_lower:
-            certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b>, {ne_e}(e) le "
-                + (patient.date_naissance.strftime('%d/%m/%Y') if patient.date_naissance else "—")
-                + f", et que son état de santé nécessite <b>{eviction_term}</b> "
-                f"de {days_label}, {date_phrase}, "
-                f"suite à une intervention chirurgicale bucco-dentaire. "
-                f"<b>Sauf complications.</b><br/><br/>"
-            )
-        elif "intervention" in reason_lower:
+        age = self._calculate_age(patient.date_naissance)
+        age_text = f", âgé(e) de {age} ans"
+
+        if "présence" in reason_lower:
             spec = "orthodontiques" if is_ortho else "bucco-dentaires"
             certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b>, et que son état de santé nécessite des "
-                f"<b>soins de suite consécutifs à une intervention {spec}</b> "
-                f"pour une durée de {days_label}, {date_phrase}.<br/><br/>"
-            )
-        elif "présence" in reason_lower:
-            spec = "orthodontiques" if is_ortho else "bucco-dentaires"
-            certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie que "
-                f"{hon} <b>{nom_complet}</b> a été <b>{pres} à ce cabinet</b> "
-                f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> pour y recevoir des soins {spec}.<br/><br/>"
-            )
-        elif "aptitude" in reason_lower or "sport" in reason_lower:
-            spec = "à la pratique de l'éducation physique et sportive" if is_minor else "à la pratique du sport"
-            certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b> et qu'il/elle "
-                f"<b>ne présente à ce jour aucune contre-indication bucco-dentaire clinique apparente</b> "
-                f"{spec}.<br/><br/>"
-            )
-        elif "reprise" in reason_lower:
-            certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b> et que son état de santé lui permet "
-                f"d'assurer <b>{reprise_term}</b> à compter du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>.<br/><br/>"
-            )
-        elif "contre-indication" in reason_lower:
-            certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b> et que son état de santé présente une "
-                f"<b>contre-indication médicale temporaire bucco-dentaire</b> "
-                f"à l'acte ou à l'activité mentionné(e), pour une durée de {days_label}, "
-                f"{date_phrase}.<br/><br/>"
+                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que "
+                f"{hon} <b>{nom_complet}</b> a été <b>{pres} à notre cabinet</b> "
+                f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
             )
         else:
-            phrase_motif = f"<b>{reason}</b>" if reason else f"<b>{eviction_term}</b>"
+            # Fallback par défaut (Repos, Autre, etc.)
             certif_text = (
-                f"Je soussigné Dr. <b>{dr_name}</b>, chirurgien-dentiste, certifie avoir examiné ce jour "
-                f"{hon} <b>{nom_complet}</b> et que son état de santé nécessite {phrase_motif} "
-                f"de {days_label}, {date_phrase}.<br/><br/>"
+                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
+                f"{date_phrase} {days_label}.<br/><br/>"
             )
 
         body_style = ParagraphStyle(

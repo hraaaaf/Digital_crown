@@ -12,7 +12,8 @@ import {
   UserCircle,
   Eye,
   Info,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { useSettingsStore } from '../hooks/useSettingsStore';
 import { SettingsSection, labelClass, inputClass } from '../components/SharedUI';
@@ -24,7 +25,7 @@ import { LivePreview } from '../../DocumentStudio/LivePreview';
 
 export const BrandingTab: React.FC = () => {
   const { profile, updateProfile, uploadLetterhead } = useSettingsStore();
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -267,15 +268,28 @@ export const BrandingTab: React.FC = () => {
                 <div className="flex flex-col gap-8">
                    <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 space-y-6">
                       <label className={labelClass}>Utiliser mon papier en-tête physique</label>
-                      <div onClick={() => document.getElementById('letterhead-input-branding')?.click()} className="w-full h-48 rounded-[1.5rem] border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden shadow-inner">
-                         {profile.letterhead_path ? (
-                           <img src={getImageUrl(profile.letterhead_path)} className="h-full object-contain p-4" alt="Letterhead" />
-                         ) : (
-                           <div className="flex flex-col items-center text-slate-300 gap-3">
-                             <Upload size={28} />
-                             <span className="text-[10px] font-black uppercase tracking-widest">PDF ou Image (A4)</span>
-                           </div>
-                         )}
+                      <div className="relative">
+                        <div onClick={() => document.getElementById('letterhead-input-branding')?.click()} className="w-full h-48 rounded-[1.5rem] border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden shadow-inner">
+                           {profile.letterhead_path ? (
+                             <img src={getImageUrl(profile.letterhead_path)} className="h-full object-contain p-4" alt="Letterhead" />
+                           ) : (
+                             <div className="flex flex-col items-center text-slate-300 gap-3">
+                               <Upload size={28} />
+                               <span className="text-[10px] font-black uppercase tracking-widest">PDF ou Image (A4)</span>
+                             </div>
+                           )}
+                        </div>
+                        {profile.letterhead_path && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateProfile({ letterhead_path: null });
+                            }}
+                            className="absolute top-4 right-4 w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-md z-10"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                       <input id="letterhead-input-branding" type="file" className="hidden" accept="image/*,application/pdf" onChange={handleLetterheadUpload} />
                    </div>
@@ -309,56 +323,60 @@ export const BrandingTab: React.FC = () => {
                              />
                            </div>
 
-                           {/* 2. Police de l'en-tête */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police de l'en-tête</span>
-                               <span className="text-sm font-black text-primary">{Math.round((profile.header_font_scale ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.header_font_scale ?? 1.0} 
-                               onChange={(e) => updateProfile({ header_font_scale: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
-                             />
-                           </div>
+                           {!profile.letterhead_path && (
+                             <>
+                               {/* 2. Police de l'en-tête */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police de l'en-tête</span>
+                                   <span className="text-sm font-black text-primary">{Math.round((profile.header_font_scale ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.header_font_scale ?? 1.0} 
+                                   onChange={(e) => updateProfile({ header_font_scale: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                                 />
+                               </div>
 
-                           {/* 3. Taille du logo */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du logo</span>
-                               <span className="text-sm font-black text-primary">{Math.round((profile.header_logo_scale ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.header_logo_scale ?? 1.0} 
-                               onChange={(e) => updateProfile({ header_logo_scale: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
-                             />
-                           </div>
+                               {/* 3. Taille du logo */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du logo</span>
+                                   <span className="text-sm font-black text-primary">{Math.round((profile.header_logo_scale ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.header_logo_scale ?? 1.0} 
+                                   onChange={(e) => updateProfile({ header_logo_scale: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                                 />
+                               </div>
 
-                           {/* 4. Interligne de l'en-tête */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne de l'en-tête</span>
-                               <span className="text-sm font-black text-primary">{Math.round((profile.header_line_height ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.header_line_height ?? 1.0} 
-                               onChange={(e) => updateProfile({ header_line_height: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
-                             />
-                           </div>
+                               {/* 4. Interligne de l'en-tête */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne de l'en-tête</span>
+                                   <span className="text-sm font-black text-primary">{Math.round((profile.header_line_height ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.header_line_height ?? 1.0} 
+                                   onChange={(e) => updateProfile({ header_line_height: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-primary" 
+                                 />
+                               </div>
+                             </>
+                           )}
                          </div>
 
                          {/* Pied de Page Group */}
@@ -384,56 +402,60 @@ export const BrandingTab: React.FC = () => {
                              />
                            </div>
 
-                           {/* 2. Police du pied de page */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police du pied de page</span>
-                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_font_scale ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.footer_font_scale ?? 1.0} 
-                               onChange={(e) => updateProfile({ footer_font_scale: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
-                             />
-                           </div>
+                           {!profile.letterhead_path && (
+                             <>
+                               {/* 2. Police du pied de page */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Police du pied de page</span>
+                                   <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_font_scale ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.footer_font_scale ?? 1.0} 
+                                   onChange={(e) => updateProfile({ footer_font_scale: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                                 />
+                               </div>
 
-                           {/* 3. Taille du QR Code */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du QR Code</span>
-                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_qr_scale ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.footer_qr_scale ?? 1.0} 
-                               onChange={(e) => updateProfile({ footer_qr_scale: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
-                             />
-                           </div>
+                               {/* 3. Taille du QR Code */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taille du QR Code</span>
+                                   <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_qr_scale ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.footer_qr_scale ?? 1.0} 
+                                   onChange={(e) => updateProfile({ footer_qr_scale: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                                 />
+                               </div>
 
-                           {/* 4. Interligne du pied de page */}
-                           <div className="space-y-2">
-                             <div className="flex justify-between items-end">
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne du pied de page</span>
-                               <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_line_height ?? 1.0) * 100)}%</span>
-                             </div>
-                             <input 
-                               type="range" 
-                               min="0.5" 
-                               max="2.0" 
-                               step="0.05" 
-                               value={profile.footer_line_height ?? 1.0} 
-                               onChange={(e) => updateProfile({ footer_line_height: parseFloat(e.target.value) })} 
-                               className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
-                             />
-                           </div>
+                               {/* 4. Interligne du pied de page */}
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interligne du pied de page</span>
+                                   <span className="text-sm font-black text-emerald-600">{Math.round((profile.footer_line_height ?? 1.0) * 100)}%</span>
+                                 </div>
+                                 <input 
+                                   type="range" 
+                                   min="0.5" 
+                                   max="2.0" 
+                                   step="0.05" 
+                                   value={profile.footer_line_height ?? 1.0} 
+                                   onChange={(e) => updateProfile({ footer_line_height: parseFloat(e.target.value) })} 
+                                   className="w-full h-1.5 bg-slate-200/60 rounded-full cursor-pointer accent-emerald-600" 
+                                 />
+                               </div>
+                             </>
+                           )}
                          </div>
                        </div>
                     </div>
@@ -553,24 +575,7 @@ export const BrandingTab: React.FC = () => {
 
       </div>
 
-      {/* Floating real PDF preview toggler */}
-      {!showPdfPreview && (
-        <div className="fixed bottom-8 right-8 z-[15000]">
-          <motion.button
-            whileHover={{ scale: 1.05, y: -4 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setShowPdfPreview(true);
-              fetchSamplePdf();
-            }}
-            className="flex items-center gap-3 px-8 py-5 bg-emerald-600 text-white rounded-full shadow-[0_24px_50px_rgba(16,185,129,0.35)] hover:bg-emerald-500 hover:shadow-[0_24px_50px_rgba(16,185,129,0.55)] transition-all font-black text-xs uppercase tracking-widest ring-4 ring-white/50 border border-emerald-400/40 backdrop-blur-md animate-in fade-in zoom-in-50 duration-300"
-          >
-            <Eye size={18} />
-            Aperçu PDF Réel
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-pulse shadow-[0_0_8px_#10B981]" />
-          </motion.button>
-        </div>
-      )}
+
     </div>
   );
 };

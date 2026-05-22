@@ -269,11 +269,25 @@ class OrdonnanceGenerator:
         )
         elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
-        # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
+        # Utilisation des marges configurées. Si pas de letterhead_path, on force des minimums de sécurité
         m_top_val = self._get_val(config, 'margin_top', 4.8)
         m_bottom_val = self._get_val(config, 'margin_bottom', 4.5)
-        m_top = (max(m_top_val, 4.8) if m_top_val is not None else 4.8) * cm
-        m_bottom = (max(m_bottom_val, 4.5) if m_bottom_val is not None else 4.5) * cm
+        
+        lh_path_str = self._get_val(config, 'letterhead_path')
+        
+        has_letterhead = False
+        if lh_path_str and str(lh_path_str) not in ["null", "None", ""]:
+            import os
+            lh_full_path = os.path.join(self.base_template.base_path, "static", "uploads", str(lh_path_str))
+            if os.path.exists(lh_full_path):
+                has_letterhead = True
+        
+        if has_letterhead:
+            m_top = (m_top_val if m_top_val is not None else 4.8) * cm
+            m_bottom = (m_bottom_val if m_bottom_val is not None else 4.5) * cm
+        else:
+            m_top = (max(m_top_val, 4.8) if m_top_val is not None else 4.8) * cm
+            m_bottom = (max(m_bottom_val, 4.5) if m_bottom_val is not None else 4.5) * cm
 
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,

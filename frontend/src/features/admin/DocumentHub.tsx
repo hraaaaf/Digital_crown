@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
+import { cn } from '../../utils/cn';
 
 // Composants Modulaires
 import { StudioHeader } from './DocumentStudio/StudioHeader';
@@ -357,11 +358,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     generator.handleGenerate // Seule la fonction stable est nécessaire
   ]);
 
+  useEffect(() => {
+    if (activeTab === 'certificat' || activeTab === 'libre') {
+      setSideStudioType('PREVIEW');
+    }
+  }, [activeTab]);
+
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
 
       {/* ESPACE DE TRAVAIL */}
-      <div className="flex-1 h-full flex flex-col px-8 pt-6 pb-2 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-colors duration-500">
+      <div className={cn(
+        "flex-1 h-full flex flex-col px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        sideStudioType === 'PREVIEW' ? "pr-[570px]" : ""
+      )}>
 
         <StudioHeader
           patientName={patientName}
@@ -370,11 +380,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           activeTab={activeTab}
           showOdontoPanoramique={showOdontoPanoramique}
           onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
+          onGenerate={generator.handleGenerate}
+          loading={generator.loading}
+          sideStudioType={sideStudioType}
+          onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
 
         <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <div data-tour="document-hub-content" className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
             <TreatmentPlanStudio 
               patientId={Number(patientId)} 
@@ -471,8 +485,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 setGroupTreatmentPrice('');
               }}
               handleTeethFromOdontogram={handleTeethFromOdontogram}
-              addEmptyRow={() => setItems([...items, { id: Date.now(), description: '', dent: '0', price: 0 }])}
-              removeItem={(id) => setItems(items.filter(i => i.id !== id))}
+              addEmptyRow={() => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }])}
+              removeItem={(id) => setItems((prev: any) => prev.filter((i: any) => i.id !== id))}
               updateItem={(id, f, v) => {
                 const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
                 setItems(newItems);

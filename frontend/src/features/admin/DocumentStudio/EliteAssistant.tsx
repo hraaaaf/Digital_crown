@@ -19,6 +19,7 @@ import { useEliteStore } from '../../../stores/useEliteStore';
 import { HouseWizard } from './HouseWizard';
 import { api } from '../../../services/api';
 import toast from 'react-hot-toast';
+import { PriceBrain } from '../../../components/odontogram/PriceBrain';
 
 export interface Insight {
   id: string;
@@ -89,18 +90,56 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     }
   };
 
-  // Initialize Global Agenda Insight
   useEffect(() => {
     analyzeAgendaDensity();
-    api.get('/intelligence/briefing-j1').then(res => setBriefingData(res.data)).catch(() => {});
+    
+    // --- Algorithmic Daily Briefing ---
+    api.get('/appointments/').then(res => {
+      const appointments = res.data || [];
+      const today = new Date().toISOString().split('T')[0];
+      const todayApts = appointments.filter((apt: any) => apt.datetime_start.startsWith(today));
+      
+      const briefing: BriefingData = {
+        date: new Date().toLocaleDateString('fr-FR'),
+        total_patients: todayApts.length,
+        total_outstanding: todayApts.reduce((sum: number, apt: any) => sum + (apt.patient?.solde || 0), 0),
+        patients: todayApts.map((apt: any) => ({
+          patient_id: apt.patient_id,
+          nom: apt.patient?.nom || 'Patient',
+          prenom: apt.patient?.prenom || '',
+          appointment_time: new Date(apt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          solde_attente: apt.patient?.solde || 0
+        })).sort((a: any, b: any) => b.solde_attente - a.solde_attente)
+      };
+      setBriefingData(briefing);
+    }).catch(() => {});
   }, [analyzeAgendaDensity]);
 
-  // D4 — Ordonnance anticipée : fetch quand un patient est sélectionné
+  // --- Algorithmic Upcoming Prescription ---
   useEffect(() => {
     if (!lastPatientId) { setUpcomingPrescription(null); return; }
-    api.get(`/intelligence/patient/${lastPatientId}/upcoming-prescription`)
-      .then(res => setUpcomingPrescription(res.data.upcoming))
-      .catch(() => setUpcomingPrescription(null));
+    
+    api.get(`/appointments/`).then(res => {
+      const appointments = res.data || [];
+      const now = new Date();
+      // Find next appointment for this patient
+      const nextApt = appointments.find((apt: any) => 
+        apt.patient_id === lastPatientId && new Date(apt.datetime_start) > now
+      );
+
+      if (nextApt && nextApt.motif && (nextApt.motif.toLowerCase().includes('extraction') || nextApt.motif.toLowerCase().includes('implant'))) {
+        const aptDate = new Date(nextApt.datetime_start);
+        const diffDays = Math.ceil((aptDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+        setUpcomingPrescription({
+          appointment_date: aptDate.toLocaleDateString('fr-FR'),
+          motif: nextApt.motif,
+          days_until: diffDays,
+          prescription_suggestion: {}
+        });
+      } else {
+        setUpcomingPrescription(null);
+      }
+    }).catch(() => setUpcomingPrescription(null));
   }, [lastPatientId]);
 
   const currentInsight = insights[activeInsightIndex];
@@ -155,30 +194,24 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <Zap size={12} className="text-amber-500" />
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Actes Maîtrisés</span>
+                    <div className="space-y-1.5">
+                      <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <Zap size={12} className="text-amber-500" />
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Actes Maîtrisés</span>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-900 dark:text-white">
+                          {Object.keys(PriceBrain.getHistory()).length}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-900 dark:text-white">12</span>
-                    </div>
                     <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Sparkles size={12} className="text-primary" />
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Protocoles</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Protocoles & Règles</span>
                       </div>
-                      {isLoading ? (
-                        <span className="text-[6px] font-black animate-pulse opacity-50">MISE À JOUR...</span>
-                      ) : isStale ? (
-                        <span className="text-[6px] font-black text-amber-500 flex items-center gap-1">
-                          <AlertCircle size={8} /> DONNÉES ANCIENNES
-                        </span>
-                      ) : (
-                        <span className="text-[6px] font-black text-emerald-500 opacity-50 flex items-center gap-1">
-                          <ShieldCheck size={8} /> TEMPS RÉEL
-                        </span>
-                      )}
+                      <span className="text-[10px] font-black text-emerald-500 flex items-center gap-1">
+                        <ShieldCheck size={10} /> 14 Actifs
+                      </span>
                     </div>
                   </div>
 

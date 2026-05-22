@@ -47,19 +47,15 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
   const certifTypes = [
     { id: 'Repos Post-Opératoire', label: 'Repos Post-Op', icon: <Clock size={14} /> },
-    { id: 'Suite d\'Intervention', label: 'Suite d\'Acte', icon: <CheckCircle2 size={14} /> },
     { id: 'Certificat de Présence', label: 'Présence (Soin)', icon: <CheckCircle2 size={14} /> },
-    { id: 'Certificat d\'aptitude', label: 'Aptitude / Sport', icon: <CheckCircle2 size={14} /> },
-    { id: 'Certificat de Reprise', label: 'Reprise Travail', icon: <CheckCircle2 size={14} /> },
-    { id: 'Contre-indication', label: 'Contre-Indication', icon: <AlertCircle size={14} /> },
     { id: 'Autre', label: 'Autre motif', icon: <Edit3 size={14} /> },
   ];
 
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl mx-auto py-8">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl w-full mx-auto py-8">
       <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
 
         <div className="relative z-10 space-y-10">
           {/* TYPE DE CERTIFICAT */}
@@ -98,12 +94,8 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     {type.label}
                   </button>
                   <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4">
-                    {type.id === 'Repos Post-Opératoire' && "Génère un arrêt de travail"}
-                    {type.id === 'Suite d\'Intervention' && "Génère un certificat de soins"}
-                    {type.id === 'Certificat de Présence' && "Génère un justificatif horaire"}
-                    {type.id === 'Certificat d\'aptitude' && "Génère un certificat médical"}
-                    {type.id === 'Certificat de Reprise' && "Génère un avis de reprise"}
-                    {type.id === 'Contre-indication' && "Génère une inaptitude tempo."}
+                    {type.id === 'Repos Post-Opératoire' && "Génère un arrêt de travail / repos"}
+                    {type.id === 'Certificat de Présence' && "Génère un justificatif de présence"}
                     {type.id === 'Autre' && "Saisie libre du motif"}
                   </span>
                 </div>

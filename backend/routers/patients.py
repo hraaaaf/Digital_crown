@@ -340,6 +340,13 @@ def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.ge
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
 
+@router.get("/{patient_id}/cmo-synthesis")
+def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    """Agent Multimodal — Chief Medical Officer (Synthèse Pano + Cephalo)."""
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services.cmo_agent_service import cmo_agent
+    return cmo_agent.generate_global_synthesis(db, patient_id)
+
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
