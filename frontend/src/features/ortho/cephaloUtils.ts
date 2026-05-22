@@ -223,9 +223,9 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   const po = g('po'); const or_ = g('or'); const n = g('n');
   const a = g('a'); const b = g('b'); const s = g('s');
   const go = g('go'); const me = g('me');
-  const sn = g('sn'); const prn = g('prn') || g('nose_tip');
-  const cm = g('cm'); const ls = g('ls') || g('ul');
-  const li = g('li') || g('ll'); const pogSoft = g('pog_soft') || g('stpog');
+  const sn = g('sn_soft') || g('sn'); const prn = g('prn') || g('nose_tip');
+  const cm = g('cm'); const ls = g('ls_soft') || g('ls') || g('ul');
+  const li = g('li_soft') || g('li') || g('ll'); const pogSoft = g('pog_soft') || g('stpog');
   const u1i = g('u1_incisal') || g('u1i');
   const u1a = g('u1_apex') || g('u1a');
   const l1i = g('l1_incisal') || g('l1i');
@@ -428,104 +428,107 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
 
 
 /**
- * Génère un plan de traitement suggéré basé sur les données diagnostiques.
+ * Génère un plan de traitement orthodontique contemporain (Damon / Invisalign)
  */
 export function generateTreatmentPlan(data: DonneesEtape3): string {
-  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade, preference_technique } = data;
+  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade } = data;
   const anb = data.osseuse.anb === '' ? 0 : Number(data.osseuse.anb);
   const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
   const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
+  const fma = data.osseuse.angle_tweed === '' ? 25 : Number(data.osseuse.angle_tweed);
   
   let plan = '';
+  const isChild = cvm && ['CS1', 'CS2', 'CS3', 'CS4'].includes(cvm);
   
-  // Vérification extraction obligatoire
-  if (ddmSev === 'sévère' || impa > 100 || ifranc > 120) {
-    plan += '• INDICATION EXTRACTION : ';
-    if (ddmSev === 'sévère') plan += 'DDM sévère (<-6mm). ';
-    if (impa > 100) plan += 'IMPA > 100° (risque parodontal). ';
-    if (ifranc > 120) plan += 'I/F > 120° (biproalvéolie). ';
-    plan += '\n\n';
+  // 1. DÉCISION D'EXTRACTION (Logique Scientifique Moderne)
+  // En méthode Damon, on extrait très rarement. Seulement si biprotrusion sévère ou IMPA critique.
+  let indicateExtraction = false;
+  if (ddmSev === 'sévère' && impa > 95) indicateExtraction = true;
+  if (ifranc > 120 && impa > 100) indicateExtraction = true; // Biproalvéolie vraie
+  
+  if (indicateExtraction) {
+    plan += '🔴 **INDICATIONS EXTRACTIONNELLES**\n';
+    plan += '• DDM sévère avec protrusion (IMPA > 95° / I/F > 120°).\n';
+    if (pattern === 'hyperdivergent') {
+      plan += '⚠ Attention : Face longue (Tweed > 30°). L\'extraction peut fermer l\'axe charnière. Contrôle vertical strict requis.\n';
+    }
+    plan += '\n';
+  } else {
+    plan += '🟢 **PROTOCOLE NON-EXTRACTIONNEL (BONE ADAPTATION)**\n';
+    if (ddmSev === 'modéré' || ddmSev === 'sévère') {
+      plan += '• Résolution de l\'encombrement par expansion transversale et pro-inclinaison contrôlée.\n';
+    }
+    plan += '\n';
   }
+
+  // 2. CHOIX TECHNOLOGIQUE (Damon vs Invisalign)
+  plan += '⚙️ **CHOIX DU DISPOSITIF & BIOMÉCANIQUE**\n';
   
-  // Contre-indication extraction mandibulaire
-  if (pattern === 'hyperdivergent') {
-    plan += '⚠ CONTRE-INDICATION : Extraction mandibulaire interdite (Tweed >30° risque béance).\n\n';
-  }
-  
-  // Arbre décisionnel principal
-  if (cvm && ['CS1', 'CS2', 'CS3', 'CS4'].includes(cvm)) {
-    plan += '**PATIENT EN CROISSANCE** (CVM ' + cvm + ')\n\n';
+  if (indicateExtraction) {
+    plan += '• **Option A : Méthode Classique (Ligatures actives)**\n';
+    plan += '  - Recommandée pour le contrôle rigoureux du torque radiculaire (rétraction incisive).\n';
+    plan += '  - Arcs acier forte section pour mécanique de glissement.\n';
+    plan += '• **Option B : Invisalign (Cas Complexe)**\n';
+    plan += '  - Taquets d\'ancrage maximum (G6) pour rétraction en masse.\n';
+  } else {
+    plan += '• **Option A : Méthode Damon Passive (Gold Standard)**\n';
+    plan += '  - Forces légères, auto-ligaturant passif (sans friction).\n';
+    plan += '  - Privilégie l\'expansion alvéolaire (arcs CuNiTi larges) pour corriger la DDM.\n';
+    if (type_arcade === 'V') plan += '  - Particulièrement efficace sur cette arcade en V.\n';
     
-    if (classe?.includes('Classe I')) {
-      if (ddmSev === 'léger' || !ddmSev) {
-        plan += '• Protocole : Sans extraction\n';
-        plan += '• Expansion transversale (ERM) si arcade en V\n';
-        plan += '• Appareil fixe multi-attache\n';
-      } else if (ddmSev === 'modéré') {
-        plan += '• Protocole : Borderline - évaluer profil\n';
-        plan += '• Si profil convexe → Extraction PM4 sup.\n';
-        plan += '• Si profil droit → Essai sans extraction\n';
-      }
-    } else if (classe?.includes('Classe II')) {
-      if (division === '1') {
-        plan += '• Division 1 : Appareil fonctionnel de choix (Herbst ou Twin Block)\n';
-        plan += '• Timing optimal : CS3-CS4 (pic de croissance)\n';
-        if (type_arcade === 'V') plan += '• Arcade en V : ERM simultanée pour expansion\n';
-        plan += '• Préserver arcades (pas d\'extraction avant fin du pic)\n';
-        if (impa > 100) plan += '• Surveiller IMPA, ne pas corriger incisives avant fonctionnel\n';
-      } else if (division === '2') {
-        plan += '• Division 2 :\n';
-        plan += '  - Phase 1 : Dérétroclinaison incisives sup. (arcs acier)\n';
-        plan += '  - Phase 2 : Appareil fonctionnel ou fixe selon DDM\n';
-        if (pattern === 'hypodivergent') plan += '• FMA bas : Surveiller DV (ne pas ouvrir)\n';
-      }
-    } else if (classe?.includes('Classe III')) {
-      if (cvm !== 'CS4') {
-        plan += '• Masque facial (Delaire) + ERM\n';
-        plan += '• Protocole : 350-500g/côté, 14-16h/jour\n';
-        plan += '• Efficacité maximale avant CS4\n';
+    plan += '• **Option B : Aligneurs (Invisalign)**\n';
+    plan += '  - Expansion séquentielle programmée via ClinCheck.\n';
+    if (ddmSev === 'modéré') plan += '  - IPR (Stripping) localisé si nécessaire pour éviter la vestibulo-version.\n';
+  }
+  plan += '\n';
+
+  // 3. GESTION SQUELETTIQUE & OCCLUSALE
+  plan += '🦴 **STRATÉGIE SQUELETTIQUE (' + (isChild ? 'En Croissance' : 'Adulte') + ')**\n';
+  
+  if (classe?.includes('Classe I')) {
+    plan += '• Maintien de la Classe I bilatérale.\n';
+    plan += '• Focus sur l\'alignement et le nivellement.\n';
+  } 
+  else if (classe?.includes('Classe II')) {
+    if (isChild) {
+      plan += '• Croissance active : Thérapeutique fonctionnelle interceptive.\n';
+      plan += '• **Invisalign MA (Mandibular Advancement)** ou bielles (Herbst) en conjonction avec Damon.\n';
+      if (division === '2') plan += '• Division 2 : Dérétroclinaison préalable du bloc incisif maxillaire requise.\n';
+    } else {
+      if (anb > 8) {
+        plan += '• Classe II chirurgicale : Préparation orthodontique pour avancée mandibulaire (BSSO).\n';
+        plan += '• NE PAS compenser (camoufler) les incisives si chirurgie prévue.\n';
       } else {
-        plan += '• CS4+ : Efficacité diminuée, camouflage si ANB >-4°\n';
+        plan += '• Camouflage : Élastiques de Classe II lourds ou recul maxillaire (Mini-vis / IPR supérieur).\n';
+        plan += '• Surveillance de l\'IMPA (actuel: ' + impa + '°) lors du port des élastiques.\n';
       }
     }
-  } else if (cvm) {
-    plan += '**PATIENT ADULTE** (CVM ' + cvm + ')\n\n';
-    
-    if (classe?.includes('Classe II')) {
-      if (anb > 9) {
-        plan += '• ANB > 9° : CHIRURGIE ORTHOGNATHIQUE INDIQUÉE\n';
-        plan += '• Advancement mandibulaire (BSSO) ± LeFort I\n';
-        plan += '• Ortho pré-chirurgicale : décompensation (pas de camouflage)\n';
-      } else if (anb >= 4 && anb <= 7) {
-        plan += '• Camouflage orthodontique possible\n';
-        if (ddmSev === 'sévère') plan += '• Extraction PM4 supérieures + rétraction\n';
-        else plan += '• Distalisation assistée par TADs (sans extraction si profil acceptable)\n';
+  } 
+  else if (classe?.includes('Classe III')) {
+    if (isChild && cvm !== 'CS4') {
+      plan += '• Interception : Masque facial (Delaire) + Disjoncteur (ERM) précoce.\n';
+    } else {
+      if (anb < -4) {
+        plan += '• Classe III chirurgicale (Ostéotomie bimaxillaire ou recul mandibulaire).\n';
+      } else {
+        plan += '• Camouflage : Élastiques de Classe III.\n';
+        plan += '• Rétroclinaison incisive mandibulaire (Damon avec torque bas en bas) + IPR inférieur.\n';
       }
-    } else if (classe?.includes('Classe III')) {
-      if (anb < -4) plan += '• ANB <-4° : Chirurgie bi-maxillaire\n';
-      else plan += '• Camouflage : Extractions inférieures + proclinaison sup.\n';
-    } else if (classe?.includes('Classe I') && ddmSev === 'sévère') {
-      plan += '• Classe I avec DDM sévère : Extraction 4 prémolaires\n';
-      plan += '• Mécanique de fermeture avec TADs ancrage\n';
-    } else if (classe?.includes('Classe I')) {
-      plan += '• Classe I : Alignement et nivellement standard\n';
     }
   }
 
-  plan += '\n**TECHNIQUE & BIOMÉCANIQUE**\n';
-  if (preference_technique === 'DAMON') {
-    plan += '• Dispositif : Système auto-ligaturant actif/passif (Damon)\n';
-    plan += '• Biomécanique : Forces légères continues, expansion alvéolaire favorisée\n';
-    plan += '• Avantage : Séquence d\'arcs simplifiée, diminution potentielle du besoin d\'extractions\n';
-  } else if (preference_technique === 'ALIGNEURS') {
-    plan += '• Dispositif : Aligneurs transparents (Invisalign / Spark / ClearCorrect)\n';
-    plan += '• Biomécanique : Distalisation séquentielle, IPR (Stripping) planifié par ClinCheck\n';
-    plan += '• Avantage : Esthétique optimale, contrôle vertical accru, hygiène facilitée\n';
-  } else {
-    plan += '• Dispositif : Multi-attaches Classique (Twin brackets)\n';
-    plan += '• Biomécanique : Séquence d\'arcs NiTi puis Acier, ligatures élastomériques ou métalliques\n';
+  // 4. GESTION VERTICALE
+  if (pattern === 'hyperdivergent' || fma > 30) {
+    plan += '\n📏 **CONTRÔLE VERTICAL STRICT**\n';
+    plan += '• Tendance face longue (Tweed: ' + fma + '°).\n';
+    plan += '• Éviter les forces extrusives. Caller les secteurs postérieurs.\n';
+    plan += '• Invisalign est un excellent choix car l\'épaisseur des gouttières offre une légère ingression molaire (effet bite-block).\n';
+  } else if (pattern === 'hypodivergent' || fma < 20) {
+    plan += '\n📏 **ESTHÉTIQUE VERTICALE**\n';
+    plan += '• Face courte. Autorisation des mécaniques d\'extrusion postérieures (nivellement courbe de Spee).\n';
+    plan += '• Les élastiques verticaux sont favorables.\n';
   }
-  
+
   return plan;
 }
 

@@ -274,7 +274,7 @@ class CephaloEngine:
         # Angle Nasolabial (Prn-Sn-Ls)
         prn = pts.get("Prn")
         sn_soft = pts.get("Sn_soft") or pts.get("Sn")
-        ls_soft = pts.get("Ls")
+        ls_soft = pts.get("Ls_soft") or pts.get("Ls")
         if prn and sn_soft and ls_soft:
             # Angle entre segment Sn-Prn et Sn-Ls
             nla = self._get_clinical_angle(sn_soft, prn, sn_soft, ls_soft, invert=True)
@@ -413,6 +413,15 @@ class CephaloEngine:
         val_inter = val_inter if val_inter is not None else 131.0
         val_surplomb = val_surplomb if val_surplomb is not None else 2.25
         val_recouvrement = val_recouvrement if val_recouvrement is not None else 2.25
+        
+        # Extraction Esthétique
+        val_e_ls = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Ls", {}).get("valeur", 0.0)
+        val_e_li = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Li", {}).get("valeur", 0.0)
+        val_nla = payload["metrics"].get("analyse_esthetique", {}).get("Angle_Nasolabial", {}).get("valeur", 102.0)
+        
+        val_e_ls = val_e_ls if val_e_ls is not None else 0.0
+        val_e_li = val_e_li if val_e_li is not None else 0.0
+        val_nla = val_nla if val_nla is not None else 102.0
 
         # --- LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
         mean_ab, dev_ab = norm_dec_ab
@@ -468,10 +477,21 @@ class CephaloEngine:
 
         diag_dentaire = f"Secteur incisif : {impa_diag} (IMPA : {val_impa}°) et {if_diag} (I/F : {val_if}°). Angle inter-incisif à {val_inter}°. Surplomb {overjet} ({val_surplomb} mm) et {overbite} ({val_recouvrement} mm)."
 
+        # 3. DIAGNOSTIC ESTHÉTIQUE
+        profil_cutane = "droit"
+        if val_e_ls > 2.0: profil_cutane = "convexe (Lèvre supérieure protrusive)"
+        elif val_e_ls < -4.0: profil_cutane = "concave (Lèvre supérieure en retrait)"
+        
+        nla_diag = "normal"
+        if val_nla > 110: nla_diag = "ouvert (Nez relevé)"
+        elif val_nla < 90: nla_diag = "fermé (Nez tombant)"
+        
+        diag_esthetique = f"Profil {profil_cutane} selon la ligne E de Ricketts. Angle nasolabial {nla_diag} ({val_nla}°)."
+
         # --- SYNTHÈSE GHOST ELITE (4 SECTIONS) ---
         
-        # Section 1: Analyse Céphalométrique COM (Squelettique + Dentaire)
-        analyse_cephalo_com = f"ANALYSE SQUELETTIQUE : {diag_squelettique}\n\nANALYSE DENTAIRE : {diag_dentaire}"
+        # Section 1: Analyse Céphalométrique COM (Squelettique + Dentaire + Esthétique)
+        analyse_cephalo_com = f"ANALYSE SQUELETTIQUE : {diag_squelettique}\n\nANALYSE DENTAIRE : {diag_dentaire}\n\nANALYSE ESTHÉTIQUE : {diag_esthetique}"
         
         # Section 2: Analyse des Moulages (Initialisation - sera complétée par le clinicien)
         analyse_moulages = "Occlusion à préciser (Classe d'Angle, Subdivision, Forme d'arcade)."
@@ -491,34 +511,32 @@ class CephaloEngine:
         is_child = age is not None and age <= 12
         strategie_parts = []
         
-        # 4.1. Approche Fondamentale (ODF vs Ortho)
+        # 4.1. Approche Fondamentale
         if is_child:
-            strategie_parts.append("PHASE 1 : ORTHOPÉDIE DENTO-FACIALE (ODF). Priorité à la correction squelettique (Expansion/Propulsion) avant la fin de la croissance.")
+            strategie_parts.append("PHASE 1 : ORTHOPÉDIE DENTO-FACIALE (ODF) interceptive.")
         else:
-            strategie_parts.append("PHASE GLOBALE : ORTHODONTIE MULTI-ATTACHES. Correction occlusale et alignement de précision.")
+            strategie_parts.append("PHASE GLOBALE : Orthodontie fixe ou aligneurs.")
             
-        # 4.2. Choix Technologique (Passive vs Aligneurs)
-        if val_dec_ab > 4 or val_surplomb > 5:
-            strategie_parts.append("MÉTHODE : Orthodontie Passive (Système Damon). Utilisation de forces légères pour une expansion alvéolaire physiologique.")
-            # Sélection Torque (Brackets)
-            torque_plan = "Torque sélectif : "
-            if val_if < 100: torque_plan += "High Torque (RED) sur U1 pour compenser l'inclinaison. "
-            elif val_if > 115: torque_plan += "Low Torque (GREEN/YELLOW) sur U1. "
-            else: torque_plan += "Standard Torque (BLUE). "
-            strategie_parts.append(torque_plan)
+        # 4.2. Choix Technologique & Damon Protocol
+        if val_surplomb > 5 or val_impa > 100:
+            strategie_parts.append("MÉTHODE : Méthode Classique / Damon Active si rétraction incisive nécessaire.")
         else:
-            strategie_parts.append("OPTION : Traitement par aligneurs (Invisalign) envisageable pour une approche esthétique et amovible.")
+            strategie_parts.append("MÉTHODE : Système Damon Passif (Gold Standard). Forces légères, auto-ligaturant sans friction pour expansion alvéolaire (Bone Adaptation).")
+            
+        strategie_parts.append("OPTION ALTERNATIVE : Aligneurs transparents (Invisalign) avec planification ClinCheck.")
 
-        # 4.3. Spécificités Cliniques
+        # 4.3. Spécificités Squelettiques
         if class_sq == "Classe II":
-            if is_child: strategie_parts.append("Action : Propulsion mandibulaire (Activateur ou Bielles).")
-            else: strategie_parts.append("Action : Correction de la Classe II par élastiques inter-maxillaires ou Distalisation maxillaire.")
+            if is_child: strategie_parts.append("Classe II : Propulsion mandibulaire par Invisalign MA ou Twin Block.")
+            else: strategie_parts.append("Classe II : Camouflage avec élastiques de Classe II ou recul maxillaire (Mini-vis/TADs).")
         elif class_sq == "Classe III":
-            if is_child: strategie_parts.append("Action : Masque de Delaire ou Disjoncteur à appui squelettique.")
-            else: strategie_parts.append("Action : Compensation dentaire ou Chirurgie Orthognathique (selon sévérité).")
+            if is_child: strategie_parts.append("Classe III : Masque de Delaire (Traction extra-orale) + ERM précoce.")
+            else: strategie_parts.append("Classe III : Traitement chirurgico-orthodontique si sévère (Ostéotomie) ou compensation dentaire.")
 
         if div == "hyperdivergent":
-            strategie_parts.append("Vigilance : Contrôle vertical strict. Éviter toute extrusion molaire (Ancrage par mini-vis à évaluer).")
+            strategie_parts.append("Vertical : Profil hyperdivergent. Contrôle vertical très strict requis (éviter toute extrusion postérieure, caller les secteurs postérieurs, Invisalign recommandé pour l'effet bite-block).")
+        elif div == "hypodivergent":
+            strategie_parts.append("Vertical : Profil hypodivergent. Autorisation de nivellement de la courbe de Spee par extrusion postérieure.")
 
         strategie = "\n".join(strategie_parts)
 
