@@ -14,6 +14,7 @@ export interface Appointment {
   duration_minutes: number;
   motif?: string | null;
   status: AppointmentStatus;
+  scheduling_type?: 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
   notes?: string | null;
 }
 
@@ -136,6 +137,9 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
     return Math.max(1, Math.ceil(minutes / 15));
   };
 
+  const exactAppointments = appointments.filter(a => !a.scheduling_type || a.scheduling_type === 'EXACT_TIME');
+  const flexAppointments = appointments.filter(a => a.scheduling_type && a.scheduling_type !== 'EXACT_TIME');
+
   return (
     <div className="w-full space-y-6">
       
@@ -155,6 +159,50 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
       {/* CSS GRID AGENDA */}
       <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
+        {/* FLEXIBLE APPOINTMENTS HEADER */}
+        {flexAppointments.length > 0 && (
+          <div className="border-b border-slate-100 bg-slate-50/50 p-4">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <Calendar size={14} /> Planification Flexible
+            </h3>
+            <div className="flex flex-col gap-2">
+              {flexAppointments.map(appt => {
+                const labels: Record<string, string> = {
+                  'MORNING': 'Matin',
+                  'AFTERNOON': 'Après-Midi',
+                  'FULL_DAY': 'Toute la journée'
+                };
+                const typeLabel = labels[appt.scheduling_type as string] || '';
+                return (
+                  <div
+                    key={appt.id}
+                    onClick={(e) => handleEditClick(e, appt)}
+                    className={cn(
+                      "p-3 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all flex justify-between items-center hover:scale-[1.01]",
+                      getStatusColor(appt.status)
+                    )}
+                    style={{ borderLeftColor: 'currentColor' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md">
+                        {typeLabel}
+                      </span>
+                      <span className="font-black text-sm">
+                        {appt.patient_name || `Patient #${appt.patient_id}`}
+                      </span>
+                      {appt.motif && <span className="text-xs opacity-90">— {appt.motif}</span>}
+                    </div>
+                    <div className="flex items-center gap-1.5 opacity-80">
+                      <div className={cn("w-2 h-2 rounded-full", getStatusBadgeColor(appt.status))}></div>
+                      <span className="text-[10px] font-bold tracking-widest capitalize">{appt.status.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {loading && appointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-primary/60">
             <Loader2 className="animate-spin mb-4 text-primary" size={40} />
@@ -197,7 +245,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
               )}
 
               {/* Rendu des Rendez-vous - On utilise `top` et `height` absolus */}
-              {appointments.map((appt) => {
+              {exactAppointments.map((appt) => {
                 const rowStart = getSlotRow(appt.datetime_start);
                 const span = getDurationSpan(appt.duration_minutes);
                 

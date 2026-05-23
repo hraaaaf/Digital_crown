@@ -124,6 +124,38 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
           ))}
         </div>
 
+        {/* SECTION FLEXIBLE / ALL DAY */}
+        <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50/30">
+          <div className="p-2 border-r border-slate-100 flex items-center justify-center">
+             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Flexible</span>
+          </div>
+          {weekDays.map((date, dayIdx) => {
+            const flexAppts = appointments.filter(a => 
+              new Date(a.datetime_start).toDateString() === date.toDateString() && 
+              a.scheduling_type && a.scheduling_type !== 'EXACT_TIME'
+            );
+            return (
+              <div key={dayIdx} className="border-r border-slate-100 last:border-0 p-1 min-h-[40px] flex flex-col gap-1">
+                {flexAppts.map(appt => (
+                  <div
+                    key={appt.id}
+                    onClick={(e) => { e.stopPropagation(); setEditingAppointment(appt); setIsModalOpen(true); }}
+                    className={cn(
+                      "appointment-item p-1 rounded border-l-2 text-[9px] font-bold shadow-sm cursor-pointer break-words hover:scale-[1.02]",
+                      getStatusColor(appt.status)
+                    )}
+                  >
+                    <span className="opacity-75 uppercase tracking-tighter text-[8px] block mb-0.5">
+                      {appt.scheduling_type === 'FULL_DAY' ? 'JOUR.' : appt.scheduling_type === 'MORNING' ? 'MATIN' : 'APREM'}
+                    </span>
+                    {appt.patient_name || 'Patient'}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
         <div className="overflow-y-auto relative" style={{ height: '600px' }}>
           <div className="grid grid-cols-8">
             {/* Heures */}
@@ -148,8 +180,11 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
                   <div key={i} className="h-20 border-b border-slate-100/50"></div>
                 ))}
                 
-                {/* Rendu des rendez-vous pour ce jour */}
-                {appointments.filter(appt => new Date(appt.datetime_start).toDateString() === date.toDateString()).map(appt => {
+                {/* Rendu des rendez-vous exacts pour ce jour */}
+                {appointments.filter(appt => 
+                  new Date(appt.datetime_start).toDateString() === date.toDateString() &&
+                  (!appt.scheduling_type || appt.scheduling_type === 'EXACT_TIME')
+                ).map(appt => {
                   const d = new Date(appt.datetime_start);
                   const h = d.getHours();
                   const m = d.getMinutes();

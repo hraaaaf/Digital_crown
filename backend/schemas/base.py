@@ -29,6 +29,13 @@ class AppointmentStatus(str, Enum):
     ANNULE = "ANNULÉ"
 
 
+class SchedulingType(str, Enum):
+    EXACT_TIME = "EXACT_TIME"
+    MORNING = "MORNING"
+    AFTERNOON = "AFTERNOON"
+    FULL_DAY = "FULL_DAY"
+
+
 class DocumentType(str, Enum):
     RAPPORT_CEPHALO = "RAPPORT_CEPHALO"
     ORDONNANCE = "ORDONNANCE"

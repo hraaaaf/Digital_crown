@@ -53,8 +53,8 @@ class TestHonorairesArchive:
         
         # 5. Tenter de régénérer le même document sans forcer -> Doit lever un conflit DOUBLE_DETECTED
         resp_conflict = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
-        assert resp_conflict.status_code == 500
-        assert "DOUBLE_DETECTED" in resp_conflict.json()["detail"]
+        assert resp_conflict.status_code == 409
+        assert resp_conflict.json()["detail"]["code"] == "DOUBLE_DETECTED"
         
         # 6. Régénérer en passant force=True -> Doit réussir
         resp_forced = client.post("/api/documents/generate?force=true", json=req_data, headers=auth_headers)

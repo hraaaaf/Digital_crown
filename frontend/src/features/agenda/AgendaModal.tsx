@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import type { AppointmentStatus } from './DailyView';
 import { cn } from '../../utils/cn';
+export type SchedulingType = 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
+
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
 import { useEliteStore } from '../../stores/useEliteStore';
@@ -47,6 +49,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [time, setTime] = useState(initialTime || '09:00');
   const [duration, setDuration] = useState(30);
   const [status, setStatus] = useState<AppointmentStatus>('PRÉVU');
+  const [schedulingType, setSchedulingType] = useState<SchedulingType>('EXACT_TIME');
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
   const [smartIntel, setSmartIntel] = useState<any>(null);
@@ -85,6 +88,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setActSearch('');
         setSelectedPatient(null);
         setStatus('PRÉVU');
+        setSchedulingType('EXACT_TIME');
       }
     }
   }, [isOpen, editingAppointment, initialTime, selectedDate]);
@@ -244,7 +248,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         motif: selectedAct ? selectedAct.name : (motif || actSearch),
         datetime_start: startDateTime.toISOString(),
         duration_minutes: duration,
-        status: status
+        status: status,
+        scheduling_type: schedulingType
       };
 
       if (editingAppointment) {
@@ -264,6 +269,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setTime('09:00');
       setDuration(30);
       setStatus('PRÉVU');
+      setSchedulingType('EXACT_TIME');
     } catch (err) {
       console.error("Erreur saving appt", err);
       toast.error("Erreur lors de la sauvegarde du rendez-vous.");
@@ -515,37 +521,66 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                   />
                 </div>
               </div>
-              
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
-                <div className="relative">
-                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input 
-                    type="time" 
-                    required
-                    value={time}
-                    onChange={e => setTime(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                  />
-                </div>
-              </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
-              <select 
-                value={duration} 
-                onChange={e => setDuration(Number(e.target.value))}
-                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
-              >
-                <option value={15}>15 min (Contrôle)</option>
-                <option value={30}>30 min (Standard)</option>
-                <option value={45}>45 min</option>
-                <option value={60}>1 heure (Soin long)</option>
-                <option value={90}>1h30 (Chirurgie)</option>
-                <option value={120}>2 heures</option>
-              </select>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Type de Planification</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {(['EXACT_TIME', 'MORNING', 'AFTERNOON', 'FULL_DAY'] as SchedulingType[]).map(t => {
+                  const labels: Record<string, string> = {
+                    'EXACT_TIME': '🕒 Heure Précise', 'MORNING': '🌅 Matin', 'AFTERNOON': '🌆 Après-Midi', 'FULL_DAY': '📅 Toute la journée'
+                  };
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setSchedulingType(t)}
+                      className={cn(
+                        "py-3 px-2 rounded-xl text-[10px] font-black tracking-tight transition-all border flex items-center justify-center gap-1.5",
+                        schedulingType === t
+                          ? "bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/20"
+                          : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      )}
+                    >
+                      {labels[t]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {schedulingType === 'EXACT_TIME' && (
+              <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      type="time" 
+                      required
+                      value={time}
+                      onChange={e => setTime(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
+                  <select 
+                    value={duration} 
+                    onChange={e => setDuration(Number(e.target.value))}
+                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
+                  >
+                    <option value={15}>15 min (Contrôle)</option>
+                    <option value={30}>30 min (Standard)</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>1 heure (Soin long)</option>
+                    <option value={90}>1h30 (Chirurgie)</option>
+                    <option value={120}>2 heures</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
 
             <div>

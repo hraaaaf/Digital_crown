@@ -42,6 +42,12 @@ class AppointmentStatus(str, enum.Enum):
     TERMINE = "TERMINÉ"
     ANNULE = "ANNULÉ"
  
+class SchedulingType(str, enum.Enum):
+    EXACT_TIME = "EXACT_TIME"
+    MORNING = "MORNING"
+    AFTERNOON = "AFTERNOON"
+    FULL_DAY = "FULL_DAY"
+
 class CabinetType(str, enum.Enum):
     PRIVE = "PRIVE"
     CLINIQUE = "CLINIQUE"
@@ -156,6 +162,7 @@ class Appointment(Base):
     
     motif: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
+    scheduling_type: Mapped[SchedulingType] = mapped_column(SQLEnum(SchedulingType), default=SchedulingType.EXACT_TIME)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Suivi des rappels automatisés (Twilio/WhatsMate)

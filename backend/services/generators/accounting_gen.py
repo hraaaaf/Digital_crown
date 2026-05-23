@@ -358,10 +358,10 @@ class AccountingGenerator:
         )
         
         cloture_nbsp = cloture.replace(' ', '\u00A0')
-        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 12.8*cm, min_fs=6.0)
+        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 11.5*cm, min_fs=6.0)
         
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(cloture_nbsp, adaptive_cloture))
+        from backend.services.base_template import PinnedCloture
+        elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
         
         highlighted_teeth = []
         for p in data.payments:
@@ -481,10 +481,10 @@ class AccountingGenerator:
         )
         
         cloture_nbsp = cloture.replace(' ', '\u00A0')
-        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 12.8*cm, min_fs=6.0)
+        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 11.5*cm, min_fs=6.0)
         
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(cloture_nbsp, adaptive_cloture))
+        from backend.services.base_template import PinnedCloture
+        elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
 
         highlighted_teeth = []
         for item in data.items:

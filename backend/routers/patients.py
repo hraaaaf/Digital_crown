@@ -275,11 +275,19 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
-    static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    from backend.core.paths import AppPaths
+    MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     results = []
     for doc in docs:
         rel_path = doc.file_path.split('static/')[-1]
-        abs_path = os.path.join(static_root, rel_path)
+        
+        if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+            abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
+        else:
+            abs_path = os.path.join(BASE_DIR, doc.file_path)
+            
         results.append({
             "id": str(doc.id), "name": doc.original_filename, "type": doc.document_type.value,
             "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
@@ -288,7 +296,7 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         })
         
     # 2. Legacy
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    static_dir = os.path.join(BASE_DIR, "static")
     p_folder = f"{patient.id}_{patient.nom.upper()}_{patient.prenom.capitalize()}"
     legacy_dir = os.path.join(static_dir, "patients", p_folder, "Documents")
     

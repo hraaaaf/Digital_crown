@@ -97,6 +97,7 @@ def create_bulk_appointments(
             duration_minutes=item.duration_minutes,
             notes=item.notes,
             status=item.status,
+            scheduling_type=item.scheduling_type,
             employer_id=user_employer_id
         )
         db.add(db_appt)

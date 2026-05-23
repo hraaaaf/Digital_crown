@@ -38,44 +38,18 @@ class PinnedCloture(Flowable):
             return
 
         canvas.saveState()
-        # Annulation de la translation du doc.build → référentiel absolu page
-        canvas.translate(-x, -y)
 
-        clean_text = self._strip_tags(self.text)
-
-        # Style depuis self.style
-        font_name  = getattr(self.style, 'fontName',  'Helvetica-Bold')
-        font_size  = getattr(self.style, 'fontSize',  9)
-        text_color = getattr(self.style, 'textColor', NAVY_BLUE)
-
-        canvas.setFont(font_name, font_size)
-        canvas.setFillColor(text_color)
-
+        from reportlab.platypus import Paragraph
+        p = Paragraph(self.text, self.style)
+        
         # Largeur utile A5 (148mm − 2×15mm marges) = 118mm ≈ 11.8 cm
         usable_w = 11.8 * cm
-        left_x   = 1.5 * cm
-
-        # Découpage manuel si texte trop long (wrap simple par caractères)
-        avg_char_w = font_size * 0.55   # estimation largeur moy. caractère
-        max_chars  = int(usable_w / avg_char_w)
-
-        lines = []
-        remaining = clean_text
-        while len(remaining) > max_chars:
-            # Coupe au dernier espace avant max_chars
-            cut = remaining[:max_chars].rfind(' ')
-            if cut == -1:
-                cut = max_chars
-            lines.append(remaining[:cut])
-            remaining = remaining[cut:].strip()
-        lines.append(remaining)
-
-        # Y de départ : 4.4 cm du bas = bien au-dessus du trait footer (2.5 cm)
-        y_start = 4.4 * cm
-        line_h  = font_size * 0.045 * cm + 0.38 * cm   # ~leading
-
-        for i, line in enumerate(lines):
-            canvas.drawString(left_x, y_start - i * line_h, line)
+        
+        w, h = p.wrap(usable_w, 10 * cm)
+        
+        # Y de départ : 4.4 cm du bas (ancrage)
+        # On dessine en partant de x=1.5cm (marge gauche)
+        p.drawOn(canvas, 1.5 * cm, 4.4 * cm - h)
 
         canvas.restoreState()
 
