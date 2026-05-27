@@ -6,7 +6,7 @@ import {
   Upload, Loader2, Activity, ShieldAlert, CheckCircle2,
   History, Sun, Contrast, FlipHorizontal,
   RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan,
-  TrendingUp, Minus, AlertTriangle
+  TrendingUp, Minus, AlertTriangle, EyeOff, RotateCcw
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -121,9 +121,14 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     
     setLoading(true);
     try {
+      const rejectedIndices = result.vision?.detections_data?.detections
+        ?.map((d: any, idx: number) => d.rejected ? idx : -1)
+        ?.filter((idx: number) => idx !== -1) || [];
+
       const response = await api.post('/ia/generate-panoramic-report', {
         analysis_id: result.id,
-        manual_anomalies: toothAnomalies
+        manual_anomalies: toothAnomalies,
+        rejected_detections: rejectedIndices
       });
       
       setResult((prev: any) => ({
@@ -139,6 +144,24 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleRejectDetection = (idx: number) => {
+    setResult((prev: any) => {
+      if (!prev?.vision?.detections_data?.detections) return prev;
+      const newDetections = [...prev.vision.detections_data.detections];
+      newDetections[idx] = { ...newDetections[idx], rejected: !newDetections[idx].rejected };
+      return {
+        ...prev,
+        vision: {
+          ...prev.vision,
+          detections_data: {
+            ...prev.vision.detections_data,
+            detections: newDetections
+          }
+        }
+      };
+    });
   };
 
   const handleDownloadPDF = async () => {
@@ -268,7 +291,18 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         <div className="flex-1 bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-inner border-4 border-white flex items-center justify-center min-h-0">
           {viewMode === 'history' ? (
             <div className="absolute inset-0 bg-white overflow-y-auto p-8">
-              <PanoramicHistory patientId={patientId} onSelect={handleSelectHistory} />
+              <PanoramicHistory 
+                patientId={patientId} 
+                onSelect={handleSelectHistory} 
+                onDelete={(deletedId) => {
+                  if (result?.id === deletedId) {
+                    setResult(null);
+                  }
+                  if (compareResult?.id === deletedId) {
+                    setCompareResult(null);
+                  }
+                }}
+              />
             </div>
           ) : (
             <>
@@ -383,6 +417,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                       }}
                       filterString={filterString}
                       activeDet={activeDet}
+                      onHoverDetection={(id) => setActiveDet(id)}
                     />
 
 
@@ -640,44 +675,91 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                       Cartographie des Anomalies
                     </h4>
-                    <div className="grid gap-2">
-                      {result.vision.detections_data.detections.map((det: any, idx: number) => {
-                        const uid = `det-${idx}`;
+                    <div className="grid gap-3">
+                      {/* Group by FDI */}
+                      {Object.entries(
+                        result.vision.detections_data.detections.reduce((acc: any, det: any, idx: number) => {
+                          if (!acc[det.fdi]) acc[det.fdi] = [];
+                          acc[det.fdi].push({ ...det, originalIdx: idx, uid: `det-${idx}` });
+                          return acc;
+                        }, {})
+                      ).map(([fdiStr, dets]: [string, any]) => {
+                        const fdi = parseInt(fdiStr);
+                        // Is any detection active in this group?
+                        const isActiveGroup = dets.some((d: any) => activeDet === d.uid);
+                        // All rejected?
+                        const allRejected = dets.every((d: any) => d.rejected);
+                        
                         return (
-                          <motion.div 
-                            key={uid} 
-                            onMouseEnter={() => setActiveDet(uid)}
-                            onMouseLeave={() => setActiveDet(null)}
-                            whileHover={{ x: 8 }}
+                          <div 
+                            key={`group-${fdi}`}
                             className={cn(
-                              "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 cursor-pointer",
-                              activeDet === uid 
-                                ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100" 
-                                : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200"
+                              "rounded-2xl border transition-all duration-300 overflow-hidden",
+                              isActiveGroup ? "border-indigo-400 shadow-xl shadow-indigo-100" : "border-slate-200",
+                              allRejected ? "opacity-50" : ""
                             )}
                           >
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className={cn(
-                                  "w-3 h-3 rounded-full shadow-sm",
-                                  activeDet === uid ? "bg-white" : ""
-                                )} 
-                                style={activeDet === uid ? {} : { backgroundColor: getPathologyColor(det.label) }}
-                              />
-                              <span className="font-black text-sm">Dent {det.fdi}</span>
+                            <div className={cn(
+                              "px-4 py-2 flex items-center justify-between border-b",
+                              isActiveGroup ? "bg-indigo-600 text-white border-indigo-500" : "bg-slate-50 border-slate-100 text-slate-700"
+                            )}>
+                              <span className="font-black text-sm">Dent {fdi}</span>
                             </div>
-                            <span 
-                              className={cn(
-                                "text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg border",
-                                activeDet === uid 
-                                  ? "bg-white/20 border-white/30 text-white" 
-                                  : "bg-slate-50 border-slate-200"
-                              )}
-                              style={activeDet === uid ? {} : { color: getPathologyColor(det.label) }}
-                            >
-                              {det.label.toUpperCase()}
-                            </span>
-                          </motion.div>
+                            
+                            <div className="flex flex-col">
+                              {dets.map((det: any) => {
+                                const isItemActive = activeDet === det.uid;
+                                return (
+                                  <motion.div 
+                                    key={det.uid} 
+                                    onMouseEnter={() => setActiveDet(det.uid)}
+                                    onMouseLeave={() => setActiveDet(null)}
+                                    className={cn(
+                                      "flex items-center justify-between p-3 border-b last:border-b-0 transition-all cursor-pointer group/det",
+                                      isItemActive ? "bg-indigo-50/50" : "bg-white hover:bg-slate-50",
+                                      det.rejected ? "opacity-40" : ""
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div 
+                                        className="w-2.5 h-2.5 rounded-full shadow-sm"
+                                        style={{ backgroundColor: det.rejected ? '#94a3b8' : getPathologyColor(det.label) }}
+                                      />
+                                      <span 
+                                        className={cn(
+                                          "text-xs font-bold tracking-wide",
+                                          det.rejected ? "text-slate-400 line-through" : "text-slate-700"
+                                        )}
+                                      >
+                                        {det.label.toUpperCase()}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      {det.confidence && (
+                                        <span className={cn(
+                                          "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded",
+                                          det.confidence >= 0.9 ? "bg-emerald-100 text-emerald-700" : 
+                                          det.confidence >= 0.7 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700",
+                                          det.rejected && "grayscale opacity-50"
+                                        )}>
+                                          {Math.round(det.confidence * 100)}%
+                                        </span>
+                                      )}
+                                      
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleRejectDetection(det.originalIdx); }}
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all opacity-0 group-hover/det:opacity-100"
+                                        title={det.rejected ? "Restaurer" : "Rejeter (Faux positif)"}
+                                      >
+                                        {det.rejected ? <RotateCcw size={14} /> : <EyeOff size={14} />}
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>

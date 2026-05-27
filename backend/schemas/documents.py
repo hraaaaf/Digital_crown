@@ -345,6 +345,7 @@ class HonoraireItem(BaseModel):
     amount: float
     file_url: str
     payment_status: Optional[str] = "EN_ATTENTE"
+    validated_by: Optional[str] = None
 
 
 class HonoraireListResponse(BaseModel):

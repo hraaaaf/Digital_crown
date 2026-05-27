@@ -13,6 +13,7 @@ import { LivePreview } from './DocumentStudio/LivePreview';
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
 import { CertificateForm } from './DocumentStudio/Forms/CertificateForm';
+import { InstallmentStudio } from './DocumentStudio/Forms/InstallmentStudio';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
@@ -21,7 +22,7 @@ import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
 
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre';
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
 interface PriceItem {
@@ -449,6 +450,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
+          
+          {activeTab === 'echeancier' && (
+            <InstallmentStudio patientId={patientId || '0'} />
+          )}
 
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
@@ -469,9 +474,22 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               selectTeethGroup={(g) => {
                 const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
                 const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
-                if (g === 'all') setGroupSelectedTeeth([...max, ...mand]);
-                else if (g === 'maxillaire') setGroupSelectedTeeth(max);
-                else if (g === 'mandibule') setGroupSelectedTeeth(mand);
+                const regions: Record<string, number[]> = {
+                  'all': [...max, ...mand],
+                  'maxillaire': max,
+                  'mandibule': mand,
+                  'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
+                  'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
+                  'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
+                  'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
+                  'S1': [14, 15, 16, 17, 18],
+                  'S2': [13, 12, 11, 21, 22, 23],
+                  'S3': [24, 25, 26, 27, 28],
+                  'S4': [34, 35, 36, 37, 38],
+                  'S5': [33, 32, 31, 41, 42, 43],
+                  'S6': [44, 45, 46, 47, 48]
+                };
+                if (regions[g]) setGroupSelectedTeeth(regions[g]);
                 else setGroupSelectedTeeth([]);
               }}
               groupTreatmentName={groupTreatmentName} setGroupTreatmentName={setGroupTreatmentName}
@@ -669,6 +687,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 'certificat': 'Certificat',
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
+                'echeancier': 'Échéancier',
                 'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />

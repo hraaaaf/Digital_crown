@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ClasseAngle } from '../cephaloTypes';
+import type { ClasseAngle, TypeArcade } from '../cephaloTypes';
 import { fmtNum, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 
@@ -27,7 +27,7 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
   const impa = serverImpa ?? localImpa ?? 90;
   const iFrancfort = etape3Data.dentaire.i_francfort === '' ? 107 : Number(etape3Data.dentaire.i_francfort);
   const updateOcclusal = (key: string, val: ClasseAngle) => {
-    onChange({ occlusal: { ...data.occlusal, [key]: val } });
+    onChange({ ...data, occlusal: { ...data.occlusal, [key]: val } });
   };
 
   const hasSubdivision = useMemo(() => {
@@ -120,11 +120,34 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
         )}
       </div>
 
-      {/* SECTION 2: OCCLUSAL */}
       <div className="space-y-6">
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: P.accent }}>02. Examen Occlusal</h3>
-          <p className="text-sm opacity-60" style={{ color: P.text }}>Évaluez les rapports molaires et canins (Angle).</p>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: P.accent }}>02. Examen Occlusal & Forme d'Arcade</h3>
+          <p className="text-sm opacity-60" style={{ color: P.text }}>Évaluez les rapports molaires/canins et la forme d'arcade.</p>
+        </div>
+
+        {/* Type d'arcade */}
+        <div className="p-6 rounded-3xl space-y-4" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+          <h4 className="text-[10px] font-black uppercase opacity-40" style={{ color: P.text }}>Forme d'Arcade Dominante</h4>
+          <div className="flex flex-wrap gap-3">
+            {(['U', 'V', 'CARREE'] as TypeArcade[]).map(type => (
+              <button
+                key={type}
+                onClick={() => onChange({ ...data, type_arcade: type })}
+                className={cn(
+                  "px-6 py-3 rounded-xl text-xs font-black transition-all",
+                  data.type_arcade === type ? "shadow-lg scale-105" : "opacity-50 hover:opacity-100"
+                )}
+                style={{
+                  background: data.type_arcade === type ? P.accent : P.bgInput,
+                  color: data.type_arcade === type ? 'white' : P.text,
+                  border: `1px solid ${data.type_arcade === type ? P.accent : P.border}`
+                }}
+              >
+                Forme en {type}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

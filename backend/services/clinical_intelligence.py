@@ -53,6 +53,9 @@ class ClinicalIntelligenceService:
         clinical_parts = []
         if patient.antecedents_medicaux:
             clinical_parts.append(f"Antécédents : {patient.antecedents_medicaux}")
+            
+        if patient.motif_consultation:
+            clinical_parts.append(f"Motif de consultation : {patient.motif_consultation}")
         
         if patient.dossier and patient.dossier.is_ortho_active:
             clinical_parts.append("Traitement orthodontique actif.")

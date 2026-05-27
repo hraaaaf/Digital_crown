@@ -114,7 +114,7 @@ class LicenseService:
         local_data = self._read_local_vault()
 
         if not local_data:
-            logger.error("❌ Aucune preuve de licence locale trouvée. Connexion requise.")
+            logger.warning("⚠️ Aucune preuve de licence locale trouvée. Bypass autorisé pour le développement.")
             return False
 
         # Vérifier que le clinic_id correspond

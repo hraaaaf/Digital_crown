@@ -2,7 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Ruler, Activity, Info, Sparkles } from 'lucide-react';
 import type { DonneesEtape3, DiagnosticTexts } from '../cephaloTypes';
-import { fmtNum, generateTreatmentPlan } from '../cephaloUtils';
+import { fmtNum, generateTreatmentPlan, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
+import { evaluateCase, deriveDentureFromAge, deriveDivision } from '../orthoExpertSystem';
 import { cn } from '../../../utils/cn';
 
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -54,6 +55,23 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
   const setAnalysis = (type: 'COM' | 'STEINER' | 'TWEED') => {
     updateEtape3Data({ selectedAnalysis: type });
   };
+
+  const expertReport = React.useMemo(() => {
+    const { ddm, local, anglesData } = store;
+    const impa = computeLocalImpa(local.landmarks) ?? 90;
+    const iFrancfort = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
+    const ddmMaxReelle = calcDDMReelle(ddm.maxillaire, iFrancfort, 107);
+    const ddmMandReelle = calcDDMReelle(ddm.mandibulaire, impa, 90);
+    const ddmTot = (ddmMaxReelle !== null && ddmMandReelle !== null) ? ddmMaxReelle + ddmMandReelle : null;
+    
+    return evaluateCase(data, ddmTot);
+  }, [data, store.ddm, store.local.landmarks]);
+
+  const ddmTotal = Number(data.ddm_clinique) + Number(data.ddm_cephalo);
+  const autoDenture = deriveDentureFromAge(data.age);
+  const autoDivision = deriveDivision(data.classe_squelettique || '', data.dentaire.surplomb);
+  const autoSeverite = ddmTotal < -7 ? 'Sévère' : (ddmTotal <= -4 ? 'Modérée' : 'Légère');
+  const typeArcadeEtape2 = store.etape2Data.type_arcade || 'Indéterminé';
 
 
   return (
@@ -129,12 +147,11 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             <div className="grid grid-cols-2 gap-4">
                 {currentAnalysis === 'COM' && (
                   <>
-                    <MetricInput label="Surplomb" value={data.dentaire.surplomb} onChange={(v: string) => updateDentaire('surplomb', v)} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} />
-                    <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} onChange={(v: string) => updateDentaire('recouvrement', v)} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} />
-                    <MetricInput label="1 / Mandibulaire (IMPA)" value={data.dentaire.impa} onChange={(v: string) => updateDentaire('impa', v)} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} />
-                    <MetricInput label="1 / Francfort" value={data.dentaire.i_francfort} onChange={(v: string) => updateDentaire('i_francfort', v)} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} />
-                    <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} onChange={(v: string) => updateDentaire('inter_incisif', v)} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} />
-
+                    <MetricInput label="Surplomb" value={data.dentaire.surplomb} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
+                    <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
+                    <MetricInput label="1 / Mandibulaire (IMPA)" value={data.dentaire.impa} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} readOnly />
+                    <MetricInput label="1 / Francfort" value={data.dentaire.i_francfort} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} readOnly />
+                    <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} readOnly />
                   </>
                 )}
                 {currentAnalysis === 'STEINER' && (
@@ -209,9 +226,15 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
             
             <div className="space-y-6 flex-1">
-              <div className="p-4 rounded-xl" style={{ background: `${P.accent}08`, border: `1px solid ${P.accent}20` }}>
-                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.accent }}>Classe Squelettique</label>
-                <div className="text-2xl font-black" style={{ color: P.text }}>{data.classe_squelettique || '---'}</div>
+              <div className="p-4 rounded-xl flex items-center justify-between" style={{ background: `${P.accent}08`, border: `1px solid ${P.accent}20` }}>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.accent }}>Classe Squelettique ✨ IA</label>
+                  <div className="text-2xl font-black" style={{ color: P.text }}>{data.classe_squelettique || '---'}</div>
+                </div>
+                <div className="text-right">
+                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.accent }}>Pattern Vertical ✨ IA</label>
+                  <div className="text-2xl font-black capitalize" style={{ color: P.text }}>{data.pattern_vertical || '---'}</div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -234,17 +257,10 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
-                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Denture</label>
-                  <select 
-                    value={data.denture_type}
-                    onChange={(e) => onChange(prev => ({ ...prev, denture_type: e.target.value as any }))}
-                    className="w-full bg-transparent font-bold text-sm outline-none"
-                    style={{ color: P.text }}
-                  >
-                    <option value="PERMANENTE">Permanente</option>
-                    <option value="MIXTE">Mixte</option>
-                    <option value="TEMPORAIRE">Temporaire</option>
-                  </select>
+                  <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Denture ✨ IA</label>
+                  <div className="w-full bg-transparent font-black text-lg capitalize" style={{ color: P.accent }}>
+                    {autoDenture || '---'}
+                  </div>
                 </div>
                 <div className="p-4 rounded-xl" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
                   <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Technique</label>
@@ -262,77 +278,39 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               </div>
 
               <div className="space-y-4 pt-4 border-t" style={{ borderColor: P.border }}>
-                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Synthèse Morphologique</label>
+                <label className="text-[10px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>Morphologie Dentaire (Auto-Déduit)</label>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
-                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Verticalité</span>
-                    <select 
-                      value={data.pattern_vertical}
-                      onChange={(e) => onChange(prev => ({ ...prev, pattern_vertical: e.target.value as any }))}
-                      className="bg-transparent text-xs font-black outline-none text-right"
-                      style={{ color: P.text }}
-                    >
-                      <option value="">Indéterminé</option>
-                      <option value="normodivergent">Normodivergent</option>
-                      <option value="hypodivergent">Hypodivergent</option>
-                      <option value="hyperdivergent">Hyperdivergent</option>
-                    </select>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Sens Vertical (Recouvrement) ✨ IA</span>
+                    <span className="text-xs font-black capitalize" style={{ color: P.accentSuccess }}>
+                      {Number(data.dentaire.recouvrement) > 3.5 ? 'Supraclusie' : Number(data.dentaire.recouvrement) < 1.0 ? 'Infraclusie' : 'Normoclusie'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
-                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Profil Facial</span>
-                    <select 
-                      value={data.profil}
-                      onChange={(e) => onChange(prev => ({ ...prev, profil: e.target.value as any }))}
-                      className="bg-transparent text-xs font-black outline-none text-right"
-                      style={{ color: P.text }}
-                    >
-                      <option value="">Indéterminé</option>
-                      <option value="droit">Droit</option>
-                      <option value="convexe">Convexe</option>
-                      <option value="concave">Concave</option>
-                    </select>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Sens Sagittal (Surplomb) ✨ IA</span>
+                    <span className="text-xs font-black capitalize" style={{ color: P.accentSuccess }}>
+                      {Number(data.dentaire.surplomb) > 4 ? 'Proalvéolie' : Number(data.dentaire.surplomb) < 1.5 ? 'Rétroalvéolie' : 'Normal'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
-                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Sévérité DDM</span>
-                    <select 
-                      value={data.severite_ddm}
-                      onChange={(e) => onChange(prev => ({ ...prev, severite_ddm: e.target.value as any }))}
-                      className="bg-transparent text-xs font-black outline-none text-right"
-                      style={{ color: P.text }}
-                    >
-                      <option value="">Nulle</option>
-                      <option value="léger">Léger</option>
-                      <option value="modéré">Modéré</option>
-                      <option value="sévère">Sévère</option>
-                      <option value="excès">Excès de place</option>
-                    </select>
+                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Sévérité DDM ✨ IA</span>
+                    <span className="text-xs font-black capitalize" style={{ color: P.accent }}>
+                      {autoSeverite}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
-                    <span className="text-xs font-bold" style={{ color: P.textMuted }}>Division (Cl. II)</span>
-                    <select 
-                      value={data.division || ''}
-                      onChange={(e) => onChange(prev => ({ ...prev, division: e.target.value as any }))}
-                      className="bg-transparent text-xs font-black outline-none text-right"
-                      style={{ color: P.text }}
-                    >
-                      <option value="">N/A</option>
-                      <option value="1">Division 1</option>
-                      <option value="2">Division 2</option>
-                    </select>
-                  </div>
+                  {autoDivision && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
+                      <span className="text-xs font-bold" style={{ color: P.textMuted }}>Division (Cl. II) ✨ IA</span>
+                      <span className="text-xs font-black capitalize" style={{ color: P.accent }}>
+                        Division {autoDivision}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border" style={{ borderColor: P.border }}>
                     <span className="text-xs font-bold" style={{ color: P.textMuted }}>Type d'Arcade</span>
-                    <select 
-                      value={data.type_arcade || ''}
-                      onChange={(e) => onChange(prev => ({ ...prev, type_arcade: e.target.value as any }))}
-                      className="bg-transparent text-xs font-black outline-none text-right"
-                      style={{ color: P.text }}
-                    >
-                      <option value="">Indéterminé</option>
-                      <option value="U">Forme U</option>
-                      <option value="V">Forme V</option>
-                      <option value="CARREE">Forme Carrée</option>
-                    </select>
+                    <span className="text-xs font-black" style={{ color: P.text }}>
+                      {typeArcadeEtape2 === 'Indéterminé' ? 'Indéterminé' : `Forme en ${typeArcadeEtape2}`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -340,7 +318,18 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           </div>
 
           <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>1. Diagnostic Squelettique</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>1. Analyse Dentaire et Alvéolaire</h3>
+            <textarea 
+              value={diag.analyse_dentaire}
+              onChange={(e) => handleDiagChange('analyse_dentaire', e.target.value)}
+              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              style={{ borderColor: P.border, color: P.text }}
+              placeholder="Description des anomalies dentaires, classe canine/molaire, etc..."
+            />
+          </div>
+
+          <div className="rounded-2xl p-6 mt-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>2. Analyse Squelettique</h3>
             <textarea 
               value={diag.diagnostic_squelettique}
               onChange={(e) => handleDiagChange('diagnostic_squelettique', e.target.value)}
@@ -357,7 +346,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
         <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
           <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: P.text }}>
             <Activity size={14} style={{ color: P.accent }} />
-            2. Analyse Moulages
+            3. Examen des Moulages
           </h3>
           <div className="mb-4 p-4 rounded-xl font-mono text-[11px] leading-relaxed relative group overflow-hidden" 
                style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
@@ -382,7 +371,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
 
 
         <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>3. Synthèse Diagnostique</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>4. Diagnostic / Résumé Diagnostique</h3>
           <textarea 
             value={diag.synthese_diagnostique}
             onChange={(e) => handleDiagChange('synthese_diagnostique', e.target.value)}
@@ -393,22 +382,22 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
         </div>
         <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>4. Plan de Traitement</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>5. Bot Expert ODF (Rapport 100% Automatique)</h3>
             <button 
-              onClick={() => handleDiagChange('strategie_therapeutique', generateTreatmentPlan(data))}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all hover:scale-105 active:scale-95"
-              style={{ background: `${P.accent}15`, color: P.accent, border: `1px solid ${P.accent}30` }}
+              onClick={() => handleDiagChange('strategie_therapeutique', expertReport.rapportMarkdown)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all hover:scale-105 active:scale-95 shadow-md"
+              style={{ background: P.accent, color: 'white' }}
             >
-              <Sparkles size={10} />
-              IA Suggestion
+              <Sparkles size={12} />
+              Générer Bilan IA
             </button>
           </div>
           <textarea 
             value={diag.strategie_therapeutique}
             onChange={(e) => handleDiagChange('strategie_therapeutique', e.target.value)}
-            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none overflow-y-auto"
+            className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none overflow-y-auto font-mono leading-relaxed"
             style={{ borderColor: P.border, color: P.text }}
-            placeholder="Étapes thérapeutiques et appareillages..."
+            placeholder="Cliquez sur 'Générer Bilan IA' pour obtenir la synthèse de l'Agent ODF..."
           />
         </div>
 
@@ -429,9 +418,9 @@ const getMetricColor = (val: any, mean: number, tol: number, P: any) => {
 };
 
 const MetricInput = ({ 
-  label, value, onChange, unit, normal, P, highlight, mean, tol 
+  label, value, onChange, unit, normal, P, highlight, mean, tol, readOnly 
 }: { 
-  label: string, value: any, onChange: (v: string) => void, unit: string, normal: string, P: any, highlight?: boolean, mean?: number, tol?: number 
+  label: string, value: any, onChange?: (v: string) => void, unit: string, normal: string, P: any, highlight?: boolean, mean?: number, tol?: number, readOnly?: boolean
 }) => {
   const [shouldPulse, setShouldPulse] = React.useState(false);
   const prevValue = React.useRef(value);
@@ -470,13 +459,19 @@ const MetricInput = ({
         <span className="text-[8px] font-bold opacity-50" style={{ color: P.textDim }}>{normal}</span>
       </div>
       <div className="flex items-center gap-1">
-        <input 
-          type="text" 
-          value={value} 
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent font-black text-lg outline-none"
-          style={{ color: shouldPulse ? P.accentSuccess : color }}
-        />
+        {readOnly ? (
+          <div className="w-full bg-transparent font-black text-lg" style={{ color: shouldPulse ? P.accentSuccess : color }}>
+            {value !== '' && value !== null ? value : '-'}
+          </div>
+        ) : (
+          <input 
+            type="text" 
+            value={value} 
+            onChange={(e) => onChange && onChange(e.target.value)}
+            className="w-full bg-transparent font-black text-lg outline-none"
+            style={{ color: shouldPulse ? P.accentSuccess : color }}
+          />
+        )}
         <span className="text-xs font-bold" style={{ color: P.textDim }}>{unit}</span>
       </div>
     </div>

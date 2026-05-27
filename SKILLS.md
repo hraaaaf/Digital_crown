@@ -404,3 +404,90 @@ La détection précoce des cancers de la cavité buccale est un devoir de vigila
 - **Herpès Simplex Buccal** : Prescription précoce d'Aciclovir oral en phase prodromique.
 
 
+
+
+## 18. Multi-Tenant SaaS Isolation (Tenant Boundary)
+**Trigger**: Création de nouveaux modèles SQLAlchemy, de routes API ou requêtes de base de données.
+**Steps**:
+1. Assurer que chaque nouveau modèle lié à une clinique possède une foreign key `employer_id` pointant vers le compte principal du cabinet.
+2. Dans les routes FastAPI, récupérer toujours l'identifiant du cabinet via `current_user.get_employer_id()`.
+3. Filtrer systématiquement les requêtes de lecture (`db.query()`) avec `.filter(Model.employer_id == user_employer_id)`, sauf mention contraire justifiée (ex: accès super-admin avec `assert_patient_access`).
+4. Lors de l'insertion (CREATE), injecter automatiquement l'`employer_id` depuis le backend.
+**Output**: Des données strictement cloisonnées garantissant l'étanchéité absolue entre différents cabinets (Architecture SaaS).
+**Rules**:
+- NEVER oublier le filtre `employer_id` sur une route renvoyant des listes.
+- NEVER faire confiance au client (frontend) pour définir l'`employer_id` ; il doit toujours être dérivé du token d'authentification du serveur.
+
+## 19. Architecture LAN-First & ZKA (Mobile Companion)
+**Trigger**: Développement du compagnon mobile PWA, des endpoints ZKA ou de la synchronisation Cloud.
+**Steps**:
+1. Le compagnon mobile communique exclusivement via le réseau local (LAN) avec le serveur principal (Hub).
+2. L'authentification se fait via un QR Code éphémère (`/api/mobile/claim-token`). Le JWT généré est spécifique au mobile (`type="mobile"`) et restreint à l'`employer_id`.
+3. Le `SyncManager` s'occupe de la réplication vers le Cloud (Supabase) en arrière-plan sans bloquer les requêtes locales.
+4. En cas de perte de connexion Cloud, le système bascule en "Grace Period" localement via le `LicenseService` pour garantir une continuité clinique sans interruption.
+**Output**: Une application clinique ultra-résiliente (Offline-First) qui protège la donnée localement.
+**Rules**:
+- NEVER bloquer l'interface utilisateur (React) pour attendre une réponse du Cloud ; le serveur local est la source de vérité absolue.
+- NEVER exposer de données de santé sans validation stricte du token, même sur le réseau local interne.
+
+## 20. Nomenclature CNOPS/CNSS & Codes NGAP Dentaires (Maroc)
+**Trigger**: Développement de fonctionnalités liées à l'assurance maladie, à la facturation ou à l'édition de fiches de soins CNOPS/CNSS.
+**Steps**:
+1. Utiliser strictement les codes de la **Nomenclature Générale des Actes Professionnels (NGAP)** marocaine (lettre-clé **D**).
+2. Pour les formulaires CNOPS/CNSS, s'assurer que le numéro de la dent (système FDI 11-48), la lettre-clé (ex: D) et le coefficient (ex: 30) soient clairement identifiables. Le Tarif National de Référence (TNR) est calculé par : Coefficient × Valeur du D.
+3. Distinguer les soins conservateurs des prothèses (la valeur monétaire du "D" peut varier selon la convention).
+4. **Exemples de cotations courantes** :
+    - **Consultation** : Code **C** ou **C DENT**.
+    - **Détartrage** : Souvent coté de **D15** à **D30** selon les arcades.
+    - **Extraction simple** : **D15** (dent temporaire ou monoradiculaire) à **D20** (pluriradiculaire).
+    - **Extraction chirurgicale** (dent incluse/enclavée) : Souvent **D30** à **D50**.
+    - **Soins conservateurs (Composite, Amalgame)** : Cotés selon le nombre de faces, ex: **D15** (1 face), **D25** (2 faces), **D35** (3 faces et plus).
+    - **Prothèse** : ex: Couronne (souvent **D50**).
+5. **Gestion des devis et accords préalables** : Pour les actes prothétiques et l'orthodontie, les fiches doivent inclure la possibilité d'imprimer une "Demande d'Entente Préalable" avec schéma dentaire.
+**Output**: Des fiches de soins et factures conformes aux exigences des organismes marocains (CNSS, CNOPS).
+**Rules**:
+- NEVER utiliser des codes arbitraires pour la facturation AMO ; respecter la lettre "D".
+- NEVER oublier l'INPE (Identifiant National du Professionnel de Santé) sur les feuilles de maladie.
+- NEVER cumuler arbitrairement une consultation (C) avec des soins (D) lors d'une même séance (règle générale de la NGAP : seul l'acte le plus élevé est pris en charge, sauf dérogations spécifiques).
+
+## 6. Guide de Prescription Odontologique (Maroc) - Posologie Poids/Age
+**Context**: Le système doit pouvoir assister le praticien (ou agir via Ghost Brain) pour suggérer des ordonnances sécurisées, particulièrement en pédiatrie où la dose dépend du poids et de l'âge.
+**Pharmacopée courante en Odontologie au Maroc** :
+### A. Antalgiques / Antipyrétiques
+1. **Paracétamol (Doliprane, Tylenol, etc.)** :
+   - **Indication** : Douleur légère à modérée, première intention.
+   - **Pédiatrie** : 15 mg/kg toutes les 6 heures (Max 60 mg/kg/jour). Formes : Sirop (dose-poids), suppositoires.
+   - **Adulte** : 500 mg à 1g par prise, max 3g/jour (ou 4g sur avis médical).
+2. **Ibuprofène (AINS - Nurofen, Advil, etc.)** :
+   - **Indication** : Douleur modérée à sévère avec composante inflammatoire.
+   - **Pédiatrie** : 20 à 30 mg/kg/jour en 3 à 4 prises. Contre-indiqué si infection sévère (risque de cellulite fasciale) ou varicelle.
+   - **Adulte** : 200 à 400 mg par prise, max 1200 mg/jour.
+
+### B. Antibiotiques (Anti-infectieux)
+1. **Amoxicilline (Clamoxyl, Ospamox, etc.)** :
+   - **Indication** : Antibiotique de première intention pour les infections dentaires.
+   - **Pédiatrie** : 50 mg/kg/jour répartis en 2 ou 3 prises. (Prophylaxie endocardite : 50 mg/kg en dose unique 1h avant l'acte).
+   - **Adulte** : 1g à 2g/jour en 2 prises. (Prophylaxie : 2g en dose unique).
+2. **Amoxicilline + Acide Clavulanique (Augmentin, Ciblor, etc.)** :
+   - **Indication** : Infections sévères ou résistantes.
+   - **Pédiatrie** : 80 mg/kg/jour (exprimé en Amoxicilline) en 3 prises.
+   - **Adulte** : 1g matin et soir (ou 3g/jour si infection sévère).
+3. **Macrolides (Azithromycine - Zithromax ; Spiramycine - Rovamycine)** :
+   - **Indication** : En cas d'allergie aux Pénicillines.
+   - **Azithromycine Pédiatrie** : 20 mg/kg/jour pendant 3 jours.
+   - **Spiramycine Adulte** : 6 à 9 millions d'UI/jour en 2 ou 3 prises.
+4. **Association Spiramycine + Métronidazole (Birodogyl, Rodogyl)** :
+   - **Indication** : Parodontites, infections anaérobies.
+   - **Adulte** : 4 à 6 comprimés par jour en 2 ou 3 prises.
+   - **Enfant (6-15 ans)** : Adapter selon la spécialité (généralement 1/2 dose adulte).
+
+### C. Corticoïdes (Anti-inflammatoires stéroïdiens)
+1. **Prednisolone, Bétaméthasone (Solupred, Célestène)** :
+   - **Indication** : Œdème post-opératoire important (ex: extraction dents de sagesse).
+   - **Pédiatrie** : 1 à 2 mg/kg/jour en cure courte (3-5 jours), le matin.
+   - **Adulte** : 1 mg/kg/jour (max 80mg) en cure courte.
+
+**Intégration Ghost Brain (Roadmap)** :
+- Ajouter un composant PrescriptionGuideAgent (bouton hover flottant dans PrescriptionAgenticStudio).
+- Si l'âge du patient est < 15 ans, ouvrir automatiquement une modale demandant le **poids** (en Kg).
+- L'IA Ghost Brain génère la posologie exacte (ex: 'Sirop Doliprane 2.4% - Pipette dose-poids') en utilisant le poids fourni, et l'ajoute au document.

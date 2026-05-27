@@ -149,12 +149,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { profile } = get();
     const theme = profile.selected_theme || 'elite';
     
+    // Si on est sur l'interface mobile, on force le thème clair (Elite)
+    const isMobile = window.location.pathname.startsWith('/mobile');
+    const finalTheme = isMobile ? 'elite' : theme;
+    
     // Application aux deux niveaux pour compatibilité maximale
-    document.body.dataset.theme = theme === 'elite' ? '' : theme;
-    document.documentElement.dataset.theme = theme === 'elite' ? '' : theme;
+    document.body.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
+    document.documentElement.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
     
     // Sauvegarde localStorage pour le flash au chargement (App.tsx)
-    localStorage.setItem('digitalcrown_theme', theme);
+    localStorage.setItem('digitalcrown_theme', finalTheme);
     
     // Séparation stricte : on nettoie les variables en ligne pour laisser index.css (APP_THEMES) gérer les couleurs de l'UI
     document.documentElement.style.removeProperty('--primary');

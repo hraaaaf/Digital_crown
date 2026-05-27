@@ -8,6 +8,7 @@ export interface DDMState {
 }
 
 export interface DiagnosticTexts {
+  analyse_dentaire: string;
   diagnostic_squelettique: string;
   analyse_moulages: string;
   synthese_diagnostique: string;
@@ -75,7 +76,6 @@ export interface DonneesEtape3 {
   ddm_clinique: number | '';
   ddm_cephalo: number | '';
   division: DivisionClasseII;
-  type_arcade: TypeArcade;
   classe_squelettique: string;
   pattern_vertical: PatternVertical | '';
   profil: ProfilFacial | '';
@@ -89,6 +89,7 @@ export interface DonneesEtape3 {
 
 export interface DonneesEtape2 {
   occlusal: ExamenOcclusal;
+  type_arcade: TypeArcade;
 }
 
 export interface PhotoUpload {

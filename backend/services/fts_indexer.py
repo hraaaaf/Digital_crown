@@ -13,6 +13,9 @@ def index_patient(patient_id: int, db: Session) -> None:
     Index all available clinical content for a patient into the FTS5 table.
     Clears existing entries before re-indexing to keep data fresh.
     """
+    if db.bind.dialect.name != "sqlite":
+        return
+
     try:
         # Clear existing entries for this patient
         db.execute(text("DELETE FROM patient_fts WHERE patient_id = :pid"), {"pid": patient_id})
@@ -71,6 +74,9 @@ def index_patient(patient_id: int, db: Session) -> None:
 
 def search_patient(query: str, patient_id: int, db: Session, limit: int = 5) -> list[str]:
     """Full-text search within a patient's indexed clinical content."""
+    if db.bind.dialect.name != "sqlite":
+        return []
+
     try:
         rows = db.execute(
             text(
@@ -88,6 +94,10 @@ def search_patient(query: str, patient_id: int, db: Session, limit: int = 5) -> 
 
 def bulk_index_unindexed_patients(db: Session) -> None:
     """Index all patients that have never been indexed (background startup task)."""
+    if db.bind.dialect.name != "sqlite":
+        logger.debug("FTSIndexer: PostgreSQL detected, skipping FTS5 indexing.")
+        return
+
     try:
         result = db.execute(
             text(

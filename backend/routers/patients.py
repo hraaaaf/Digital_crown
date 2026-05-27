@@ -23,17 +23,29 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
         query = query.filter(models.Patient.id != exclude_id)
     return query.first()
 
+import re
+
 def generate_next_dossier_number(db: Session, employer_id: int) -> str:
-    last_patient = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).order_by(models.Patient.id.desc()).first()
-    if last_patient and last_patient.numero_dossier:
-        try:
-            last_num = int(last_patient.numero_dossier.split('-')[1])
-            next_num = last_num + 1
-        except (ValueError, IndexError):
-            next_num = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).count() + 1
-    else:
-        next_num = 1
-    return f"P-{next_num:06d}"
+    dossiers = db.query(models.Patient.numero_dossier).filter(
+        models.Patient.employer_id == employer_id,
+        models.Patient.numero_dossier.isnot(None)
+    ).all()
+    
+    max_num = 0
+    for (dossier,) in dossiers:
+        if not dossier: continue
+        numbers = re.findall(r'\d+', str(dossier))
+        if numbers:
+            try:
+                # Extraire le dernier nombre trouvé dans la chaîne
+                num = int(numbers[-1])
+                if num > max_num:
+                    max_num = num
+            except ValueError:
+                pass
+                
+    next_num = max_num + 1
+    return str(next_num)
 
 
 # --- ROUTES CRUD ---
@@ -83,12 +95,14 @@ from backend.services.audit_service import audit_service
 @router.post("/", response_model=schemas.PatientOut,
     summary="Créer un patient",
     description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
-def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def create_patient(patient: schemas.PatientCreate, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance)
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
     
     patient_data = patient.model_dump() if hasattr(patient, 'model_dump') else patient.dict()
+    is_ortho_active = patient_data.pop('is_ortho_active', False)
+    
     patient_data['nom'] = patient_data['nom'].upper().strip()
     patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
     
@@ -100,7 +114,7 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     
     db_patient = models.Patient(**patient_data)
     db.add(db_patient); db.flush()
-    db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=False))
+    db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=is_ortho_active))
     
     # Audit log
     audit_service.log(
@@ -260,6 +274,19 @@ def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(data
         
     db.commit()
     return {"status": "success"}
+
+@router.patch("/{patient_id}/ortho")
+def update_patient_ortho(patient_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    dossier = db.query(models.DossierClinique).filter(models.DossierClinique.patient_id == patient_id).first()
+    if not dossier:
+        raise HTTPException(status_code=404, detail="Dossier non trouvé")
+        
+    if "is_ortho_active" in data:
+        dossier.is_ortho_active = data["is_ortho_active"]
+        
+    db.commit()
+    return {"status": "success", "is_ortho_active": dossier.is_ortho_active}
 
 # --- CLINICAL INTELLIGENCE ---
 
@@ -432,6 +459,70 @@ def generate_cephalo_pdf(
         analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
+    
+    if req.archive:
+        from backend.services.archive_service import ArchiveService
+        from backend.schemas import ConflictResolution
+        
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+            
+        archive_svc = ArchiveService(db)
+        try:
+            archive_svc.archive_document(
+                patient_id=patient_id,
+                file_content=pdf_bytes,
+                filename=os.path.basename(pdf_path),
+                doc_type=models.DocumentType.RAPPORT_CEPHALO,
+                uploaded_by_id=current_user.id,
+                title="Bilan Céphalométrique et Plan ODF",
+                clinical_data=analysis_data.get("results", {}).get("clinical_data", {}),
+                on_conflict=ConflictResolution.CREATE_VERSION
+            )
+        except Exception as e:
+            pass  # Ignorer si doublon ou erreur
+            
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+# --- SUPPRESSION ---
+
+@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient(
+    patient_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """Supprime un patient et ses donnees associees (Seul Dentiste/Proprio ou Admin)"""
+    from backend.services.audit_service import audit_service
+    
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+        
+    assert_patient_access(patient_id, current_user, db)
+    
+    if not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de supprimer un patient")
+
+    try:
+        # Audit log before deletion
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="Patient",
+            resource_id=str(patient_id),
+            details=f"Suppression du patient {patient.nom} {patient.prenom}"
+        )
+        
+        # Supprimer le patient. SQL Alchemy cascade ou la BDD s'occupe du reste
+        db.delete(patient)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

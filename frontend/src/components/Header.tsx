@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, UserCircle, Settings, LogOut, Calculator } from 'lucide-react';
+import { Bell, UserCircle, Settings, LogOut, Calculator, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cabinetApi } from '../services/templateApi';
 import { api } from '../services/api';
 import { safeStorage } from '../hooks/useLocalStorage';
+import { useAuthStore } from '../stores/useAuthStore';
 import { GuideTower } from './GuidedTour/GuideTower';
 import { EliteAssistant } from '../features/admin/DocumentStudio/EliteAssistant';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
-  const [praticienName, setPraticienName] = useState('Dr. Benmoussa');
+  const [praticienName, setPraticienName] = useState('Praticien');
   const [treasuryCount, setTreasuryCount] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
+  const { user } = useAuthStore();
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +81,26 @@ export const Header = () => {
       
       {/* SETTINGS, AI, GUIDE & NOTIFS */}
       <div className="flex items-center gap-2">
+        {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+          <Link 
+            to="/super-admin" 
+            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
+          >
+            Gestion des Dentistes
+          </Link>
+        )}
+        
+        {/* Mobile SuperAdmin Button (Icon only) */}
+        {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+          <Link 
+            to="/super-admin" 
+            className="flex sm:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"
+            title="Gestion des Dentistes"
+          >
+            <Shield size={20} />
+          </Link>
+        )}
+
         <GuideTower />
         <div className="relative">
           <EliteAssistant isEmbedded={true} />
@@ -138,8 +160,10 @@ export const Header = () => {
       {/* USER PROFILE */}
       <div className="flex items-center gap-4">
         <div className="text-right hidden lg:block">
-          <p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{praticienName}</p>
-          <p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">{cabinetName}</p>
+          <p className="text-sm font-black text-primary leading-none tracking-tight font-outfit">{cabinetName}</p>
+          <p className="text-[10px] font-bold text-text-muted mt-1 uppercase tracking-tighter">
+            {user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : 'Praticien')}
+          </p>
         </div>
         <div className="w-11 h-11 rounded-elite-sm bg-card-bg border border-border-main flex items-center justify-center text-primary shadow-elite transition-elite hover:scale-105">
           <UserCircle size={24} />

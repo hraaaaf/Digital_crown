@@ -8,6 +8,9 @@ from backend.services.base_template import BaseTemplate, NAVY_BLUE
 from backend import schemas
 
 import importlib.util
+import markdown
+import re
+
 WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
 
 logger = logging.getLogger(__name__)
@@ -33,6 +36,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         today = date.today()
         birth = born.date() if hasattr(born, 'date') else born
         return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        
+    def _clean_markdown(self, text: str) -> str:
+        if not text:
+            return ""
+        # Remove markdown English words that AI might leave
+        text = text.replace("Here is the assessment", "").replace("Here is the analysis", "")
+        # Convert markdown to HTML
+        html = markdown.markdown(text, extensions=['nl2br'])
+        return html
 
     def generate(self, vm: schemas.CephaloViewModel, filename: Optional[str] = None):
         if not filename:
@@ -95,14 +107,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         if hasattr(ai_diag, "model_dump"):
             ai_diag = ai_diag.model_dump()
             
-        diag_squelettique = ai_diag.get("diagnostic_squelettique", "")
-        analyse_moulages = ai_diag.get("analyse_moulages", "")
-        synthese_diagnostique = ai_diag.get("synthese_diagnostique", "")
-        strategie_therapeutique = ai_diag.get("strategie_therapeutique", "")
+        analyse_dentaire = self._clean_markdown(ai_diag.get("analyse_dentaire", ""))
+        diag_squelettique = self._clean_markdown(ai_diag.get("diagnostic_squelettique", ""))
+        analyse_moulages = self._clean_markdown(ai_diag.get("analyse_moulages", ""))
+        synthese_diagnostique = self._clean_markdown(ai_diag.get("synthese_diagnostique", ""))
+        strategie_therapeutique = self._clean_markdown(ai_diag.get("strategie_therapeutique", ""))
         
         # Retro-compatibilité si ancien modèle
-        if not analyse_moulages and "analyse_dentaire" in ai_diag:
-            analyse_moulages = ai_diag.get("analyse_dentaire", "")
+        if not analyse_moulages and "analyse_dentaire" in ai_diag and not analyse_dentaire:
+            analyse_moulages = self._clean_markdown(ai_diag.get("analyse_dentaire", ""))
         if not synthese_diagnostique:
             synthese_diagnostique = "Bilan généré à partir de données existantes."
 
@@ -121,6 +134,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "date_analyse": vm.date_generation,
             "radio_url": radio_url,
             "metrics": flat_metrics,
+            "analyse_dentaire": analyse_dentaire,
             "diagnostic_squelettique": diag_squelettique,
             "analyse_moulages": analyse_moulages,
             "synthese_diagnostique": synthese_diagnostique,
@@ -169,11 +183,21 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         if hasattr(ai_diag, "model_dump"):
             ai_diag = ai_diag.model_dump()
             
+        def clean_rl(t):
+            if not t: return ""
+            t = t.replace("Here is the assessment", "").replace("Here is the analysis", "")
+            # Basic cleanup for ReportLab since it doesn't parse full HTML/markdown easily
+            t = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', t)
+            t = re.sub(r'\*(.*?)\*', r'<i>\1</i>', t)
+            t = re.sub(r'#(.*)', r'<b>\1</b>', t)
+            return t
+
         sections = [
-            ("Diagnostic Squelettique", ai_diag.get("diagnostic_squelettique")),
-            ("Analyse des Moulages", ai_diag.get("analyse_moulages")),
-            ("Synthèse Diagnostique", ai_diag.get("synthese_diagnostique")),
-            ("Stratégie Thérapeutique", ai_diag.get("strategie_therapeutique"))
+            ("Analyse Dentaire et Alvéolaire", clean_rl(ai_diag.get("analyse_dentaire"))),
+            ("Analyse Squelettique", clean_rl(ai_diag.get("diagnostic_squelettique"))),
+            ("Examen des Moulages", clean_rl(ai_diag.get("analyse_moulages"))),
+            ("Diagnostic / Synthèse", clean_rl(ai_diag.get("synthese_diagnostique"))),
+            ("Stratégie Thérapeutique", clean_rl(ai_diag.get("strategie_therapeutique")))
         ]
 
         for title, content in sections:

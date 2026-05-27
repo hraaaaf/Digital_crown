@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI):
     license_ok = await LicenseService().validate_license(clinic_id)
     
     if not license_ok:
-        logger.error("❌ LICENCE EXPIREE OU DESACTIVEE. L'application va s'arreter.")
-        # On pourrait lever une exception ici pour empêcher le démarrage
+        logger.warning("⚠️ LICENCE INTROUVABLE. Bypass actif pour le développement local.")
+        # En production, on décommenterait la ligne suivante :
         # raise SystemExit("Licence invalide")
     
     try:
@@ -126,6 +126,7 @@ async def request_logging_middleware(request: Request, call_next):
 # --- INCLUSION DES ROUTERS ---
 from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile
 from backend.routers import ai_feedback as ai_feedback_router
+from backend.routers import installments
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
@@ -143,6 +144,10 @@ app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Elite
 app.include_router(clinical_data.router, prefix="/api/clinical-data", tags=["Données Cliniques"])
 app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
 app.include_router(ai_feedback_router.router, prefix="/api/ai", tags=["Ghost Hub Feedback"])
+app.include_router(installments.router, prefix="/api/installments", tags=["Installments"])
+
+from backend.routers import superadmin
+app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Admin"])
 
 # --- HEALTH CHECK ---
 @app.get("/health", include_in_schema=False)
@@ -190,7 +195,14 @@ if FRONTEND_DIST.exists():
     _dist_root_files = {p.name for p in FRONTEND_DIST.iterdir() if p.is_file()}
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa_fallback(full_path: str):
+    async def spa_fallback(full_path: str, request: Request):
+        if full_path.startswith("api/"):
+            if not full_path.endswith("/"):
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(url=f"/{full_path}/", status_code=307)
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="API Route Not Found")
+            
         # Fichier statique connu à la racine du dist → le servir directement
         if full_path in _dist_root_files:
             return FileResponse(str(FRONTEND_DIST / full_path))

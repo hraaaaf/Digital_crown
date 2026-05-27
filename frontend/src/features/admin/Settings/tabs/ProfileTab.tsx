@@ -115,8 +115,19 @@ export const ProfileTab: React.FC = () => {
         icon={<UserCircle size={32} />}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="md:col-span-2">
+            <label className={labelClass}>Nom du Cabinet / Clinique</label>
+            <input 
+              type="text" 
+              name="nom_cabinet" 
+              value={profile.nom_cabinet || ''} 
+              onChange={handleProfileChange} 
+              className={inputClass} 
+              placeholder="Ex: Cabinet Dentaire Benmoussa" 
+            />
+          </div>
           <div>
-            <label className={labelClass}>Nom du Praticien (Français)</label>
+            <label className={labelClass}>Nom du Docteur (Français)</label>
             <input 
               type="text" 
               name="nom" 

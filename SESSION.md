@@ -130,3 +130,26 @@ Début du cycle d'audit UX systématique des 5 pages du Studio Documentaire.
 
 ---
 *Fin de session partielle — Digital Crown v2.0 Ghost Hub Complete Edition.*
+
+### 📅 Date : 25 Mai 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Optimisation UX Studio Documentaire (Devis & Honoraires) et fiabilisation des impressions.
+
+#### 🚀 Accomplissements Techniques
+
+1. **Refonte UX Odontogramme & Sélections Rapides**
+   - **Modale de Traitement Flottante (Glassmorphism)** : Remplacement de l'ancien panneau par une modale (`TreatmentSelector.tsx`) plein écran au design "verre poli" (`backdrop-blur-md`, `bg-slate-800/40`), gardant le schéma clinique visible en arrière-plan.
+   - **Accessibilité des Spécialités** : Réorganisation de l'en-tête de la modale. La barre de recherche est isolée, et les catégories (Conservatrice, Prothèse, etc.) utilisent un `flex-wrap` garanti pour être 100% visibles sans défilement horizontal capricieux.
+   - **Simplification Radicale** : Retrait définitif de la sélection manuelle des "Surfaces" dans le panneau droit, libérant l'espace pour une lecture plus fluide du tableau des actes.
+   - **Action de Groupe (Ghost Brain)** : Ajout d'une barre de sélection rapide par cadran (Q1-Q4) et sextant (S1-S6) s'affichant intelligemment quand le mode "groupe" est actif mais vide. Les actes suggérés ("Bridge", "Stellite", "Curetage", etc.) s'appliquent en "1-clic" avec récupération du prix historique par le Ghost Brain.
+
+2. **Fiabilisation des Générateurs PDF (Impression)**
+   - **Bypass CORS/Auth** : Modification de la logique de génération dans `useDocumentGenerator.ts` pour passer par le wrapper `api.get(url, { responseType: 'blob' })` au lieu de `fetch()`, assurant la transmission des headers d'authentification et résolvant l'erreur d'impression.
+   - **Condensation des Pages** : Suppression de la mention superflue "Signature et Cachet" dans les générateurs (`certificat_gen.py`, `libre_gen.py`) pour garantir que les documents (Certificats, Libre) tiennent strictement sur une seule page.
+
+3. **Audit Radiologique IA**
+   - L'interactivité de la radiographie panoramique OIP a été restaurée, permettant le clic direct sur les détections intelligentes.
+
+#### 🛠️ Correctifs & Régularisations
+- **AccountingStudio.tsx** : Suppression de l'emboîtement buggé de `createPortal` et `AnimatePresence` pour rendre le contrôle total de l'affichage au composant `TreatmentSelector`.
+- **DocumentHub.tsx** : Ajout de la logique de calcul automatique des dents par région pour les boutons Q1-Q4 et S1-S6.

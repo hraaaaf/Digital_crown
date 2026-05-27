@@ -146,29 +146,67 @@ class OrdonnanceGenerator:
             # Détermination du facteur de compression si trop de médicaments (Single Page Force)
             num_meds = len(data.medications)
             compression_factor = 1.0
-            if num_meds > 7:
+            if num_meds > 5:
                 compression_factor = 0.9
-            elif num_meds > 10:
+            if num_meds > 7:
                 compression_factor = 0.8
+            if num_meds > 9:
+                compression_factor = 0.7
+            if num_meds > 11:
+                compression_factor = 0.6
+            if num_meds > 14:
+                compression_factor = 0.5
             
             # Styles typographiques avec contraste optimal et adaptabilité
             base_med_fs = 13 * compression_factor
             base_form_fs = 11 * compression_factor
             base_poso_fs = 12 * compression_factor
+
+            # Pré-calculer la taille de police minimale requise pour l'homogénéité
+            min_name_fs = base_med_fs
+            min_form_fs = base_form_fs
+            min_dose_fs = base_form_fs
             
-            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=base_med_fs, textColor=p_color)
-            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=base_form_fs, textColor=p_color, alignment=TA_CENTER)
-            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=base_form_fs, textColor=p_color, alignment=TA_RIGHT)
+            for i, med in enumerate(data.medications, 1):
+                nom = getattr(med, 'nom', '') or ""
+                forme = getattr(med, 'forme', '') or ""
+                dose = getattr(med, 'dosage', '') or ""
+                
+                name_text = f"{i}- <b>{nom.upper()}</b>"
+                name_text_nbsp = name_text.replace(" ", "\u00a0")
+                name_w = 7.0*cm
+                name_fs = self.base_template.get_adaptive_font_size(name_text_nbsp, med_font_bold, base_med_fs, name_w - 0.5*cm)
+                if name_fs < min_name_fs:
+                    min_name_fs = name_fs
+                    
+                display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
+                if display_forme:
+                    form_w = 3.0*cm
+                    display_forme_nbsp = display_forme.replace(" ", "\u00a0")
+                    form_fs = self.base_template.get_adaptive_font_size(f"<i>{display_forme_nbsp}</i>", med_font, base_form_fs, form_w - 0.2*cm)
+                    if form_fs < min_form_fs:
+                        min_form_fs = form_fs
+                        
+                if dose:
+                    dose_w = 1.8*cm
+                    dose_nbsp = dose.replace(" ", "\u00a0")
+                    dose_fs = self.base_template.get_adaptive_font_size(dose_nbsp, med_font, base_form_fs, dose_w - 0.1*cm)
+                    if dose_fs < min_dose_fs:
+                        min_dose_fs = dose_fs
+
+            med_name_style = ParagraphStyle('MedName', parent=self.styles['Normal'], fontName=med_font_bold, fontSize=min_name_fs, textColor=p_color)
+            med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER)
+            med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT)
             
             poso_style = ParagraphStyle(
                 'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=base_poso_fs,
-                textColor=p_color, leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds > 6 else 14,
+                textColor=p_color, leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds < 7 else 4,
                 leading=base_poso_fs * 1.2
             )
             
             warning_style = ParagraphStyle(
                 'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=10 * compression_factor,
-                textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds > 6 else 14,
+                textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds < 7 else 4,
                 italic=True
             )
 
@@ -189,22 +227,20 @@ class OrdonnanceGenerator:
                 cols = []
                 col_widths = []
 
-                # Nom (toujours présent) - Application de la police adaptative sans retour à la ligne
+                # Nom (toujours présent) - Utilisation du style global homogène
                 name_text = f"{i}- <b>{nom.upper()}</b>"
                 name_text_nbsp = name_text.replace(" ", "\u00a0")
                 name_w = 7.0*cm
-                adaptive_name_style = self.base_template.get_adaptive_style(med_name_style, name_text_nbsp, name_w - 0.5*cm)
-                cols.append(Paragraph(name_text_nbsp, adaptive_name_style))
+                cols.append(Paragraph(name_text_nbsp, med_name_style))
                 col_widths.append(name_w)
                 
                 # On n'affiche Forme/Dose que si c'est un médicament ET que les champs sont remplis
                 if not is_radio:
                     if display_forme:
-                        # Application de la police adaptative pour la forme sans retour à la ligne
+                        # Utilisation du style global homogène
                         form_w = 3.0*cm
                         display_forme_nbsp = display_forme.replace(" ", "\u00a0")
-                        adaptive_form_style = self.base_template.get_adaptive_style(med_forme_style, display_forme_nbsp, form_w - 0.2*cm)
-                        cols.append(Paragraph(f"<i>{display_forme_nbsp}</i>", adaptive_form_style))
+                        cols.append(Paragraph(f"<i>{display_forme_nbsp}</i>", med_forme_style))
                         col_widths.append(form_w)
                     else:
                         col_widths[0] += 1.0*cm
@@ -212,8 +248,7 @@ class OrdonnanceGenerator:
                     if dose:
                         dose_w = 1.8*cm
                         dose_nbsp = dose.replace(" ", "\u00a0")
-                        adaptive_dose_style = self.base_template.get_adaptive_style(med_dose_style, dose_nbsp, dose_w - 0.1*cm)
-                        cols.append(Paragraph(f"{dose_nbsp}", adaptive_dose_style))
+                        cols.append(Paragraph(f"{dose_nbsp}", med_dose_style))
                         col_widths.append(dose_w)
                     else:
                         col_widths[0] += 0.8*cm
@@ -225,7 +260,7 @@ class OrdonnanceGenerator:
 
                 med_line_table = Table([cols], colWidths=col_widths)
                 # Ajustement du padding pour gagner de l'espace si num_meds est élevé
-                top_pad = 12 if num_meds < 7 else 8
+                top_pad = 12 if num_meds < 6 else (8 if num_meds < 9 else 4)
                 med_line_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
                     ('LEFTPADDING', (0,0), (-1,-1), 0),
@@ -236,21 +271,18 @@ class OrdonnanceGenerator:
                 
                 elements.append(med_line_table)
                 
-                # Ligne 2 : Posologie ou Avertissement Radio (Adaptatif et sans retour à la ligne)
-                poso_w = 10.3*cm
+                # Ligne 2 : Posologie ou Avertissement Radio
                 if is_radio:
                     warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
                     if posologie:
-                        warning_msg += f" {posologie}"
-                    warning_msg_nbsp = warning_msg.replace(" ", "\u00a0")
-                    adaptive_warning_style = self.base_template.get_adaptive_style(warning_style, warning_msg_nbsp, poso_w - 0.2*cm)
-                    elements.append(Paragraph(warning_msg_nbsp, adaptive_warning_style))
+                        warning_msg += f"<br/>{posologie.replace(chr(10), '<br/>')}"
+                    elements.append(Paragraph(warning_msg, warning_style))
                 elif posologie:
-                    poso_nbsp = posologie.replace(" ", "\u00a0")
-                    adaptive_poso_style = self.base_template.get_adaptive_style(poso_style, poso_nbsp, poso_w - 0.2*cm)
-                    elements.append(Paragraph(poso_nbsp, adaptive_poso_style))
+                    poso_html = posologie.replace("\n", "<br/>")
+                    elements.append(Paragraph(poso_html, poso_style))
                 else:
-                    elements.append(Spacer(1, 0.5*cm))
+                    spacer_h = 0.5 if num_meds < 7 else 0.2
+                    elements.append(Spacer(1, spacer_h*cm))
         else:
             empty_style = ParagraphStyle(
                 'Empty', parent=self.styles['Normal'],
@@ -267,7 +299,8 @@ class OrdonnanceGenerator:
             textColor=p_color, 
             alignment=TA_CENTER
         )
-        elements.append(PinnedCloture("Signature et Cachet", cloture_style))
+        # La mention a été supprimée à la demande de l'utilisateur
+        # elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
         # Utilisation des marges configurées. Si pas de letterhead_path, on force des minimums de sécurité
         m_top_val = self._get_val(config, 'margin_top', 4.8)

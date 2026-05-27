@@ -23,7 +23,7 @@ interface PatientDetails {
 }
 
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre' | 'echeancier';
 
 interface UseDocumentGeneratorParams {
   patientId: string | undefined;
@@ -202,10 +202,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         
         console.log("🖨️ Tentative d'impression directe :", fetchUrl);
         
-        const response = await fetch(fetchUrl);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // Extract the path from fetchUrl since api.get will prepend the base URL
+        const basePath = fetchUrl.replace(`${API_BASE}/api`, '');
         
-        const blob = await response.blob();
+        const response = await api.get(basePath, { responseType: 'blob' });
+        const blob = response.data;
         const localBlobUrl = URL.createObjectURL(blob);
         
         // Création d'un iframe caché pour l'impression
@@ -298,6 +299,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         custom_date: libreCustomDate, hide_patient_header: libreHideHeader,
         page_size: librePageSize, alignment: libreAlignment,
       };
+    } else if (activeTab === 'echeancier') {
+      const container = document.getElementById('installment-studio-container');
+      if (container) {
+        const planData = JSON.parse(container.getAttribute('data-plan-data') || '{}');
+        payload.data = planData;
+      }
     } else {
       const commonItems = items
         .filter(i => i.description.trim() !== '')
@@ -338,7 +345,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     if (!isPreview) {
       const errors = validatePayload(params);
       setValidationErrors(errors);
-      if (errors.length > 0) return;
+      if (errors.length > 0) {
+        errors.forEach(e => toast.error(e.message));
+        return;
+      }
 
       // Cohérence Phase 4
       const warnings = analyzeCoherence(params);

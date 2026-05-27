@@ -23,6 +23,7 @@ const Settings        = lazy(() => import('./pages/Settings').then(m => ({ defau
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
+const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -92,32 +93,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-slate-600">Vérification de la configuration...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)
   const appMode = safeStorage.get('appMode');
-  if (!appMode && location.pathname !== '/welcome') {
-    return <Navigate to="/welcome" replace />;
+  if (!appMode) {
+    safeStorage.set('appMode', 'prod');
   }
 
-  // Si mode réel, on impose /setup si non init.
-  if (!isInitialized && location.pathname !== '/setup') {
-    return <Navigate to="/setup" replace />;
-  }
+  // Si le cabinet est déjà initialisé, on empêche l'accès au setup
   if (isInitialized && location.pathname === '/setup') {
     return <Navigate to="/dashboard" replace />;
   }
-
 
   return <>{children}</>;
 };
@@ -162,6 +147,7 @@ const ProtectedRoutes = () => (
         <Route path="/bibliotheque" element={<EliteLibrary />} />
         <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
         <Route path="/science-hub" element={<EliteScienceHub />} />
+        <Route path="/super-admin" element={<SuperAdminDashboard />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Suspense>
@@ -192,9 +178,7 @@ function App() {
         }}
       />
       <Routes>
-        {/* Route d'entrée absolue (sans protection) */}
-        <Route path="/welcome" element={<WelcomeScreen />} />
-        
+
         {/* ROUTES PWA MOBILE (Accès Direct) */}
         <Route path="/mobile/onboarding" element={
           <Suspense fallback={<PageLoader />}><OnboardingScanner /></Suspense>

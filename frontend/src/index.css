@@ -43,6 +43,8 @@
   --color-background: var(--bg-medical-pearl);
 }
 
+@custom-variant dark (&:is([data-theme='dark'] *, [data-theme='prestige'] *));
+
 :root {
   /* GHOST ELITE (Structure) */
   --bg-medical-pearl: #f8fafc;

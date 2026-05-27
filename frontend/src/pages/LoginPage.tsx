@@ -1,28 +1,35 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth';
-import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Lock, Mail, AlertCircle, Loader2, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/logo.png';
 
 export const LoginPage: React.FC = () => {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await authService.login(email, password);
-      navigate('/dashboard');
+      if (isLogin) {
+        await authService.login(email, password);
+        navigate('/dashboard');
+      } else {
+        await authService.register(email, password, fullName);
+        navigate('/setup');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Une erreur est survenue lors de la connexion.');
+      setError(err.response?.data?.detail || err.message || 'Une erreur est survenue.');
     } finally {
       setLoading(false);
     }
@@ -44,11 +51,39 @@ export const LoginPage: React.FC = () => {
             <div className="mb-4">
               <img src={Logo} alt="Digital Crown" className="h-16 w-auto" />
             </div>
-            <h1 className="font-bold text-slate-900 text-lg">Digital Crown AI</h1>
-            <p className="text-slate-500 text-xs mt-1">Connectez-vous à votre espace cabinet</p>
+            <h1 className="font-bold text-slate-900 text-xl text-center">
+              {isLogin ? 'Digital Crown AI' : 'Créer votre Cabinet'}
+            </h1>
+            <p className="text-slate-500 text-sm mt-1 text-center">
+              {isLogin ? 'Connectez-vous à votre espace' : 'Inscrivez-vous pour commencer'}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <AnimatePresence mode="popLayout">
+              {!isLogin && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Nom Complet</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      placeholder="Dr. Ahmed Benmoussa"
+                      required={!isLogin}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Email Professionnel</label>
               <div className="relative">
@@ -75,24 +110,27 @@ export const LoginPage: React.FC = () => {
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                   placeholder="••••••••"
                   required
+                  minLength={6}
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all" 
-                />
-                <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Rester connecté</span>
-              </label>
-              <button type="button" className="text-sm text-primary hover:underline font-medium">
-                Mot de passe oublié ?
-              </button>
-            </div>
+            {isLogin && (
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all" 
+                  />
+                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Rester connecté</span>
+                </label>
+                <button type="button" className="text-sm text-primary hover:underline font-medium">
+                  Mot de passe oublié ?
+                </button>
+              </div>
+            )}
 
             {error && (
               <motion.div 
@@ -113,10 +151,26 @@ export const LoginPage: React.FC = () => {
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                'Se connecter'
+                isLogin ? 'Se connecter' : 'Créer mon compte'
               )}
             </button>
           </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-600">
+              {isLogin ? "Nouveau sur Digital Crown ?" : "Vous avez déjà un compte ?"}
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                }} 
+                className="ml-2 font-bold text-primary hover:underline"
+              >
+                {isLogin ? "Créer un compte" : "Se connecter"}
+              </button>
+            </p>
+          </div>
 
           <div className="mt-6">
             <div className="relative mb-6">
@@ -143,7 +197,6 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-
             <p className="text-xs text-slate-400">
               © 2026 SANINOVA - Digital Crown Elite Edition v4.0
             </p>

@@ -551,7 +551,16 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             return (
               <g>
                 <defs>
-                  {/* Gradient qui part du profil (opaque) vers l'intérieur de la tête (transparent) */}
+                  {/* Skin Gradient for the real profile */}
+                  <linearGradient id="skinProfileGradient" 
+                    x1={facesRight ? "100%" : "0%"} y1="0%" 
+                    x2={facesRight ? "0%" : "100%"} y2="0%">
+                    <stop offset="0%" stopColor="#fca5a5" stopOpacity="0.4" />
+                    <stop offset="30%" stopColor="#fca5a5" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#fca5a5" stopOpacity="0" />
+                  </linearGradient>
+
+                  {/* Gradient for Ghost/VTO Elite */}
                   <linearGradient id="ghostFaceGradientDynamic" 
                     x1={facesRight ? "100%" : "0%"} y1="0%" 
                     x2={facesRight ? "0%" : "100%"} y2="0%">
@@ -561,29 +570,27 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                   </linearGradient>
                 </defs>
 
-                {/* Rendu "Ghost Face" Elite (Volume 3D simulé) */}
-                {vto.showGhostFace && (
-                  <motion.path
-                    initial={false}
-                    animate={{ d: `${d} L ${edgeX} ${profilePoints[n_pts - 1].y} L ${edgeX} ${profilePoints[0].y} Z` }}
-                    transition={{ type: 'spring', stiffness: 100, damping: 25 }}
-                    fill="url(#ghostFaceGradientDynamic)"
-                    style={{ filter: !performanceMode ? 'url(#skinGlow)' : 'none', pointerEvents: 'none' }}
-                  />
-                )}
+                {/* Rendu du Masque de Peau (Skin Fill) au lieu d'une simple ligne */}
+                <motion.path
+                  initial={false}
+                  animate={{ d: `${d} L ${edgeX} ${profilePoints[n_pts - 1].y} L ${edgeX} ${profilePoints[0].y} Z` }}
+                  transition={{ type: 'spring', stiffness: 100, damping: 25 }}
+                  fill={isGhost || vto.showGhostFace ? "url(#ghostFaceGradientDynamic)" : "url(#skinProfileGradient)"}
+                  style={{ pointerEvents: 'none' }}
+                />
 
-                {/* Ligne de profil brillante "Ghost Elite" */}
+                {/* Ligne de profil cutané */}
                 <motion.path
                   initial={false}
                   animate={{ d }}
                   transition={{ type: 'spring', stiffness: 100, damping: 25 }}
                   fill="none"
-                  stroke="#00f5ff"
-                  strokeWidth="3.5"
+                  stroke={isGhost || vto.showGhostFace ? "#00f5ff" : "#fca5a5"}
+                  strokeWidth="2.5"
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                  opacity="0.95"
-                  style={!performanceMode ? { filter: 'drop-shadow(0 0 12px rgba(0,245,255,0.8))' } : {}}
+                  opacity={isGhost ? 0.7 : 0.9}
+                  style={!performanceMode ? { filter: `drop-shadow(0 0 8px ${isGhost || vto.showGhostFace ? 'rgba(0,245,255,0.6)' : 'rgba(252,165,165,0.6)'})` } : {}}
                   vectorEffect="non-scaling-stroke"
                   className="pointer-events-none"
                 />

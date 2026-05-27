@@ -35,18 +35,27 @@ export const AddPatientForm = () => {
   // État pour la validation du numéro de dossier
   const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
 
-  const [formData, setFormData] = useState<Omit<Patient, 'id' | 'created_at' | 'updated_at'> & { antecedents_medicaux?: string }>({
+  const [formData, setFormData] = useState<any>({
     numero_dossier: '',
     nom: prefillNom,
     prenom: prefillPrenom,
     date_naissance: '',
     sexe: 'F', 
     telephone: '',
+    telephone_2: '',
+    telephone_3: '',
     email: '',
     adresse: '',
     assurance: 'AUCUNE',
-    antecedents_medicaux: ''
+    assurance_privee_nom: '',
+    assurance_complementaire: false,
+    assurance_complementaire_nom: '',
+    antecedents_medicaux: '',
+    motif_consultation: ''
   });
+
+  const [showPhone2, setShowPhone2] = useState(false);
+  const [showPhone3, setShowPhone3] = useState(false);
 
   // Charger le prochain numéro de dossier disponible au chargement
   useEffect(() => {
@@ -57,7 +66,7 @@ export const AddPatientForm = () => {
     try {
       const response = await api.get('/patients/next-dossier-number');
       if (!formData.numero_dossier) {
-        setFormData(prev => ({ ...prev, numero_dossier: response.data.next_number }));
+        setFormData((prev: any) => ({ ...prev, numero_dossier: response.data.next_number }));
       }
     } catch (err) {
       console.error("Erreur lors de la récupération du prochain numéro:", err);
@@ -89,10 +98,17 @@ export const AddPatientForm = () => {
   }, [formData.numero_dossier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    let finalValue: any = value;
+    if (type === 'checkbox') {
+      finalValue = (e.target as HTMLInputElement).checked;
+    } else if (name === 'nom') {
+      finalValue = value.toUpperCase();
+    }
+    
     setFormData({ 
       ...formData, 
-      [name]: name === 'nom' ? value.toUpperCase() : value 
+      [name]: finalValue 
     });
     if (errors[name]) setErrors({ ...errors, [name]: '' });
     // Réinitialiser le modal doublon si modif
@@ -183,10 +199,16 @@ export const AddPatientForm = () => {
     // Sanitization
     const payload = {
       ...formData,
+      is_ortho_active: isOrtho,
       email: formData.email === '' ? null : formData.email,
       adresse: formData.adresse === '' ? null : formData.adresse,
       telephone: formData.telephone === '' ? null : formData.telephone,
+      telephone_2: formData.telephone_2 === '' ? null : formData.telephone_2,
+      telephone_3: formData.telephone_3 === '' ? null : formData.telephone_3,
+      assurance_privee_nom: formData.assurance_privee_nom === '' ? null : formData.assurance_privee_nom,
+      assurance_complementaire_nom: formData.assurance_complementaire_nom === '' ? null : formData.assurance_complementaire_nom,
       antecedents_medicaux: formData.antecedents_medicaux === '' ? null : formData.antecedents_medicaux,
+      motif_consultation: formData.motif_consultation === '' ? null : formData.motif_consultation,
     };
 
     try {
@@ -319,7 +341,7 @@ export const AddPatientForm = () => {
                   value={formData.nom} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.nom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
-                  placeholder="DUPONT"
+                  placeholder="BENMOUSSA"
                 />
                 {errors.nom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.nom}</span>}
               </div>
@@ -332,7 +354,7 @@ export const AddPatientForm = () => {
                   value={formData.prenom} 
                   onChange={handleChange}
                   className={cn(inputClass, errors.prenom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
-                  placeholder="Marie"
+                  placeholder="Yazan"
                 />
                 {errors.prenom && <span className="text-red-500 text-xs mt-1 ml-1">{errors.prenom}</span>}
               </div>
@@ -387,6 +409,57 @@ export const AddPatientForm = () => {
                   <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
                   <option value="PRIVEE">Assurance Privée</option>
                 </select>
+                
+                {formData.assurance === 'PRIVEE' && (
+                  <div className="mt-3">
+                    <label className={labelClass}>Nom de l'Assurance Privée</label>
+                    <input 
+                      type="text" 
+                      name="assurance_privee_nom" 
+                      value={formData.assurance_privee_nom} 
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Ex: Sanlam, Wafa Assurance..."
+                    />
+                  </div>
+                )}
+                
+                {/* Assurance Complémentaire */}
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <label className="flex items-center gap-3 cursor-pointer mb-3">
+                    <div className={cn(
+                      "w-10 h-5 rounded-full transition-all duration-300 relative",
+                      formData.assurance_complementaire ? "bg-[#003380]" : "bg-slate-300"
+                    )}>
+                      <div className={cn(
+                        "absolute top-1 w-3 h-3 rounded-full bg-white shadow-md transition-all duration-300",
+                        formData.assurance_complementaire ? "left-6" : "left-1"
+                      )} />
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      name="assurance_complementaire"
+                      checked={formData.assurance_complementaire} 
+                      onChange={handleChange}
+                      className="hidden"
+                    />
+                    <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
+                  </label>
+                  
+                  {formData.assurance_complementaire && (
+                    <div>
+                      <label className={labelClass}>Nom de l'Assurance Complémentaire</label>
+                      <input 
+                        type="text" 
+                        name="assurance_complementaire_nom" 
+                        value={formData.assurance_complementaire_nom} 
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="Ex: Mutuelle interne..."
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -401,8 +474,8 @@ export const AddPatientForm = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className={labelClass}>Téléphone</label>
-                <div className="relative">
+                <label className={labelClass}>Téléphone Principal</label>
+                <div className="relative mb-2">
                   <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input 
                     type="tel" 
@@ -413,6 +486,47 @@ export const AddPatientForm = () => {
                     placeholder="06 12 34 56 78"
                   />
                 </div>
+                
+                {showPhone2 && (
+                  <div className="relative mb-2 mt-2">
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                    <input 
+                      type="tel" 
+                      name="telephone_2" 
+                      value={formData.telephone_2} 
+                      onChange={handleChange}
+                      className={cn(inputClass, "pl-14 py-3")}
+                      placeholder="Téléphone secondaire"
+                    />
+                  </div>
+                )}
+                
+                {showPhone3 && (
+                  <div className="relative mb-2 mt-2">
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                    <input 
+                      type="tel" 
+                      name="telephone_3" 
+                      value={formData.telephone_3} 
+                      onChange={handleChange}
+                      className={cn(inputClass, "pl-14 py-3")}
+                      placeholder="Autre numéro"
+                    />
+                  </div>
+                )}
+                
+                {(!showPhone2 || !showPhone3) && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (!showPhone2) setShowPhone2(true);
+                      else if (!showPhone3) setShowPhone3(true);
+                    }}
+                    className="text-xs text-[#003380] font-bold hover:underline"
+                  >
+                    + Ajouter un numéro
+                  </button>
+                )}
               </div>
 
               <div>
@@ -425,7 +539,7 @@ export const AddPatientForm = () => {
                     value={formData.email} 
                     onChange={handleChange}
                     className={cn(inputClass, "pl-14", errors.email && "border-red-400 focus:border-red-400 focus:ring-red-100")}
-                    placeholder="marie.dupont@email.com"
+                    placeholder="yazan.benmoussa@email.com"
                   />
                 </div>
                 {errors.email && <span className="text-red-500 text-xs mt-1 ml-1">{errors.email}</span>}
@@ -439,7 +553,7 @@ export const AddPatientForm = () => {
                   value={formData.adresse} 
                   onChange={handleChange}
                   className={inputClass}
-                  placeholder="123 Rue de la Paix, 75000 Paris"
+                  placeholder="Avenue Mohammed V, Rabat"
                 />
               </div>
             </div>
@@ -454,6 +568,18 @@ export const AddPatientForm = () => {
             </div>
 
             <div>
+              <label className={labelClass}>Motif de première consultation</label>
+              <textarea 
+                name="motif_consultation" 
+                value={formData.motif_consultation} 
+                onChange={handleChange}
+                rows={2}
+                className={inputClass}
+                placeholder="Ex: Douleur dent 46, visite de contrôle, consultation orthodontique..."
+              />
+            </div>
+
+            <div className="mt-6">
               <label className={labelClass}>Historique médical et allergies</label>
               <textarea 
                 name="antecedents_medicaux" 

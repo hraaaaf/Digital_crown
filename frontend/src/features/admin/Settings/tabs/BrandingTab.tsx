@@ -283,7 +283,7 @@ export const BrandingTab: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              updateProfile({ letterhead_path: null });
+                              updateProfile({ letterhead_path: undefined });
                             }}
                             className="absolute top-4 right-4 w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-md z-10"
                           >

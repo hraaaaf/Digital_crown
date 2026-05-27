@@ -100,4 +100,5 @@ class PanoramicReportRequest(BaseModel):
     """Demande de génération de rapport basé sur les annotations manuelles."""
     analysis_id: int
     manual_anomalies: Dict[int, List[str]]
+    rejected_detections: Optional[List[int]] = []
 

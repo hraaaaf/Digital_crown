@@ -96,7 +96,7 @@ def record_act(data: dict, db: Session = Depends(database.get_db), current_user:
 # --- NEW : PAYMENT TRACKING (Encaissements Réels) ---
 
 @router.post("/payments", response_model=schemas.PaymentOut)
-def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
+def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission(["accounting", "payments"]))):
     """Enregistre un encaissement réel dans le tiroir-caisse."""
     assert_patient_access(payment.patient_id, current_user, db)
     
@@ -107,7 +107,8 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
         payment_date=payment.payment_date or datetime.now(),
         acte_id=payment.acte_id,
         installment_id=payment.installment_id,
-        notes=payment.notes
+        notes=payment.notes,
+        validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
     )
     db.add(new_payment)
     db.commit()

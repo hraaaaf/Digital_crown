@@ -132,10 +132,20 @@ class Patient(Base):
     
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     telephone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    telephone_2: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    telephone_3: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     photo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     adresse: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Assurances
     assurance: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # CNOPS, CNSS, MUTUELLE_FAR, PRIVEE, AUCUNE
+    assurance_privee_nom: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    assurance_complementaire: Mapped[bool] = mapped_column(Boolean, default=False)
+    assurance_complementaire_nom: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    # Médical
     antecedents_medicaux: Mapped[str | None] = mapped_column(String, nullable=True)
+    motif_consultation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Fiabilité Patient (Elite System)
     manual_grade: Mapped[Optional[str]] = mapped_column(String(20), nullable=True) # PLATINUM, GOLD, SILVER, BRONZE
@@ -202,6 +212,7 @@ class Acte(Base):
     statut_paiement: Mapped[PaiementStatut] = mapped_column(SQLEnum(PaiementStatut), default=PaiementStatut.EN_ATTENTE)
     is_accounted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     patient: Mapped["Patient"] = relationship(back_populates="actes")
     praticien: Mapped["User"] = relationship(back_populates="actes_realises")
@@ -359,6 +370,7 @@ class DocumentArchive(Base):
     is_accounted: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     payment_status: Mapped[PaiementStatut] = mapped_column(SQLEnum(PaiementStatut), default=PaiementStatut.EN_ATTENTE, index=True)
     is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Dates importantes
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
@@ -626,6 +638,7 @@ class Payment(Base):
     installment_id: Mapped[Optional[int]] = mapped_column(ForeignKey("installments.id", ondelete="SET NULL"), nullable=True)
     
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     patient: Mapped["Patient"] = relationship()
     acte: Mapped[Optional["Acte"]] = relationship()
@@ -814,6 +827,7 @@ class ZKAPairingToken(Base):
     employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     public_id: Mapped[str] = mapped_column(String(16), nullable=False)
     master_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="DENTISTE", nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

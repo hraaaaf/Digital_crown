@@ -78,12 +78,10 @@ def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), cu
     from backend.services.accounting_service import accounting_service
     
     if not q.strip():
-        # Renvoyer les actes fréquents du médecin
+        # Renvoyer les actes fréquents du médecin fusionnés avec le catalogue par défaut
         frequent = accounting_service.get_frequent_acts(db, current_user.id, limit=20)
-        if frequent:
-            return frequent
+        frequent_names = {f["name"].lower() for f in frequent} if frequent else set()
             
-        # Fallback vers un catalogue d'actes standard de base si aucune habitude n'est enregistrée
         fallback_names = [
             ("Consultation dentaire", 200, "Diagnostic"),
             ("Détartrage et polissage", 400, "Prévention"),
@@ -96,15 +94,19 @@ def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), cu
             ("Couronne céramo-métallique", 2500, "Prothèse"),
             ("Implant dentaire", 6000, "Implantologie"),
         ]
-        return [
-            {
-                "id": f"default_{i}",
-                "name": name,
-                "base_price": price,
-                "category": cat,
-                "is_habit": False
-            } for i, (name, price, cat) in enumerate(fallback_names)
-        ]
+        
+        results = frequent if frequent else []
+        for i, (name, price, cat) in enumerate(fallback_names):
+            if name.lower() not in frequent_names:
+                results.append({
+                    "id": f"default_{i}",
+                    "name": name,
+                    "base_price": price,
+                    "category": cat,
+                    "is_habit": False
+                })
+        
+        return results
         
     return accounting_service.search_acts(db, current_user.id, q)
 

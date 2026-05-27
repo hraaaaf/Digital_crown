@@ -255,7 +255,7 @@ class CertificatGenerator:
             textColor=p_color,
             alignment=TA_CENTER
         )
-        elements.append(PinnedCloture("Signature et Cachet", cloture_style))
+        # elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm

@@ -119,6 +119,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   //  Refs 
   const fileRef = useRef<HTMLInputElement>(null);
   const step1ContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     analysisId, imageSrc,
@@ -192,6 +193,13 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       return () => clearTimeout(timer);
     }
   }, [uploadError]);
+
+  // Reset scroll on step change
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
 
   //  Effects
   useEffect(() => {
@@ -297,7 +305,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={3} label="Diagnostic" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={4} label="Export" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
+        <StepTab id={4} label="Ghost Brain & Plan" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
       </div>
 
       {/* Message d'erreur navigation */}
@@ -313,7 +321,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       </AnimatePresence>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6" style={{ background: P.bg }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 scroll-smooth" style={{ background: P.bg }}>
         <div className="max-w-4xl mx-auto">
           {step === 1 && renderStep1()}
           {step === 2 && (
@@ -347,7 +355,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
               >
                 {step === 1 && 'Passer aux moulages'}
                 {step === 2 && 'Passer au diagnostic'}
-                {step === 3 && 'Exporter le bilan'}
+                {step === 3 && 'Discuter du plan (Ghost Brain)'}
                 <ChevronRight size={18} />
               </button>
             )}

@@ -14,10 +14,15 @@ class StateExtractor:
         """Génère le snapshot complet pour un cabinet donné."""
         today = date.today()
         
-        # 1. Agenda du jour
+        from datetime import timedelta
+        start_date = today - timedelta(days=30)
+        end_date = today + timedelta(days=90)
+        
+        # 1. Agenda (Fenêtre de 120 jours pour la gestion mobile complète)
         appointments = db.query(models.Appointment).filter(
             models.Appointment.employer_id == employer_id,
-            func.date(models.Appointment.datetime_start) == today
+            func.date(models.Appointment.datetime_start) >= start_date,
+            func.date(models.Appointment.datetime_start) <= end_date
         ).order_by(models.Appointment.datetime_start).all()
         
         # 2. KPIs Financiers (CA du mois en cours)
@@ -40,10 +45,13 @@ class StateExtractor:
             "agenda": [
                 {
                     "id": apt.id,
+                    "date": apt.datetime_start.strftime("%Y-%m-%d"),
                     "time": apt.datetime_start.strftime("%H:%M"),
                     "patient": f"{apt.patient.nom} {apt.patient.prenom}" if apt.patient else apt.patient_name,
                     "patient_id": apt.patient_id,
+                    "phone": apt.patient.telephone if apt.patient else None,
                     "motif": apt.motif,
+                    "duration_minutes": apt.duration_minutes,
                     "status": apt.status.value,
                     "grade": apt.patient.manual_grade if apt.patient else None
                 } for apt in appointments
@@ -53,8 +61,8 @@ class StateExtractor:
                 "currency": "MAD"
             },
             "stats": {
-                "today_count": len(appointments),
-                "remaining_count": len([a for a in appointments if a.status.value == "PRÉVU"])
+                "today_count": len([a for a in appointments if a.datetime_start.date() == today]),
+                "remaining_count": len([a for a in appointments if a.datetime_start.date() == today and a.status.value == "PRÉVU"])
             }
         }
 

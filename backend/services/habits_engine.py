@@ -137,9 +137,25 @@ class HabitsEngine:
                 triggers.append({
                     "type": "PHASE_END",
                     "title": "Fin de Traitement Actif",
-                    "message": "Phase de contention détectée. Prévoir le suivi à 6 mois.",
-                    "action": "Planifier contrôle"
+                    "message": "Contention posée. Souhaitez-vous générer le document de fin de traitement ?",
+                    "action": f"/patients/{patient_id}/documents/new"
                 })
+
+        # OVERDUE_PAYMENT: Echéances en retard
+        # Rechercher les échéances dont la date est passée et qui ne sont pas payées
+        overdue_installments = db.query(models.Installment).join(models.InstallmentPlan).filter(
+            models.InstallmentPlan.patient_id == patient_id,
+            models.Installment.due_date < datetime.now(),
+            models.Installment.status != "PAYE"
+        ).all()
+        
+        for inst in overdue_installments:
+            triggers.append({
+                "type": f"OVERDUE_PAYMENT_{inst.id}",
+                "title": f"Paiement en retard - {inst.plan.title}",
+                "message": f"L'échéance '{inst.label}' de {inst.amount} MAD était prévue pour le {inst.due_date.strftime('%d/%m/%Y')}.",
+                "action": f"/patients/{patient_id}/archives"
+            })
 
         # Exemple 2 : Prévention (Trigger Temps)
         last_detartrage = db.query(models.Acte).filter(
@@ -165,7 +181,13 @@ class HabitsEngine:
                 })
 
         # Exemple 3 : Dossier Incomplet (Trigger Qualité)
-        if not patient.antecedents_medicaux or len(patient.antecedents_medicaux) < 5:
+        has_antecedents = False
+        if patient.antecedents_medicaux:
+            cleaned_ant = patient.antecedents_medicaux.strip()
+            if len(cleaned_ant) >= 3:
+                has_antecedents = True
+
+        if not has_antecedents:
             triggers.append({
                 "type": "QUALITY",
                 "title": "Sécurité Clinique",

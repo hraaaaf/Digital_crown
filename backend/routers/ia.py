@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime, date
@@ -220,16 +220,27 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         from backend.services.panoramic_report_engine import panoramic_report_engine
         
         # Récupération des détections IA stockées
-        detections = analysis.detections_data.get("detections", [])
+        all_detections = analysis.detections_data.get("detections", [])
+        
+        # Marquer les détections comme rejetées pour la persistance
+        if req.rejected_detections:
+            for idx in req.rejected_detections:
+                if 0 <= idx < len(all_detections):
+                    all_detections[idx]["rejected"] = True
+                    
+        # On ne passe au générateur que les détections non rejetées
+        active_detections = [d for d in all_detections if not d.get("rejected")]
         
         # Génération du nouveau rapport hybride (IA + Manuel)
         report_markdown = panoramic_report_engine.generate_markdown(
-            detections=detections, 
+            detections=active_detections, 
             manual_anomalies=req.manual_anomalies
         )
         
         # Mise à jour persistante
         analysis.report_narrative = report_markdown
+        # Forcer la mise à jour du JSON field dans SQLAlchemy
+        analysis.detections_data = {**analysis.detections_data, "detections": all_detections}
         db.commit()
         db.refresh(analysis)
         
@@ -255,3 +266,49 @@ def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_
     except Exception as e:
         logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/panoramic/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_panoramic_analysis(
+    analysis_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(require_permission("panoramic"))
+):
+    """Supprime un bilan/radio panoramique (et son fichier physique)."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Bilan panoramique introuvable")
+    
+    assert_patient_access(analysis.patient_id, current_user, db)
+    
+    try:
+        # Audit log before deletion
+        from backend.services.audit_service import audit_service
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="PanoramicAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Suppression du bilan panoramique {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        
+        # Suppression du fichier physique de la radio si présent
+        if analysis.image_path:
+            rel_path = analysis.image_path.replace("api/", "", 1) if analysis.image_path.startswith("api/") else analysis.image_path
+            file_abs_path = os.path.join(BASE_DIR, rel_path)
+            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
+                try:
+                    os.remove(file_abs_path)
+                except Exception as _e:
+                    logger.warning(f"Impossible de supprimer le fichier radio physique {file_abs_path}: {_e}")
+        
+        # Suppression de l'enregistrement de la base de données
+        db.delete(analysis)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la suppression du bilan panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

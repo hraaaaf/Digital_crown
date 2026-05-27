@@ -15,6 +15,7 @@ from backend.services.generators.certificat_gen import CertificatGenerator
 from backend.services.generators.accounting_gen import AccountingGenerator
 from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
+from backend.services.generators.installment_gen import generate_installment_plan
 
 logger = logging.getLogger(__name__)
 
@@ -145,10 +146,45 @@ class DocumentFactory:
                     "qr_code_color": cabinet.qr_code_color if cabinet else None,
                     "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
                 },
-                doctor_name=f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova",
+                doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
                 radio_image_path=radio_image_path
             )
             return self.ceph_gen.generate(vm)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
+            
+    def create_installment_plan(self, db: Session, plan_id: int, user_id: int) -> dict:
+        """
+        Génère un PDF d'échéancier de paiement Ortho/Autre.
+        """
+        plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == plan_id).first()
+        if not plan:
+            raise ValueError("Plan introuvable")
+            
+        patient = plan.patient
+        clinic = db.query(models.Clinic).filter(models.Clinic.employer_id == patient.employer_id).first()
+        if not clinic:
+            raise ValueError("Clinique non trouvée")
+            
+        filepath = generate_installment_plan(plan, patient, clinic, self.output_dir)
+        
+        # Archiver
+        archive = models.DocumentArchive(
+            patient_id=patient.id,
+            clinic_id=clinic.id,
+            document_type="echeancier",
+            title=f"Échéancier - {plan.title}",
+            file_path=filepath,
+            created_by=user_id,
+            data_snapshot={"plan_id": plan.id}
+        )
+        db.add(archive)
+        db.commit()
+        db.refresh(archive)
+        
+        return {
+            "url": f"/static/documents/{os.path.basename(filepath)}",
+            "archive_id": archive.id,
+            "filename": os.path.basename(filepath)
+        }

@@ -133,6 +133,7 @@ export const useCephaloPersistence = (
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
         setDiag(prev => ({
+          analyse_dentaire: prev.analyse_dentaire || n.analyse_dentaire || '',
           diagnostic_squelettique: prev.diagnostic_squelettique || n.diagnostic_squelettique || '',
           analyse_moulages: prev.analyse_moulages || n.analyse_moulages || '',
           synthese_diagnostique: prev.synthese_diagnostique || n.synthese_diagnostique || '',
@@ -219,6 +220,7 @@ export const useCephaloPersistence = (
 
     return await cephaloRepository.generatePDF(patientId, {
       ai_diagnostic: {
+        analyse_dentaire: diag.analyse_dentaire || '',
         diagnostic_squelettique: diag.diagnostic_squelettique || '',
         analyse_moulages: diag.analyse_moulages || '',
         synthese_diagnostique: diag.synthese_diagnostique || '',

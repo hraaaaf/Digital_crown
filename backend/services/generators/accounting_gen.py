@@ -486,6 +486,50 @@ class AccountingGenerator:
         from backend.services.base_template import PinnedCloture
         elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
 
+        # Bloc de signature électronique
+        sig_image_path = kwargs.get("signature_path")
+        if not sig_image_path and hasattr(data, "clinical_data") and data.clinical_data:
+            sig_image_path = data.clinical_data.get("signature_path")
+        elif not sig_image_path and hasattr(data, "signature_path") and data.signature_path:
+            sig_image_path = data.signature_path
+
+        sig_label_style = ParagraphStyle(
+            name='SigLabel', parent=self.styles['Normal'],
+            fontName=font_bold, fontSize=8, textColor=p_color, alignment=TA_LEFT
+        )
+        sig_label_right = ParagraphStyle(
+            name='SigLabelRight', parent=self.styles['Normal'],
+            fontName=font_bold, fontSize=8, textColor=p_color, alignment=TA_RIGHT
+        )
+
+        patient_sig_flowable = Paragraph("", sig_label_style)
+        if sig_image_path:
+            resolved_path = sig_image_path
+            if not os.path.isabs(resolved_path):
+                resolved_path = os.path.abspath(resolved_path)
+                if not os.path.exists(resolved_path):
+                    # Try from parent path of project
+                    resolved_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", sig_image_path))
+            
+            if os.path.exists(resolved_path):
+                from reportlab.platypus import Image
+                patient_sig_flowable = Image(resolved_path, width=3.5*cm, height=1.5*cm)
+
+        sig_data = [
+            [Paragraph("<b>Signature et Cachet :</b>", sig_label_style), Paragraph("<b>Signature du Patient (lu et approuvé) :</b>", sig_label_right)]
+        ]
+        sig_data.append([Paragraph("", sig_label_style), patient_sig_flowable])
+
+        sig_table = Table(sig_data, colWidths=[6.0*cm, 6.8*cm])
+        sig_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+        ]))
+        elements.append(Spacer(1, 0.4*cm))
+        elements.append(sig_table)
+
         highlighted_teeth = []
         for item in data.items:
             if hasattr(item, 'dents') and item.dents:

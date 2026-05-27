@@ -160,13 +160,72 @@ class CephaloEngine:
             if k in growth:
                 t1[k] = (round(p[0] + (growth[k][0]/ratio), 1), round(p[1] + (growth[k][1]/ratio), 1))
             else:
-                # Les incisives suivent l'os alvéolaire correspondant pour le morphing
-                base = "A" if "U1" in k else ("B" if "L1" in k else None)
-                if base and base in growth:
+                # Logique de suivi anatomique des tissus et dents
+                if "U1" in k:
+                    base = "A"
                     t1[k] = (round(p[0] + (growth[base][0]/ratio), 1), round(p[1] + (growth[base][1]/ratio), 1))
+                elif "L1" in k:
+                    base = "B"
+                    t1[k] = (round(p[0] + (growth[base][0]/ratio), 1), round(p[1] + (growth[base][1]/ratio), 1))
+                elif k in ["Ls", "Ls_soft", "ul", "UL", "St", "st", "Sn_soft", "Sn", "sn", "A_soft", "a_soft"]:
+                    base = "A"
+                    t1[k] = (round(p[0] + (growth[base][0]/ratio), 1), round(p[1] + (growth[base][1]/ratio), 1))
+                elif k in ["Li", "Li_soft", "ll", "LL", "B_soft", "b_soft", "Pog_soft", "pog_soft", "Me_soft", "me_soft", "stpog", "stPog"]:
+                    base = "Me"
+                    t1[k] = (round(p[0] + (growth[base][0]/ratio), 1), round(p[1] + (growth[base][1]/ratio), 1))
+                elif k in ["Prn", "prn", "Nose_Tip", "Cm", "cm"]:
+                    # Le nez grandit vers l'avant et le bas
+                    t1[k] = (round(p[0] + (0.8 * sign_x / ratio), 1), round(p[1] + (1.2 / ratio), 1))
                 else:
                     t1[k] = p
         return t1
+
+    def _project_t2_growth(self, pts: Dict[str, Optional[Tuple[float, float]]], ratio: float, age: Optional[int]) -> Dict[str, Tuple[float, float]]:
+        """Calcule le ghosting de croissance à 5 ans (Points T2) avec limite de maturation à 18 ans."""
+        if not age or age >= 18 or ratio == 0: 
+            return {k: p for k, p in pts.items() if p}
+            
+        faces_right = pts.get("N") and pts.get("Po") and pts["N"][0] > pts["Po"][0]
+        sign_x = 1 if faces_right else -1
+        
+        # Vecteurs annuels (mm) moyens selon Ricketts/Tweed
+        growth = {
+            "A": (0.5 * sign_x, 1.0), 
+            "B": (1.5 * sign_x, 2.0), 
+            "Me": (1.5 * sign_x, 2.0),
+            "Go": (-1.0 * sign_x, 1.5)
+        }
+        
+        # Calcul du multiplicateur de croissance (maximum 5 ans, limité à 18 ans)
+        years_remaining = min(18 - age, 5)
+        
+        t2 = {}
+        for k, p in pts.items():
+            if not p:
+                continue
+                
+            if k in growth:
+                t2[k] = (round(p[0] + (growth[k][0] * years_remaining / ratio), 1), round(p[1] + (growth[k][1] * years_remaining / ratio), 1))
+            else:
+                # Logique de suivi anatomique des tissus et dents
+                if "U1" in k:
+                    base = "A"
+                    t2[k] = (round(p[0] + (growth[base][0] * years_remaining / ratio), 1), round(p[1] + (growth[base][1] * years_remaining / ratio), 1))
+                elif "L1" in k:
+                    base = "B"
+                    t2[k] = (round(p[0] + (growth[base][0] * years_remaining / ratio), 1), round(p[1] + (growth[base][1] * years_remaining / ratio), 1))
+                elif k in ["Ls", "Ls_soft", "ul", "UL", "St", "st", "Sn_soft", "Sn", "sn", "A_soft", "a_soft"]:
+                    base = "A"
+                    t2[k] = (round(p[0] + (growth[base][0] * years_remaining / ratio), 1), round(p[1] + (growth[base][1] * years_remaining / ratio), 1))
+                elif k in ["Li", "Li_soft", "ll", "LL", "B_soft", "b_soft", "Pog_soft", "pog_soft", "Me_soft", "me_soft", "stpog", "stPog"]:
+                    base = "Me"
+                    t2[k] = (round(p[0] + (growth[base][0] * years_remaining / ratio), 1), round(p[1] + (growth[base][1] * years_remaining / ratio), 1))
+                elif k in ["Prn", "prn", "Nose_Tip", "Cm", "cm"]:
+                    # Le nez grandit vers l'avant et le bas
+                    t2[k] = (round(p[0] + (0.8 * sign_x * years_remaining / ratio), 1), round(p[1] + (1.2 * years_remaining / ratio), 1))
+                else:
+                    t2[k] = p
+        return t2
 
     # --- ORCHESTRATEUR PRINCIPAL ---
     def calculate_metrics(self, 
@@ -201,6 +260,7 @@ class CephaloEngine:
             },
             "visual_debug": {"N_prime": None, "A_prime": None, "B_prime": None},
             "t1_projection": {},
+            "t2_projection": {},
             "ai_narrative": {},
             "clinical_data": {
                 "ddm_maxillaire": None, 
@@ -384,8 +444,9 @@ class CephaloEngine:
                     d_li, -2.0, 2.0, "Lèvre inférieure en avant", "Lèvre inférieure en retrait", "Équilibre labial inférieur"
                 )
 
-        # --- FLUX 3 : PROJECTION MORPHOLOGIQUE T1 ---
+        # --- FLUX 3 : PROJECTION MORPHOLOGIQUE T1 & T2 ---
         payload["t1_projection"] = self._project_t1_growth(pts, ratio, age)
+        payload["t2_projection"] = self._project_t2_growth(pts, ratio, age)
 
         # --- FLUX 3 : INTELLIGENCE CLINIQUE DÉTERMINISTE (Normes COM) ---
         

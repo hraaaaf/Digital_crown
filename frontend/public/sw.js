@@ -1,4 +1,4 @@
-const CACHE = 'dc-mobile-v1';
+const CACHE = 'dc-mobile-v9';
 const SNAPSHOT_URL = '/api/mobile/snapshot';
 
 // Cache les assets statiques de l'app mobile à l'installation

@@ -11,14 +11,18 @@ import {
   Users,
   Bell,
   CheckCheck,
-  BarChart2
+  BarChart2,
+  Smartphone,
+  X
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { motion, type Variants } from 'framer-motion';
+import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -52,6 +56,7 @@ interface DashboardStats {
   in_waiting: number;
   recent_patients: RecentPatient[];
   weekly_activity: number[];
+  weekly_patients?: number;
 }
 
 interface ProactiveAlert {
@@ -98,13 +103,17 @@ export const Dashboard: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [projection, setProjection] = useState<ProjectionData | null>(null);
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
 
   const hasAccess = (permission: string) => {
     if (!user) return true;
-    if (user.role === 'ADMIN' || user.role === 'DENTISTE') return true;
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
+
     if (user.permissions && typeof user.permissions === 'object') {
       return user.permissions[permission] ?? false;
     }
+    
     if (user.role === 'SECRETAIRE') {
       const defaults: Record<string, boolean> = {
         agenda: true,
@@ -116,6 +125,9 @@ export const Dashboard: React.FC = () => {
         settings: false
       };
       return defaults[permission] ?? false;
+    }
+    if (user.role === 'DENTISTE') {
+      return true; // Fallback pour ancien sous-dentiste
     }
     return true;
   };
@@ -229,12 +241,23 @@ export const Dashboard: React.FC = () => {
         </div>
 
         
-        <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
-          <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Elite Cloud Connecté</span>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsMobileModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
+            title="Appairer le téléphone"
+          >
+            <Smartphone size={20} />
+            <span className="hidden md:inline">Mobile</span>
+          </button>
+          
+          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
+            <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Elite Cloud Connecté</span>
+              </div>
             </div>
           </div>
         </div>
@@ -343,7 +366,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">Volume Hebdo</span>
                     <span className="text-xs font-black text-main">
-                      {stats?.total_patients ? stats.total_patients * 2 : 14} Dossiers
+                      {stats?.weekly_patients !== undefined ? stats.weekly_patients : 0} Dossier{stats?.weekly_patients !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="text-right">
@@ -691,6 +714,37 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
       </div>
+      
+      {/* Mobile Security Modal */}
+      <AnimatePresence>
+        {isMobileModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
+            >
+              <button
+                onClick={() => setIsMobileModalOpen(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
+              >
+                <X size={24} />
+              </button>
+              <div className="p-8 overflow-y-auto">
+                <MobileSecurity />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

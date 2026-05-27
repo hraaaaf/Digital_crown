@@ -199,6 +199,8 @@ def check_and_update_db():
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS employer_id INTEGER DEFAULT 1")
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE")
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP WITH TIME ZONE")
+    safe_execute("ALTER TABLE actes ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255)")
+    safe_execute("ALTER TABLE document_archives ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255)")
     
     # --- MIGRATIONS USERS PERMISSIONS & MULTI-TENANCY ---
     safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'")
@@ -241,6 +243,7 @@ def check_and_update_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    safe_execute("ALTER TABLE zka_pairing_tokens ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'DENTISTE'")
     safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_token ON zka_pairing_tokens(token)")
     safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_expires ON zka_pairing_tokens(expires_at)")
 

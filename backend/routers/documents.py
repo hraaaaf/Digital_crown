@@ -59,6 +59,37 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 return doc_factory.create_note_honoraires(thread_patient, schemas.HonorairesData(**req.data), thread_db, user_id)
             elif req.type in ["libre", "lettre"]:
                 return doc_factory.create_document_libre(thread_patient, schemas.LibreData(**req.data), thread_db, user_id)
+            elif req.type == "echeancier":
+                if req.data.get("plan_id"):
+                    return doc_factory.create_installment_plan(thread_db, req.data.get("plan_id"), user_id)
+                else:
+                    # Cas où on passe les données directement (depuis le frontend)
+                    # Création du plan à la volée si ce n'est pas une preview, sinon mock ?
+                    # Pour simplifier, on crée le plan si 'archive=true' ou on le fait en mémoire
+                    # Comme la factory s'attend à un ID en base, on crée le plan temporairement puis on l'utilise.
+                    plan_data = req.data
+                    db_plan = models.InstallmentPlan(
+                        patient_id=thread_patient.id,
+                        title=plan_data.get("title", "Échéancier"),
+                        total_amount=plan_data.get("totalAmount", 0)
+                    )
+                    thread_db.add(db_plan)
+                    thread_db.commit()
+                    thread_db.refresh(db_plan)
+                    
+                    for inst in plan_data.get("items", []):
+                        db_inst = models.Installment(
+                            plan_id=db_plan.id,
+                            label=inst.get("label"),
+                            amount=inst.get("amount"),
+                            due_date=datetime.fromisoformat(inst.get("dueDate", datetime.now().isoformat()).split("T")[0])
+                        )
+                        thread_db.add(db_inst)
+                    thread_db.commit()
+                    
+                    # On retourne le doc généré. Si ce n'est qu'une preview, on pourrait le supprimer ensuite,
+                    # mais il est plus sûr de le conserver comme brouillon ou de laisser le backend faire le ménage.
+                    return doc_factory.create_installment_plan(thread_db, db_plan.id, user_id)
             raise ValueError(f"Type de document non supporté : {req.type}")
 
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
@@ -67,7 +98,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
         
         is_financial = req.type in ["honoraires", "note", "devis"]
-        should_archive = (archive or is_financial) and not preview
+        should_archive = (archive or is_financial) and not preview and not isinstance(pdf_path, dict)
 
         if should_archive:
             with open(pdf_path, "rb") as f: pdf_content = f.read()
@@ -119,12 +150,14 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             due_date = datetime.now()
                             
                         inst_amount = float(inst.get('amount', 0))
+                        send_rem = inst.get('sendReminder', False)
                         db.add(models.Installment(
                             plan_id=plan.id,
                             label=inst.get('label', 'Échéance'),
                             amount=inst_amount,
                             due_date=due_date,
-                            status="EN_ATTENTE"
+                            status="EN_ATTENTE",
+                            notes='{"sendReminder": true}' if send_rem else None
                         ))
                     db.commit()
                 else:
@@ -148,7 +181,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             amount=paid_amount,
                             payment_method=pm,
                             payment_date=datetime.now(),
-                            notes=f"Lien Doc ID: {doc.id}"
+                            notes=f"Lien Doc ID: {doc.id}",
+                            validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
                         )
                         db.add(payment_obj)
                         db.commit()
@@ -157,14 +191,17 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
 
         # Nettoyage du chemin pour le frontend
-        pdf_url = pdf_path.replace("\\", "/")
-        
-        # Si le chemin contient MEDIA_DIR, on le rend relatif à MEDIA_DIR et on préfixe par 'static/'
-        media_path_str = str(MEDIA_DIR).replace("\\", "/")
-        if media_path_str in pdf_url:
-            pdf_url = "static" + pdf_url.split(media_path_str)[1]
-        elif "static/" in pdf_url:
-            pdf_url = pdf_url[pdf_url.find("static/"):]
+        if isinstance(pdf_path, dict):
+            pdf_url = pdf_path["url"]
+        else:
+            pdf_url = pdf_path.replace("\\", "/")
+            
+            # Si le chemin contient MEDIA_DIR, on le rend relatif à MEDIA_DIR et on préfixe par 'static/'
+            media_path_str = str(MEDIA_DIR).replace("\\", "/")
+            if media_path_str in pdf_url:
+                pdf_url = "static" + pdf_url.split(media_path_str)[1]
+            elif "static/" in pdf_url:
+                pdf_url = pdf_url[pdf_url.find("static/"):]
         
         # Apprentissage des habitudes d'actes (Phase 5)
         if is_financial and not preview:
@@ -364,6 +401,14 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)
 
+    # Protection des Radios (seul le dentiste / proprio peut supprimer)
+    if doc.document_type in [models.DocumentType.RADIOGRAPHIE, models.DocumentType.RAPPORT_CEPHALO]:
+        if not current_user.role or current_user.role.value not in ["DENTISTE", "SUPERADMIN"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="Seul le dentiste est autorisé à supprimer une radiographie du dossier patient."
+            )
+
     archive_service = get_archive_service(db)
     doc = archive_service.move_to_trash(doc_id)
     return {"message": "Mis à la corbeille", "id": doc.id}
@@ -443,6 +488,7 @@ def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optio
             "amount": amount, 
             "file_url": f"documents/{doc.id}/download",
             "payment_status": doc.payment_status or "EN_ATTENTE",
+            "validated_by": doc.validated_by,
             "is_collected": doc.is_collected
         })
         total_amount += amount
@@ -459,6 +505,7 @@ def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optio
             "amount": acte.montant,
             "file_url": "", # Pas de PDF pour un acte seul
             "payment_status": acte.statut_paiement or "EN_ATTENTE",
+            "validated_by": acte.validated_by,
             "is_collected": acte.is_collected
         })
         total_amount += acte.montant
@@ -492,6 +539,7 @@ async def mark_as_paid(
             assert_patient_access(doc.patient_id, user, db)
             doc.payment_status = models.PaiementStatut.PAYE
             doc.is_collected = True
+            doc.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
             doc.updated_at = datetime.now()
         elif item_id.startswith("acte_"):
             acte_id = int(item_id.split("_")[1])
@@ -500,6 +548,7 @@ async def mark_as_paid(
             assert_patient_access(acte.patient_id, user, db)
             acte.statut_paiement = models.PaiementStatut.PAYE
             acte.is_collected = True
+            acte.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
         else:
             doc_id = int(item_id)
             doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
@@ -507,6 +556,7 @@ async def mark_as_paid(
             assert_patient_access(doc.patient_id, user, db)
             doc.payment_status = models.PaiementStatut.PAYE
             doc.is_collected = True
+            doc.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
             doc.updated_at = datetime.now()
             
         db.commit()

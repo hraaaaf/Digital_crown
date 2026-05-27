@@ -8,7 +8,7 @@ interface BoundingBox {
 }
 
 interface EliteDetection {
-  label: string; fdi: number; bbox: BoundingBox; confidence: number;
+  label: string; fdi: number; bbox: BoundingBox; confidence: number; rejected?: boolean;
 }
 
 interface FullAnalysis {
@@ -22,6 +22,7 @@ interface XRayCanvasProps {
   onImgLoad: (e: React.SyntheticEvent<HTMLImageElement>) => void;
   filterString: string;
   activeDet: string | null;
+  onHoverDetection?: (id: string | null) => void;
 }
 
 const CATEGORY_COLORS: Record<AnomalyCategory, string> = {
@@ -34,7 +35,7 @@ const CATEGORY_COLORS: Record<AnomalyCategory, string> = {
 };
 
 export const XRayCanvas: React.FC<XRayCanvasProps> = ({
-  imgUrl, visionData, imgSize, onImgLoad, filterString, activeDet
+  imgUrl, visionData, imgSize, onImgLoad, filterString, activeDet, onHoverDetection
 }) => {
   const [popover, setPopover] = useState<{ screenX: number, screenY: number, fdi: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<AnomalyCategory>('Conservatrice');
@@ -78,12 +79,20 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
     }
 
     setPopover({ screenX: (x_rel * 100), screenY: (y_rel * 100), fdi });
+
+    // Activate detection for this tooth in sidebar table
+    if (visionData?.detections) {
+      const idx = visionData.detections.findIndex(det => det.fdi === fdi);
+      if (idx !== -1) {
+        onHoverDetection?.(`det-${idx}`);
+      }
+    }
   };
   
   const displayItems = useMemo(() => {
     if (!visionData?.detections) return [];
     return visionData.detections.map((det, idx) => ({
-      id: `det-${idx}`, label: det.label, fdi: det.fdi, bbox: det.bbox, isParent: false
+      id: `det-${idx}`, label: det.label, fdi: det.fdi, bbox: det.bbox, confidence: det.confidence, rejected: det.rejected, isParent: false
     }));
   }, [visionData]);
 
@@ -114,19 +123,30 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
             const { x_min, y_min, x_max, y_max } = item.bbox;
             const width = Math.max(x_max - x_min, 1);
             const height = Math.max(y_max - y_min, 1);
-            const color = getClinicalColor(item.label);
+            const color = item.rejected ? '#94a3b8' : getClinicalColor(item.label);
             const isActive = activeDet === item.id;
             
             return (
-              <motion.g key={item.id} animate={{ opacity: activeDet === null || isActive ? 1 : 0.3 }}>
+              <motion.g 
+                key={item.id} 
+                animate={{ opacity: item.rejected ? 0.3 : (activeDet === null || isActive ? 1 : 0.3) }}
+                onMouseEnter={() => onHoverDetection?.(item.id)}
+                onMouseLeave={() => onHoverDetection?.(null)}
+                style={{ cursor: 'pointer', pointerEvents: 'all' }}
+              >
                 <rect 
                   x={x_min} y={y_min} width={width} height={height} 
-                  fill={isActive ? color : 'transparent'} fillOpacity={0.15}
-                  stroke={color} strokeWidth={isActive ? 3 : 1} rx={4}
+                  fill={isActive && !item.rejected ? color : 'transparent'} fillOpacity={0.15}
+                  stroke={color} strokeWidth={isActive ? 3 : (item.rejected ? 1 : 2)} strokeDasharray={item.rejected ? "4 4" : "none"} rx={4}
                 />
-                <foreignObject x={x_min} y={Math.max(0, y_min - 25)} width="150" height="30" className="overflow-visible">
-                  <div className="inline-flex px-2 py-0.5 rounded bg-slate-900/80 text-white font-black text-[9px] border border-white/10 whitespace-nowrap">
+                <foreignObject x={x_min} y={Math.max(0, y_min - 25)} width="200" height="30" className="overflow-visible pointer-events-none">
+                  <div className="inline-flex px-2 py-0.5 rounded bg-slate-900/80 text-white font-black text-[9px] border border-white/10 whitespace-nowrap items-center gap-1">
                     {item.fdi}: {item.label}
+                    {item.confidence && (
+                      <span className="text-[7px] text-slate-400 font-mono bg-black/40 px-1 rounded">
+                        {Math.round(item.confidence * 100)}%
+                      </span>
+                    )}
                   </div>
                 </foreignObject>
               </motion.g>

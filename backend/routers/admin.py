@@ -72,12 +72,20 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
         models.Appointment.status == 'EN_S_ATTENTE'
     ).count()
 
+    from datetime import timedelta
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    weekly_p = db.query(models.Patient).filter(
+        models.Patient.employer_id == emp_id,
+        models.Patient.created_at >= seven_days_ago
+    ).count()
+
     return {
         "total_patients": total_p,
         "total_analyses": total_a,
         "recent_patients": recent_list,
         "weekly_activity": weekly_activity,
-        "in_waiting": in_waiting
+        "in_waiting": in_waiting,
+        "weekly_patients": weekly_p
     }
 
 
@@ -182,13 +190,15 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
         models.ZKAPairingToken.expires_at < datetime.utcnow(),
     ).delete()
 
-    # Générer un token éphémère à usage unique (5 min)
-    pairing_token = str(uuid.uuid4())
+    # Générer un token éphémère à usage unique (5 min) - Code à 6 chiffres
+    import random
+    pairing_token = f"{random.randint(100000, 999999)}"
     db.add(models.ZKAPairingToken(
         token=pairing_token,
         employer_id=emp_id,
         public_id=config.public_id,
         master_key=master_key,
+        role=current_user.role.value if current_user.role else "DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     ))
     db.commit()
@@ -211,6 +221,7 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
             "qr_code": f"data:image/png;base64,{img_str}",
             "expires_in": 300,
             "lan_url": base_url,
+            "token_code": pairing_token,
         }
     except Exception as e:
         logger.error(f"Erreur génération QR ZKA: {e}")

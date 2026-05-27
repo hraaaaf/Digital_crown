@@ -1,3 +1,4 @@
+from typing import Union, List
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -59,16 +60,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
-def require_permission(permission_name: str):
+def require_permission(permission_name: Union[str, List[str]]):
     """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
     def dependency(current_user: models.User = Depends(get_current_user)):
         if current_user.role in [models.UserRole.ADMIN, models.UserRole.DENTISTE]:
             return current_user
         perms = current_user.permissions or {}
-        if not perms.get(permission_name, False):
+        
+        perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
+        
+        if not any(perms.get(p, False) for p in perms_to_check):
+            perms_str = "' ou '".join(perms_to_check)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Accès refusé. Vous n'avez pas la permission '{permission_name}'."
+                detail=f"Accès refusé. Vous n'avez pas la permission '{perms_str}'."
             )
         return current_user
     return dependency

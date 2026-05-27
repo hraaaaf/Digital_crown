@@ -10,7 +10,7 @@ from backend import models, schemas, database
 from backend.routers.auth import get_current_user
 from backend.security import get_password_hash
 
-router = APIRouter(prefix="/team", tags=["Team Management"])
+router = APIRouter(tags=["Team Management"])
 
 
 # --- DÉPENDANCE RBAC : Praticien uniquement ---
@@ -66,10 +66,11 @@ def create_team_member(
     }
     user_perms = member.permissions if member.permissions is not None else default_permissions
 
+    role_to_assign = models.UserRole.DENTISTE if member.role == "DENTISTE" else models.UserRole.SECRETAIRE
     new_user = models.User(
         email=member.email,
         hashed_password=get_password_hash(member.password),
-        role=models.UserRole.SECRETAIRE,
+        role=role_to_assign,
         nom_complet=member.nom_complet,
         telephone_mobile=member.telephone_mobile,
         employer_id=current_user.id,

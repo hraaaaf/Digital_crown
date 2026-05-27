@@ -27,6 +27,7 @@ import { AssistantOrtho } from './wizards/AssistantOrtho';
 import { AssistantGeneral } from './wizards/AssistantGeneral';
 import { AssistantATM } from './wizards/AssistantATM';
 import { AssistantPatho } from './wizards/AssistantPatho';
+import { VigilanceRadar } from '../../admin/DocumentStudio/VigilanceRadar';
 
 interface ClinicalHubProps {
   patientId: number;
@@ -224,9 +225,11 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 h-full relative z-10">
         
-        {/* COLONNE GAUCHE : LES ASSISTANTS */}
+        {/* COLONNE GAUCHE : LES ASSISTANTS & VIGILANCE */}
         <div className="xl:col-span-8 flex flex-col gap-6">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted">Modules Diagnostiques Spécialisés</h3>
+          <VigilanceRadar />
+          
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted mt-2">Modules Diagnostiques Spécialisés</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {ASSISTANTS.map((assistant) => {

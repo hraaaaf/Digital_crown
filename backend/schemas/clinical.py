@@ -129,6 +129,7 @@ class CephaloAnalysisResult(BaseModel):
     metrics: AnalysisMetrics
     visual_debug: Dict[str, Any]
     t1_projection: Dict[str, Tuple[float, float]]
+    t2_projection: Dict[str, Tuple[float, float]]
     ai_narrative: Optional[Dict[str, str]] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
     clinical_data: ClinicalData

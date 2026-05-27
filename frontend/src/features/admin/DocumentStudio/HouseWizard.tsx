@@ -156,7 +156,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
         } catch (err) {
           console.error("Error loading habits pricing:", err);
           setEditableActs(
-            baseResult.treatmentPlan.map(i => ({ ...i, enabled: true }))
+            baseResult.treatmentPlan.map((i: any) => ({ ...i, enabled: true }))
           );
         } finally {
           setIsLoadingPrices(false);
@@ -481,7 +481,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                 </div>
 
                 {/* WARNINGS */}
-                {result.warnings.map((w, idx) => (
+                {result.warnings.map((w: string, idx: number) => (
                   <div key={idx} className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex gap-2.5 items-start">
                     <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
                     <p className="text-[10px] font-bold text-rose-600 leading-normal">
@@ -497,7 +497,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                       <ShieldCheck size={11} className="text-emerald-500" /> Recommandations Cliniques
                     </h4>
                     <ul className="space-y-1">
-                      {result.protocol.map((p, idx) => (
+                      {result.protocol.map((p: string, idx: number) => (
                         <li key={idx} className="text-[10px] font-bold text-slate-700 dark:text-slate-300 list-disc list-inside">
                           {p}
                         </li>

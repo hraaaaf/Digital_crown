@@ -15,7 +15,7 @@ class AIFeedbackCreate(BaseModel):
     patient_id: int
     insight_type: str
     insight_content: str
-    action: str  # accept | reject | edit
+    action: str  # accept | reject | edit | resolved
     corrected_text: Optional[str] = None
 
 
@@ -26,8 +26,8 @@ def submit_feedback(
     current_user: models.User = Depends(require_permission("patients")),
 ):
     """Record a practitioner's reaction to an AI insight."""
-    if payload.action not in ("accept", "reject", "edit"):
-        raise HTTPException(status_code=422, detail="action must be accept, reject, or edit")
+    if payload.action not in ("accept", "reject", "edit", "resolved"):
+        raise HTTPException(status_code=422, detail="action must be accept, reject, edit, or resolved")
 
     fb = models.AIFeedback(
         patient_id=payload.patient_id,

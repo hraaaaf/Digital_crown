@@ -17,6 +17,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
+import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
+import { createPortal } from 'react-dom';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
 import { TREATMENTS_BY_CATEGORY, CATEGORY_LABELS } from '../../components/odontogram/types';
 import { api } from '../../services/api';
@@ -32,6 +34,20 @@ interface PriceItem {
   _odontogramKey?: string;
   category?: string;
 }
+
+const detectRegion = (teeth: number[]): string => {
+  if (teeth.length === 0) return 'Général';
+  const first = teeth[0];
+  const q = Math.floor(first / 10);
+  const qName = q === 1 ? 'Sup. Droit' : q === 2 ? 'Sup. Gauche' : q === 3 ? 'Inf. Gauche' : q === 4 ? 'Inf. Droit' : q === 5 ? 'Prim. Sup. Droit' : q === 6 ? 'Prim. Sup. Gauche' : q === 7 ? 'Prim. Inf. Gauche' : 'Prim. Inf. Droit';
+  const isAnterior = teeth.every(t => [1,2,3].includes(t % 10));
+  if (isAnterior) return q <= 2 || q === 5 || q === 6 ? 'Sextant Antérieur Sup.' : 'Sextant Antérieur Inf.';
+  const isPosterior = teeth.every(t => [4,5,6,7,8].includes(t % 10));
+  if (isPosterior) return `Sextant ${qName}`;
+  return `Quadrant ${q}`;
+};
+
+
 
 export interface InstallmentItem {
   id: number;
@@ -113,6 +129,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
     groupTreatmentPrice,
     setGroupTreatmentPrice,
     applyGroupTreatment,
+    selectTeethGroup,
     validationErrors = [],
     coherenceWarnings = [],
   } = props;
@@ -428,172 +445,124 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                         )}
 
                         {/* 💎 Floating Group Action Bar */}
-                        {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
+                        {odontogramMode === 'group' && (
                           <motion.div 
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-6 z-20 pointer-events-auto"
+                            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-20 pointer-events-auto"
                           >
                              <div className="bg-slate-900/95 backdrop-blur-2xl rounded-[2rem] p-5 border border-white/10 shadow-2xl flex flex-col gap-4">
-                               <div className="flex items-center justify-between">
-                                 <div className="flex items-center gap-3">
-                                   <div className="flex -space-x-2">
-                                     {groupSelectedTeeth.slice(0, 4).map(n => (
-                                       <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
-                                     ))}
-                                     {groupSelectedTeeth.length > 4 && (
-                                       <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
-                                     )}
+                               {groupSelectedTeeth.length === 0 ? (
+                                 <div className="flex flex-col gap-3">
+                                   <div className="flex items-center gap-3 text-white">
+                                     <Sparkles className="w-4 h-4 text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Sélection Rapide</span>
                                    </div>
-                                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{groupSelectedTeeth.length} dents sélectionnées</span>
+                                   <div className="grid grid-cols-4 gap-2">
+                                     {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                                        <button key={q} onClick={() => selectTeethGroup(q as any)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{q}</button>
+                                     ))}
+                                   </div>
+                                   <div className="grid grid-cols-6 gap-2">
+                                     {['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(s => (
+                                        <button key={s} onClick={() => selectTeethGroup(s as any)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{s}</button>
+                                     ))}
+                                   </div>
                                  </div>
-                                 <button onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
-                               </div>
+                               ) : (
+                                 <>
+                                   <div className="flex items-center justify-between">
+                                     <div className="flex items-center gap-3">
+                                       <div className="flex -space-x-2">
+                                         {groupSelectedTeeth.slice(0, 4).map(n => (
+                                           <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
+                                         ))}
+                                         {groupSelectedTeeth.length > 4 && (
+                                           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
+                                         )}
+                                       </div>
+                                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{groupSelectedTeeth.length} dents sélectionnées</span>
+                                     </div>
+                                     <button onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
+                                   </div>
 
-                               <div className="grid grid-cols-3 gap-2">
-                                 {['Bridge complet', 'Stellite', 'Gouttière', 'Attelle de contention', 'Prothèse Adjointe', 'Curetage (Secteur)'].map(act => (
-                                   <button
-                                     key={act}
-                                     onClick={() => {
-                                       setGroupTreatmentName(act);
-                                       setGroupTreatmentPrice(PriceBrain.suggestPrice(act) || '');
-                                     }}
-                                     className={cn(
-                                       "px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate",
-                                       groupTreatmentName === act ? "bg-primary text-white" : "bg-white/10 text-slate-300 hover:bg-white/20"
-                                     )}
-                                   >{act}</button>
-                                 ))}
-                               </div>
+                                   <div className="grid grid-cols-3 gap-2">
+                                     {['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', `Curetage (${detectRegion(groupSelectedTeeth)})`, `Surfaçage (${detectRegion(groupSelectedTeeth)})`, 'Attelle de contention'].map(act => (
+                                       <button
+                                         key={act}
+                                         onClick={() => {
+                                           const price = PriceBrain.suggestPrice(act) || 0;
+                                           setGroupTreatmentName(act);
+                                           setGroupTreatmentPrice(price);
+                                           const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+                                           props.setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: Number(price), toothNumbers: sorted }]);
+                                           selectTeethGroup('none');
+                                           setGroupTreatmentName('');
+                                           setGroupTreatmentPrice('');
+                                           toast.success(`Ajouté : ${act}`);
+                                         }}
+                                         className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                       >{act}</button>
+                                     ))}
+                                   </div>
 
-                               <div className="flex gap-2 pt-2 border-t border-white/10">
-                                 <input 
-                                   type="text"
-                                   placeholder="Ou saisir un autre acte..."
-                                   className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
-                                   value={groupTreatmentName}
-                                   onChange={(e) => setGroupTreatmentName(e.target.value)}
-                                 />
-                                 <input 
-                                   type="number"
-                                   placeholder="Prix"
-                                   className="bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 w-24 text-center"
-                                   value={groupTreatmentPrice}
-                                   onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                                 />
-                                 <button 
-                                   onClick={applyGroupTreatment}
-                                   className="px-6 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
-                                 >
-                                   Appliquer
-                                 </button>
-                               </div>
+                                   <div className="flex gap-2 pt-2 border-t border-white/10">
+                                     <input 
+                                       type="text"
+                                       placeholder="Ou saisir un autre acte..."
+                                       className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
+                                       value={groupTreatmentName}
+                                       onChange={(e) => setGroupTreatmentName(e.target.value)}
+                                     />
+                                     <input 
+                                       type="number"
+                                       placeholder="Prix"
+                                       className="bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 w-24 text-center"
+                                       value={groupTreatmentPrice}
+                                       onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                     />
+                                     <button 
+                                       onClick={applyGroupTreatment}
+                                       className="px-6 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
+                                     >
+                                       Appliquer
+                                     </button>
+                                   </div>
+                                 </>
+                               )}
                              </div>
                           </motion.div>
                         )}
                     </div>
 
-                    {/* MODALE DE SÉLECTION (NATURELLEMENT EN FACE) */}
+                    {/* MODALE DE SÉLECTION (TREATMENT SELECTOR INTÉGRÉ) */}
                     <AnimatePresence>
-                      {activeTooth && (
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                          className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
-                        >
-                          <div className="w-full max-w-4xl max-h-[85vh] bg-white/95 backdrop-blur-2xl rounded-[2rem] shadow-2xl border border-white/50 flex flex-col p-8 overflow-hidden relative">
-                            <div className="flex items-center justify-between mb-8 shrink-0">
-                              <div className="flex items-center gap-4">
-                                <button 
-                                  onClick={() => { setActiveTooth(null); setActiveCategory(null); }}
-                                  className="p-3 bg-white rounded-2xl border border-slate-100 hover:border-primary/30 transition-all shadow-sm"
-                                >
-                                  <ArrowLeft size={16} className="text-slate-600" />
-                                </button>
-                                <div>
-                                  <h3 className="text-lg font-black text-slate-800 tracking-tight">Dent {activeTooth}</h3>
-                                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Saisie des prestations</p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex gap-2 bg-slate-100/50 p-1 rounded-xl overflow-x-auto max-w-[60%] no-scrollbar">
-                                 {Object.keys(TREATMENTS_BY_CATEGORY).map((cat) => (
-                                   <button
-                                     key={cat}
-                                     onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
-                                     className={cn(
-                                       "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                                       activeCategory === cat 
-                                         ? "bg-white text-primary shadow-sm border border-slate-100" 
-                                         : "text-slate-400 hover:text-slate-600"
-                                     )}
-                                   >
-                                     {CATEGORY_LABELS[cat] || cat}
-                                   </button>
-                                 ))}
-                              </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                              {activeCategory ? (
-                                <div className="space-y-6">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                     {TREATMENTS_BY_CATEGORY[activeCategory].map((template) => (
-                                       <button
-                                         key={template.id}
-                                         onClick={() => {
-                                            const price = PriceBrain.suggestPrice(template.name) || 0;
-                                            setItems([...items, { 
-                                              id: Date.now() + Math.random(), 
-                                              description: template.name, 
-                                              dent: activeTooth.toString(), 
-                                              price,
-                                              toothNumbers: [activeTooth],
-                                              category: template.category
-                                            }]);
-                                            toast.success(`Ajouté : ${template.name}`, {
-                                              style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
-                                            });
-                                            setActiveTooth(null);
-                                            setActiveCategory(null);
-                                         }}
-                                         className="group relative p-5 rounded-2xl bg-white/60 border border-slate-100 hover:bg-white hover:border-primary/20 hover:shadow-xl transition-all text-left flex flex-col gap-2"
-                                       >
-                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-bold text-slate-400 group-hover:text-slate-800 transition-colors">
-                                              {template.name}
-                                            </span>
-                                            <Plus size={14} className="text-primary opacity-0 group-hover:opacity-100 transition-all" />
-                                         </div>
-                                         <div className="flex items-center gap-1">
-                                            <span className="text-[10px] font-black text-primary/40 group-hover:text-primary transition-colors">
-                                              {PriceBrain.suggestPrice(template.name) || '---'} MAD
-                                            </span>
-                                         </div>
-                                       </button>
-                                     ))}
-                                     
-                                     {/* ➕ Add Custom Act Button */}
-                                     <button
-                                       onClick={addEmptyRow}
-                                       className="group relative p-5 rounded-2xl bg-primary/5 border border-primary/20 border-dashed hover:bg-primary/10 hover:border-primary/40 transition-all text-center flex flex-col items-center justify-center gap-2"
-                                     >
-                                       <Plus size={20} className="text-primary" />
-                                       <span className="text-[9px] font-black uppercase tracking-widest text-primary">Ajouter un acte manuel</span>
-                                     </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-200 gap-4">
-                                   <Sparkles size={40} strokeWidth={1} />
-                                   <p className="text-[10px] font-black uppercase tracking-[0.3em]">Séléctionner une spécialité</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
+                    {activeTooth && (
+                      <TreatmentSelector
+                        toothNumber={activeTooth as any}
+                        currentTreatments={[]}
+                        onConfirm={(treatments, surfaces, notes) => {
+                          const newItems = [...items];
+                          treatments.forEach(t => {
+                            newItems.push({
+                              id: Date.now() + Math.random(),
+                              description: t.name,
+                              dent: activeTooth.toString() + (surfaces.length > 0 ? ` (${surfaces.join('')})` : ''),
+                              price: t.price || 0,
+                              category: t.category,
+                              toothNumbers: [activeTooth]
+                            });
+                            // Ghost Brain apprend le prix saisi (ou suggéré par défaut)
+                            if (t.price && t.price > 0) {
+                              PriceBrain.recordAct(t.name, t.price, t.category, t.id);
+                            }
+                          });
+                          props.setItems(newItems);
+                          setActiveTooth(null);
+                        }}
+                        onCancel={() => setActiveTooth(null)}
+                        embedded={false}
+                      />
+                    )}
                     </AnimatePresence>
                   </div>
                 </div>

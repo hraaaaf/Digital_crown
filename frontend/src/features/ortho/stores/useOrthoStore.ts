@@ -24,6 +24,7 @@ interface OrthoState {
   performanceMode: boolean;
   isStep1Fullscreen: boolean;
   vtoSettings: VTOSettings;
+  activeMorphing: 'none' | 'T1' | 'T2';
   anglesData: Record<string, any>;
   visionMetadata: any;
   
@@ -75,6 +76,7 @@ interface OrthoState {
   setPerformanceMode: (enabled: boolean) => void;
   setIsStep1Fullscreen: (updater: boolean | ((prev: boolean) => boolean)) => void;
   setVtoSettings: (updater: VTOSettings | ((prev: VTOSettings) => VTOSettings)) => void;
+  setActiveMorphing: (morphing: 'none' | 'T1' | 'T2') => void;
   setAnglesData: (data: Record<string, any>) => void;
   setVisionMetadata: (meta: any) => void;
   
@@ -135,6 +137,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     l1_offset: { x: 0, y: 0 },
     mand_offset: { x: 0, y: 0 }
   },
+  activeMorphing: 'none',
   anglesData: {},
   visionMetadata: {},
   
@@ -148,20 +151,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
 
   ddm: { maxillaire: '', mandibulaire: '' },
   diag: {
+    analyse_dentaire: '',
     diagnostic_squelettique: '',
     analyse_moulages: '',
     synthese_diagnostique: '',
     strategie_therapeutique: ''
   },
   etape2Data: { 
-    occlusal: { molaire_gauche: 'I', molaire_droite: 'I', canine_gauche: 'I', canine_droite: 'I' } 
+    occlusal: { molaire_gauche: 'I', molaire_droite: 'I', canine_gauche: 'I', canine_droite: 'I' },
+    type_arcade: null
   },
   etape3Data: {
     age: '', cvm: '', date_teles: new Date().toISOString().split('T')[0],
     dentaire: { surplomb: '', recouvrement: '', impa: '', i_francfort: '', inter_incisif: '' },
     osseuse: { angle_tweed: '', decalage_ab: '', situation_a: '', situation_b: '', profondeur_faciale: '', sna: '', snb: '', anb: '' },
     esthetique: { ligne_e_ls: '', ligne_e_li: '', angle_nasolabial: '' },
-    ddm_clinique: '', ddm_cephalo: '', division: null, type_arcade: null, classe_squelettique: '',
+    ddm_clinique: '', ddm_cephalo: '', division: null, classe_squelettique: '',
     pattern_vertical: '', profil: '', severite_ddm: '', subdivision: false, analyse_moulages_auto: '',
     selectedAnalysis: 'COM',
     denture_type: 'PERMANENTE', preference_technique: 'DAMON'
@@ -239,6 +244,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setPerformanceMode: (enabled) => set({ performanceMode: enabled }),
   setIsStep1Fullscreen: (updater) => set((state) => ({ isStep1Fullscreen: typeof updater === 'function' ? updater(state.isStep1Fullscreen) : updater })),
   setVtoSettings: (updater) => set((state) => ({ vtoSettings: typeof updater === 'function' ? updater(state.vtoSettings) : updater })),
+  setActiveMorphing: (morphing) => set({ activeMorphing: morphing }),
   setAnglesData: (data) => set({ anglesData: data }),
   setVisionMetadata: (meta) => set({ visionMetadata: meta }),
   setIsCalibrated: (calibrated) => set({ isCalibrated: calibrated }),

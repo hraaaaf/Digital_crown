@@ -173,8 +173,12 @@ class EliteManager:
                     "trust_level": 1.0
                 })
 
-            # 4. Score d'intelligence globale (Simulé pour l'instant basé sur la complétude des données)
+            # 4. Score d'intelligence globale
             intel_score = self._calculate_intelligence_score(db, patient_id, summary, insights)
+
+            # 5. Apprentissage Heuristique (Pondération et Filtrage selon historique)
+            if doctor_id:
+                insights = self._apply_heuristic_learning(db, insights, doctor_id)
 
             return {
                 "patient_summary": summary,
@@ -189,6 +193,54 @@ class EliteManager:
                 "intelligence_score": 0,
                 "insights": []
             }
+
+    def _apply_heuristic_learning(self, db: Session, insights: List[Dict], employer_id: int) -> List[Dict]:
+        """
+        Ajuste le niveau de confiance et filtre les insights (Pilier 2 - Apprentissage Heuristique).
+        Basé sur l'historique des feedbacks (accept/reject) pour cet employeur.
+        """
+        try:
+            feedbacks = db.query(
+                models.AIFeedback.insight_type, 
+                models.AIFeedback.action, 
+                func.count(models.AIFeedback.id)
+            ).filter(
+                models.AIFeedback.employer_id == employer_id
+            ).group_by(models.AIFeedback.insight_type, models.AIFeedback.action).all()
+
+            stats = {}
+            for row in feedbacks:
+                itype, action, count = row[0], row[1], row[2]
+                if itype not in stats:
+                    stats[itype] = {"accept": 0, "reject": 0}
+                if action in ["accept", "reject"]:
+                    stats[itype][action] += count
+
+            filtered_insights = []
+            for insight in insights:
+                itype = insight.get("type", "suggestion")
+                # Ignorer les alertes vitales ou financières pour le filtrage
+                if itype in ["financial_risk", "safety"]:
+                    filtered_insights.append(insight)
+                    continue
+
+                if itype in stats:
+                    total = stats[itype]["accept"] + stats[itype]["reject"]
+                    if total >= 3:
+                        reject_rate = stats[itype]["reject"] / total
+                        if reject_rate > 0.8:
+                            # Heuristique : Si rejeté > 80% du temps (min 3 fois), on masque l'alerte
+                            continue
+                        
+                        current_trust = insight.get("trust_level", 1.0)
+                        penalty = reject_rate * 0.4
+                        insight["trust_level"] = round(max(0.1, current_trust - penalty), 2)
+                
+                filtered_insights.append(insight)
+            return filtered_insights
+        except Exception as e:
+            logger.error(f"Heuristic Learning Error: {e}")
+            return insights
 
     def _calculate_intelligence_score(self, db: Session, patient_id: int, summary: Dict, insights: List) -> int:
         """

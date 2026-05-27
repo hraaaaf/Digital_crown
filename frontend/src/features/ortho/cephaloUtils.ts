@@ -431,7 +431,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
  * Génère un plan de traitement orthodontique contemporain (Damon / Invisalign)
  */
 export function generateTreatmentPlan(data: DonneesEtape3): string {
-  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division, type_arcade } = data;
+  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division } = data;
   const anb = data.osseuse.anb === '' ? 0 : Number(data.osseuse.anb);
   const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
   const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
@@ -474,7 +474,6 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
     plan += '• **Option A : Méthode Damon Passive (Gold Standard)**\n';
     plan += '  - Forces légères, auto-ligaturant passif (sans friction).\n';
     plan += '  - Privilégie l\'expansion alvéolaire (arcs CuNiTi larges) pour corriger la DDM.\n';
-    if (type_arcade === 'V') plan += '  - Particulièrement efficace sur cette arcade en V.\n';
     
     plan += '• **Option B : Aligneurs (Invisalign)**\n';
     plan += '  - Expansion séquentielle programmée via ClinCheck.\n';
@@ -558,13 +557,14 @@ export const buildPayload = (
     classe_canine_droite: etape2?.occlusal.canine_droite || null,
     classe_canine_gauche: etape2?.occlusal.canine_gauche || null,
     subdivision: etape2?.occlusal.molaire_droite !== etape2?.occlusal.molaire_gauche || etape2?.occlusal.canine_droite !== etape2?.occlusal.canine_gauche,
-    forme_arcade: etape3?.type_arcade || null,
+    forme_arcade: etape2?.type_arcade || null,
     age: (etape3?.age !== undefined && etape3.age !== '') ? Number(etape3.age) : null,
     cvm: etape3?.cvm || null,
     denture_type: etape3?.denture_type || null,
     preference_technique: etape3?.preference_technique || null
   },
   ai_diagnostic: {
+    analyse_dentaire: diag.analyse_dentaire,
     diagnostic_squelettique: diag.diagnostic_squelettique,
     analyse_moulages: diag.analyse_moulages,
     synthese_diagnostique: diag.synthese_diagnostique,

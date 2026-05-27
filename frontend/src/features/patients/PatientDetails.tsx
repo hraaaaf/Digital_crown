@@ -38,6 +38,9 @@ interface Patient {
   telephone: string;
   assurance: string;
   adresse?: string;
+  dossier?: {
+    is_ortho_active: boolean;
+  };
 }
 
 type TabType = 'clinical' | 'radiology' | 'admin' | 'archives';
@@ -91,14 +94,29 @@ export const PatientDetails = () => {
 
   useEffect(() => {
     if (!id) return;
-    return () => {
+    const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
         if (res.data.nba) {
           toast(`💡 ${res.data.nba.title} — ${res.data.nba.action}`, { duration: 6000 });
         }
       }).catch(() => {});
-    };
+    }, 1500); // Délai pour ne pas spammer au chargement immédiat
+    
+    return () => clearTimeout(timer);
   }, [id]);
+
+  const activateOrtho = async () => {
+    try {
+      setLoading(true);
+      await api.patch(`/patients/${id}/ortho`, { is_ortho_active: true });
+      setPatient(prev => prev ? { ...prev, dossier: { ...prev.dossier, is_ortho_active: true } } : null);
+      toast.success('Suivi orthodontique activé');
+    } catch (err) {
+      toast.error('Erreur lors de l\'activation');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (tab: TabType) => {
     setSearchParams({ tab });
@@ -238,7 +256,24 @@ export const PatientDetails = () => {
 
               <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[85vh]">
                 {radioTab === 'cephalo' ? (
-                  <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                  patient?.dossier?.is_ortho_active ? (
+                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10">
+                      <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                        <Activity className="w-12 h-12 text-slate-400" />
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-800 mb-2">Module Céphalométrique Verrouillé</h3>
+                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés COM.</p>
+                      <button 
+                        onClick={activateOrtho}
+                        className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"
+                      >
+                        <Target className="w-5 h-5" />
+                        Activer le Suivi Orthodontique
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <PanoramicStudio patientId={Number(id)} patientName={fullName} />
                 )}

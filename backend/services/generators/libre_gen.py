@@ -214,7 +214,7 @@ class LibreGenerator:
         ]
         elements.extend(parsed_elements)
 
-        cloture_text = "Signature et Cachet"
+        cloture_text = ""
         cloture_style = ParagraphStyle(
             name='LibreCloture', 
             parent=self.styles['Normal'], 

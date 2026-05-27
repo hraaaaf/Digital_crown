@@ -324,3 +324,30 @@ Un assistant "Orthodontiste 20 ans d'expÃ©rience" conÃ§u pour Ãªtre 100% fiable,
 ---
 
 *DerniÃ¨re mise Ã  jour : 21 Mai 2026 â€” Ajout Agenda 3 modes, Mode Fauteuil et Chatbot Ortho.*
+
+
+## ?? 30. Mobile ZKA v2 : Full Agenda
+**Statut :** À planifier
+**Priorité :** Haute
+
+- [ ] **Vue Agenda Complète** : Possibilité de consulter la totalité de l'agenda depuis le mobile.
+- [ ] **Gestion des RDV** : Ajouter, modifier et supprimer des rendez-vous directement depuis le smartphone en toute sécurité (ZKA).
+
+---
+
+## ?? 31. Guide de Prescription Odontologique (Pédiatrique & Adulte)
+**Statut :** À planifier
+**Priorité :** Moyenne
+
+- [ ] **Base de connaissances (Maroc)** : Intégration des posologies (Antalgiques, Antibiotiques, AINS) spécifiques à l'odontologie au Maroc.
+- [ ] **Calcul intelligent (Poids/Âge)** : Bouton interactif / Ghost Brain qui suggère la posologie exacte en fonction du poids et de l'âge du patient.
+
+---
+
+## ?? 32. Suivi de Paiement Ortho & Échelonnement
+**Statut :** À planifier
+**Priorité :** Moyenne
+
+- [ ] **Tableau d'échelonnage interactif** : Suivi des versements avec date de première avance, mensualités et solde restant.
+- [ ] **Détection & Notifications** : Détection automatique du dernier paiement et envoi de notifications (WhatsApp/SMS) pour les échéances à venir ou en retard.
+

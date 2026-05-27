@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface StudioFooterProps {
   loading: boolean;
@@ -69,9 +70,9 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
 
       {/* Les boutons Générer / Imprimer sont désormais dans le StudioHeader */}
 
-      {showPrintWarning && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-[70] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
-          <div className="flex flex-col items-center text-center max-w-sm">
+      {showPrintWarning && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex flex-col items-center text-center max-w-sm bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
             <AlertTriangle className="text-amber-500 mb-4" size={48} />
             <h4 className="text-lg font-black text-slate-800 mb-2">Attention : Impression Directe</h4>
             <p className="text-sm text-slate-500 font-medium mb-6">Assurez-vous que votre imprimante est prête. Le document sera archivé automatiquement après l'impression.</p>
@@ -80,7 +81,8 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
               <button onClick={() => onGenerate(true, true, false, true)} className="px-8 py-2 bg-primary text-white rounded-xl font-black" style={{ backgroundColor: 'var(--primary)' }}>Confirmer</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
