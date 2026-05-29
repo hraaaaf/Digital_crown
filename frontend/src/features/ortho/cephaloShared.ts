@@ -35,5 +35,7 @@ export const REQUIRED_LANDMARKS = [
   'Ls_soft', 'Li_soft', 'Sn_soft', 'Pog_soft',
   'Ls2', 'Li2', 'Gn_soft', 'Me_soft', 'G_soft', 'N_soft', 'Cm', 'Prn',
   // Other Skeletal
-  'PNS', 'ANS', 'Ar', 'D_point', 'Ptm', 'Co', 'Ba', 'PT_point', 'Bo', 'C_point'
+  'PNS', 'ANS', 'Ar', 'D_point', 'Ptm', 'Co', 'Ba', 'PT_point', 'Bo', 'C_point',
+  // Dental Planes
+  'Occ_Ant', 'Occ_Post'
 ] as const;

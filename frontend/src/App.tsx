@@ -161,12 +161,33 @@ const ProtectedRoutes = () => (
 // =============================================================================
 
 function App() {
-  // Application globale du thème (Persistance)
+  const [animatedBg, setAnimatedBg] = useState(() => safeStorage.get('app_background_animated') === 'true');
+
+  // Application globale du thème (Persistance) et Paramètres IA
   useEffect(() => {
     const savedTheme = localStorage.getItem('digitalcrown_theme');
     if (savedTheme) {
       document.body.dataset.theme = savedTheme;
     }
+
+    const applySettings = () => {
+      // Mode Performance
+      const isPerfMode = safeStorage.get('performanceMode') === 'true';
+      if (isPerfMode) {
+        document.body.classList.add('performance-mode');
+      } else {
+        document.body.classList.remove('performance-mode');
+      }
+
+      // Arrière-plan Animé
+      setAnimatedBg(safeStorage.get('app_background_animated') === 'true');
+    };
+
+    applySettings();
+
+    // Permet la mise à jour réactive sans recharger si déclenché manuellement
+    window.addEventListener('settings_updated', applySettings);
+    return () => window.removeEventListener('settings_updated', applySettings);
   }, []);
 
   return (

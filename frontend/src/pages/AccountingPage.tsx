@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { 
@@ -108,7 +108,7 @@ export const AccountingPage = () => {
   const [conversions, setConversions] = useState<any>(null);
   const [distributions, setDistributions] = useState<any[]>([]);
 
-  const fetchVisualInsights = async () => {
+  const fetchVisualInsights = useCallback(async () => {
     setLoadingInsights(true);
     try {
       const [projRes, convRes, distRes] = await Promise.all([
@@ -124,7 +124,7 @@ export const AccountingPage = () => {
     } finally {
       setLoadingInsights(false);
     }
-  };
+  }, []);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
@@ -151,7 +151,7 @@ export const AccountingPage = () => {
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
 
-  const fetchHonoraires = async () => {
+  const fetchHonoraires = useCallback(async () => {
     setLoading(true);
     try {
       let url = `/documents/accounting/honoraires?year=${selectedYear}`;
@@ -167,9 +167,9 @@ export const AccountingPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth, selectedAssurance]);
 
-  const fetchTreasury = async () => {
+  const fetchTreasury = useCallback(async () => {
     setLoadingTreasury(true);
     try {
       const res = await api.get('/documents/accounting/treasury-hub');
@@ -179,7 +179,7 @@ export const AccountingPage = () => {
     } finally {
       setLoadingTreasury(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'history') {
@@ -189,7 +189,7 @@ export const AccountingPage = () => {
     } else if (activeTab === 'insights') {
       fetchVisualInsights();
     }
-  }, [selectedMonth, selectedYear, selectedAssurance, activeTab]);
+  }, [activeTab, fetchHonoraires, fetchTreasury, fetchVisualInsights]);
 
   const handleExport = async () => {
     setExporting(true);

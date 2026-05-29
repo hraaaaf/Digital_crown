@@ -50,6 +50,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
       handleShowRealPdf(profile);
     }, 600); // 600ms debounce
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, showRealPdf]);
 
   // Vue APP

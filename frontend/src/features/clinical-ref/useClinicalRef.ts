@@ -11,7 +11,7 @@ export const useClinicalRef = (actName?: string) => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProtocol(found);
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setProtocol(undefined);
     }
   }, [actName]);

@@ -103,6 +103,7 @@ export interface CephaloTracingLayerProps {
   magnifierEnabled?: boolean;
   performanceMode?: boolean;
   vto?: VTOSettings;
+  activeAnalysis?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,7 +222,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   onEmptyAreaClick,
   magnifierEnabled = true,
   performanceMode = false,
-  vto = { enabled: false, showGhostFace: true, showSoftTissue: true }
+  vto = { enabled: false, showGhostFace: true, showSoftTissue: true },
+  activeAnalysis = 'all'
 }) => {
   const P = PALETTE[uiMode as PaletteKey];
   const isPro = uiMode === 'pro';
@@ -419,6 +421,17 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
       opts?: { dash?: string; op?: number },
     ) => {
       if (!p1 || !p2) return null;
+      
+      // LOGIQUE D'AFFICHAGE DYNAMIQUE SELON L'ANALYSE
+      if (activeAnalysis !== 'all' && !isGhost) {
+        const a = activeAnalysis.toLowerCase();
+        if (a === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
+        if (a === 'tweed' && !['fh', 'mp', 'u1', 'l1'].includes(lineKey)) return null;
+        if (a === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
+        if (a === 'wits' && !['occ'].includes(lineKey)) return null;
+        if (a === 'esthetique' && !['eline'].includes(lineKey)) return null;
+      }
+
       const c = overrideColor ?? defColor;
       const isH = !isGhost && isLineHovered(lineKey);
       const sw = isH ? 2.8 : 1.5;
@@ -484,12 +497,52 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     const wNorm = overrideColor ?? P.wedgeNorm;
     const wComp = overrideColor ?? P.wedgeComp;
 
+    // Nouveaux points pour McNamara et Wits
+    const n = getPoint(finalPts, 'N');
+    const s = getPoint(finalPts, 'S');
+    const co = getPoint(finalPts, 'Co');
+    const gn = getPoint(finalPts, 'Gn');
+    const ans = getPoint(finalPts, 'ANS');
+    const occAnt = getPoint(finalPts, 'Occ_Ant');
+    const occPost = getPoint(finalPts, 'Occ_Post');
+
+    const showSteiner = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'steiner';
+    const showTweed = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'tweed';
+    const showMcNamara = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'mcnamara';
+    const showWits = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'wits';
+    const showEsthetique = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'esthetique';
+
     return (
       <g key={isGhost ? `ghost-${layerOp}` : 'main-layer'}>
         {/* Plans de référence */}
-        {seg(po, or_, 'fh', P.francfort)}
-        {seg(go, me, 'mp', P.mandibule)}
-        {seg(a, b, 'ab', P.ab, { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
+        {showTweed || showMcNamara ? seg(po, or_, 'fh', P.francfort) : null}
+        {showTweed ? seg(go, me, 'mp', P.mandibule) : null}
+        
+        {/* Lignes Steiner */}
+        {showSteiner && (
+          <>
+            {seg(s, n, 'sn', P.sn)}
+            {seg(n, a, 'na', P.na)}
+            {seg(n, b, 'nb', P.nb)}
+            {seg(a, b, 'ab', P.ab, { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
+          </>
+        )}
+
+        {/* Lignes McNamara */}
+        {showMcNamara && (
+          <>
+            {seg(co, a, 'coa', P.mcNamara)}
+            {seg(co, gn, 'cogn', P.mcNamara)}
+            {seg(ans, me, 'ansme', P.mcNamara, { dash: '2,2' })}
+          </>
+        )}
+
+        {/* Lignes Wits */}
+        {showWits && (
+          <>
+            {seg(occPost, occAnt, 'occ', P.mcNamara, { dash: '4,4' })}
+          </>
+        )}
 
         {/* ══ COUCHE ESTHÉTIQUE "GHOST ELITE" ══════════════════════════ */}
 

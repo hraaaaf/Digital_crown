@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, Check, X, Clock, AlertTriangle } from 'lucide-react';
-import { api } from '../services/api';
+import { BrainCircuit, Check } from 'lucide-react';
+import { api, API_BASE } from '../services/api';
+import { useAuthStore } from '../stores/useAuthStore';
 
 // Typewriter Effect Component
 const TypewriterText = ({ text, delay = 5 }: { text: string, delay?: number }) => {
@@ -25,6 +26,9 @@ export const GhostBrainWidget = () => {
   const [insights, setInsights] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuthStore();
+  
+  const employerId = user?.employer_id || user?.id;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,28 +40,48 @@ export const GhostBrainWidget = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchInsights = async () => {
-    try {
-      const res = await api.get('/ai/ghost-insights');
-      setInsights(res.data.insights || []);
-      setUnreadCount(res.data.unread_count || 0);
-    } catch (e) {
-      console.error("GhostBrain Error:", e);
-    }
-  };
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchInsights();
-    const interval = setInterval(fetchInsights, 30000); // Check every 30s
-    return () => clearInterval(interval);
-  }, []);
+    if (!employerId) return;
+
+    let ws: WebSocket;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectWS = () => {
+      const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ws/ghost-insights/${employerId}`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.insights) {
+            setInsights(data.insights);
+            setUnreadCount(data.unread_count);
+          }
+        } catch (err) {
+          console.error("GhostBrain WS Parse Error:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        // Auto-reconnect if connection is lost
+        reconnectTimer = setTimeout(connectWS, 5000);
+      };
+    };
+
+    connectWS();
+
+    return () => {
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [employerId]);
 
   const markAsRead = async (logId: number) => {
     try {
       await api.post(`/ai/ghost-insights/${logId}/read`);
-      fetchInsights();
-    } catch (error) {
+      // No need to fetchInsights(), the WebSocket will push the updated list automatically
+      // since the unread_count will change in the DB.
+    } catch {
       // ignore
     }
   };

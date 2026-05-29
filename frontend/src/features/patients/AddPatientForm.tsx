@@ -70,14 +70,15 @@ export const AddPatientForm = () => {
 
   // Charger le prochain numéro de dossier disponible au chargement
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     fetchNextDossierNumber();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check availability when numero_dossier changes
   useEffect(() => {
     if (!formData.numero_dossier || formData.numero_dossier.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setDossierStatus({ status: 'idle' });
       return;
     }

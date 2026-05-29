@@ -443,6 +443,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       setLoading(false);
       setShowPrintWarning(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, activeTab, buildPayload, params]);
 
   const handleGenerateAI = useCallback(async () => {

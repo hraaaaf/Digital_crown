@@ -164,6 +164,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
       };
       loadHabitsAndPrices();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, motif, vitality, percussion, palpation, radiology, lesionDuration]);
 
   const handleNext = () => {

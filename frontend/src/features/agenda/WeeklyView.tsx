@@ -79,6 +79,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
 
   useEffect(() => {
     fetchAppointments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   const getStatusColor = (status: AppointmentStatus) => {

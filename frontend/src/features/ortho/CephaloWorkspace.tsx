@@ -88,6 +88,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     
     syncTheme(); // Init immédiat
     return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
   // Initialisation Patient
@@ -179,6 +180,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         esthetique: { ...prev.esthetique, ...automated.esthetique },
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis, store.diag.analyse_moulages]);
 
   
@@ -209,6 +211,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isStep1Fullscreen]);
 
   useEffect(() => {

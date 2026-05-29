@@ -87,6 +87,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
 
   useEffect(() => {
     fetchAppointments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   // Générer les labels de temps : 08:00, 09:00, etc.

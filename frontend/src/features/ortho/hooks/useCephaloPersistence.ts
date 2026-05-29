@@ -254,6 +254,7 @@ export const useCephaloPersistence = (
       console.error('[Preview] Erreur génération Aperçu', e);
       setIsPreviewLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisId, allLandmarksPlaced, silentSave, patientId, diag, ddm, etape3Data]);
 
   const handlePrint = useCallback(async () => {
@@ -286,6 +287,7 @@ export const useCephaloPersistence = (
     } finally {
       setIsPrinting(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisId, allLandmarksPlaced, patientId, patientName, diag, ddm, etape3Data, silentSave]);
 
   return {

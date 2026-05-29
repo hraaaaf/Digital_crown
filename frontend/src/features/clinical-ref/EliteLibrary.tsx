@@ -40,7 +40,7 @@ export const EliteLibrary: React.FC = () => {
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     
     const savedRecents = localStorage.getItem('dc_recents');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (savedRecents) setRecents(JSON.parse(savedRecents));
   }, []);
 

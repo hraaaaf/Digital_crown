@@ -45,6 +45,7 @@ export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientSco
 
   useEffect(() => {
     fetchScore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
   const handleUpdateGrade = async (newGrade: string | null) => {

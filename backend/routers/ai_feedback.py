@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import asyncio
 
 from backend import database, models
 from backend.routers.auth import get_current_user, require_permission
@@ -112,3 +113,39 @@ def mark_ghost_insight_read(
     if not success:
         raise HTTPException(status_code=404, detail="Insight introuvable")
     return {"status": "read"}
+
+
+@router.websocket("/ws/ghost-insights/{employer_id}")
+async def websocket_ghost_insights(websocket: WebSocket, employer_id: int, db: Session = Depends(database.get_db)):
+    """
+    Flux WebSocket Temps Réel pour les insights du Ghost Brain.
+    Remplace le polling HTTP par un push Server-Side.
+    """
+    await websocket.accept()
+    last_count = -1
+    try:
+        while True:
+            # Server-side micro-polling (ultra léger sur SQLite, évite l'overhead HTTP)
+            unread_count = ghost_memory.get_unread_count(db, employer_id)
+            if unread_count != last_count:
+                logs = db.query(models.GhostMemoryLog).filter(
+                    models.GhostMemoryLog.employer_id == employer_id,
+                    models.GhostMemoryLog.is_read == False
+                ).order_by(models.GhostMemoryLog.created_at.desc()).limit(10).all()
+                
+                await websocket.send_json({
+                    "unread_count": unread_count,
+                    "insights": [
+                        {
+                            "id": log.id,
+                            "patient_id": log.patient_id,
+                            "insight_type": log.insight_type,
+                            "content": log.content,
+                            "created_at": log.created_at.isoformat()
+                        } for log in logs
+                    ]
+                })
+                last_count = unread_count
+            await asyncio.sleep(2)  # Latence max: 2 secondes
+    except WebSocketDisconnect:
+        pass

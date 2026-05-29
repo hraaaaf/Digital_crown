@@ -12,7 +12,7 @@ interface TrustBadgeProps {
   showLabel?: boolean;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 // Fonction déterministe pour générer un score constant basé sur l'ID (Simulation pour Démo)
 export const calculateTrustScore = (id?: number): TrustScore => {
   if (!id) return 'A';

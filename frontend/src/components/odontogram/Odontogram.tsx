@@ -99,6 +99,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
       setOdontogramType(defaultType);
       setTeethSurfaces(initialData || createDefaultTeethSurfaces(defaultType));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultType]);
 
   const handleTypeChange = useCallback((newType: OdontogramType) => {

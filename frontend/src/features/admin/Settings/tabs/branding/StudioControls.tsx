@@ -236,7 +236,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
       <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">
-            Papier physique (Letterhead)
+            Papier physique (En-tête)
           </h3>
           <button 
             onClick={() => updateProfile({ letterhead_path: profile.letterhead_path ? null : 'PENDING' })} 
@@ -252,7 +252,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
                 <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleFileUpload} />
                 <Upload size={24} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] mb-2" />
                 <span className="text-[13px] font-medium text-[var(--text-main)]">
-                  {isUploadingLocal ? "Envoi en cours..." : "Cliquez pour uploader (A4/A5)"}
+                  {isUploadingLocal ? "Envoi en cours..." : "Cliquez pour importer (A4/A5)"}
                 </span>
                 <span className="text-[11px] text-[var(--text-muted)] mt-1">
                   JPG ou PNG transparent. Format A4 recommandé.

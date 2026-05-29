@@ -192,7 +192,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
     // 2. Intelligence Elite : Détection des Protocoles Oubliés
     if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setInsights(prev => [{
         id: 'ins-missing-protocol',
         type: 'safety',
@@ -241,6 +241,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       }, 800);
       return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, drugs, patientDetails, insights, patientId]);
 
   useEffect(() => {
@@ -268,7 +269,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setActiveTab('ordonnance');
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
@@ -354,6 +355,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (sideStudioType !== 'PREVIEW') return;
     const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sideStudioType, drugs, items, certifType, certifDays, paymentMode, 
     libreTitle, libreContent, docDate, activeTab, 
@@ -362,7 +364,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSideStudioType('PREVIEW');
     }
   }, [activeTab]);

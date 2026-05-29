@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, Shield, Activity, Zap } from 'lucide-react';
+import { Brain, Shield, Activity, Zap, Sparkles } from 'lucide-react';
 import { useSettingsStore } from '../hooks/useSettingsStore';
 import { SettingsSection } from '../components/SharedUI';
 import { cn } from '../../../../utils/cn';
@@ -33,11 +33,16 @@ export const IATab: React.FC = () => {
     profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false'
   );
 
+  const [animatedBgEnabled, setAnimatedBgEnabled] = useState(
+    safeStorage.get('app_background_animated') === 'true'
+  );
+
   const togglePerformanceMode = () => {
     const newVal = !performanceMode;
     setPerformanceMode(newVal);
     safeStorage.set('performanceMode', String(newVal));
     updateProfile({ performance_mode: newVal });
+    window.dispatchEvent(new Event('settings_updated'));
   };
 
   const toggleClinicalTips = () => {
@@ -45,6 +50,13 @@ export const IATab: React.FC = () => {
     setClinicalTipsEnabled(newVal);
     safeStorage.set('clinicalTipsEnabled', String(newVal));
     updateProfile({ clinical_tips_enabled: newVal });
+  };
+
+  const toggleAnimatedBg = () => {
+    const newVal = !animatedBgEnabled;
+    setAnimatedBgEnabled(newVal);
+    safeStorage.set('app_background_animated', String(newVal));
+    window.dispatchEvent(new Event('settings_updated'));
   };
 
   return (
@@ -63,6 +75,15 @@ export const IATab: React.FC = () => {
             onToggle={togglePerformanceMode}
             activeColorClass="bg-primary"
             style={{ backgroundColor: performanceMode ? 'var(--primary)' : undefined }}
+          />
+
+          <ToggleRow 
+            icon={<Sparkles size={18} className="text-violet-500" />}
+            title="Arrière-plan Animé (Premium Elite)"
+            description="Affiche un motif dentaire abstrait et subtil en arrière-plan de l'application."
+            state={animatedBgEnabled}
+            onToggle={toggleAnimatedBg}
+            activeColorClass="bg-violet-500"
           />
 
           <ToggleRow 

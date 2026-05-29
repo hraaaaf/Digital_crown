@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
-import api from '../../../services/api';
+import { api } from '../../../services/api';
 import { AssistantParo } from './wizards/AssistantParo';
 import { AssistantEndo } from './wizards/AssistantEndo';
 import { AssistantChirurgie } from './wizards/AssistantChirurgie';
@@ -135,7 +135,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
 
   useEffect(() => {
     api.get(`/patients/${patientId}/master-plan`)
-      .then(res => {
+      .then((res: any) => {
         if (res.data && res.data.steps && res.data.steps.length > 0) {
           const steps = res.data.steps.map((s: any) => ({
             id: s.id ? s.id.toString() : Math.random().toString(36).substring(7),
@@ -148,7 +148,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
           localStorage.setItem(`master_plan_${patientId}`, JSON.stringify(steps));
         }
       })
-      .catch(err => console.error("Erreur sync master plan:", err));
+      .catch((err: any) => console.error("Erreur sync master plan:", err));
   }, [patientId]);
 
   const deleteStep = (id: string) => {
@@ -168,7 +168,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
        date_str: s.date,
        order_index: index
     }));
-    api.put(`/patients/${patientId}/master-plan`, payload).catch(err => console.error("Erreur sauvegarde master plan:", err));
+    api.put(`/patients/${patientId}/master-plan`, payload).catch((err: any) => console.error("Erreur sauvegarde master plan:", err));
   };
 
   const updateStatus = (id: string, newStatus: PlanStatus) => {
@@ -186,7 +186,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
 
   const handleWizardComplete = (wizardId: string, diag: string, steps: any[], suggestedNextAssistant?: string | null) => {
     const newSteps = steps.map(s => ({
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       title: s.title,
       assistant: s.assistant,
       status: 'pending' as PlanStatus,
@@ -194,7 +194,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     }));
     
     const diagStep = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       title: `Diagnostic : ${diag}`,
       assistant: wizardId,
       status: 'done' as PlanStatus,
@@ -376,7 +376,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                       </button>
                       <button 
                         onClick={() => {
-                          const id = Math.random().toString(36).substring(7);
+                          const id = crypto.randomUUID();
                           const assistantName = ASSISTANTS.find(a => a.id === activeAssistant)?.id || 'general';
                           savePlan([...treatmentPlan, { id, title: 'Nouvel Acte ' + assistantName.toUpperCase(), assistant: assistantName, status: 'pending', date: 'Nouveau' }]);
                           toast.success('Simulation : Acte ajouté au Master Plan.');

@@ -338,3 +338,30 @@ body {
 
 .custom-scrollbar-white::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15) !important; }
 .custom-scrollbar-white::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25) !important; }
+
+/* Mode Performance : Neutralisation de toutes les animations pour les configs modestes */
+.performance-mode * {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* Animations d'arrière-plan (Premium Ghost) */
+@keyframes drift-slow {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes drift-reverse {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(-30px, 50px) scale(0.95); }
+  66% { transform: translate(20px, -20px) scale(1.05); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}

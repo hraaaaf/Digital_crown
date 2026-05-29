@@ -66,6 +66,21 @@ export interface AnalyseEsthetique {
   angle_nasolabial: number | '';
 }
 
+export interface AnalyseWitsMcNamara {
+  wits_appraisal?: number | '';
+  longueur_maxillaire?: number | '';
+  longueur_mandibulaire?: number | '';
+  differentiel_max_mand?: number | '';
+  etage_inferieur_face?: number | '';
+}
+
+export interface DonneesPanoramique {
+  dds_incluses?: boolean;
+  perte_osseuse?: boolean;
+  asymetrie_condylienne?: boolean;
+  resorption_radiculaire?: boolean;
+}
+
 export interface DonneesEtape3 {
   age: number | '';
   cvm: CVMStage | '';
@@ -73,6 +88,8 @@ export interface DonneesEtape3 {
   dentaire: AnalyseDentaire;
   osseuse: AnalyseOsseuse;
   esthetique: AnalyseEsthetique;
+  wits_mcnamara?: AnalyseWitsMcNamara;
+  panoramique?: DonneesPanoramique;
   ddm_clinique: number | '';
   ddm_cephalo: number | '';
   division: DivisionClasseII;
@@ -82,7 +99,7 @@ export interface DonneesEtape3 {
   severite_ddm: SeveriteDDM | '';
   subdivision: boolean;
   analyse_moulages_auto: string;
-  selectedAnalysis: 'COM' | 'STEINER' | 'TWEED';
+  selectedAnalysis: 'COM' | 'STEINER' | 'TWEED' | 'MCNAMARA' | 'WITS' | 'ALL';
   denture_type: 'TEMPORAIRE' | 'MIXTE' | 'PERMANENTE' | '';
   preference_technique: 'DAMON' | 'CLASSIC' | 'ALIGNEURS' | '';
 }

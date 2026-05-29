@@ -54,7 +54,6 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     setAssistantExpanded: setIsExpanded,
     lastFetchTime,
     lastPatientId,
-    analyzeAgendaDensity,
     setInsights,
     setIntelligenceScore
   } = useEliteStore();
@@ -107,13 +106,11 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
   };
 
   useEffect(() => {
-    analyzeAgendaDensity();
-    
     // --- Algorithmic Daily Briefing (Backend Driven) ---
     api.get('/intelligence/briefing-today').then(res => {
       setBriefingData(res.data);
     }).catch(() => {});
-  }, [analyzeAgendaDensity]);
+  }, []);
 
   // --- Algorithmic Upcoming Prescription (Backend Driven) ---
   useEffect(() => {

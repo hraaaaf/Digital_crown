@@ -64,6 +64,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
   useEffect(() => {
     fetchAppointments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   return (

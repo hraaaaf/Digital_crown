@@ -174,7 +174,7 @@ class EliteManager:
                 })
 
             # 4. Score d'intelligence globale
-            intel_score = self._calculate_intelligence_score(db, patient_id, summary, insights)
+            intel_score = self._calculate_intelligence_score(db, patient_id, summary, insights, solde_impaye)
 
             # 5. Apprentissage Heuristique (Pondération et Filtrage selon historique)
             if doctor_id:
@@ -242,7 +242,7 @@ class EliteManager:
             logger.error(f"Heuristic Learning Error: {e}")
             return insights
 
-    def _calculate_intelligence_score(self, db: Session, patient_id: int, summary: Dict, insights: List) -> int:
+    def _calculate_intelligence_score(self, db: Session, patient_id: int, summary: Dict, insights: List, solde_impaye: float = 0.0) -> int:
         """
         Calcule un score de confiance/complétude (0-100).
         """
@@ -267,9 +267,6 @@ class EliteManager:
         score -= min(20, critical_count * 5)
 
         # Pénalité de solvabilité
-        total_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
-        total_payments = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
-        solde_impaye = max(0.0, total_acts - total_payments)
         if solde_impaye >= 1000.0:
             score -= 15
         
@@ -280,44 +277,42 @@ class EliteManager:
         Analyse les lacunes documentaires basées sur les derniers actes.
         """
         insights = []
-        today = datetime.now().date()
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        # 1. Récupérer les actes du jour
+        # 1. Récupérer les actes du jour (Optimisé)
         today_acts = db.query(models.Acte).filter(
             models.Acte.patient_id == patient_id,
-            func.date(models.Acte.date_debut) == today
+            models.Acte.date_debut >= today_start
         ).all()
         
-        if not today_acts:
-            return []
-            
-        # 2. Récupérer les documents archivés aujourd'hui
-        today_docs = db.query(models.DocumentArchive).filter(
+        # 2. Récupérer les types de documents archivés aujourd'hui (Optimisé, évite de charger les fichiers)
+        today_docs = db.query(models.DocumentArchive.document_type).filter(
             models.DocumentArchive.patient_id == patient_id,
-            func.date(models.DocumentArchive.created_at) == today
+            models.DocumentArchive.created_at >= today_start
         ).all()
-        doc_types = [d.document_type for d in today_docs]
+        doc_types = [d[0] for d in today_docs]
         
         # 3. Corrélation Actes du Jour -> Besoins Immédiats
-        for acte in today_acts:
-            libelle = acte.libelle.lower()
-            context_keys = [trigger for trigger in PREDICTIVE_MAP.keys() if trigger in libelle]
-            
-            for trigger in context_keys:
-                for s in PREDICTIVE_MAP[trigger]:
-                    if s not in doc_types:
-                        insights.append({
-                            "id": f"predictive_{trigger}_{s}_{datetime.now().timestamp()}",
-                            "type": "suggestion",
-                            "title": "Besoin Documentaire",
-                            "content": f"Un acte de '{trigger.upper()}' a été détecté. Souhaitez-vous générer le document : {s.replace('_', ' ')} ?",
-                            "actionLabel": f"Générer {s}",
-                            "source_type": "DETERMINISTIC",
-                            "trust_level": 0.95
-                        })
+        if today_acts:
+            for acte in today_acts:
+                libelle = acte.libelle.lower()
+                context_keys = [trigger for trigger in PREDICTIVE_MAP.keys() if trigger in libelle]
+                
+                for trigger in context_keys:
+                    for s in PREDICTIVE_MAP[trigger]:
+                        if s not in doc_types:
+                            insights.append({
+                                "id": f"predictive_{trigger}_{s}_{now.timestamp()}",
+                                "type": "suggestion",
+                                "title": "Besoin Documentaire",
+                                "content": f"Un acte de '{trigger.upper()}' a été détecté. Souhaitez-vous générer le document : {s.replace('_', ' ')} ?",
+                                "actionLabel": f"Générer {s}",
+                                "source_type": "DETERMINISTIC",
+                                "trust_level": 0.95
+                            })
         
         # 4. Mémoire Hub : Corrélation Temporelle (Devis vs Actes)
-        # On cherche des devis acceptés qui n'ont pas encore de note d'honoraires associée
         pending_quotes = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.patient_id == patient_id,
             models.DocumentArchive.document_type == "DEVIS",
@@ -325,7 +320,6 @@ class EliteManager:
         ).all()
 
         for quote in pending_quotes:
-            # Si le devis est accepté mais qu'aucun acte n'a été facturé aujourd'hui
             if not today_acts:
                 insights.append({
                     "id": f"quote_followup_{quote.id}",
@@ -348,7 +342,7 @@ class EliteManager:
                 label = det.get("label", "").lower()
                 if "carie" in label and "NOTE_HONORAIRES" not in doc_types:
                     insights.append({
-                        "id": f"pano_predict_{det.get('fdi')}",
+                        "id": f"pano_predict_{det.get('fdi')}_{now.timestamp()}",
                         "type": "suggestion",
                         "title": "Opportunité de Soin",
                         "content": f"Lésion carieuse détectée sur la dent {det.get('fdi')} (IA). Souhaitez-vous préparer la note d'honoraires ?",

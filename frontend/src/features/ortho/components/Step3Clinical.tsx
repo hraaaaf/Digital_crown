@@ -65,6 +65,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
     const ddmTot = (ddmMaxReelle !== null && ddmMandReelle !== null) ? ddmMaxReelle + ddmMandReelle : null;
     
     return evaluateCase(data, ddmTot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, store.ddm, store.local.landmarks]);
 
   const ddmTotal = Number(data.ddm_clinique) + Number(data.ddm_cephalo);

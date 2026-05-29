@@ -42,7 +42,7 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   const surplomb = data.dentaire.surplomb === '' ? 2.2 : Number(data.dentaire.surplomb);
   const recouv = data.dentaire.recouvrement === '' ? 2.2 : Number(data.dentaire.recouvrement);
   
-  // 1. DÉCISION EXTRACTION
+  // 1. DÉCISION EXTRACTION (INTÉGRATION PANORAMIQUE & WITS)
   let extrRecommandee = false;
   let extrRaison = "Profil plat et DDM légère/modérée permettant une résolution sans extraction.";
   let extrDents = "";
@@ -51,18 +51,26 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   const isSevereCrowding = ddmDeficit < -7;
   const isModerateCrowding = ddmDeficit >= -7 && ddmDeficit <= -4;
 
+  const ddsIncluses = data.panoramique?.dds_incluses ?? false;
+  const perteOsseuse = data.panoramique?.perte_osseuse ?? false;
+  const wits = typeof data.wits_mcnamara?.wits_appraisal === 'number' ? data.wits_mcnamara.wits_appraisal : 0;
+
   if (isSevereCrowding && impa >= 95 && profil !== 'concave') {
     extrRecommandee = true;
     extrRaison = `DDM Sévère (${Math.abs(ddmDeficit).toFixed(1)}mm) couplée à une biprotrusion (IMPA ${impa}°) et un profil ${profil}.`;
-    extrDents = classe.includes('Classe II') ? "14, 24, 35, 45 (Ou 14, 24, 34, 44 selon le type de mécanique)" : "14, 24, 34, 44";
+    extrDents = classe.includes('Classe II') || wits > 2 ? "14, 24, 35, 45 (Ou 14, 24, 34, 44 selon le type de mécanique)" : "14, 24, 34, 44";
   } else if (impa >= 100 && ifranc >= 120) {
     extrRecommandee = true;
     extrRaison = `Biprotrusion alvéolo-dentaire critique (IMPA ${impa}°, I/F ${ifranc}°). Nécessité de recul labial.`;
     extrDents = "14, 24, 34, 44";
-  } else if (isModerateCrowding && impa > 95 && pattern === 'hyperdivergent') {
+  } else if ((isModerateCrowding && impa > 95 && pattern === 'hyperdivergent') || (perteOsseuse && isModerateCrowding)) {
     extrRecommandee = true;
-    extrRaison = `Tendance hyperdivergente (risque d'ouverture de l'axe charnière en cas d'expansion) avec IMPA fort (${impa}°).`;
+    extrRaison = perteOsseuse 
+      ? `Parodonte affaibli (perte osseuse). Expansion transversale et vestibulo-version proscrites.`
+      : `Tendance hyperdivergente (risque d'ouverture de l'axe charnière en cas d'expansion) avec IMPA fort (${impa}°).`;
     extrDents = "14, 24, 34, 44";
+  } else if (classe.includes('Classe II') && ddsIncluses && !extrRecommandee) {
+    extrRaison = "Classe II Squelettique/Dentaire : Traitement sans extraction pré-molaire, MAIS nécessité absolue d'avulser les Dents de Sagesse pour permettre la distalisation molaire (Recul).";
   }
 
   // 2. PRESCRIPTION DAMON
@@ -88,20 +96,33 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
     raisonTorque += "Mandibule: High Torque pour corriger la rétroalvéolie mandibulaire.";
   }
 
-  // 3. MÉCANIQUE
+  // 3. MÉCANIQUE ET CHIRURGIE (Squelettique Vraie)
   const mec: string[] = [];
+  
+  if (wits > 6 || wits < -5) {
+    mec.push("⚠️ DÉCALAGE SQUELETTIQUE SÉVÈRE (Wits hors normes) : Préparation Orthodontique pour Chirurgie Orthognathique fortement recommandée chez l'adulte.");
+  }
+  
+  if (data.panoramique?.resorption_radiculaire) {
+    mec.push("⚠️ RÉSORPTION RADICULAIRE DÉTECTÉE : Utilisation impérative de forces très légères (Aligners avec changements lents ou arcs thermiques ultra-souples).");
+  }
+
+  if (data.panoramique?.asymetrie_condylienne) {
+    mec.push("⚠️ ASYMÉTRIE CONDYLIENNE : Investigation articulaire (CBCT/IRM) requise avant tout traitement de camouflage.");
+  }
+
   if (recouv > 3.5) {
     mec.push("Supraclusie: Mécanique de nivellement courbe de Spee (arcs inverses de Spee ou bite turbos antérieurs).");
   } else if (recouv < 1.0) {
     mec.push("Infraclusie/Béance: Bite blocks postérieurs, éviter les mécaniques extrusives postérieures.");
   }
   
-  if (surplomb > 4) {
-    mec.push("Proalvéolie: Contrôle sagittal strict. Utilisation d'élastiques de Classe II (forces légères prématurées avec Damon).");
+  if (surplomb > 4 && !extrRecommandee) {
+    mec.push("Proalvéolie: Contrôle sagittal strict. Utilisation d'élastiques de Classe II ou Distalisation (si DDS avulsées).");
   }
 
   if (pattern === 'hyperdivergent') {
-    mec.push("Contrôle Vertical: Éviter les mécaniques extrusives. Maintien absolu de l'ancrage vertical postérieur.");
+    mec.push("Contrôle Vertical (Hyperdivergent): Éviter les mécaniques extrusives. Maintien absolu de l'ancrage vertical postérieur (Les Aligners sont très indiqués pour leur effet 'Bite-Block').");
   }
 
   // 4. RÉDACTION DU RAPPORT MARKDOWN

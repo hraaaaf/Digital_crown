@@ -32,7 +32,7 @@ export const Header = () => {
     if (activeId === 'benmoussa') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCabinetName('Centre Dentaire Benmoussa');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setPraticienName('Dr. Benmoussa');
     }
 

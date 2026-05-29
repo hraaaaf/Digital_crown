@@ -30,7 +30,12 @@ class CephaloEngine:
             "Prn": ["Prn", "Pronasale", "Nose_Tip"],
             "Pog_soft": ["Pog_soft", "Soft_Pogonion", "stPog", "stpog", "Soft_Pog"],
             "Ls": ["Ls", "Labrale_Superius", "UL", "ul", "Upper_Lip"],
-            "Li": ["Li", "Labrale_Inferius", "LL", "ll", "Lower_Lip"]
+            "Li": ["Li", "Labrale_Inferius", "LL", "ll", "Lower_Lip"],
+            "Co": ["Co", "Condylion", "Condyle"],
+            "Gn": ["Gn", "Gnathion"],
+            "ANS": ["ANS", "ENA", "Anterior_Nasal_Spine"],
+            "Occ_Ant": ["Occ_Ant", "Occlusal_Anterior", "Occlusal_Incisive"],
+            "Occ_Post": ["Occ_Post", "Occlusal_Posterior", "Occlusal_Molar"]
         }
 
     # --- UTILITAIRES GÉOMÉTRIQUES ---
@@ -256,7 +261,8 @@ class CephaloEngine:
             "metrics": {
                 "analyse_dentaire": {},
                 "analyse_osseuse": {},
-                "analyse_esthetique": {}
+                "analyse_esthetique": {},
+                "wits_mcnamara": {}
             },
             "visual_debug": {"N_prime": None, "A_prime": None, "B_prime": None},
             "t1_projection": {},
@@ -419,7 +425,58 @@ class CephaloEngine:
                     dist_ab_mm, norm_dec_ab[0], norm_dec_ab[1], "Classe II squelettique", "Classe III squelettique", "Classe I squelettique"
                 )
 
-        # --- FLUX 2 : ANALYSE ESTHÉTIQUE (LIGNE E DE RICKETTS) ---
+        # --- NOUVEAU: WITS APPRAISAL ---
+        if pts["Occ_Ant"] and pts["Occ_Post"] and pts["A"] and pts["B"]:
+            # Vecteur du plan d'occlusion (de Postérieur vers Antérieur)
+            v_occ = (pts["Occ_Ant"][0] - pts["Occ_Post"][0], pts["Occ_Ant"][1] - pts["Occ_Post"][1])
+            mag_occ = math.hypot(v_occ[0], v_occ[1])
+            if mag_occ > 0:
+                u_occ = (v_occ[0]/mag_occ, v_occ[1]/mag_occ)
+                # Projection algébrique de A sur l'axe du plan d'occlusion
+                proj_a = (pts["A"][0] - pts["Occ_Post"][0])*u_occ[0] + (pts["A"][1] - pts["Occ_Post"][1])*u_occ[1]
+                # Projection algébrique de B sur l'axe du plan d'occlusion
+                proj_b = (pts["B"][0] - pts["Occ_Post"][0])*u_occ[0] + (pts["B"][1] - pts["Occ_Post"][1])*u_occ[1]
+                
+                # Distance Wits: AO - BO (Positif = Classe II, Négatif = Classe III)
+                # On multiplie par ratio pour avoir des millimètres
+                wits_mm = (proj_a - proj_b) * ratio
+                
+                payload["metrics"]["wits_mcnamara"]["Wits_Appraisal"] = self._evaluate_metric(
+                    wits_mm, 0.0, 1.5, "Classe II Squelettique Vraie", "Classe III Squelettique Vraie", "Classe I Squelettique"
+                )
+
+        # --- NOUVEAU: MCNAMARA VRAI (Longueurs Effectives) ---
+        if pts["Co"] and pts["A"] and pts["Gn"]:
+            # Longueur effective maxillaire (Co-A)
+            len_max = math.hypot(pts["A"][0] - pts["Co"][0], pts["A"][1] - pts["Co"][1]) * ratio
+            # Longueur effective mandibulaire (Co-Gn)
+            len_mand = math.hypot(pts["Gn"][0] - pts["Co"][0], pts["Gn"][1] - pts["Co"][1]) * ratio
+            
+            diff_max_mand = len_mand - len_max
+            # Norme différentielle selon l'âge : autour de 20-30 mm
+            norm_diff = 20.0 if is_child else 27.0
+            
+            payload["metrics"]["wits_mcnamara"]["Longueur_Maxillaire"] = {
+                "valeur": round(len_max, 1),
+                "interpretation": "Longueur Effective Maxillaire (Co-A)",
+                "status": "Normal"
+            }
+            payload["metrics"]["wits_mcnamara"]["Longueur_Mandibulaire"] = {
+                "valeur": round(len_mand, 1),
+                "interpretation": "Longueur Effective Mandibulaire (Co-Gn)",
+                "status": "Normal"
+            }
+            payload["metrics"]["wits_mcnamara"]["Differentiel_Maxillo_Mandibulaire"] = self._evaluate_metric(
+                diff_max_mand, norm_diff, 4.0, "Excès mandibulaire relatif (Classe III)", "Déficit mandibulaire relatif (Classe II)", "Équilibre Maxillo-Mandibulaire"
+            )
+            
+        if pts["ANS"] and pts["Me"]:
+            # Étage inférieur (ENA-Me)
+            lafh = math.hypot(pts["Me"][0] - pts["ANS"][0], pts["Me"][1] - pts["ANS"][1]) * ratio
+            norm_lafh = 60.0 if is_child else 68.0
+            payload["metrics"]["wits_mcnamara"]["Etage_Inferieur_Face"] = self._evaluate_metric(
+                lafh, norm_lafh, 4.0, "Étage inférieur augmenté (Hyperdivergence)", "Étage inférieur diminué (Hypodivergence)", "Étage inférieur normal"
+            )
         prn = pts.get('Prn')
         pog_s = pts.get('Pog_soft')
         ls = pts.get('Ls')

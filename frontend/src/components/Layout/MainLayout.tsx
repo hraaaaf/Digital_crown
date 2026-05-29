@@ -4,6 +4,8 @@ import { Header } from '../Header';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
 import { useLocation } from 'react-router-dom';
+import { safeStorage } from '../../hooks/useLocalStorage';
+import { AnimatedBackground } from '../AnimatedBackground';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,6 +26,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname, fetchPatientIntelligence]);
 
   const { profile, fetchProfile } = useSettingsStore();
+  const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
   
   // Rigueur CTO : Chargement du profil et application du thème au montage du layout
   useEffect(() => {
@@ -32,8 +35,17 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [profile.nom, fetchProfile]);
 
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setAnimatedBg(safeStorage.get('app_background_animated') === 'true');
+    };
+    window.addEventListener('settings_updated', handleSettingsUpdate);
+    return () => window.removeEventListener('settings_updated', handleSettingsUpdate);
+  }, []);
+
   return (
     <div className="flex flex-row h-screen overflow-hidden font-sans selection:bg-primary selection:text-white relative bg-medical-pearl" style={{ color: 'var(--text-main)' }}>
+      {animatedBg && <AnimatedBackground />}
       
       {/* BACKGROUND DYNAMIQUE */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">

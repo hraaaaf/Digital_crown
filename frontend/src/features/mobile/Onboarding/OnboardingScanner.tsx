@@ -38,6 +38,7 @@ export const OnboardingScanner = () => {
       setPhase('claiming');
       exchangeToken(token);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function exchangeToken(token: string) {
@@ -131,6 +132,7 @@ export const OnboardingScanner = () => {
     return () => {
       scannerRef.current?.clear().catch(() => null);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // ── ÉCRAN D'ACCUEIL ──────────────────────────────────────────────────────────

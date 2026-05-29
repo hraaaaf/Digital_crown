@@ -68,7 +68,7 @@ export const PatientSummaryHoverCard = ({
     let isMounted = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setError(false);
 
     api.get(`/intelligence/patient/${patientId}`)
