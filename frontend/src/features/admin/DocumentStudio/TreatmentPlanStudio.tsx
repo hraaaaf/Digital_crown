@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb, ShieldCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { safeStorage } from '../../../hooks/useLocalStorage';
+import { useSettingsStore } from '../Settings/hooks/useSettingsStore';
 
 type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'PEDIATRIE' | 'RESULT';
 
@@ -45,19 +46,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     if (patientId) fetchPatient();
   }, [patientId]);
 
-  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(safeStorage.get('clinicalTipsEnabled') !== 'false');
-
-  React.useEffect(() => {
-    const handleSettingsChange = () => {
-      setClinicalTipsEnabled(safeStorage.get('clinicalTipsEnabled') !== 'false');
-    };
-    window.addEventListener('settings-changed', handleSettingsChange);
-    window.addEventListener('storage', handleSettingsChange);
-    return () => {
-      window.removeEventListener('settings-changed', handleSettingsChange);
-      window.removeEventListener('storage', handleSettingsChange);
-    };
-  }, []);
+  const { profile } = useSettingsStore();
+  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false';
 
   const getClinicalTip = (diagnosis: string) => {
     if (diagnosis.includes('Pulpite Irréversible')) return "Rappel scientifique: Le succès d'une pulpectomie d'urgence dépend d'un parage canalaire minimal d'au moins le tiers cervical pour éliminer le maximum de charge bactérienne aiguë.";

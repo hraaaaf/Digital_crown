@@ -223,8 +223,6 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   performanceMode = false,
   vto = { enabled: false, showGhostFace: true, showSoftTissue: true }
 }) => {
-  if (imageWidth === 0 || imageHeight === 0) return null;
-
   const P = PALETTE[uiMode as PaletteKey];
   const isPro = uiMode === 'pro';
 
@@ -247,6 +245,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!magnifierEnabled && magnifier.show) setMagnifier(m => ({ ...m, show: false }));
   }, [magnifierEnabled]); // eslint-disable-line
 
@@ -784,6 +783,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
+
+  if (imageWidth === 0 || imageHeight === 0) return null;
 
   return (
     <div className="absolute inset-0 w-full h-full z-20">

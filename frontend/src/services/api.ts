@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
 
@@ -25,6 +26,7 @@ api.interceptors.response.use(
 
     if (!error.response) {
       console.error('CRITICAL: Backend offline at', API_BASE);
+      toast.error('Serveur injoignable', { id: 'network-error' });
       return Promise.reject(error);
     }
 
@@ -80,6 +82,8 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('refresh_token');
       if (window.location.pathname !== '/login') window.location.href = '/login';
+    } else if (status >= 500) {
+      toast.error('Erreur Serveur (500)', { id: 'server-error' });
     }
 
 

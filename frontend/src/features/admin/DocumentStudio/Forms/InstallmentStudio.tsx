@@ -42,7 +42,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
     }
 
     // Mensualités
-    let currentDate = new Date(advanceDate);
+    const currentDate = new Date(advanceDate);
     for (let i = 0; i < monthsCount; i++) {
       currentDate.setMonth(currentDate.getMonth() + 1);
       newItems.push({

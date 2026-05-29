@@ -101,11 +101,9 @@ class OrdonnanceGenerator:
             user_obj = db.query(User).filter(User.id == user_id).first()
             
             if db_config:
-                # Si db_config existe, on construit un dictionnaire avec ses valeurs
                 config = {}
                 for col in db_config.__table__.columns:
                     config[col.name] = getattr(db_config, col.name)
-                # Et on surcharge avec les valeurs reçues en temps réel
                 if custom_config:
                     for k, v in custom_config.items():
                         if v is not None:
@@ -117,52 +115,82 @@ class OrdonnanceGenerator:
 
         p_color = colors.HexColor(self._get_val(config, 'primary_color', '#003380'))
         self.base_template.update_active_fonts(config)
+
+        p_width_val = A5[0]
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+
+        # Single-Page Force : on essaie avec un facteur de compression croissant
+        # jusqu'à ce que tout tienne sur 1 page.
+        compression_factor = 1.0
+        max_attempts = 8
+        
+        for attempt in range(max_attempts):
+            elements = self._build_elements(patient, data, config, p_color, compression_factor)
+            
+            doc = SimpleDocTemplate(
+                filepath, pagesize=A5,
+                rightMargin=m_right, leftMargin=m_left,
+                topMargin=m_top, bottomMargin=m_bottom,
+            )
+            doc.qr_type = 'VALIDATION'
+            doc.doc_id = getattr(data, 'id', 'ORD-TEMP')
+            doc.cloture_text = None
+
+            draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
+            
+            # Compteur de pages
+            page_counter = _PageCounter()
+            doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method, canvasmaker=page_counter.make_canvas_class())
+
+            if page_counter.page_count <= 1:
+                break  # Tout tient sur 1 page
+            
+            # Sinon, on compresse davantage et on réessaie
+            compression_factor *= 0.82
+            if compression_factor < 0.3:
+                break  # Seuil plancher atteint
+
+        return filepath.replace("\\", "/")
+
+    def _build_elements(self, patient, data, config, p_color, compression_factor):
+        """Construit la liste d'éléments Platypus avec le facteur de compression donné."""
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
+        title_fs = max(18 * compression_factor, 12)
         title_style = ParagraphStyle(
             name='TitleA5',
             parent=self.styles['Normal'],
             fontName=font_bold,
-            fontSize=18,
+            fontSize=title_fs,
             textColor=p_color,
             alignment=TA_CENTER,
-            spaceAfter=20,
+            spaceAfter=max(20 * compression_factor, 6),
         )
 
+        spacer_top = max(0.4 * cm * compression_factor, 0.1 * cm)
+        spacer_mid = max(0.6 * cm * compression_factor, 0.1 * cm)
+        spacer_body = max(1.2 * cm * compression_factor, 0.3 * cm)
+
         elements = [
-            Spacer(1, 0.4 * cm),
+            Spacer(1, spacer_top),
             Paragraph("<u><b>ORDONNANCE</b></u>", title_style),
-            Spacer(1, 0.6 * cm),
+            Spacer(1, spacer_mid),
             self._create_header(patient, data, p_color, config),
-            Spacer(1, 1.2 * cm),
+            Spacer(1, spacer_body),
         ]
 
         if hasattr(data, 'medications') and data.medications:
-            # Utilisation de la police premium Montserrat (v6.0)
             med_font = self.base_template.premium_font
             med_font_bold = self.base_template.premium_bold
 
-            # Détermination du facteur de compression si trop de médicaments (Single Page Force)
             num_meds = len(data.medications)
-            compression_factor = 1.0
-            if num_meds > 5:
-                compression_factor = 0.9
-            if num_meds > 7:
-                compression_factor = 0.8
-            if num_meds > 9:
-                compression_factor = 0.7
-            if num_meds > 11:
-                compression_factor = 0.6
-            if num_meds > 14:
-                compression_factor = 0.5
             
-            # Styles typographiques avec contraste optimal et adaptabilité
             base_med_fs = 13 * compression_factor
             base_form_fs = 11 * compression_factor
             base_poso_fs = 12 * compression_factor
 
-            # Pré-calculer la taille de police minimale requise pour l'homogénéité
+            # Pré-calcul global des tailles minimales pour homogénéité
             min_name_fs = base_med_fs
             min_form_fs = base_form_fs
             min_dose_fs = base_form_fs
@@ -198,15 +226,17 @@ class OrdonnanceGenerator:
             med_forme_style = ParagraphStyle('MedForme', parent=self.styles['Normal'], fontName=med_font, fontSize=min_form_fs, textColor=p_color, alignment=TA_CENTER)
             med_dose_style = ParagraphStyle('MedDose', parent=self.styles['Normal'], fontName=med_font, fontSize=min_dose_fs, textColor=p_color, alignment=TA_RIGHT)
             
+            poso_leading = max(base_poso_fs * 1.2, 8)
+            poso_space_after = max(8 * compression_factor, 2)
             poso_style = ParagraphStyle(
                 'PosoElite', parent=self.styles['Normal'], fontName=med_font, fontSize=base_poso_fs,
-                textColor=p_color, leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds < 7 else 4,
-                leading=base_poso_fs * 1.2
+                textColor=p_color, leftIndent=1.5*cm, spaceBefore=2, spaceAfter=poso_space_after,
+                leading=poso_leading
             )
             
             warning_style = ParagraphStyle(
-                'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=10 * compression_factor,
-                textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=8 if num_meds < 7 else 4,
+                'RadioWarning', parent=self.styles['Normal'], fontName=med_font, fontSize=max(10 * compression_factor, 6),
+                textColor=colors.HexColor("#7F1D1D"), leftIndent=1.5*cm, spaceBefore=2, spaceAfter=poso_space_after,
                 italic=True
             )
 
@@ -217,27 +247,20 @@ class OrdonnanceGenerator:
                 posologie = getattr(med, 'posologie', '') or ""
                 m_type = getattr(med, 'type', 'MEDICAMENT')
 
-                # Détermination du mode Radio
                 is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
-                
-                # Nettoyage de la forme si personnalisée
                 display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
                 
-                # Ligne 1 : Construction dynamique des colonnes
                 cols = []
                 col_widths = []
 
-                # Nom (toujours présent) - Utilisation du style global homogène
                 name_text = f"{i}- <b>{nom.upper()}</b>"
                 name_text_nbsp = name_text.replace(" ", "\u00a0")
                 name_w = 7.0*cm
                 cols.append(Paragraph(name_text_nbsp, med_name_style))
                 col_widths.append(name_w)
                 
-                # On n'affiche Forme/Dose que si c'est un médicament ET que les champs sont remplis
                 if not is_radio:
                     if display_forme:
-                        # Utilisation du style global homogène
                         form_w = 3.0*cm
                         display_forme_nbsp = display_forme.replace(" ", "\u00a0")
                         cols.append(Paragraph(f"<i>{display_forme_nbsp}</i>", med_forme_style))
@@ -253,14 +276,12 @@ class OrdonnanceGenerator:
                     else:
                         col_widths[0] += 0.8*cm
 
-                # Recalcul des largeurs si colonnes manquantes (Total A5 utile = ~11.8cm)
                 total_w = sum(col_widths)
                 if total_w < 11.8*cm:
                     col_widths[0] += (11.8*cm - total_w)
 
+                top_pad = max(12 * compression_factor, 2)
                 med_line_table = Table([cols], colWidths=col_widths)
-                # Ajustement du padding pour gagner de l'espace si num_meds est élevé
-                top_pad = 12 if num_meds < 6 else (8 if num_meds < 9 else 4)
                 med_line_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
                     ('LEFTPADDING', (0,0), (-1,-1), 0),
@@ -271,7 +292,6 @@ class OrdonnanceGenerator:
                 
                 elements.append(med_line_table)
                 
-                # Ligne 2 : Posologie ou Avertissement Radio
                 if is_radio:
                     warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
                     if posologie:
@@ -281,7 +301,7 @@ class OrdonnanceGenerator:
                     poso_html = posologie.replace("\n", "<br/>")
                     elements.append(Paragraph(poso_html, poso_style))
                 else:
-                    spacer_h = 0.5 if num_meds < 7 else 0.2
+                    spacer_h = max(0.5 * compression_factor, 0.1)
                     elements.append(Spacer(1, spacer_h*cm))
         else:
             empty_style = ParagraphStyle(
@@ -290,48 +310,20 @@ class OrdonnanceGenerator:
             )
             elements.append(Paragraph("Aucun médicament prescrit.", empty_style))
 
-        # Clôture ancrée en bas (Signature)
-        cloture_style = ParagraphStyle(
-            name='OrdoCloture', 
-            parent=self.styles['Normal'], 
-            fontName=font_bold, 
-            fontSize=10, 
-            textColor=p_color, 
-            alignment=TA_CENTER
-        )
-        # La mention a été supprimée à la demande de l'utilisateur
-        # elements.append(PinnedCloture("Signature et Cachet", cloture_style))
+        return elements
 
-        # Utilisation des marges configurées. Si pas de letterhead_path, on force des minimums de sécurité
-        m_top_val = self._get_val(config, 'margin_top', 4.8)
-        m_bottom_val = self._get_val(config, 'margin_bottom', 4.5)
-        
-        lh_path_str = self._get_val(config, 'letterhead_path')
-        
-        has_letterhead = False
-        if lh_path_str and str(lh_path_str) not in ["null", "None", ""]:
-            import os
-            lh_full_path = os.path.join(self.base_template.base_path, "static", "uploads", str(lh_path_str))
-            if os.path.exists(lh_full_path):
-                has_letterhead = True
-        
-        if has_letterhead:
-            m_top = (m_top_val if m_top_val is not None else 4.8) * cm
-            m_bottom = (m_bottom_val if m_bottom_val is not None else 4.5) * cm
-        else:
-            m_top = (max(m_top_val, 4.8) if m_top_val is not None else 4.8) * cm
-            m_bottom = (max(m_bottom_val, 4.5) if m_bottom_val is not None else 4.5) * cm
 
-        doc = SimpleDocTemplate(
-            filepath, pagesize=A5,
-            rightMargin=1.5 * cm, leftMargin=1.5 * cm,
-            topMargin=m_top, bottomMargin=m_bottom,
-        )
-        doc.qr_type = 'VALIDATION'
-        doc.doc_id = getattr(data, 'id', 'ORD-TEMP')
-        doc.cloture_text = None
+class _PageCounter:
+    """Compteur de pages pour le mécanisme Single-Page Force."""
+    def __init__(self):
+        self.page_count = 0
+    
+    def make_canvas_class(self):
+        counter = self
+        from reportlab.pdfgen.canvas import Canvas
+        class CountingCanvas(Canvas):
+            def showPage(self_canvas):
+                counter.page_count += 1
+                super().showPage()
+        return CountingCanvas
 
-        draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
-        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
-
-        return filepath.replace("\\", "/")

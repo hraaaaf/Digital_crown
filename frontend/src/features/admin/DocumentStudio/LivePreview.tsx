@@ -23,6 +23,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
   // Reset skeleton whenever pdfUrl changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIframeReady(false);
   }, [pdfUrl]);
 

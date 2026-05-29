@@ -54,7 +54,19 @@ def run_daily_alerts():
                     ))
                     new_count += 1
                     new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
+                    
+                    # Ghost Brain V2 : Conscience temporelle
+                    from backend.services.ghost_memory_service import ghost_memory
+                    ghost_memory.add_memory(
+                        db=db,
+                        patient_id=patient_id,
+                        employer_id=patient.employer_id,
+                        insight_type="TEMPOREL",
+                        content=f"Analyse Proactive: {t['title']} - {t['message']}",
+                        context_data=f"{t['type']}_{patient_id}_{datetime.now().strftime('%Y-%m')}"
+                    )
         db.commit()
+
         logger.info("Daily alerts: %d new alerts for %d active patients", new_count, len(all_ids))
 
         for emp_id, count in new_by_employer.items():

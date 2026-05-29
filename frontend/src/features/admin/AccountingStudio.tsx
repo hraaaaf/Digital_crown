@@ -143,10 +143,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   
 
-  useEffect(() => {
-    fetchQuickActs();
-  }, []);
-
   const fetchQuickActs = async () => {
     try {
       const res = await api.get('/accounting/frequent-acts');
@@ -167,6 +163,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchQuickActs();
+  }, []);
+
+  useEffect(() => {
     const lastItem = items[items.length - 1];
     if (lastItem && lastItem.description.trim().length > 2) {
       const timer = setTimeout(async () => {
@@ -179,6 +180,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
       }, 500);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestedBundles([]);
     }
   }, [items]);
@@ -193,6 +195,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
 
   useEffect(() => {
     if (items.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsOdontoOpen(true);
     }
   }, [items.length]);

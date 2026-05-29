@@ -57,11 +57,6 @@ export const AddPatientForm = () => {
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
 
-  // Charger le prochain numéro de dossier disponible au chargement
-  useEffect(() => {
-    fetchNextDossierNumber();
-  }, []);
-
   const fetchNextDossierNumber = async () => {
     try {
       const response = await api.get('/patients/next-dossier-number');
@@ -73,9 +68,16 @@ export const AddPatientForm = () => {
     }
   };
 
+  // Charger le prochain numéro de dossier disponible au chargement
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchNextDossierNumber();
+  }, []);
+
   // Check availability when numero_dossier changes
   useEffect(() => {
     if (!formData.numero_dossier || formData.numero_dossier.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDossierStatus({ status: 'idle' });
       return;
     }

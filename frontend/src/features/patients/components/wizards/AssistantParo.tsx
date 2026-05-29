@@ -74,7 +74,7 @@ export const AssistantParo: React.FC<AssistantParoProps> = ({ onComplete, onCanc
     setTimeout(() => {
       let stage = 'Sain';
       let grade = 'Grade A';
-      let extent = finalAnswers.bop === 2 ? 'Généralisée' : 'Localisée';
+      const extent = finalAnswers.bop === 2 ? 'Généralisée' : 'Localisée';
       
       // Staging
       if (finalAnswers.cal === 0 && finalAnswers.bop > 0) {

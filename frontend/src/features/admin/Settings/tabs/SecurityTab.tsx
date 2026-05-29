@@ -1,12 +1,31 @@
-import React from 'react';
-import { Shield, Database, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, Database, Download, Loader2 } from 'lucide-react';
 import { SettingsSection } from '../components/SharedUI';
 import { MobileSecurity } from '../../Security/MobileSecurity';
-import { API_BASE } from '../../../../services/api';
+import { API_BASE, api } from '../../../../services/api';
+import toast from 'react-hot-toast';
 
 export const SecurityTab: React.FC = () => {
-  const handleExportDB = () => {
-    window.location.href = `${API_BASE}/admin/export-db`;
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportDB = async () => {
+    setIsExporting(true);
+    try {
+      const response = await api.get('/admin/export-db', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `backup_${new Date().toISOString().split('T')[0]}.db`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      toast.success("Base de données exportée avec succès");
+    } catch (error) {
+      toast.error("Échec de l'export sécurisé de la base de données");
+      console.error("Export DB error:", error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -26,10 +45,15 @@ export const SecurityTab: React.FC = () => {
           </div>
           <button 
             onClick={handleExportDB}
-            className="px-10 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex items-center gap-4 group hover:scale-[1.02]"
+            disabled={isExporting}
+            className="px-10 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all shadow-2xl shadow-emerald-600/20 flex items-center gap-4 group hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
-            <Download size={24} className="group-hover:translate-y-1 transition-transform" /> 
-            Exporter la Base de Données
+            {isExporting ? (
+              <Loader2 size={24} className="animate-spin" />
+            ) : (
+              <Download size={24} className="group-hover:translate-y-1 transition-transform" /> 
+            )}
+            {isExporting ? "Création du Backup..." : "Exporter la Base de Données"}
           </button>
         </div>
 

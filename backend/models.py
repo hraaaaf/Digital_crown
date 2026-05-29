@@ -832,3 +832,27 @@ class ZKAPairingToken(Base):
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
+# ==============================================================================
+# GHOST BRAIN V2 - MEMORY & PROACTIVITY
+# ==============================================================================
+
+class GhostMemoryLog(Base):
+    """
+    Mémoire du Bot (NLG Expert). Stocke les déductions passées pour ne pas se répéter
+    et donner une notion de continuité (conscience temporelle) à l'analyse clinique.
+    """
+    __tablename__ = "ghost_memory_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=False)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    
+    insight_type: Mapped[str] = mapped_column(String(50), index=True) # URGENCE, ORTHO, PHARMACOLOGIE, TEMPOREL
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    context_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # Hash de l'état clinique
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+
+    patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
+

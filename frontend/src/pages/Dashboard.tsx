@@ -196,23 +196,27 @@ export const Dashboard: React.FC = () => {
         if (config.header_lines_fr && config.header_lines_fr.length > 0) {
           setPraticienName(config.header_lines_fr[0]);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Erreur chargement configuration cabinet", e);
+      }
     };
 
     fetchStats();
     fetchConfig();
     fetchTodayAppointments();
-    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(() => {});
-    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(() => {});
-    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(() => {});
-    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(() => {});
+    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(err => console.warn("Erreur alerts", err));
+    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(err => console.warn("Erreur forecast", err));
+    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
+    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
   }, []);
 
   const markAlertRead = async (alertId: number) => {
     try {
       await api.patch(`/intelligence/alerts/${alertId}/read`);
       setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch {}
+    } catch (err) {
+      console.warn("Erreur lors du marquage de l'alerte", err);
+    }
   };
 
   if (loading) return (
@@ -353,7 +357,7 @@ export const Dashboard: React.FC = () => {
             <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
               <TrendingUp size={16} /> Performance Hebdomadaire
             </h2>
-            <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-8 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
+            <div data-tour="dashboard-stats" className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-8 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
               
               {/* Header statistics inside the widget */}

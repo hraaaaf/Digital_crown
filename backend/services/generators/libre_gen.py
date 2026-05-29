@@ -233,7 +233,10 @@ class LibreGenerator:
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         
-        doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        
+        p_width_val = page_size[0] if isinstance(page_size, tuple) else (14.8*cm if page_size == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         doc.qr_type = 'WEBSITE'
         doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
         doc.cloture_text = cloture_text

@@ -67,3 +67,48 @@ def get_feedback_stats(
         stats[insight_type][action] = count
 
     return {"stats": stats}
+
+# --- GHOST BRAIN V2 - MEMORY ENDPOINTS ---
+from backend.services.ghost_memory_service import ghost_memory
+
+@router.get("/ghost-insights")
+def get_ghost_insights(
+    limit: int = 10,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """
+    Récupère les déductions proactives récentes générées par le Ghost Brain V2.
+    Affiche une bulle de notification dans l'UI.
+    """
+    emp_id = current_user.employer_id or current_user.id
+    logs = db.query(models.GhostMemoryLog).filter(
+        models.GhostMemoryLog.employer_id == emp_id,
+        models.GhostMemoryLog.is_read == False
+    ).order_by(models.GhostMemoryLog.created_at.desc()).limit(limit).all()
+    
+    return {
+        "unread_count": ghost_memory.get_unread_count(db, emp_id),
+        "insights": [
+            {
+                "id": log.id,
+                "patient_id": log.patient_id,
+                "insight_type": log.insight_type,
+                "content": log.content,
+                "created_at": log.created_at
+            }
+            for log in logs
+        ]
+    }
+
+@router.post("/ghost-insights/{log_id}/read")
+def mark_ghost_insight_read(
+    log_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Marque un insight comme lu par le praticien."""
+    success = ghost_memory.mark_as_read(db, log_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Insight introuvable")
+    return {"status": "read"}

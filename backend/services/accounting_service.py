@@ -166,20 +166,20 @@ class AccountingService:
         Calcule un résumé de la trésorerie pour le Treasury Hub.
         Inclut les Documents (Notes) et les Actes marqués pour la compta.
         """
-        # 1. Documents non encore encaissés (is_collected = False)
+        # 1. Documents non encore encaissés (is_collected != True)
         docs = db.query(models.DocumentArchive).join(models.Patient).filter(
             or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
             models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
-            models.DocumentArchive.is_collected == False,
+            or_(models.DocumentArchive.is_collected == False, models.DocumentArchive.is_collected == None),
             or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),
             or_(models.DocumentArchive.is_accounted == True, models.DocumentArchive.is_accounted == None),
             models.Patient.employer_id == user_employer_id
         ).all()
 
-        # 2. Actes non encore encaissés (is_collected = False)
+        # 2. Actes non encore encaissés (is_collected != True)
         actes = db.query(models.Acte).join(models.Patient).filter(
             models.Acte.is_accounted == True,
-            models.Acte.is_collected == False,
+            or_(models.Acte.is_collected == False, models.Acte.is_collected == None),
             models.Patient.employer_id == user_employer_id
         ).all()
 

@@ -380,7 +380,7 @@ def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.ge
     """Agent Multimodal — Chief Medical Officer (Synthèse Pano + Cephalo)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.cmo_agent_service import cmo_agent
-    return cmo_agent.generate_global_synthesis(db, patient_id)
+    return cmo_agent.generate_global_synthesis(db, patient_id, current_user.id)
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):

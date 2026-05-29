@@ -21,6 +21,25 @@ import { SPECIALTIES_DICT } from '../../constants';
 import { cn } from '../../../../utils/cn';
 import { API_BASE } from '../../../../services/api';
 
+const DebouncedInput = ({ name, value, onChange, className, placeholder, onFocus, type = "text" }: any) => {
+  const [localVal, setLocalVal] = React.useState(value);
+  React.useEffect(() => { setLocalVal(value); }, [value]);
+  return (
+    <input 
+      type={type}
+      name={name}
+      value={localVal || ''}
+      onChange={e => setLocalVal(e.target.value)}
+      onBlur={e => {
+        if (localVal !== value) onChange({ target: { name, value: localVal } } as any);
+      }}
+      className={className}
+      placeholder={placeholder}
+      onFocus={onFocus}
+    />
+  );
+};
+
 export const ProfileTab: React.FC = () => {
   const { 
     profile, 
@@ -48,8 +67,10 @@ export const ProfileTab: React.FC = () => {
     const linesFr = [];
     const linesAr = [];
 
-    const cleanNom = nom.startsWith('Dr.') ? nom : `Dr. ${nom}`;
-    const cleanNomAr = nomAr.endsWith(' .د') ? nomAr : `${nomAr} .د`;
+    const safeNom = nom || '';
+    const safeNomAr = nomAr || '';
+    const cleanNom = safeNom.startsWith('Dr.') ? safeNom : `Dr. ${safeNom}`;
+    const cleanNomAr = safeNomAr.endsWith(' .د') ? safeNomAr : `${safeNomAr} .د`;
     linesFr.push(cleanNom);
     linesAr.push(cleanNomAr);
 
@@ -70,7 +91,7 @@ export const ProfileTab: React.FC = () => {
     const { name, value } = e.target;
     const newProfile = { ...profile, [name]: value };
     
-    if (name === 'nom' || name === 'nom_praticien_ar') {
+    if ((name === 'nom' || name === 'nom_praticien_ar') && !profile.header_customized) {
       const { header_lines_fr, header_lines_ar } = generateHeaders(newProfile.nom, newProfile.nom_praticien_ar || '', newProfile.specialty_ids || []);
       updateProfile({ [name]: value, header_lines_fr, header_lines_ar });
     } else {
@@ -84,8 +105,12 @@ export const ProfileTab: React.FC = () => {
       ? current.filter(sid => sid !== id) 
       : [...current, id];
     
-    const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, profile.nom_praticien_ar || '', updated);
-    updateProfile({ specialty_ids: updated, header_lines_fr, header_lines_ar });
+    if (!profile.header_customized) {
+      const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, profile.nom_praticien_ar || '', updated);
+      updateProfile({ specialty_ids: updated, header_lines_fr, header_lines_ar });
+    } else {
+      updateProfile({ specialty_ids: updated });
+    }
   };
 
   const loadBenmoussaTemplate = () => {
@@ -117,8 +142,7 @@ export const ProfileTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="md:col-span-2">
             <label className={labelClass}>Nom du Cabinet / Clinique</label>
-            <input 
-              type="text" 
+            <DebouncedInput 
               name="nom_cabinet" 
               value={profile.nom_cabinet || ''} 
               onChange={handleProfileChange} 
@@ -128,8 +152,7 @@ export const ProfileTab: React.FC = () => {
           </div>
           <div>
             <label className={labelClass}>Nom du Docteur (Français)</label>
-            <input 
-              type="text" 
+            <DebouncedInput 
               name="nom" 
               value={profile.nom} 
               onChange={handleProfileChange} 
@@ -141,8 +164,7 @@ export const ProfileTab: React.FC = () => {
           <div dir="rtl">
             <label className={labelClass + " text-right"}>اسم الطبيب (بالعربية)</label>
             <div className="relative">
-              <input 
-                type="text" 
+              <DebouncedInput 
                 name="nom_praticien_ar" 
                 value={profile.nom_praticien_ar} 
                 onChange={handleProfileChange} 
@@ -155,8 +177,12 @@ export const ProfileTab: React.FC = () => {
                   <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
                   <ArabicKeyboard onInput={(char) => {
                     const newVal = (profile.nom_praticien_ar || '') + char;
-                    const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, newVal, profile.specialty_ids || []);
-                    updateProfile({ nom_praticien_ar: newVal, header_lines_fr, header_lines_ar });
+                    if (!profile.header_customized) {
+                      const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, newVal, profile.specialty_ids || []);
+                      updateProfile({ nom_praticien_ar: newVal, header_lines_fr, header_lines_ar });
+                    } else {
+                      updateProfile({ nom_praticien_ar: newVal });
+                    }
                   }} />
                 </div>
               )}
@@ -302,16 +328,16 @@ export const ProfileTab: React.FC = () => {
                     onChange={(e) => {
                       const newLines = [...(profile.header_lines_fr || [])];
                       newLines[idx] = e.target.value;
-                      updateProfile({ header_lines_fr: newLines });
+                      updateProfile({ header_lines_fr: newLines, header_customized: true });
                     }}
                   />
                   <button 
-                    onClick={() => updateProfile({ header_lines_fr: profile.header_lines_fr?.filter((_, i) => i !== idx) })}
+                    onClick={() => updateProfile({ header_lines_fr: profile.header_lines_fr?.filter((_, i) => i !== idx), header_customized: true })}
                     className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
                   >×</button>
                 </div>
               ))}
-              <button onClick={() => updateProfile({ header_lines_fr: [...(profile.header_lines_fr || []), ""] })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne FR</button>
+              <button onClick={() => updateProfile({ header_lines_fr: [...(profile.header_lines_fr || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne FR</button>
             </div>
           </div>
 
@@ -320,7 +346,7 @@ export const ProfileTab: React.FC = () => {
             <div className="space-y-2">
               {(profile.header_lines_ar || []).map((line, idx) => (
                 <div key={`ar-${idx}`} className="flex gap-2 relative group">
-                  <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx) })} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">×</button>
+                  <button onClick={() => updateProfile({ header_lines_ar: profile.header_lines_ar?.filter((_, i) => i !== idx), header_customized: true })} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">×</button>
                   <div className="flex-1 relative">
                     <input 
                       className={cn(inputClass, "py-2 px-3 text-right font-arabic", idx === 0 && "text-primary text-base")} 
@@ -330,7 +356,7 @@ export const ProfileTab: React.FC = () => {
                       onChange={(e) => {
                         const newLines = [...(profile.header_lines_ar || [])];
                         newLines[idx] = e.target.value;
-                        updateProfile({ header_lines_ar: newLines });
+                        updateProfile({ header_lines_ar: newLines, header_customized: true });
                       }}
                     />
                     {showArKeyboard?.type === 'header' && showArKeyboard.idx === idx && (
@@ -346,7 +372,7 @@ export const ProfileTab: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <button onClick={() => updateProfile({ header_lines_ar: [...(profile.header_lines_ar || []), ""] })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne AR</button>
+              <button onClick={() => updateProfile({ header_lines_ar: [...(profile.header_lines_ar || []), ""], header_customized: true })} className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all">+ Ligne AR</button>
             </div>
           </div>
         </div>

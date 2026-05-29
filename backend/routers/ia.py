@@ -43,7 +43,19 @@ async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Sessio
     try:
         service = CephaloService(db)
         result = service.process_new_radio(patient_id, file_location, db_path)
-        result["file_url"] = f"{os.getenv("BACKEND_URL", "http://localhost:8000")}/{db_path}"
+        result["file_url"] = f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{db_path}"
+
+        # Ghost Brain Proactivity (background)
+        import threading
+        def _background_tasks():
+            try:
+                with database.SessionLocal() as bg_db:
+                    from backend.services.cmo_agent_service import cmo_agent
+                    cmo_agent.generate_global_synthesis(bg_db, patient_id, current_user.id)
+            except Exception as _e:
+                logger.warning("Background tasks after radio upload failed: %s", _e)
+        threading.Thread(target=_background_tasks, daemon=True).start()
+
         return result
     except Exception as e:
         if os.path.exists(file_location): os.remove(file_location)
@@ -112,16 +124,21 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         db.commit()
         db.refresh(db_analysis)
 
-        # FTS5 re-index for this patient (background)
+        # FTS5 re-index & Ghost Brain Proactivity (background)
         import threading
-        def _reindex():
+        def _background_tasks():
             try:
-                from backend.services.fts_indexer import index_patient
-                with database.SessionLocal() as idx_db:
-                    index_patient(patient_id, idx_db)
+                with database.SessionLocal() as bg_db:
+                    # 1. Re-index search
+                    from backend.services.fts_indexer import index_patient
+                    index_patient(patient_id, bg_db)
+                    
+                    # 2. Ghost Brain V2 : Déclencher le CMO Agent silencieusement pour qu'il mette à jour la mémoire
+                    from backend.services.cmo_agent_service import cmo_agent
+                    cmo_agent.generate_global_synthesis(bg_db, patient_id, current_user.id)
             except Exception as _e:
-                logger.warning("FTS re-index after panoramic upload failed: %s", _e)
-        threading.Thread(target=_reindex, daemon=True).start()
+                logger.warning("Background tasks after panoramic upload failed: %s", _e)
+        threading.Thread(target=_background_tasks, daemon=True).start()
 
         result = {
             "id": db_analysis.id,

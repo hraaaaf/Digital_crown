@@ -27,6 +27,7 @@ import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
+import { usePatientStore } from '../../stores/usePatientStore';
 import { Banknote } from 'lucide-react';
 
 interface Patient {
@@ -55,20 +56,17 @@ export const PatientDetails = () => {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const { editingDoc, setEditingDoc } = usePatientStore();
   const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';
   const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   useEffect(() => {
-    const handleEditDoc = (e: any) => {
-      setEditingDoc(e.detail);
+    if (editingDoc) {
       setSearchParams({ tab: 'admin' });
-    };
-    window.addEventListener('edit_document', handleEditDoc);
-    return () => window.removeEventListener('edit_document', handleEditDoc);
-  }, [setSearchParams]);
+    }
+  }, [editingDoc, setSearchParams]);
 
   useEffect(() => {
     const handlePrescription = () => setSearchParams({ tab: 'admin' });

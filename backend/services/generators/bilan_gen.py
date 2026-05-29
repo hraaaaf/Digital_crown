@@ -107,7 +107,10 @@ class BilanPDFGenerator(BaseTemplate):
             filename = f"BILAN_COMPLET_{p_nom.upper()}_{datetime.now().strftime('%d%m%Y_%H%M')}.pdf"
         file_path = os.path.join(self.output_dir, filename)
 
-        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=4.5*cm, bottomMargin=3.5*cm)
+        
+        p_width_val = A4[0] if isinstance(A4, tuple) else (14.8*cm if A4 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         doc.qr_type = 'VALIDATION'
         doc.doc_id = f"BILAN-{p_nom[:3].upper()}-{datetime.now().strftime('%m%H%M')}"
         elements = []

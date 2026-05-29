@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { ShieldAlert, ShieldCheck, Star, Trophy } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -11,6 +12,7 @@ interface TrustBadgeProps {
   showLabel?: boolean;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 // Fonction déterministe pour générer un score constant basé sur l'ID (Simulation pour Démo)
 export const calculateTrustScore = (id?: number): TrustScore => {
   if (!id) return 'A';

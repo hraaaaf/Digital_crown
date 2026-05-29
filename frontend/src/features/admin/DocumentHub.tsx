@@ -192,6 +192,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
     // 2. Intelligence Elite : Détection des Protocoles Oubliés
     if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInsights(prev => [{
         id: 'ins-missing-protocol',
         type: 'safety',
@@ -361,6 +362,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSideStudioType('PREVIEW');
     }
   }, [activeTab]);

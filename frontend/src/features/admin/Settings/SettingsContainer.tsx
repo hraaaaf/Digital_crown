@@ -22,7 +22,7 @@ import type { Tab } from './types';
 
 const SettingsContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profil');
-  const { fetchProfile, saveProfile, loading, saving, saveSuccess } = useSettingsStore();
+  const { fetchProfile, saveProfile, loading, saving, saveSuccess, isDirty } = useSettingsStore();
 
   useEffect(() => {
     fetchProfile();
@@ -61,7 +61,7 @@ const SettingsContainer: React.FC = () => {
             </div>
           </div>
 
-          <nav className="space-y-2 bg-white/50 backdrop-blur-md p-3 rounded-[2rem] border border-slate-100 shadow-sm">
+          <nav data-tour="settings-navigation" className="space-y-2 bg-white/50 backdrop-blur-md p-3 rounded-[2rem] border border-slate-100 shadow-sm">
             {tabs.map(t => (
               <TabButton 
                 key={t.id}
@@ -77,12 +77,14 @@ const SettingsContainer: React.FC = () => {
           <div className="pt-6">
             <button
               onClick={saveProfile}
-              disabled={saving}
+              disabled={saving || (!isDirty && !saveSuccess)}
               className={cn(
                 "w-full py-5 rounded-[1.5rem] font-black text-base transition-all duration-500 shadow-2xl flex items-center justify-center gap-4",
                 saveSuccess 
                   ? "bg-emerald-500 text-white shadow-emerald-500/30" 
-                  : "bg-slate-900 text-white hover:bg-black shadow-slate-900/20"
+                  : (!isDirty && !saveSuccess) 
+                    ? "bg-slate-200 text-slate-400 shadow-none cursor-not-allowed" 
+                    : "bg-slate-900 text-white hover:bg-black shadow-slate-900/20"
               )}
             >
               {saving ? (

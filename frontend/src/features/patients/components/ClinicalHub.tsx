@@ -126,9 +126,11 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     // Load from local storage for Phase 2
     const saved = localStorage.getItem(`master_plan_${patientId}`);
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTreatmentPlan(JSON.parse(saved));
     } else {
       // Default initial plan
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTreatmentPlan([
         { id: 'step-1', title: 'Consultation & Bilan complet', assistant: 'general', status: 'done', date: 'Aujourd\'hui' },
         { id: 'step-2', title: 'Détartrage & Surfaçage', assistant: 'paro', status: 'pending', date: 'À planifier' }

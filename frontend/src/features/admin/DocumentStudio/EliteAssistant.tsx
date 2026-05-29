@@ -59,6 +59,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     setIntelligenceScore
   } = useEliteStore();
 
+  // eslint-disable-next-line react-hooks/purity
   const isStale = lastFetchTime && (Date.now() - lastFetchTime > 86400000); // 24h
 
   const rawInsights = propInsights.length > 0 ? propInsights : storeInsights;

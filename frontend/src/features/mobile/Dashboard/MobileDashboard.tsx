@@ -8,10 +8,14 @@ import {
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
 import { cn } from '../../../utils/cn';
+import { LabJobStatus } from '../../../types/labJob';
+import { fetchLabJobs, patchLabJobStatus } from '../../../services/labJobService';
+import type { LabJob } from '../../../types/labJob';
+import { formatLabJobMessage } from '../../../services/whatsappService';
 import Logo from '../../../assets/logo.png';
 import toast from 'react-hot-toast';
 
-type Tab = 'agenda' | 'finance' | 'securite';
+type Tab = 'agenda' | 'finance' | 'securite' | 'lab';
 type SyncStatus = 'idle' | 'loading' | 'success' | 'error';
 type ApptStatus = 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'ANNULE';
 
@@ -306,6 +310,7 @@ export const MobileDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [now, setNow] = useState(new Date());
+  const [labJobs, setLabJobs] = useState<LabJob[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [patients, setPatients] = useState<{id: number, name: string, phone: string | null}[]>([]);
   const credsRef = useRef<{ access_token: string; api_base_url: string } | null>(null);
@@ -384,11 +389,7 @@ export const MobileDashboard = () => {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => {
-    MobileStorage.getLastSnapshot().then(c => { if (c) { setSnapshot(c); setSyncStatus('success'); } });
-    fetchSnapshot();
-    fetchPatients();
-  }, [fetchSnapshot, fetchPatients]);
+  useEffect(() => { MobileStorage.getLastSnapshot().then(c => { if (c) { setSnapshot(c); setSyncStatus('success'); } }); fetchSnapshot(); fetchPatients(); fetchLabJobs().then(setLabJobs).catch(err => console.error(err)); }, [fetchSnapshot, fetchPatients]);
 
   const handleStatusChange = async (id: number, status: ApptStatus) => {
     const creds = credsRef.current || await MobileStorage.getCredentials();
@@ -463,6 +464,30 @@ export const MobileDashboard = () => {
     setWhatsappApt(null);
   };
 
+const handleWhatsAppSend = async (job: LabJob) => {
+  // 1. Retrieve human‑readable plain text
+  const plainText = formatLabJobMessage(job);
+  // 2. Encode for WhatsApp URI (phone may be unavailable, fallback to empty string)
+  const whatsappUri = `whatsapp://send?phone=${''}&text=${encodeURIComponent(plainText)}`;
+
+  try {
+    // 3. Clipboard fallback – primary action on iOS
+    await navigator.clipboard.writeText(plainText);
+  } catch (c) {
+    console.warn('Échec silencieux du presse‑papier', c);
+  }
+
+  try {
+    // 4. Trigger deep link navigation
+    window.location.href = whatsappUri;
+  } catch (e) {
+    console.error('Échec de redirection WhatsApp', e);
+  } finally {
+    // 5. Optimistic UI update and persistence
+    setLabJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: LabJobStatus.SENT } : j));
+    patchLabJobStatus(job.id, { status: LabJobStatus.SENT }).catch((err: any) => console.error('Erreur API:', err));
+  }
+};
   const fetchSignatureDocs = useCallback(async (patientId: number) => {
     setIsLoadingDocs(true);
     try {
@@ -748,6 +773,24 @@ export const MobileDashboard = () => {
       )}
     </div>
   );
+  };
+
+  const renderLabJobsView = () => {
+    return (
+      <div className="space-y-4">
+        {labJobs.filter(job => job.status === 'PRESCRIPTION').map(job => (
+          <div key={job.id} className="bg-glass-bg border border-glass-border backdrop-blur-md rounded-[24px] p-5 shadow-elite flex items-center justify-between">
+            <div>
+              <p className="font-black text-text-main">{job.type} ({job.tooth_number})</p>
+              <p className="text-[10px] text-text-muted">Échéance: {new Date(job.deadline).toLocaleDateString()}</p>
+            </div>
+            <button onClick={() => handleWhatsAppSend(job)} className="bg-primary/10 text-primary text-[10px] font-black px-4 py-2 rounded-lg">
+              Envoyer
+            </button>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   // ── FINANCE VIEW ─────────────────────────────────────────────────────────────
@@ -1085,8 +1128,9 @@ export const MobileDashboard = () => {
       {/* Content */}
       <main ref={mainRef} className="flex-1 px-6 overflow-y-auto">
         {activeTab === 'agenda'   && renderAgendaView()}
-        {activeTab === 'finance'  && renderFinanceView()}
-        {activeTab === 'securite' && renderSecuriteView()}
+          {activeTab === 'lab' && renderLabJobsView()}
+          {activeTab === 'finance'  && renderFinanceView()}
+          {activeTab === 'securite' && renderSecuriteView()}
       </main>
 
       {/* ── BOTTOM NAV ── */}
@@ -1104,6 +1148,13 @@ export const MobileDashboard = () => {
             icon: TrendingUp,
             label: 'Finance',
             dot: false,
+            allowedRoles: ['DENTISTE', 'ADMIN']
+          },
+          {
+            id: 'lab' as Tab,
+            icon: MessageSquare,
+            label: 'Envois Labo',
+            dot: labJobs.some(job => job.status === 'PRESCRIPTION'),
             allowedRoles: ['DENTISTE', 'ADMIN']
           },
           {

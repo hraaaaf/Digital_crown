@@ -47,7 +47,7 @@ export const SetupWizard: React.FC = () => {
   });
 
   const [headerOption, setHeaderOption] = useState<HeaderOption>('auto');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('classic');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('swiss');
   const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'rose' | 'prestige'>(() => {
     return (localStorage.getItem('digitalcrown_theme') as any) || 'elite';
   });
@@ -159,7 +159,7 @@ export const SetupWizard: React.FC = () => {
       setErrors({ contacts: "Activez et renseignez au moins un contact" });
       return;
     }
-    validateStep(currentStep) && setCurrentStep(prev => Math.min(prev + 1, 7));
+    if (validateStep(currentStep)) setCurrentStep(prev => Math.min(prev + 1, 7));
   };
 
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));

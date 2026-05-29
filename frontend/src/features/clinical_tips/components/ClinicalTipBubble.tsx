@@ -21,8 +21,6 @@ export const ClinicalTipBubble = ({
   className = "fixed left-6 top-6 w-64 z-[10001] pointer-events-none" 
 }: ClinicalTipBubbleProps) => {
   const isEnabled = localStorage.getItem('clinical_tips_enabled') !== 'false';
-  if (!isEnabled) return null;
-  
   React.useEffect(() => {
     if (show && onClose && autoHideMs > 0) {
       const timer = setTimeout(() => {
@@ -31,6 +29,8 @@ export const ClinicalTipBubble = ({
       return () => clearTimeout(timer);
     }
   }, [show, onClose, autoHideMs]);
+
+  if (!isEnabled) return null;
 
   return (
     <div className={className}>

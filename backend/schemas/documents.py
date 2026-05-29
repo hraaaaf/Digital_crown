@@ -351,4 +351,5 @@ class HonoraireItem(BaseModel):
 class HonoraireListResponse(BaseModel):
     total: int
     total_amount: float
+    total_collected: float = 0.0
     items: List[HonoraireItem]

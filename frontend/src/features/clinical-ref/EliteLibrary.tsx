@@ -30,36 +30,21 @@ export const EliteLibrary: React.FC = () => {
   const cmdInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenProtocolCode(routeCode || null);
   }, [routeCode]);
 
   useEffect(() => {
     const savedFavs = localStorage.getItem('dc_favs');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     
     const savedRecents = localStorage.getItem('dc_recents');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedRecents) setRecents(JSON.parse(savedRecents));
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setShowCmd(true);
-      }
-      if (e.key === 'Escape') {
-        if (showCmd) setShowCmd(false);
-        else if (openProtocolCode) closePanel();
-      }
-      if (openProtocolCode && e.key === 'ArrowRight') { navProtocol(1); }
-      if (openProtocolCode && e.key === 'ArrowLeft') { navProtocol(-1); }
-      if (openProtocolCode && e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey && document.activeElement?.tagName !== 'INPUT') {
-        window.print();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+
 
   useEffect(() => {
     if (showCmd && cmdInputRef.current) {
@@ -146,6 +131,26 @@ export const EliteLibrary: React.FC = () => {
     const next = list[(idx + dir + list.length) % list.length];
     openPanel(next.act_code);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCmd(true);
+      }
+      if (e.key === 'Escape') {
+        if (showCmd) setShowCmd(false);
+        else if (openProtocolCode) closePanel();
+      }
+      if (openProtocolCode && e.key === 'ArrowRight') { navProtocol(1); }
+      if (openProtocolCode && e.key === 'ArrowLeft') { navProtocol(-1); }
+      if (openProtocolCode && e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey && document.activeElement?.tagName !== 'INPUT') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
 
   const resetFilters = () => {
     setActiveCategory('Tous');
@@ -280,7 +285,7 @@ export const EliteLibrary: React.FC = () => {
 
           {/* TOOLBAR */}
           <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6 pb-6 border-b border-[var(--border-color)]">
-            <div className="relative flex-1 max-w-[420px]">
+            <div data-tour="library-search" className="relative flex-1 max-w-[420px]">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-lg">⌕</span>
               <input
                 value={searchTerm}

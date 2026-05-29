@@ -150,6 +150,31 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     });
   }, [currentIdx, isOpen, navigateToStepPage, resolveTarget, step]);
 
+  // ─── Actions ──────────────────────────────────────────────────────────────
+  const handleComplete = useCallback(() => {
+    setShowCelebration(true);
+    setTimeout(() => {
+      localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+      setShowCelebration(false);
+      onClose();
+    }, 2200);
+  }, [onClose]);
+
+  const goNext = useCallback(() => {
+    if (isLast) { handleComplete(); return; }
+    setCurrentIdx(i => i + 1);
+  }, [isLast, handleComplete]);
+
+  const goPrev = useCallback(() => {
+    if (isFirst) return;
+    setCurrentIdx(i => i - 1);
+  }, [isFirst]);
+
+  const handleSkip = useCallback(() => {
+    localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+    onClose();
+  }, [onClose]);
+
   // ─── Keyboard ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
@@ -160,32 +185,7 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });
-
-  // ─── Actions ──────────────────────────────────────────────────────────────
-  const goNext = () => {
-    if (isLast) { handleComplete(); return; }
-    setCurrentIdx(i => i + 1);
-  };
-
-  const goPrev = () => {
-    if (isFirst) return;
-    setCurrentIdx(i => i - 1);
-  };
-
-  const handleComplete = () => {
-    setShowCelebration(true);
-    setTimeout(() => {
-      localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-      setShowCelebration(false);
-      onClose();
-    }, 2200);
-  };
-
-  const handleSkip = () => {
-    localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-    onClose();
-  };
+  }, [isOpen, handleSkip, goNext, goPrev]);
 
   // ─── Barre segmentée ─────────────────────────────────────────────────────
   const segmentedProgress = useMemo(() => {
@@ -539,10 +539,13 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
                         x: 0, y: 0, scale: 0, opacity: 1,
                       }}
                       animate={{
+                        // eslint-disable-next-line react-hooks/purity
                         x: (Math.random() - 0.5) * 400,
+                        // eslint-disable-next-line react-hooks/purity
                         y: (Math.random() - 0.5) * 400,
                         scale: [0, 1.5, 0],
                         opacity: [1, 1, 0],
+                        // eslint-disable-next-line react-hooks/purity
                         rotate: Math.random() * 720,
                       }}
                       transition={{ duration: 1.8, ease: 'easeOut', delay: i * 0.04 }}

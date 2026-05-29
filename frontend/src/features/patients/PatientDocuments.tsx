@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, API_BASE } from '../../services/api';
+import { usePatientStore } from '../../stores/usePatientStore';
 import {
   FileText,
   Eye,
@@ -64,12 +65,14 @@ export const PatientDocuments = () => {
     }
   };
 
+  const setEditingDoc = usePatientStore(state => state.setEditingDoc);
+  
   const handleEdit = (doc: DocumentInfo) => {
     if (!doc.clinical_data) {
       alert("Ce document ne possède pas de données structurées pour être régénéré.");
       return;
     }
-    window.dispatchEvent(new CustomEvent('edit_document', { detail: doc }));
+    setEditingDoc(doc);
   };
 
   const getDocIcon = (type: string, className: string) => {

@@ -180,7 +180,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             patient_id=patient.id,
                             amount=paid_amount,
                             payment_method=pm,
-                            payment_date=datetime.now(),
+                            payment_date=doc.created_at,
                             notes=f"Lien Doc ID: {doc.id}",
                             validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
                         )
@@ -513,7 +513,22 @@ def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optio
     # Tri par date décroissante
     items.sort(key=lambda x: x["date"], reverse=True)
     
-    return {"total": len(items), "total_amount": total_amount, "items": items}
+    # 3. Calcul des encaissements réels (Recettes)
+    payment_query = db.query(func.sum(models.Payment.amount)).join(models.Patient).filter(
+        models.Patient.employer_id == user_employer_id
+    )
+    if patient_id: 
+        payment_query = payment_query.filter(models.Payment.patient_id == patient_id)
+    if assurance: 
+        payment_query = payment_query.filter(models.Patient.assurance == assurance)
+    if year: 
+        payment_query = payment_query.filter(func.extract('year', models.Payment.payment_date) == year)
+    if month: 
+        payment_query = payment_query.filter(func.extract('month', models.Payment.payment_date) == month)
+        
+    total_collected = payment_query.scalar() or 0.0
+    
+    return {"total": len(items), "total_amount": total_amount, "total_collected": total_collected, "items": items}
 
 @router.get("/accounting/treasury-hub")
 async def get_treasury_hub(
@@ -537,10 +552,24 @@ async def mark_as_paid(
             doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
             if not doc: raise HTTPException(status_code=404, detail="Document non trouvé")
             assert_patient_access(doc.patient_id, user, db)
+            from backend.utils.accounting_utils import extract_amount_from_clinical_data
+
             doc.payment_status = models.PaiementStatut.PAYE
             doc.is_collected = True
             doc.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
             doc.updated_at = datetime.now()
+
+            # Create corresponding Payment
+            payment_obj = models.Payment(
+                patient_id=doc.patient_id,
+                amount=extract_amount_from_clinical_data(doc.clinical_data),
+                payment_method="ESPECES",
+                payment_date=doc.created_at,
+                notes=f"Lien Doc ID: {doc.id}",
+                validated_by=doc.validated_by
+            )
+            db.add(payment_obj)
+            
         elif item_id.startswith("acte_"):
             acte_id = int(item_id.split("_")[1])
             acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
@@ -549,15 +578,38 @@ async def mark_as_paid(
             acte.statut_paiement = models.PaiementStatut.PAYE
             acte.is_collected = True
             acte.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
+
+            payment_obj = models.Payment(
+                patient_id=acte.patient_id,
+                amount=acte.montant,
+                payment_method="ESPECES",
+                payment_date=acte.date_debut,
+                notes=f"Lien Acte ID: {acte.id}",
+                validated_by=acte.validated_by
+            )
+            db.add(payment_obj)
+            
         else:
             doc_id = int(item_id)
             doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
             if not doc: raise HTTPException(status_code=404, detail="Élément non trouvé")
             assert_patient_access(doc.patient_id, user, db)
+            
+            from backend.utils.accounting_utils import extract_amount_from_clinical_data
             doc.payment_status = models.PaiementStatut.PAYE
             doc.is_collected = True
             doc.validated_by = f"{user.nom_complet or 'Utilisateur'} ({user.role})"
             doc.updated_at = datetime.now()
+
+            payment_obj = models.Payment(
+                patient_id=doc.patient_id,
+                amount=extract_amount_from_clinical_data(doc.clinical_data),
+                payment_method="ESPECES",
+                payment_date=doc.created_at,
+                notes=f"Lien Doc ID: {doc.id}",
+                validated_by=doc.validated_by
+            )
+            db.add(payment_obj)
             
         db.commit()
         return {"status": "success", "message": "Élément marqué comme encaissé"}

@@ -215,7 +215,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         set(s => ({
           photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null }))
         }));
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse savedPhotos", err);
+      }
     }
     if (savedMeta) {
       try {
@@ -224,13 +226,15 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           dateConsultation: parsed.dateConsultation || new Date().toISOString().split('T')[0],
           sexePatient: parsed.sexePatient || 'M'
         });
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse savedMeta", err);
+      }
     }
     if (savedE2) {
-      try { set({ etape2Data: JSON.parse(savedE2) }); } catch {}
+      try { set({ etape2Data: JSON.parse(savedE2) }); } catch (err) { console.warn(err); }
     }
     if (savedE3) {
-      try { set({ etape3Data: JSON.parse(savedE3) }); } catch {}
+      try { set({ etape3Data: JSON.parse(savedE3) }); } catch (err) { console.warn(err); }
     }
   },
   setAnalysisId: (id) => set({ analysisId: id }),
@@ -420,7 +424,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const projections = computeMcNamaraProjections(s.local.landmarks);
       await cephaloRepository.saveAnalysis(aid, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
-    } catch {}
+    } catch (err) {
+      console.warn("Silent save failed:", err);
+    }
   },
 
   handleSave: async () => {

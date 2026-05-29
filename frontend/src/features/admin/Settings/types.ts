@@ -47,6 +47,7 @@ export interface CabinetProfile {
   logo_path?: string;
   header_lines_fr?: string[];
   header_lines_ar?: string[];
+  header_customized?: boolean;
   qr_code_style?: string;
   header_font_scale?: number;
   header_logo_scale?: number;

@@ -165,14 +165,16 @@ class PanoramicGenerator:
         m_top = (max(config.get('margin_top', 4.5), 4.5) if config else 4.5) * cm
         m_bottom = (max(config.get('margin_bottom', 3.5), 3.5) if config else 3.5) * cm
 
+        
+        p_width_val = A4[0] if isinstance(A4, tuple) else (14.8*cm if A4 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         doc = SimpleDocTemplate(
             filepath, 
             pagesize=A4, 
-            rightMargin=1.5*cm, 
-            leftMargin=1.5*cm, 
+            rightMargin=m_right, 
+            leftMargin=m_left, 
             topMargin=m_top, 
             bottomMargin=m_bottom
-        )
         
         elements = []
         

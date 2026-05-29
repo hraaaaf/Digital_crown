@@ -93,6 +93,7 @@ export const AccountingPage = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [totalCollected, setTotalCollected] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'history' | 'treasury' | 'insights'>(
     searchParams.get('tab') === 'insights' ? 'insights' : 
@@ -128,7 +129,11 @@ export const AccountingPage = () => {
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   };
@@ -156,6 +161,7 @@ export const AccountingPage = () => {
       const res = await api.get(url);
       setItems(res.data.items || []);
       setTotalAmount(res.data.total_amount || 0);
+      setTotalCollected(res.data.total_collected || 0);
     } catch (err) {
       console.error("Erreur honoraires:", err);
     } finally {
@@ -398,9 +404,15 @@ export const AccountingPage = () => {
               </div>
             ))}
           </div>
-          <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Période</span>
-            <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</span>
+          <div className="flex gap-2">
+            <div className="bg-slate-50 px-6 py-4 rounded-3xl border border-slate-100 flex flex-col items-end shadow-sm">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Facturé</span>
+              <span className="text-xl font-black text-slate-400">{totalAmount.toLocaleString('fr-FR')} MAD</span>
+            </div>
+            <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Encaissé</span>
+              <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalCollected.toLocaleString('fr-FR')} MAD</span>
+            </div>
           </div>
 
           <button 

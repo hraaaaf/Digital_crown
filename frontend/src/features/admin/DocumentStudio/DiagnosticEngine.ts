@@ -227,7 +227,7 @@ export const diagnosticRules: DiagnosticRule[] = [
 ];
 
 export const evaluateDiagnosis = (params: { motif: string, vitality: string, percussion: string, palpation: string, radiology: string, lesionDuration: string, medicalHistory: string }) => {
-  let matchedRule = diagnosticRules.find(r => {
+  const matchedRule = diagnosticRules.find(r => {
     if (r.motif !== params.motif) return false;
     if (r.vitality && r.vitality !== params.vitality) return false;
     if (r.percussion && r.percussion !== params.percussion) return false;
@@ -237,7 +237,7 @@ export const evaluateDiagnosis = (params: { motif: string, vitality: string, per
     return true;
   });
 
-  let result = matchedRule ? JSON.parse(JSON.stringify(matchedRule.result)) : {
+  const result = matchedRule ? JSON.parse(JSON.stringify(matchedRule.result)) : {
     title: "Consultation Standard",
     description: "Examen clinique normal. Aucun traitement urgent requis.",
     protocol: ["PARACETAMOL 1g si douleur"],

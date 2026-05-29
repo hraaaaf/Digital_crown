@@ -393,7 +393,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
 
     const adaptedDrugs = presetDrugs.map((d: any, i: number) => {
-      let drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
+      const drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
       
       // LOGIQUE D'ADAPTATION SMART
       // a. Allergie Pénicilline

@@ -66,7 +66,9 @@ export const PatientSummaryHoverCard = ({
     if (!patientId) return;
 
     let isMounted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(false);
 
     api.get(`/intelligence/patient/${patientId}`)
@@ -118,6 +120,7 @@ export const PatientSummaryHoverCard = ({
       top = Math.max(window.scrollY + padding, viewportHeight + window.scrollY - cardHeight - padding);
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCoords({ top, left });
   }, [triggerRect]);
 

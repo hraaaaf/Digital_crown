@@ -85,7 +85,9 @@ export const useCephaloPersistence = (
     try {
       const projections = computeMcNamaraProjections(l.landmarks);
       await cephaloRepository.saveAnalysis(aid, buildPayload(l.landmarks, max, mand, real, g, projections, mmPerPixel, e2, e3));
-    } catch {}
+    } catch (err) {
+      console.warn("Autosave failed:", err);
+    }
   }, [analysisId, mmPerPixel]);
 
   const handleSave = useCallback(async () => {

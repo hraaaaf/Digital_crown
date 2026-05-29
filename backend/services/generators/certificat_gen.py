@@ -260,9 +260,12 @@ class CertificatGenerator:
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
+        
+        p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,
-            rightMargin=1.8 * cm, leftMargin=1.8 * cm,
+            rightMargin=m_right, leftMargin=m_left,
             topMargin=m_top, bottomMargin=m_bottom,
         )
         doc.qr_type = 'VALIDATION'

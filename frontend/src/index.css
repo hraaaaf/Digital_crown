@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Lora:ital,wght@0,400..700;1,400..700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 @theme {
   /* Palette Médicale Pro - Pilotée par Variables CSS */
@@ -64,9 +64,14 @@
   --primary: #003380;
   --secondary: #1e40af;
   --accent: #60a5fa;
+  --text-on-primary: #ffffff;
 
   /* Transitions Globales */
   --transition-elite: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
 }
 
 
@@ -190,6 +195,26 @@
   --accent: #6366f1;
 }
 
+[data-theme='high-contrast'] {
+  /* HAUT CONTRASTE CLINIQUE */
+  --bg-medical-pearl: #ffffff;
+  --bg-gradient-start: #ffffff;
+  --bg-gradient-end: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 1);
+  --glass-border: rgba(0, 0, 0, 1);
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --text-main: #000000;
+  --text-muted: #111111;
+  --border-color: #000000;
+  --border-hover: #000000;
+  --input-bg: #ffffff;
+
+  --primary: #000000;
+  --secondary: #000000;
+  --accent: #000000;
+}
+
 /* Forçage Prioritaire Sidebar Onyx */
 [data-theme='dark'] aside.bg-sidebar,
 [data-theme='prestige'] aside.bg-sidebar {
@@ -301,6 +326,8 @@ body {
 .font-arabic { font-family: "Amiri", serif; }
 .font-outfit { font-family: "Outfit", sans-serif; }
 .font-playfair { font-family: "Playfair Display", serif; }
+.font-mono { font-family: "JetBrains Mono", monospace; }
+.font-serif { font-family: "Lora", serif; }
 
 /* Scrollbar Premium */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
