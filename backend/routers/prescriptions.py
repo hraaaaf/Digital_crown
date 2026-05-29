@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
@@ -139,6 +139,62 @@ def get_brain_summary(db: Session = Depends(database.get_db), current_user: mode
         "total_knowledge_points": db.query(models.DoctorActHabit).filter(models.DoctorActHabit.doctor_id == current_user.id).count() + 
                                   db.query(models.DoctorMedicationHabit).filter(models.DoctorMedicationHabit.doctor_id == current_user.id).count()
     }
+
+@actes_router.post("/", status_code=status.HTTP_201_CREATED)
+def create_acte(
+    acte_data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        type_acte_str = acte_data.get("type_acte", "SOIN").upper()
+        type_acte = getattr(models.ActeType, type_acte_str, models.ActeType.SOIN)
+        
+        # 1. Instanciation de l'acte clinique
+        new_act = models.Acte(
+            patient_id=acte_data["patient_id"],
+            praticien_id=current_user.id,
+            type_acte=type_acte,
+            libelle=acte_data["libelle"],
+            montant=float(acte_data.get("montant", 0.0)),
+            date_debut=datetime.now(),
+            statut_paiement=models.PaiementStatut.EN_ATTENTE
+        )
+        
+        db.add(new_act)
+        # Flush pour obtenir le new_act.id généré par la DB sans fermer la transaction
+        db.flush() 
+
+        # 2. Détection du besoin prothétique (Trigger LabJob)
+        mots_cles_protheses = ["COURONNE", "ZIRCONE", "INLAY", "ONLAY", "FACETTE", "BRIDGE", "PROTHÈSE", "IMPLANT"]
+        is_prothetic = (
+            new_act.type_acte == models.ActeType.PROTHESE or 
+            any(mot in new_act.libelle.upper() for mot in mots_cles_protheses)
+        )
+
+        if is_prothetic:
+            new_labjob = models.LabJob(
+                patient_id=new_act.patient_id,
+                act_id=new_act.id,
+                type=new_act.libelle,
+                status=models.LabJobStatus.PRESCRIPTION,
+                deadline=datetime.now() + timedelta(days=7)
+            )
+            db.add(new_labjob)
+
+        # 3. Commit de la transaction combinée (Atomique : Acte + LabJob)
+        db.commit()
+        db.refresh(new_act)
+        
+        return {"status": "success", "act_id": new_act.id, "labjob_created": is_prothetic}
+
+    except Exception as e:
+        # 4. Rollback en cas de fail (ex: erreur de contrainte LabJob)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur transactionnelle (Acte/Labo) : {str(e)}"
+        )
 
 from backend.services.prescription_agentic_service import prescription_agentic
 

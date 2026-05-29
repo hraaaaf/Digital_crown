@@ -62,6 +62,11 @@ class QRCodeType(str, enum.Enum):
     WHATSAPP = "WHATSAPP"
     LOCATION = "LOCATION"
 
+class PlanStatus(str, enum.Enum):
+    PENDING = "pending"
+    DONE = "done"
+    POSTPONED = "postponed"
+
 # --- 2. BASE DE DÉCLARATION ---
 
 class Base(DeclarativeBase):
@@ -154,6 +159,7 @@ class Patient(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     dossier: Mapped["DossierClinique"] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
+    master_plan: Mapped[Optional["TreatmentMasterPlan"]] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
     actes: Mapped[List["Acte"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     panoramic_analyses: Mapped[List["PanoramicAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     analyses: Mapped[List["CephaloAnalysis"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
@@ -197,6 +203,30 @@ class DossierClinique(Base):
     antecedents_medicaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     patient: Mapped["Patient"] = relationship(back_populates="dossier")
+
+class TreatmentMasterPlan(Base):
+    __tablename__ = "treatment_master_plans"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="master_plan")
+    steps: Mapped[List["TreatmentPlanStep"]] = relationship(back_populates="master_plan", cascade="all, delete-orphan", order_by="TreatmentPlanStep.order_index")
+
+class TreatmentPlanStep(Base):
+    __tablename__ = "treatment_plan_steps"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("treatment_master_plans.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    assistant: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[PlanStatus] = mapped_column(SQLEnum(PlanStatus), default=PlanStatus.PENDING)
+    date_str: Mapped[str] = mapped_column(String(100), default="Aujourd'hui")
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    
+    master_plan: Mapped["TreatmentMasterPlan"] = relationship(back_populates="steps")
 
 class Acte(Base):
     __tablename__ = "actes"

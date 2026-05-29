@@ -59,8 +59,14 @@ export const SetupWizard: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
-  const [margins, setMargins] = useState({ top: 3.0, bottom: 2.5 });
+  const [margins, setMargins] = useState({ top: 3.6, bottom: 3.2 });
   const [headerScale, setHeaderScale] = useState(1.1);
+  const [headerFontScale, setHeaderFontScale] = useState(1.0);
+  const [headerLogoScale, setHeaderLogoScale] = useState(1.0);
+  const [headerLineHeight, setHeaderLineHeight] = useState(1.0);
+  const [footerFontScale, setFooterFontScale] = useState(1.0);
+  const [footerQrScale, setFooterQrScale] = useState(1.0);
+  const [footerLineHeight, setFooterLineHeight] = useState(1.0);
   const [qrConfig, setQrConfig] = useState({
     enabled: true,
     type: 'VCARD' as 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'VALIDATION' | 'PAYMENT' | 'WHATSAPP' | 'LOCATION',
@@ -215,7 +221,15 @@ export const SetupWizard: React.FC = () => {
         qr_code_label: qrConfig.label,
         qr_code_color: qrConfig.color || identityData.primary,
         qr_code_style: qrConfig.style,
+        margin_top: sanitizedMargins.top,
+        margin_bottom: sanitizedMargins.bottom,
         header_scale: headerScale,
+        header_font_scale: headerFontScale,
+        header_logo_scale: headerLogoScale,
+        header_line_height: headerLineHeight,
+        footer_font_scale: footerFontScale,
+        footer_qr_scale: footerQrScale,
+        footer_line_height: footerLineHeight,
       };
 
       await cabinetApi.create(payload as any);
@@ -266,7 +280,7 @@ export const SetupWizard: React.FC = () => {
             {currentStep === 2 && <Step2Specialties handleCardImport={handleCardImport} isExtracting={isExtracting} selectedSpecialties={selectedSpecialties} setSelectedSpecialties={setSelectedSpecialties} customSpecialty={customSpecialty} setCustomSpecialty={setCustomSpecialty} showCustomModal={showCustomModal} setShowCustomModal={setShowCustomModal} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
             {currentStep === 3 && <Step3Contacts contacts={contacts} setContacts={setContacts} identity={identity} setIdentity={setIdentity} errors={errors} />}
             {currentStep === 4 && <StepQR qrConfig={qrConfig} setQrConfig={setQrConfig} />}
-            {currentStep === 5 && <Step5Design headerOption={headerOption} setHeaderOption={setHeaderOption} selectedIdentity={selectedIdentity} setSelectedIdentity={setSelectedIdentity} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate} logoPreview={logoPreview} letterheadPreview={letterheadPreview} logoInputRef={logoInputRef} letterheadInputRef={letterheadInputRef} handleLogoChange={handleLogoChange} handleLetterheadChange={handleLetterheadChange} margins={margins} setMargins={setMargins} headerScale={headerScale} setHeaderScale={setHeaderScale} />}
+            {currentStep === 5 && <Step5Design headerOption={headerOption} setHeaderOption={setHeaderOption} selectedIdentity={selectedIdentity} setSelectedIdentity={setSelectedIdentity} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate} logoPreview={logoPreview} letterheadPreview={letterheadPreview} logoInputRef={logoInputRef} letterheadInputRef={letterheadInputRef} handleLogoChange={handleLogoChange} handleLetterheadChange={handleLetterheadChange} margins={margins} setMargins={setMargins} headerScale={headerScale} setHeaderScale={setHeaderScale} advanced={{ headerFontScale, setHeaderFontScale, headerLogoScale, setHeaderLogoScale, headerLineHeight, setHeaderLineHeight, footerFontScale, setFooterFontScale, footerQrScale, setFooterQrScale, footerLineHeight, setFooterLineHeight }} />}
             {currentStep === 6 && <Step6Theme selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} />}
             {currentStep === 7 && <Step7Confirmation identity={identity} specialtyStrings={specialtyStrings} contactString={contactString} selectedFont={selectedFont} selectedIdentity={selectedIdentity} selectedTheme={selectedTheme} qrConfig={qrConfig} errors={errors} />}
 

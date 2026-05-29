@@ -24,6 +24,10 @@ from .patient import (
     PatientUpdate,
     PatientCreate,
     PatientOut,
+    TreatmentPlanStepBase,
+    TreatmentPlanStepCreate,
+    TreatmentPlanStepOut,
+    TreatmentMasterPlanOut,
 )
 
 from .appointments import (

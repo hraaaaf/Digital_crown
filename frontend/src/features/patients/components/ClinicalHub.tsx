@@ -14,10 +14,12 @@ import {
   Clock,
   ChevronRight,
   Sparkles,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import toast from 'react-hot-toast';
+import api from '../../../services/api';
 import { AssistantParo } from './wizards/AssistantParo';
 import { AssistantEndo } from './wizards/AssistantEndo';
 import { AssistantChirurgie } from './wizards/AssistantChirurgie';
@@ -120,27 +122,53 @@ interface TreatmentStep {
 
 export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   const [activeAssistant, setActiveAssistant] = useState<string | null>(null);
-  const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>([]);
-
-  useEffect(() => {
-    // Load from local storage for Phase 2
+  const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>(() => {
     const saved = localStorage.getItem(`master_plan_${patientId}`);
     if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTreatmentPlan(JSON.parse(saved));
-    } else {
-      // Default initial plan
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTreatmentPlan([
-        { id: 'step-1', title: 'Consultation & Bilan complet', assistant: 'general', status: 'done', date: 'Aujourd\'hui' },
-        { id: 'step-2', title: 'Détartrage & Surfaçage', assistant: 'paro', status: 'pending', date: 'À planifier' }
-      ]);
+      return JSON.parse(saved);
     }
+    return [
+      { id: 'step-1', title: 'Consultation & Bilan complet', assistant: 'general', status: 'done', date: 'Aujourd\'hui' },
+      { id: 'step-2', title: 'Détartrage & Surfaçage', assistant: 'paro', status: 'pending', date: 'À planifier' }
+    ];
+  });
+
+  useEffect(() => {
+    api.get(`/patients/${patientId}/master-plan`)
+      .then(res => {
+        if (res.data && res.data.steps && res.data.steps.length > 0) {
+          const steps = res.data.steps.map((s: any) => ({
+            id: s.id ? s.id.toString() : Math.random().toString(36).substring(7),
+            title: s.title,
+            assistant: s.assistant,
+            status: s.status,
+            date: s.date_str
+          }));
+          setTreatmentPlan(steps);
+          localStorage.setItem(`master_plan_${patientId}`, JSON.stringify(steps));
+        }
+      })
+      .catch(err => console.error("Erreur sync master plan:", err));
   }, [patientId]);
+
+  const deleteStep = (id: string) => {
+    const updated = treatmentPlan.filter(step => step.id !== id);
+    savePlan(updated);
+    toast.success('Étape supprimée du plan.');
+  };
 
   const savePlan = (plan: TreatmentStep[]) => {
     setTreatmentPlan(plan);
     localStorage.setItem(`master_plan_${patientId}`, JSON.stringify(plan));
+    
+    const payload = plan.map((s, index) => ({
+       title: s.title,
+       assistant: s.assistant,
+       status: s.status,
+       date_str: s.date,
+       order_index: index
+    }));
+    api.put(`/patients/${patientId}/master-plan`, payload).catch(err => console.error("Erreur sauvegarde master plan:", err));
   };
 
   const updateStatus = (id: string, newStatus: PlanStatus) => {
@@ -471,15 +499,29 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                             >
                               Reporter
                             </button>
+                            <button
+                              onClick={() => deleteStep(step.id)}
+                              className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-colors shadow-sm flex items-center justify-center"
+                              title="Supprimer l'étape"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         )}
                         {step.status === 'postponed' && (
                           <div className="mt-4 pt-3 border-t border-border-main/50 flex gap-2">
                             <button 
                               onClick={() => updateStatus(step.id, 'pending')}
-                              className="w-full py-1.5 bg-card-bg hover:bg-slate-100 border border-border-main text-text-muted text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors shadow-sm"
+                              className="flex-1 py-1.5 bg-card-bg hover:bg-slate-100 border border-border-main text-text-muted text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors shadow-sm"
                             >
                               Re-planifier
+                            </button>
+                            <button
+                              onClick={() => deleteStep(step.id)}
+                              className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-colors shadow-sm flex items-center justify-center"
+                              title="Supprimer l'étape"
+                            >
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         )}
@@ -491,7 +533,16 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
             
             <div className="pt-6 mt-6 border-t border-border-main/50 relative z-10">
-              <button className="w-full py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-[0.15em] shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('pending_devis_plan', JSON.stringify(treatmentPlan));
+                  toast.loading('Préparation du devis...', { duration: 1000 });
+                  setTimeout(() => {
+                    toast.success('Le Master Plan est pré-chargé pour la comptabilité.');
+                  }, 1200);
+                }}
+                className="w-full py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-[0.15em] shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700"
+              >
                 <Sparkles size={16} />
                 Générer Devis Global
               </button>

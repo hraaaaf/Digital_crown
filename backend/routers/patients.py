@@ -484,6 +484,41 @@ def generate_cephalo_pdf(
             
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 
+# --- MASTER PLAN CLINIQUE ---
+
+@router.get("/{patient_id}/master-plan", response_model=Optional[schemas.TreatmentMasterPlanOut])
+def get_master_plan(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
+    return plan
+
+@router.put("/{patient_id}/master-plan", response_model=schemas.TreatmentMasterPlanOut)
+def update_master_plan(patient_id: int, steps: List[schemas.TreatmentPlanStepCreate], db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
+    if not plan:
+        plan = models.TreatmentMasterPlan(patient_id=patient_id)
+        db.add(plan)
+        db.flush()
+    else:
+        db.query(models.TreatmentPlanStep).filter(models.TreatmentPlanStep.plan_id == plan.id).delete()
+        
+    for i, step_data in enumerate(steps):
+        step = models.TreatmentPlanStep(
+            plan_id=plan.id,
+            title=step_data.title,
+            assistant=step_data.assistant,
+            status=step_data.status,
+            date_str=step_data.date_str,
+            order_index=i
+        )
+        db.add(step)
+        
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
 # --- SUPPRESSION ---
 
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)

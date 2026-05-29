@@ -24,6 +24,7 @@ const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
+const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -144,6 +145,7 @@ const ProtectedRoutes = () => (
         <Route path="/patients/:id/archives" element={<PatientDocuments />} />
         <Route path="/patients/:id/edit" element={<EditPatientForm />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/labo" element={<LabJobsBoard />} />
         <Route path="/bibliotheque" element={<EliteLibrary />} />
         <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
         <Route path="/science-hub" element={<EliteScienceHub />} />

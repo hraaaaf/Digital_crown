@@ -119,3 +119,26 @@ class PatientOut(PatientBase):
     dossier: Optional[DossierOut] = None
     employer_id: int
     model_config = ConfigDict(from_attributes=True)
+
+class TreatmentPlanStepBase(BaseModel):
+    title: str
+    assistant: str
+    status: str = "pending"
+    date_str: str = "Aujourd'hui"
+    order_index: int = 0
+
+class TreatmentPlanStepCreate(TreatmentPlanStepBase):
+    pass
+
+class TreatmentPlanStepOut(TreatmentPlanStepBase):
+    id: int
+    plan_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class TreatmentMasterPlanOut(BaseModel):
+    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    steps: List[TreatmentPlanStepOut] = []
+    model_config = ConfigDict(from_attributes=True)
