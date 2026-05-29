@@ -28,6 +28,7 @@ import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { usePatientStore } from '../../stores/usePatientStore';
+import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { Banknote } from 'lucide-react';
 
 interface Patient {
@@ -121,14 +122,7 @@ export const PatientDetails = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center flex-col gap-6 bg-transparent">
-        <Loader2 className="w-14 h-14 animate-spin" style={{ color: 'var(--primary)' }} />
-        <p className="text-text-muted font-black uppercase tracking-[0.2em] text-[10px]">
-          Ouverture du dossier clinique...
-        </p>
-      </div>
-    );
+    return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
   }
 
   if (!patient) return null;

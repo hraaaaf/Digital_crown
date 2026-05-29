@@ -295,14 +295,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ saving: true });
     const formData = new FormData();
     formData.append('file', file);
+    
+    const uploadPromise = api.post('/clinics/me/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    toast.promise(uploadPromise, {
+      loading: 'Détourage IA en cours... ✨',
+      success: 'Logo Premium généré avec succès !',
+      error: 'Erreur lors du traitement du logo'
+    });
+
     try {
-      const res = await api.post('/clinics/me/logo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await uploadPromise;
       set((state) => ({ profile: { ...state.profile, logo_path: res.data.logo_url } }));
-      toast.success("Logo mis à jour");
     } catch (err) {
-      toast.error("Erreur upload logo");
+      // toast already handled
     } finally {
       set({ saving: false });
     }

@@ -274,7 +274,10 @@ export const ProfileTab: React.FC = () => {
               </div>
               <div className="flex-1 space-y-2">
                 <p className="text-xs font-bold text-amber-800">Conseil Elite :</p>
-                <p className="text-xs text-amber-700/80 leading-relaxed">Utilisez un logo sur fond transparent (PNG) pour une intégration parfaite dans vos entêtes Classic et Modern.</p>
+                <h5 className="text-sm font-bold text-amber-900 mb-2">Logo Premium (IA)</h5>
+                <p className="text-xs text-amber-700/80 leading-relaxed">
+                  Importez n'importe quel logo (JPEG/PNG). Notre IA se chargera de <strong>détourer le fond automatiquement</strong>, de le normaliser et de le convertir en format vectoriel (SVG) pour une intégration parfaite sur tous vos documents.
+                </p>
                 <input id="logo-input" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
                 {profile.logo_path && (
                   <button 

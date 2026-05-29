@@ -21,6 +21,7 @@ import { api } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { PriceBrain } from '../../../components/odontogram/PriceBrain';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export interface Insight {
   id: string;
@@ -57,6 +58,58 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     setInsights,
     setIntelligenceScore
   } = useEliteStore();
+
+  const { user } = useAuthStore();
+  const employerId = user?.employer_id || user?.id;
+
+  // Real-time WebSocket connection for proactive insights (Ghost Brain V2)
+  useEffect(() => {
+    if (!employerId || !isEmbedded) return;
+    
+    let ws: WebSocket;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectWS = () => {
+      const wsUrl = `${api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8000'}/api/ws/ghost-insights/${employerId}`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.insights && Array.isArray(data.insights)) {
+            // Transform realtime insights into EliteAssistant format
+            const wsInsights: Insight[] = data.insights.map((item: any) => ({
+              id: `ws-${item.id}`,
+              type: item.insight_type === 'FINANCIAL' ? 'financial' : 'suggestion',
+              title: item.insight_type || 'Ghost Insight',
+              content: item.content,
+              source_type: 'HEURISTIC'
+            }));
+            
+            // Add new WS insights at the beginning, avoiding duplicates
+            const currentInsights = useEliteStore.getState().insights;
+            const newInsights = wsInsights.filter(wsI => !currentInsights.some(cI => cI.id === wsI.id));
+            if (newInsights.length > 0) {
+              setInsights([...newInsights, ...currentInsights]);
+            }
+          }
+        } catch (err) {
+          // parse error
+        }
+      };
+
+      ws.onclose = () => {
+        reconnectTimer = setTimeout(connectWS, 5000);
+      };
+    };
+
+    connectWS();
+
+    return () => {
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [employerId, isEmbedded, setInsights]);
 
   // eslint-disable-next-line react-hooks/purity
   const isStale = lastFetchTime && (Date.now() - lastFetchTime > 86400000); // 24h

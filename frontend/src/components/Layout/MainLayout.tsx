@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../features/admin/Settings/hooks/useSetting
 import { useLocation } from 'react-router-dom';
 import { safeStorage } from '../../hooks/useLocalStorage';
 import { AnimatedBackground } from '../AnimatedBackground';
+import { PREMIUM_FONTS } from '../../features/admin/constants';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,8 +44,10 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('settings_updated', handleSettingsUpdate);
   }, []);
 
+  const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
+
   return (
-    <div className="flex flex-row h-screen overflow-hidden font-sans selection:bg-primary selection:text-white relative bg-medical-pearl" style={{ color: 'var(--text-main)' }}>
+    <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
       {animatedBg && <AnimatedBackground />}
       
       {/* BACKGROUND DYNAMIQUE */}

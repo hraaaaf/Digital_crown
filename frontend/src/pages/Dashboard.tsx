@@ -23,6 +23,7 @@ import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsSt
 import { useAuthStore } from '../stores/useAuthStore';
 import { motion, type Variants } from 'framer-motion';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
+import { EliteGhostLoader } from '../components/EliteGhostLoader';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -219,14 +220,7 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-        <p className="text-slate-400 font-black uppercase tracking-widest text-xs text-primary">Initialisation de votre cabinet...</p>
-      </div>
-    </div>
-  );
+  if (loading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
 
   return (
     <motion.div 

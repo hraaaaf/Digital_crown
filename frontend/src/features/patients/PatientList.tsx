@@ -7,6 +7,7 @@ import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
+import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -210,9 +211,8 @@ export const PatientList = () => {
       {/* TABLEAU OU GRILLE DES DOSSIERS */}
       <div className="bg-card-bg backdrop-blur-2xl rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden">
         {loading ? (
-          <div className="p-32 flex flex-col items-center justify-center gap-6">
-            <Loader2 className="animate-spin text-primary" size={36} />
-            <p className="text-sm font-black text-text-muted uppercase tracking-widest">Chargement...</p>
+          <div className="h-[500px] relative">
+            <EliteGhostLoader text="Chargement des dossiers..." fullScreen={false} size="medium" />
           </div>
         ) : filtered.length === 0 && searchTerm.trim() ? (
           /* AUCUN RÉSULTAT - PROPOSITION DE CRÉATION */

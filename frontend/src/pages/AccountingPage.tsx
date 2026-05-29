@@ -19,6 +19,7 @@ import {
   Calculator,
   Check
 } from 'lucide-react';
+import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { cn } from '../utils/cn';
 import { 
   AreaChart, 
@@ -622,9 +623,8 @@ export const AccountingPage = () => {
       {/* LISTE DES HONORAIRES */}
       <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">
         {loading ? (
-          <div className="py-40 flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={48} />
-            <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Extraction des encaissements...</p>
+          <div className="py-20 relative h-[400px]">
+            <EliteGhostLoader text="Extraction des encaissements..." fullScreen={false} size="medium" />
           </div>
         ) : filteredItems.length > 0 ? (
           <div className="overflow-x-auto">
@@ -849,8 +849,8 @@ export const AccountingPage = () => {
               </div>
              
              {loadingTreasury ? (
-               <div className="py-20 flex flex-col items-center gap-4">
-                 <Loader2 className="animate-spin text-indigo-600" size={32} />
+               <div className="py-10 relative h-[300px]">
+                 <EliteGhostLoader text="Chargement..." fullScreen={false} size="small" />
                </div>
              ) : (
                <table className="w-full text-left">
@@ -923,9 +923,8 @@ export const AccountingPage = () => {
       ) : (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           {loadingInsights ? (
-            <div className="py-40 flex flex-col items-center justify-center gap-4">
-              <Loader2 className="animate-spin text-primary" size={48} />
-              <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Calcul des indicateurs financiers...</p>
+            <div className="py-20 relative h-[400px]">
+              <EliteGhostLoader text="Calcul des indicateurs financiers..." fullScreen={false} size="medium" />
             </div>
           ) : (
             <>

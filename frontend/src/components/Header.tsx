@@ -7,7 +7,6 @@ import { safeStorage } from '../hooks/useLocalStorage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { GuideTower } from './GuidedTour/GuideTower';
 import { EliteAssistant } from '../features/admin/DocumentStudio/EliteAssistant';
-import { GhostBrainWidget } from './GhostBrainWidget';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
@@ -110,8 +109,6 @@ export const Header = () => {
         <div className="relative">
           <EliteAssistant isEmbedded={true} />
         </div>
-        
-        <GhostBrainWidget />
 
         <Link to="/settings" className="p-2.5 text-text-muted hover:text-primary hover:bg-primary/5 rounded-elite-sm transition-elite" title="Réglages">
           <Settings size={20} />

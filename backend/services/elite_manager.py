@@ -316,7 +316,7 @@ class EliteManager:
         pending_quotes = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.patient_id == patient_id,
             models.DocumentArchive.document_type == "DEVIS",
-            models.DocumentArchive.status == "ACCEPTED"
+            models.DocumentArchive.status == "ACTIF"
         ).all()
 
         for quote in pending_quotes:

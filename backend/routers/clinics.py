@@ -4,14 +4,15 @@ Router API pour la gestion des cabinets (Setup Wizard & Configuration).
 import os
 import uuid
 import shutil
-from typing import Optional
+from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
 from backend.services.card_extractor import card_extractor
+from backend.services.logo_processor import LogoProcessor
 
 router = APIRouter()
 
@@ -233,12 +234,23 @@ async def upload_clinic_logo(
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
     
-    file_ext = file.filename.split(".")[-1]
+    file_ext = file.filename.split(".")[-1].lower()
+    file_bytes = await file.read()
+    
+    if file.content_type == "image/svg+xml":
+        final_bytes = file_bytes
+        file_ext = "svg"
+    else:
+        # Traitement Premium (IA Détourage + Normalisation SVG)
+        svg_str = LogoProcessor.process_logo(file_bytes)
+        final_bytes = svg_str.encode("utf-8")
+        file_ext = "svg"
+
     unique_name = f"logo_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
     
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(final_bytes)
     
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.logo_path = relative_path
