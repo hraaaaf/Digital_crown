@@ -22,8 +22,8 @@ import {
   Target
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { EliteGhostLoader } from '../../../../components/EliteGhostLoader';
-import { usePatientStore } from '../../../../stores/usePatientStore';
+import { EliteGhostLoader } from '../../../components/EliteGhostLoader';
+import { usePatientStore } from '../../../stores/usePatientStore';
 
 interface Acte {
   id: number;
