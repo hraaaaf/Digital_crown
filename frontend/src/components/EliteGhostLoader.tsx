@@ -13,6 +13,17 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
   fullScreen = true,
   size = 'large'
 }) => {
+  const [particles] = React.useState(() => {
+    return [...Array(5)].map(() => ({
+      initialX: (Math.random() - 0.5) * 100,
+      initialY: (Math.random() - 0.5) * 100,
+      animateY: -100 - Math.random() * 50,
+      animateScale: [0, Math.random() * 2 + 1, 0],
+      duration: 2 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  });
+
   const containerClass = fullScreen 
     ? "fixed inset-0 z-50" 
     : "absolute inset-0 z-10 rounded-3xl";
@@ -57,25 +68,25 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
 
         {/* Particules flottantes */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(5)].map((_, i) => (
+          {particles.map((p, i) => (
             <motion.div
               key={i}
               className="absolute w-1 h-1 rounded-full bg-primary/50 blur-[1px]"
               initial={{ 
-                x: (Math.random() - 0.5) * 100, 
-                y: (Math.random() - 0.5) * 100,
+                x: p.initialX, 
+                y: p.initialY,
                 opacity: 0,
                 scale: 0
               }}
               animate={{ 
-                y: -100 - Math.random() * 50,
+                y: p.animateY,
                 opacity: [0, 1, 0],
-                scale: [0, Math.random() * 2 + 1, 0]
+                scale: p.animateScale
               }}
               transition={{
-                duration: 2 + Math.random() * 2,
+                duration: p.duration,
                 repeat: Infinity,
-                delay: Math.random() * 2,
+                delay: p.delay,
               }}
             />
           ))}

@@ -13,7 +13,7 @@ import { CrownBotChat } from '../../../components/CrownBot/CrownBotChat';
 import { Bot } from 'lucide-react';
 
 export const MobileDashboard = () => {
-  const { state, actions, refs } = useMobileDashboard();
+  const { state, actions, refs: { mainRef } } = useMobileDashboard();
   const [isBotOpen, setIsBotOpen] = useState(false);
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
@@ -42,7 +42,7 @@ export const MobileDashboard = () => {
         </div>
       )}
 
-      <main ref={refs.mainRef} className="flex-1 px-6 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 px-6 overflow-y-auto">
         {state.activeTab === 'agenda' && (
           <AgendaView 
             snapshot={state.snapshot}
