@@ -28,8 +28,8 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
     ? "fixed inset-0 z-50" 
     : "absolute inset-0 z-10 rounded-3xl";
     
-  const logoClass = size === 'small' ? 'w-24 md:w-32' : size === 'medium' ? 'w-32 md:w-48' : 'w-48 md:w-64';
-  const glowClass = size === 'small' ? 'w-32 h-32 blur-[40px]' : size === 'medium' ? 'w-48 h-48 blur-[60px]' : 'w-64 h-64 blur-[80px]';
+  const logoClass = size === 'small' ? 'w-32 md:w-40' : size === 'medium' ? 'w-48 md:w-56' : 'w-64 md:w-80';
+  const glowClass = size === 'small' ? 'w-40 h-40 blur-[40px]' : size === 'medium' ? 'w-64 h-64 blur-[60px]' : 'w-80 h-80 blur-[80px]';
   return (
     <div className={`${containerClass} flex flex-col items-center justify-center bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-2xl`}>
       <div className="relative flex flex-col items-center justify-center">
@@ -49,8 +49,8 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
           animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
         >
-          {/* Logo plein */}
-          <img src={logoUrl} alt="Digital Crown Elite" className={`${logoClass} h-auto drop-shadow-2xl relative z-0`} />
+          {/* Logo plein (cadré uniquement sur la dent à gauche) */}
+          <img src={logoUrl} alt="Digital Crown Elite" className={`${logoClass} aspect-square object-cover object-left drop-shadow-2xl relative z-0`} />
 
           {/* Faisceau Hologram Scanner (Glassmorphism) qui monte et descend */}
           <motion.div
