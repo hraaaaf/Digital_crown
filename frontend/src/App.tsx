@@ -32,10 +32,10 @@ const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDa
 
 import { MobileStorage } from './services/zka/MobileStorage';
 
+import { DigitalCrownLoader } from './components/DigitalCrownLoader';
+
 const PageLoader = () => (
-  <div className="flex items-center justify-center h-full min-h-[60vh]">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--primary)' }} />
-  </div>
+  <DigitalCrownLoader minHeight="min-h-[60vh]" className="bg-transparent" spinnerColor="border-blue-600" />
 );
 
 // ==============================================================================
@@ -78,14 +78,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-slate-600">Vérification de la configuration...</p>
-        </div>
-      </div>
-    );
+    return <DigitalCrownLoader text="Vérification de la configuration..." />;
   }
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page

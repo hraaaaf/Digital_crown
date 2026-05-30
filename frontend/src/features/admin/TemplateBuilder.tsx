@@ -18,6 +18,7 @@ import type {
   CabinetConfig
 } from '../../types/template';
 import { cn } from '../../utils/cn';
+import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
 
 // --- Composants utilitaires ---
 
@@ -168,11 +169,7 @@ export const TemplateBuilder: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <DigitalCrownLoader />;
   }
 
   if (!template || !designConfig || !cabinet) {

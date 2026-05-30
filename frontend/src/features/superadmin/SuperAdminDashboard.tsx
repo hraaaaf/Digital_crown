@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { Crown, CheckCircle2, XCircle, Shield, Clock, CalendarRange, UserPlus, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
 
 interface Client {
   id: number;
@@ -61,18 +62,7 @@ export const SuperAdminDashboard: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-[#003380] rounded-full border-t-transparent animate-spin"></div>
-            <Crown className="absolute inset-0 m-auto text-[#003380]" size={24} />
-          </div>
-          <p className="font-black text-[#003380] tracking-widest uppercase text-sm">Vérification Sécurité...</p>
-        </div>
-      </div>
-    );
+    return <DigitalCrownLoader text="Vérification Sécurité..." textColor="text-[#003380]" spinnerColor="border-[#003380]" />;
   }
 
   return (
