@@ -5,7 +5,7 @@ import logging
 
 from backend.database import get_db
 from backend import models
-from backend.routers.auth import get_current_active_user
+from backend.routers.auth import get_current_user
 from backend.services.bot.intent_parser import CrownIntentParser
 from backend.services.bot.action_dispatcher import ActionDispatcher
 
@@ -19,7 +19,7 @@ dispatcher = ActionDispatcher()
 async def bot_chat(
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Point d'entrée de l'assistant Crown Bot.
@@ -47,7 +47,7 @@ async def bot_chat(
 async def bot_execute(
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Exécute une action en attente (pending_action) après confirmation utilisateur.
