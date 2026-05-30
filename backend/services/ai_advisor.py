@@ -5,6 +5,30 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
+class ClinicalNorms:
+    CHILD = {
+        "ab_mean": 4.2, "ab_dev": 3.2,
+        "a_mean": 2.8, "a_dev": 3.3,
+        "b_mean": -1.5, "b_dev": 4.5,
+        "severe_cl2": 7.4, "severe_cl3": -6.0,
+        "tweed_default": 26,
+        "impa_default": 90,
+        "if_default": 107
+    }
+    ADULT = {
+        "ab_mean": 2.3, "ab_dev": 3.1,
+        "a_mean": 2.3, "a_dev": 3.0,
+        "b_mean": 0.0, "b_dev": 4.9,
+        "severe_cl2": 8.0, "severe_cl3": -4.9,
+        "tweed_default": 26,
+        "impa_default": 90,
+        "if_default": 107
+    }
+
+    @classmethod
+    def get(cls, is_child: bool) -> Dict[str, float]:
+        return cls.CHILD if is_child else cls.ADULT
+
 class AIAdvisor:
     """
     Clinical Intelligence Service (Ghost Brain V2 - NLG Déterministe).
@@ -36,12 +60,13 @@ class AIAdvisor:
         is_child = "Enfant" in cohort
         
         # --- NORMES ---
-        NORM_AB_MEAN = 4.2 if is_child else 2.3
-        NORM_AB_DEV = 3.2 if is_child else 3.1
-        NORM_A_MEAN = 2.8 if is_child else 2.3
-        NORM_A_DEV = 3.3 if is_child else 3.0
-        NORM_B_MEAN = -1.5 if is_child else 0.0
-        NORM_B_DEV = 4.5 if is_child else 4.9
+        norms = ClinicalNorms.get(is_child)
+        NORM_AB_MEAN = norms["ab_mean"]
+        NORM_AB_DEV = norms["ab_dev"]
+        NORM_A_MEAN = norms["a_mean"]
+        NORM_A_DEV = norms["a_dev"]
+        NORM_B_MEAN = norms["b_mean"]
+        NORM_B_DEV = norms["b_dev"]
         
         ab_data = osseuse.Decalage_A_B
         tweed_data = osseuse.Angle_de_Tweed
@@ -51,7 +76,7 @@ class AIAdvisor:
         ab_status = ab_data.status
         ab_value = ab_data.valeur if ab_data.valeur is not None else NORM_AB_MEAN
         tweed_status = tweed_data.status
-        tweed_value = tweed_data.valeur if tweed_data.valeur is not None else 26
+        tweed_value = tweed_data.valeur if tweed_data.valeur is not None else norms["tweed_default"]
         sit_a_value = sit_a_data.valeur if sit_a_data.valeur is not None else NORM_A_MEAN
         sit_b_value = sit_b_data.valeur if sit_b_data.valeur is not None else NORM_B_MEAN
         
@@ -109,9 +134,9 @@ class AIAdvisor:
         recouv_data = dentaire.Recouvrement
         
         impa_status = impa_data.status
-        impa_value = impa_data.valeur if impa_data.valeur is not None else 90
+        impa_value = impa_data.valeur if impa_data.valeur is not None else norms["impa_default"]
         if_status = if_data.status
-        if_value = if_data.valeur if if_data.valeur is not None else 107
+        if_value = if_data.valeur if if_data.valeur is not None else norms["if_default"]
         
         diag_dent_parts = ["Au niveau dento-alvéolaire,"]
         
@@ -139,8 +164,8 @@ class AIAdvisor:
         
         # --- STRATEGIE ---
         strat_parts = []
-        SEVERE_CL2_THRESHOLD = 7.4 if is_child else 8.0
-        SEVERE_CL3_THRESHOLD = -6.0 if is_child else -4.9
+        SEVERE_CL2_THRESHOLD = norms["severe_cl2"]
+        SEVERE_CL3_THRESHOLD = norms["severe_cl3"]
         
         strat_parts.append("🎯 OBJECTIFS THÉRAPEUTIQUES :")
         if is_child:
