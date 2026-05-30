@@ -173,6 +173,29 @@ class BaseTemplate:
         reshaped_text = arabic_reshaper.reshape(text)
         return get_display(reshaped_text)
 
+    def _draw_safe_image(self, canvas, img_path, x, y, width, height):
+        if str(img_path).lower().endswith('.svg'):
+            try:
+                from svglib.svglib import svg2rlg
+                from reportlab.graphics import renderPDF
+                drawing = svg2rlg(img_path)
+                if drawing:
+                    scale_x = width / drawing.width
+                    scale_y = height / drawing.height
+                    drawing.width = width
+                    drawing.height = height
+                    drawing.scale(scale_x, scale_y)
+                    renderPDF.draw(drawing, canvas, x, y)
+                    return
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to draw SVG {img_path}: {e}")
+        try:
+            canvas.drawImage(img_path, x, y, width=width, height=height, mask='auto')
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to draw image {img_path}: {e}")
+
     def _get_val(self, obj, key, default=None):
         """Récupère une valeur que l'objet soit un dict ou un modèle SQLAlchemy."""
         if obj is None: return default
@@ -351,7 +374,7 @@ class BaseTemplate:
             lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
             if os.path.exists(lh_path):
                 canvas.saveState()
-                canvas.drawImage(lh_path, 0, 0, width=p_width, height=p_height, mask='auto')
+                self._draw_safe_image(canvas, lh_path, 0, 0, p_width, p_height)
                 canvas.restoreState()
                 
                 # Si le papier existe et est utilisé, on s'arrête ici
@@ -379,7 +402,7 @@ class BaseTemplate:
             opacity = self._get_val(config, 'watermark_opacity', 0.10)
             canvas.setFillAlpha(opacity)
             w_size = 9*cm # Légèrement plus grand comme demandé
-            canvas.drawImage(logo_path, (p_width - w_size)/2, (p_height - w_size)/2, width=w_size, height=w_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, (p_width - w_size)/2, (p_height - w_size)/2, w_size, w_size)
             canvas.restoreState()
 
         # 4. RENDU DU MASTER TEMPLATE (LE SEUL, L'UNIQUE)
@@ -467,7 +490,7 @@ class BaseTemplate:
         logo_size = 2.2*cm * hl_scale
         
         if logo_path:
-            canvas.drawImage(logo_path, margin, y_top - logo_size + 0.3*cm, width=logo_size, height=logo_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, margin, y_top - logo_size + 0.3*cm, logo_size, logo_size)
             text_x = margin + logo_size + 0.8*cm
         else:
             text_x = margin
@@ -528,7 +551,7 @@ class BaseTemplate:
         logo_y = y_top
         if logo_path:
             logo_y = y_top - logo_size + 0.4 * cm
-            canvas.drawImage(logo_path, (p_width - logo_size) / 2, logo_y, width=logo_size, height=logo_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, (p_width - logo_size) / 2, logo_y, logo_size, logo_size)
             
         column_w = (p_width - 2 * margin - logo_size - 1 * cm) / 2.0
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'royal')
@@ -583,7 +606,7 @@ class BaseTemplate:
         
         if logo_path:
             logo_y = y_top - logo_size + 0.2 * cm
-            canvas.drawImage(logo_path, margin, logo_y, width=logo_size, height=logo_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, margin, logo_y, logo_size, logo_size)
             y_start = logo_y - 0.4 * cm
         else:
             y_start = y_top
@@ -642,7 +665,7 @@ class BaseTemplate:
         
         if logo_path:
             logo_y = y_top - logo_size + 0.2 * cm
-            canvas.drawImage(logo_path, margin, logo_y, width=logo_size, height=logo_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, margin, logo_y, logo_size, logo_size)
             y_start = logo_y - 0.4 * cm
         else:
             y_start = y_top
@@ -700,7 +723,7 @@ class BaseTemplate:
         y_start = y_top
         if logo_path:
             logo_y = y_top - logo_size
-            canvas.drawImage(logo_path, (p_width - logo_size) / 2, logo_y, width=logo_size, height=logo_size, mask='auto')
+            self._draw_safe_image(canvas, logo_path, (p_width - logo_size) / 2, logo_y, logo_size, logo_size)
             y_start = logo_y - 0.4 * cm
 
         # [C1] Centrage vertical + [C2] Nom à 24pt comme les autres
