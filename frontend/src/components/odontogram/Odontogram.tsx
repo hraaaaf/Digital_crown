@@ -15,13 +15,13 @@ import type {
   OdontogramType,
   ToothSurface
 } from './types';
-import { 
+import {
   DEFAULT_SURFACE_STATE,
   SURFACE_LABELS,
-  TREATMENTS_BY_CATEGORY,
   ALL_TEETH_FDI,
   ALL_TEETH_PEDRIATIC
 } from './types';
+import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 
 // ============================================================================
 // TYPES
@@ -42,6 +42,7 @@ interface OdontogramProps {
   className?: string;
   naked?: boolean;
   embeddedSelector?: boolean;
+  onStatusChange?: (data: Record<number, ToothSurfaceState>) => void;
 }
 
 // ============================================================================
@@ -60,11 +61,12 @@ const createDefaultTeethSurfaces = (type: OdontogramType): Record<number, ToothS
 const STATUS_LEGEND = [
   { state: 'HEALTHY', label: 'Sain', color: 'bg-white border-slate-300' },
   { state: 'CARIES', label: 'Carie', color: 'bg-red-500' },
+  { state: 'RESTORED', label: 'Restaurée', color: 'bg-blue-400' },
   { state: 'FILLING_COMPOSITE', label: 'Composite', color: 'bg-sky-500' },
-  { state: 'FILLING_AMALGAM', label: 'Amalgame', color: 'bg-slate-400' },
-  { state: 'CROWN', label: 'Couronne', color: 'bg-amber-200 border-amber-400' },
-  { state: 'ROOT_CANAL', label: 'Dévitalisé', color: 'bg-slate-200' },
-  { state: 'IMPLANT', label: 'Implant', color: 'bg-slate-400' },
+  { state: 'CROWN', label: 'Couronnée', color: 'bg-amber-200 border-amber-400' },
+  { state: 'ROOT_CANAL', label: 'TTT Canalaire', color: 'bg-slate-200' },
+  { state: 'POORLY_TREATED', label: 'Mal traitée', color: 'bg-purple-500' },
+  { state: 'ABSENT', label: 'Absente', color: 'bg-slate-100 border-dashed border-slate-400' },
 ];
 
 export const Odontogram: React.FC<OdontogramProps> = ({
@@ -81,6 +83,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   className = '',
   naked = false,
   embeddedSelector = false,
+  onStatusChange,
 }) => {
   const [odontogramType, setOdontogramType] = useState<OdontogramType>(defaultType);
   const [teethSurfaces, setTeethSurfaces] = useState<Record<number, ToothSurfaceState>>(
@@ -92,6 +95,30 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   const [showGlobalSelector, setShowGlobalSelector] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const { specialties, fetchCatalog } = useCatalogStore();
+
+  const TREATMENTS_BY_CATEGORY = useMemo(() => {
+    const treatments: Record<string, any[]> = {};
+    specialties.forEach(s => {
+      treatments[s.name] = s.acts.map(act => ({
+        id: `act_${act.id}`,
+        name: act.name,
+        category: s.name as any,
+        scope: 'GLOBAL', // Par défaut global pour pouvoir apparaître dans ce panel, sauf si configuré autrement
+        duration: 30,
+        price: act.base_price,
+        code: act.code,
+      }));
+    });
+    return treatments;
+  }, [specialties]);
+
+  useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
 
   // Synchronisation avec la prop defaultType (v4.9)
   useEffect(() => {
@@ -128,7 +155,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     } else if (mode === 'EDIT_STATUS') {
       const currentState = teethSurfaces[toothNumber][surface];
       const stateOrder: SurfaceState[] = [
-        'HEALTHY', 'CARIES', 'FILLING_COMPOSITE', 'FILLING_AMALGAM', 'CROWN'
+        'HEALTHY', 'CARIES', 'RESTORED', 'FILLING_COMPOSITE', 'CROWN', 'ROOT_CANAL', 'ABSENT', 'POORLY_TREATED'
       ];
       const currentIndex = stateOrder.indexOf(currentState);
       const nextState = stateOrder[(currentIndex + 1) % stateOrder.length];
@@ -146,6 +173,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   useEffect(() => {
     onChange?.(selectedSurfaces);
   }, [selectedSurfaces, onChange]);
+
+  useEffect(() => {
+    if (mode === 'EDIT_STATUS') {
+      onStatusChange?.(teethSurfaces);
+    }
+  }, [teethSurfaces, mode, onStatusChange]);
 
   const handleSave = useCallback(async () => {
     if (!onSave) return;

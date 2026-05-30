@@ -57,4 +57,4 @@ export interface CabinetProfile {
   footer_line_height?: number;
 }
 
-export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
+export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe' | 'catalogue';

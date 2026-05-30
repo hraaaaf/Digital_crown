@@ -30,6 +30,7 @@ import { AssistantGeneral } from './wizards/AssistantGeneral';
 import { AssistantATM } from './wizards/AssistantATM';
 import { AssistantPatho } from './wizards/AssistantPatho';
 import { VigilanceRadar } from '../../admin/DocumentStudio/VigilanceRadar';
+import { Odontogram } from '../../../components/odontogram/Odontogram';
 
 interface ClinicalHubProps {
   patientId: number;
@@ -122,6 +123,12 @@ interface TreatmentStep {
 
 export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   const [activeAssistant, setActiveAssistant] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'ASSISTANTS' | 'ODONTOGRAM'>('ASSISTANTS');
+  const [savedOdontogram, setSavedOdontogram] = useState<any>(() => {
+    const s = localStorage.getItem(`odontogram_state_${patientId}`);
+    return s ? JSON.parse(s) : null;
+  });
+  
   const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>(() => {
     const saved = localStorage.getItem(`master_plan_${patientId}`);
     if (saved) {
@@ -259,10 +266,55 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         <div className="xl:col-span-8 flex flex-col gap-6">
           <VigilanceRadar />
           
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted mt-2">Modules Diagnostiques Spécialisés</h3>
+          <div className="flex items-center justify-between mt-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted">Dossier Clinique</h3>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <button
+                onClick={() => setViewMode('ASSISTANTS')}
+                className={cn(
+                  "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  viewMode === 'ASSISTANTS' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-text-muted hover:text-text-main"
+                )}
+              >
+                Assistants IA
+              </button>
+              <button
+                onClick={() => setViewMode('ODONTOGRAM')}
+                className={cn(
+                  "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  viewMode === 'ODONTOGRAM' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-text-muted hover:text-text-main"
+                )}
+              >
+                Statut Dentaire
+              </button>
+            </div>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ASSISTANTS.map((assistant) => {
+          {viewMode === 'ODONTOGRAM' ? (
+            <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-[2rem] border border-white/60 dark:border-slate-700 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                 <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Stethoscope size={20} />
+                 </div>
+                 <div>
+                    <h4 className="font-black text-lg">Schéma Dentaire Initial</h4>
+                    <p className="text-xs text-text-muted font-bold">Renseignez les caries, restaurations, et dents absentes</p>
+                 </div>
+              </div>
+              <Odontogram 
+                patientId={patientId}
+                mode="EDIT_STATUS"
+                initialData={savedOdontogram}
+                onStatusChange={(data) => {
+                  setSavedOdontogram(data);
+                  localStorage.setItem(`odontogram_state_${patientId}`, JSON.stringify(data));
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ASSISTANTS.map((assistant) => {
               const Icon = assistant.icon;
               return (
                 <motion.button
@@ -392,9 +444,10 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
               </motion.div>
             )}
           </AnimatePresence>
-
+            </>
+          )}
         </div>
-
+        
         {/* COLONNE DROITE : PLAN DE TRAITEMENT GLOBAL */}
         <div className="xl:col-span-4 flex flex-col gap-6">
           <div className="flex items-center justify-between">

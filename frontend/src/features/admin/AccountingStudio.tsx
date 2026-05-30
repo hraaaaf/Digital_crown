@@ -20,7 +20,6 @@ import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
 import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
 import { createPortal } from 'react-dom';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
-import { TREATMENTS_BY_CATEGORY, CATEGORY_LABELS } from '../../components/odontogram/types';
 import { api } from '../../services/api';
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';

@@ -124,7 +124,7 @@ async def request_logging_middleware(request: Request, call_next):
     return response
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile, stats, verification
+from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile, stats, verification, catalog
 from backend.routers import ai_feedback as ai_feedback_router
 from backend.routers import installments
 from backend.routers import lab_jobs
@@ -151,6 +151,7 @@ app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
 app.include_router(ai_feedback_router.router, prefix="/api/ai", tags=["Ghost Hub Feedback"])
 app.include_router(installments.router, prefix="/api/installments", tags=["Installments"])
 app.include_router(lab_jobs.router, prefix="/api/lab-jobs", tags=["Lab Jobs"])
+app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
 
 from backend.routers import superadmin
 app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Admin"])

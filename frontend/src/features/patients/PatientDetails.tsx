@@ -12,7 +12,10 @@ import {
   FileDigit,
   Target,
   HeartPulse,
-  Stethoscope
+  Stethoscope,
+  Mail,
+  MapPin,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -39,8 +42,16 @@ interface Patient {
   prenom: string;
   date_naissance: string;
   telephone: string;
-  assurance: string;
+  telephone_2?: string;
+  telephone_3?: string;
+  email?: string;
   adresse?: string;
+  assurance: string;
+  assurance_privee_nom?: string;
+  assurance_complementaire?: boolean;
+  assurance_complementaire_nom?: string;
+  antecedents_medicaux?: string;
+  motif_consultation?: string;
   dossier?: {
     is_ortho_active: boolean;
   };
@@ -176,13 +187,17 @@ export const PatientDetails = () => {
                   )}
                 </div>
                 
-                <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
+                <div className={cn("flex flex-wrap items-center gap-4 mt-3 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
                   <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
                     <FileDigit size={14} style={{ color: 'var(--primary)' }} />
                     <span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span>
                   </div>
                   <div className="flex items-center gap-2"><Calendar size={16} className="text-text-muted" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
                   <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone}</span></div>
+                  {patient.telephone_2 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_2}</span></div>}
+                  {patient.telephone_3 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_3}</span></div>}
+                  {patient.email && <div className="flex items-center gap-2"><Mail size={16} className="text-text-muted" /><span>{patient.email}</span></div>}
+                  {patient.adresse && <div className="flex items-center gap-2"><MapPin size={16} className="text-text-muted" /><span>{patient.adresse}</span></div>}
                 </div>
               </div>
             </div>
@@ -217,6 +232,30 @@ export const PatientDetails = () => {
         isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-10 py-10 space-y-10"
       )}>
         
+        
+        {!isCompact && (patient.antecedents_medicaux || patient.motif_consultation) && (
+          <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+            {patient.antecedents_medicaux && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 shadow-sm">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-black text-sm uppercase tracking-widest mb-1">Antécédents Médicaux</h4>
+                  <p className="text-sm font-medium whitespace-pre-wrap">{patient.antecedents_medicaux}</p>
+                </div>
+              </div>
+            )}
+            {patient.motif_consultation && (
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-800 shadow-sm">
+                <Activity className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-black text-sm uppercase tracking-widest mb-1">Motif de Consultation Initial</h4>
+                  <p className="text-sm font-medium whitespace-pre-wrap">{patient.motif_consultation}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <FlashSummary patientId={Number(id)} patientName={fullName} />
 
         <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>

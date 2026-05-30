@@ -8,9 +8,10 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Check, Clock, Zap, Search, Plus, Star } from 'lucide-react';
 import type { ToothNumberFDI, ToothTreatment, ToothSurface } from './types';
-import { TREATMENT_TEMPLATES, TREATMENTS_BY_CATEGORY, TOOTH_NAMES, CATEGORY_LABELS } from './types';
+import { TOOTH_NAMES } from './types';
 import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
+import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 
 interface TreatmentSelectorProps {
   toothNumber: ToothNumberFDI;
@@ -63,6 +64,40 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
+  const { specialties, fetchCatalog } = useCatalogStore();
+
+  const CATEGORY_LABELS = useMemo(() => {
+    const labels: Record<string, string> = {};
+    specialties.forEach(s => {
+      labels[s.name] = s.name;
+    });
+    return labels;
+  }, [specialties]);
+
+  const TREATMENTS_BY_CATEGORY = useMemo(() => {
+    const treatments: Record<string, Omit<ToothTreatment, 'price'>[]> = {};
+    specialties.forEach(s => {
+      treatments[s.name] = s.acts.map(act => ({
+        id: `act_${act.id}`,
+        name: act.name,
+        category: s.name as any,
+        scope: 'UNITAIRE',
+        duration: 30,
+        code: act.code,
+      }));
+    });
+    return treatments;
+  }, [specialties]);
+
+  const TREATMENT_TEMPLATES = useMemo(() => {
+    return Object.values(TREATMENTS_BY_CATEGORY).flat();
+  }, [TREATMENTS_BY_CATEGORY]);
+
+  useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

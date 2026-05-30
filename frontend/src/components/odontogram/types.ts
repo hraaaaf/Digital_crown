@@ -55,11 +55,13 @@ export type SurfaceState =
   | 'FILLING_AMALGAM'   // Amalgame - gris
   | 'FILLING_GOLD'      // Or - doré
   | 'FILLING_CERAMIC'   // Céramique - blanc cassé
+  | 'RESTORED'          // Restaurée (générique)
   | 'CROWN'             // Couronne - or/céramique
   | 'CROWN_CERAMIC'     // Couronne céramique
   | 'INLAY'             // Inlay
   | 'ONLAY'             // Onlay
   | 'ROOT_CANAL'        // Dévitalisé
+  | 'POORLY_TREATED'    // Mal traitée
   | 'IMPLANT'           // Implant
   | 'IMPLANT_CROWN'     // Implant + couronne
   | 'ABSENT'            // Absent
@@ -77,10 +79,12 @@ export type ToothStatus =
   | 'FILLING_COMPOSITE'
   | 'FILLING_GOLD'
   | 'FILLING_CERAMIC'
+  | 'RESTORED'
   | 'CROWN'
   | 'CROWN_CERAMIC'
   | 'ROOT_CANAL'
   | 'ROOT_CANAL_TO_DO'
+  | 'POORLY_TREATED'
   | 'POST'
   | 'IMPLANT'
   | 'IMPLANT_CROWN'
@@ -145,16 +149,7 @@ export interface ToothTreatment {
   scope?: 'UNITAIRE' | 'MULTIDENTS' | 'GLOBAL';
 }
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  CONSERVATRICE: 'Conservatrice',
-  ENDODONTIE: 'Endodontie',
-  CHIRURGIE: 'Chirurgie',
-  PROTHESE: 'Prothèse',
-  PREVENTION: 'Prévention',
-  PARODONTOLOGIE: 'Parodontologie',
-  ESTHETIQUE: 'Esthétique',
-  ORTHODONTIE: 'Orthodontie',
-};
+
 
 // Données de sélection avec surface spécifique
 export interface SelectedSurfaceData {
@@ -193,92 +188,7 @@ export type OdontogramMode =
   | 'PLAN_TREATMENT'
   | 'SELECT_FOR_DOCUMENT';
 
-// Bibliothèque de traitements SANS PRIX PRÉDÉFINIS (Catalogue Elite v4.7)
-export const TREATMENT_TEMPLATES: Omit<ToothTreatment, 'price'>[] = [
-  // --- CONSERVATRICE ---
-  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['O'], anesthesia: true, duration: 20 },
-  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['MO', 'DO'], anesthesia: true, duration: 30 },
-  { id: 'comp-3', name: 'Composite 3 faces (MOD)', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['MOD'], anesthesia: true, duration: 40 },
-  { id: 'comp-4', name: 'Restauration angle / 4-5 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', suggestedSurfaces: ['ALL'], anesthesia: true, duration: 50 },
-  { id: 'inlay-c', name: 'Inlay/Onlay Céramique', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
-  { id: 'inlay-m', name: 'Inlay/Onlay Composite', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
-  { id: 'coiff-p', name: 'Coiffage pulpaire direct', category: 'CONSERVATRICE', scope: 'UNITAIRE', anesthesia: true },
-  { id: 'rest-prov', name: 'Obturation provisoire', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 15 },
-  
-  // --- ENDODONTIE ---
-  { id: 'endo-mono', name: 'Traitement canalaire (Monoradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
-  { id: 'endo-bi', name: 'Traitement canalaire (Biradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 60 },
-  { id: 'endo-pluri', name: 'Traitement canalaire (Pluriradiculaire)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 90 },
-  { id: 'endo-ret', name: 'Reprise de traitement (Désobturation)', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 90 },
-  { id: 'endo-pulpot', name: 'Pulpotomie thérapeutique', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
-  { id: 'endo-pulpect', name: 'Pulpectomie d\'urgence', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
-  { id: 'endo-apex', name: 'Apexification / Apexogénèse', category: 'ENDODONTIE', scope: 'UNITAIRE', anesthesia: true },
-  
-  // --- CHIRURGIE ---
-  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 20 },
-  { id: 'chir-ext-c', name: 'Extraction complexe / Alvéolectomie', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
-  { id: 'chir-ext-sag', name: 'Extraction dent de sagesse incluse', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
-  { id: 'chir-ext-lait', name: 'Extraction dent de lait', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 15 },
-  { id: 'chir-fren', name: 'Frénectomie (Linguale/Labiale)', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 30 },
-  { id: 'chir-apico', name: 'Apicoectomie + Obturation a retro', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
-  { id: 'chir-abces', name: 'Incision et Drainage d\'abcès', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 20 },
-  { id: 'chir-kyste', name: 'Exérèse de kyste / lésion', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 45 },
-  { id: 'chir-sinus', name: 'Sinus Lift (Comblement sinusien)', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 90, requiresXray: true },
-  { id: 'chir-greffe', name: 'Greffe osseuse pré-implantaire', category: 'CHIRURGIE', scope: 'UNITAIRE', anesthesia: true, duration: 60, requiresXray: true },
-  
-  // --- IMPLANTOLOGIE ---
-  { id: 'imp-pose', name: 'Pose d\'implant (Pilier titane)', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 45, requiresXray: true },
-  { id: 'imp-cicat', name: 'Pose de vis de cicatrisation', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'imp-cour', name: 'Couronne sur implant (Transvissée)', category: 'PROTHESE', scope: 'UNITAIRE', requiresXray: true, duration: 60 },
-  { id: 'imp-bridge', name: 'Bridge sur implants', category: 'PROTHESE', scope: 'MULTIDENTS', requiresXray: true, duration: 120 },
-  
-  // --- PROTHÈSE FIXE ---
-  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-emax', name: 'Couronne E-Max (Disilicate)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-met', name: 'Couronne coulée métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-prov', name: 'Couronne provisoire (Résine)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 30 },
-  { id: 'prost-ic', name: 'Inlay-Core (Tenon radiculaire)', category: 'PROTHESE', scope: 'UNITAIRE', duration: 45 },
-  { id: 'prost-br-3', name: 'Bridge 3 éléments', category: 'PROTHESE', scope: 'MULTIDENTS', duration: 120 },
-  { id: 'prost-br-sup', name: 'Élément de bridge suppl.', category: 'PROTHESE', scope: 'MULTIDENTS' },
-  
-  // --- PROTHÈSE AMOVIBLE ---
-  { id: 'prost-am-p', name: 'Appareil partiel résine', category: 'PROTHESE', scope: 'GLOBAL' },
-  { id: 'prost-am-s', name: 'Stellite (Châssis métallique)', category: 'PROTHESE', scope: 'GLOBAL' },
-  { id: 'prost-am-c', name: 'Appareil complet (Dentier)', category: 'PROTHESE', scope: 'GLOBAL' },
-  { id: 'prost-am-rep', name: 'Réparation / Adjonction de dent', category: 'PROTHESE', scope: 'GLOBAL' },
-  { id: 'prost-am-reb', name: 'Rebasage de prothèse', category: 'PROTHESE', scope: 'GLOBAL' },
-  
-  // --- PRÉVENTION & PARO ---
-  { id: 'prev-det', name: 'Détartrage complet (Supra-gingival)', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
-  { id: 'prev-surf', name: 'Surfaçage radiculaire (Par quadrant)', category: 'PARODONTOLOGIE', scope: 'GLOBAL', anesthesia: true, duration: 45 },
-  { id: 'prev-seal', name: 'Scellement de sillons (Sealant)', category: 'PREVENTION', scope: 'UNITAIRE', duration: 15 },
-  { id: 'prev-fluor', name: 'Application de vernis fluoré', category: 'PREVENTION', scope: 'GLOBAL', duration: 15 },
-  { id: 'prev-bb', name: 'Bilan Bucco-Dentaire', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
-  
-  // --- ORTHODONTIE ---
-  { id: 'ortho-bag-m', name: 'Appareil Multi-bagues Métal', category: 'ORTHODONTIE', scope: 'GLOBAL' },
-  { id: 'ortho-bag-c', name: 'Appareil Multi-bagues Céramique', category: 'ORTHODONTIE', scope: 'GLOBAL' },
-  { id: 'ortho-align', name: 'Traitement par Aligneurs (Invisalign)', category: 'ORTHODONTIE', scope: 'GLOBAL' },
-  { id: 'ortho-cont', name: 'Fil de contention / Gouttière', category: 'ORTHODONTIE', scope: 'GLOBAL' },
-  { id: 'ortho-cons', name: 'Consultation Orthodontique', category: 'ORTHODONTIE', scope: 'GLOBAL', duration: 30 },
-  { id: 'ortho-disj', name: 'Disjoncteur maxillaire', category: 'ORTHODONTIE', scope: 'GLOBAL' },
-  
-  // --- ESTHÉTIQUE ---
-  { id: 'est-blan-f', name: 'Blanchiment au fauteuil', category: 'ESTHETIQUE', scope: 'GLOBAL', duration: 60 },
-  { id: 'est-blan-g', name: 'Gouttières de blanchiment (Home)', category: 'ESTHETIQUE', scope: 'GLOBAL' },
-  { id: 'est-fac-c', name: 'Facette Céramique (Veneer)', category: 'ESTHETIQUE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'est-fac-comp', name: 'Facette Composite (Directe)', category: 'ESTHETIQUE', scope: 'UNITAIRE', duration: 45 },
-];
 
-// Regroupement par catégorie
-export const TREATMENTS_BY_CATEGORY = TREATMENT_TEMPLATES.reduce((acc, treatment) => {
-  if (!acc[treatment.category]) {
-    acc[treatment.category] = [];
-  }
-  acc[treatment.category].push(treatment);
-  return acc;
-}, {} as Record<string, typeof TREATMENT_TEMPLATES>);
 
 // Couleurs pour les surfaces (architecture 5 surfaces)
 export const SURFACE_COLORS: Record<SurfaceState, { fill: string; stroke: string; hoverFill: string }> = {
@@ -289,11 +199,13 @@ export const SURFACE_COLORS: Record<SurfaceState, { fill: string; stroke: string
   FILLING_COMPOSITE: { fill: '#0ea5e9', stroke: '#0284c7', hoverFill: '#38bdf8' },
   FILLING_GOLD: { fill: '#fbbf24', stroke: '#d97706', hoverFill: '#fcd34d' },
   FILLING_CERAMIC: { fill: '#f8fafc', stroke: '#94a3b8', hoverFill: '#f1f5f9' },
+  RESTORED: { fill: '#60a5fa', stroke: '#2563eb', hoverFill: '#93c5fd' },
   CROWN: { fill: '#fde68a', stroke: '#d97706', hoverFill: '#fef3c7' },
   CROWN_CERAMIC: { fill: '#f8fafc', stroke: '#cbd5e1', hoverFill: '#f1f5f9' },
   INLAY: { fill: '#e0e7ff', stroke: '#6366f1', hoverFill: '#e0e7ff' },
   ONLAY: { fill: '#ddd6fe', stroke: '#7c3aed', hoverFill: '#e9d5ff' },
   ROOT_CANAL: { fill: '#e2e8f0', stroke: '#64748b', hoverFill: '#f1f5f9' },
+  POORLY_TREATED: { fill: '#c084fc', stroke: '#9333ea', hoverFill: '#d8b4fe' },
   IMPLANT: { fill: '#94a3b8', stroke: '#475569', hoverFill: '#cbd5e1' },
   IMPLANT_CROWN: { fill: '#f8fafc', stroke: '#64748b', hoverFill: '#f1f5f9' },
   ABSENT: { fill: '#f1f5f9', stroke: '#94a3b8', hoverFill: '#e2e8f0' },
@@ -312,10 +224,12 @@ export const STATUS_COLORS: Record<ToothStatus, { fill: string; stroke: string }
   FILLING_COMPOSITE: { fill: '#3b82f6', stroke: '#1d4ed8' },
   FILLING_GOLD: { fill: '#fbbf24', stroke: '#d97706' },
   FILLING_CERAMIC: { fill: '#f8fafc', stroke: '#cbd5e1' },
+  RESTORED: { fill: '#60a5fa', stroke: '#2563eb' },
   CROWN: { fill: '#fef3c7', stroke: '#d97706' },
   CROWN_CERAMIC: { fill: '#f8fafc', stroke: '#94a3b8' },
   ROOT_CANAL: { fill: '#e2e8f0', stroke: '#475569' },
   ROOT_CANAL_TO_DO: { fill: '#fecaca', stroke: '#dc2626' },
+  POORLY_TREATED: { fill: '#c084fc', stroke: '#9333ea' },
   POST: { fill: '#e2e8f0', stroke: '#1e293b' },
   IMPLANT: { fill: '#c0c0c0', stroke: '#64748b' },
   IMPLANT_CROWN: { fill: '#f8fafc', stroke: '#64748b' },

@@ -1,6 +1,6 @@
 from typing import Union, List
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -87,6 +87,7 @@ from backend.services.audit_service import audit_service
     description="Authentification email/mot de passe. Retourne un access token (JWT, 60 min) et un refresh token (7 jours).")
 async def login_for_access_token(
     request: Request,
+    background_tasks: BackgroundTasks,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -137,6 +138,13 @@ async def login_for_access_token(
         resource_id=user.email,
         severity="INFO",
     )
+
+    # Déclenchement de la synchronisation télémétrique asynchrone
+    try:
+        from backend.services.telemetry import sync_telemetry_logs
+        background_tasks.add_task(sync_telemetry_logs)
+    except Exception:
+        pass
 
     return {
         "access_token": access_token,

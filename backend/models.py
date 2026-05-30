@@ -333,6 +333,47 @@ class ClinicalActCatalog(Base):
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
 
 # ==============================================================================
+# --- SPRINT 6 : CATALOGUE DYNAMIQUE (Spécialités, Pathologies, Actes) ---
+# ==============================================================================
+
+class Specialty(Base):
+    """Spécialités dentaires (ex: Orthodontie, Implantologie, Soins Conservateurs)"""
+    __tablename__ = "specialties"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True) # Couleur UI
+    
+    pathologies: Mapped[List["Pathology"]] = relationship("Pathology", back_populates="specialty", cascade="all, delete-orphan")
+    acts: Mapped[List["CatalogAct"]] = relationship("CatalogAct", back_populates="specialty", cascade="all, delete-orphan")
+
+class Pathology(Base):
+    """Pathologies documentées par spécialité"""
+    __tablename__ = "pathologies"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    specialty: Mapped["Specialty"] = relationship("Specialty", back_populates="pathologies")
+
+class CatalogAct(Base):
+    """Actes rattachés aux spécialités pour agenda, devis et odontogramme"""
+    __tablename__ = "catalog_acts"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    code: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True) # NGAP ou interne
+    base_price: Mapped[float] = mapped_column(Float, default=0.0)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    specialty: Mapped["Specialty"] = relationship("Specialty", back_populates="acts")
+
+# ==============================================================================
 # --- ARCHIVAGE DOCUMENTS - GESTION VERSIONNEE ET CORBEILLE ---
 # ==============================================================================
 

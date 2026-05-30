@@ -19,8 +19,9 @@ import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
-import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
+import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
+import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 
 type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre';
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
@@ -78,6 +79,23 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
+
+  // --- CATALOGUE ---
+  const { specialties, fetchCatalog } = useCatalogStore();
+  const TREATMENT_TEMPLATES = useMemo(() => {
+    return specialties.flatMap(s => s.acts.map(act => ({
+      id: act.id.toString(),
+      name: act.name,
+      category: s.name,
+      base_price: act.base_price,
+    })));
+  }, [specialties]);
+
+  useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
