@@ -6,13 +6,13 @@ import logging
 from backend.database import get_db
 from backend import models
 from backend.routers.auth import get_current_user
-from backend.services.bot.intent_parser import CrownIntentParser
+from backend.services.bot.intent_parser import intent_parser
 from backend.services.bot.action_dispatcher import ActionDispatcher
 
 router = APIRouter(prefix="/api/bot", tags=["bot"])
 logger = logging.getLogger(__name__)
 
-parser = CrownIntentParser()
+parser = intent_parser
 dispatcher = ActionDispatcher()
 
 @router.post("/chat")
