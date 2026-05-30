@@ -63,76 +63,7 @@ WEEKDAY_MAP = {
 
 DURATION_PATTERN = re.compile(r"(\d+)\s*(?:min(?:utes?)?|mn)", re.IGNORECASE)
 
-# ── INTENT KEYWORDS ─────────────────────────────────────────────────────────
-
-INTENT_PATTERNS: List[Tuple[str, List[str], float]] = [
-    # (intent_name, keywords, base_confidence)
-
-    # --- QUERIES (lecture) ---
-    ("QUERY_PATIENT", [
-        "info", "informations", "dossier", "fiche", "détails", "details",
-        "antécédent", "antecedent", "historique patient"
-    ], 0.85),
-
-    ("QUERY_AGENDA", [
-        "agenda", "planning", "rdv", "rendez-vous", "rendezvous",
-        "programme", "emploi du temps", "schedule"
-    ], 0.85),
-
-    ("QUERY_FINANCE", [
-        "chiffre", "recette", "revenu", "finance", "comptabilité",
-        "comptabilite", "ca", "argent", "paiement", "impayé", "impaye",
-        "dette", "créance", "creance", "combien"
-    ], 0.80),
-
-    ("QUERY_LAB", [
-        "labo", "laboratoire", "travaux", "prothèse labo",
-        "envoi labo", "lab job", "lab"
-    ], 0.85),
-
-    ("QUERY_STATS", [
-        "statistique", "stats", "taux", "conversion", "projection",
-        "forecast", "prévision", "prevision", "assurance", "distribution"
-    ], 0.80),
-
-    ("QUERY_ALERTS", [
-        "alerte", "notification", "risque", "attention",
-        "patient à risque", "briefing"
-    ], 0.85),
-
-    # --- ACTIONS (écriture) ---
-    ("CREATE_APPOINTMENT", [
-        "prends rdv", "prendre rdv", "ajouter rdv", "créer rdv",
-        "creer rdv", "nouveau rdv", "planifier", "réserver",
-        "book", "nouveau rendez-vous", "ajouter rendez"
-    ], 0.90),
-
-    ("CREATE_PRESCRIPTION", [
-        "ordonnance", "prescrire", "prescription",
-        "post-extraction", "post extraction", "antibiotique",
-        "antalgique", "médicament"
-    ], 0.85),
-
-    ("CREATE_DEVIS", [
-        "devis", "estimation", "chiffrer", "quote",
-        "cout", "coût", "prix", "tarif"
-    ], 0.85),
-
-    ("SEARCH_PATIENT", [
-        "cherche", "recherche", "trouve", "trouver",
-        "search", "find", "qui s'appelle"
-    ], 0.80),
-
-    ("CHANGE_STATUS", [
-        "marquer", "statut", "terminer", "annuler",
-        "en cours", "terminé", "commence"
-    ], 0.75),
-
-    ("HELP", [
-        "aide", "help", "que sais-tu", "que peux-tu",
-        "comment", "quoi faire", "fonctionnalité", "capability"
-    ], 0.95),
-]
+from backend.services.bot.intents_config import INTENT_PATTERNS
 
 # Boosters : des patterns regex qui augmentent la confiance d'un intent
 INTENT_BOOSTERS = {
@@ -222,8 +153,22 @@ class IntentParser:
         """Identifie l'intent avec scoring multi-critères."""
         scores: Dict[str, float] = {}
 
+        try:
+            from thefuzz import fuzz
+            use_fuzz = True
+        except ImportError:
+            use_fuzz = False
+
         for intent_name, keywords, base_conf in INTENT_PATTERNS:
-            keyword_hits = sum(1 for kw in keywords if kw in text)
+            keyword_hits = 0
+            for kw in keywords:
+                if use_fuzz:
+                    if fuzz.partial_ratio(kw, text) > 80:
+                        keyword_hits += 1
+                else:
+                    if kw in text:
+                        keyword_hits += 1
+                        
             if keyword_hits == 0:
                 continue
             # Score = base * (1 + bonus par keyword supplémentaire)
@@ -311,35 +256,18 @@ class IntentParser:
 
     def _extract_date(self, text: str) -> Optional[datetime]:
         """Extrait une date du message."""
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Mots-clés relatifs
-        for keyword, delta in DATE_PATTERNS.items():
-            if keyword in text:
-                return today + timedelta(days=delta)
-
-        # Date explicite (dd/mm, dd/mm/yyyy)
-        m = DATE_EXPLICIT.search(text)
-        if m:
-            day, month = int(m.group(1)), int(m.group(2))
-            year = int(m.group(3)) if m.group(3) else today.year
-            if year < 100:
-                year += 2000
-            try:
-                return datetime(year, month, day)
-            except ValueError:
-                pass
-
-        # Jour de la semaine
-        m = DATE_WEEKDAY.search(text)
-        if m:
-            target_day = WEEKDAY_MAP[m.group(1).lower()]
-            current_day = today.weekday()
-            diff = (target_day - current_day) % 7
-            if diff == 0:
-                diff = 7  # Prochain occurrence si c'est le même jour
-            return today + timedelta(days=diff)
-
+        try:
+            from dateparser.search import search_dates
+            # Utilisation de dateparser pour extraire la date
+            parsed_dates = search_dates(text, languages=['fr'], settings={'PREFER_DATES_FROM': 'future'})
+            if parsed_dates:
+                # parsed_dates est une liste de tuples: (text, datetime)
+                # On prend la date la plus pertinente (souvent la dernière ou celle avec le plus de mots)
+                best_match = max(parsed_dates, key=lambda x: len(x[0]))
+                return best_match[1].replace(hour=0, minute=0, second=0, microsecond=0)
+        except Exception as e:
+            logger.error(f"Erreur dateparser: {e}")
+            
         return None
 
     def _check_completeness(
