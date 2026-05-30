@@ -33,6 +33,7 @@ def run_daily_alerts():
                 triggers = _engine.check_proactive_triggers(db, patient_id)
             except Exception as e:
                 logger.warning("Trigger error patient %s: %s", patient_id, e)
+                db.rollback()
                 continue
             for t in triggers:
                 exists = db.query(models.ProactiveAlert).filter(
