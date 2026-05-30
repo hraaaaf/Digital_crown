@@ -201,6 +201,7 @@ def check_and_update_db():
     safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP WITH TIME ZONE")
     safe_execute("ALTER TABLE actes ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255)")
     safe_execute("ALTER TABLE actes ADD COLUMN IF NOT EXISTS notes_cliniques TEXT")
+    safe_execute("ALTER TABLE actes ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'")
     safe_execute("ALTER TABLE document_archives ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255)")
     
     # --- MIGRATIONS USERS PERMISSIONS & MULTI-TENANCY ---
