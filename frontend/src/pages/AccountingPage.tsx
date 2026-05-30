@@ -155,7 +155,7 @@ export const AccountingPage = () => {
   const fetchHonoraires = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `/documents/accounting/honoraires?year=${selectedYear}`;
+      let url = `/accounting/honoraires?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
@@ -173,7 +173,7 @@ export const AccountingPage = () => {
   const fetchTreasury = useCallback(async () => {
     setLoadingTreasury(true);
     try {
-      const res = await api.get('/documents/accounting/treasury-hub');
+      const res = await api.get('/accounting/treasury-hub');
       setTreasuryData(res.data);
     } catch (err) {
       console.error("Erreur treasury hub:", err);
@@ -195,7 +195,7 @@ export const AccountingPage = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      let url = `/documents/accounting/export-pdf?year=${selectedYear}`;
+      let url = `/accounting/export-pdf?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
@@ -269,7 +269,7 @@ export const AccountingPage = () => {
 
   const handleEncaisser = async (id: number | string) => {
     try {
-      await api.post(`/documents/accounting/encaisser/${id}`);
+      await api.post(`/accounting/encaisser/${id}`);
       toast.success("Règlement encaissé avec succès !");
       fetchTreasury(); // Rafraîchir les données
     } catch (err) {

@@ -125,9 +125,11 @@ def get_patient_payments(patient_id: int, db: Session = Depends(database.get_db)
     """Récupère l'historique des encaissements d'un patient."""
     assert_patient_access(patient_id, current_user, db)
     return db.query(models.Payment).filter(models.Payment.patient_id == patient_id).order_by(models.Payment.payment_date.desc()).all()
-@router.get("/accounting/honoraires", response_model=schemas.HonoraireListResponse)
+
+@router.get("/honoraires", response_model=schemas.HonoraireListResponse)
 def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     user_employer_id = current_user.get_employer_id()
+    from backend.utils.accounting_utils import extract_amount_from_clinical_data
     
     # 1. Requête pour les documents (Notes d'honoraires)
     doc_query = db.query(models.DocumentArchive).join(models.Patient).filter(
@@ -219,7 +221,7 @@ def get_accounting_honoraires(patient_id: Optional[int] = None, assurance: Optio
     
     return {"total": len(items), "total_amount": total_amount, "total_collected": total_collected, "items": items}
 
-@router.get("/accounting/treasury-hub")
+@router.get("/treasury-hub")
 async def get_treasury_hub(
     db: Session = Depends(database.get_db),
     user: models.User = Depends(get_current_user)
@@ -227,7 +229,7 @@ async def get_treasury_hub(
     from backend.services.accounting_service import accounting_service
     return accounting_service.get_treasury_summary(db, user.get_employer_id())
 
-@router.post("/accounting/encaisser/{item_id}")
+@router.post("/encaisser/{item_id}")
 async def mark_as_paid(
     item_id: str,
     db: Session = Depends(database.get_db),
@@ -308,7 +310,7 @@ async def mark_as_paid(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/accounting/export-pdf")
+@router.get("/export-pdf")
 def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     data = get_accounting_honoraires(patient_id, assurance, year, month, db, current_user)
     report_gen = ReportGenerator()

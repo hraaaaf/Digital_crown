@@ -50,7 +50,7 @@ export const Header = () => {
     };
     const fetchTreasury = async () => {
       try {
-        const res = await api.get('/documents/accounting/treasury-hub');
+        const res = await api.get('/accounting/treasury-hub');
         setTreasuryCount(res.data.pending_count || 0);
       } catch (e) {
         // ignore
