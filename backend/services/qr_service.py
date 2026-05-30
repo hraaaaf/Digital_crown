@@ -49,6 +49,10 @@ class QRService:
         }
         drawer = style_map.get(qr_style, CircleModuleDrawer())
 
+        # Ne pas embedder de SVG car PIL ne les supporte pas nativement
+        if logo_path and str(logo_path).lower().endswith('.svg'):
+            logo_path = None
+
         # Génération Elite
         img = qr.make_image(
             image_factory=StyledPilImage,
