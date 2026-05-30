@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import logoUrl from '../assets/digital-crown-logo.svg';
+import logoUrl from '../assets/tooth.png';
 
 interface EliteGhostLoaderProps {
   text?: string;
@@ -28,8 +28,8 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
     ? "fixed inset-0 z-50" 
     : "absolute inset-0 z-10 rounded-3xl";
     
-  const logoClass = size === 'small' ? 'w-24 md:w-32' : size === 'medium' ? 'w-32 md:w-48' : 'w-48 md:w-64';
-  const glowClass = size === 'small' ? 'w-32 h-32 blur-[40px]' : size === 'medium' ? 'w-48 h-48 blur-[60px]' : 'w-64 h-64 blur-[80px]';
+  const logoClass = size === 'small' ? 'w-24 md:w-32' : size === 'medium' ? 'w-40 md:w-56' : 'w-56 md:w-72';
+  const glowClass = size === 'small' ? 'w-32 h-32 blur-[40px]' : size === 'medium' ? 'w-48 h-48 blur-[60px]' : 'w-72 h-72 blur-[80px]';
   return (
     <div className={`${containerClass} flex flex-col items-center justify-center bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-2xl`}>
       <div className="relative flex flex-col items-center justify-center">
