@@ -9,6 +9,9 @@ import { AnimatedBackground } from '../AnimatedBackground';
 import { PREMIUM_FONTS } from '../../features/admin/constants';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { Bot } from 'lucide-react';
+import { CrownBotChat } from '../CrownBot/CrownBotChat';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -45,6 +48,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
+  const [isBotOpen, setIsBotOpen] = useState(false);
 
   return (
     <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
@@ -80,6 +84,31 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Bouton Flottant Crown Bot (Desktop) */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <button 
+          onClick={() => setIsBotOpen(!isBotOpen)} 
+          className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20"
+        >
+          <Bot size={24} />
+        </button>
+      </div>
+
+      {/* Overlay / Popover Crown Bot */}
+      <AnimatePresence>
+        {isBotOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 right-8 w-[400px] h-[600px] z-50 rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl"
+          >
+            <CrownBotChat onClose={() => setIsBotOpen(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

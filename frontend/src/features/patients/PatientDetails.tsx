@@ -23,6 +23,7 @@ import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
 import { ClinicalHub } from './components/ClinicalHub';
+import { PatientTracking } from './components/PatientTracking';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -45,14 +46,14 @@ interface Patient {
   };
 }
 
-type TabType = 'clinical' | 'radiology' | 'admin' | 'archives';
+type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives';
 
 export const PatientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as TabType) || 'admin';
+  const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -202,6 +203,7 @@ export const PatientDetails = () => {
           </div>
 
           <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
+            <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={18} />} label="Séances & Suivi" />
             <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
@@ -272,6 +274,8 @@ export const PatientDetails = () => {
               </div>
             </div>
           )}
+          
+          {activeTab === 'tracking' && <PatientTracking patientId={Number(id)} />}
           
           {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 

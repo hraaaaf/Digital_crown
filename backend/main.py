@@ -128,7 +128,9 @@ from backend.routers import auth, clinics, patients, ia, documents, admin, appoi
 from backend.routers import ai_feedback as ai_feedback_router
 from backend.routers import installments
 from backend.routers import lab_jobs
+from backend.routers import bot
 
+app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])

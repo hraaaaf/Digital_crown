@@ -244,6 +244,9 @@ class Acte(Base):
     is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
+    notes_cliniques: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    attachments: Mapped[Optional[list]] = mapped_column(JSON, default=list, nullable=True)
+    
     patient: Mapped["Patient"] = relationship(back_populates="actes")
     praticien: Mapped["User"] = relationship(back_populates="actes_realises")
 

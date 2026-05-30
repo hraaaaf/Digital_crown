@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+import os
+import shutil
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -158,7 +160,9 @@ def create_acte(
             libelle=acte_data["libelle"],
             montant=float(acte_data.get("montant", 0.0)),
             date_debut=datetime.now(),
-            statut_paiement=models.PaiementStatut.EN_ATTENTE
+            statut_paiement=models.PaiementStatut.EN_ATTENTE,
+            notes_cliniques=acte_data.get("notes_cliniques"),
+            attachments=acte_data.get("attachments", [])
         )
         
         db.add(new_act)
@@ -195,6 +199,112 @@ def create_acte(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur transactionnelle (Acte/Labo) : {str(e)}"
         )
+
+@actes_router.put("/{acte_id}", status_code=status.HTTP_200_OK)
+def update_acte(
+    acte_id: int,
+    acte_data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Met à jour un acte clinique existant (notes, montants, statut paiement, fichiers joints).
+    """
+    try:
+        act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not act:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+
+        assert_patient_access(act.patient_id, current_user, db)
+
+        if "libelle" in acte_data:
+            act.libelle = acte_data["libelle"]
+        if "montant" in acte_data:
+            act.montant = float(acte_data["montant"])
+        if "statut_paiement" in acte_data:
+            act.statut_paiement = getattr(models.PaiementStatut, acte_data["statut_paiement"].upper(), act.statut_paiement)
+        if "notes_cliniques" in acte_data:
+            act.notes_cliniques = acte_data["notes_cliniques"]
+        if "attachments" in acte_data:
+            act.attachments = acte_data["attachments"]
+
+        db.commit()
+        db.refresh(act)
+        return {"status": "success", "acte": {
+            "id": act.id,
+            "libelle": act.libelle,
+            "montant": act.montant,
+            "statut_paiement": act.statut_paiement,
+            "notes_cliniques": act.notes_cliniques,
+            "attachments": act.attachments
+        }}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la mise à jour de l'acte : {str(e)}"
+        )
+
+@actes_router.post("/{acte_id}/upload", status_code=status.HTTP_200_OK)
+async def upload_acte_attachment(
+    acte_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not act:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+
+        assert_patient_access(act.patient_id, current_user, db)
+
+        # Build path
+        from backend.main import UPLOAD_DIR
+        safe_filename = f"acte_{acte_id}_{int(datetime.now().timestamp())}_{file.filename.replace(' ', '_')}"
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Update DB
+        current_attachments = act.attachments or []
+        file_url = f"/api/static/uploads/{safe_filename}"
+        
+        # Acte attachments should be a list of strings
+        if not isinstance(current_attachments, list):
+            current_attachments = []
+            
+        current_attachments.append(file_url)
+        act.attachments = current_attachments
+        db.commit()
+        db.refresh(act)
+
+        return {"status": "success", "file_url": file_url, "attachments": act.attachments}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur upload: {str(e)}"
+        )
+
+@actes_router.get("/patient/{patient_id}")
+def get_patient_actes(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Récupère tous les actes d'un patient.
+    """
+    assert_patient_access(patient_id, current_user, db)
+    actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).order_by(models.Acte.date_debut.desc()).all()
+    return [{"id": a.id, "type_acte": a.type_acte, "libelle": a.libelle, "montant": a.montant, "date_debut": a.date_debut, "statut_paiement": a.statut_paiement, "notes_cliniques": a.notes_cliniques, "attachments": a.attachments} for a in actes]
 
 from backend.services.prescription_agentic_service import prescription_agentic
 

@@ -153,3 +153,33 @@ D√©but du cycle d'audit UX syst√©matique des 5 pages du Studio Documentaire.
 #### üõ†Ô∏è Correctifs & R√©gularisations
 - **AccountingStudio.tsx** : Suppression de l'embo√Ætement bugg√© de `createPortal` et `AnimatePresence` pour rendre le contr√¥le total de l'affichage au composant `TreatmentSelector`.
 - **DocumentHub.tsx** : Ajout de la logique de calcul automatique des dents par r√©gion pour les boutons Q1-Q4 et S1-S6.
+
+---
+
+### ?? Date : 29 Mai 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Optimisation UI globale, Fusion IA et prÈparation du Bot Ortho.
+
+#### ?? Accomplissements Techniques
+
+1. **Animation Elite Ghost Loader**
+   - Remplacement des spinners basiques par une animation premium basÈe sur le logo digital-crown-logo.svg.
+   - Effet Ethereal Forge (Glow + scanner laser) sur Dashboard, PatientDetails, etc.
+
+2. **Traduction & Kanban Laboratoire (LabJobsBoard)**
+   - Traduction intÈgrale en franÁais des colonnes du Kanban.
+   - Ajout d'Ètats vides (Empty states) avec instructions guidÈes.
+   - Correction du bug TypeScript liÈ au statut DELIVERED.
+
+3. **Fusion Ghost Brain & Elite Assistant**
+   - Suppression du GhostBrainWidget redondant dans le header.
+   - Rapatriement de la logique temps-rÈel (WebSocket) directement dans EliteAssistant.tsx pour un hub IA unique.
+
+4. **Typographie Globale Dynamique**
+   - Correction du moteur de thËmes : la police choisie dans le Branding (Outfit, Playfair, etc.) s'applique dÈsormais au niveau du MainLayout.tsx pour toute l'application.
+
+#### ??? Correctifs & RÈgularisations
+- **LabJobsBoard.tsx** : Mapping du statut DELIVERED.
+- **Header.tsx** : Nettoyage des composants IA obsolËtes.
+
+---
