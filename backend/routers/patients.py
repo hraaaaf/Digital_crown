@@ -200,63 +200,30 @@ def read_patient(patient_id: int, db: Session = Depends(database.get_db), curren
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     return patient
 
+from backend.services.patient_scoring_service import patient_scoring_service
 @router.get("/{patient_id}/score")
 def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     
-    # 1. Calcul Assiduité (Rendez-vous)
-    rdvs = db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).all()
-    honores = sum(1 for r in rdvs if r.status == models.AppointmentStatus.TERMINE)
-    annules = sum(1 for r in rdvs if r.status == models.AppointmentStatus.ANNULE)
+    # 1. Obtenir le score via le Service Métier dédié
+    score_data = patient_scoring_service.calculate_score(db, patient_id)
     
-    total_rdv = honores + annules
-    assiduite_score = 100
-    if total_rdv > 0:
-        assiduite_score = int((honores / total_rdv) * 100)
-        
-    # 2. Calcul Solvabilité (Actes / Paiements)
-    actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).all()
-    total_facture = sum(a.montant for a in actes)
-    
-    total_encaisse = 0
-    for a in actes:
-        if a.statut_paiement == models.PaiementStatut.PAYE:
-            total_encaisse += a.montant
-        elif a.statut_paiement == models.PaiementStatut.PARTIEL:
-            total_encaisse += a.montant * 0.5  # Heuristique basique si on n'a pas les reçus exacts
-
-    solvabilite_score = 100
-    if total_facture > 0:
-        solvabilite_score = int((total_encaisse / total_facture) * 100)
-        
-    # 3. Score Global (60% Assiduité, 40% Solvabilité)
-    score_global = int((assiduite_score * 0.6) + (solvabilite_score * 0.4))
-    
-    # 4. Détermination du Grade (Priorité au Manuel)
+    # 2. Détermination du Grade (Priorité au Manuel)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    grade = patient.manual_grade if patient and patient.manual_grade else "BRONZE"
     
-    if not (patient and patient.manual_grade):
-        if score_global >= 90:
-            grade = "PLATINUM"
-        elif score_global >= 75:
-            grade = "GOLD"
-        elif score_global >= 50:
-            grade = "SILVER"
+    is_manual = False
+    grade = score_data["grade"]
+    
+    if patient and patient.manual_grade:
+        grade = patient.manual_grade
+        is_manual = True
         
     return {
-        "score": score_global,
+        "score": score_data["score"],
         "grade": grade,
-        "is_manual": bool(patient and patient.manual_grade),
+        "is_manual": is_manual,
         "comment": patient.grade_comment if patient else None,
-        "details": {
-            "assiduite_score": assiduite_score,
-            "solvabilite_score": solvabilite_score,
-            "rdv_honores": honores,
-            "rdv_annules": annules,
-            "total_facture": total_facture,
-            "total_encaisse": total_encaisse
-        }
+        "details": score_data["details"]
     }
 
 @router.patch("/{patient_id}/grade")
