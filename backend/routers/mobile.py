@@ -372,7 +372,7 @@ def register_device(
 
 from typing import Optional
 from fastapi.responses import FileResponse
-from backend.routers.documents import get_accounting_honoraires
+from backend.routers.accounting import get_accounting_honoraires
 from backend.services.generators.report_gen import ReportGenerator
 
 @router.get("/accounting/export-pdf")
