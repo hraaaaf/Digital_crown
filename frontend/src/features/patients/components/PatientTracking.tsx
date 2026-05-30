@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../../services/api';
-import { cn } from '../../../../utils/cn';
+import { api } from '../../../services/api';
+import { cn } from '../../../utils/cn';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { 
