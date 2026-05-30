@@ -191,7 +191,9 @@ class BaseTemplate:
                 import logging
                 logging.getLogger(__name__).error(f"Failed to draw SVG {img_path}: {e}")
         try:
-            canvas.drawImage(img_path, x, y, width=width, height=height, mask='auto')
+            # We remove mask='auto' because ReportLab correctly handles alpha channel PNGs
+            # but mask='auto' can incorrectly turn transparent PNGs into solid black boxes.
+            canvas.drawImage(img_path, x, y, width=width, height=height, preserveAspectRatio=True)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Failed to draw image {img_path}: {e}")

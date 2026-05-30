@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import logoUrl from '../assets/tooth.png';
+import logoUrl from '../assets/digital-crown-logo.svg';
 
 interface EliteGhostLoaderProps {
   text?: string;
@@ -49,19 +49,25 @@ export const EliteGhostLoader: React.FC<EliteGhostLoaderProps> = ({
           animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
         >
-          {/* Logo plein */}
-          <img src={logoUrl} alt="Digital Crown Elite" className={`${logoClass} h-auto drop-shadow-2xl relative z-0`} />
+          {/* Logo plein (Digital Crown Logo) */}
+          <motion.img 
+            src={logoUrl} 
+            alt="Digital Crown Elite" 
+            className={`${logoClass} h-auto drop-shadow-[0_0_15px_rgba(255,215,0,0.4)] relative z-0`}
+            animate={{ opacity: [0.8, 1, 0.8], scale: [0.98, 1.02, 0.98] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
 
           {/* Faisceau Hologram Scanner (Glassmorphism) qui monte et descend */}
           <motion.div
-            className="absolute left-0 w-full h-1/3 bg-gradient-to-b from-transparent via-primary/30 to-transparent backdrop-blur-[2px] border-y border-primary/20 z-10 shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]"
+            className="absolute left-0 w-full h-1/4 bg-gradient-to-b from-transparent via-yellow-400/20 to-transparent backdrop-blur-[1px] border-y border-yellow-500/30 z-10 shadow-[0_0_20px_rgba(255,215,0,0.4)]"
             initial={{ top: '-40%' }}
             animate={{ top: '120%' }}
             transition={{ 
               duration: 2.5, 
               repeat: Infinity, 
-              repeatType: 'mirror',
-              ease: "easeInOut" 
+              ease: "linear",
+              repeatType: "loop"
             }}
           />
         </motion.div>
