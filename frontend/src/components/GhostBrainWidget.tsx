@@ -47,7 +47,7 @@ export const GhostBrainWidget = () => {
     let reconnectTimer: NodeJS.Timeout;
 
     const connectWS = () => {
-      const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ws/ghost-insights/${employerId}`;
+      const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
       ws = new WebSocket(wsUrl);
 
       ws.onmessage = (event) => {

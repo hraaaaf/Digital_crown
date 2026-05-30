@@ -70,7 +70,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     let reconnectTimer: NodeJS.Timeout;
 
     const connectWS = () => {
-      const wsUrl = `${api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8000'}/api/ws/ghost-insights/${employerId}`;
+      const wsUrl = `${api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8000/api'}/ai/ws/ghost-insights/${employerId}`;
       ws = new WebSocket(wsUrl);
 
       ws.onmessage = (event) => {
