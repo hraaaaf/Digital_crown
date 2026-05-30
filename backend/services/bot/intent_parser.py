@@ -259,7 +259,7 @@ class IntentParser:
         try:
             from dateparser.search import search_dates
             # Utilisation de dateparser pour extraire la date
-            parsed_dates = search_dates(text, languages=['fr'], settings={'PREFER_DATES_FROM': 'future'})
+            parsed_dates = search_dates(text, languages=['fr'], settings={'PREFER_DATES_FROM': 'future', 'STRICT_PARSING': True})
             if parsed_dates:
                 # parsed_dates est une liste de tuples: (text, datetime)
                 # On prend la date la plus pertinente (souvent la dernière ou celle avec le plus de mots)
