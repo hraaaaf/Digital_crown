@@ -147,5 +147,5 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int, db: S
                 })
                 last_count = unread_count
             await asyncio.sleep(2)  # Latence max: 2 secondes
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, asyncio.CancelledError):
         pass
