@@ -32,7 +32,10 @@ export function MobileHeader({
         <img src={Logo} alt="Digital Crown" className="w-36 h-auto object-contain drop-shadow-sm origin-left" />
 
         <button
-          onClick={fetchSnapshot}
+          onClick={() => {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+            fetchSnapshot();
+          }}
           disabled={syncStatus === 'loading'}
           className="flex items-center gap-1.5 px-3 py-2 bg-card border border-glass-border rounded-[12px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
           style={{ backgroundColor: 'var(--glass-bg)' }}

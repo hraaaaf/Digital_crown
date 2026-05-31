@@ -235,39 +235,84 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
     
     try:
         from backend.services.panoramic_report_engine import panoramic_report_engine
-        
+
         # Récupération des détections IA stockées
         all_detections = analysis.detections_data.get("detections", [])
-        
+
         # Marquer les détections comme rejetées pour la persistance
         if req.rejected_detections:
             for idx in req.rejected_detections:
                 if 0 <= idx < len(all_detections):
                     all_detections[idx]["rejected"] = True
-                    
+
         # On ne passe au générateur que les détections non rejetées
         active_detections = [d for d in all_detections if not d.get("rejected")]
-        
+
         # Génération du nouveau rapport hybride (IA + Manuel)
         report_markdown = panoramic_report_engine.generate_markdown(
-            detections=active_detections, 
+            detections=active_detections,
             manual_anomalies=req.manual_anomalies
         )
-        
+
         # Mise à jour persistante
         analysis.report_narrative = report_markdown
         # Forcer la mise à jour du JSON field dans SQLAlchemy
         analysis.detections_data = {**analysis.detections_data, "detections": all_detections}
+
         db.commit()
         db.refresh(analysis)
-        
-        return {
-            "id": analysis.id,
-            "report_narrative": report_markdown
-        }
+        return {"id": analysis.id, "report_narrative": report_markdown}
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         logger.exception(f"Erreur lors de la génération du rapport panoramique: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================================================================
+# --- CEPHALO ANALYSES ENDPOINTS ---
+# ===============================================================================
+
+@router.get("/patients/{patient_id}/cephalo-analyses", response_model=List[schemas.CephaloAnalysisOut])
+def get_patient_cephalo_analyses(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    """Récupère l'historique des analyses céphalométriques d'un patient."""
+    assert_patient_access(patient_id, current_user, db)
+    analyses = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.created_at.desc()).all()
+    return analyses
+
+@router.delete("/cephalo/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    """Supprime une analyse céphalométrique et son fichier image associé."""
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    try:
+        from backend.services.audit_service import audit_service
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="CephaloAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Suppression de l'analyse cephalo {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        if analysis.image_original_path:
+            rel_path = analysis.image_original_path.replace("api/", "", 1) if analysis.image_original_path.startswith("api/") else analysis.image_original_path
+            file_abs_path = os.path.join(BASE_DIR, rel_path)
+            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
+                try:
+                    os.remove(file_abs_path)
+                except Exception as _e:
+                    logger.warning(f"Impossible de supprimer le fichier image cephalo {file_abs_path}: {_e}")
+        db.delete(analysis)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la suppression de l'analyse cephalo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/panoramic/{analysis_id}/pdf")
 def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):

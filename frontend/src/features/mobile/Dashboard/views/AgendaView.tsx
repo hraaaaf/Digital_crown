@@ -13,6 +13,12 @@ import { cn } from '../../../../utils/cn';
 
 type ViewMode = 'jour' | 'semaine' | 'mois';
 
+const TIME_SLOTS = Array.from({ length: 20 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 9;
+  const min = i % 2 === 0 ? '00' : '30';
+  return `${hour.toString().padStart(2, '0')}:${min}`;
+});
+
 export function AgendaView({
   snapshot,
   syncStatus,
@@ -199,17 +205,68 @@ export function AgendaView({
             <p className="text-text-muted text-[11px] font-medium mt-1">L'agenda est libre pour cette date.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {dayAppointments.map(apt => (
-              <DraggableApptCard
-                key={apt.id}
-                apt={apt}
-                onStatusChange={onStatusChange}
-                openApptWhatsApp={openApptWhatsApp}
-                handleDeleteAppt={handleDeleteAppt}
-                handleOpenSignature={handleOpenSignature}
-              />
-            ))}
+          <div className="relative pl-8 pb-10">
+            {/* Ligne verticale de la timeline */}
+            <div className="absolute left-[15px] top-4 bottom-0 w-0.5 bg-border-main/50 rounded-full" />
+            
+            {viewMode === 'jour' ? (
+              <div className="space-y-6">
+                {TIME_SLOTS.map(time => {
+                  const apts = dayAppointments.filter(a => a.time.startsWith(time.substring(0, 4))); // Match approx
+                  // Find exact matches for this slot
+                  const exactApt = dayAppointments.find(a => a.time === time);
+                  
+                  if (exactApt) {
+                    return (
+                      <div key={time} className="relative">
+                        <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
+                          {time}
+                        </div>
+                        <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
+                        <DraggableApptCard
+                          key={exactApt.id}
+                          apt={exactApt}
+                          onStatusChange={onStatusChange}
+                          openApptWhatsApp={openApptWhatsApp}
+                          handleDeleteAppt={handleDeleteAppt}
+                          handleOpenSignature={handleOpenSignature}
+                        />
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div key={time} className="relative flex items-center group cursor-pointer" onClick={() => setShowAddModal(true)}>
+                        <div className="absolute -left-10 bg-glass-bg px-1 text-[10px] font-medium text-slate-400 w-8 text-right z-10">
+                          {time}
+                        </div>
+                        <div className="absolute left-[-18px] w-2 h-2 rounded-full border border-slate-300 bg-slate-100 z-10 group-hover:border-primary group-hover:bg-primary/20 transition-colors" />
+                        <div className="h-10 flex-1 ml-4 border border-dashed border-slate-200 rounded-[12px] flex items-center px-4 text-[10px] text-slate-400 font-medium group-hover:border-primary/50 group-hover:text-primary transition-colors bg-white/30 backdrop-blur-sm">
+                          <Plus size={12} className="mr-1" /> Créneau libre
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {dayAppointments.map(apt => (
+                  <div key={apt.id} className="relative">
+                    <div className="absolute -left-10 mt-3 bg-white px-1 text-[10px] font-bold text-slate-500 w-8 text-right z-10">
+                      {apt.time}
+                    </div>
+                    <div className="absolute left-[-19px] top-4 w-2.5 h-2.5 rounded-full border-2 border-primary bg-white z-10" />
+                    <DraggableApptCard
+                      apt={apt}
+                      onStatusChange={onStatusChange}
+                      openApptWhatsApp={openApptWhatsApp}
+                      handleDeleteAppt={handleDeleteAppt}
+                      handleOpenSignature={handleOpenSignature}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

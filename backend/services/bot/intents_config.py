@@ -66,8 +66,14 @@ INTENT_PATTERNS: List[Tuple[str, List[str], float]] = [
         "en cours", "terminé", "commence"
     ], 0.75),
 
+    ("QUERY_KNOWLEDGE", [
+        "comment faire", "comment créer", "comment utiliser",
+        "explique", "sert à quoi", "pourquoi", "c'est quoi",
+        "règle", "recommandation", "conseil", "aide sur"
+    ], 0.85),
+
     ("HELP", [
         "aide", "help", "que sais-tu", "que peux-tu",
-        "comment", "quoi faire", "fonctionnalité", "capability"
+        "quoi faire", "fonctionnalité", "capability"
     ], 0.95),
 ]

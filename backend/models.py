@@ -67,6 +67,14 @@ class PlanStatus(str, enum.Enum):
     DONE = "done"
     POSTPONED = "postponed"
 
+class LabJobStatus(str, enum.Enum):
+    PRESCRIPTION = "PRESCRIPTION"
+    SENT = "SENT"
+    IN_PROGRESS = "IN_PROGRESS"
+    TRY_IN = "TRY_IN"
+    READY = "READY"
+    DELIVERED = "DELIVERED"
+
 # --- 2. BASE DE DÉCLARATION ---
 
 class Base(DeclarativeBase):
@@ -87,6 +95,12 @@ class User(Base):
     # Gestion de Licence SaaS (Kill-Switch)
     is_licensed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     license_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # SuperAdmin Features
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    internal_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     nom_complet: Mapped[Optional[str]] = mapped_column(String(255))
     specialites: Mapped[Optional[str]] = mapped_column(Text)
@@ -121,6 +135,19 @@ class User(Base):
     def get_employer_id(self) -> int:
         """Retourne l'ID de l'employeur, ou son propre ID s'il est le compte principal."""
         return self.employer_id if self.employer_id else self.id
+
+class LicenseHistory(Base):
+    __tablename__ = "license_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    admin_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    admin: Mapped[Optional["User"]] = relationship("User", foreign_keys=[admin_id])
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -929,4 +956,54 @@ class GhostMemoryLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
 
     patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
+
+
+# ==============================================================================
+# LAB JOBS — SUIVI DES TRAVAUX PROTHÉTIQUES
+# ==============================================================================
+
+class Lab(Base):
+    """Laboratoire dentaire partenaire."""
+    __tablename__ = "labs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
+class LabJob(Base):
+    """Travail prothétique envoyé au laboratoire."""
+    __tablename__ = "lab_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    act_id: Mapped[int] = mapped_column(ForeignKey("actes.id"), nullable=False)
+    lab_id: Mapped[Optional[int]] = mapped_column(ForeignKey("labs.id"), nullable=True)
+
+    material: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    shade: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    type: Mapped[str] = mapped_column(String(255), nullable=False)
+    tooth_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    deadline: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    status: Mapped[LabJobStatus] = mapped_column(SQLEnum(LabJobStatus), default=LabJobStatus.PRESCRIPTION, nullable=False)
+    is_remake: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    patient: Mapped["Patient"] = relationship("Patient")
+    act: Mapped["Acte"] = relationship("Acte")
+    lab: Mapped[Optional["Lab"]] = relationship("Lab")
+
+    @property
+    def is_late(self) -> bool:
+        if self.status in (LabJobStatus.READY, LabJobStatus.DELIVERED):
+            return False
+        return datetime.now() > self.deadline
+
 

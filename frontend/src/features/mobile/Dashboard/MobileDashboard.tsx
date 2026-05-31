@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WifiOff } from 'lucide-react';
 import { useMobileDashboard } from './hooks/useMobileDashboard';
 import { MobileHeader } from './components/MobileHeader';
@@ -9,12 +10,10 @@ import { AgendaView } from './views/AgendaView';
 import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
-import { CrownBotChat } from '../../../components/CrownBot/CrownBotChat';
-import { Bot } from 'lucide-react';
+import { BotView } from './views/BotView';
 
 export const MobileDashboard = () => {
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
-  const [isBotOpen, setIsBotOpen] = useState(false);
 
   const termineCount = state.snapshot?.appointments.filter(a => a.status === 'TERMINE').length ?? 0;
   const totalCount = state.snapshot?.appointments.length ?? 0;
@@ -42,46 +41,60 @@ export const MobileDashboard = () => {
         </div>
       )}
 
-      <main ref={mainRef} className="flex-1 px-6 overflow-y-auto">
-        {state.activeTab === 'agenda' && (
-          <AgendaView 
-            snapshot={state.snapshot}
-            syncStatus={state.syncStatus}
-            selectedDate={state.selectedDate}
-            setSelectedDate={actions.setSelectedDate}
-            patients={state.patients}
-            onStatusChange={actions.handleStatusChange}
-            onRescheduleAppt={actions.handleRescheduleAppt}
-            openApptWhatsApp={actions.openApptWhatsApp}
-            handleDeleteAppt={actions.handleDeleteAppt}
-            handleOpenSignature={actions.handleOpenSignature}
-            onRefresh={actions.fetchSnapshot}
-            onPatientCreated={() => actions.fetchPatients()}
-          />
-        )}
-        {state.activeTab === 'lab' && (
-          <LabView 
-            labJobs={state.labJobs}
-            handleWhatsAppSend={actions.handleWhatsAppSend}
-          />
-        )}
-        {state.activeTab === 'finance' && (
-          <FinanceView 
-            snapshot={state.snapshot}
-            syncStatus={state.syncStatus}
-            selectedDate={state.selectedDate}
-            openWhatsApp={actions.openWhatsApp}
-            handleExportPDF={actions.handleExportPDF}
-          />
-        )}
-        {state.activeTab === 'securite' && (
-          <SecuriteView 
-            snapshot={state.snapshot}
-            syncStatus={state.syncStatus}
-            isOnline={state.isOnline}
-            handleLogout={actions.handleLogout}
-          />
-        )}
+      <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={state.activeTab}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full"
+          >
+            {state.activeTab === 'agenda' && (
+              <AgendaView 
+                snapshot={state.snapshot}
+                syncStatus={state.syncStatus}
+                selectedDate={state.selectedDate}
+                setSelectedDate={actions.setSelectedDate}
+                patients={state.patients}
+                onStatusChange={actions.handleStatusChange}
+                onRescheduleAppt={actions.handleRescheduleAppt}
+                openApptWhatsApp={actions.openApptWhatsApp}
+                handleDeleteAppt={actions.handleDeleteAppt}
+                handleOpenSignature={actions.handleOpenSignature}
+                onRefresh={actions.fetchSnapshot}
+                onPatientCreated={() => actions.fetchPatients()}
+              />
+            )}
+            {state.activeTab === 'lab' && (
+              <LabView 
+                labJobs={state.labJobs}
+                handleWhatsAppSend={actions.handleWhatsAppSend}
+              />
+            )}
+            {state.activeTab === 'finance' && (
+              <FinanceView 
+                snapshot={state.snapshot}
+                syncStatus={state.syncStatus}
+                selectedDate={state.selectedDate}
+                openWhatsApp={actions.openWhatsApp}
+                handleExportPDF={actions.handleExportPDF}
+              />
+            )}
+            {state.activeTab === 'securite' && (
+              <SecuriteView 
+                snapshot={state.snapshot}
+                syncStatus={state.syncStatus}
+                isOnline={state.isOnline}
+                handleLogout={actions.handleLogout}
+              />
+            )}
+            {state.activeTab === 'bot' && (
+              <BotView />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <MobileBottomNav 
@@ -117,21 +130,6 @@ export const MobileDashboard = () => {
         />
       )}
 
-      {/* Bouton Flottant Crown Bot */}
-      <div className="fixed bottom-28 left-6 z-40">
-        <button onClick={() => setIsBotOpen(true)} className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-[0_8px_30px_rgba(var(--primary-rgb),0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border border-white/20">
-          <Bot size={24} />
-        </button>
-      </div>
-
-      {/* Overlay Crown Bot */}
-      {isBotOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setIsBotOpen(false)}>
-          <div className="w-full h-[85vh] sm:w-[400px] sm:h-[600px] animate-slide-up sm:animate-in sm:fade-in sm:zoom-in" onClick={e => e.stopPropagation()}>
-            <CrownBotChat onClose={() => setIsBotOpen(false)} />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

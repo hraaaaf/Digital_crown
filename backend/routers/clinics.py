@@ -241,10 +241,10 @@ async def upload_clinic_logo(
         final_bytes = file_bytes
         file_ext = "svg"
     else:
-        # Traitement Premium (IA Détourage + Normalisation SVG)
-        svg_str = LogoProcessor.process_logo(file_bytes)
-        final_bytes = svg_str.encode("utf-8")
-        file_ext = "svg"
+        # Traitement Premium (IA Détourage + Normalisation)
+        png_bytes = LogoProcessor.process_logo(file_bytes)
+        final_bytes = png_bytes
+        file_ext = "png"
 
     unique_name = f"logo_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)

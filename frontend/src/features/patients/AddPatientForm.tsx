@@ -595,9 +595,11 @@ export const AddPatientForm = () => {
             </div>
           </div>
 
-          {/* Section Orthodontie */}
           <div className="p-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100">
-            <label className="flex items-center gap-4 cursor-pointer">
+            <div 
+              className="flex items-center gap-4 cursor-pointer"
+              onClick={() => setIsOrtho(!isOrtho)}
+            >
               <div className={cn(
                 "w-14 h-8 rounded-full transition-all duration-300 relative",
                 isOrtho ? "bg-[#003380]" : "bg-slate-300"
@@ -607,17 +609,11 @@ export const AddPatientForm = () => {
                   isOrtho ? "left-7" : "left-1"
                 )} />
               </div>
-              <input 
-                type="checkbox" 
-                checked={isOrtho} 
-                onChange={(e) => setIsOrtho(e.target.checked)}
-                className="hidden"
-              />
               <div>
                 <span className="font-bold text-slate-800">Suivi Orthodontique</span>
                 <p className="text-xs text-slate-500">Activer le suivi orthodontique pour ce patient</p>
               </div>
-            </label>
+            </div>
           </div>
 
           {/* Actions */}

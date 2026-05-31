@@ -1,4 +1,4 @@
-import { Calendar, TrendingUp, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Calendar, TrendingUp, MessageSquare, ShieldCheck, Bot } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Tab, Snapshot } from '../types';
 import type { LabJob } from '../../../../types/labJob';
@@ -43,6 +43,13 @@ export function MobileBottomNav({
           allowedRoles: ['DENTISTE', 'ADMIN']
         },
         {
+          id: 'bot' as Tab,
+          icon: Bot,
+          label: 'Assistant',
+          dot: false,
+          allowedRoles: ['DENTISTE', 'ADMIN', 'SECRETAIRE']
+        },
+        {
           id: 'securite' as Tab,
           icon: ShieldCheck,
           label: 'Sécurité',
@@ -52,7 +59,10 @@ export function MobileBottomNav({
       ]).filter(t => t.allowedRoles.includes(snapshot?.role ?? 'DENTISTE')).map(({ id, icon: Icon, label, dot }) => (
         <button
           key={id}
-          onClick={() => setActiveTab(id)}
+          onClick={() => {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+            setActiveTab(id);
+          }}
           className={cn(
             'relative flex flex-col items-center gap-1 transition-all duration-200',
             activeTab === id ? 'text-primary scale-105' : 'text-text-muted'

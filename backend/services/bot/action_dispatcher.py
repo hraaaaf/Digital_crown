@@ -72,6 +72,7 @@ class ActionDispatcher:
             "CREATE_DEVIS": self._handle_create_devis,
             "SEARCH_PATIENT": self._handle_search_patient,
             "CHANGE_STATUS": self._handle_change_status,
+            "QUERY_KNOWLEDGE": self._handle_query_knowledge,
             "HELP": self._handle_help,
         }
 
@@ -616,6 +617,18 @@ class ActionDispatcher:
         )
 
     # ── HELP & UNKNOWN ──────────────────────────────────────────────────────
+
+    def _handle_query_knowledge(
+        self, parsed: ParsedIntent, db: Session, user: models.User
+    ) -> BotResponse:
+        from backend.services.bot.knowledge_base import search_knowledge
+        answer = search_knowledge(parsed.raw_message)
+        
+        return BotResponse(
+            message=answer,
+            action_type="info",
+            suggestions=["Aide", "Agenda", "Cherche un patient"],
+        )
 
     def _handle_help(
         self, parsed: ParsedIntent, db: Session, user: models.User
