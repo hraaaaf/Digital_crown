@@ -1,5 +1,6 @@
 import React from 'react';
-import { Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { Loader2, AlertTriangle, Eye, Archive, Printer } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 import { createPortal } from 'react-dom';
 
 interface StudioFooterProps {
@@ -19,6 +20,7 @@ interface StudioFooterProps {
 }
 
 export const StudioFooter: React.FC<StudioFooterProps> = ({
+  loading,
   activeTab,
   onGenerate,
   showPrintWarning,
@@ -28,7 +30,9 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   aiReport,
   onGenerateAI,
   loadingAi,
-  total
+  total,
+  sideStudioType,
+  onTogglePreview
 }) => {
   if (activeTab === 'plan') {
     return null;
@@ -68,7 +72,37 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         )}
       </div>
 
-      {/* Les boutons Générer / Imprimer sont désormais dans le StudioHeader */}
+      <div className="flex items-center gap-3">
+        {onTogglePreview && (
+          <button 
+            onClick={onTogglePreview}
+            className={cn(
+              "flex items-center gap-2 px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 border",
+              sideStudioType === 'PREVIEW' 
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
+            )}
+          >
+            <Eye size={16} /> {sideStudioType === 'PREVIEW' ? "Fermer Aperçu" : "Aperçu"}
+          </button>
+        )}
+        
+        <button 
+          onClick={() => onGenerate(true, false, false, false)}
+          disabled={loading}
+          className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md"
+        >
+          <Archive size={16} /> Enregistrer
+        </button>
+
+        <button 
+          onClick={() => onGenerate(false, true, false, false)}
+          disabled={loading}
+          className="flex items-center gap-2 px-8 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50"
+        >
+          <Printer size={16} /> Imprimer
+        </button>
+      </div>
 
       {showPrintWarning && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">

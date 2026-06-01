@@ -17,6 +17,16 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 
+# Hash statique (bcrypt) utilisé pour la mitigation des Timing Attacks
+# Correspond au mot de passe "dummy_password"
+DUMMY_PASSWORD_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
+
+
+def verify_dummy_password():
+    """Simule le coût de vérification bcrypt pour éviter le User Enumeration."""
+    return pwd_context.verify("dummy_password", DUMMY_PASSWORD_HASH)
+
+
 def get_password_hash(password):
     return pwd_context.hash(password)
 

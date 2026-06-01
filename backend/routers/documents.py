@@ -393,12 +393,20 @@ def download_document(
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     if document_id.startswith("legacy:"):
         raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
-    try:
-        doc_id = int(document_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
-    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
-    if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    
+    if document_id.startswith("doc_"):
+        doc_id_int = int(document_id.replace("doc_", ""))
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id_int).first()
+        if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+        doc_id = doc.id
+    else:
+        try:
+            doc_id = int(document_id)
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+            if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
+
     assert_patient_access(doc.patient_id, current_user, db)
 
     # Protection des Radios (seul le dentiste / proprio peut supprimer)
@@ -415,9 +423,18 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
 
 @router.post("/{document_id}/restore")
 def restore_from_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
-    doc_id = int(document_id)
-    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
-    if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    if document_id.startswith("doc_"):
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.public_id == document_id).first()
+        if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+        doc_id = doc.id
+    else:
+        try:
+            doc_id = int(document_id)
+            doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+            if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
+            
     assert_patient_access(doc.patient_id, current_user, db)
     
     archive_service = get_archive_service(db)
@@ -427,7 +444,16 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
 @router.delete("/{document_id}")
 def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     if not confirm: raise HTTPException(status_code=400, detail="Confirmation requise")
-    doc_id = int(document_id)
+    
+    if document_id.startswith("doc_"):
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.public_id == document_id).first()
+        if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+        doc_id = doc.id
+    else:
+        try:
+            doc_id = int(document_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiant de document invalide.")
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
     assert_patient_access(doc.patient_id, current_user, db)

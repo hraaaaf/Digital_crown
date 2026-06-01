@@ -310,7 +310,7 @@ body {
 }
 
 @layer components {
-  .document-watermark { position: relative; }
+  .document-watermark { position: relative; overflow: hidden; }
   .document-watermark::before {
     content: "DIGITAL CROWN";
     position: absolute;

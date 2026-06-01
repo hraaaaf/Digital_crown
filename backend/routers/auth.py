@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from backend import models, schemas, database
 from backend.security import (
     verify_password,
+    verify_dummy_password,
     create_access_token,
     create_refresh_token,
     token_blacklist,
@@ -94,7 +95,15 @@ async def login_for_access_token(
     check_rate_limit(request)
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    # Protection contre le User Enumeration (Timing Attack)
+    # Si l'utilisateur n'existe pas, on simule le calcul bcrypt pour avoir le même temps de réponse
+    password_is_valid = False
+    if user:
+        password_is_valid = verify_password(form_data.password, user.hashed_password)
+    else:
+        verify_dummy_password()
+
+    if not user or not password_is_valid:
         audit_service.log(
             db=db,
             user_id=user.id if user else None,

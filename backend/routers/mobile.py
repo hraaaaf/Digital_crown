@@ -14,6 +14,7 @@ from jose import jwt, JWTError
 
 from backend import models, database
 from backend.security import SECRET_KEY, ALGORITHM
+from backend.services.zka_crypto import encrypt_payload, decrypt_payload
 
 router = APIRouter(tags=["Mobile ZKA"])
 
@@ -305,7 +306,7 @@ def get_mobile_snapshot(
         }
         debtors_data = debtors
 
-    return {
+    data = {
         "generated_at": datetime.utcnow().isoformat(),
         "role": role,
         "is_superadmin": is_superadmin,
@@ -313,6 +314,8 @@ def get_mobile_snapshot(
         "finance": finance_data,
         "debtors": debtors_data,
     }
+    
+    return encrypt_payload(data)
 
 
 # â”€â”€ MISE Ã€ JOUR STATUT RENDEZ-VOUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -427,6 +430,7 @@ def get_mobile_appointments(
         'status': a.status.value if a.status else None,
         'duration_minutes': a.duration_minutes
     } for a in apts]
+    return encrypt_payload({"data": data})
 
 @router.post('/appointments')
 def create_mobile_appointment(
@@ -478,6 +482,7 @@ def get_mobile_patients(
         'name': f'{p.prenom} {p.nom}'.strip(),
         'phone': p.telephone
     } for p in pts]
+    return encrypt_payload({"data": data})
 
 class MobilePatientCreate(BaseModel):
     nom: str
@@ -537,7 +542,7 @@ def get_mobile_patient_documents(
             "signed": signed,
             "file_path": f"/api/documents/download/{d.id}"
         })
-    return res
+    return encrypt_payload({"data": res})
 
 
 class SignatureSubmit(BaseModel):

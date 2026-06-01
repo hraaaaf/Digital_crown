@@ -304,7 +304,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex bg-black/5 rounded-lg p-1">
-             <button onClick={() => setViewMode('current')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'current' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
+             <button onClick={() => setViewMode('studio')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'studio' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
              <button onClick={() => setViewMode('history')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
           </div>
           <SyncBadge state={syncState} P={P} />
@@ -346,7 +346,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       {/* Content */}
       <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 scroll-smooth" style={{ background: P.bg }}>
         <div className="max-w-4xl mx-auto">
-          {viewMode === 'current' ? (
+          {viewMode === 'studio' ? (
             <>
               {step === 1 && renderStep1()}
               {step === 2 && <Step2Occlusal P={P} />}

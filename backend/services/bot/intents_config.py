@@ -76,4 +76,9 @@ INTENT_PATTERNS: List[Tuple[str, List[str], float]] = [
         "aide", "help", "que sais-tu", "que peux-tu",
         "quoi faire", "fonctionnalité", "capability"
     ], 0.95),
+
+    ("GREETING", [
+        "bonjour", "salut", "hello", "coucou", "hi", "hey",
+        "bonsoir"
+    ], 0.95),
 ]

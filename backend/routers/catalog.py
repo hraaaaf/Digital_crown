@@ -11,7 +11,7 @@ from backend.schemas.catalog import (
 )
 from backend.routers.auth import get_current_user
 
-router = APIRouter(prefix="/catalog", tags=["Catalog (Specialties, Acts, Pathologies)"])
+router = APIRouter(tags=["Catalog (Specialties, Acts, Pathologies)"])
 
 def get_db():
     db = SessionLocal()

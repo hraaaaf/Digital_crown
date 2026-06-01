@@ -1,5 +1,8 @@
 import datetime
 import logging
+import os
+import json
+import httpx
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -153,10 +156,63 @@ class PanoramicReportEngine:
             lines.append("- Cloison nasale médiane.")
             lines.append("- Absence de lésion osseuse d'allure suspecte et respect des articulations temporo-mandibulaires.")
 
+            # Ajout de la Synthèse IA (Protégée par le Data Firewall)
+            try:
+                base_report_text = "\n".join(lines[3:]) # On envoie juste les résultats cliniques
+                ai_synthesis = self._generate_ai_synthesis(base_report_text)
+                if ai_synthesis:
+                    lines.insert(0, "")
+                    lines.insert(0, ai_synthesis)
+                    lines.insert(0, "### SYNTHÈSE DU RADIOLOGUE")
+            except Exception as e:
+                logger.warning(f"Impossible de générer la synthèse IA: {e}")
+
             return "\n".join(lines)
             
         except Exception as e:
             logger.error(f"Erreur Report Engine : {e}")
             return "## Erreur lors de la génération du rapport."
+
+    def _generate_ai_synthesis(self, clinical_text: str) -> str:
+        """Appelle Groq pour générer un paragraphe de synthèse, tout en protégeant les données PII."""
+        # 1. Le Mur : Anonymisation
+        from backend.services.security.data_sanitizer import data_sanitizer
+        sanitized_text, mapping = data_sanitizer.sanitize(clinical_text)
+        
+        prompt = (
+            "Agis comme un expert radiologue dentaire. "
+            "Voici les anomalies détectées de manière déterministe sur une radio panoramique:\n"
+            f"{sanitized_text}\n"
+            "Rédige un court paragraphe (3-4 phrases max) de synthèse clinique globale pour le praticien. "
+            "Sois très professionnel, concis, et souligne l'urgence s'il y en a une (ex: multiples caries profondes). "
+            "Ne liste pas à nouveau les dents une par une. "
+            "Réponds uniquement avec le paragraphe, sans fioritures ni salutations."
+        )
+
+        api_base = os.getenv("LLM_API_BASE", "http://localhost:11434/v1")
+        api_key = os.getenv("LLM_API_KEY", "ollama")
+        model = os.getenv("LLM_MODEL", "llama3")
+
+        try:
+            with httpx.Client(timeout=4.0) as client:
+                response = client.post(
+                    f"{api_base}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.2,
+                        "max_tokens": 150
+                    }
+                )
+                response.raise_for_status()
+                result_text = response.json()["choices"][0]["message"]["content"].strip()
+                
+                # 2. Le Mur : Restauration des vraies données
+                final_text = data_sanitizer.restore(result_text, mapping)
+                return final_text
+        except Exception as e:
+            logger.warning(f"Erreur appel LLM dans panoramic_report_engine: {e}")
+            return ""
 
 panoramic_report_engine = PanoramicReportEngine()

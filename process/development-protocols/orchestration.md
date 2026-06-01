@@ -141,6 +141,15 @@ in the main thread before delegating.
 Auto-skip conditions (continuation phrases, mid-program, trivial fixes, explicit
 mode commands, plan resumption) bypass clarification entirely.
 
+## Expert Persona Validation (Idea Scoring)
+
+When a user proposes a new significant architectural feature or paradigm shift (e.g., Data Firewall, new AI integration, security mechanism), the orchestrator MUST validate the idea before planning.
+
+1. **Simulate/Consult Experts**: Assume the personas of relevant experts (e.g., Security Engineer, Backend Architect) to evaluate the idea.
+2. **Score**: Provide a strict score out of 10.
+3. **Threshold**: The idea MUST exceed a score of 9/10 to be officially proposed or planned.
+4. **Feedback**: Present the pros, cons, security implications, and the final verdict clearly to the user before proceeding to the PLAN phase.
+
 ## Parallel Fan-Out Checkpoints
 
 At these phase transitions, consult `process/development-protocols/parallel-fan-out.md`:

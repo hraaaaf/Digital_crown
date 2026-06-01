@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
@@ -75,10 +75,17 @@ export const PatientDetails = () => {
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
+  const lastEditingDoc = useRef(null);
+
   useEffect(() => {
-    if (editingDoc) {
-      setSearchParams({ tab: 'admin' });
+    if (editingDoc && editingDoc !== lastEditingDoc.current) {
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        p.set('tab', 'admin');
+        return p;
+      });
     }
+    lastEditingDoc.current = editingDoc;
   }, [editingDoc, setSearchParams]);
 
   useEffect(() => {

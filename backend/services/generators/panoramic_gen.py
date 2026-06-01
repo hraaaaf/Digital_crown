@@ -175,6 +175,7 @@ class PanoramicGenerator:
             leftMargin=m_left, 
             topMargin=m_top, 
             bottomMargin=m_bottom
+        )
         
         elements = []
         

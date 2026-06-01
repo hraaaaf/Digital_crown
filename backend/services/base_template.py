@@ -176,6 +176,26 @@ class BaseTemplate:
     def _draw_safe_image(self, canvas, img_path, x, y, width, height):
         if str(img_path).lower().endswith('.svg'):
             try:
+                import xml.etree.ElementTree as ET
+                import base64
+                import tempfile
+                
+                # Check if it's just a base64 embedded image
+                tree = ET.parse(img_path)
+                root = tree.getroot()
+                image_tag = root.find('.//{http://www.w3.org/2000/svg}image')
+                if image_tag is not None:
+                    href = image_tag.attrib.get('href') or image_tag.attrib.get('{http://www.w3.org/1999/xlink}href')
+                    if href and href.startswith('data:image/png;base64,'):
+                        png_data = base64.b64decode(href.split(',')[1])
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+                            tmp.write(png_data)
+                            tmp_path = tmp.name
+                        # Draw the extracted PNG with alpha handling
+                        canvas.drawImage(tmp_path, x, y, width=width, height=height, preserveAspectRatio=True, mask='auto')
+                        os.unlink(tmp_path)
+                        return
+
                 from svglib.svglib import svg2rlg
                 from reportlab.graphics import renderPDF
                 drawing = svg2rlg(img_path)

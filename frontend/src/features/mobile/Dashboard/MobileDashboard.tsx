@@ -11,6 +11,7 @@ import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
 import { BotView } from './views/BotView';
+import { PWAInstallPrompt } from '../../../../components/PWAInstallPrompt';
 
 export const MobileDashboard = () => {
   const { state, actions, refs: { mainRef } } = useMobileDashboard();
@@ -40,6 +41,10 @@ export const MobileDashboard = () => {
           <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{state.error}</p>
         </div>
       )}
+
+      <div className="relative z-10 mt-2">
+        <PWAInstallPrompt />
+      </div>
 
       <main ref={mainRef} className="flex-1 px-6 overflow-x-hidden overflow-y-auto">
         <AnimatePresence mode="wait">

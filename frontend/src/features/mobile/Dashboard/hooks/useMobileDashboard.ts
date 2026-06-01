@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
+import { CryptoService } from '../../../../services/zka/CryptoService';
 import { fetchLabJobs, patchLabJobStatus } from '../../../../services/labJobService';
 import type { LabJob } from '../../../../types/labJob';
 import { formatLabJobMessage } from '../../../../services/whatsappService';
@@ -18,7 +19,7 @@ export function useMobileDashboard() {
   const [labJobs, setLabJobs] = useState<LabJob[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [patients, setPatients] = useState<{id: number, name: string, phone: string | null}[]>([]);
-  const credsRef = useRef<{ access_token: string; api_base_url: string } | null>(null);
+  const credsRef = useRef<{ access_token: string; api_base_url: string; masterKey: string } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
   // Signature au Fauteuil states
@@ -60,7 +61,11 @@ export function useMobileDashboard() {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail ?? `Erreur ${res.status}`);
 
-      const data: Snapshot = await res.json();
+      const rawRes = await res.json();
+      const data: Snapshot = rawRes.payload 
+        ? await CryptoService.decryptPayload(rawRes.payload, creds.masterKey) 
+        : rawRes;
+
       setSnapshot(data);
       await MobileStorage.saveLastSnapshot(data);
       setError(null);
@@ -80,7 +85,13 @@ export function useMobileDashboard() {
         headers: { Authorization: `Bearer ${creds.access_token}` },
         signal: AbortSignal.timeout(5000),
       });
-      if (res.ok) setPatients(await res.json());
+      if (res.ok) {
+        const rawRes = await res.json();
+        const data = rawRes.payload 
+          ? await CryptoService.decryptPayload(rawRes.payload, creds.masterKey)
+          : rawRes;
+        setPatients(data.data || data);
+      }
     } catch { /* silent */ }
   }, []);
 
@@ -272,11 +283,15 @@ export function useMobileDashboard() {
         headers: { Authorization: `Bearer ${creds.access_token}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        setSigDocs(data);
-        if (data.length > 0) {
-          const unsigned = data.find((d: any) => !d.signed);
-          setSelectedDocId(unsigned ? unsigned.id : data[0].id);
+        const rawRes = await res.json();
+        const data = rawRes.payload 
+          ? await CryptoService.decryptPayload(rawRes.payload, creds.masterKey)
+          : rawRes;
+        const docs = data.data || data;
+        setSigDocs(docs);
+        if (docs.length > 0) {
+          const unsigned = docs.find((d: any) => !d.signed);
+          setSelectedDocId(unsigned ? unsigned.id : docs[0].id);
         } else {
           setSelectedDocId(null);
         }

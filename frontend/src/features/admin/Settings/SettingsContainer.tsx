@@ -21,6 +21,7 @@ import { CatalogTab } from './tabs/CatalogTab';
 import { TeamManager } from '../TeamManager';
 import { cn } from '../../../utils/cn';
 import type { Tab } from './types';
+import { DigitalCrownLoader } from '../../../components/DigitalCrownLoader';
 
 const SettingsContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profil');
@@ -32,10 +33,7 @@ const SettingsContainer: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
-        <Loader2 className="animate-spin text-primary" size={48} />
-        <p className="text-sm font-black text-slate-400 uppercase tracking-widest animate-pulse">Initialisation du Centre de Contrôle...</p>
-      </div>
+      <DigitalCrownLoader text="Initialisation du Centre de Contrôle..." minHeight="min-h-[600px]" />
     );
   }
 

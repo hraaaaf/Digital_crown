@@ -1006,4 +1006,44 @@ class LabJob(Base):
             return False
         return datetime.now() > self.deadline
 
+# ==============================================================================
+# --- PHASE 6 : CROWN BOT SESSIONS (CHAT HISTORY) ---
+# ==============================================================================
+
+class BotSession(Base):
+    """
+    Historique des sessions du chatbot par cabinet.
+    """
+    __tablename__ = "bot_sessions"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="Nouvelle Conversation")
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    
+    messages: Mapped[List["BotMessage"]] = relationship("BotMessage", back_populates="session", cascade="all, delete-orphan", order_by="BotMessage.created_at")
+
+class BotMessage(Base):
+    """
+    Messages individuels au sein d'une session de bot.
+    """
+    __tablename__ = "bot_messages"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id: Mapped[str] = mapped_column(ForeignKey("bot_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    sender: Mapped[str] = mapped_column(String(20), nullable=False) # 'user' or 'bot'
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # JSON pour stocker action_type, suggestions, et pending_action
+    raw_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    session: Mapped["BotSession"] = relationship("BotSession", back_populates="messages")
+
 

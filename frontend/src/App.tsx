@@ -54,7 +54,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAuthAndInit = async () => {
+      // 1. Attendre que la base de données / le backend soit complètement chargé
+      const waitForBackend = async () => {
+        const { API_BASE } = await import('./services/api');
+        const axios = (await import('axios')).default;
+        
+        while (true) {
+          try {
+            await axios.get(`${API_BASE}/health`);
+            break; // Le backend répond, la BDD est prête
+          } catch (error: any) {
+            // Si le backend renvoie 401 ou 403, il est quand même UP
+            if (error.response && error.response.status !== 502 && error.response.status !== 503) {
+              break;
+            }
+            // Sinon, on attend 2 secondes et on réessaye
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      };
+
       try {
+        await waitForBackend();
+        
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
         
@@ -78,7 +100,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return <DigitalCrownLoader text="Vérification de la configuration..." />;
+    return <DigitalCrownLoader text="Initialisation de la base de données..." />;
   }
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
@@ -150,6 +172,18 @@ const ProtectedRoutes = () => (
 );
 
 // =============================================================================
+// ROUTAGE INTELLIGENT PWA (Mobile vs Desktop)
+// =============================================================================
+
+const SmartRootRouter = () => {
+  const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+  if (isMobile) {
+    return <Navigate to="/mobile/dashboard" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
+// =============================================================================
 // APP PRINCIPAL
 // =============================================================================
 
@@ -194,6 +228,8 @@ function App() {
         }}
       />
       <Routes>
+        {/* ROUTAGE INTELLIGENT RACINE (PWA Entry Point) */}
+        <Route path="/" element={<SmartRootRouter />} />
 
         {/* ROUTES PWA MOBILE (Accès Direct) */}
         <Route path="/mobile/onboarding" element={

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar as CalendarIcon, Archive, Printer, Eye } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 interface StudioHeaderProps {
@@ -61,41 +61,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
         {activeTab !== 'ai' && (
           <div className="flex items-center gap-2">
-            {onGenerate && (
-              <>
-                <button 
-                  onClick={() => onGenerate(true, false, false, false)}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50"
-                  title="Archiver"
-                >
-                  <Archive size={14} /> Archiver
-                </button>
-                <button 
-                  onClick={() => onGenerate(false, true, false, false)}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-3 py-2 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10 active:scale-95 disabled:opacity-50"
-                  title="Imprimer"
-                >
-                  <Printer size={14} /> Imprimer
-                </button>
-                {onTogglePreview && (
-                  <button 
-                    onClick={onTogglePreview}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 border",
-                      sideStudioType === 'PREVIEW' 
-                        ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
-                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-                    )}
-                  >
-                    <Eye size={14} /> {sideStudioType === 'PREVIEW' ? "Fermer Aperçu" : "Aperçu"}
-                  </button>
-                )}
-                
-                <div className="w-px h-5 bg-slate-200 mx-1"></div>
-              </>
-            )}
+
 
             <button 
               onClick={() => window.location.reload()}

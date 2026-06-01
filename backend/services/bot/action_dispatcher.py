@@ -74,6 +74,7 @@ class ActionDispatcher:
             "CHANGE_STATUS": self._handle_change_status,
             "QUERY_KNOWLEDGE": self._handle_query_knowledge,
             "HELP": self._handle_help,
+            "GREETING": self._handle_greeting,
         }
 
         handler = handler_map.get(parsed.intent, self._handle_unknown)
@@ -571,6 +572,8 @@ class ActionDispatcher:
             m = re.search(r"(?:cherche|trouve|recherche)\s+(.+)", parsed.raw_message.lower())
             if m:
                 name = m.group(1).strip()
+                if name in ["un patient", "le patient", "patient", "des patients"]:
+                    name = ""
 
         if not name:
             return BotResponse(
@@ -659,14 +662,94 @@ class ActionDispatcher:
             ],
         )
 
+    def _handle_greeting(
+        self, parsed: ParsedIntent, db: Session, user: models.User
+    ) -> BotResponse:
+        from backend.services.bot.llm_parser import llm_parser
+        from backend.services.security.data_sanitizer import data_sanitizer
+        message = parsed.raw_message
+        
+        # Anonymisation
+        sanitized_message, mapping = data_sanitizer.sanitize(message)
+        
+        prompt = (
+            f"L'utilisateur vient de te saluer ou de te dire : '{sanitized_message}'. "
+            "Réponds brièvement, de manière très naturelle et chaleureuse (1-2 phrases max) en tant que Crown Bot (assistant IA d'un logiciel de gestion dentaire). "
+            "Propose ton aide (ex: chercher un patient, afficher l'agenda, etc.). "
+            "Réponds en texte brut, n'utilise pas de JSON ni de markdown complexe."
+        )
+        
+        try:
+            import httpx
+            with httpx.Client(timeout=4.0) as client:
+                response = client.post(
+                    f"{llm_parser.api_base}/chat/completions",
+                    headers={"Authorization": f"Bearer {llm_parser.api_key}"},
+                    json={
+                        "model": llm_parser.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5
+                    }
+                )
+            if response.status_code == 200:
+                data = response.json()
+                text = data["choices"][0]["message"]["content"].strip()
+                # Restauration
+                text = data_sanitizer.restore(text, mapping)
+            else:
+                text = "Bonjour ! 👋 Je suis le **Crown Bot**.\n\nComment puis-je vous aider aujourd'hui ? (Agenda, Finances, Patients...)"
+        except Exception as e:
+            logger.error(f"Erreur LLM conversationnel (Greeting): {e}")
+            text = "Bonjour ! 👋 Je suis le **Crown Bot**.\n\nComment puis-je vous aider aujourd'hui ? (Agenda, Finances, Patients...)"
+
+        return BotResponse(
+            message=text,
+            action_type="info",
+            suggestions=["Aide", "Agenda du jour", "Chercher un patient"],
+        )
+
     def _handle_unknown(
         self, parsed: ParsedIntent, db: Session, user: models.User
     ) -> BotResponse:
+        from backend.services.bot.llm_parser import llm_parser
+        from backend.services.security.data_sanitizer import data_sanitizer
+        message = parsed.raw_message
+        
+        # Anonymisation
+        sanitized_message, mapping = data_sanitizer.sanitize(message)
+        
+        prompt = (
+            f"L'utilisateur t'a dit ceci : '{sanitized_message}'. "
+            "Cependant, tu n'as pas réussi à comprendre l'intention exacte car cela sort de tes capacités principales (agenda, finances, recherche patient, devis). "
+            "Réponds poliment en tant que Crown Bot (assistant de cabinet dentaire), indique avec tact que tu n'as pas compris, et invite l'utilisateur à taper 'aide'. "
+            "Réponds en texte brut (1-2 phrases max), sois concis et professionnel."
+        )
+        
+        try:
+            import httpx
+            with httpx.Client(timeout=4.0) as client:
+                response = client.post(
+                    f"{llm_parser.api_base}/chat/completions",
+                    headers={"Authorization": f"Bearer {llm_parser.api_key}"},
+                    json={
+                        "model": llm_parser.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5
+                    }
+                )
+            if response.status_code == 200:
+                data = response.json()
+                text = data["choices"][0]["message"]["content"].strip()
+                # Restauration
+                text = data_sanitizer.restore(text, mapping)
+            else:
+                text = "Je n'ai pas compris votre demande. Tapez **aide** pour voir ce que je sais faire."
+        except Exception as e:
+            logger.error(f"Erreur LLM conversationnel (Unknown): {e}")
+            text = "Je n'ai pas compris votre demande. Tapez **aide** pour voir ce que je sais faire."
+
         return BotResponse(
-            message=(
-                "Je n'ai pas compris votre demande. "
-                "Tapez **aide** pour voir ce que je sais faire."
-            ),
+            message=text,
             action_type="info",
             suggestions=["Aide", "Agenda", "Finances"],
         )
