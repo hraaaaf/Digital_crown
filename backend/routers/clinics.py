@@ -6,13 +6,14 @@ import uuid
 import shutil
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
 from backend.services.card_extractor import card_extractor
 from backend.services.logo_processor import LogoProcessor
+from backend.services.license_service import LicenseService
 
 router = APIRouter()
 
@@ -24,6 +25,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+@router.post("/recheck-license")
+async def recheck_license(request: Request, current_user: models.User = Depends(get_current_user)):
+    """Re-vérifie la licence (Admin only). Débloque l'app si la licence est redevenue valide."""
+    if current_user.role != models.UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Non autorisé.")
+        
+    clinic_id = os.getenv("CLINIC_ID", "default_clinic")
+    license_ok = await LicenseService().validate_license(clinic_id)
+    
+    request.app.state.license_ok = license_ok
+    
+    if not license_ok:
+        raise HTTPException(status_code=402, detail="La licence est toujours invalide.")
+        
+    return {"message": "Licence validée avec succès. Application déverrouillée."}
 
 
 @router.get("/init-status")
@@ -80,10 +97,17 @@ def create_clinic(
     ).first()
     
     if not admin_user:
+        admin_email = os.getenv("SUPERADMIN_EMAIL", "")
+        admin_initial_pwd = os.getenv("SUPERADMIN_INITIAL_PASSWORD", "")
+        if not admin_email or not admin_initial_pwd:
+            raise HTTPException(
+                status_code=500,
+                detail="SUPERADMIN_EMAIL et SUPERADMIN_INITIAL_PASSWORD doivent être définis dans l'environnement avant le setup."
+            )
         from backend.database import pwd_context
         admin_user = models.User(
-            email="admin@digitalcrown.local",
-            hashed_password=pwd_context.hash("admin123"),
+            email=admin_email,
+            hashed_password=pwd_context.hash(admin_initial_pwd),
             role=models.UserRole.ADMIN,
             nom_complet=config.header_lines_fr[0] if config.header_lines_fr else "Administrateur"
         )
@@ -314,14 +338,24 @@ async def upload_clinic_letterhead(
     }
 
 @router.post("/extract-card")
-async def extract_business_card(file: UploadFile = File(...)):
+async def extract_business_card(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user)
+):
     """Extraction IA d'une carte de visite pour remplissage auto."""
-    # Sauvegarde temporaire
-    temp_path = f"temp_card_{uuid.uuid4().hex}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
+    allowed_types = {"image/jpeg", "image/jpg", "image/png"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez JPEG ou PNG uniquement.")
+
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 2 Mo).")
+
+    import tempfile
+    fd, temp_path = tempfile.mkstemp(suffix=".jpg")
     try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(content)
         data = await card_extractor.extract(temp_path)
         return data
     finally:

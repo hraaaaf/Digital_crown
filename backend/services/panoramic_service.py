@@ -84,8 +84,14 @@ class PanoramicEngine:
         Pipeline Elite : CLAHE -> Letterbox -> YOLO11x -> FDI Mapping (Smile Curve).
         """
         if not self.is_ready:
-            logger.warning("PanoramicEngine : Mode simulation actif.")
-            return self._run_simulation()
+            logger.warning("PanoramicEngine : Mode simulation actif — modèle ONNX introuvable.")
+            sim_result = self._run_simulation()
+            sim_result["is_simulation"] = True
+            sim_result["simulation_warning"] = (
+                "⚠️ SIMULATION — Le modèle IA panoramique n'est pas disponible sur ce poste. "
+                "Ces résultats sont FICTIFS et ne doivent PAS être utilisés cliniquement."
+            )
+            return sim_result
 
         try:
             original_img = cv2.imread(image_path)

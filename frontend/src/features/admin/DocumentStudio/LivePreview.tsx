@@ -114,7 +114,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           <>
             <a
               href={pdfUrl.split('#')[0]}
-              download
+              download={`${title}.pdf`}
               className="flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-600 hover:border-primary hover:text-primary transition-all shadow-sm"
             >
               <Download size={18} /> Télécharger PDF
@@ -141,8 +141,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   }
 
   return createPortal(
-    <div 
-      className="fixed right-6 top-6 bottom-6 w-[600px] z-[20000] flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-[0_32px_64px_rgba(0,0,0,0.2)] overflow-hidden rounded-[3rem] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500"
+    <div
+      className="fixed right-6 top-6 bottom-6 w-[600px] z-[20000] flex flex-col bg-white border border-slate-200/60 shadow-[0_32px_64px_rgba(0,0,0,0.2)] overflow-hidden rounded-[3rem] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500"
       style={{ pointerEvents: 'auto' }}
     >
       {containerContent}

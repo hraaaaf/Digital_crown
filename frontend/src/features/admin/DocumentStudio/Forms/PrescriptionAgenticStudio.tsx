@@ -74,8 +74,7 @@ const DEFAULT_MOROCCO_PRESETS = [
     color: 'emerald',
     drugs: [
       { name: 'AUGMENTIN', dosage: '1G', forme: 'SACHETS', posologie: '1 sach Matin et Soir pendant 7 jours' },
-      { name: 'BI-RODOGYL', dosage: '-', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour pendant 7 jours' },
-      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour' }
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour si douleur' }
     ]
   },
   {
@@ -387,14 +386,49 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     }
   }, [onUpdateDrug]);
 
+  // FIX 3 — Vérification déterministe locale, indépendante de l'assessment IA
+  const checkLocalSafetyConstraints = useCallback((
+    antecedents: string,
+    _isChildAge: boolean
+  ): { blocked: boolean; reason: string } => {
+    const history = (antecedents || '').toUpperCase();
+
+    // Allergie pénicilline
+    const PENICILLIN_KEYWORDS = ['PENICILLINE', 'PENICILLIN', 'AMOXICILLINE', 'CLAMOXYL', 'AUGMENTIN', 'BETA-LACTAMINE'];
+    const isAllergicToPenicillin = history.includes('ALLERGI') &&
+      PENICILLIN_KEYWORDS.some(k => history.includes(k));
+
+    // Grossesse
+    const PREGNANCY_KEYWORDS = ['GROSSESSE', 'ENCEINTE', 'PREGNANT', 'TRIMESTRE'];
+    const isPregnant = PREGNANCY_KEYWORDS.some(k => history.includes(k));
+
+    return {
+      blocked: isAllergicToPenicillin || isPregnant,
+      reason: isAllergicToPenicillin
+        ? '⚠️ Allergie pénicilline détectée dans les antécédents.'
+        : isPregnant
+        ? '⚠️ Grossesse détectée dans les antécédents. Vérifiez les contre-indications.'
+        : ''
+    };
+  }, []);
+
   const applyPresetWithSafety = useCallback((presetDrugs: any[], presetLabel?: string) => {
     // 1. Détection de l'âge du patient (si dispo dans assessment)
     const isChild = assessment?.age < 15 || assessment?.is_child;
     const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
 
+    // FIX 3 — Vérification déterministe locale AVANT toute logique IA
+    const localSafety = checkLocalSafetyConstraints(
+      assessment?.patient_context?.antecedents || assessment?.antecedents || '',
+      isChild
+    );
+    if (localSafety.blocked) {
+      toast(localSafety.reason, { icon: '⚠️', duration: 6000 });
+    }
+
     const adaptedDrugs = presetDrugs.map((d: any, i: number) => {
       const drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
-      
+
       // LOGIQUE D'ADAPTATION SMART
       // a. Allergie Pénicilline
       if (history.includes('ALLERGIE') && (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'))) {
@@ -420,7 +454,25 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       return drug;
     });
 
-    setDrugs(adaptedDrugs);
+    // FIX 1 — Déduplication paracétamol : évite le double dosage pédiatrique
+    const PARACETAMOL_NAMES = ['paracetamol', 'doliprane', 'efferalgan', 'dafalgan', 'perfalgan'];
+    const isParacetamol = (name: string) =>
+      PARACETAMOL_NAMES.some(n => name.toLowerCase().includes(n));
+
+    const deduplicatedDrugs = adaptedDrugs.reduce((acc: DrugItem[], drug: DrugItem) => {
+      if (isParacetamol(drug.name)) {
+        const existingParacetamol = acc.find(d => isParacetamol(d.name));
+        if (existingParacetamol) {
+          // Garder la ligne existante, ignorer le doublon
+          console.warn(`[Safety] Doublon paracétamol supprimé : ${drug.name}`);
+          return acc;
+        }
+      }
+      acc.push(drug);
+      return acc;
+    }, []);
+
+    setDrugs(deduplicatedDrugs);
     setNewPresetName(presetLabel || '');
     setStep('PLANNING');
 
@@ -429,7 +481,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     } else {
       toast.success(presetLabel ? `Protocole "${presetLabel}" appliqué.` : "Protocole appliqué.");
     }
-  }, [assessment, setDrugs]);
+  }, [assessment, setDrugs, checkLocalSafetyConstraints]);
 
   const deletePreset = async (actCode: string) => {
     if (!window.confirm(`Supprimer le preset "${actCode}" ?`)) return;
@@ -605,6 +657,24 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </button>
         </div>
       </div>
+
+      {/* ALLERGY BANNER */}
+      {assessment && (assessment?.patient_context?.antecedents || assessment?.antecedents) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 p-4 rounded-[1.5rem] flex items-start gap-3 shadow-sm relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+          <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+          <div className="relative z-10">
+            <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest mb-1">Alerte Médicale & Allergies</h4>
+            <p className="text-xs font-bold text-red-700">
+              {assessment?.patient_context?.antecedents || assessment?.antecedents}
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* COMMAND BAR & SPEED-PILLS (Phase 3) */}
       <div className="space-y-4">

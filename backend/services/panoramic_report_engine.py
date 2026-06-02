@@ -152,9 +152,35 @@ class PanoramicReportEngine:
             else:
                 lines.append("- Canal mandibulaire à distance des racines dentaires.")
 
-            lines.append("- Transparence normale des cuvettes des sinus maxillaires.")
+            # Détections clés pour conditionner les phrases de normalité
+            all_pathologies_lower = [p.lower() for p in pathology_map.keys()]
+            all_labels_lower = [label.lower() for labels in teeth_map.values() for label in labels]
+            combined_lower = all_pathologies_lower + all_labels_lower
+
+            has_sinus_opacity = any("sinus" in p or "opacité" in p for p in combined_lower)
+            has_bone_lesion = any(k in combined_lower for k in [
+                "alvéolyse", "lésion osseuse", "kyste", "granulome", "périapicale", "résorption"
+            ])
+            has_atm_issue = any(k in combined_lower for k in ["arthrose", "condyle", "atm", "asymétrie"])
+
+            # Sinus — conditionnel
+            if not has_sinus_opacity:
+                lines.append("- Transparence normale des cuvettes des sinus maxillaires.")
+            else:
+                lines.append("- Opacité sinusienne objectivée (voir détections ci-dessus).")
+
+            # Cloison nasale — invariant acceptable
             lines.append("- Cloison nasale médiane.")
-            lines.append("- Absence de lésion osseuse d'allure suspecte et respect des articulations temporo-mandibulaires.")
+
+            # Lésions osseuses et ATM — conditionnel
+            if not has_bone_lesion and not has_atm_issue:
+                lines.append("- Absence de lésion osseuse d'allure suspecte et respect des articulations temporo-mandibulaires.")
+            elif not has_bone_lesion:
+                lines.append("- Absence de lésion osseuse d'allure suspecte. Articulations temporo-mandibulaires : voir détections ci-dessus.")
+            elif not has_atm_issue:
+                lines.append("- Lésions osseuses objectivées (voir détections ci-dessus). Respect des articulations temporo-mandibulaires.")
+            else:
+                lines.append("- Lésions osseuses et anomalies des articulations temporo-mandibulaires objectivées (voir détections ci-dessus).")
 
             # Ajout de la Synthèse IA (Protégée par le Data Firewall)
             try:

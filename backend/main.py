@@ -4,6 +4,7 @@ import time
 import asyncio
 import logging
 import contextlib
+from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,35 +30,89 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+# --- CACHE LICENCES PER-USER ---
+# Structure : {email: (is_ok: bool, reason: str, cached_at: float)}
+# TTL = 60s — après expiration, SQLite est re-consulté
+_license_cache: dict[str, tuple[bool, str, float]] = {}
+_CACHE_TTL = 60  # secondes
+_SUPERADMIN_EMAIL = os.getenv("SUPERADMIN_EMAIL", "").lower().strip()
+if not _SUPERADMIN_EMAIL:
+    logger.warning(
+        "SUPERADMIN_EMAIL non défini. Les vérifications superadmin seront désactivées. "
+        "Définissez SUPERADMIN_EMAIL dans votre fichier .env."
+    )
+
+
+def invalidate_license_cache(email: str) -> None:
+    """Supprime l'entrée du cache pour forcer une re-vérification immédiate."""
+    _license_cache.pop(email, None)
+
+
+async def get_user_license_status(email: str) -> tuple[bool, str]:
+    """Vérifie la licence d'un utilisateur depuis SQLite avec cache TTL 60s.
+    Retourne (is_ok, reason) où reason ∈ {OK, NOT_LICENSED, LICENSE_EXPIRED, SUSPENDED, ARCHIVED, USER_NOT_FOUND}.
+    """
+    now = time.time()
+    cached = _license_cache.get(email)
+    if cached and (now - cached[2]) < _CACHE_TTL:
+        return cached[0], cached[1]
+
+    try:
+        with database.SessionLocal() as db:
+            user = db.query(models.User).filter(models.User.email == email).first()
+            if not user:
+                result = (False, "USER_NOT_FOUND")
+            elif user.is_suspended:
+                result = (False, "SUSPENDED")
+            elif user.is_archived:
+                result = (False, "ARCHIVED")
+            elif not user.is_licensed:
+                result = (False, "NOT_LICENSED")
+            elif user.license_expires_at and datetime.utcnow() > user.license_expires_at:
+                result = (False, "LICENSE_EXPIRED")
+            else:
+                result = (True, "OK")
+    except Exception as e:
+        logger.error(f"Erreur vérification licence pour {email}: {e}")
+        # Fail-open : si la DB est inaccessible, ne pas bloquer l'utilisateur
+        result = (True, "DB_ERROR_FAIL_OPEN")
+
+    _license_cache[email] = (*result, now)
+    return result
+
 # --- LIFESPAN ---
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Demarrage de Digital Crown API...")
-    
-    # 1. Vérification du Kill-Switch Firebase
-    clinic_id = os.getenv("CLINIC_ID", "default_clinic")
-    license_ok = await LicenseService().validate_license(clinic_id)
-    
-    if not license_ok:
-        logger.warning("⚠️ LICENCE INTROUVABLE. Bypass actif pour le développement local.")
-        # En production, on décommenterait la ligne suivante :
-        # raise SystemExit("Licence invalide")
-    
+
+    # Sécurité : refuser le démarrage si la clé secrète par défaut est utilisée
+    from backend.config import settings as _cfg
+    _weak_keys = {"SET_A_REAL_SECRET_KEY_IN_ENV", "dev_only_secret_key_change_me", "changeme", "secret"}
+    if _cfg.SECRET_KEY in _weak_keys or len(_cfg.SECRET_KEY) < 32:
+        raise RuntimeError(
+            "SECURITE : SECRET_KEY non configurée. "
+            "Ajoutez SECRET_KEY=<clé_aléatoire_longue> dans votre fichier .env avant de démarrer."
+        )
+
     try:
-        # 2. Initialisation DB dans %APPDATA% via AppPaths
+        # 1. Initialisation DB dans %APPDATA% via AppPaths
         models.Base.metadata.create_all(bind=database.engine)
-        
+
         # Activation de la synchronisation Zero-Knowledge (Observer Mode)
         sync_manager.start_listening()
-        
+
         with database.SessionLocal() as db:
             run_full_seed(db)
             seed_clinical_data(db)
 
         # S'assure que l'admin par defaut existe
         seed_admin_user()
-        
-        # Initialisation asynchrone du moteur panoramique (OPG)
+
+        # 2. Vérification des licences Firebase (par cabinet via public_id)
+        #    Chaque CabinetConfig.public_id est l'identifiant unique du document Firestore
+        await _sync_all_licenses_from_firebase()
+
+        # 3. Initialisation asynchrone du moteur panoramique (OPG)
         await panoramic_engine.initialize()
 
         # Ghost Hub — FTS5 bulk index au démarrage (background)
@@ -75,19 +130,84 @@ async def lifespan(app: FastAPI):
         from backend.services.daily_scheduler import start_daily_scheduler
         start_daily_scheduler()
 
-        # 3. Ouverture automatique du navigateur (Build mode uniquement)
+        # 4. Tâche background : re-synchronisation Firebase toutes les 6h
+        firebase_sync_task = asyncio.create_task(_periodic_firebase_sync())
+
+        # 5. Ouverture automatique du navigateur (Build mode uniquement)
         if hasattr(sys, '_MEIPASS'):
             webbrowser.open("http://127.0.0.1:8000")
 
     except asyncio.CancelledError:
-        # Normal shutdown signal from uvicorn — propagate cleanly
         raise
     except Exception as e:
         logger.error(f"Erreur Initialisation : {e}")
         raise
-    
+
     yield
+
+    firebase_sync_task.cancel()
     logger.info("Arret de l'API...")
+
+
+async def _sync_all_licenses_from_firebase() -> None:
+    """Vérifie Firebase pour chaque CabinetConfig et met à jour users.is_licensed.
+    CLINIC_ID = cabinet_config.public_id (UUID hex 16 chars, unique par cabinet).
+    """
+    license_service = LicenseService()
+    try:
+        with database.SessionLocal() as db:
+            configs = db.query(models.CabinetConfig).all()
+            if not configs:
+                logger.warning("Aucun cabinet trouvé en DB. Vérification Firebase ignorée.")
+                return
+
+            for config in configs:
+                public_id = config.public_id
+                clinic_id = config.clinic_id if config.clinic_id else public_id
+                owner = db.query(models.User).filter(models.User.id == config.owner_id).first()
+                if not owner:
+                    continue
+
+                # SuperAdmin : toujours licencié, jamais bloqué
+                if owner.email == _SUPERADMIN_EMAIL:
+                    if not owner.is_licensed:
+                        owner.is_licensed = True
+                        owner.license_expires_at = None
+                        db.commit()
+                    continue
+
+                # Vérification Firebase avec le clinic_id
+                firebase_result = await license_service.validate_license_with_expiry(clinic_id)
+                license_ok = firebase_result["active"]
+                expiry = firebase_result.get("expiration_date")
+
+                # Mise à jour SQLite depuis Firebase
+                owner.is_licensed = license_ok
+                if expiry:
+                    owner.license_expires_at = expiry
+                db.commit()
+
+                # Invalider le cache pour forcer re-vérification
+                invalidate_license_cache(owner.email)
+
+                status = "✅ ACTIVE" if license_ok else "❌ EXPIRÉE/INVALIDE"
+                logger.info(f"Licence cabinet '{clinic_id}' (public_id: {public_id}, user: {owner.email}) : {status}")
+
+    except Exception as e:
+        logger.error(f"Erreur sync licences Firebase : {e}")
+
+
+async def _periodic_firebase_sync() -> None:
+    """Tâche background : re-vérifie Firebase toutes les 6 heures."""
+    while True:
+        try:
+            await asyncio.sleep(6 * 3600)
+            logger.info("🔄 Re-synchronisation périodique des licences depuis Firebase...")
+            await _sync_all_licenses_from_firebase()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Erreur sync périodique licences : {e}")
 
 app = FastAPI(
     title="Digital Crown API - SANINOVA Edition",
@@ -106,7 +226,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 # --- MIDDLEWARES ---
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+from backend.config import settings as _settings
+ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -128,6 +249,66 @@ async def request_logging_middleware(request: Request, call_next):
             f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)"
         )
     return response
+
+@app.middleware("http")
+async def license_check_middleware(request: Request, call_next):
+    # Routes toujours autorisées (Statique, Auth, Setup Wizard)
+    allowed_prefixes = (
+        "/static", "/api/static", "/assets",
+        "/api/auth", "/api/clinics/recheck-license", "/api/clinics/license-status",
+        "/api/clinics/init-status",  # Route publique : vérif setup wizard
+        "/health"
+    )
+    if request.url.path.startswith(allowed_prefixes) or request.method == "OPTIONS":
+        return await call_next(request)
+
+    # Extraire et décoder le JWT pour obtenir l'email
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        # Pas de token → laisser FastAPI gérer l'auth (il renverra 401)
+        return await call_next(request)
+
+    token = auth_header.split(" ")[1]
+    try:
+        from jose import jwt
+        from backend.security import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub", "")
+    except Exception as e:
+        err_str = str(e).lower()
+        if "expired" in err_str or "signature" in err_str:
+            logger.warning(f"JWT Expiré (Normal): {e}")
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "TOKEN_EXPIRED", "message": "Session expirée. Veuillez vous reconnecter."}
+            )
+        # Token invalide/corrompu → laisser FastAPI gérer
+        logger.error(f"JWT Decode error in middleware: {e}")
+        return await call_next(request)
+
+    # SuperAdmin : bypass total, jamais bloqué
+    if email == _SUPERADMIN_EMAIL:
+        return await call_next(request)
+
+    # Vérification licence per-user (SQLite + cache TTL 60s)
+    is_ok, reason = await get_user_license_status(email)
+    if not is_ok:
+        messages = {
+            "NOT_LICENSED": "Votre cabinet n'a pas de licence active. Contactez Digital Crown.",
+            "LICENSE_EXPIRED": "Votre licence a expiré. Renouvelez-la via Digital Crown.",
+            "SUSPENDED": "Votre accès a été suspendu. Contactez Digital Crown.",
+            "ARCHIVED": "Ce compte est archivé. Contactez Digital Crown.",
+            "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
+        }
+        return JSONResponse(
+            status_code=402,
+            content={
+                "detail": reason,
+                "message": messages.get(reason, "Accès refusé. Vérifiez votre licence.")
+            }
+        )
+
+    return await call_next(request)
 
 # --- INCLUSION DES ROUTERS ---
 from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile, bot, verification, stats, catalog

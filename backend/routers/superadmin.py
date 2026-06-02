@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+import os
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List
@@ -6,11 +7,16 @@ from typing import List
 from backend import models, database
 from backend.routers.auth import get_current_user
 from backend.schemas.superadmin import ClientOut, ClientBaseStats, LicenseHistoryOut, UpdateClientNotes, SendRenewalEmailRequest
+from backend.main import invalidate_license_cache
+from backend.services.license_service import LicenseService
+from backend.services.notification_service import notification_service
 
 router = APIRouter(tags=["SuperAdmin"])
 
+_SUPERADMIN_EMAIL = os.getenv("SUPERADMIN_EMAIL", "").lower().strip()
+
 def verify_superadmin(current_user: models.User = Depends(get_current_user)):
-    if current_user.email.lower() != "benmoussa.achraf@gmail.com":
+    if not _SUPERADMIN_EMAIL or current_user.email.lower() != _SUPERADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="Accès refusé. Réservé au SuperAdmin.")
     return current_user
 
@@ -52,6 +58,7 @@ def get_clients(db: Session = Depends(database.get_db), admin: models.User = Dep
 @router.post("/clients/{user_id}/grant-license")
 def grant_license(
     user_id: int, 
+    background_tasks: BackgroundTasks,
     action: str = Query(...), 
     db: Session = Depends(database.get_db), 
     admin: models.User = Depends(verify_superadmin)
@@ -77,6 +84,16 @@ def grant_license(
         user.is_licensed = False
         add_license_history(db, user_id, admin.id, "revoke")
         db.commit()
+        
+        invalidate_license_cache(user.email)
+        cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+        if cabinet:
+            background_tasks.add_task(
+                LicenseService().write_license,
+                public_id=cabinet.public_id,
+                active=False,
+                expiration_date=user.license_expires_at
+            )
         return {"status": "success", "license_expires_at": user.license_expires_at}
     else:
         raise HTTPException(status_code=400, detail="Action non valide.")
@@ -84,8 +101,18 @@ def grant_license(
     user.license_expires_at = current_expiry + timedelta(days=duration)
     user.is_licensed = True
     add_license_history(db, user_id, admin.id, "grant", duration)
-    
     db.commit()
+
+    invalidate_license_cache(user.email)
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if cabinet:
+        background_tasks.add_task(
+            LicenseService().write_license,
+            public_id=cabinet.public_id,
+            active=True,
+            expiration_date=user.license_expires_at
+        )
+
     return {"status": "success", "license_expires_at": user.license_expires_at}
 
 @router.patch("/clients/{user_id}/archive")
@@ -97,6 +124,7 @@ def archive_client(user_id: int, db: Session = Depends(database.get_db), admin: 
     user.is_archived = not user.is_archived
     add_license_history(db, user_id, admin.id, "archive" if user.is_archived else "unarchive")
     db.commit()
+    invalidate_license_cache(user.email)
     return {"status": "success", "is_archived": user.is_archived}
 
 @router.patch("/clients/{user_id}/suspend")
@@ -108,6 +136,7 @@ def suspend_client(user_id: int, db: Session = Depends(database.get_db), admin: 
     user.is_suspended = not user.is_suspended
     add_license_history(db, user_id, admin.id, "suspend" if user.is_suspended else "unsuspend")
     db.commit()
+    invalidate_license_cache(user.email)
     return {"status": "success", "is_suspended": user.is_suspended}
 
 @router.patch("/clients/{user_id}/notes")
@@ -131,8 +160,14 @@ def send_renewal_email(user_id: int, data: SendRenewalEmailRequest, db: Session 
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
     
-    # Mock email sending logic
-    print(f"[Email Relance] To: {user.email}, Message: {data.message}")
-    add_license_history(db, user_id, admin.id, "renewal_email_sent")
+    phone = user.telephone_mobile or user.telephone_fixe
+    if phone:
+        msg = f"Bonjour Dr. {user.nom_complet}, votre licence Digital Crown expire bientôt. {data.message}"
+        notification_service.send_whatsapp_via_whatsmate(phone, msg)
+        message_status = f"WhatsApp de relance envoyé avec succès à {phone}."
+    else:
+        message_status = "Aucun numéro de téléphone trouvé pour l'envoi WhatsApp."
+        
+    add_license_history(db, user_id, admin.id, "renewal_whatsapp_sent")
     db.commit()
-    return {"status": "success", "message": "Email envoyé avec succès."}
+    return {"status": "success", "message": message_status}
