@@ -5,6 +5,9 @@ import asyncio
 import logging
 import contextlib
 from datetime import datetime
+from dotenv import load_dotenv
+# Charger .env explicitement avant toute lecture de os.getenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -287,7 +290,7 @@ async def license_check_middleware(request: Request, call_next):
         return await call_next(request)
 
     # SuperAdmin : bypass total, jamais bloqué
-    if email == _SUPERADMIN_EMAIL:
+    if email.lower() == _SUPERADMIN_EMAIL:
         return await call_next(request)
 
     # Vérification licence per-user (SQLite + cache TTL 60s)
