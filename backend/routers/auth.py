@@ -1,6 +1,6 @@
 from typing import Union, List
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -22,7 +22,7 @@ import httpx
 
 router = APIRouter(tags=["Authentication"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 
 def get_db():
@@ -33,12 +33,43 @@ def get_db():
         db.close()
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Pose les tokens en cookies HttpOnly — sécurisés en prod, non-Secure en dev."""
+    is_prod = getattr(settings, 'ENVIRONMENT', 'development').lower() == 'production'
+    cookie_kwargs = dict(
+        httponly=True,
+        samesite="lax",
+        secure=is_prod,
+        path="/",
+    )
+    response.set_cookie(
+        "access_token",
+        access_token,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        **cookie_kwargs,
+    )
+    response.set_cookie(
+        "refresh_token",
+        refresh_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        **cookie_kwargs,
+    )
+
+
+async def get_current_user(
+    request: Request,
+    token_header: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # Cookie-first, fallback Authorization header
+    token = request.cookies.get("access_token") or token_header
+    if not token:
+        raise credentials_exception
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -88,6 +119,7 @@ from backend.services.audit_service import audit_service
     description="Authentification email/mot de passe. Retourne un access token (JWT, 60 min) et un refresh token (7 jours).")
 async def login_for_access_token(
     request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
@@ -155,6 +187,7 @@ async def login_for_access_token(
     except Exception:
         pass
 
+    _set_auth_cookies(response, access_token, refresh_token)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -165,14 +198,23 @@ async def login_for_access_token(
 @router.post("/refresh", response_model=schemas.Token,
     summary="Renouveler l'access token",
     description="Échange un refresh token valide contre un nouveau couple access/refresh token (rotation automatique).")
-async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depends(get_db)):
+async def refresh_access_token(
+    request: Request,
+    response: Response,
+    body: schemas.RefreshRequest,
+    db: Session = Depends(get_db),
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Refresh token invalide ou expiré",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # Cookie-first: si le body ne fournit pas de refresh_token, lire depuis le cookie
+    refresh_token_value = body.refresh_token or request.cookies.get("refresh_token", "")
+    if not refresh_token_value:
+        raise credentials_exception
     try:
-        payload = jwt.decode(body.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(refresh_token_value, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         jti: str = payload.get("jti")
         token_type: str = payload.get("type")
@@ -189,10 +231,11 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
         raise credentials_exception
 
     # Rotation : le vieux refresh token est révoqué, on en émet un nouveau
-    token_blacklist.revoke(body.refresh_token, db)
+    token_blacklist.revoke(refresh_token_value, db)
     new_access = create_access_token(data={"sub": user.email})
     new_refresh = create_refresh_token(data={"sub": user.email})
 
+    _set_auth_cookies(response, new_access, new_refresh)
     return {
         "access_token": new_access,
         "refresh_token": new_refresh,
@@ -204,14 +247,27 @@ async def refresh_access_token(body: schemas.RefreshRequest, db: Session = Depen
     summary="Déconnexion",
     description="Révoque l'access token courant et le refresh token fourni (blacklist JTI en DB).")
 async def logout(
+    request: Request,
+    response: Response,
     body: schemas.RefreshRequest,
-    token: str = Depends(oauth2_scheme),
+    token_header: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # Résoudre l'access token (cookie-first, fallback header)
+    token = request.cookies.get("access_token") or token_header
+    # Résoudre le refresh token (body-first, fallback cookie)
+    refresh_tok = body.refresh_token or request.cookies.get("refresh_token", "")
+
     # Révoquer l'access token courant et le refresh token fourni
-    token_blacklist.revoke(token, db)
-    token_blacklist.revoke(body.refresh_token, db)
+    if token:
+        token_blacklist.revoke(token, db)
+    if refresh_tok:
+        token_blacklist.revoke(refresh_tok, db)
+
+    # Effacer les cookies HttpOnly
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
 
     audit_service.log(
         db=db,
@@ -230,8 +286,9 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
 
 @router.post("/sync-supabase")
 async def sync_supabase_user(
+    response: Response,
     body: schemas.SupabaseSyncRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Synchronise l'utilisateur authentifié via Supabase avec la DB locale.
@@ -243,20 +300,20 @@ async def sync_supabase_user(
     # 1. Valider le token auprès de Supabase
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            headers = {
+            supabase_headers = {
                 "Authorization": f"Bearer {body.access_token}",
                 "apikey": settings.SUPABASE_ANON_KEY
             }
             # Appel à l'endpoint /user de Supabase Auth
-            response = await client.get(f"{settings.SUPABASE_URL}/auth/v1/user", headers=headers)
-            
-            if response.status_code != 200:
+            supabase_resp = await client.get(f"{settings.SUPABASE_URL}/auth/v1/user", headers=supabase_headers)
+
+            if supabase_resp.status_code != 200:
                 raise HTTPException(status_code=401, detail="Session Cloud invalide ou expirée.")
-            
-            supabase_user = response.json()
+
+            supabase_user = supabase_resp.json()
             if supabase_user.get("email") != body.email:
                 raise HTTPException(status_code=401, detail="Email mismatch.")
-                
+
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=401, detail=f"Erreur de validation Cloud: {str(e)}")
@@ -308,6 +365,7 @@ async def sync_supabase_user(
     local_token = create_access_token(data={"sub": user.email})
     local_refresh = create_refresh_token(data={"sub": user.email})
 
+    _set_auth_cookies(response, local_token, local_refresh)
     return {
         "status": "synchronized",
         "user_id": user.id,

@@ -6,6 +6,7 @@ export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8005'
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 30000,
+  withCredentials: true,  // Envoie les cookies HttpOnly automatiquement
 });
 
 // Synchronisation du token entre onglets (BroadcastChannel)
@@ -14,16 +15,15 @@ const _authChannel = typeof BroadcastChannel !== 'undefined'
   : null;
 
 function storeTokens(token: string, refresh?: string) {
-  localStorage.setItem('token', token);
-  if (refresh) localStorage.setItem('refresh_token', refresh);
+  // Ne plus écrire en localStorage — le backend pose les cookies HttpOnly
+  // BroadcastChannel maintenu pour synchroniser les onglets via fallback legacy
   _authChannel?.postMessage({ type: 'TOKEN_REFRESH', token, refresh });
 }
 
 if (_authChannel) {
   _authChannel.onmessage = (e) => {
     if (e.data?.type === 'TOKEN_REFRESH') {
-      if (e.data.token) localStorage.setItem('token', e.data.token);
-      if (e.data.refresh) localStorage.setItem('refresh_token', e.data.refresh);
+      // Cookies HttpOnly posés par le backend — pas d'écriture localStorage ici
     } else if (e.data?.type === 'LOGOUT') {
       // Un autre onglet a déclenché le logout — on coupe aussi ici
       _authFailed = true;
@@ -94,6 +94,8 @@ api.interceptors.response.use(
               });
               const { access_token, refresh_token: newRefresh } = res.data;
               if (access_token) {
+                // Le backend pose les nouveaux cookies HttpOnly — pas de stockage local
+                // BroadcastChannel pour notifier les autres onglets (fallback)
                 storeTokens(access_token, newRefresh);
                 return true;
               }
@@ -118,7 +120,10 @@ api.interceptors.response.use(
 
       const ok = await _refreshing;
       if (ok) {
-        original.headers['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
+        // Cookies HttpOnly rafraîchis par le backend — withCredentials les envoie automatiquement
+        // Fallback localStorage pour sessions mobiles/transitoires encore actives
+        const fallbackToken = localStorage.getItem('token');
+        if (fallbackToken) original.headers['Authorization'] = `Bearer ${fallbackToken}`;
         return api(original);
       }
 

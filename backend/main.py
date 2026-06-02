@@ -265,13 +265,16 @@ async def license_check_middleware(request: Request, call_next):
     if request.url.path.startswith(allowed_prefixes) or request.method == "OPTIONS":
         return await call_next(request)
 
-    # Extraire et décoder le JWT pour obtenir l'email
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    # Extraire et décoder le JWT (cookie-first, fallback Authorization header)
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
         # Pas de token → laisser FastAPI gérer l'auth (il renverra 401)
         return await call_next(request)
-
-    token = auth_header.split(" ")[1]
     try:
         from jose import jwt
         from backend.security import SECRET_KEY, ALGORITHM

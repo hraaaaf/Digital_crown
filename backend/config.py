@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./digital_crown.db"
     
+    # Environment
+    ENVIRONMENT: str = "development"
+
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"

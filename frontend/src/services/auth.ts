@@ -35,14 +35,19 @@ export const authService = {
         email: email,
       });
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        if (response.data.refresh_token) {
-          localStorage.setItem('refresh_token', response.data.refresh_token);
-        }
+        // Le backend pose les cookies HttpOnly — pas d'écriture localStorage
+        // Le token reçu reste disponible en mémoire si besoin de fallback legacy
         return true;
       }
-    } catch (err) {
-      console.error('Échec de la synchronisation backend:', err);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 500) {
+        console.error('[Auth] Supabase non configuré sur le serveur. Vérifiez SUPABASE_URL et SUPABASE_ANON_KEY dans le .env backend.');
+      } else if (status === 401) {
+        console.warn('[Auth] Session Cloud expirée ou invalide, re-connexion requise.');
+      } else {
+        console.error('[Auth] Échec de la synchronisation backend:', err?.message ?? err);
+      }
     }
     return false;
   },
@@ -103,11 +108,35 @@ export const authService = {
   },
 
   /**
+   * Vérifie si un JWT local est expiré (lecture du payload uniquement, sans vérif de signature)
+   */
+  isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  },
+
+  /**
    * Vérifier si l'utilisateur est authentifié
    */
   async isAuthenticated() {
     const { data: { session } } = await supabase.auth.getSession();
-    return !!session;
+    if (session) {
+      const localToken = localStorage.getItem('token');
+      // Pas de token local → sync via Supabase
+      if (!localToken && session.user?.email) {
+        return await this.syncWithBackend(session.access_token, session.user.email);
+      }
+      // Token local expiré → sync pour en obtenir un frais
+      if (localToken && this.isTokenExpired(localToken) && session.user?.email) {
+        return await this.syncWithBackend(session.access_token, session.user.email);
+      }
+      return true;
+    }
+    return false;
   },
 
   /**
