@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Scope } from './types';
 import { cn } from '../../../../../utils/cn';
 import { ArrowRight, Activity, Users, Calendar, QrCode, Loader2 } from 'lucide-react';
@@ -16,24 +16,30 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
   const [showRealPdf, setShowRealPdf] = useState(false);
   const [realPdfUrl, setRealPdfUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const ref = blobUrlRef;
+    return () => { if (ref.current) URL.revokeObjectURL(ref.current); };
+  }, []);
 
   const handleShowRealPdf = async (p = profile) => {
     setIsGeneratingPdf(true);
     try {
-      // Sanitize payload to remove empty strings that might break Pydantic float validation
       const sanitizedPayload = { ...p };
       for (const key in sanitizedPayload) {
-        if (sanitizedPayload[key] === "") {
-          sanitizedPayload[key] = null;
-        }
+        if (sanitizedPayload[key] === "") sanitizedPayload[key] = null;
       }
       const res = await api.post('/documents/sample-preview', sanitizedPayload);
-      let url = res.data.pdf_url;
-      if (url && !url.startsWith('http')) {
-        url = `${api.defaults.baseURL}/${url.replace(/^\//, '')}`;
-      }
-      url = `${url}?t=${Date.now()}`;
-      setRealPdfUrl(url);
+      let pdfPath = res.data.pdf_url;
+      if (pdfPath && !pdfPath.startsWith('/')) pdfPath = `/${pdfPath}`;
+
+      // Fetch as blob so the iframe reçoit le PDF sans problème d'auth
+      const pdfBlob = await api.get(pdfPath, { responseType: 'blob' });
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      const blobUrl = URL.createObjectURL(new Blob([pdfBlob.data], { type: 'application/pdf' }));
+      blobUrlRef.current = blobUrl;
+      setRealPdfUrl(blobUrl);
       setShowRealPdf(true);
     } catch (e: any) {
       console.error("Erreur API PDF:", e);
