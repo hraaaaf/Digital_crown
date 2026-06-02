@@ -43,12 +43,20 @@ export const GhostBrainWidget = () => {
   useEffect(() => {
     if (!employerId) return;
 
-    let ws: WebSocket;
-    let reconnectTimer: NodeJS.Timeout;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let isCleaned = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 8;
 
     const connectWS = () => {
+      if (isCleaned) return;
+      if (retryCount >= MAX_RETRIES) return;
+
       const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
       ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => { retryCount = 0; };
 
       ws.onmessage = (event) => {
         try {
@@ -63,16 +71,24 @@ export const GhostBrainWidget = () => {
       };
 
       ws.onclose = () => {
-        // Auto-reconnect if connection is lost
-        reconnectTimer = setTimeout(connectWS, 5000);
+        if (isCleaned) return;
+        retryCount++;
+        // Backoff exponentiel : 5s, 10s, 20s... max 60s
+        const delay = Math.min(5000 * retryCount, 60000);
+        reconnectTimer = setTimeout(connectWS, delay);
       };
     };
 
     connectWS();
 
     return () => {
-      clearTimeout(reconnectTimer);
-      if (ws) ws.close();
+      isCleaned = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) {
+        ws.onclose = null; // évite de déclencher un reconnect au close intentionnel
+        ws.close();
+        ws = null;
+      }
     };
   }, [employerId]);
 
