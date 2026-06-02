@@ -87,29 +87,6 @@ export const Step5Design: React.FC<Props> = ({
         <p className="text-slate-500 text-sm mt-1">Personnalisez l'apparence de vos documents officiels.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={() => setHeaderOption('auto')}
-          className={cn("p-5 rounded-2xl border-2 text-left transition-all", headerOption === 'auto' ? "border-primary bg-primary/5 shadow-lg" : "border-slate-200 bg-white")}
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><ImageIcon size={18} /></div>
-            <span className="font-bold text-slate-900">Auto-Généré</span>
-          </div>
-          <p className="text-[10px] text-slate-500 leading-tight">Mise en page automatique avec votre logo et typo.</p>
-        </button>
-
-        <button
-          onClick={() => setHeaderOption('letterhead')}
-          className={cn("p-5 rounded-2xl border-2 text-left transition-all", headerOption === 'letterhead' ? "border-emerald-500 bg-emerald-50 shadow-lg" : "border-slate-200 bg-white")}
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600"><FileImage size={18} /></div>
-            <span className="font-bold text-slate-900">Papier A5</span>
-          </div>
-          <p className="text-[10px] text-slate-500 leading-tight">Uploadez votre propre papier à en-tête pré-imprimé.</p>
-        </button>
-      </div>
 
       {headerOption === 'auto' ? (
         <div className="space-y-6">
@@ -287,45 +264,6 @@ export const Step5Design: React.FC<Props> = ({
             </div>
             <button onClick={() => logoInputRef.current?.click()} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Uploader</button>
             <input ref={logoInputRef} type="file" className="hidden" accept="image/png,image/svg+xml" onChange={handleLogoChange} />
-          </div>
-        </div>
-      ) : (
-        <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-[2rem] space-y-6">
-          <div className="flex flex-col items-center">
-            <div
-              onClick={() => letterheadInputRef.current?.click()}
-              className={cn(
-                "w-full h-48 rounded-2xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center transition-all shadow-inner",
-                letterheadPreview ? "border-emerald-500 bg-white" : "border-emerald-300 hover:bg-white"
-              )}
-            >
-              {letterheadPreview
-                ? <img src={letterheadPreview} className="h-full object-contain p-4" alt="Letterhead" />
-                : (
-                  <>
-                    <Upload className="text-emerald-400 mb-2" size={32} />
-                    <span className="text-xs font-bold text-emerald-600">Uploader votre Papier A5</span>
-                  </>
-                )}
-            </div>
-            <input ref={letterheadInputRef} type="file" className="hidden" accept="image/png,image/jpeg" onChange={handleLetterheadChange} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Marge Haute ({margins.top} cm)</label>
-              <input type="range" min="1" max="8" step="0.5" value={margins.top}
-                onChange={e => setMargins(m => ({ ...m, top: parseFloat(e.target.value) }))}
-                className="w-full h-1.5 bg-emerald-200 rounded-lg accent-emerald-600 cursor-pointer"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Marge Basse ({margins.bottom} cm)</label>
-              <input type="range" min="1" max="6" step="0.5" value={margins.bottom}
-                onChange={e => setMargins(m => ({ ...m, bottom: parseFloat(e.target.value) }))}
-                className="w-full h-1.5 bg-emerald-200 rounded-lg accent-emerald-600 cursor-pointer"
-              />
-            </div>
           </div>
         </div>
       )}

@@ -232,41 +232,6 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         )}
       </div>
 
-      {/* 5. PAPIER PHYSIQUE */}
-      <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">
-            Papier physique (En-tête)
-          </h3>
-          <button 
-            onClick={() => updateProfile({ letterhead_path: profile.letterhead_path ? null : 'PENDING' })} 
-            className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors", profile.letterhead_path ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
-          >
-            <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", profile.letterhead_path ? "translate-x-5" : "translate-x-0")} />
-          </button>
-        </div>
-        
-        {profile.letterhead_path && (
-          <div className="mt-5 pt-5 border-t border-[var(--border-color)]">
-             <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[var(--border-color)] rounded-xl hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors cursor-pointer group">
-                <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleFileUpload} />
-                <Upload size={24} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] mb-2" />
-                <span className="text-[13px] font-medium text-[var(--text-main)]">
-                  {isUploadingLocal ? "Envoi en cours..." : "Cliquez pour importer (A4/A5)"}
-                </span>
-                <span className="text-[11px] text-[var(--text-muted)] mt-1">
-                  JPG ou PNG transparent. Format A4 recommandé.
-                </span>
-             </label>
-             {profile.letterhead_path !== 'PENDING' && (
-                <div className="mt-3 p-3 bg-[var(--bg-medical-pearl)] rounded-lg text-[11px] text-[var(--text-main)] truncate border border-[var(--border-color)]">
-                  Fichier actuel : {profile.letterhead_path}
-                </div>
-             )}
-          </div>
-        )}
-      </div>
-
       {/* 6. CODE QR */}
       <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
         <div className="flex items-center justify-between mb-5">
