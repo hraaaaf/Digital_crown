@@ -102,7 +102,13 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-  }, []);
+    if (!embedded) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [embedded]);
 
   const toothName = TOOTH_NAMES[toothNumber];
   

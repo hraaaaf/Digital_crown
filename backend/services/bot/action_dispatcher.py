@@ -428,6 +428,26 @@ class ActionDispatcher:
                 patient_name = f"{patient.prenom} {patient.nom}"
 
         date_str = target_date or datetime.now().date().isoformat()
+        
+        # Vérifier si la date tombe pendant un congé ou un jour férié
+        try:
+            target_dt = datetime.fromisoformat(date_str)
+            exception = db.query(models.AgendaException).filter(
+                models.AgendaException.start_date <= target_dt,
+                models.AgendaException.end_date >= target_dt
+            ).first()
+            if exception:
+                return BotResponse(
+                    message=(
+                        f"⚠️ **Impossible de prendre RDV le {date_str}.**\n"
+                        f"Le cabinet est fermé pour : **{exception.reason}**.\n"
+                        f"Voulez-vous choisir une autre date ?"
+                    ),
+                    action_type="read",
+                    suggestions=["Demain", "La semaine prochaine"]
+                )
+        except Exception:
+            pass
 
         return BotResponse(
             message=(

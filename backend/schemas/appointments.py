@@ -18,6 +18,7 @@ class AppointmentBase(BaseModel):
     employer_id: Optional[int] = None
     reminder_sent: bool = False
     reminder_sent_at: Optional[datetime.datetime] = None
+    ticket_number: Optional[int] = None
 
 
 class AppointmentCreate(AppointmentBase):
@@ -36,6 +37,7 @@ class AppointmentUpdate(BaseModel):
     notes: Optional[str] = None
     reminder_sent: Optional[bool] = None
     reminder_sent_at: Optional[datetime.datetime] = None
+    ticket_number: Optional[int] = None
 
 
 class AppointmentOut(AppointmentBase):

@@ -124,8 +124,8 @@ export const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
-                  placeholder="8 caractères minimum"
-                  minLength={8}
+                  placeholder="4 caractères minimum"
+                  minLength={4}
                   required
                 />
               </div>

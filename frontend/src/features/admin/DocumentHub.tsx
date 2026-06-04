@@ -68,6 +68,8 @@ interface PatientDetails {
   prenom: string;
   date_naissance?: string;
   genre?: string;
+  antecedents_medicaux?: string;
+  assurance?: string;
 }
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
@@ -108,6 +110,29 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [isAccounted, setIsAccounted] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState('EN_ATTENTE');
   const [isGlobalNote, setIsGlobalNote] = useState(false);
+
+  // --- PERSISTENCE ECHEANCES ---
+  useEffect(() => {
+    if (patientId && patientId !== '0') {
+      api.get(`/installments/patient/${patientId}`)
+        .then(res => {
+          const plans = res.data;
+          if (plans && plans.length > 0) {
+            const latestPlan = plans[plans.length - 1];
+            if (latestPlan && latestPlan.installments && latestPlan.installments.length > 0) {
+              const loadedInstallments = latestPlan.installments.map((inst: any) => ({
+                id: inst.id,
+                date: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+                amount: inst.amount,
+                label: inst.label || 'Versement'
+              }));
+              setInstallments(loadedInstallments);
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [patientId]);
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -233,7 +258,77 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
        }, ...prev]);
     }
 
-    // 4. Sécurité Clinique : Double-contrôle CRE, DDI et Omissions
+    // 4. GHOST COMPLICATIONS (Bouclier de Sécurité Médicolégal)
+    if (patientDetails?.antecedents_medicaux) {
+      const ant = patientDetails.antecedents_medicaux.toLowerCase();
+      const currentActNames = items.map(i => i.description.toLowerCase());
+      const hasSurgery = currentActNames.some(a => a.includes('extraction') || a.includes('implant') || a.includes('chirurgie') || a.includes('lambeau'));
+      const hasRadio = currentActNames.some(a => a.includes('radio') || a.includes('panoramique') || a.includes('cbct') || a.includes('cone beam'));
+
+      const complications: any[] = [];
+
+      if (hasSurgery && (ant.includes('sintrom') || ant.includes('anticoagulant') || ant.includes('kardegic') || ant.includes('aspirine'))) {
+        complications.push({
+          id: 'ghost-comp-bleeding', type: 'safety', title: '⚠️ Risque Hémorragique',
+          content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
+        });
+      }
+      
+      if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
+        complications.push({
+          id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
+          content: "Risque accru d'infection et de retard de cicatrisation osseuse. Couverture antibiotique stricte recommandée."
+        });
+      }
+
+      if (hasSurgery && (ant.includes('bisphosphonate') || ant.includes('prolia') || ant.includes('xgeva'))) {
+        complications.push({
+          id: 'ghost-comp-mronj', type: 'safety', title: '🚨 DANGER : Ostéochimionécrose',
+          content: "Antécédent de bisphosphonates. Risque majeur d'ostéochimionécrose des mâchoires (MRONJ). Prudence extrême."
+        });
+      }
+
+      if (hasRadio && (ant.includes('enceinte') || ant.includes('grossesse'))) {
+        complications.push({
+          id: 'ghost-comp-pregnancy', type: 'safety', title: '⚠️ Grossesse',
+          content: "Radiographies contre-indiquées (surtout T1). Utiliser un tablier de plomb si urgence absolue."
+        });
+      }
+
+      complications.forEach(comp => {
+        if (!insights.find(ins => ins.id === comp.id)) {
+          setInsights(prev => [comp, ...prev]);
+        }
+      });
+    }
+
+    // 5. GHOST MUTUELLE (Optimiseur de Plafond Fin d'Année)
+    // Les mutuelles privées ont un plafond annuel. CNSS/CNOPS ont un plafond prothèse (3000 MAD/2 ans).
+    if (patientDetails?.assurance && patientDetails.assurance !== 'AUCUNE') {
+      const currentMonth = new Date().getMonth(); // 0 = Jan, 11 = Dec
+      const isEndOfYear = currentMonth >= 9; // Octobre à Décembre
+      const currentActNames = items.map(i => i.description.toLowerCase());
+      const hasProsthesis = currentActNames.some(a => a.includes('couronne') || a.includes('bridge') || a.includes('inlay') || a.includes('prothèse') || a.includes('facette'));
+      const totalAmount = items.reduce((sum, item: any) => sum + ((item.price || item.montant || 0) * (item.toothNumbers?.length || item.dents?.length || 1)), 0);
+
+      // Si le montant global est lourd et contient de la prothèse
+      if (isEndOfYear && hasProsthesis && totalAmount >= 3000) {
+        if (!insights.find(ins => ins.id === 'ghost-mutuelle-plafond')) {
+          setInsights(prev => [{
+            id: 'ghost-mutuelle-plafond',
+            type: 'habit',
+            title: '💡 Ghost Mutuelle : Optimisation',
+            content: `Le plafond prothétique de la ${patientDetails.assurance} se renouvelle bientôt. Séparer ce devis de ${totalAmount} MAD (Décembre / Janvier) maximisera le remboursement du patient !`,
+            actionLabel: 'Scinder le Devis',
+            onAction: () => {
+              window.dispatchEvent(new CustomEvent('toast-alert', { detail: { type: 'success', message: "Ghost Mutuelle a scindé le devis en deux phases annuelles." }}));
+            }
+          }, ...prev]);
+        }
+      }
+    }
+
+    // 6. Sécurité Clinique Médicamenteuse : Double-contrôle CRE, DDI et Omissions
     const drugNames = drugs.map(d => d.name).filter(Boolean);
     if (drugNames.length > 0 && patientId) {
       const timer = setTimeout(() => {

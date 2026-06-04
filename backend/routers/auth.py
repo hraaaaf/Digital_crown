@@ -110,6 +110,21 @@ def require_permission(permission_name: Union[str, List[str]]):
         return current_user
     return dependency
 
+def require_elite_license(current_user: models.User = Depends(get_current_user)):
+    """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
+    # Le middleware global gère déjà le read-only, mais pour l'IA, on bloque spécifiquement
+    # si la licence est absente ou expirée (même pour un simple GET).
+    if current_user.role == "SUPERADMIN":
+        return current_user
+        
+    if not current_user.is_licensed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé. Cette fonctionnalité requiert une licence active."
+        )
+    return current_user
+
+
 
 from backend.services.audit_service import audit_service
 

@@ -43,8 +43,11 @@ export interface CabinetProfile {
   clinical_tips_enabled?: boolean;
   hide_header?: boolean;
   hide_footer?: boolean;
+  cabinet_type?: 'PRIVE' | 'CLINIQUE';
   nom_praticien_ar?: string;
   specialty_ids?: string[];
+  custom_specialty_fr?: string;
+  custom_specialty_ar?: string;
   logo_path?: string;
   header_lines_fr?: string[];
   header_lines_ar?: string[];
@@ -58,4 +61,4 @@ export interface CabinetProfile {
   footer_line_height?: number;
 }
 
-export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe' | 'catalogue';
+export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe' | 'catalogue' | 'agenda';

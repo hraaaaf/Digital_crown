@@ -107,7 +107,11 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       const response = await api.post(`/ia/upload-panoramic?patient_id=${patientId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setResult(response.data);
+      const responseData = response.data;
+      if (!responseData.file_url || responseData.file_url.includes('localhost:8000')) {
+        responseData.file_url = `${API_BASE}/${responseData.image_path || responseData.file_url.split('8000/')[1]}`;
+      }
+      setResult(responseData);
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
       toast.error("Erreur lors de l'analyse panoramique.");

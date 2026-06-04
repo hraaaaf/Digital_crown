@@ -228,10 +228,7 @@ class PanoramicEngine:
             "status": "MOCK",
             "mode_inference": "SIMULATION_EXPERT",
             "detections_data": {
-                "detections": [
-                    {"fdi": 18, "pathology": "Dent Incluse", "label": "Dent Incluse", "confidence": 0.95, "bbox": {"x_min": 50, "y_min": 50, "x_max": 200, "y_max": 200, "confidence": 0.95}},
-                    {"fdi": 36, "pathology": "Carie", "label": "Carie", "confidence": 0.85, "bbox": {"x_min": 600, "y_min": 400, "x_max": 750, "y_max": 550, "confidence": 0.85}}
-                ]
+                "detections": []
             }
         }
 

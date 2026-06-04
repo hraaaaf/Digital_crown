@@ -48,6 +48,10 @@ class SchedulingType(str, enum.Enum):
     AFTERNOON = "AFTERNOON"
     FULL_DAY = "FULL_DAY"
 
+class AgendaMode(str, enum.Enum):
+    EXACT = "EXACT"
+    BLOCK = "BLOCK"
+
 class CabinetType(str, enum.Enum):
     PRIVE = "PRIVE"
     CLINIQUE = "CLINIQUE"
@@ -207,6 +211,7 @@ class Appointment(Base):
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PREVU)
     scheduling_type: Mapped[SchedulingType] = mapped_column(SQLEnum(SchedulingType), default=SchedulingType.EXACT_TIME)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ticket_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     # Suivi des rappels automatisés (Twilio/WhatsMate)
     reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -1050,4 +1055,29 @@ class BotMessage(Base):
     
     session: Mapped["BotSession"] = relationship("BotSession", back_populates="messages")
 
+class CabinetSettings(Base):
+    __tablename__ = "cabinet_settings"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, default=1)
+    
+    # Horaires
+    opening_time_morning: Mapped[Optional[str]] = mapped_column(String(5), default="09:00")
+    closing_time_morning: Mapped[Optional[str]] = mapped_column(String(5), default="13:00")
+    opening_time_afternoon: Mapped[Optional[str]] = mapped_column(String(5), default="14:00")
+    closing_time_afternoon: Mapped[Optional[str]] = mapped_column(String(5), default="18:00")
+    is_continuous: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Configuration Agenda
+    agenda_mode: Mapped[AgendaMode] = mapped_column(SQLEnum(AgendaMode), default=AgendaMode.EXACT)
+    use_tickets: Mapped[bool] = mapped_column(Boolean, default=False)
 
+class AgendaException(Base):
+    __tablename__ = "agenda_exceptions"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_holiday: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

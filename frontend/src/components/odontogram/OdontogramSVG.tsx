@@ -53,6 +53,10 @@ interface OdontogramSVGProps {
    * de dent (sans détail de surface). Active le mode sélection directe.
    */
   onToothDirectClick?: (toothNumber: number) => void;
+  /**
+   * Cache les bordures des faces internes (M,D,O,V,P).
+   */
+  hideSurfaces?: boolean;
 }
 
 /** Dimensions réelles (px) de l'image affichée — alimentées par ResizeObserver */
@@ -166,10 +170,11 @@ interface AnatomicFaceProps {
   onClick: (e: React.MouseEvent) => void;
   onHover: (surface: string | null) => void;
   readOnly: boolean;
+  hideSurfaces?: boolean;
 }
 
 const AnatomicFace: React.FC<AnatomicFaceProps> = ({
-  cx, cy, r, face, orientation, state, isSelected, isHovered, onClick, onHover, readOnly
+  cx, cy, r, face, orientation, state, isSelected, isHovered, onClick, onHover, readOnly, hideSurfaces
 }) => {
   const path = getFacePath(orientation, r);
   
@@ -190,8 +195,8 @@ const AnatomicFace: React.FC<AnatomicFaceProps> = ({
       d={path}
       fill={fill}
       fillOpacity={opacity}
-      stroke={isHighlight ? 'rgba(59, 130, 246, 0.5)' : 'rgba(200, 200, 200, 0.3)'}
-      strokeWidth={isHighlight ? 2 : 1}
+      stroke={isHighlight ? 'rgba(59, 130, 246, 0.5)' : (hideSurfaces ? 'transparent' : 'rgba(200, 200, 200, 0.3)')}
+      strokeWidth={isHighlight ? 2 : (hideSurfaces ? 0 : 1)}
       className={`transition-colors duration-200 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
       style={{ transform: `translate(${cx}px, ${cy}px)` }}
       onClick={onClick}
@@ -220,6 +225,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   className = '',
   multiSelectedTeeth = [],
   onToothDirectClick,
+  hideSurfaces = false,
 }) => {
   const [hoveredTooth, setHoveredTooth] = useState<number | null>(null);
   const [hoveredSurface, setHoveredSurface] = useState<string | null>(null);
@@ -337,8 +343,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             const px = toothPx(toothNumber);
             if (!px) return null;
 
-            const toothStates = teethSurfaces[toothNumber];
-            if (!toothStates) return null;
+            const toothStates = teethSurfaces[toothNumber] || { M: 'HEALTHY', D: 'HEALTHY', O: 'HEALTHY', V: 'HEALTHY', P: 'HEALTHY' };
 
             // Détection globale
             const isAbsent = Object.values(toothStates).some(s => s === 'ABSENT' || s === 'EXTRACTED' || s === 'ABSENT_TO_EXTRACT');
@@ -394,6 +399,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                             onClick={handleSurfaceClick(toothNumber, surface)}
                             onHover={(surf) => handleHover(toothNumber, surf)}
                             readOnly={readOnly}
+                            hideSurfaces={hideSurfaces}
                           />
                         );
                       })}

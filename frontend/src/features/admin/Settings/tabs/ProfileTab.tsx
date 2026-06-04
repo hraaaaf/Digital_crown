@@ -51,7 +51,7 @@ export const ProfileTab: React.FC = () => {
     deleteLogo 
   } = useSettingsStore();
   
-  const [showArKeyboard, setShowArKeyboard] = useState<{type: 'header' | 'name', idx?: number} | null>(null);
+  const [showArKeyboard, setShowArKeyboard] = useState<{type: 'header' | 'name' | 'custom_spec', idx?: number} | null>(null);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return '';
@@ -63,7 +63,7 @@ export const ProfileTab: React.FC = () => {
     return `${API_BASE}/static/uploads/${cleanPath}`;
   };
 
-  const generateHeaders = (nom: string, nomAr: string, specialtyIds: string[]) => {
+  const generateHeaders = (nom: string, nomAr: string, specialtyIds: string[], customFr: string, customAr: string) => {
     const linesFr = [];
     const linesAr = [];
 
@@ -78,21 +78,29 @@ export const ProfileTab: React.FC = () => {
     linesAr.push("طبيب جراح للأسنان");
 
     const selected = SPECIALTIES_DICT.filter(s => specialtyIds.includes(s.id));
-    for (let i = 0; i < selected.length; i += 2) {
-      const pair = selected.slice(i, i + 2);
-      linesFr.push(pair.map(p => p.fr).join(' - '));
-      linesAr.push(pair.map(p => p.ar).reverse().join(' - '));
+    const allFr = selected.map(s => s.fr);
+    const allAr = selected.map(s => s.ar);
+    if (customFr) allFr.push(customFr);
+    if (customAr) allAr.push(customAr);
+
+    for (let i = 0; i < allFr.length; i += 2) {
+      const pair = allFr.slice(i, i + 2);
+      linesFr.push(pair.join(' - '));
+    }
+    for (let i = 0; i < allAr.length; i += 2) {
+      const pair = allAr.slice(i, i + 2);
+      linesAr.push(pair.reverse().join(' - '));
     }
 
     return { header_lines_fr: linesFr, header_lines_ar: linesAr };
   };
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const newProfile = { ...profile, [name]: value };
     
-    if ((name === 'nom' || name === 'nom_praticien_ar') && !profile.header_customized) {
-      const { header_lines_fr, header_lines_ar } = generateHeaders(newProfile.nom, newProfile.nom_praticien_ar || '', newProfile.specialty_ids || []);
+    if ((name === 'nom' || name === 'nom_praticien_ar' || name === 'custom_specialty_fr' || name === 'custom_specialty_ar') && !profile.header_customized) {
+      const { header_lines_fr, header_lines_ar } = generateHeaders(newProfile.nom, newProfile.nom_praticien_ar || '', newProfile.specialty_ids || [], newProfile.custom_specialty_fr || '', newProfile.custom_specialty_ar || '');
       updateProfile({ [name]: value, header_lines_fr, header_lines_ar });
     } else {
       updateProfile({ [name]: value });
@@ -106,7 +114,7 @@ export const ProfileTab: React.FC = () => {
       : [...current, id];
     
     if (!profile.header_customized) {
-      const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, profile.nom_praticien_ar || '', updated);
+      const { header_lines_fr, header_lines_ar } = generateHeaders(profile.nom, profile.nom_praticien_ar || '', updated, profile.custom_specialty_fr || '', profile.custom_specialty_ar || '');
       updateProfile({ specialty_ids: updated, header_lines_fr, header_lines_ar });
     } else {
       updateProfile({ specialty_ids: updated });
@@ -141,7 +149,33 @@ export const ProfileTab: React.FC = () => {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="md:col-span-2">
-            <label className={labelClass}>Nom du Cabinet / Clinique</label>
+            <label className={labelClass}>Type de Structure</label>
+            <div className="flex gap-4 mt-2 mb-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="cabinet_type" 
+                  value="PRIVE" 
+                  checked={profile.cabinet_type === 'PRIVE' || !profile.cabinet_type} 
+                  onChange={handleProfileChange} 
+                  className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                />
+                <span className="text-sm font-bold text-slate-700">Cabinet Privé</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="cabinet_type" 
+                  value="CLINIQUE" 
+                  checked={profile.cabinet_type === 'CLINIQUE'} 
+                  onChange={handleProfileChange} 
+                  className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                />
+                <span className="text-sm font-bold text-slate-700">Clinique</span>
+              </label>
+            </div>
+            
+            <label className={labelClass}>Nom de la structure (Cabinet / Clinique)</label>
             <DebouncedInput 
               name="nom_cabinet" 
               value={profile.nom_cabinet || ''} 
@@ -234,6 +268,40 @@ export const ProfileTab: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+            
+            <div className="mt-6 p-5 bg-slate-50/80 rounded-2xl border border-slate-100">
+              <label className="text-xs font-bold text-slate-700 mb-3 block">Spécialité personnalisée (Optionnelle)</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <input 
+                  type="text" 
+                  name="custom_specialty_fr" 
+                  value={profile.custom_specialty_fr || ''} 
+                  onChange={handleProfileChange} 
+                  className={inputClass} 
+                  placeholder="Ex: Implantologie exclusive" 
+                />
+                <div className="relative" dir="rtl">
+                  <input 
+                    type="text" 
+                    name="custom_specialty_ar" 
+                    value={profile.custom_specialty_ar || ''} 
+                    onChange={handleProfileChange} 
+                    className={inputClass + " text-right font-amiri text-lg"} 
+                    placeholder="مثال: زراعة الأسنان" 
+                    onFocus={() => setShowArKeyboard({type: 'custom_spec'})}
+                  />
+                  {showArKeyboard?.type === 'custom_spec' && (
+                    <div className="absolute top-full right-0 mt-2 z-50">
+                      <div className="fixed inset-0" onClick={() => setShowArKeyboard(null)} />
+                      <ArabicKeyboard onInput={(char) => {
+                        const newVal = (profile.custom_specialty_ar || '') + char;
+                        handleProfileChange({ target: { name: 'custom_specialty_ar', value: newVal } } as any);
+                      }} />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

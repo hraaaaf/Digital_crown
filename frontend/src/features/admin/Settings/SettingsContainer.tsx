@@ -9,7 +9,8 @@ import {
   Save,
   Loader2,
   CheckCircle2,
-  BookOpen
+  BookOpen,
+  Calendar
 } from 'lucide-react';
 import { useSettingsStore } from './hooks/useSettingsStore';
 import { TabButton } from './components/SharedUI';
@@ -18,6 +19,7 @@ import { BrandingTab } from './tabs/BrandingTab';
 import { IATab } from './tabs/IATab';
 import { SecurityTab } from './tabs/SecurityTab';
 import { CatalogTab } from './tabs/CatalogTab';
+import { AgendaTab } from './tabs/AgendaTab';
 import { TeamManager } from '../TeamManager';
 import { cn } from '../../../utils/cn';
 import type { Tab } from './types';
@@ -41,6 +43,7 @@ const SettingsContainer: React.FC = () => {
     { id: 'profil', label: 'Profil Cabinet', icon: <UserCircle size={20} /> },
     { id: 'branding', label: 'Design & Ambiance', icon: <Palette size={20} /> },
     { id: 'catalogue', label: 'Catalogue Actes', icon: <BookOpen size={20} /> },
+    { id: 'agenda', label: 'Horaires & Agenda', icon: <Calendar size={20} /> },
     { id: 'ia', label: 'IA & Système', icon: <Brain size={20} /> },
     { id: 'securite', label: 'Sécurité & Backup', icon: <Shield size={20} /> },
     { id: 'equipe', label: 'Mon Équipe', icon: <Users size={20} /> },
@@ -114,6 +117,7 @@ const SettingsContainer: React.FC = () => {
              {activeTab === 'profil' && <ProfileTab />}
              {activeTab === 'branding' && <BrandingTab />}
              {activeTab === 'catalogue' && <CatalogTab />}
+             {activeTab === 'agenda' && <AgendaTab />}
              {activeTab === 'ia' && <IATab />}
              {activeTab === 'securite' && <SecurityTab />}
              {activeTab === 'equipe' && <TeamManager />}

@@ -192,6 +192,7 @@ export const Sidebar = () => {
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
+          <NavItem to="/analytics" icon={<Activity size={20} />} label="Analytics" />
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}

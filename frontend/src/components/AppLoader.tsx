@@ -42,7 +42,7 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
         <div className="relative w-72 h-40 flex items-center justify-center">
           {/* Subtle glow behind the logo */}
           <motion.div
-            className="absolute inset-0 rounded-full bg-amber-500/10 dark:bg-amber-400/10 blur-2xl"
+            className="absolute inset-0 rounded-full bg-blue-500/10 dark:bg-blue-400/10 blur-2xl"
             animate={{ 
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.6, 0.3]
@@ -61,9 +61,9 @@ export const AppLoader: React.FC<AppLoaderProps> = ({
           >
             <defs>
               <linearGradient id="premiumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f59e0b" /> {/* amber-500 */}
-                <stop offset="50%" stopColor="#d97706" /> {/* amber-600 */}
-                <stop offset="100%" stopColor="#fbbf24" /> {/* amber-400 */}
+                <stop offset="0%" stopColor="#2563eb" /> {/* blue-600 */}
+                <stop offset="50%" stopColor="#1d4ed8" /> {/* blue-700 */}
+                <stop offset="100%" stopColor="#3b82f6" /> {/* blue-500 */}
               </linearGradient>
               <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="1" result="blur" />

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
+import { api } from '../../../../services/api';
 
 interface InstallmentStudioProps {
   patientId: string;
@@ -22,6 +25,31 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
   const [monthsCount, setMonthsCount] = useState<number>(1);
   const [monthlyAmount, setMonthlyAmount] = useState<number>(0);
   const [items, setItems] = useState<InstallmentItem[]>([]);
+
+  useEffect(() => {
+    if (patientId && patientId !== '0') {
+      api.get(`/installments/patient/${patientId}`)
+        .then((res: any) => {
+          const plans = res.data;
+          if (plans && plans.length > 0) {
+            const latestPlan = plans[plans.length - 1];
+            setTitle(latestPlan.title || 'Traitement Orthodontique');
+            setTotalAmount(latestPlan.total_amount || 0);
+            if (latestPlan.installments && latestPlan.installments.length > 0) {
+              const loadedItems = latestPlan.installments.map((inst: any) => ({
+                id: inst.id.toString(),
+                label: inst.label || 'Versement',
+                amount: inst.amount,
+                dueDate: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+                sendReminder: false
+              }));
+              setItems(loadedItems);
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [patientId]);
 
   const generateTable = () => {
     if (monthsCount < 1) {
@@ -55,7 +83,35 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
     }
 
     setItems(newItems);
+    
+    // Ghost Brain Apprentissage
+    PriceBrain.recordInstallmentPlan(title, advanceAmount, monthsCount, monthlyAmount);
   };
+
+  // Effet Ghost Brain
+  React.useEffect(() => {
+    if (title.length > 3) {
+      const suggestion = PriceBrain.suggestInstallmentPlan(title);
+      if (suggestion) {
+        // On suggère l'avance et la durée sans forcer si l'utilisateur a déjà modifié
+        if (advanceAmount === 0 && monthsCount === 1) {
+          setAdvanceAmount(suggestion.advance);
+          setMonthsCount(suggestion.months);
+          setMonthlyAmount(suggestion.monthly);
+        }
+      }
+    }
+  }, [title]);
+
+  // Auto-calcul du montant mensuel si le total est renseigné
+  React.useEffect(() => {
+    if (totalAmount > 0 && monthsCount > 0) {
+      const remainder = totalAmount - advanceAmount;
+      if (remainder >= 0) {
+        setMonthlyAmount(Math.round(remainder / monthsCount));
+      }
+    }
+  }, [totalAmount, advanceAmount, monthsCount]);
 
   const addItem = () => {
     setItems([...items, { id: `manual_${Date.now()}`, label: 'Nouveau versement', amount: 0, dueDate: new Date().toISOString().split('T')[0], sendReminder: false }]);

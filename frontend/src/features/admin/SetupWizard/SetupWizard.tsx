@@ -23,58 +23,48 @@ import { StepQR } from './steps/StepQR';
 import { Step5Design } from './steps/Step5Design';
 import { Step6Theme } from './steps/Step6Theme';
 import { Step7Confirmation } from './steps/Step7Confirmation';
+import { useSetupStore } from './store/useSetupStore';
 
 export const SetupWizard: React.FC = () => {
   const navigate = useNavigate();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const {
+    currentStep, setCurrentStep,
+    cabinetType, setCabinetType,
+    identity, setIdentity,
+    selectedSpecialties, setSelectedSpecialties,
+    customSpecialty, setCustomSpecialty,
+    contacts, setContacts,
+    headerOption, setHeaderOption,
+    selectedTemplate, setSelectedTemplate,
+    selectedTheme, setSelectedTheme,
+    selectedIdentity, setSelectedIdentity,
+    selectedFont, setSelectedFont,
+    margins, setMargins,
+    headerScale, setHeaderScale,
+    headerFontScale, setHeaderFontScale,
+    headerLogoScale, setHeaderLogoScale,
+    headerLineHeight, setHeaderLineHeight,
+    footerFontScale, setFooterFontScale,
+    footerQrScale, setFooterQrScale,
+    footerLineHeight, setFooterLineHeight,
+    qrConfig, setQrConfig,
+    reset
+  } = useSetupStore();
+
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const [cabinetType, setCabinetType] = useState<'PRIVE' | 'CLINIQUE'>('PRIVE');
-  const [identity, setIdentity] = useState<IdentityState>({ nomCabinet: '', nomPraticien: '', nomPraticienAR: '', adresse: '', ice: '', if: '', inpe: '' });
-  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
-  const [customSpecialty, setCustomSpecialty] = useState({ fr: '', ar: '' });
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [contacts, setContacts] = useState<ContactConfig>({
-    fixe: { enabled: true, value: '' },
-    mobile: { enabled: false, value: '' },
-    whatsapp: { enabled: false, value: '' },
-    instagram: { enabled: false, value: '' },
-  });
-
-  const [headerOption, setHeaderOption] = useState<HeaderOption>('auto');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption>('swiss');
-  const [selectedTheme, setSelectedTheme] = useState<'elite' | 'emerald' | 'rose' | 'prestige'>(() => {
-    return (localStorage.getItem('digitalcrown_theme') as any) || 'elite';
-  });
-  const [selectedIdentity, setSelectedIdentity] = useState<string>(BRAND_IDENTITIES[0].id);
-  const [selectedFont, setSelectedFont] = useState<string>('helvetica');
   const [showArKeyboard, setShowArKeyboard] = useState<{ show: boolean; target: 'identity' | 'custom_spec' }>({ show: false, target: 'identity' });
 
+  // Files and UI state (not persisted)
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
-  const [margins, setMargins] = useState({ top: 3.6, bottom: 3.2 });
-  const [headerScale, setHeaderScale] = useState(1.1);
-  const [headerFontScale, setHeaderFontScale] = useState(1.0);
-  const [headerLogoScale, setHeaderLogoScale] = useState(1.0);
-  const [headerLineHeight, setHeaderLineHeight] = useState(1.0);
-  const [footerFontScale, setFooterFontScale] = useState(1.0);
-  const [footerQrScale, setFooterQrScale] = useState(1.0);
-  const [footerLineHeight, setFooterLineHeight] = useState(1.0);
-  const [qrConfig, setQrConfig] = useState({
-    enabled: true,
-    type: 'VCARD' as 'VCARD' | 'WEBSITE' | 'INSTAGRAM' | 'VALIDATION' | 'PAYMENT' | 'WHATSAPP' | 'LOCATION',
-    value: '',
-    label: 'Scannez pour me contacter',
-    color: null as string | null,
-    style: 'dots' as string
-  });
   const [showPreview, setShowPreview] = useState(true);
 
   // Confirmation modal for card-import overwrite
@@ -207,6 +197,9 @@ export const SetupWizard: React.FC = () => {
         if_: identity.if,
         inpe: identity.inpe,
         cabinet_type: cabinetType,
+        specialty_ids: selectedSpecialties,
+        custom_specialty_fr: customSpecialty.fr,
+        custom_specialty_ar: customSpecialty.ar,
         selected_theme: selectedTheme,
         selected_template: selectedTemplate,
         selected_font: selectedFont,
@@ -237,6 +230,7 @@ export const SetupWizard: React.FC = () => {
       if (headerOption === 'letterhead' && letterheadFile) {
         await cabinetApi.uploadLetterhead(letterheadFile, sanitizedMargins.top, sanitizedMargins.bottom);
       }
+      reset();
       navigate('/dashboard');
     } catch {
       setErrors({ submit: "Échec de l'initialisation. Réessayez." });

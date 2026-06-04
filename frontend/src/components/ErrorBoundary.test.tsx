@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import '@testing-library/jest-dom/vitest'
 import { ErrorBoundary } from './ErrorBoundary'
 
 // Composant qui crash intentionnellement pour les tests
@@ -32,7 +33,7 @@ describe('ErrorBoundary', () => {
     )
     expect(screen.getByText(/erreur inattendue/i)).toBeInTheDocument()
     expect(screen.getByText('Test crash message')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /recharger/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /redémarrer/i })).toBeInTheDocument()
   })
 
   it('affiche un fallback personnalisé si fourni', () => {
@@ -44,10 +45,9 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Fallback custom')).toBeInTheDocument()
   })
 
-  it('le bouton recharger appelle window.location.reload', async () => {
-    const reloadMock = vi.fn()
+  it('le bouton recharger redirige vers la racine', async () => {
     Object.defineProperty(window, 'location', {
-      value: { reload: reloadMock },
+      value: { href: '' },
       writable: true,
     })
 
@@ -57,7 +57,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
 
-    await userEvent.click(screen.getByRole('button', { name: /recharger/i }))
-    expect(reloadMock).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: /redémarrer/i }))
+    expect(window.location.href).toBe('/')
   })
 })

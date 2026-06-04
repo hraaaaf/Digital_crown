@@ -12,7 +12,8 @@ import {
   History,
   LayoutGrid,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -23,16 +24,9 @@ import type { SelectedSurfaceData } from '../../components/odontogram/types';
 import { api } from '../../services/api';
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
+import { useAccountingStore, type PriceItem, type InstallmentItem } from './store/useAccountingStore';
+import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 
-interface PriceItem { 
-  id: number; 
-  description: string; 
-  dent: string; 
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -48,90 +42,203 @@ const detectRegion = (teeth: number[]): string => {
 
 
 
-export interface InstallmentItem {
-  id: number;
-  date: string;
-  amount: number;
-  label: string;
-}
 
 interface AccountingStudioProps {
   isDevis?: boolean;
   patientId: string;
-  items: PriceItem[];
-  setItems: (items: PriceItem[]) => void;
-  paymentMode: string;
-  setPaymentMode: (mode: string) => void;
-  showOdontoPanoramique: boolean;
-  odontogramMode: 'individual' | 'group' | 'ortho';
-  setOdontogramMode: (mode: 'individual' | 'group' | 'ortho') => void;
-  groupSelectedTeeth: number[];
-  handleToothDirectClick: (toothNumber: number) => void;
-  selectTeethGroup: (group: 'all' | 'maxillaire' | 'mandibule' | 'none') => void;
-  handleTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
-  addEmptyRow: () => void;
-  removeItem: (id: number) => void;
-  updateItem: (id: number, field: keyof PriceItem, value: string | number) => void;
-  handleActSearch: (query: string, itemId: number) => void;
-  activeActSearchId: number | null;
-  setActiveActSearchId: (id: number | null) => void;
-  actSuggestions: any[];
-  applyActSuggestion: (itemId: number, act: any) => void;
-  installments: InstallmentItem[];
-  setInstallments: (val: InstallmentItem[]) => void;
-  isAccounted: boolean;
-  setIsAccounted: (val: boolean) => void;
-  paymentStatus: string;
-  setPaymentStatus: (val: string) => void;
-  isGlobalNote: boolean;
-  setIsGlobalNote: (val: boolean) => void;
-  validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
-  groupTreatmentName: string;
-  setGroupTreatmentName: (val: string) => void;
-  groupTreatmentPrice: number | '';
-  setGroupTreatmentPrice: (val: number | '') => void;
-  applyGroupTreatment: () => void;
+  setSelectedTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
 }
 
 
-export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
+export const AccountingStudio: React.FC<AccountingStudioProps> = ({
+  isDevis = false,
+  patientId,
+  coherenceWarnings = [],
+  setSelectedTeethFromOdontogram,
+}) => {
   const {
-    isDevis = false,
-    items,
-    setItems,
-    paymentMode,
-    setPaymentMode,
-    showOdontoPanoramique,
-    odontogramMode,
-    setOdontogramMode,
-    groupSelectedTeeth,
-    handleToothDirectClick,
-    addEmptyRow,
-    removeItem,
-    updateItem,
-    handleActSearch,
-    activeActSearchId,
-    setActiveActSearchId,
-    actSuggestions,
-    applyActSuggestion,
-    installments,
-    setInstallments,
-    isAccounted,
-    setIsAccounted,
-    paymentStatus,
-    setPaymentStatus,
-    isGlobalNote,
-    setIsGlobalNote,
-    groupTreatmentName,
-    setGroupTreatmentName,
-    groupTreatmentPrice,
-    setGroupTreatmentPrice,
-    applyGroupTreatment,
-    selectTeethGroup,
-    validationErrors = [],
-    coherenceWarnings = [],
-  } = props;
+    items, setItems,
+    paymentMode, setPaymentMode,
+    showOdontoPanoramique, setShowOdontoPanoramique,
+    odontogramMode, setOdontogramMode,
+    groupSelectedTeeth, setGroupSelectedTeeth,
+    actSuggestions, setActSuggestions,
+    activeActSearchId, setActiveActSearchId,
+    installments, setInstallments,
+    isAccounted, setIsAccounted,
+    paymentStatus, setPaymentStatus,
+    isGlobalNote, setIsGlobalNote,
+    groupTreatmentName, setGroupTreatmentName,
+    groupTreatmentPrice, setGroupTreatmentPrice
+  } = useAccountingStore();
+
+  const { specialties, fetchCatalog } = useCatalogStore();
+  
+  React.useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
+
+  const TREATMENT_TEMPLATES = React.useMemo(() => {
+    return specialties.flatMap(s => s.acts.map(act => ({
+      id: act.id.toString(),
+      name: act.name,
+      category: s.name,
+      base_price: act.base_price,
+    })));
+  }, [specialties]);
+
+  const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
+  
+  const selectTeethGroup = (g: string) => {
+    const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+    const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+    const regions: Record<string, number[]> = {
+      'all': [...max, ...mand],
+      'maxillaire': max,
+      'mandibule': mand,
+      'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
+      'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
+      'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
+      'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
+      'S1': [14, 15, 16, 17, 18],
+      'S2': [13, 12, 11, 21, 22, 23],
+      'S3': [24, 25, 26, 27, 28],
+      'S4': [34, 35, 36, 37, 38],
+      'S5': [33, 32, 31, 41, 42, 43],
+      'S6': [44, 45, 46, 47, 48]
+    };
+    if (regions[g]) setGroupSelectedTeeth(regions[g]);
+    else setGroupSelectedTeeth([]);
+  };
+
+  const applyGroupTreatment = () => {
+    if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
+    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: Number(groupTreatmentPrice) || 0, toothNumbers: sorted }]);
+    setGroupSelectedTeeth([]);
+    setGroupTreatmentName('');
+    setGroupTreatmentPrice('');
+  };
+
+  const handleTeethFromOdontogram = React.useCallback((teeth: SelectedSurfaceData[]) => {
+    setSelectedTeethFromOdontogram(teeth);
+    setItems((prev: any) => {
+      const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
+      const surviving = prev.filter((i: any) => {
+        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
+        return i.description.trim() !== '';
+      });
+      const existingKeys = new Set(surviving.map((i: any) => i._odontogramKey).filter(Boolean));
+      const newItems: PriceItem[] = [];
+      teeth.forEach(t => {
+        t.treatments.forEach(tr => {
+          const k = `${t.toothNumber}::${tr.id}`;
+          if (!existingKeys.has(k)) {
+            newItems.push({
+              id: Date.now() + Math.random(),
+              description: tr.name, dent: t.toothNumber.toString(),
+              price: tr.price, toothNumbers: [t.toothNumber], _odontogramKey: k,
+            });
+          }
+        });
+      });
+      return [...surviving, ...newItems];
+    });
+  }, [setSelectedTeethFromOdontogram, setItems]);
+
+  const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
+  const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
+  
+  const updateItem = (id: number, f: string, v: string | number) => {
+    const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
+    setItems(newItems);
+    const item = newItems.find(i => i.id === id);
+    if (item && item.description && item.price > 0 && (f === 'price' || f === 'description')) {
+      PriceBrain.recordAct(item.description, item.price, item.category || 'CONSERVATRICE');
+    }
+  };
+
+  const handleActSearch = async (q: string, id: number) => {
+    setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
+    if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
+    setActiveActSearchId(id);
+    
+    const localMatches = TREATMENT_TEMPLATES.filter((t: any) => 
+      t.name.toLowerCase().includes(q.toLowerCase()) || 
+      t.category.toLowerCase().includes(q.toLowerCase())
+    ).map((t: any) => ({ 
+      id: `template_${t.id}`, 
+      name: t.name, 
+      base_price: 0, 
+      category: t.category, 
+      isLocal: true,
+      is_habit: false
+    }));
+
+    try {
+      const res = await api.get(`/actes/search?q=${encodeURIComponent(q)}`);
+      const apiMatches = res.data.map((m: any) => ({ ...m, is_habit: true }));
+      
+      const merged = [...localMatches];
+      apiMatches.forEach((am: any) => {
+        if (!merged.find(lm => lm.name.toLowerCase() === am.name.toLowerCase())) {
+          merged.push(am);
+        }
+      });
+      setActSuggestions(merged);
+    } catch {
+      setActSuggestions(localMatches);
+    }
+  };
+
+  const applyActSuggestion = (itemId: number, act: any) => {
+    setItems(items.map(i => i.id === itemId ? {
+      ...i,
+      description: act.name,
+      price: act.base_price || 0,
+      category: act.category
+    } : i));
+    setActSuggestions([]);
+    setActiveActSearchId(null);
+  };
+
+  const handleAIPhaseSequencing = () => {
+    const cleanItems = items.filter(i => !i.description.startsWith('--- '));
+    const newItems: PriceItem[] = [];
+    const assainissement = cleanItems.filter(i => /détartrage|composite|carie|surfaçage|endo|pulpectomie|traitement|obturation/i.test(i.description));
+    const chirurgie = cleanItems.filter(i => /extraction|implant|greffe|sinus|lambeau/i.test(i.description));
+    const prothese = cleanItems.filter(i => /couronne|bridge|inlay|onlay|facette|prothèse/i.test(i.description));
+    const autres = cleanItems.filter(i => !assainissement.includes(i) && !chirurgie.includes(i) && !prothese.includes(i));
+    
+    let currentId = Date.now();
+    const addPhaseTitle = (title: string) => {
+        newItems.push({ id: currentId++, description: `--- ${title} ---`, dent: '', price: 0, toothNumbers: [] });
+    };
+
+    if (assainissement.length > 0) {
+        addPhaseTitle("PHASE 1 : ASSAINISSEMENT");
+        newItems.push(...assainissement);
+    }
+    if (chirurgie.length > 0) {
+        addPhaseTitle("PHASE 2 : CHIRURGIE");
+        newItems.push(...chirurgie);
+    }
+    if (prothese.length > 0) {
+        if (chirurgie.length > 0) addPhaseTitle("DÉLAI DE CICATRISATION (ESTIMÉ : 3 MOIS)");
+        addPhaseTitle("PHASE 3 : PROTHÉTIQUE");
+        newItems.push(...prothese);
+    }
+    if (autres.length > 0) {
+        if (newItems.length > 0) addPhaseTitle("AUTRES ACTES");
+        newItems.push(...autres);
+    }
+
+    props.setItems(newItems);
+    toast.success("Séquençage IA appliqué au devis !");
+  };
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
@@ -401,6 +508,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                             if (odontogramMode === 'individual') setActiveTooth(n);
                           }} 
                           showNumbers={false}
+                          hideSurfaces={true}
                           className="w-full max-w-[480px] drop-shadow-xl"
                         />
                       </div>
@@ -586,10 +694,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
              <History className="w-5 h-5 text-slate-400" />
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Détail des prestations</h3>
           </div>
-          <button
-            onClick={addEmptyRow}
-            className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
-          >+ Ligne Manuelle</button>
+          <div className="flex items-center gap-4">
+            {props.isDevis && props.items.length > 0 && (
+               <button
+                 onClick={handleAIPhaseSequencing}
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
+               >
+                 <Wand2 size={12} /> Séquencer avec l'IA
+               </button>
+            )}
+            <button
+              onClick={addEmptyRow}
+              className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+            >+ Ligne Manuelle</button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

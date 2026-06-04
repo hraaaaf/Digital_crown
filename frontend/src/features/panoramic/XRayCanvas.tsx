@@ -119,6 +119,28 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
           preserveAspectRatio="xMidYMid meet"
           onClick={handleSvgClick}
         >
+          {/* Grille Dentaire (Quadrillage) */}
+          {[1,2,3,4].flatMap(quad => [1,2,3,4,5,6,7,8].map(num => quad*10 + num)).map(fdi => {
+            const is_upper = Math.floor(fdi / 10) <= 2;
+            const is_right = Math.floor(fdi / 10) === 1 || Math.floor(fdi / 10) === 4;
+            const num = fdi % 10;
+            const dist_x = [0, 0.04, 0.11, 0.17, 0.24, 0.32, 0.45, 0.65, 0.85][num];
+            const x_rel = is_right ? 0.5 - (dist_x / 2) : 0.5 + (dist_x / 2);
+            const curvature = 0.15;
+            const occlusal_y = curvature * Math.pow(x_rel - 0.5, 2) + 0.52;
+            const y_rel = is_upper ? occlusal_y - 0.15 : occlusal_y + 0.15;
+
+            const cx = x_rel * imgSize.w;
+            const cy = y_rel * imgSize.h;
+            
+            return (
+              <g key={`grid-${fdi}`} className="opacity-40 hover:opacity-100 transition-opacity pointer-events-none">
+                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
+                <text x={cx} y={is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06} fill="rgba(255,255,255,0.5)" fontSize={Math.max(imgSize.w * 0.01, 10)} textAnchor="middle" alignmentBaseline="middle" className="font-mono font-bold">{fdi}</text>
+              </g>
+            );
+          })}
+
           {displayItems.map((item) => {
             const { x_min, y_min, x_max, y_max } = item.bbox;
             const width = Math.max(x_max - x_min, 1);

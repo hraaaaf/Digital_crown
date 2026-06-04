@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Response, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime, date
@@ -38,7 +38,7 @@ RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
 os.makedirs(RADIO_DIR, exist_ok=True)
 
 @router.post("/upload-radio")
-async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+async def upload_radio(patient_id: int, background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
@@ -47,6 +47,9 @@ async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Sessio
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 10 Mo)")
         
+    RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
+    os.makedirs(RADIO_DIR, exist_ok=True)
+    
     ext = os.path.splitext(file.filename)[1] or ".jpg"
     unique_filename = f"{uuid.uuid4()}{ext}"
     file_location = os.path.join(RADIO_DIR, unique_filename)
@@ -58,15 +61,15 @@ async def upload_radio(patient_id: int, file: UploadFile = File(...), db: Sessio
         result["file_url"] = f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{db_path}"
 
         # Ghost Brain Proactivity (background)
-        import threading
-        def _background_tasks():
+        def _background_tasks_radio(pid: int, user_id: int):
             try:
                 with database.SessionLocal() as bg_db:
                     from backend.services.cmo_agent_service import cmo_agent
-                    cmo_agent.generate_global_synthesis(bg_db, patient_id, current_user.id)
+                    cmo_agent.generate_global_synthesis(bg_db, pid, user_id)
             except Exception as _e:
                 logger.warning("Background tasks after radio upload failed: %s", _e)
-        threading.Thread(target=_background_tasks, daemon=True).start()
+        
+        background_tasks.add_task(_background_tasks_radio, patient_id, current_user.id)
 
         return result
     except Exception as e:
@@ -97,7 +100,7 @@ def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session =
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload-panoramic")
-async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+async def upload_panoramic(patient_id: int, background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     
@@ -137,25 +140,26 @@ async def upload_panoramic(patient_id: int, file: UploadFile = File(...), db: Se
         db.refresh(db_analysis)
 
         # FTS5 re-index & Ghost Brain Proactivity (background)
-        import threading
-        def _background_tasks():
+        def _background_tasks_pano(pid: int, user_id: int):
             try:
                 with database.SessionLocal() as bg_db:
                     # 1. Re-index search
                     from backend.services.fts_indexer import index_patient
-                    index_patient(patient_id, bg_db)
+                    index_patient(pid, bg_db)
                     
                     # 2. Ghost Brain V2 : Déclencher le CMO Agent silencieusement pour qu'il mette à jour la mémoire
                     from backend.services.cmo_agent_service import cmo_agent
-                    cmo_agent.generate_global_synthesis(bg_db, patient_id, current_user.id)
+                    cmo_agent.generate_global_synthesis(bg_db, pid, user_id)
             except Exception as _e:
                 logger.warning("Background tasks after panoramic upload failed: %s", _e)
-        threading.Thread(target=_background_tasks, daemon=True).start()
+        
+        background_tasks.add_task(_background_tasks_pano, patient_id, current_user.id)
 
         result = {
             "id": db_analysis.id,
             "patient_id": patient_id,
             "file_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{db_path}",
+            "image_path": db_path,
             "vision": vision_data,
             "report_narrative": report_markdown,
             "created_at": db_analysis.created_at

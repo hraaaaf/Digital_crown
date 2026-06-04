@@ -20,6 +20,7 @@ const PatientDocuments = lazy(() => import('./features/patients/PatientDocuments
 const AgendaPage      = lazy(() => import('./pages/AgendaPage').then(m => ({ default: m.AgendaPage })));
 const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Analytics       = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })));
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
@@ -161,6 +162,7 @@ const ProtectedRoutes = () => (
         <Route path="/patients/:id/archives" element={<PatientDocuments />} />
         <Route path="/patients/:id/edit" element={<EditPatientForm />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/labo" element={<LabJobsBoard />} />
         <Route path="/bibliotheque" element={<EliteLibrary />} />
         <Route path="/bibliotheque/:code" element={<EliteLibrary />} />

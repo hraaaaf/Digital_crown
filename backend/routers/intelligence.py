@@ -332,6 +332,54 @@ def get_taux_conversion(
         "avg_days": avg_days,
     }
 
+@router.get("/latent-cash")
+def get_latent_cash(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """Ghost Re-Call: Trouve le cash latent (Devis non convertis depuis > 15j et échéances en retard)."""
+    employer_id = current_user.get_employer_id()
+    
+    # 1. Devis Dormants (> 15 jours sans actes)
+    cutoff_date = datetime.now() - timedelta(days=15)
+    devis_list = db.query(models.DocumentArchive).join(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.DocumentArchive.document_type == "DEVIS",
+        models.DocumentArchive.created_at <= cutoff_date
+    ).all()
+    
+    dormant_devis = []
+    total_dormant_amount = 0.0
+    
+    for d in devis_list:
+        # Check si aucun acte n'a été fait après le devis
+        acts_after = db.query(models.Acte).filter(
+            models.Acte.patient_id == d.patient_id,
+            models.Acte.date_debut >= d.created_at
+        ).count()
+        if acts_after == 0:
+            import json
+            try:
+                data = json.loads(d.document_data)
+                total = sum([item.get("montant", 0) for item in data.get("items", [])])
+                if total > 0:
+                    dormant_devis.append({
+                        "patient_id": d.patient_id,
+                        "patient_name": f"{d.patient.prenom} {d.patient.nom}",
+                        "telephone": d.patient.telephone,
+                        "date_devis": d.created_at.strftime("%d/%m/%Y"),
+                        "montant": total,
+                        "type": "Devis En Attente"
+                    })
+                    total_dormant_amount += total
+            except:
+                pass
+
+    return {
+        "total_opportunites": len(dormant_devis),
+        "valeur_totale_latente": total_dormant_amount,
+        "opportunites": sorted(dormant_devis, key=lambda x: x["montant"], reverse=True)
+    }
 
 @router.get("/projection-mensuelle")
 def get_projection_mensuelle(

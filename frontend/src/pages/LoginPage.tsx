@@ -201,7 +201,7 @@ export const LoginPage: React.FC = () => {
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                     placeholder="••••••••"
                     required
-                    minLength={6}
+                    minLength={4}
                   />
                 </div>
               </div>

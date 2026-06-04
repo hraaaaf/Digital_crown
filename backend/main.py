@@ -60,6 +60,24 @@ def invalidate_license_cache(email: str) -> None:
     _license_cache.pop(email, None)
 
 
+from fastapi.concurrency import run_in_threadpool
+
+def _get_user_status_sync(email: str):
+    with database.SessionLocal() as db:
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            return (False, "USER_NOT_FOUND")
+        elif user.is_suspended:
+            return (False, "SUSPENDED")
+        elif user.is_archived:
+            return (False, "ARCHIVED")
+        elif not user.is_licensed:
+            return (False, "NOT_LICENSED")
+        elif user.license_expires_at and datetime.utcnow() > user.license_expires_at:
+            return (False, "LICENSE_EXPIRED")
+        else:
+            return (True, "OK")
+
 async def get_user_license_status(email: str) -> tuple[bool, str]:
     """Vérifie la licence d'un utilisateur depuis SQLite avec cache TTL 60s.
     Retourne (is_ok, reason) où reason ∈ {OK, NOT_LICENSED, LICENSE_EXPIRED, SUSPENDED, ARCHIVED, USER_NOT_FOUND}.
@@ -70,20 +88,7 @@ async def get_user_license_status(email: str) -> tuple[bool, str]:
         return cached[0], cached[1]
 
     try:
-        with database.SessionLocal() as db:
-            user = db.query(models.User).filter(models.User.email == email).first()
-            if not user:
-                result = (False, "USER_NOT_FOUND")
-            elif user.is_suspended:
-                result = (False, "SUSPENDED")
-            elif user.is_archived:
-                result = (False, "ARCHIVED")
-            elif not user.is_licensed:
-                result = (False, "NOT_LICENSED")
-            elif user.license_expires_at and datetime.utcnow() > user.license_expires_at:
-                result = (False, "LICENSE_EXPIRED")
-            else:
-                result = (True, "OK")
+        result = await run_in_threadpool(_get_user_status_sync, email)
     except Exception as e:
         logger.error(f"Erreur vérification licence pour {email}: {e}")
         # Fail-open : si la DB est inaccessible, ne pas bloquer l'utilisateur
@@ -333,7 +338,7 @@ from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
     intelligence, clinical_data, mobile, installments, lab_jobs,
-    bot, catalog, verification, analytics
+    bot, catalog, verification, analytics, agenda_settings
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
@@ -347,6 +352,7 @@ app.include_router(stats.router, prefix="/api/stats", tags=["Statistiques"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics & Finance"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Agenda"])
+app.include_router(agenda_settings.router, prefix="/api", tags=["Agenda Settings"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 app.include_router(prescriptions.prescription_router, prefix="/api/prescriptions", tags=["Prescriptions"])
 app.include_router(prescriptions.actes_router, prefix="/api/actes", tags=["Actes Cliniques"])
