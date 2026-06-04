@@ -21,20 +21,7 @@ import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
-import { useCatalogStore } from './Settings/hooks/useCatalogStore';
-
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre';
-type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-
-interface PriceItem {
-  id: number;
-  description: string;
-  dent: string;
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
+import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -82,34 +69,17 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
-  // --- CATALOGUE ---
-  const { specialties, fetchCatalog } = useCatalogStore();
-  const TREATMENT_TEMPLATES = useMemo(() => {
-    return specialties.flatMap(s => s.acts.map(act => ({
-      id: act.id.toString(),
-      name: act.name,
-      category: s.name,
-      base_price: act.base_price,
-    })));
-  }, [specialties]);
 
-  useEffect(() => {
-    if (specialties.length === 0) {
-      fetchCatalog();
-    }
-  }, [fetchCatalog, specialties.length]);
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [certifType, setCertifType] = useState('Repos médical');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const [items, setItems] = useState<PriceItem[]>([]);
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
-  const [installments, setInstallments] = useState<{ id: number; date: string; amount: number; label: string }[]>([]);
-  const [isAccounted, setIsAccounted] = useState(true);
-  const [paymentStatus, setPaymentStatus] = useState('EN_ATTENTE');
-  const [isGlobalNote, setIsGlobalNote] = useState(false);
+  const { 
+    items, setItems, paymentMode, installments, setInstallments, 
+    isAccounted, paymentStatus, isGlobalNote 
+  } = useAccountingStore();
 
   // --- PERSISTENCE ECHEANCES ---
   useEffect(() => {
@@ -171,14 +141,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [activeTab, items]);
 
   // --- ÉTATS UI ---
-  const [showOdontoPanoramique, setShowOdontoPanoramique] = useState(true);
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
-  const [odontogramMode, setOdontogramMode] = useState<'individual' | 'group' | 'ortho'>('individual');
-  const [groupSelectedTeeth, setGroupSelectedTeeth] = useState<number[]>([]);
-  const [groupTreatmentName, setGroupTreatmentName] = useState('');
-  const [groupTreatmentPrice, setGroupTreatmentPrice] = useState<number | ''>('');
-  const [actSuggestions, setActSuggestions] = useState<{ id: string | number; name: string; base_price: number; category: string; isLocal?: boolean }[]>([]);
-  const [activeActSearchId, setActiveActSearchId] = useState<number | null>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const generatorParams = useMemo(() => ({
@@ -417,32 +380,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [editData]);
 
-  const handleTeethFromOdontogram = useCallback((teeth: SelectedSurfaceData[]) => {
-    setSelectedTeethFromOdontogram(teeth);
-    setItems(prev => {
-      const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
-      // Filter out empty manual rows OR rows whose odontogram key is no longer active
-      const surviving = prev.filter(i => {
-        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
-        return i.description.trim() !== ''; // Keep manual rows only if they have content
-      });
-      const existingKeys = new Set(surviving.map(i => i._odontogramKey).filter(Boolean));
-      const newItems: PriceItem[] = [];
-      teeth.forEach(t => {
-        t.treatments.forEach(tr => {
-          const k = `${t.toothNumber}::${tr.id}`;
-          if (!existingKeys.has(k)) {
-            newItems.push({
-              id: Date.now() + Math.random(),
-              description: tr.name, dent: t.toothNumber.toString(),
-              price: tr.price, toothNumbers: [t.toothNumber], _odontogramKey: k,
-            });
-          }
-        });
-      });
-      return [...surviving, ...newItems as PriceItem[]];
-    });
-  }, []);
+
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -496,8 +434,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           docDate={docDate}
           onDateChange={setDocDate}
           activeTab={activeTab}
-          showOdontoPanoramique={showOdontoPanoramique}
-          onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
+          showOdontoPanoramique={useAccountingStore(s => s.showOdontoPanoramique)}
+          onToggleOdonto={() => useAccountingStore.getState().setShowOdontoPanoramique(v => !v)}
           onGenerate={generator.handleGenerate}
           loading={generator.loading}
           sideStudioType={sideStudioType}
@@ -575,89 +513,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
               isDevis={activeTab === 'devis'}
-              patientId={patientId || '0'} items={items} setItems={(newItems) => {
-                // Si on change les items, on peut aussi apprendre les prix ici si c'est pertinent
-                setItems(newItems);
-              }}
-              coherenceWarnings={generator.coherenceWarnings}
-              paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
-              installments={installments} setInstallments={setInstallments}
-              isAccounted={isAccounted} setIsAccounted={setIsAccounted}
-              paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus}
-              isGlobalNote={isGlobalNote} setIsGlobalNote={setIsGlobalNote}
-              showOdontoPanoramique={showOdontoPanoramique} odontogramMode={odontogramMode} setOdontogramMode={setOdontogramMode}
-              groupSelectedTeeth={groupSelectedTeeth}
-              handleToothDirectClick={(n) => setGroupSelectedTeeth(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}
-              selectTeethGroup={(g) => {
-                const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
-                const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
-                const regions: Record<string, number[]> = {
-                  'all': [...max, ...mand],
-                  'maxillaire': max,
-                  'mandibule': mand,
-                  'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
-                  'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
-                  'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
-                  'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
-                  'S1': [14, 15, 16, 17, 18],
-                  'S2': [13, 12, 11, 21, 22, 23],
-                  'S3': [24, 25, 26, 27, 28],
-                  'S4': [34, 35, 36, 37, 38],
-                  'S5': [33, 32, 31, 41, 42, 43],
-                  'S6': [44, 45, 46, 47, 48]
-                };
-                if (regions[g]) setGroupSelectedTeeth(regions[g]);
-                else setGroupSelectedTeeth([]);
-              }}
-              groupTreatmentName={groupTreatmentName} setGroupTreatmentName={setGroupTreatmentName}
-              groupTreatmentPrice={groupTreatmentPrice} setGroupTreatmentPrice={setGroupTreatmentPrice}
-              applyGroupTreatment={() => {
-                if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
-                const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                setItems(prev => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: Number(groupTreatmentPrice) || 0, toothNumbers: sorted }]);
-                setGroupSelectedTeeth([]);
-                setGroupTreatmentName('');
-                setGroupTreatmentPrice('');
-              }}
-              handleTeethFromOdontogram={handleTeethFromOdontogram}
-              addEmptyRow={() => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }])}
-              removeItem={(id) => setItems((prev: any) => prev.filter((i: any) => i.id !== id))}
-              updateItem={(id, f, v) => {
-                const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
-                setItems(newItems);
-                // Apprentissage Brain Ghost (v4.9)
-                const item = newItems.find(i => i.id === id);
-                if (item && item.description && item.price > 0 && (f === 'price' || f === 'description')) {
-                  PriceBrain.recordAct(item.description, item.price, item.category || 'CONSERVATRICE');
-                }
-              }}
-              handleActSearch={async (q, id) => {
-                setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
-                if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
-                setActiveActSearchId(id);
-                
-                // 1. Search in Treatment Templates (Odontogram acts)
-                const localMatches = TREATMENT_TEMPLATES.filter((t: { name: string; category: string; id: string }) => 
-                  t.name.toLowerCase().includes(q.toLowerCase()) || 
-                  t.category.toLowerCase().includes(q.toLowerCase())
-                ).map((t: { id: string; name: string; category: string }) => ({ 
-                  id: `template_${t.id}`, 
-                  name: t.name, 
-                  base_price: 0, 
-                  category: t.category, 
-                  isLocal: true,
-                  is_habit: false
-                }));
-
-                // 2. Search in API (Enhanced with Habits in backend)
-                try {
-                  const res = await api.get(`/actes/catalog/search?q=${q}`);
-                  const apiMatches = res.data || [];
-                  
-                  // Priorité 0 : Local Brain (Ghost Conscience)
-                  const brainHistory = PriceBrain.getHistory();
-                  const localBrainMatches = Object.values(brainHistory)
-                    .filter(a => a.name.toLowerCase().includes(q.toLowerCase()))
                     .map(a => ({
                       id: `brain_${a.name}`,
                       name: a.name,
