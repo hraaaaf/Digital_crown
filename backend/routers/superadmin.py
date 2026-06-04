@@ -58,21 +58,37 @@ def get_clients(db: Session = Depends(database.get_db), admin: models.User = Dep
 @router.post("/clients/{user_id}/validate")
 def validate_client(
     user_id: int, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db), 
     admin: models.User = Depends(verify_superadmin)
 ):
-    """Active le compte d'un nouveau dentiste (il pourra alors se connecter, mais n'a pas encore de licence)."""
+    """Active le compte d'un nouveau dentiste et lui accorde 30 jours d'essai gratuit."""
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
     
     user.is_active = True
+    
+    # Octroi de 30 jours d'essai gratuit
+    now = datetime.utcnow()
+    user.is_licensed = True
+    user.license_expires_at = now + timedelta(days=30)
+    
+    add_license_history(db, user_id, admin.id, "COMPTE_VALIDE_ESSAI_30J", 30)
     db.commit()
     
-    add_license_history(db, user_id, admin.id, "COMPTE_VALIDE", 0)
-    db.commit()
+    # Synchronisation immédiate vers Firebase si le cabinet existe, sinon il sera créé plus tard
+    invalidate_license_cache(user.email)
+    cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
+    if cabinet:
+        background_tasks.add_task(
+            LicenseService().write_license,
+            public_id=cabinet.public_id,
+            active=True,
+            expiration_date=user.license_expires_at
+        )
     
-    return {"status": "success", "message": f"Compte de {user.email} activé avec succès."}
+    return {"status": "success", "message": f"Compte de {user.email} activé avec 30 jours d'essai."}
 
 @router.post("/clients/{user_id}/grant-license")
 

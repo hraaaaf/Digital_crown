@@ -37,6 +37,8 @@ class UserOut(BaseModel):
     is_active: bool = True
     employer_id: Optional[int] = None
     permissions: Optional[dict] = None
+    is_licensed: Optional[bool] = None
+    license_expires_at: Optional[datetime.datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 

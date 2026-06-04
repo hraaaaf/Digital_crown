@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
+import { LicenseBanner } from '../LicenseBanner';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
 import { useLocation } from 'react-router-dom';
@@ -63,6 +64,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       <Sidebar />
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+        <LicenseBanner />
         <Header />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
