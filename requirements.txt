@@ -23,6 +23,7 @@ Pillow
 firebase-admin
 cryptography
 httpx
+sentry-sdk[fastapi]
 
 # --- Security & File Validation ---
 python-magic==0.4.27

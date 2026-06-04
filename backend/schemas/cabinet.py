@@ -109,6 +109,7 @@ class CabinetConfigBase(BaseModel):
     if_: Optional[str] = Field(default="", max_length=50, alias="if")
     inpe: Optional[str] = Field(default="", max_length=50)
     letterhead_path: Optional[str] = None
+    use_letterhead: Optional[bool] = None
     primary_color: str = Field(default="#003380", pattern=r"^#[0-9A-Fa-f]{6}$")
     secondary_color: str = Field(default="#1e40af", pattern=r"^#[0-9A-Fa-f]{6}$")
     accent_color: str = Field(default="#60a5fa", pattern=r"^#[0-9A-Fa-f]{6}$")
@@ -142,6 +143,7 @@ class CabinetConfigBase(BaseModel):
     clinical_tips_enabled: bool = Field(default=True)
     hide_header: bool = Field(default=True)
     hide_footer: bool = Field(default=True)
+    clinic_id: Optional[str] = Field(default=None, max_length=36)
 
 
 class CabinetConfigCreate(CabinetConfigBase):

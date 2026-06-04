@@ -4,7 +4,10 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Stethoscope, Save, RotateCcw, FileText, AlertCircle, X, User, Baby, Zap, Check } from 'lucide-react';
+import { 
+  Stethoscope, Save, RotateCcw, FileText, AlertCircle, X, User, Baby, Zap, Check, 
+  MousePointer2, Eraser, CircleDot, Crown, XCircle, Activity 
+} from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { OdontogramSVG } from './OdontogramSVG';
 import { TreatmentSelector } from './TreatmentSelector';
@@ -13,7 +16,8 @@ import type {
   SurfaceState,
   SelectedSurfaceData,
   OdontogramType,
-  ToothSurface
+  ToothSurface,
+  OdontogramTool
 } from './types';
 import {
   DEFAULT_SURFACE_STATE,
@@ -69,6 +73,16 @@ const STATUS_LEGEND = [
   { state: 'ABSENT', label: 'Absente', color: 'bg-slate-100 border-dashed border-slate-400' },
 ];
 
+const TOOLBAR_ITEMS: { id: OdontogramTool, label: string, icon: any, color: string }[] = [
+  { id: 'SELECT', label: 'Sélection', icon: MousePointer2, color: 'text-slate-600' },
+  { id: 'HEALTHY', label: 'Gommer', icon: Eraser, color: 'text-slate-500' },
+  { id: 'CARIES', label: 'Carie', icon: AlertCircle, color: 'text-red-500' },
+  { id: 'FILLING_COMPOSITE', label: 'Composite', icon: CircleDot, color: 'text-blue-500' },
+  { id: 'CROWN', label: 'Couronne', icon: Crown, color: 'text-amber-500' },
+  { id: 'ROOT_CANAL', label: 'Canal', icon: Activity, color: 'text-slate-700' },
+  { id: 'ABSENT', label: 'Absente', icon: XCircle, color: 'text-red-600' },
+];
+
 export const Odontogram: React.FC<OdontogramProps> = ({
   patientId: _patientId,
   mode = 'SELECT_FOR_DOCUMENT',
@@ -90,6 +104,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     initialData || createDefaultTeethSurfaces(defaultType)
   );
 
+  const [activeTool, setActiveTool] = useState<OdontogramTool>('SELECT');
   const [selectedSurfaces, setSelectedSurfaces] = useState<SelectedSurfaceData[]>([]);
   const [activeTooth, setActiveTooth] = useState<number | null>(null);
   const [showGlobalSelector, setShowGlobalSelector] = useState(false);
@@ -105,7 +120,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         id: `act_${act.id}`,
         name: act.name,
         category: s.name as any,
-        scope: 'GLOBAL', // Par défaut global pour pouvoir apparaître dans ce panel, sauf si configuré autrement
+        scope: 'GLOBAL', 
         duration: 30,
         price: act.base_price,
         code: act.code,
@@ -120,13 +135,11 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     }
   }, [fetchCatalog, specialties.length]);
 
-  // Synchronisation avec la prop defaultType (v4.9)
   useEffect(() => {
     if (defaultType !== odontogramType) {
       setOdontogramType(defaultType);
       setTeethSurfaces(initialData || createDefaultTeethSurfaces(defaultType));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultType]);
 
   const handleTypeChange = useCallback((newType: OdontogramType) => {
@@ -150,25 +163,35 @@ export const Odontogram: React.FC<OdontogramProps> = ({
   ) => {
     if (readOnly) return;
 
-    if (mode === 'SELECT_FOR_DOCUMENT') {
+    if (activeTool === 'SELECT') {
       setActiveTooth(toothNumber);
-    } else if (mode === 'EDIT_STATUS') {
-      const currentState = teethSurfaces[toothNumber][surface];
-      const stateOrder: SurfaceState[] = [
-        'HEALTHY', 'CARIES', 'RESTORED', 'FILLING_COMPOSITE', 'CROWN', 'ROOT_CANAL', 'ABSENT', 'POORLY_TREATED'
-      ];
-      const currentIndex = stateOrder.indexOf(currentState);
-      const nextState = stateOrder[(currentIndex + 1) % stateOrder.length];
-      
-      setTeethSurfaces(prev => ({
-        ...prev,
-        [toothNumber]: {
-          ...prev[toothNumber],
-          [surface]: nextState
-        }
-      }));
+    } else {
+      let nextState: SurfaceState = 'HEALTHY';
+      if (activeTool === 'HEALTHY') nextState = 'HEALTHY';
+      if (activeTool === 'CARIES') nextState = 'CARIES';
+      if (activeTool === 'FILLING_COMPOSITE') nextState = 'FILLING_COMPOSITE';
+      if (activeTool === 'CROWN') nextState = 'CROWN';
+      if (activeTool === 'ABSENT') nextState = 'ABSENT';
+      if (activeTool === 'ROOT_CANAL') nextState = 'ROOT_CANAL';
+
+      // Application globale sur toute la dent
+      if (['CROWN', 'ABSENT', 'ROOT_CANAL'].includes(activeTool)) {
+        setTeethSurfaces(prev => ({
+          ...prev,
+          [toothNumber]: { M: nextState, D: nextState, O: nextState, V: nextState, P: nextState }
+        }));
+      } else {
+        // Application locale sur la face
+        setTeethSurfaces(prev => ({
+          ...prev,
+          [toothNumber]: {
+            ...prev[toothNumber],
+            [surface]: nextState
+          }
+        }));
+      }
     }
-  }, [readOnly, mode, teethSurfaces]);
+  }, [readOnly, activeTool]);
 
   useEffect(() => {
     onChange?.(selectedSurfaces);
@@ -216,7 +239,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             <div>
               <h3 className="font-bold text-gray-900">Odontogramme FDI</h3>
               <p className="text-xs text-gray-500">
-                {odontogramType === 'ADULT' ? '32 dents' : '20 dents'} • Cliquez sur une face
+                {odontogramType === 'ADULT' ? '32 dents' : '20 dents'} • Mode: {TOOLBAR_ITEMS.find(t => t.id === activeTool)?.label}
               </p>
             </div>
           </div>
@@ -270,6 +293,31 @@ export const Odontogram: React.FC<OdontogramProps> = ({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Palette d'Outils (Toolbar) */}
+      {!readOnly && (
+        <div className="px-6 py-3 border-b border-gray-100 bg-white flex items-center justify-center gap-2 overflow-x-auto">
+          {TOOLBAR_ITEMS.map((tool) => {
+            const Icon = tool.icon;
+            const isActive = activeTool === tool.id;
+            return (
+              <button
+                key={tool.id}
+                onClick={() => setActiveTool(tool.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border",
+                  isActive 
+                    ? `bg-slate-100 border-slate-300 shadow-sm ${tool.color}` 
+                    : "bg-white border-transparent text-gray-500 hover:bg-gray-50"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tool.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -345,7 +393,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         )}
       </div>
 
-      {/* Elite TreatmentSelector Integration (v4.9) */}
+      {/* Elite TreatmentSelector Integration */}
       <AnimatePresence>
         {activeTooth && (
           <div className={cn(
@@ -365,7 +413,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                   return [...others, ...newSelections];
                 });
 
-                // Update visual state (optional: map first treatment to status)
                 if (treatments.length > 0) {
                   const mainCat = treatments[0].category;
                   let status: SurfaceState = 'SELECTED';

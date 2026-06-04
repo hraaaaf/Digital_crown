@@ -155,7 +155,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
            </div>
         )}
 
-        {profile.letterhead_path && profile.letterhead_path !== 'PENDING' && (
+        {profile.use_letterhead && profile.letterhead_path && profile.letterhead_path !== 'PENDING' && (
           <div className="absolute inset-0 border-4 border-dashed border-[var(--border-color)] opacity-20 pointer-events-none" />
         )}
 

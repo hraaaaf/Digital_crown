@@ -91,8 +91,6 @@ class CertificatGenerator:
         )
 
         patient_line = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b>"
-        if dob_str:
-            patient_line += f", né(e) le {dob_str}"
         patient_line += f", {age} ans"
 
         patient_w = 7.5 * cm
@@ -161,9 +159,8 @@ class CertificatGenerator:
             hon = "Monsieur" if is_male else "Madame"
             pres = "présent" if is_male else "présente"
             int_ = "l'intéressé" if is_male else "l'intéressée"
-            # "arrêt de travail" est réservé aux médecins ; le chirurgien-dentiste
-            # délivre un "certificat de repos médical" (incapacité temporaire)
-            eviction_term = "un repos médical"
+            # Le praticien demande explicitement "arrêt de travail"
+            eviction_term = "un arrêt de travail"
             reprise_term = "la reprise de son activité professionnelle"
             ne_e = "né" if is_male else "née"
 

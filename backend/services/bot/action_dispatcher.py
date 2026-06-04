@@ -239,38 +239,39 @@ class ActionDispatcher:
         today_start = datetime.combine(today, datetime.min.time())
         today_end = datetime.combine(today, datetime.max.time())
 
-        # Recettes du jour
-        rev_today = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
+        # Recettes du jour (Paiements encaissés)
+        rev_today = db.query(func.sum(models.Payment.amount)).join(models.Patient).filter(
             models.Patient.employer_id == employer_id,
-            models.Acte.date_debut >= today_start,
-            models.Acte.date_debut <= today_end,
+            models.Payment.payment_date >= today_start,
+            models.Payment.payment_date <= today_end,
         ).scalar() or 0.0
 
-        # Recettes du mois
+        # Recettes du mois (Paiements encaissés)
         month_start = today.replace(day=1)
-        rev_month = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
+        rev_month = db.query(func.sum(models.Payment.amount)).join(models.Patient).filter(
             models.Patient.employer_id == employer_id,
-            models.Acte.date_debut >= datetime.combine(month_start, datetime.min.time()),
-            models.Acte.date_debut <= today_end,
+            models.Payment.payment_date >= datetime.combine(month_start, datetime.min.time()),
+            models.Payment.payment_date <= today_end,
         ).scalar() or 0.0
 
-        # Créances totales
-        total_debt = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
-            models.Patient.employer_id == employer_id,
-            models.Acte.statut_paiement == "EN_ATTENTE",
-        ).scalar() or 0.0
-
-        # Top 3 débiteurs
-        debtors = db.query(
-            models.Patient.nom,
-            models.Patient.prenom,
-            func.sum(models.Acte.montant).label("total")
-        ).join(models.Acte).filter(
-            models.Patient.employer_id == employer_id,
-            models.Acte.statut_paiement == "EN_ATTENTE",
-        ).group_by(models.Patient.id).order_by(
-            func.sum(models.Acte.montant).desc()
-        ).limit(3).all()
+        # Calcul mathématique exact des Créances (Somme Actes - Somme Paiements) par patient
+        from collections import namedtuple
+        Debtor = namedtuple('Debtor', ['nom', 'prenom', 'total'])
+        
+        patients = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).all()
+        debtors_list = []
+        total_debt = 0.0
+        
+        for p in patients:
+            p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == p.id).scalar() or 0.0
+            p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == p.id).scalar() or 0.0
+            debt = float(p_acts) - float(p_pays)
+            if debt > 0:
+                total_debt += debt
+                debtors_list.append(Debtor(nom=p.nom, prenom=p.prenom, total=debt))
+                
+        debtors_list.sort(key=lambda x: x.total, reverse=True)
+        debtors = debtors_list[:3]
 
         fmt = lambda n: f"{int(n):,}".replace(",", " ")
 
@@ -283,7 +284,7 @@ class ActionDispatcher:
         if debtors:
             lines.append("\n🔴 **Top débiteurs :**")
             for d in debtors:
-                lines.append(f"  · {d.prenom} {d.nom} — {fmt(float(d.total))} MAD")
+                lines.append(f"  · {d.prenom} {d.nom} — {fmt(d.total)} MAD")
 
         return BotResponse(
             message="\n".join(lines),

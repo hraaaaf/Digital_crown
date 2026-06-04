@@ -7,9 +7,11 @@ from datetime import datetime
 import asyncio
 
 from backend import database, models
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, require_permission, require_elite_license
 
-router = APIRouter(tags=["Ghost Hub Feedback"])
+router = APIRouter(
+    tags=["Ghost Hub Feedback"]
+)
 
 
 class AIFeedbackCreate(BaseModel):
@@ -20,7 +22,7 @@ class AIFeedbackCreate(BaseModel):
     corrected_text: Optional[str] = None
 
 
-@router.post("/feedback")
+@router.post("/feedback", dependencies=[Depends(require_elite_license)])
 def submit_feedback(
     payload: AIFeedbackCreate,
     db: Session = Depends(database.get_db),
@@ -43,7 +45,7 @@ def submit_feedback(
     return {"status": "recorded", "id": fb.id}
 
 
-@router.get("/feedback/stats")
+@router.get("/feedback/stats", dependencies=[Depends(require_elite_license)])
 def get_feedback_stats(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients")),
@@ -72,7 +74,7 @@ def get_feedback_stats(
 # --- GHOST BRAIN V2 - MEMORY ENDPOINTS ---
 from backend.services.ghost_memory_service import ghost_memory
 
-@router.get("/ghost-insights")
+@router.get("/ghost-insights", dependencies=[Depends(require_elite_license)])
 def get_ghost_insights(
     limit: int = 10,
     db: Session = Depends(database.get_db),
@@ -102,7 +104,7 @@ def get_ghost_insights(
         ]
     }
 
-@router.post("/ghost-insights/{log_id}/read")
+@router.post("/ghost-insights/{log_id}/read", dependencies=[Depends(require_elite_license)])
 def mark_ghost_insight_read(
     log_id: int,
     db: Session = Depends(database.get_db),

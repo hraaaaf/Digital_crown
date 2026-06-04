@@ -23,6 +23,15 @@ from backend.services.panoramic_service import panoramic_engine
 from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
 import webbrowser
+import sentry_sdk
+
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 # --- CONFIGURATION LOGGING ---
 logging.basicConfig(level=logging.INFO)
@@ -229,16 +238,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 # --- MIDDLEWARES ---
-from backend.config import settings as _settings
-ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
-    expose_headers=["X-Total-Count"],
-)
+# CORS is added further down after HTTP middlewares
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
@@ -299,28 +299,44 @@ async def license_check_middleware(request: Request, call_next):
     # Vérification licence per-user (SQLite + cache TTL 60s)
     is_ok, reason = await get_user_license_status(email)
     if not is_ok:
-        messages = {
-            "NOT_LICENSED": "Votre cabinet n'a pas de licence active. Contactez Digital Crown.",
-            "LICENSE_EXPIRED": "Votre licence a expiré. Renouvelez-la via Digital Crown.",
-            "SUSPENDED": "Votre accès a été suspendu. Contactez Digital Crown.",
-            "ARCHIVED": "Ce compte est archivé. Contactez Digital Crown.",
-            "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
-        }
-        return JSONResponse(
-            status_code=402,
-            content={
-                "detail": reason,
-                "message": messages.get(reason, "Accès refusé. Vérifiez votre licence.")
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            messages = {
+                "NOT_LICENSED": "Mode lecture seule : Votre cabinet n'a pas de licence active.",
+                "LICENSE_EXPIRED": "Mode lecture seule : Votre licence a expiré.",
+                "SUSPENDED": "Votre accès a été suspendu.",
+                "ARCHIVED": "Ce compte est archivé.",
+                "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
             }
-        )
+            # Utilise 403 au lieu de 402 pour éviter le Hard-Lock global de l'UI
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": reason,
+                    "message": messages.get(reason, "Accès refusé. Vérifiez votre licence.")
+                }
+            )
 
     return await call_next(request)
 
 # --- INCLUSION DES ROUTERS ---
-from backend.routers import auth, clinics, patients, ia, documents, admin, appointments, templates, prescriptions, accounting, team, intelligence, clinical_data, mobile, bot, verification, stats, catalog
+from backend.config import settings as _settings
+ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+    expose_headers=["X-Total-Count"],
+)
+from backend.routers import (
+    auth, clinics, patients, ia, documents, stats, admin,
+    appointments, templates, prescriptions, accounting, team,
+    intelligence, clinical_data, mobile, installments, lab_jobs,
+    bot, catalog, verification, analytics
+)
 from backend.routers import ai_feedback as ai_feedback_router
-from backend.routers import installments
-from backend.routers import lab_jobs
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
@@ -328,6 +344,7 @@ app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(verification.router, prefix="/api/documents", tags=["Vérification publique"])
 app.include_router(stats.router, prefix="/api/stats", tags=["Statistiques"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics & Finance"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Agenda"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])

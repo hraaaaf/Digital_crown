@@ -1,6 +1,6 @@
 # DigitalCrown - All Context
 
-Last updated: 2026-05-28
+Last updated: 2026-06-02
 
 This file is the root context entrypoint for the repo.
 
@@ -79,7 +79,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | plan-shape calibration, planning examples, SIMPLE vs COMPLEX reference docs |
 | `tests/` | `process/context/tests/all-tests.md` | test runners, commands, debugging, gaps |
-| `database/` | `process/context/database/all-database.md` | SQLite DB schema, SQLAlchemy models.py, migrations (Alembic) |
+| `database/` | `process/context/database/all-database.md` | PostgreSQL schema, SQLAlchemy models.py, migrations (Alembic) |
 | `auth/` | `process/context/auth/all-auth.md` | JWT Auth schemas, tokens rotation, Supabase Sync |
 | `uxui/` | `process/context/uxui/all-uxui.md` | React 19 + Tailwind v4 Design System and Ghost Elite conventions |
 | `ia-vision/` | `process/context/ia-vision/all-ia-vision.md` | Landmark calibrations, CephLD-CCA, YOLOv11 panoramic integration |
@@ -187,7 +187,7 @@ DigitalCrown/
 - **Framework:** React 19 (Frontend), FastAPI 0.115 (Backend)
 - **Language:** TypeScript 5.9 (Frontend), Python 3.12+ (Backend)
 - **Runtime:** Node.js v24.x, Python venv
-- **Database:** SQLite (digital_crown.db, clinical_vault.db) via SQLAlchemy ORM & Alembic migrations
+- **Database:** PostgreSQL (digitalcrown_db) via SQLAlchemy ORM & Alembic migrations â€” localhost, user postgres
 - **Auth:** FastAPI JWT tokens rotation + Supabase Auth sync
 - **UI:** Tailwind CSS v4 + Framer Motion (Ghost Elite Glassmorphism standard)
 - **State:** Zustand for client stores
@@ -202,7 +202,7 @@ DigitalCrown/
 Every database query and model must enforce the `employer_id` context derived from authenticated JWT sessions to prevent data leakage between clinics.
 
 **LAN-First & Sync:**
-Application operates locally using the local SQLite databases. Offline grace periods are handled locally; synchronization to Supabase is performed asynchronously.
+Application operates locally with a PostgreSQL database (digitalcrown_db). Offline grace periods are handled locally; synchronization to Supabase is performed asynchronously.
 
 **Clinical Validation (Deterministic Fallback):**
 Critical medical alerts (pregnancy NSAID block, penicillin allergies, gastroprotection) must use deterministic safety rules in the backend rather than relying solely on LLMs.
@@ -229,5 +229,5 @@ FastAPI endpoints handle exceptions and raise HTTP Exceptions (e.g., 403 for lic
 - HEAD: 3bedb3c
 - Mode: merge
 - Package manager: npm
--   [ o r t h o - b o t - k n o w l e d g e . m d ] ( . / o r t h o - b o t - k n o w l e d g e . m d )   -   B a s e   d e   c o n n a i s s a n c e s   d é t e r m i n i s t e   p o u r   l e   f u t u r   s y s t è m e   E x p e r t   s a n s   L L M  
+-   [ o r t h o - b o t - k n o w l e d g e . m d ] ( . / o r t h o - b o t - k n o w l e d g e . m d )   -   B a s e   d e   c o n n a i s s a n c e s   d ï¿½ t e r m i n i s t e   p o u r   l e   f u t u r   s y s t ï¿½ m e   E x p e r t   s a n s   L L M  
  

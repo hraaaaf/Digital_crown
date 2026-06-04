@@ -24,6 +24,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { motion, type Variants } from 'framer-motion';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
+import { DayOneTour } from '../components/DayOneTour';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -229,6 +230,7 @@ export const Dashboard: React.FC = () => {
       animate="visible"
       className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12"
     >
+      <DayOneTour />
       <motion.header variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {displayName}</h1>
@@ -339,8 +341,20 @@ export const Dashboard: React.FC = () => {
                 );
               })
             ) : (
-              <div className="py-12 text-center">
-                <p className="text-text-muted font-bold italic text-xs uppercase tracking-widest">Aucun patient récent à afficher.</p>
+              <div className="py-14 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
+                  <UserPlus className="text-primary w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-black text-primary font-outfit mb-2">Bienvenue dans Digital Crown</h3>
+                <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
+                  Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
+                </p>
+                <Link 
+                  to="/patients/new" 
+                  className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
+                >
+                  Créer mon 1er patient <ChevronRight size={14} />
+                </Link>
               </div>
             )}
           </div>
@@ -545,15 +559,21 @@ export const Dashboard: React.FC = () => {
                     })
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-                    <div className="w-14 h-14 bg-primary/5 rounded-full flex items-center justify-center text-primary">
-                      <Calendar size={28} />
+                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
+                      <Calendar size={28} className="text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-primary font-outfit">Aucun patient aujourd'hui</h4>
-                      <p className="text-text-muted text-[11px] font-medium mt-1">
+                      <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
+                      <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
                         Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
                       </p>
                     </div>
+                    <Link 
+                      to="/agenda" 
+                      className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                    >
+                      Ouvrir l'agenda
+                    </Link>
                   </div>
                 )}
               </div>

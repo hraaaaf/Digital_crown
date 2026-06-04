@@ -158,4 +158,4 @@ App : `http://localhost:5173`
 
 ## Équipe & Version
 **Staff Engineering — Digital Crown SANINOVA**  
-*Dernière mise à jour : 21 Mai 2026 — Ghost Hub v2.0 (115 pts déployés)*
+*Dernière mise à jour : 03 Juin 2026 — Ghost Brain v2.0 Proactive & Zero-Knowledge Backups (115 pts déployés)*

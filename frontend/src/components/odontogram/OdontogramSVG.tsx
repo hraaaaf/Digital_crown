@@ -115,142 +115,94 @@ const pctR = (pct: number, width: number, height: number) =>
   (pct / 100) * Math.sqrt((width * width + height * height) / 2);
 
 // ============================================================================
-// COMPOSANT HOTZONE
+// HELPERS GÉOMÉTRIQUES ANATOMIQUES
 // ============================================================================
 
-interface HotzoneProps {
+/** Détermine l'orientation visuelle d'une face selon la dent */
+const getFaceOrientation = (toothNumber: number, face: 'M' | 'D' | 'O' | 'V' | 'P') => {
+  if (face === 'O') return 'center';
+  const isUpper = (toothNumber >= 11 && toothNumber <= 28) || (toothNumber >= 51 && toothNumber <= 65);
+  // Quadrants 1 et 4 (droite du patient, donc affiché à gauche de l'écran)
+  const isRight = (toothNumber >= 11 && toothNumber <= 18) || (toothNumber >= 41 && toothNumber <= 48) || (toothNumber >= 51 && toothNumber <= 55) || (toothNumber >= 81 && toothNumber <= 85);
+
+  if (face === 'V') return isUpper ? 'top' : 'bottom';
+  if (face === 'P') return isUpper ? 'bottom' : 'top';
+  
+  // Pour la droite du patient (affiché à gauche), le milieu est à sa droite.
+  if (face === 'M') return isRight ? 'right' : 'left';
+  if (face === 'D') return isRight ? 'left' : 'right';
+
+  return 'center';
+};
+
+/**
+ * Retourne le SVG path d'une section.
+ * Le `clipPath` circulaire s'assurera que le rendu extérieur est arrondi.
+ */
+const getFacePath = (orientation: 'top' | 'bottom' | 'left' | 'right' | 'center', r: number) => {
+  const d = r * 0.45; // Taille du carré central
+  switch (orientation) {
+    case 'center': return `M ${-d},${-d} L ${d},${-d} L ${d},${d} L ${-d},${d} Z`;
+    case 'top':    return `M ${-r},${-r} L ${r},${-r} L ${d},${-d} L ${-d},${-d} Z`;
+    case 'bottom': return `M ${-r},${r} L ${r},${r} L ${d},${d} L ${-d},${d} Z`;
+    case 'left':   return `M ${-r},${-r} L ${-d},${-d} L ${-d},${d} L ${-r},${r} Z`;
+    case 'right':  return `M ${r},${-r} L ${d},${-d} L ${d},${d} L ${r},${r} Z`;
+  }
+};
+
+// ============================================================================
+// COMPOSANT FACE ANATOMIQUE (SVG Polygon)
+// ============================================================================
+
+interface AnatomicFaceProps {
   cx: number;
   cy: number;
   r: number;
-  surface: 'M' | 'D' | 'O' | 'V' | 'P';
-  isSelected: boolean;
-  isReadOnly: boolean;
-  onClick: (e: React.MouseEvent) => void;
-  onHover: (surface: string | null) => void;
-  showPulse: boolean;
-}
-
-const Hotzone: React.FC<HotzoneProps> = ({
-  cx,
-  cy,
-  r,
-  isSelected,
-  isReadOnly,
-  onClick,
-  onHover,
-  showPulse,
-}) => (
-  <g className="hotzone-group">
-    {/* Anneau de pulsation quand la dent est survolée / sélectionnée */}
-    {showPulse && (
-      <motion.circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill="none"
-        strokeWidth={1.5}
-        className="stroke-primary"
-        initial={{ opacity: 0.8, scale: 1 }}
-        animate={{ opacity: 0, scale: 1.5 }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-        style={{ transformOrigin: `${cx}px ${cy}px` }}
-      />
-    )}
-
-    {/* Zone cliquable principale */}
-    <circle
-      cx={cx}
-      cy={cy}
-      r={r * 0.5}
-      strokeWidth={1.5}
-      className={`transition-colors duration-300 ${isReadOnly ? 'cursor-default' : 'cursor-pointer'} ${
-        isSelected ? 'fill-primary/20 stroke-primary' : 'fill-transparent stroke-transparent'
-      }`}
-      onClick={onClick}
-      onMouseEnter={() => onHover('active')}
-      onMouseLeave={() => onHover(null)}
-    />
-  </g>
-);
-
-// ============================================================================
-// COMPOSANT PASTILLE DE TRAITEMENT
-// ============================================================================
-
-interface TreatmentBadgeProps {
-  cx: number;
-  cy: number;
-  r: number;
+  face: 'M' | 'D' | 'O' | 'V' | 'P';
+  orientation: 'top' | 'bottom' | 'left' | 'right' | 'center';
   state: SurfaceState;
   isSelected: boolean;
+  isHovered: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  onHover: (surface: string | null) => void;
+  readOnly: boolean;
 }
 
-const TreatmentBadge: React.FC<TreatmentBadgeProps> = ({
-  cx,
-  cy,
-  r,
-  state,
-  isSelected,
+const AnatomicFace: React.FC<AnatomicFaceProps> = ({
+  cx, cy, r, face, orientation, state, isSelected, isHovered, onClick, onHover, readOnly
 }) => {
-  if (state === 'HEALTHY' || state === 'SELECTED') return null;
-
-  const colors = SURFACE_COLORS[state];
+  const path = getFacePath(orientation, r);
+  
+  // Déterminer la couleur de fond
+  let fill = 'transparent';
+  let opacity = 0;
+  
+  if (state !== 'HEALTHY' && state !== 'SELECTED' && state !== 'ABSENT' && state !== 'CROWN' && state !== 'ROOT_CANAL') {
+    fill = SURFACE_COLORS[state]?.fill || 'transparent';
+    opacity = 0.85;
+  }
+  
+  // Apparence si sélectionné ou survolé
+  const isHighlight = isSelected || isHovered;
 
   return (
-    <motion.g
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-      style={{ transformOrigin: `${cx}px ${cy}px` }}
-    >
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill={colors.fill}
-        stroke={colors.stroke}
-        strokeWidth={1.5}
-        opacity={0.85}
-        style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}
-      />
-      {isSelected && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r * 1.3}
-          fill="none"
-          strokeWidth={1.5}
-          strokeDasharray="2 2"
-          className="stroke-primary"
-        />
-      )}
-    </motion.g>
+    <motion.path
+      d={path}
+      fill={fill}
+      fillOpacity={opacity}
+      stroke={isHighlight ? 'rgba(59, 130, 246, 0.5)' : 'rgba(200, 200, 200, 0.3)'}
+      strokeWidth={isHighlight ? 2 : 1}
+      className={`transition-colors duration-200 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ transform: `translate(${cx}px, ${cy}px)` }}
+      onClick={onClick}
+      onMouseEnter={() => onHover(face)}
+      onMouseLeave={() => onHover(null)}
+      whileHover={!readOnly ? { fillOpacity: Math.max(opacity, 0.4), fill: fill !== 'transparent' ? fill : 'rgba(59, 130, 246, 0.2)' } : {}}
+      animate={{ fillOpacity: isSelected ? Math.max(opacity, 0.6) : opacity, fill: isSelected && fill === 'transparent' ? 'rgba(59, 130, 246, 0.3)' : fill }}
+    />
   );
 };
 
-// ============================================================================
-// CALCUL DES DÉCALAGES PAR SURFACE (en % du rayon)
-// ============================================================================
-
-/**
- * Retourne le décalage (dx, dy) en fraction du rayon pour chaque face de la dent.
- * Ces valeurs sont appliquées APRÈS la conversion en pixels, garantissant que
- * le décalage est proportionnel à la taille affichée.
- */
-const getSurfaceOffset = (
-  surface: 'M' | 'D' | 'O' | 'V' | 'P',
-  r: number
-): { dx: number; dy: number } => {
-  const d = r * 0.6;
-  switch (surface) {
-    case 'O': return { dx: 0,  dy: 0  }; // Centre
-    case 'V': return { dx: 0,  dy: -d }; // Haut  (Vestibulaire)
-    case 'P': return { dx: 0,  dy:  d }; // Bas   (Palatin / Lingual)
-    case 'M': return { dx: -d, dy: 0  }; // Gauche (Mésial)
-    case 'D': return { dx:  d, dy: 0  }; // Droite (Distal)
-    default:  return { dx: 0,  dy: 0  };
-  }
-};
 
 // ============================================================================
 // COMPOSANT PRINCIPAL
@@ -263,15 +215,15 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   selectedSurface,
   onSurfaceClick,
   onSurfaceHover,
-  showNumbers = true,
+  showNumbers = false,
   readOnly = false,
   className = '',
   multiSelectedTeeth = [],
   onToothDirectClick,
 }) => {
   const [hoveredTooth, setHoveredTooth] = useState<number | null>(null);
+  const [hoveredSurface, setHoveredSurface] = useState<string | null>(null);
 
-  // Référence sur le conteneur — le ResizeObserver l'observe
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasSize = useElementSize(containerRef as React.RefObject<HTMLElement>);
 
@@ -281,16 +233,11 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   );
 
   const teethList = useMemo(
-    () =>
-      type === 'ADULT'
-        ? Object.keys(ANATOMICAL_MAPPING.ADULT).map(Number)
-        : Object.keys(ANATOMICAL_MAPPING.PEDIATRIC).map(Number),
+    () => type === 'ADULT' ? Object.keys(ANATOMICAL_MAPPING.ADULT).map(Number) : Object.keys(ANATOMICAL_MAPPING.PEDIATRIC).map(Number),
     [type]
   );
 
   const surfaces: ('M' | 'D' | 'O' | 'V' | 'P')[] = ['M', 'D', 'O', 'V', 'P'];
-
-  // ── Helpers pour obtenir la position d'une surface en pixels absolus ──────
 
   const getToothPosition = useCallback(
     (toothNum: number) =>
@@ -300,35 +247,21 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     [type]
   );
 
-  /**
-   * Convertit les coordonnées % du mapping en coordonnées px.
-   * Le résultat est exact quelle que soit la taille d'affichage car il est
-   * recalculé à chaque changement de `canvasSize` via le ResizeObserver.
-   */
   const toothPx = useCallback(
     (toothNum: number) => {
       const pos = getToothPosition(toothNum);
       if (!pos || canvasSize.width === 0 || canvasSize.height === 0) return null;
-
       const { width: W, height: H } = canvasSize;
-      const r = pctR(pos.r ?? 3, W, H);
-      return {
-        cx: pctX(pos.x, W),
-        cy: pctY(pos.y, H),
-        r,
-      };
+      return { cx: pctX(pos.x, W), cy: pctY(pos.y, H), r: pctR(pos.r ?? 3, W, H) };
     },
     [canvasSize, getToothPosition]
   );
-
-  // ── Gestion des événements ─────────────────────────────────────────────────
 
   const handleSurfaceClick = useCallback(
     (toothNumber: number, surface: 'M' | 'D' | 'O' | 'V' | 'P') =>
       (e: React.MouseEvent) => {
         if (readOnly) return;
         e.stopPropagation();
-        // Mode sélection directe (groupée) : on transmet seulement le numéro de dent
         if (onToothDirectClick) {
           onToothDirectClick(toothNumber);
           return;
@@ -341,35 +274,20 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
   const handleHover = useCallback(
     (toothNumber: number, surface: string | null) => {
       setHoveredTooth(surface ? toothNumber : null);
+      setHoveredSurface(surface);
       onSurfaceHover?.(surface ? toothNumber : null, surface);
     },
     [onSurfaceHover]
   );
 
-  // ── Rendu ──────────────────────────────────────────────────────────────────
-
   return (
-    <div ref={containerRef} className={`relative w-full max-w-2xl mx-auto ${className}`}>
-      {/*
-       * 1. L'IMAGE dicte la géométrie du conteneur.
-       * `display: block` supprime l'espace de ligne de base inline.
-       * `w-full h-auto` conserve le ratio d'aspect natif.
-       * Le parent `relative` prend exactement les dimensions de l'image.
-       */}
+    <div ref={containerRef} className={`relative w-full max-w-[480px] mx-auto ${className}`}>
       <img
         src={backgroundImage}
         alt={`Schéma dentaire ${type === 'ADULT' ? 'adulte' : 'pédiatrique'}`}
         className="w-full h-auto block select-none pointer-events-none opacity-0"
-        onLoad={() => {}}
       />
 
-      {/*
-       * 2. Le SVG est superposé pixel par pixel sur l'image.
-       * - `width` et `height` sont les dimensions réelles mesurées par ResizeObserver.
-       * - `viewBox` utilise ces mêmes dimensions → 1 unité SVG = 1 pixel CSS.
-       * - Les coordonnées en % du mapping sont converties en px absolus via `toothPx()`.
-       * - overflow: hidden évite tout débordement accidentel.
-       */}
       {canvasSize.width > 0 && canvasSize.height > 0 && (
         <svg
           className="absolute inset-0 z-10"
@@ -379,12 +297,6 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
           style={{ overflow: 'hidden', display: 'block' }}
         >
           <defs>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            
-            {/* Filtre d'extraction des lignes pour le masque (transforme le blanc en noir, et le foncé en blanc) */}
             <filter id="extractLines">
               <feColorMatrix type="matrix" values="
                 0.33 0.33 0.33 0 0
@@ -397,19 +309,22 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
                 <feFuncB type="linear" slope="-3" intercept="2.8" />
               </feComponentTransfer>
             </filter>
-
             <mask id="blueprint-mask">
-              <image 
-                href={backgroundImage} 
-                width="100%" 
-                height="100%" 
-                filter="url(#extractLines)"
-                preserveAspectRatio="none"
-              />
+              <image href={backgroundImage} width="100%" height="100%" filter="url(#extractLines)" preserveAspectRatio="none" />
             </mask>
+
+            {/* Clips circulaires pour chaque dent */}
+            {teethList.map((toothNumber) => {
+              const px = toothPx(toothNumber);
+              if (!px) return null;
+              return (
+                <clipPath id={`clip-tooth-${toothNumber}`} key={`clip-${toothNumber}`}>
+                  <circle cx={px.cx} cy={px.cy} r={px.r} />
+                </clipPath>
+              );
+            })}
           </defs>
 
-          {/* Calque magique SVG : Fond 100% transparent et lignes de la couleur primaire ! */}
           <rect 
             width="100%" 
             height="100%" 
@@ -417,115 +332,99 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             mask="url(#blueprint-mask)" 
           />
 
-          {/* ── Cercles de multi-sélection groupée (bridge / PAP / totale) ── */}
-          {multiSelectedTeeth.length > 0 && teethList.map((toothNumber) => {
-            if (!multiSelectedTeeth.includes(toothNumber)) return null;
+          {/* Rendu des Dents */}
+          {teethList.map((toothNumber) => {
             const px = toothPx(toothNumber);
             if (!px) return null;
+
+            const toothStates = teethSurfaces[toothNumber];
+            if (!toothStates) return null;
+
+            // Détection globale
+            const isAbsent = Object.values(toothStates).some(s => s === 'ABSENT' || s === 'EXTRACTED' || s === 'ABSENT_TO_EXTRACT');
+            const isCrown = Object.values(toothStates).some(s => s === 'CROWN' || s === 'CROWN_CERAMIC');
+            const isRootCanal = Object.values(toothStates).some(s => s === 'ROOT_CANAL');
+
+            const isMultiSelected = multiSelectedTeeth.includes(toothNumber);
+            const isToothSelected = selectedTooth === toothNumber;
+
             return (
-              <motion.circle
-                key={`multisel-${toothNumber}`}
-                cx={px.cx}
-                cy={px.cy}
-                r={px.r * 0.9}
-                fill="rgba(34, 197, 94, 0.18)"
-                stroke="#22c55e"
-                strokeWidth={2}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                style={{
-                  transformOrigin: `${px.cx}px ${px.cy}px`,
-                  cursor: onToothDirectClick ? 'pointer' : 'default',
-                  filter: 'drop-shadow(0 0 4px rgba(34,197,94,0.45))',
-                }}
-              />
+              <g key={`tooth-group-${toothNumber}`}>
+                
+                {/* Effet de sélection groupée ou globale */}
+                {isMultiSelected && (
+                  <circle
+                    cx={px.cx} cy={px.cy} r={px.r * 1.2}
+                    fill="rgba(34, 197, 94, 0.18)"
+                    stroke="#22c55e" strokeWidth={2}
+                  />
+                )}
+
+                {/* Si ABSENT, on dessine juste une grosse croix et on arrête le rendu des faces */}
+                {isAbsent ? (
+                  <g 
+                    onClick={handleSurfaceClick(toothNumber, 'O')}
+                    onMouseEnter={() => handleHover(toothNumber, 'O')}
+                    onMouseLeave={() => handleHover(toothNumber, null)}
+                    className={readOnly ? 'cursor-default' : 'cursor-pointer'}
+                  >
+                    <circle cx={px.cx} cy={px.cy} r={px.r} fill="transparent" />
+                    <line x1={px.cx - px.r} y1={px.cy - px.r} x2={px.cx + px.r} y2={px.cy + px.r} stroke="#ef4444" strokeWidth={3} strokeLinecap="round" />
+                    <line x1={px.cx - px.r} y1={px.cy + px.r} x2={px.cx + px.r} y2={px.cy - px.r} stroke="#ef4444" strokeWidth={3} strokeLinecap="round" />
+                  </g>
+                ) : (
+                  <>
+                    {/* Conteneur clippé en cercle pour les faces */}
+                    <g clipPath={`url(#clip-tooth-${toothNumber})`}>
+                      {surfaces.map((surface) => {
+                        const state = toothStates[surface];
+                        const orientation = getFaceOrientation(toothNumber, surface);
+                        const isSurfaceSelected = isToothSelected && selectedSurface === surface;
+                        const isSurfaceHovered = hoveredTooth === toothNumber && hoveredSurface === surface;
+
+                        return (
+                          <AnatomicFace
+                            key={`face-${toothNumber}-${surface}`}
+                            cx={px.cx} cy={px.cy} r={px.r}
+                            face={surface}
+                            orientation={orientation}
+                            state={state}
+                            isSelected={isSurfaceSelected}
+                            isHovered={isSurfaceHovered}
+                            onClick={handleSurfaceClick(toothNumber, surface)}
+                            onHover={(surf) => handleHover(toothNumber, surf)}
+                            readOnly={readOnly}
+                          />
+                        );
+                      })}
+                    </g>
+
+                    {/* Statuts Globaux Superposés (ex: Couronne, Endo) */}
+                    {isCrown && (
+                      <circle
+                        cx={px.cx} cy={px.cy} r={px.r}
+                        fill="rgba(253, 230, 138, 0.4)" // fde68a transparent
+                        stroke="#d97706" strokeWidth={2}
+                        className="pointer-events-none"
+                      />
+                    )}
+
+                    {isRootCanal && (
+                      <circle
+                        cx={px.cx} cy={px.cy} r={px.r * 0.25}
+                        fill="#64748b"
+                        className="pointer-events-none"
+                      />
+                    )}
+                  </>
+                )}
+              </g>
             );
           })}
-
-          {/* ── Pastilles de traitement (sous les hotzones) ── */}
-          {teethList.map((toothNumber) => {
-            const px = toothPx(toothNumber);
-            if (!px) return null;
-
-            const toothSurfaces = teethSurfaces[toothNumber];
-            if (!toothSurfaces) return null;
-
-            return surfaces.map((surface) => {
-              const { dx, dy } = getSurfaceOffset(surface, px.r * 0.4);
-              return (
-                <TreatmentBadge
-                  key={`badge-${toothNumber}-${surface}`}
-                  cx={px.cx + dx}
-                  cy={px.cy + dy}
-                  r={px.r * 0.4}
-                  state={toothSurfaces[surface]}
-                  isSelected={
-                    selectedTooth === toothNumber && selectedSurface === surface
-                  }
-                />
-              );
-            });
-          })}
-
-          {/* ── Hotzones cliquables ── */}
-          {teethList.map((toothNumber) => {
-            const px = toothPx(toothNumber);
-            if (!px) return null;
-
-            const isToothSelected = selectedTooth === toothNumber;
-            const isMultiSelected = multiSelectedTeeth.includes(toothNumber);
-            const showPulse = isToothSelected || hoveredTooth === toothNumber || isMultiSelected;
-
-            return surfaces.map((surface) => {
-              const { dx, dy } = getSurfaceOffset(surface, px.r);
-              return (
-                <Hotzone
-                  key={`hotzone-${toothNumber}-${surface}`}
-                  cx={px.cx + dx}
-                  cy={px.cy + dy}
-                  r={px.r}
-                  surface={surface}
-                  isSelected={isToothSelected && selectedSurface === surface}
-                  isReadOnly={readOnly}
-                  onClick={handleSurfaceClick(toothNumber, surface)}
-                  onHover={(surf) => handleHover(toothNumber, surf)}
-                  showPulse={showPulse}
-                />
-              );
-            });
-          })}
-
-          {/* ── Numéros FDI (optionnels) ── */}
-          {showNumbers &&
-            teethList.map((toothNumber) => {
-              const px = toothPx(toothNumber);
-              if (!px) return null;
-
-              // Taille de police proportionnelle à la hauteur de l'image
-              const fontSize = Math.max(8, Math.round(canvasSize.height * 0.028));
-
-              return (
-                <text
-                  key={`label-${toothNumber}`}
-                  x={px.cx}
-                  y={px.cy + px.r + fontSize * 1.2}
-                  textAnchor="middle"
-                  fontSize={fontSize}
-                  fontWeight="600"
-                  className={`select-none pointer-events-none transition-colors ${
-                    selectedTooth === toothNumber ? 'fill-primary' : 'fill-slate-500'
-                  }`}
-                  style={{ paintOrder: 'stroke', stroke: 'white', strokeWidth: 3 }}
-                >
-                  {toothNumber.toString()}
-                </text>
-              );
-            })}
         </svg>
       )}
 
-      {/* ── Tooltip de survol ── */}
+      {/* Tooltip */}
       <AnimatePresence>
         {hoveredTooth && (
           <motion.div
@@ -535,9 +434,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
             className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-gray-200 z-20 pointer-events-none"
           >
             <p className="text-sm font-black text-primary whitespace-nowrap">
-              {type === 'ADULT'
-                ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI] || `Dent ${hoveredTooth}`
-                : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber] || `Dent ${hoveredTooth}`}
+              {type === 'ADULT' ? TOOTH_NAMES[hoveredTooth as ToothNumberFDI] : PEDIATRIC_TOOTH_NAMES[hoveredTooth as PediatricToothNumber]}
             </p>
           </motion.div>
         )}

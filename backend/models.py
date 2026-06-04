@@ -224,7 +224,7 @@ class DossierClinique(Base):
     __tablename__ = "dossiers_cliniques"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), unique=True, nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), unique=True, nullable=False)
     is_ortho_active: Mapped[bool] = mapped_column(Boolean, default=False)
     note_honnetete: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     antecedents_medicaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -235,7 +235,7 @@ class TreatmentMasterPlan(Base):
     __tablename__ = "treatment_master_plans"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), unique=True, nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     
@@ -259,8 +259,8 @@ class Acte(Base):
     __tablename__ = "actes"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
-    praticien_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    praticien_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     type_acte: Mapped[ActeType] = mapped_column(SQLEnum(ActeType), nullable=False)
     libelle: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -281,7 +281,7 @@ class CephaloAnalysis(Base):
     __tablename__ = "cephalo_analyses"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
     image_original_path: Mapped[str] = mapped_column(String, nullable=False)
     landmarks_data: Mapped[dict] = mapped_column(JSON, default=dict)
     angles_data: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -300,7 +300,7 @@ class PanoramicAnalysis(Base):
     __tablename__ = "panoramic_analyses"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
     
     image_path: Mapped[str] = mapped_column(String, nullable=False)
     detections_data: Mapped[dict] = mapped_column(JSON, default=dict) # Stockage structuré DENTEX
@@ -338,7 +338,7 @@ class ClinicalProtocol(Base):
     __tablename__ = "clinical_protocols"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    category_id: Mapped[int] = mapped_column(ForeignKey("clinical_categories.id"), nullable=False)
+    category_id: Mapped[int] = mapped_column(ForeignKey("clinical_categories.id", ondelete="CASCADE"), nullable=False)
     variant_name: Mapped[str] = mapped_column(String(100), nullable=False) # Ex: Standard, Allergique
     
     # Stockage structuré de la liste des médicaments et posologies
@@ -379,7 +379,7 @@ class Pathology(Base):
     __tablename__ = "pathologies"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id"), nullable=False)
+    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -391,7 +391,7 @@ class CatalogAct(Base):
     __tablename__ = "catalog_acts"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id"), nullable=False)
+    specialty_id: Mapped[int] = mapped_column(ForeignKey("specialties.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True) # NGAP ou interne
     base_price: Mapped[float] = mapped_column(Float, default=0.0)
@@ -436,7 +436,7 @@ class DocumentArchive(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     
     # Relations
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
     patient: Mapped["Patient"] = relationship("Patient", back_populates="documents")
     
     uploaded_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -514,6 +514,9 @@ class CabinetConfig(Base):
         default=lambda: uuid.uuid4().hex[:16]
     )
     
+    # Identifiant de la clinique parente (si type=CLINIQUE ou multi-cabinets)
+    clinic_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    
     nom_cabinet: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     nom_praticien: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     nom_praticien_ar: Mapped[str] = mapped_column(String(255), nullable=False, default="")
@@ -521,8 +524,9 @@ class CabinetConfig(Base):
     # Logo : chemin relatif isolé par clinic_id
     logo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
-    # Letterhead (Papier en-tête A4) : chemin relatif
+    # Letterhead (Papier en-tête A5) : chemin relatif
     letterhead_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    use_letterhead: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # En-tête Bilingue (max 6 lignes chacun)
     header_lines_fr: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
@@ -638,7 +642,7 @@ class DoctorPrescriptionPreference(Base):
     __tablename__ = "doctor_prescription_preferences"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     act_code: Mapped[str] = mapped_column(String, index=True, nullable=False) # ex: EXTRACTION_SIMPLE
     
     # Stocke la liste des médicaments [ {name, dosage, forme, posologie}, ... ]
@@ -657,7 +661,7 @@ class DoctorMedicationHabit(Base):
     __tablename__ = "doctor_medication_habits"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     medication_name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     dosage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -674,7 +678,7 @@ class DoctorActHabit(Base):
     __tablename__ = "doctor_act_habits"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     act_name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -691,7 +695,7 @@ class DoctorActCorrelation(Base):
     __tablename__ = "doctor_act_correlations"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     act_a: Mapped[str] = mapped_column(String(255), index=True)
     act_b: Mapped[str] = mapped_column(String(255), index=True)
@@ -707,7 +711,7 @@ class DoctorTriggerHabit(Base):
     __tablename__ = "doctor_trigger_habits"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     trigger_type: Mapped[str] = mapped_column(String(50), index=True) # ex: PHASE_END, AGE_THRESHOLD
     context_key: Mapped[str] = mapped_column(String(100)) # ex: ORTHO_CONTENTION

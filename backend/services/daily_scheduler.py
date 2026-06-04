@@ -80,18 +80,49 @@ def run_daily_alerts():
                 logger.info("Push sent to employer %s: %d device(s)", emp_id, sent)
 
 
+_stop_flag = False
+_current_timer = None
+
 def start_daily_scheduler():
     """Lance le scheduler récursif — première exécution après 10s, puis toutes les 24h."""
+    global _current_timer, _stop_flag
+    _stop_flag = False
+    
     def _run_and_reschedule():
+        global _current_timer
+        if _stop_flag:
+            return
+            
         try:
+            # 1. Sauvegarde automatique de la DB (V1 Requirement)
+            from backend.services.backup_service import backup_service
+            backup_service.run_daily_backup()
+            
+            # 2. Alertes proactives
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)
-        t = threading.Timer(86400, _run_and_reschedule)
-        t.daemon = True
-        t.start()
+            
+        if not _stop_flag:
+            try:
+                _current_timer = threading.Timer(86400, _run_and_reschedule)
+                _current_timer.daemon = True
+                _current_timer.start()
+            except RuntimeError:
+                # L'interpréteur Python est en cours d'arrêt (souvent pendant les tests)
+                pass
 
-    initial = threading.Timer(10, _run_and_reschedule)
-    initial.daemon = True
-    initial.start()
-    logger.info("Daily scheduler armed (first run in 10s)")
+    try:
+        _current_timer = threading.Timer(10, _run_and_reschedule)
+        _current_timer.daemon = True
+        _current_timer.start()
+        logger.info("Daily scheduler armed (first run in 10s)")
+    except RuntimeError:
+        pass
+
+def stop_daily_scheduler():
+    """Arrête proprement le scheduler (utile pour les tests)."""
+    global _current_timer, _stop_flag
+    _stop_flag = True
+    if _current_timer:
+        _current_timer.cancel()

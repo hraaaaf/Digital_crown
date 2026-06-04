@@ -232,6 +232,44 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         )}
       </div>
 
+      {/* 5. FOND DE PAGE (LETTERHEAD) */}
+      <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">
+            Fond de Page (Template Image)
+          </h3>
+          <button 
+            onClick={() => updateProfile({ use_letterhead: !profile.use_letterhead })} 
+            className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors", profile.use_letterhead ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
+          >
+            <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", profile.use_letterhead ? "translate-x-5" : "translate-x-0")} />
+          </button>
+        </div>
+        
+        {profile.use_letterhead && (
+          <div className="flex items-center gap-3">
+            <input 
+              type="file" 
+              accept="image/*" 
+              id="letterhead-upload" 
+              className="hidden" 
+              onChange={handleFileUpload} 
+              disabled={isUploadingLocal}
+            />
+            <label 
+              htmlFor="letterhead-upload"
+              className={cn(
+                "flex items-center justify-center gap-2 flex-1 p-3 rounded-xl border border-dashed text-[13px] font-medium transition-all cursor-pointer",
+                isUploadingLocal ? "opacity-50 cursor-not-allowed" : "hover:border-[var(--primary)] hover:text-[var(--primary)] text-[var(--text-muted)]"
+              )}
+            >
+              <Upload size={16} />
+              {isUploadingLocal ? "Envoi..." : "Uploader un fond (A5)"}
+            </label>
+          </div>
+        )}
+      </div>
+
       {/* 6. CODE QR */}
       <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(11,15,23,0.18)] hover:-translate-y-[2px]">
         <div className="flex items-center justify-between mb-5">

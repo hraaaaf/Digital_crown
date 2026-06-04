@@ -11,7 +11,7 @@ import { FinanceView } from './views/FinanceView';
 import { SecuriteView } from './views/SecuriteView';
 import { LabView } from './views/LabView';
 import { BotView } from './views/BotView';
-import { PWAInstallPrompt } from '../../../../components/PWAInstallPrompt';
+import { PWAInstallPrompt } from '../../../components/PWAInstallPrompt';
 
 export const MobileDashboard = () => {
   const { state, actions, refs: { mainRef } } = useMobileDashboard();

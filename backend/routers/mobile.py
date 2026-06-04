@@ -6,7 +6,7 @@ import uuid
 import socket
 import os
 from datetime import datetime, date, timedelta, time as dt_time, timezone
-from fastapi import APIRouter, Depends, HTTPException, Header, Body
+from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks
 from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
@@ -33,9 +33,12 @@ def _create_mobile_jwt(employer_id: int, role: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_mobile_employer_id(authorization: str = Header(...)) -> int:
-    """DÃ©pendance : valide le JWT mobile et retourne l'employer_id."""
-    err = HTTPException(status_code=401, detail="Token mobile invalide ou expirÃ©.")
+def get_mobile_employer_id(
+    authorization: str = Header(...), 
+    db: Session = Depends(database.get_db)
+) -> int:
+    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne l'employer_id."""
+    err = HTTPException(status_code=401, detail="Token mobile invalide, expiré ou révoqué.")
     try:
         scheme, token = authorization.split(" ", 1)
         if scheme.lower() != "bearer":
@@ -43,16 +46,36 @@ def get_mobile_employer_id(authorization: str = Header(...)) -> int:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "mobile":
             raise err
-        return int(payload["sub"])
+            
+        jti = payload.get("jti")
+        if jti:
+            from backend.security import token_blacklist
+            if token_blacklist.is_revoked(jti, db):
+                raise err
+
+        user_id = int(payload["sub"])
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user or not user.is_active:
+            raise err
+
+        return user_id
     except (JWTError, ValueError, KeyError):
         raise err
 
-def get_mobile_role(authorization: str = Header(...)) -> str:
-    """DÃ©pendance : valide le JWT mobile et retourne le role."""
+def get_mobile_role(
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db)
+) -> str:
+    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne le role."""
     try:
         scheme, token = authorization.split(" ", 1)
         if scheme.lower() == "bearer":
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            jti = payload.get("jti")
+            if jti:
+                from backend.security import token_blacklist
+                if token_blacklist.is_revoked(jti, db):
+                    return "DENTISTE"
             return payload.get("role", "DENTISTE")
     except Exception:
         pass
@@ -90,12 +113,12 @@ def ping():
 
 class ClaimTokenRequest(BaseModel):
     token: str
-
+    client_public_key_hex: str = None
 
 @router.post(
     "/claim-token",
-    summary="Ã‰changer un token Ã©phÃ©mÃ¨re QR contre un JWT mobile",
-    description="Token Ã  usage unique (UUID 5 min). Retourne publicId, masterKey et un JWT mobile 24h.",
+    summary="Échanger un token éphémère QR contre un JWT mobile",
+    description="Token à usage unique (UUID 5 min). Si client_public_key_hex est fourni, utilise ECDH (secp256r1) pour chiffrer la masterKey.",
 )
 def claim_pairing_token(
     body: ClaimTokenRequest,
@@ -111,18 +134,59 @@ def claim_pairing_token(
         .first()
     )
     if not record:
-        raise HTTPException(status_code=404, detail="Token invalide, expirÃ© ou dÃ©jÃ  utilisÃ©.")
+        raise HTTPException(status_code=404, detail="Token invalide, expiré ou déjà utilisé.")
 
     record.used_at = datetime.utcnow()
     role = getattr(record, "role", "DENTISTE")
     db.commit()
-
-    return {
+    
+    response_data = {
         "publicId": record.public_id,
-        "masterKey": record.master_key,
         "role": role,
         "access_token": _create_mobile_jwt(record.employer_id, role),
     }
+
+    if body.client_public_key_hex:
+        # ECDH Key Exchange pour sécuriser la transmission de la masterKey
+        try:
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            
+            client_pub_bytes = bytes.fromhex(body.client_public_key_hex)
+            client_public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), client_pub_bytes)
+            
+            server_private_key = ec.generate_private_key(ec.SECP256R1())
+            server_public_key = server_private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.X962,
+                format=serialization.PublicFormat.UncompressedPoint
+            )
+            
+            shared_key = server_private_key.exchange(ec.ECDH(), client_public_key)
+            
+            derived_key = HKDF(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=None,
+                info=b'zka_mobile_bridge'
+            ).derive(shared_key)
+            
+            aesgcm = AESGCM(derived_key)
+            nonce = os.urandom(12)
+            encrypted_master_key = aesgcm.encrypt(nonce, record.master_key.encode(), None)
+            
+            response_data["server_public_key_hex"] = server_public_key.hex()
+            response_data["encrypted_master_key_hex"] = (nonce + encrypted_master_key).hex()
+        except Exception as e:
+            import logging
+            logging.error(f"Erreur ECDH: {e}")
+            response_data["masterKey"] = record.master_key # Fallback
+    else:
+        # Mode Legacy (Non sécurisé si HTTP local)
+        response_data["masterKey"] = record.master_key
+
+    return response_data
 
 
 # â”€â”€ SNAPSHOT LAN-FIRST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -177,108 +241,15 @@ def get_mobile_snapshot(
     ]
 
     # ──────────────────────────────────────────────────────────────────────────────────────────────────
-    today_revenue = (
-        db.query(func.sum(models.Payment.amount))
-        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(
-            models.Patient.employer_id == employer_id,
-            models.Payment.payment_date >= day_start,
-            models.Payment.payment_date <= day_end,
-        )
-        .scalar() or 0.0
-    )
+    from backend.services.accounting_service import accounting_service
+    kpis = accounting_service.get_finance_kpis(db, employer_id, today)
 
-    # â”€â”€ Recettes du mois courant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    month_revenue = (
-        db.query(func.sum(models.Payment.amount))
-        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(
-            models.Patient.employer_id == employer_id,
-            extract("year", models.Payment.payment_date) == today.year,
-            extract("month", models.Payment.payment_date) == today.month,
-        )
-        .scalar() or 0.0
-    )
-
-    # â”€â”€ Variation mois prÃ©cÃ©dent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    last_month_last_day = today.replace(day=1) - timedelta(days=1)
-    prev_month_revenue = (
-        db.query(func.sum(models.Payment.amount))
-        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(
-            models.Patient.employer_id == employer_id,
-            extract("year", models.Payment.payment_date) == last_month_last_day.year,
-            extract("month", models.Payment.payment_date) == last_month_last_day.month,
-        )
-        .scalar() or 0.0
-    )
-
-    month_variation = None
-    if prev_month_revenue > 0:
-        month_variation = round(
-            ((month_revenue - prev_month_revenue) / prev_month_revenue) * 100, 1
-        )
-
-    # â”€â”€ Recettes 7 derniers jours â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    week_start = datetime.combine(today - timedelta(days=6), dt_time.min)
-    weekly_rows = (
-        db.query(
-            func.date(models.Payment.payment_date).label("day"),
-            func.sum(models.Payment.amount).label("total"),
-        )
-        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
-        .filter(
-            models.Patient.employer_id == employer_id,
-            models.Payment.payment_date >= week_start,
-        )
-        .group_by(func.date(models.Payment.payment_date))
-        .all()
-    )
-    weekly_map = {str(r.day): float(r.total) for r in weekly_rows}
-    weekly_revenue = [
-        {"date": str(today - timedelta(days=6 - i)), "amount": weekly_map.get(str(today - timedelta(days=6 - i)), 0.0)}
-        for i in range(7)
-    ]
-
-    # â”€â”€ Nombre total patients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Nombre total patients 
     total_patients = (
         db.query(func.count(models.Patient.id))
         .filter(models.Patient.employer_id == employer_id)
         .scalar() or 0
     )
-
-    # â”€â”€ DÃ©biteurs (actes EN_ATTENTE) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    debtors_raw = (
-        db.query(
-            models.Patient.id,
-            models.Patient.nom,
-            models.Patient.prenom,
-            models.Patient.telephone,
-            func.sum(models.Acte.montant).label("total_due"),
-        )
-        .join(models.Acte, models.Acte.patient_id == models.Patient.id)
-        .filter(
-            models.Patient.employer_id == employer_id,
-            models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
-        )
-        .group_by(models.Patient.id)
-        .having(func.sum(models.Acte.montant) > 0)
-        .order_by(func.sum(models.Acte.montant).desc())
-        .limit(20)
-        .all()
-    )
-
-    debtors = [
-        {
-            "id": r.id,
-            "name": f"{r.prenom} {r.nom}",
-            "amount": round(r.total_due, 2),
-            "phone": r.telephone,
-        }
-        for r in debtors_raw
-    ]
-
-    total_debt = round(sum(d["amount"] for d in debtors), 2)
 
     user = db.query(models.User).filter(models.User.id == employer_id).first()
     is_superadmin = user and user.email.lower() == "benmoussa.achraf@gmail.com"
@@ -296,15 +267,15 @@ def get_mobile_snapshot(
         debtors_data = []
     else:
         finance_data = {
-            "today_revenue": round(today_revenue, 2),
-            "month_revenue": round(month_revenue, 2),
-            "month_variation": month_variation,
+            "today_revenue": kpis["today_revenue"],
+            "month_revenue": kpis["month_revenue"],
+            "month_variation": kpis["month_variation"],
             "appointments_count": len(appointments),
-            "weekly_revenue": weekly_revenue,
+            "weekly_revenue": kpis["weekly_revenue"],
             "total_patients": total_patients,
-            "total_debt": total_debt,
+            "total_debt": kpis["total_debt"],
         }
-        debtors_data = debtors
+        debtors_data = kpis["debtors"]
 
     data = {
         "generated_at": datetime.utcnow().isoformat(),
@@ -420,7 +391,7 @@ def get_mobile_appointments(
         models.Appointment.datetime_start >= start_dt,
         models.Appointment.datetime_start <= end_dt
     ).all()
-    return [{
+    data = [{
         'id': a.id,
         'datetime_start': a.datetime_start.isoformat(),
         'patient_name': f'{a.patient.prenom} {a.patient.nom}' if a.patient else a.patient_name,
@@ -477,7 +448,7 @@ def get_mobile_patients(
     db: Session = Depends(database.get_db),
 ):
     pts = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).all()
-    return [{
+    data = [{
         'id': p.id,
         'name': f'{p.prenom} {p.nom}'.strip(),
         'phone': p.telephone
@@ -548,10 +519,43 @@ def get_mobile_patient_documents(
 class SignatureSubmit(BaseModel):
     signature_base64: str
 
+def background_regenerate_pdf(document_id: int, pt_id: int, cdata: dict, employer_id: int, old_file_path: str):
+    from backend.database import SessionLocal
+    db_bg = SessionLocal()
+    try:
+        from backend.models import DocumentArchive, Patient
+        from backend.services.document_factory import doc_factory
+        from backend.schemas import DevisData
+        import os
+        
+        doc = db_bg.query(DocumentArchive).filter(DocumentArchive.id == document_id).first()
+        pt = db_bg.query(Patient).filter(Patient.id == pt_id).first()
+        if not doc or not pt:
+            return
+            
+        devis_data = DevisData(**cdata)
+        new_file_path = doc_factory.create_devis(pt, devis_data, db=db_bg, user_id=employer_id)
+        
+        if old_file_path and os.path.exists(old_file_path) and old_file_path != new_file_path:
+            try:
+                os.remove(old_file_path)
+            except Exception:
+                pass
+                
+        doc.file_path = new_file_path
+        db_bg.commit()
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("uvicorn")
+        logger.error(f"Erreur background_regenerate_pdf : {e}")
+    finally:
+        db_bg.close()
+
 @router.post('/documents/{document_id}/sign', summary='Signer un document électroniquement')
 def sign_mobile_document(
     document_id: int,
     body: SignatureSubmit,
+    background_tasks: BackgroundTasks,
     employer_id: int = Depends(get_mobile_employer_id),
     db: Session = Depends(database.get_db),
 ):
@@ -591,24 +595,18 @@ def sign_mobile_document(
     cdata["signature_path"] = sig_path.replace("\\", "/")
     cdata["signature_date"] = datetime.utcnow().isoformat()
     doc.clinical_data = cdata
+    
+    old_file_path = doc.file_path
 
     if doc.document_type == models.DocumentType.DEVIS:
-        from backend.services.document_factory import doc_factory
-        from backend.schemas import DevisData
-        try:
-            devis_data = DevisData(**cdata)
-            new_file_path = doc_factory.create_devis(pt, devis_data, db=db, user_id=employer_id)
-            if os.path.exists(doc.file_path) and doc.file_path != new_file_path:
-                try:
-                    os.remove(doc.file_path)
-                except Exception:
-                    pass
-            doc.file_path = new_file_path
-        except Exception as e:
-            import logging
-            logger = logging.getLogger("uvicorn")
-            logger.error(f"Erreur lors de la régénération du devis : {e}")
-            raise HTTPException(status_code=500, detail=f"Erreur de régénération PDF : {e}")
+        background_tasks.add_task(
+            background_regenerate_pdf,
+            document_id=doc.id,
+            pt_id=pt.id,
+            cdata=cdata,
+            employer_id=employer_id,
+            old_file_path=old_file_path
+        )
 
     db.commit()
     return {"status": "success", "signed": True}

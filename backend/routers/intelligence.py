@@ -3,14 +3,20 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+import logging
 
 from backend import database, models
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, require_permission, require_elite_license
 from backend.services.elite_manager import elite_manager
 from backend.services.habits_engine import habits_engine
 from backend.utils.access_control import assert_patient_access
 
-router = APIRouter(tags=["Elite Intelligence"])
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    tags=["Elite Intelligence"],
+    dependencies=[Depends(require_elite_license)]
+)
 
 @router.get("/patient/{patient_id}")
 async def get_patient_intelligence(
@@ -92,10 +98,9 @@ def get_briefing_j1(
         if not patient:
             continue
 
-        solde = db.query(func.sum(models.Acte.montant)).filter(
-            models.Acte.patient_id == appt.patient_id,
-            models.Acte.statut_paiement == "EN_ATTENTE"
-        ).scalar() or 0.0
+        p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == appt.patient_id).scalar() or 0.0
+        p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == appt.patient_id).scalar() or 0.0
+        solde = max(float(p_acts) - float(p_pays), 0.0)
 
         total_outstanding += solde
         result.append({
@@ -148,10 +153,9 @@ def get_briefing_today(
         if not patient:
             continue
 
-        solde = db.query(func.sum(models.Acte.montant)).filter(
-            models.Acte.patient_id == appt.patient_id,
-            models.Acte.statut_paiement == "EN_ATTENTE"
-        ).scalar() or 0.0
+        p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == appt.patient_id).scalar() or 0.0
+        p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == appt.patient_id).scalar() or 0.0
+        solde = max(float(p_acts) - float(p_pays), 0.0)
 
         total_outstanding += solde
         result.append({
@@ -334,59 +338,80 @@ def get_projection_mensuelle(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
-    """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast)."""
+    """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast avec WMA)."""
     employer_id = current_user.get_employer_id()
     now = datetime.now()
-    from backend.routers.documents import extract_amount_from_clinical_data
+    import calendar
 
     historical = []
+    
+    def get_month_boundaries(year, month):
+        start = datetime(year, month, 1)
+        _, last_day = calendar.monthrange(year, month)
+        end = datetime(year, month, last_day, 23, 59, 59)
+        return start, end
+
+    # 1. Historique (M-3 à M-1)
     for i in range(3, 0, -1):
-        month_start = (now.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
-        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+        target_month = now.month - i
+        target_year = now.year
+        if target_month <= 0:
+            target_month += 12
+            target_year -= 1
+            
+        month_start, month_end = get_month_boundaries(target_year, target_month)
         
-        # Revenus des actes
+        # Revenus purs (Actes, évite le double comptage avec les devis/notes)
         rev_actes = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
             models.Patient.employer_id == employer_id,
             models.Acte.date_debut >= month_start,
-            models.Acte.date_debut <= month_end
+            models.Acte.date_debut <= month_end,
+            models.Acte.montant > 0
         ).scalar() or 0.0
         
-        # Revenus des notes d'honoraires
-        docs = db.query(models.DocumentArchive).join(models.Patient).filter(
-            models.Patient.employer_id == employer_id,
-            models.DocumentArchive.document_type == "NOTE_HONORAIRES",
-            models.DocumentArchive.created_at >= month_start,
-            models.DocumentArchive.created_at <= month_end
-        ).all()
-        rev_docs = sum(extract_amount_from_clinical_data(d.clinical_data) for d in docs)
-        
-        total_rev = round(float(rev_actes) + rev_docs, 2)
-        historical.append({"month": month_start.strftime("%Y-%m"), "revenue": total_rev, "type": "actual"})
+        historical.append({
+            "month": month_start.strftime("%Y-%m"), 
+            "revenue": round(float(rev_actes), 2), 
+            "type": "actual"
+        })
 
-    avg_monthly = sum(h["revenue"] for h in historical) / 3 if historical else 0
+    # 2. Modèle de Prévision (Moyenne Mobile Pondérée WMA)
+    if len(historical) == 3:
+        # Poids FP&A standard : M-1=50%, M-2=30%, M-3=20%
+        base_forecast = (historical[2]["revenue"] * 0.5) + (historical[1]["revenue"] * 0.3) + (historical[0]["revenue"] * 0.2)
+    else:
+        base_forecast = sum(h["revenue"] for h in historical) / len(historical) if historical else 0.0
 
-    total_rdv_90d = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
-        models.Patient.employer_id == employer_id,
-        models.Appointment.datetime_start >= now - timedelta(days=90)
-    ).scalar() or 1
-    avg_rdv_per_month = max(total_rdv_90d / 3, 1)
+    # Lissage de croissance (CAGR) capé à +/- 5% pour éviter les aberrations
+    growth_rate = 1.0
+    if len(historical) >= 3 and historical[0]["revenue"] > 0:
+        raw_growth = historical[2]["revenue"] / historical[0]["revenue"]
+        growth_rate = min(max(raw_growth ** (1/2), 0.95), 1.05)
 
     projections = []
-    for i in range(1, 7):
-        proj_month_start = (now.replace(day=1) + timedelta(days=32 * i)).replace(day=1)
-        proj_month_end = (proj_month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
-        rdv_count = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
-            models.Patient.employer_id == employer_id,
-            models.Appointment.datetime_start >= proj_month_start,
-            models.Appointment.datetime_start <= proj_month_end,
-            models.Appointment.status != "ANNULÉ"
-        ).scalar() or 0
-        factor = min(rdv_count / avg_rdv_per_month, 1.5) if rdv_count else 1.0
+    current_forecast = base_forecast
+
+    # 3. Projections (M à M+5)
+    for i in range(0, 6):
+        target_month = now.month + i
+        target_year = now.year
+        if target_month > 12:
+            target_month -= 12
+            target_year += 1
+            
+        proj_month_start, _ = get_month_boundaries(target_year, target_month)
+        
+        # Application de la tendance sur la base WMA
+        if current_forecast > 0:
+            current_forecast = current_forecast * growth_rate
+            
         projections.append({
             "month": proj_month_start.strftime("%Y-%m"),
-            "revenue": round(avg_monthly * factor, 2),
+            "revenue": round(current_forecast, 2),
             "type": "forecast",
         })
+
+    avg_monthly = sum(h["revenue"] for h in historical) / len(historical) if historical else 0.0
 
     return {"historical": historical, "projections": projections, "avg_monthly": round(avg_monthly, 2)}
 

@@ -18,6 +18,7 @@ export interface CabinetProfile {
   inpe: string;
   nom_cabinet?: string;
   letterhead_path?: string;
+  use_letterhead?: boolean;
   margin_top?: number;
   margin_bottom?: number;
   header_scale?: number;

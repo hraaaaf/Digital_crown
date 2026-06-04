@@ -390,7 +390,8 @@ class BaseTemplate:
         
         # 1. Fond de page / Letterhead
         lh_path_str = self._get_val(config, 'letterhead_path')
-        has_letterhead = lh_path_str and str(lh_path_str) not in ["null", "None", ""]
+        use_letterhead = self._get_val(config, 'use_letterhead', False)
+        has_letterhead = use_letterhead and lh_path_str and str(lh_path_str) not in ["null", "None", ""]
         
         if has_letterhead:
             lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))

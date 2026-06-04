@@ -59,17 +59,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const { API_BASE } = await import('./services/api');
         const axios = (await import('axios')).default;
         
-        while (true) {
+        const MAX_ATTEMPTS = 15; // 15 × 2s = 30s max
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
           try {
             await axios.get(`${API_BASE}/health`);
-            break; // Le backend répond, la BDD est prête
+            break;
           } catch (error: any) {
-            // Si le backend renvoie 401 ou 403, il est quand même UP
             if (error.response && error.response.status !== 502 && error.response.status !== 503) {
               break;
             }
-            // Sinon, on attend 2 secondes et on réessaye
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            if (attempt < MAX_ATTEMPTS - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
           }
         }
       };
@@ -80,7 +81,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
         
-        if (authStatus) {
+        if (authStatus && location.pathname !== '/login') {
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
           
@@ -100,7 +101,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return <DigitalCrownLoader text="Initialisation de la base de données..." />;
+    return <DigitalCrownLoader text="Patientez pendant le démarrage de l'IA..." />;
   }
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
@@ -180,7 +181,7 @@ const SmartRootRouter = () => {
   if (isMobile) {
     return <Navigate to="/mobile/dashboard" replace />;
   }
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/login" replace />;
 };
 
 // =============================================================================
@@ -240,7 +241,7 @@ function App() {
             <Suspense fallback={<PageLoader />}><MobileDashboard /></Suspense>
           </MobileProtectedRoute>
         } />
-
+        
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>

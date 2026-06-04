@@ -178,6 +178,7 @@ class PrescriptionService:
         
         meds = [m[0] for m in med_habits]
         
+        import urllib.request, urllib.parse, re
         # 2. Compléter avec la base globale si besoin (< 5 résultats)
         if len(meds) < 10:
             global_meds = db.query(models.Medication.nom).filter(
@@ -193,6 +194,24 @@ class PrescriptionService:
                 models.Medication.usage_count.desc()
             ).limit(10 - len(meds)).all()
             meds.extend([m[0] for m in global_meds])
+            
+        # 3. Si toujours peu de résultats, interroger medicament.ma en direct
+        if len(meds) < 3 and len(query) >= 3:
+            try:
+                url = f'https://medicament.ma/?choice=specialite&keyword=starts&s={urllib.parse.quote(query.strip())}'
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=3) as response:
+                    html = response.read().decode('utf-8', errors='ignore')
+                    matches = re.findall(r'<p class="primary">([^<]+)</p>', html)
+                    for match in matches[:5]:
+                        name = match.split(',', 1)[0].strip()
+                        dosage_match = re.search(r'\b(\d+(?:,\d+)?\s*(?:MG|G|ML|UI|UI/ML|%|MCG))\b', name, re.IGNORECASE)
+                        if dosage_match:
+                            name = name.replace(dosage_match.group(1), "").strip()
+                        if name not in meds:
+                            meds.append(name)
+            except Exception as e:
+                logger.error(f"Erreur scraping medicament.ma: {e}")
         
         return {
             "medications": meds,

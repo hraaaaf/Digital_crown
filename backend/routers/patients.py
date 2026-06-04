@@ -63,6 +63,23 @@ def check_dossier_availability(numero: str, db: Session = Depends(database.get_d
         "patient_name": f"{exists.nom.upper()} {exists.prenom.capitalize()}" if exists else None
     }
 
+from pydantic import BaseModel
+class DuplicateCheckRequest(BaseModel):
+    nom: str
+    prenom: str
+    date_naissance: datetime
+    exclude_id: Optional[int] = None
+
+@router.post("/check-duplicate")
+def check_duplicate_api(payload: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, payload.exclude_id)
+    return {
+        "isDuplicate": bool(existing),
+        "patientName": f"{existing.nom} {existing.prenom}" if existing else None,
+        "dateNaissance": existing.date_naissance.strftime("%Y-%m-%d") if existing else None,
+        "existingId": existing.id if existing else None
+    }
+
 @router.get("/", response_model=List[schemas.PatientOut],
     summary="Lister les patients",
     description="Retourne tous les patients du cabinet (multi-tenant isolé). Supporte la recherche par nom/prénom/dossier. Header X-Total-Count disponible pour la pagination future.")
@@ -310,10 +327,9 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
-    solde_attente = db.query(func.sum(models.Acte.montant)).filter(
-        models.Acte.patient_id == patient_id,
-        models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
-    ).scalar() or 0.0
+    p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+    p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+    solde_attente = max(float(p_acts) - float(p_pays), 0.0)
     return {
         "suggestion": "Suite de traitement" if devis else "Consultation",
         "duration": 45 if devis else 30,

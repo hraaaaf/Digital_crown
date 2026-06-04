@@ -160,12 +160,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus,
+    installments, isAccounted, paymentStatus, isGlobalNote,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus,
+    installments, isAccounted, paymentStatus, isGlobalNote,
   ]);
 
   // --- INTELLIGENCE SCOPE ---

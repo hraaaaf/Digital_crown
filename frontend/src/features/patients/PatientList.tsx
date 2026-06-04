@@ -214,6 +214,27 @@ export const PatientList = () => {
           <div className="h-[500px] relative">
             <EliteGhostLoader text="Chargement des dossiers..." fullScreen={false} size="medium" />
           </div>
+        ) : patients.length === 0 ? (
+          /* AUCUN PATIENT EN BASE (JOUR 1) */
+          <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
+            <div className="w-24 h-24 bg-primary/5 rounded-[2rem] flex items-center justify-center">
+              <UserPlus className="text-primary w-12 h-12" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-main font-outfit" style={{ color: 'var(--text-main)' }}>Votre base de données est vierge</h3>
+              <p className="text-text-muted mt-3 font-medium text-sm max-w-[320px] mx-auto leading-relaxed">
+                Il est temps de donner vie à votre clinique. Ajoutez votre premier patient pour accéder à son dossier clinique, ses ordonnances et son historique.
+              </p>
+            </div>
+            <Link
+              to="/patients/new"
+              className="mt-6 bg-primary text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-lg shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 transition-all duration-300"
+            >
+              <UserPlus size={22} strokeWidth={2.5} />
+              Créer mon premier dossier
+              <ArrowRight size={18} />
+            </Link>
+          </div>
         ) : filtered.length === 0 && searchTerm.trim() ? (
           /* AUCUN RÉSULTAT - PROPOSITION DE CRÉATION */
           <div className="p-16 flex flex-col items-center justify-center gap-6 text-center">

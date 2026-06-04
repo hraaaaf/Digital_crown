@@ -714,7 +714,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="p-10 bg-white rounded-[3rem] border border-white shadow-2xl space-y-10 relative overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              className="p-6 sm:p-10 bg-white rounded-[2rem] sm:rounded-[3rem] border border-white shadow-2xl space-y-6 sm:space-y-10 relative overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             >
               <button 
                 onClick={() => setIsTreasuryModalOpen(false)}
@@ -725,7 +725,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
           
-          <div className="flex items-center justify-between relative z-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between relative z-10 gap-6 sm:gap-0">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 bg-primary/10 text-primary rounded-[1.25rem] flex items-center justify-center border border-primary/20 shadow-inner">
                 <Banknote size={28} />
@@ -755,7 +755,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-4 relative z-10">
             {/* Statut */}
             <div className="space-y-4">
               <label className={cn(labelClass, "text-slate-400")}>Statut de Règlement</label>
@@ -840,16 +840,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                 
                 <div className="space-y-4">
                   {installments.map((inst) => (
-                    <div key={inst.id} className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-5">
+                    <div key={inst.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-4 sm:gap-4 items-center bg-white p-4 sm:p-0 rounded-2xl sm:bg-transparent">
+                      <div className="w-full sm:col-span-5">
                         <input 
                           type="text" 
-                          className="w-full px-5 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                          className="w-full px-5 py-3 bg-white sm:bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
                           value={inst.label}
                           onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div className="w-full sm:col-span-3">
                         <input 
                           type="date" 
                           className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
@@ -857,7 +857,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                           onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
                         />
                       </div>
-                      <div className="col-span-3 relative">
+                      <div className="w-full sm:col-span-3 relative">
                         <input 
                           type="number" 
                           className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
@@ -866,12 +866,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">MAD</span>
                       </div>
-                      <div className="col-span-1 flex justify-end">
+                      <div className="w-full sm:col-span-1 flex justify-end sm:justify-center">
                         <button 
                           onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
-                          className="p-3 text-slate-300 hover:text-rose-400 transition-all"
+                          className="p-3 text-slate-300 hover:text-rose-400 transition-all bg-rose-50 sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={16} className="mx-auto" />
                         </button>
                       </div>
                     </div>
@@ -882,14 +882,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
           </AnimatePresence>
 
           {/* Actions Modale Treasury */}
-          <div className="pt-6 border-t border-slate-100 flex justify-end gap-4 relative z-10">
+          <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-4 relative z-10">
              <button 
                onClick={() => setIsTreasuryModalOpen(false)}
-               className="px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
+               className="w-full sm:w-auto px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
              >Fermer</button>
              <button 
                onClick={() => setIsTreasuryModalOpen(false)}
-               className="px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
+               className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
              >Valider la Caisse</button>
           </div>
 

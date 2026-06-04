@@ -188,7 +188,14 @@ export type OdontogramMode =
   | 'PLAN_TREATMENT'
   | 'SELECT_FOR_DOCUMENT';
 
-
+export type OdontogramTool = 
+  | 'SELECT'
+  | 'HEALTHY'
+  | 'CARIES'
+  | 'FILLING_COMPOSITE'
+  | 'CROWN'
+  | 'ABSENT'
+  | 'ROOT_CANAL';
 
 // Couleurs pour les surfaces (architecture 5 surfaces)
 export const SURFACE_COLORS: Record<SurfaceState, { fill: string; stroke: string; hoverFill: string }> = {

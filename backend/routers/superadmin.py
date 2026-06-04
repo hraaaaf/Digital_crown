@@ -55,7 +55,27 @@ def get_clients(db: Session = Depends(database.get_db), admin: models.User = Dep
         result.append(c_dict)
     return result
 
+@router.post("/clients/{user_id}/validate")
+def validate_client(
+    user_id: int, 
+    db: Session = Depends(database.get_db), 
+    admin: models.User = Depends(verify_superadmin)
+):
+    """Active le compte d'un nouveau dentiste (il pourra alors se connecter, mais n'a pas encore de licence)."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    
+    user.is_active = True
+    db.commit()
+    
+    add_license_history(db, user_id, admin.id, "COMPTE_VALIDE", 0)
+    db.commit()
+    
+    return {"status": "success", "message": f"Compte de {user.email} activé avec succès."}
+
 @router.post("/clients/{user_id}/grant-license")
+
 def grant_license(
     user_id: int, 
     background_tasks: BackgroundTasks,

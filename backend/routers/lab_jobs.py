@@ -1,11 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from datetime import datetime
 
 from backend import models, database
 from backend.routers.auth import require_permission
 
 router = APIRouter()
+
+class LabJobCreate(BaseModel):
+    patient_id: int
+    act_id: int
+    lab_id: Optional[int] = None
+    material: str
+    shade: Optional[str] = None
+    type: str
+    tooth_number: Optional[str] = None
+    notes: Optional[str] = None
+    deadline: str
+    is_remake: bool = False
+
 
 @router.get("/")
 def get_lab_jobs(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
@@ -45,4 +60,28 @@ def update_lab_job(job_id: int, req: Dict[str, Any], db: Session = Depends(datab
     return {
         "id": job.id,
         "status": job.status.value if hasattr(job.status, "value") else job.status
+    }
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_lab_job(req: LabJobCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    new_job = models.LabJob(
+        patient_id=req.patient_id,
+        act_id=req.act_id,
+        lab_id=req.lab_id,
+        material=req.material,
+        shade=req.shade,
+        type=req.type,
+        tooth_number=req.tooth_number,
+        notes=req.notes,
+        deadline=datetime.fromisoformat(req.deadline.replace('Z', '+00:00')),
+        status=models.LabJobStatus.PRESCRIPTION,
+        is_remake=req.is_remake
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    
+    return {
+        "id": new_job.id,
+        "status": new_job.status.value
     }

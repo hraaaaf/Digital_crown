@@ -155,3 +155,39 @@ class LicenseService:
             local_data["max_seen_time"] = now.isoformat()
             self._write_local_vault(local_data)
             return True
+
+    async def validate_license_with_expiry(self, clinic_id: str) -> dict:
+        """
+        Retourne l'état complet depuis Firebase pour synchronisation avec SQLite.
+        """
+        if not self._db:
+            return {"active": False, "expiration_date": None}
+        
+        try:
+            doc_ref = self._db.collection('licenses').document(clinic_id)
+            doc = doc_ref.get()
+            if doc.exists:
+                data = doc.to_dict()
+                return {
+                    "active": data.get('active', False),
+                    "expiration_date": data.get('expiration_date')
+                }
+            return {"active": False, "expiration_date": None}
+        except Exception as e:
+            logger.error(f"Erreur lecture Firebase pour {clinic_id} : {e}")
+            return {"active": False, "expiration_date": None}
+
+    async def write_license(self, public_id: str, active: bool, expiration_date=None) -> bool:
+        """Écrit/Met à jour l'entrée de licence dans Firestore (appelé par le dashboard SuperAdmin)."""
+        if not self._db:
+            return False
+        try:
+            doc_ref = self._db.collection('licenses').document(public_id)
+            data = {"active": active}
+            if expiration_date:
+                data["expiration_date"] = expiration_date
+            doc_ref.set(data, merge=True)
+            return True
+        except Exception as e:
+            logger.error(f"Erreur écriture Firebase pour {public_id}: {e}")
+            return False

@@ -52,16 +52,52 @@ class NotificationService:
 
     def send_whatsapp_via_whatsmate(self, to_number: str, message: str) -> bool:
         """
-        Simule ou exécute un envoi de message WhatsApp via l'API WhatsMate.
+        Exécute un envoi de message WhatsApp via l'API WhatsMate (avec fallback mock).
         """
+        import httpx
+        
         logger.info(f"💬 Tentative d'envoi WhatsApp via WhatsMate vers {to_number}...")
         
         if not to_number or len(to_number) < 8:
             logger.warning(f"❌ Numéro WhatsApp invalide : {to_number}")
             return False
             
-        logger.info(f"✅ Message WhatsApp envoyé avec succès via WhatsMate vers {to_number} : '{message}'")
-        return True
+        client_id = self.whatsmate_client_id
+        api_key = self.whatsmate_api_key
+        
+        # Mode mock si clés non configurées
+        if "mock" in client_id or "mock" in api_key:
+            logger.warning("⚠️ WhatsApp WhatsMate en mode SIMULATION (clés non configurées)")
+            logger.info(f"[MOCK] WhatsApp vers {to_number}: {message}")
+            return True
+            
+        try:
+            payload = {
+                "number": to_number,
+                "message": message
+            }
+            # L'URL classique WhatsMate requiert l'instance/client ID dans l'URL
+            response = httpx.post(
+                f"http://api.whatsmate.net/v3/whatsapp/single/text/message/12",
+                headers={
+                    "X-WM-CLIENT-ID": client_id,
+                    "X-WM-CLIENT-SECRET": api_key,
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=10.0
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Message WhatsApp envoyé avec succès vers {to_number}.")
+                return True
+            else:
+                logger.error(f"❌ Échec de l'envoi WhatsApp: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Erreur réseau lors de l'appel WhatsMate: {e}")
+            return False
 
     def send_appointment_reminder(self, db: Session, appointment_id: int) -> bool:
         """

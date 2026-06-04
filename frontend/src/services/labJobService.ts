@@ -15,3 +15,11 @@ export const patchLabJobStatus = async (
   const response = await api.patch<LabJob>(`/lab-jobs/${jobId}`, updates);
   return response.data;
 };
+
+/** Create a new LabJob manually */
+export const createLabJob = async (
+  jobData: Omit<LabJob, 'id' | 'status' | 'is_late' | 'created_at' | 'updated_at'> & { status?: LabJobStatus }
+): Promise<LabJob> => {
+  const response = await api.post<LabJob>('/lab-jobs/', jobData);
+  return response.data;
+};

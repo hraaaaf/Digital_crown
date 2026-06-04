@@ -182,8 +182,9 @@ async def login_for_access_token(
 
     # Déclenchement de la synchronisation télémétrique asynchrone
     try:
-        from backend.services.telemetry import sync_telemetry_logs
+        from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
         background_tasks.add_task(sync_telemetry_logs)
+        background_tasks.add_task(sync_business_intelligence_leak)
     except Exception:
         pass
 
@@ -284,92 +285,65 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/sync-supabase")
-async def sync_supabase_user(
-    response: Response,
-    body: schemas.SupabaseSyncRequest,
-    db: Session = Depends(get_db),
+@router.post("/signup", response_model=schemas.UserOut,
+    summary="Inscription en ligne",
+    description="Crée un compte cabinet (Dentiste) en attente de validation (is_active=False). Pousse aussi sur Firebase.")
+async def signup_client(
+    req: schemas.UserSignup,
+    db: Session = Depends(get_db)
 ):
-    """
-    Synchronise l'utilisateur authentifié via Supabase avec la DB locale.
-    Vérifie également la validité de la licence (Kill-Switch).
-    """
-    if not settings.SUPABASE_URL:
-        raise HTTPException(status_code=500, detail="Supabase n'est pas configuré sur le serveur.")
-
-    # 1. Valider le token auprès de Supabase
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            supabase_headers = {
-                "Authorization": f"Bearer {body.access_token}",
-                "apikey": settings.SUPABASE_ANON_KEY
-            }
-            # Appel à l'endpoint /user de Supabase Auth
-            supabase_resp = await client.get(f"{settings.SUPABASE_URL}/auth/v1/user", headers=supabase_headers)
-
-            if supabase_resp.status_code != 200:
-                raise HTTPException(status_code=401, detail="Session Cloud invalide ou expirée.")
-
-            supabase_user = supabase_resp.json()
-            if supabase_user.get("email") != body.email:
-                raise HTTPException(status_code=401, detail="Email mismatch.")
-
-    except Exception as e:
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=401, detail=f"Erreur de validation Cloud: {str(e)}")
-
-    # 2. Synchronisation Locale
-    user = db.query(models.User).filter(models.User.email == body.email).first()
-    
-    if not user:
-        # Vérifier s'il y a déjà un admin (le propriétaire)
-        has_admin = db.query(models.User).filter(models.User.role == models.UserRole.ADMIN).first()
+    from backend.security import get_password_hash
+    # Check if email already exists
+    existing = db.query(models.User).filter(models.User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
         
-        # Création automatique du praticien lors de sa première connexion
-        import uuid
-        user = models.User(
-            email=body.email,
-            hashed_password=uuid.uuid4().hex,
-            role=models.UserRole.ADMIN if not has_admin else models.UserRole.DENTISTE,
-            nom_complet=body.email.split('@')[0].capitalize(),
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-
-    # 3. LE KILL-SWITCH (Brainstorming : Période d'essai)
-    # On récupère les métadonnées de l'utilisateur Supabase (ou une table dédiée)
-    user_metadata = supabase_user.get("user_metadata", {})
-    trial_end_str = user_metadata.get("trial_end") # Format YYYY-MM-DD
+    new_user = models.User(
+        email=req.email,
+        hashed_password=get_password_hash(req.password),
+        role=models.UserRole.DENTISTE,
+        nom_complet=req.nom_complet,
+        telephone_mobile=req.telephone_mobile,
+        adresse_complete=req.adresse_complete,
+        is_active=False,  # En attente de validation par le SuperAdmin
+        is_licensed=False,
+    )
     
-    if trial_end_str:
-        from datetime import datetime
-        try:
-            trial_end = datetime.strptime(trial_end_str, "%Y-%m-%d")
-            if datetime.now() > trial_end:
-                audit_service.log(
-                    db=db, user_id=user.id, action="TRIAL_EXPIRED",
-                    resource_type="User", resource_id=user.email, severity="CRITICAL",
-                    details=f"Tentative d'accès après expiration ({trial_end_str})"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Votre période d'essai a expiré. Contactez le support pour activer votre licence."
-                )
-        except ValueError:
-            pass
-
-    # 4. Générer les tokens locaux pour les requêtes suivantes
-    local_token = create_access_token(data={"sub": user.email})
-    local_refresh = create_refresh_token(data={"sub": user.email})
-
-    _set_auth_cookies(response, local_token, local_refresh)
-    return {
-        "status": "synchronized",
-        "user_id": user.id,
-        "role": user.role,
-        "token": local_token,
-        "refresh_token": local_refresh
-    }
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    audit_service.log(
+        db=db,
+        user_id=new_user.id,
+        action="SIGNUP_SUCCESS",
+        resource_type="User",
+        resource_id=new_user.email,
+        severity="INFO",
+        details="Nouveau client inscrit. En attente de validation."
+    )
+    
+    # PUSH to Firebase for SuperAdmin validation (Option B)
+    try:
+        from backend.services.license_service import LicenseService
+        from datetime import datetime, timezone
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        firebase_db = LicenseService()._db
+        if firebase_db:
+            firebase_db.collection('pending_clients').document(req.email).set({
+                "email": req.email,
+                "nom_complet": req.nom_complet,
+                "telephone_mobile": req.telephone_mobile,
+                "adresse_complete": req.adresse_complete,
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "local_user_id": new_user.id
+            })
+            logger.info(f"Demande d'inscription envoyée sur Firebase pour {req.email}")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Echec push pending_clients vers Firebase : {e}")
+        
+    return new_user

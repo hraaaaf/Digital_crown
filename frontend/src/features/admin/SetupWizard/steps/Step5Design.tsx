@@ -88,7 +88,7 @@ export const Step5Design: React.FC<Props> = ({
       </div>
 
 
-      {headerOption === 'auto' ? (
+      {headerOption === 'auto' && (
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h3 className="font-bold text-[11px] text-slate-400 tracking-[0.12em] uppercase mb-5">Palette</h3>

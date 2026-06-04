@@ -313,7 +313,21 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {progressPercent === 100 && treatmentPlan.length > 0 && (
+                <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center">
+                      <CheckCircle2 size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-emerald-700">Plan de Traitement Terminé</h4>
+                      <p className="text-xs text-emerald-600/70 font-bold">Ce plan est verrouillé en lecture seule. Vous ne pouvez plus ajouter d'étapes.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4", progressPercent === 100 && treatmentPlan.length > 0 && "opacity-50 pointer-events-none")}>
                 {ASSISTANTS.map((assistant) => {
               const Icon = assistant.icon;
               return (
@@ -452,18 +466,34 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         <div className="xl:col-span-4 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted">Master Plan de Traitement</h3>
-            <button 
-              onClick={() => {
-                if (window.confirm('Voulez-vous vraiment réinitialiser le plan de traitement complet ?')) {
-                  savePlan([]);
-                  setActiveAssistant('general');
-                  toast.success('Plan réinitialisé. L\'Assistant Général prend le relais.');
-                }
-              }}
-              className="text-[10px] uppercase font-black tracking-widest text-rose-500 hover:text-white hover:bg-rose-500 transition-colors px-3 py-1.5 rounded-lg border border-rose-500/30"
-            >
-              Réinitialiser
-            </button>
+            {progressPercent === 100 && treatmentPlan.length > 0 ? (
+              <button 
+                onClick={() => {
+                  if (window.confirm('Voulez-vous archiver ce plan terminé et en démarrer un nouveau ?')) {
+                    // Dans un vrai backend, on appellerait une route /archive
+                    savePlan([]);
+                    setActiveAssistant('general');
+                    toast.success('Ancien plan archivé. Nouveau plan initié.');
+                  }
+                }}
+                className="text-[10px] uppercase font-black tracking-widest text-emerald-500 hover:text-white hover:bg-emerald-500 transition-colors px-3 py-1.5 rounded-lg border border-emerald-500/30"
+              >
+                Archiver & Nouveau
+              </button>
+            ) : (
+              <button 
+                onClick={() => {
+                  if (window.confirm('Voulez-vous vraiment réinitialiser le plan de traitement complet ?')) {
+                    savePlan([]);
+                    setActiveAssistant('general');
+                    toast.success('Plan réinitialisé. L\'Assistant Général prend le relais.');
+                  }
+                }}
+                className="text-[10px] uppercase font-black tracking-widest text-rose-500 hover:text-white hover:bg-rose-500 transition-colors px-3 py-1.5 rounded-lg border border-rose-500/30"
+              >
+                Réinitialiser
+              </button>
+            )}
           </div>
           
           <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-elite flex flex-col h-full relative overflow-hidden">
@@ -472,7 +502,14 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 <span className="text-xs font-bold text-text-muted uppercase tracking-widest">Tracking Actif</span>
               </div>
-              <span className="text-xl font-black text-primary drop-shadow-sm" style={{ color: 'var(--primary)' }}>{progressPercent}%</span>
+              {progressPercent === 100 && treatmentPlan.length > 0 ? (
+                <div className="flex flex-col items-end">
+                  <span className="text-xl font-black text-emerald-500 drop-shadow-sm">COMPLÉTÉ</span>
+                  <span className="text-[9px] uppercase tracking-widest text-emerald-500/70 font-black">Plan Verrouillé (Read-Only)</span>
+                </div>
+              ) : (
+                <span className="text-xl font-black text-primary drop-shadow-sm" style={{ color: 'var(--primary)' }}>{progressPercent}%</span>
+              )}
             </div>
 
             {/* PROGRESS BAR */}
@@ -594,7 +631,13 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                     toast.success('Le Master Plan est pré-chargé pour la comptabilité.');
                   }, 1200);
                 }}
-                className="w-full py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-[0.15em] shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700"
+                disabled={treatmentPlan.length === 0}
+                className={cn(
+                  "w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.15em] shadow-xl transition-all flex items-center justify-center gap-2 border",
+                  treatmentPlan.length === 0 
+                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 border-transparent cursor-not-allowed" 
+                    : "bg-slate-900 dark:bg-slate-800 text-white hover:bg-black active:scale-95 border-slate-700"
+                )}
               >
                 <Sparkles size={16} />
                 Générer Devis Global

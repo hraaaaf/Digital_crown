@@ -7,12 +7,14 @@ import { safeStorage } from '../hooks/useLocalStorage';
 import { useAuthStore } from '../stores/useAuthStore';
 import { GuideTower } from './GuidedTour/GuideTower';
 import { EliteAssistant } from '../features/admin/DocumentStudio/EliteAssistant';
+import { authService } from '../services/auth';
 
 export const Header = () => {
   const [cabinetName, setCabinetName] = useState('Chargement...');
   const [praticienName, setPraticienName] = useState('Praticien');
   const [treasuryCount, setTreasuryCount] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { user } = useAuthStore();
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -48,12 +50,22 @@ export const Header = () => {
         console.error("Erreur header config:", error);
       }
     };
+
+    // Ref pour arrêter le polling depuis l'intérieur du callback
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const fetchTreasury = async () => {
       try {
         const res = await api.get('/accounting/treasury-hub');
         setTreasuryCount(res.data.pending_count || 0);
-      } catch (e) {
-        // ignore
+      } catch (e: any) {
+        const status = e?.response?.status;
+        // 401 (token expiré) ou 402 (licence) → arrêter le polling,
+        // l'intercepteur api.ts gère déjà le refresh/redirect
+        if (status === 401 || status === 402) {
+          if (intervalId !== null) clearInterval(intervalId);
+        }
+        // Autres erreurs (réseau, 500...) : on ignore et on réessaie au prochain tick
       }
     };
 
@@ -67,15 +79,16 @@ export const Header = () => {
     };
     window.addEventListener('cabinet-changed', handleCabinetChange);
 
-    const interval = setInterval(fetchTreasury, 60000);
+    intervalId = setInterval(fetchTreasury, 60000);
     return () => {
-      clearInterval(interval);
+      if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('cabinet-changed', handleCabinetChange);
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     safeStorage.remove('appMode');
+    await authService.logout();
     window.location.href = '/welcome'; 
   };
 
@@ -176,13 +189,46 @@ export const Header = () => {
 
       {/* LOGOUT */}
       <button 
-        onClick={handleLogout} 
+        onClick={() => setShowLogoutConfirm(true)} 
         className="ml-2 p-2.5 text-text-muted hover:text-red-600 hover:bg-red-500/10 rounded-elite-sm transition-elite group"
         title="Déconnexion"
       >
         <LogOut size={20} className="group-hover:scale-110 transition-elite" /> 
       </button>
 
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card-bg border border-border-main rounded-3xl p-6 shadow-elite max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-4">
+                <LogOut size={32} />
+              </div>
+              <h3 className="text-xl font-black text-main mb-2">Déconnexion</h3>
+              <p className="text-sm font-bold text-text-muted mb-6">
+                Êtes-vous sûr de vouloir vous déconnecter de votre session ?
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3 rounded-xl border border-border-main font-bold text-text-muted hover:text-main hover:bg-main/5 transition-elite"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    handleLogout();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black shadow-lg shadow-red-500/20 hover:bg-red-600 transition-elite"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </header>
   );

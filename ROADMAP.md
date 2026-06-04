@@ -351,3 +351,26 @@ Un assistant "Orthodontiste 20 ans d'expérience" conçu pour être 100% fiable,
 - [ ] **Tableau d'�chelonnage interactif** : Suivi des versements avec date de premi�re avance, mensualit�s et solde restant.
 - [ ] **D�tection & Notifications** : D�tection automatique du dernier paiement et envoi de notifications (WhatsApp/SMS) pour les �ch�ances � venir ou en retard.
 
+
+
+---
+
+## 🔒 33. Sauvegarde Automatique & Chiffrement Zero-Knowledge (TERMINÉ)
+**Statut :** Déployé
+**Spécialiste :** Staff Software Engineer
+
+- [x] **Chiffrement AES-128 (Fernet)** : Génération d'une clé locale unique pour sécuriser les sauvegardes SQLite/SQLCipher.
+- [x] **Automatisation Transparente** : Scheduler intégré sans blocage (WinError 32 résolu via copie physique avant chiffrement).
+- [x] **Rotation Intelligente** : Maintien glissant des 7 dernières sauvegardes pour optimiser le stockage.
+
+---
+
+## 🧠 34. Ghost Brain V2 : Intelligence Proactive (TERMINÉ)
+**Statut :** Déployé
+**Spécialiste :** Staff Software Engineer
+
+- [x] **Notifications Cliquables** : Redirection dynamique vers le dossier patient concerné (tags TEMPOREL, URGENCE).
+- [x] **Actions Rapides (Quick Actions)** : Parsing contextuel ajoutant des boutons ciblés (Voir Trésorerie, Voir Agenda).
+- [x] **Optimistic Updates** : Marquage instantané sans rechargement WebSocket.
+- [x] **API Médicaments (Scraping)** : Recherche temps réel sur medicament.ma combinée avec la DB locale.
+- [x] **Nouveaux Modèles de Certificats** : Arrêt de travail standard et Éviction Scolaire avec variables contextuelles.

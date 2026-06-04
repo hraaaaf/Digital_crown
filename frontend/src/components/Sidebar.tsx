@@ -9,7 +9,6 @@ import {
   Calendar,
   Receipt,
   FlaskConical,
-  LogOut,
   BookOpen,
   Shield
 } from 'lucide-react';
@@ -246,18 +245,6 @@ export const Sidebar = () => {
             </div>
           )}
 
-          {/* EXPERIMENTAL SECTION */}
-          <div className="mt-8 pt-8 border-t border-border-main">
-            <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-4">Système</div>
-
-            <button
-               onClick={() => authService.logout()}
-               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-elite-sm transition-elite group cursor-pointer hover:bg-red-500/10 text-red-500 mt-2"
-            >
-              <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold tracking-tight">Déconnexion</span>
-            </button>
-          </div>
         </nav>
       </aside>
     </>

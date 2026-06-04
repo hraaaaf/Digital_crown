@@ -46,11 +46,10 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
   const certifTypes = [
-    { id: 'Repos Post-Opératoire', label: 'Repos Post-Op', icon: <Clock size={14} /> },
+    { id: 'Arrêt de travail', label: 'Arrêt de travail', icon: <Clock size={14} /> },
     { id: 'Certificat de Présence', label: 'Présence (Soin)', icon: <CheckCircle2 size={14} /> },
-    { id: 'Autre', label: 'Autre motif', icon: <Edit3 size={14} /> },
+    { id: 'Autre', label: 'Modèle Libre', icon: <Edit3 size={14} /> },
   ];
-
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl w-full mx-auto py-8">
@@ -94,7 +93,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     {type.label}
                   </button>
                   <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4">
-                    {type.id === 'Repos Post-Opératoire' && "Génère un arrêt de travail / repos"}
+                    {type.id === 'Arrêt de travail' && "Génère un arrêt de travail / repos"}
                     {type.id === 'Certificat de Présence' && "Génère un justificatif de présence"}
                     {type.id === 'Autre' && "Saisie libre du motif"}
                   </span>

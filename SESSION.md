@@ -183,3 +183,27 @@ Début du cycle d'audit UX systématique des 5 pages du Studio Documentaire.
 - **Header.tsx** : Nettoyage des composants IA obsol�tes.
 
 ---
+
+
+### 📅 Date : 03 Juin 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Stabilisation comptable, système de sauvegarde et mise à jour Ghost Brain.
+
+#### ✅ Accomplissements Techniques
+1. **Sauvegarde ZKA Chiffrée** : Implémentation de BackupService utilisant Fernet AES pour les sauvegardes automatiques de clinical_vault.db.
+2. **Ghost Brain Amélioré** : Intégration de notifications cliquables, actions rapides intelligentes et Optimistic Updates dans React.
+3. **Studio Documentaire** : Refonte des modèles de certificats (Eviction Scolaire vs Arrêt de Travail Adulte) et retrait de la date de naissance.
+4. **Catalogue de médicaments** : Ajout d'un scraper medicament.ma en mode fallback avec Beautiful Soup.
+5. **Architecture & Documentation** : Génération des graphes Mermaid pour l'ERD et l'Architecture Système.
+
+
+### 👑 Date : 04 Juin 2026
+**Intervenant** : Antigravity (Staff Software Engineer)
+**Objectif** : Packager la version finale et sécuriser le système.
+
+#### 🚀 Accomplissements Techniques
+1. **Build Windows PyInstaller** : Compilation avec succès (`dist/DigitalCrown/DigitalCrown.exe`).
+2. **Option C (Kill-Switch)** : Mise en place d'un middleware `license_check_middleware` bloquant POST/PUT/DELETE pour les licences invalides.
+3. **Intégration Sentry** : Ajout du monitoring d'erreurs en temps réel.
+4. **Fix WebSocket** : Correction du crash lié à `OAuth2PasswordBearer` global.
+5. **Plan de Vente** : Stratégie complète (commission, roadmap de vente) rédigée.

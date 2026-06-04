@@ -1,4 +1,4 @@
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, LogOut } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
 import type { Tab, SyncStatus, Snapshot } from '../types';
@@ -100,7 +100,7 @@ export function MobileHeader({
             onClick={() => window.location.href = '/super-admin'}
             className="mt-4 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-full font-black text-xs shadow-md uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
           >
-            <LogOut size={14} /> Quitter le mode Mobile
+            <ArrowLeft size={14} /> Quitter le mode Mobile
           </button>
         )}
 

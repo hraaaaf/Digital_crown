@@ -17,6 +17,47 @@ actes_router = APIRouter(tags=["Actes Cliniques"])
 def search_medications(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return db.query(models.Medication).filter(models.Medication.nom.ilike(f"%{q}%")).order_by(models.Medication.usage_count.desc()).limit(20).all()
 
+import urllib.request, re
+
+@prescription_router.get("/search/web")
+def search_web_medications(q: str, current_user: models.User = Depends(require_permission("prescriptions"))):
+    """
+    Scrape en direct la base de données medicament.ma pour suggérer des médicaments non présents localement.
+    """
+    if not q or len(q) < 3:
+        return []
+    url = f'https://medicament.ma/?choice=specialite&keyword=starts&s={q.strip()}'
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        with urllib.request.urlopen(req) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            matches = re.findall(r'<p class="primary">([^<]+)</p>', html)
+            # Parse results (e.g. "DOLIPRANE 1 G, Comprimé effervescent sécable")
+            results = []
+            for i, match in enumerate(matches[:15]):
+                parts = match.split(',', 1)
+                name = parts[0].strip()
+                forme = parts[1].strip().upper() if len(parts) > 1 else ""
+                
+                # Guess dosage from name
+                dosage = ""
+                dosage_match = re.search(r'\b(\d+(?:,\d+)?\s*(?:MG|G|ML|UI|UI/ML|%|MCG))\b', name, re.IGNORECASE)
+                if dosage_match:
+                    dosage = dosage_match.group(1).upper()
+                    name = name.replace(dosage_match.group(1), "").strip()
+                
+                results.append({
+                    "id": f"web_{i}",
+                    "nom": name,
+                    "dosage": dosage,
+                    "forme": forme,
+                    "usage_count": 0
+                })
+            return results
+    except Exception as e:
+        print(f"Error scraping medicament.ma: {e}")
+        return []
+
 @prescription_router.get("/suggest", response_model=List[schemas.ClinicalProtocolOut])
 def suggest_protocols(category_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return db.query(models.ClinicalProtocol).filter(models.ClinicalProtocol.category_id == category_id).all()

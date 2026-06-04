@@ -15,8 +15,11 @@ const _authChannel = typeof BroadcastChannel !== 'undefined'
   : null;
 
 function storeTokens(token: string, refresh?: string) {
-  // Ne plus écrire en localStorage — le backend pose les cookies HttpOnly
-  // BroadcastChannel maintenu pour synchroniser les onglets via fallback legacy
+  // Sauvegarde dans le localStorage comme fallback indispensable pour le développement local (cross-origin)
+  localStorage.setItem('token', token);
+  if (refresh) {
+      localStorage.setItem('refresh_token', refresh);
+  }
   _authChannel?.postMessage({ type: 'TOKEN_REFRESH', token, refresh });
 }
 
@@ -91,7 +94,7 @@ api.interceptors.response.use(
             try {
               const res = await axios.post(`${API_BASE}/api/auth/refresh`, {
                 refresh_token: refreshToken
-              });
+              }, { withCredentials: true });
               const { access_token, refresh_token: newRefresh } = res.data;
               if (access_token) {
                 // Le backend pose les nouveaux cookies HttpOnly — pas de stockage local
@@ -104,15 +107,9 @@ api.interceptors.response.use(
             }
           }
 
-          // 2. Fallback : re-sync via session Supabase active
+          // 2. Fallback : redirect to login since Supabase is gone
           localStorage.removeItem('token');
-          const { authService } = await import('./auth');
-          const { supabase } = await import('../lib/supabase');
-
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token && session.user?.email) {
-            return await authService.syncWithBackend(session.access_token, session.user.email);
-          }
+          return false;
 
           return false;
         })().finally(() => { _refreshing = null; });

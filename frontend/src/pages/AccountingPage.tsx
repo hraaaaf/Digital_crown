@@ -109,17 +109,13 @@ export const AccountingPage = () => {
   const [conversions, setConversions] = useState<any>(null);
   const [distributions, setDistributions] = useState<any[]>([]);
 
+  const [financialData, setFinancialData] = useState<any>(null);
+
   const fetchVisualInsights = useCallback(async () => {
     setLoadingInsights(true);
     try {
-      const [projRes, convRes, distRes] = await Promise.all([
-        api.get('/intelligence/projection-mensuelle'),
-        api.get('/intelligence/taux-conversion'),
-        api.get('/intelligence/distribution-assurances')
-      ]);
-      setProjections(projRes.data);
-      setConversions(convRes.data);
-      setDistributions(distRes.data);
+      const res = await api.get('/analytics/financial');
+      setFinancialData(res.data);
     } catch (err) {
       console.error("Erreur chargement Visual Insights:", err);
     } finally {
@@ -146,6 +142,8 @@ export const AccountingPage = () => {
   const [treasuryStatusFilter, setTreasuryStatusFilter] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filterType, setFilterType] = useState<'all' | 'insured_notes_only'>('all');
+  const [summaryByTitle, setSummaryByTitle] = useState<Record<string, number>>({});
 
   const months = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -158,17 +156,19 @@ export const AccountingPage = () => {
       let url = `/accounting/honoraires?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
+      url += `&filter_type=${filterType}`;
       
       const res = await api.get(url);
       setItems(res.data.items || []);
       setTotalAmount(res.data.total_amount || 0);
       setTotalCollected(res.data.total_collected || 0);
+      setSummaryByTitle(res.data.summary_by_title || {});
     } catch (err) {
       console.error("Erreur honoraires:", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedMonth, selectedAssurance]);
+  }, [selectedYear, selectedMonth, selectedAssurance, filterType]);
 
   const fetchTreasury = useCallback(async () => {
     setLoadingTreasury(true);
@@ -599,6 +599,19 @@ export const AccountingPage = () => {
           </select>
         </div>
 
+        {/* Filtre Type */}
+        <div className="flex items-center gap-3">
+          <Filter size={18} style={{ color: 'var(--primary)' }} />
+          <select 
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as any)}
+          >
+            <option value="all">Tous les Actes & Notes</option>
+            <option value="insured_notes_only">Notes d'honoraires Assurées</option>
+          </select>
+        </div>
+
         {/* Filtre Année */}
         <select 
           className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
@@ -610,6 +623,40 @@ export const AccountingPage = () => {
           ))}
         </select>
       </section>
+
+      {/* BILAN MENSUEL PAR ACTE */}
+      {Object.keys(summaryByTitle).length > 0 && (
+        <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm mb-6">
+          <h2 className="text-lg font-black tracking-tight mb-4 flex items-center gap-2" style={{ color: 'var(--primary)' }}>
+            <Calculator size={20} />
+            Bilan des Actes
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left bg-white border border-slate-100 rounded-xl">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Acte / Prestation</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total Facturé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(summaryByTitle)
+                  .sort((a, b) => b[1] - a[1]) // Tri décroissant par montant
+                  .map(([title, amount]) => (
+                  <tr key={title} className="border-b border-slate-50">
+                    <td className="px-6 py-4 text-sm font-bold text-slate-700">{title}</td>
+                    <td className="px-6 py-4 text-sm font-black text-slate-800 text-right">{amount.toLocaleString('fr-FR')} MAD</td>
+                  </tr>
+                ))}
+                <tr className="bg-emerald-50/50">
+                  <td className="px-6 py-4 text-sm font-black text-slate-800 uppercase tracking-widest text-right">Total Général</td>
+                  <td className="px-6 py-4 text-lg font-black text-right" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* CONFIRMATION SUPPRESSION */}
       {confirmDeleteId && (
@@ -838,13 +885,6 @@ export const AccountingPage = () => {
                       <option value="EN_ATTENTE">En Attente</option>
                       <option value="PARTIEL">Partiel</option>
                     </select>
-                    <button
-                      disabled
-                      title="Fonctionnalité disponible prochainement"
-                      className="px-4 py-2 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-slate-200"
-                    >
-                      Rappels Auto
-                    </button>
                  </div>
               </div>
              
@@ -928,119 +968,67 @@ export const AccountingPage = () => {
             </div>
           ) : (
             <>
-              {/* KPIs */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* KPIs Financiers */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de Conversion Devis</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Ce Mois</span>
                   <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black text-slate-800">{conversions?.taux || 0}%</span>
+                    <span className="text-3xl font-black text-slate-800">
+                      {financialData?.revenue_this_month ? Math.round(financialData.revenue_this_month).toLocaleString('fr-FR') : 0}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Mois Dernier</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-slate-800">
+                      {financialData?.revenue_last_month ? Math.round(financialData.revenue_last_month).toLocaleString('fr-FR') : 0}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de Recouvrement</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-slate-800">{financialData?.recovery_rate || 0}%</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div 
                       className="h-full rounded-full transition-all duration-1000" 
-                      style={{ width: `${conversions?.taux || 0}%`, backgroundColor: 'var(--primary)' }}
+                      style={{ width: `${financialData?.recovery_rate || 0}%`, backgroundColor: 'var(--primary)' }}
                     />
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 mt-2">
-                    {conversions?.converted_count || 0} devis convertis sur {conversions?.devis_count || 0} émis {conversions?.avg_days ? `(délai moyen ${conversions.avg_days}j)` : ''}
-                  </span>
-                </div>
-
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne Mensuelle Réelle</span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black text-slate-800">
-                      {projections?.avg_monthly ? Math.round(projections.avg_monthly).toLocaleString('fr-FR') : 0}
-                    </span>
-                    <span className="text-xs font-bold text-slate-400 ml-1">MAD / mois</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 mt-4 block">
-                    Calculée sur l'historique des 3 derniers mois
-                  </span>
                 </div>
 
                 <div className="p-8 rounded-[2rem] shadow-xl shadow-primary/10 flex flex-col gap-2 text-white relative overflow-hidden group hover:brightness-105 transition-all" style={{ backgroundColor: 'var(--primary)' }}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-125 transition-all duration-700" />
-                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest relative z-10">Projection Mois Suivant</span>
+                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest relative z-10">Total Facturé Global</span>
                   <div className="flex items-baseline gap-2 mt-1 relative z-10">
                     <span className="text-3xl font-black">
-                      {projections?.projections && projections.projections.length > 0 
-                        ? Math.round(projections.projections[0].revenue).toLocaleString('fr-FR') 
-                        : 0}
+                      {financialData?.total_billed ? Math.round(financialData.total_billed).toLocaleString('fr-FR') : 0}
                     </span>
                     <span className="text-xs font-bold text-white/80 ml-1">MAD</span>
                   </div>
                   <span className="text-[10px] font-medium text-white/70 mt-4 block relative z-10">
-                    Basée sur l'agenda des rendez-vous planifiés
+                    Total encaissé : {financialData?.total_paid ? Math.round(financialData.total_paid).toLocaleString('fr-FR') : 0} MAD
                   </span>
                 </div>
               </div>
 
               {/* GRAPHIQUES */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 1. Évolution et Projections */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                {/* 1. Évolution Revenu */}
                 <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
                   <div>
-                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution & Projections</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">3 mois d'historique + 6 mois de projections</p>
+                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution du Revenu</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Chiffre d'Affaires Mensuel (6 derniers mois)</p>
                   </div>
                   <div className="flex-1 min-h-0 w-full mt-6">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={[
-                        ...(projections?.historical || []).map((h: any) => ({ month: h.month, 'CA Réel': h.revenue })),
-                        ...(projections?.projections || []).map((p: any) => ({ month: p.month, 'CA Projeté': p.revenue }))
-                      ]}>
-                        <defs>
-                          <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const item = payload[0];
-                              const isForecast = item.name === 'CA Projeté';
-                              return (
-                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.month}</p>
-                                  <p className={cn("text-sm font-black", isForecast ? "text-violet-600" : "text-primary")} style={!isForecast ? { color: 'var(--primary)' } : {}}>
-                                    {isForecast ? 'Projeté : ' : 'Réel : '}
-                                    {(item.value as number).toLocaleString('fr-FR')} MAD
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Area type="monotone" dataKey="CA Réel" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorActual)" />
-                        <Area type="monotone" dataKey="CA Projeté" stroke="#8b5cf6" strokeWidth={3} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorForecast)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 2. Répartition par Assurance */}
-                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Répartition par Assurance</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Volume d'honoraires cumulé par assurance</p>
-                  </div>
-                  <div className="flex-1 min-h-0 w-full mt-6">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={(distributions || []).map((d: any) => ({
-                        name: d.assurance === 'MUTUELLE_FAR' ? 'FAR' : (d.assurance === 'PRIVEE' ? 'PRIVÉE' : d.assurance),
-                        'Chiffre d\'Affaires': d.revenue,
-                        count: d.count
-                      })).sort((a: any, b: any) => b['Chiffre d\'Affaires'] - a['Chiffre d\'Affaires'])}>
+                      <BarChart data={financialData?.monthly_revenue || []}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
@@ -1054,8 +1042,39 @@ export const AccountingPage = () => {
                                   <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
                                     {(item.value as number).toLocaleString('fr-FR')} MAD
                                   </p>
-                                  <p className="text-[10px] font-bold text-slate-400 mt-1">
-                                    {item.payload.count} actes facturés
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="revenue" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 2. Top Actes */}
+                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Actes les plus rentables</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top 5 actes (Chiffre d'Affaires généré)</p>
+                  </div>
+                  <div className="flex-1 min-h-0 w-full mt-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart layout="vertical" data={financialData?.top_acts_revenue || []}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const item = payload[0];
+                              return (
+                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
+                                  <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
+                                    {(item.value as number).toLocaleString('fr-FR')} MAD
                                   </p>
                                 </div>
                               );
@@ -1063,109 +1082,9 @@ export const AccountingPage = () => {
                             return null;
                           }}
                         />
-                        <Bar dataKey="Chiffre d'Affaires" radius={[8, 8, 0, 0]}>
-                          {(distributions || []).map((entry: any, index: number) => {
-                            const colors: Record<string, string> = {
-                              CNSS: '#10b981',      // Emerald-500
-                              CNOPS: '#3b82f6',     // Blue-500
-                              MUTUELLE_FAR: '#a855f7', // Purple-500
-                              PRIVEE: '#f59e0b',    // Amber-500
-                              AUCUNE: '#64748b'     // Slate-500
-                            };
-                            const ass = entry.assurance || 'AUCUNE';
-                            const color = colors[ass] || 'var(--primary)';
-                            return <Cell key={`cell-${index}`} fill={color} />;
-                          })}
-                        </Bar>
+                        <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 3. Funnel / Statut Devis (PieChart) */}
-                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px] lg:col-span-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Transformation des Devis</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Analyse du taux d'acceptation et opportunités manquées</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Durée de Décision</span>
-                      <span className="text-sm font-black text-primary">
-                        {conversions?.avg_days ? `~ ${conversions.avg_days} jours` : 'Non mesurable'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col md:flex-row items-center justify-around flex-1 gap-6 mt-6">
-                    {conversions?.devis_count > 0 ? (
-                      <>
-                        <div className="w-[200px] h-[200px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={[
-                                  { name: 'Convertis', value: conversions.converted_count, color: 'var(--primary)' },
-                                  { name: 'En Attente / Rejetés', value: conversions.devis_count - conversions.converted_count, color: '#e2e8f0' }
-                                ]}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {[
-                                  { name: 'Convertis', value: conversions.converted_count, color: 'var(--primary)' },
-                                  { name: 'En Attente / Rejetés', value: conversions.devis_count - conversions.converted_count, color: '#e2e8f0' }
-                                ].map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip
-                                content={({ active, payload }) => {
-                                  if (active && payload && payload.length) {
-                                    const item = payload[0];
-                                    return (
-                                      <div className="bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-2xl">
-                                        <span className="text-xs font-black" style={{ color: item.payload.color === 'var(--primary)' ? 'var(--primary)' : '#64748b' }}>
-                                          {item.name} : {item.value} devis
-                                        </span>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                }}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="space-y-4 max-w-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded-md" style={{ backgroundColor: 'var(--primary)' }} />
-                            <div>
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Devis Convertis</span>
-                              <span className="font-bold text-slate-800 text-sm">
-                                {conversions.converted_count} devis transformés en soins réels
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded-md bg-slate-200" />
-                            <div>
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">En Attente / Non acceptés</span>
-                              <span className="font-bold text-slate-600 text-sm">
-                                {conversions.devis_count - conversions.converted_count} devis restés sans suite (relance à prévoir)
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-10 gap-3 text-slate-400 w-full">
-                        <span className="text-xs italic">Données de conversion insuffisantes (aucun devis émis).</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

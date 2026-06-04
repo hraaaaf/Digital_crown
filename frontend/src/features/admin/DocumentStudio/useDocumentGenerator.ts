@@ -383,15 +383,17 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       if (res.data.pdf_url) {
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
         // Fetch as blob so the iframe gets the PDF without auth headers issue
+        let finalUrl = '';
         try {
           const pdfBlob = await api.get(`/${cleanPdfPath}`, { responseType: 'blob' });
           if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
           const blobUrl = URL.createObjectURL(new Blob([pdfBlob.data], { type: 'application/pdf' }));
           blobUrlRef.current = blobUrl;
+          finalUrl = blobUrl;
           setPdfUrl(blobUrl);
         } catch {
-          const fullUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
-          setPdfUrl(fullUrl);
+          finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
+          setPdfUrl(finalUrl);
         }
 
         // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
@@ -404,7 +406,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
         // Si ce n'est pas une preview et pas une impression directe, on ouvre le PDF
         if (!isPreview && !print) {
-          window.open(fullUrl, '_blank');
+          window.open(finalUrl, '_blank');
         }
 
         // --- Apprentissage automatique des habitudes (Phase 2) ---

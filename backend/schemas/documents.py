@@ -353,3 +353,4 @@ class HonoraireListResponse(BaseModel):
     total_amount: float
     total_collected: float = 0.0
     items: List[HonoraireItem]
+    summary_by_title: dict = {}
