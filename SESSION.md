@@ -40,7 +40,13 @@
 ### 🛠️ Commits Pushés
 - `2ba65f6` — `fix: eliminate double DB connection per request and 307 redirect loop`
 
-#### 5. Fix : Double `/api` dans AgendaStudio
+#### 5. Feat : Recherche patient live depuis le Dashboard
+- **Problème** : Le bouton recherche du dashboard ne faisait que naviguer vers `/patients?search=...` — inutile, ça ouvre juste la liste.
+- **Fix** : Remplacement par une recherche en temps réel. La saisie appelle `GET /patients/?search=q&limit=6`, les résultats s'affichent dans un dropdown inline (avatar, nom, n° dossier). Un clic ouvre directement le dossier patient. Spinner pendant le fetch, message "Aucun patient trouvé" si vide.
+- **Fichier** : `frontend/src/pages/Dashboard.tsx`
+- **Commit** : `1dc0215`
+
+#### 6. Fix : Double `/api` dans AgendaStudio
 - **Cause** : `AgendaStudio.tsx` appelait `api.get('/api/upcoming-holidays')` et `api.get('/api/agenda/settings')` alors que l'instance `api` a déjà `baseURL = '.../api'`. Résultat : `/api/api/upcoming-holidays` → 307 → 404.
 - **Fix** : Suppression du préfixe `/api/` redondant sur les 3 appels (`/upcoming-holidays`, `/agenda/settings`, `/agenda/exceptions`).
 - **Fichier** : `frontend/src/features/agenda/AgendaStudio.tsx`
