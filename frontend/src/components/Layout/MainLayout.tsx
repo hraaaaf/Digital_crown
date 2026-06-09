@@ -50,6 +50,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
   const [isBotOpen, setIsBotOpen] = useState(false);
+  const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
 
   return (
     <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
@@ -89,11 +90,16 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Bouton Flottant Crown Bot (Desktop) */}
       <div className="fixed bottom-8 right-8 z-50">
-        <button 
-          onClick={() => setIsBotOpen(!isBotOpen)} 
-          className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20"
+        <button
+          onClick={() => setIsBotOpen(!isBotOpen)}
+          className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20 relative"
         >
           <Bot size={24} />
+          {ghostUnreadCount > 0 && !isBotOpen && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse shadow-lg">
+              {ghostUnreadCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -107,7 +113,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
             transition={{ duration: 0.2 }}
             className="fixed bottom-28 right-8 w-[400px] h-[600px] z-50 rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl"
           >
-            <CrownBotChat onClose={() => setIsBotOpen(false)} />
+            <CrownBotChat onClose={() => setIsBotOpen(false)} onUnreadChange={setGhostUnreadCount} />
           </motion.div>
         )}
       </AnimatePresence>
