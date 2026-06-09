@@ -513,57 +513,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
               isDevis={activeTab === 'devis'}
-                    .map(a => ({
-                      id: `brain_${a.name}`,
-                      name: a.name,
-                      base_price: a.price,
-                      category: a.category,
-                      isLocal: true,
-                      is_habit: true
-                    }));
-
-                  // Merge and deduplicate by name
-                  const merged: any[] = [...localBrainMatches];
-                  
-                  // Priorité 1 : Habits de l'API
-                  apiMatches.filter((a: any) => a.is_habit).forEach((a: any) => {
-                    if (!merged.find(x => x.name.toLowerCase() === a.name.toLowerCase())) {
-                      merged.push({ ...a, isLocal: false });
-                    }
-                  });
-
-                  // Priorité 2 : Local Templates
-                  localMatches.forEach((m: any) => {
-                    if (!merged.find(x => x.name.toLowerCase() === m.name.toLowerCase())) {
-                      merged.push(m);
-                    }
-                  });
-
-                  // Priorité 3 : Reste du catalogue API
-                  apiMatches.filter((a: any) => !a.is_habit).forEach((a: any) => {
-                    if (!merged.find(x => x.name.toLowerCase() === a.name.toLowerCase())) {
-                      merged.push({ ...a, isLocal: false });
-                    }
-                  });
-                  
-                  setActSuggestions(merged.slice(0, 10));
-                } catch {
-                  setActSuggestions(localMatches.slice(0, 10));
-                }
-              }}
-              activeActSearchId={activeActSearchId}
-              setActiveActSearchId={setActiveActSearchId}
-              actSuggestions={actSuggestions}
-              applyActSuggestion={(id, act) => {
-                setItems(items.map(i => i.id === id ? { ...i, description: act.name, price: act.base_price || 0, category: act.category } : i));
-                // Apprentissage immédiat si prix dispo
-                if (act.name && act.base_price > 0) {
-                  PriceBrain.recordAct(act.name, act.base_price, act.category || 'CONSERVATRICE');
-                }
-                setActSuggestions([]);
-                setActiveActSearchId(null);
-              }}
-              validationErrors={generator.validationErrors}
+              patientId={patientId || '0'}
+              coherenceWarnings={generator.coherenceWarnings}
+              setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
             />
           )}
 
