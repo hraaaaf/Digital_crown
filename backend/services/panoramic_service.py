@@ -84,8 +84,14 @@ class PanoramicEngine:
         Pipeline Elite : CLAHE -> Letterbox -> YOLO11x -> FDI Mapping (Smile Curve).
         """
         if not self.is_ready:
-            logger.warning("PanoramicEngine : Mode simulation actif.")
-            return self._run_simulation()
+            logger.warning("PanoramicEngine : Mode simulation actif — modèle ONNX introuvable.")
+            sim_result = self._run_simulation()
+            sim_result["is_simulation"] = True
+            sim_result["simulation_warning"] = (
+                "⚠️ SIMULATION — Le modèle IA panoramique n'est pas disponible sur ce poste. "
+                "Ces résultats sont FICTIFS et ne doivent PAS être utilisés cliniquement."
+            )
+            return sim_result
 
         try:
             original_img = cv2.imread(image_path)
@@ -222,10 +228,7 @@ class PanoramicEngine:
             "status": "MOCK",
             "mode_inference": "SIMULATION_EXPERT",
             "detections_data": {
-                "detections": [
-                    {"fdi": 18, "pathology": "Dent Incluse", "label": "Dent Incluse", "confidence": 0.95, "bbox": {"x_min": 50, "y_min": 50, "x_max": 200, "y_max": 200, "confidence": 0.95}},
-                    {"fdi": 36, "pathology": "Carie", "label": "Carie", "confidence": 0.85, "bbox": {"x_min": 600, "y_min": 400, "x_max": 750, "y_max": 550, "confidence": 0.85}}
-                ]
+                "detections": []
             }
         }
 

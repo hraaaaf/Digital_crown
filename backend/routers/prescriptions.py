@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+import os
+import shutil
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
@@ -14,6 +16,47 @@ actes_router = APIRouter(tags=["Actes Cliniques"])
 @prescription_router.get("/search", response_model=List[schemas.MedicationOut])
 def search_medications(q: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
     return db.query(models.Medication).filter(models.Medication.nom.ilike(f"%{q}%")).order_by(models.Medication.usage_count.desc()).limit(20).all()
+
+import urllib.request, re
+
+@prescription_router.get("/search/web")
+def search_web_medications(q: str, current_user: models.User = Depends(require_permission("prescriptions"))):
+    """
+    Scrape en direct la base de données medicament.ma pour suggérer des médicaments non présents localement.
+    """
+    if not q or len(q) < 3:
+        return []
+    url = f'https://medicament.ma/?choice=specialite&keyword=starts&s={q.strip()}'
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        with urllib.request.urlopen(req) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            matches = re.findall(r'<p class="primary">([^<]+)</p>', html)
+            # Parse results (e.g. "DOLIPRANE 1 G, Comprimé effervescent sécable")
+            results = []
+            for i, match in enumerate(matches[:15]):
+                parts = match.split(',', 1)
+                name = parts[0].strip()
+                forme = parts[1].strip().upper() if len(parts) > 1 else ""
+                
+                # Guess dosage from name
+                dosage = ""
+                dosage_match = re.search(r'\b(\d+(?:,\d+)?\s*(?:MG|G|ML|UI|UI/ML|%|MCG))\b', name, re.IGNORECASE)
+                if dosage_match:
+                    dosage = dosage_match.group(1).upper()
+                    name = name.replace(dosage_match.group(1), "").strip()
+                
+                results.append({
+                    "id": f"web_{i}",
+                    "nom": name,
+                    "dosage": dosage,
+                    "forme": forme,
+                    "usage_count": 0
+                })
+            return results
+    except Exception as e:
+        print(f"Error scraping medicament.ma: {e}")
+        return []
 
 @prescription_router.get("/suggest", response_model=List[schemas.ClinicalProtocolOut])
 def suggest_protocols(category_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
@@ -78,12 +121,10 @@ def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), cu
     from backend.services.accounting_service import accounting_service
     
     if not q.strip():
-        # Renvoyer les actes fréquents du médecin
+        # Renvoyer les actes fréquents du médecin fusionnés avec le catalogue par défaut
         frequent = accounting_service.get_frequent_acts(db, current_user.id, limit=20)
-        if frequent:
-            return frequent
+        frequent_names = {f["name"].lower() for f in frequent} if frequent else set()
             
-        # Fallback vers un catalogue d'actes standard de base si aucune habitude n'est enregistrée
         fallback_names = [
             ("Consultation dentaire", 200, "Diagnostic"),
             ("Détartrage et polissage", 400, "Prévention"),
@@ -96,15 +137,19 @@ def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), cu
             ("Couronne céramo-métallique", 2500, "Prothèse"),
             ("Implant dentaire", 6000, "Implantologie"),
         ]
-        return [
-            {
-                "id": f"default_{i}",
-                "name": name,
-                "base_price": price,
-                "category": cat,
-                "is_habit": False
-            } for i, (name, price, cat) in enumerate(fallback_names)
-        ]
+        
+        results = frequent if frequent else []
+        for i, (name, price, cat) in enumerate(fallback_names):
+            if name.lower() not in frequent_names:
+                results.append({
+                    "id": f"default_{i}",
+                    "name": name,
+                    "base_price": price,
+                    "category": cat,
+                    "is_habit": False
+                })
+        
+        return results
         
     return accounting_service.search_acts(db, current_user.id, q)
 
@@ -137,6 +182,170 @@ def get_brain_summary(db: Session = Depends(database.get_db), current_user: mode
         "total_knowledge_points": db.query(models.DoctorActHabit).filter(models.DoctorActHabit.doctor_id == current_user.id).count() + 
                                   db.query(models.DoctorMedicationHabit).filter(models.DoctorMedicationHabit.doctor_id == current_user.id).count()
     }
+
+@actes_router.post("/", status_code=status.HTTP_201_CREATED)
+def create_acte(
+    acte_data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        type_acte_str = acte_data.get("type_acte", "SOIN").upper()
+        type_acte = getattr(models.ActeType, type_acte_str, models.ActeType.SOIN)
+        
+        # 1. Instanciation de l'acte clinique
+        new_act = models.Acte(
+            patient_id=acte_data["patient_id"],
+            praticien_id=current_user.id,
+            type_acte=type_acte,
+            libelle=acte_data["libelle"],
+            montant=float(acte_data.get("montant", 0.0)),
+            date_debut=datetime.now(),
+            statut_paiement=models.PaiementStatut.EN_ATTENTE,
+            notes_cliniques=acte_data.get("notes_cliniques"),
+            attachments=acte_data.get("attachments", [])
+        )
+        
+        db.add(new_act)
+        # Flush pour obtenir le new_act.id généré par la DB sans fermer la transaction
+        db.flush() 
+
+        # 2. Détection du besoin prothétique (Trigger LabJob)
+        mots_cles_protheses = ["COURONNE", "ZIRCONE", "INLAY", "ONLAY", "FACETTE", "BRIDGE", "PROTHÈSE", "IMPLANT"]
+        is_prothetic = (
+            new_act.type_acte == models.ActeType.PROTHESE or 
+            any(mot in new_act.libelle.upper() for mot in mots_cles_protheses)
+        )
+
+        if is_prothetic:
+            new_labjob = models.LabJob(
+                patient_id=new_act.patient_id,
+                act_id=new_act.id,
+                type=new_act.libelle,
+                status=models.LabJobStatus.PRESCRIPTION,
+                deadline=datetime.now() + timedelta(days=7)
+            )
+            db.add(new_labjob)
+
+        # 3. Commit de la transaction combinée (Atomique : Acte + LabJob)
+        db.commit()
+        db.refresh(new_act)
+        
+        return {"status": "success", "act_id": new_act.id, "labjob_created": is_prothetic}
+
+    except Exception as e:
+        # 4. Rollback en cas de fail (ex: erreur de contrainte LabJob)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur transactionnelle (Acte/Labo) : {str(e)}"
+        )
+
+@actes_router.put("/{acte_id}", status_code=status.HTTP_200_OK)
+def update_acte(
+    acte_id: int,
+    acte_data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Met à jour un acte clinique existant (notes, montants, statut paiement, fichiers joints).
+    """
+    try:
+        act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not act:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+
+        assert_patient_access(act.patient_id, current_user, db)
+
+        if "libelle" in acte_data:
+            act.libelle = acte_data["libelle"]
+        if "montant" in acte_data:
+            act.montant = float(acte_data["montant"])
+        if "statut_paiement" in acte_data:
+            act.statut_paiement = getattr(models.PaiementStatut, acte_data["statut_paiement"].upper(), act.statut_paiement)
+        if "notes_cliniques" in acte_data:
+            act.notes_cliniques = acte_data["notes_cliniques"]
+        if "attachments" in acte_data:
+            act.attachments = acte_data["attachments"]
+
+        db.commit()
+        db.refresh(act)
+        return {"status": "success", "acte": {
+            "id": act.id,
+            "libelle": act.libelle,
+            "montant": act.montant,
+            "statut_paiement": act.statut_paiement,
+            "notes_cliniques": act.notes_cliniques,
+            "attachments": act.attachments
+        }}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la mise à jour de l'acte : {str(e)}"
+        )
+
+@actes_router.post("/{acte_id}/upload", status_code=status.HTTP_200_OK)
+async def upload_acte_attachment(
+    acte_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not act:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+
+        assert_patient_access(act.patient_id, current_user, db)
+
+        # Build path
+        from backend.main import UPLOAD_DIR
+        safe_filename = f"acte_{acte_id}_{int(datetime.now().timestamp())}_{file.filename.replace(' ', '_')}"
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Update DB
+        current_attachments = act.attachments or []
+        file_url = f"/api/static/uploads/{safe_filename}"
+        
+        # Acte attachments should be a list of strings
+        if not isinstance(current_attachments, list):
+            current_attachments = []
+            
+        current_attachments.append(file_url)
+        act.attachments = current_attachments
+        db.commit()
+        db.refresh(act)
+
+        return {"status": "success", "file_url": file_url, "attachments": act.attachments}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur upload: {str(e)}"
+        )
+
+@actes_router.get("/patient/{patient_id}")
+def get_patient_actes(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Récupère tous les actes d'un patient.
+    """
+    assert_patient_access(patient_id, current_user, db)
+    actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).order_by(models.Acte.date_debut.desc()).all()
+    return [{"id": a.id, "type_acte": a.type_acte, "libelle": a.libelle, "montant": a.montant, "date_debut": a.date_debut, "statut_paiement": a.statut_paiement, "notes_cliniques": a.notes_cliniques, "attachments": a.attachments} for a in actes]
 
 from backend.services.prescription_agentic_service import prescription_agentic
 
@@ -188,6 +397,14 @@ async def save_prescription_preference(req: dict, db: Session = Depends(database
         
     prescription_service.learn_habit(db, current_user.id, act_code, drugs)
     return {"status": "success", "message": "Habitude enregistrée avec succès"}
+
+@prescription_router.delete("/preferences/{act_code}")
+async def delete_prescription_preference(act_code: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
+    """
+    Supprime un preset (habitude de prescription par acte) pour le médecin actuel.
+    """
+    prescription_service.delete_doctor_preset(db, current_user.id, act_code)
+    return {"status": "success", "message": "Preset supprimé avec succès"}
 
 @prescription_router.get("/certif-suggest/{patient_id}")
 async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):

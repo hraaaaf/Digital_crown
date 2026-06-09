@@ -11,14 +11,25 @@ import {
   Users,
   Bell,
   CheckCheck,
-  BarChart2
+  BarChart2,
+  Smartphone,
+  X,
+  Banknote,
+  Phone,
+  Sparkles,
+  Plus,
+  Search
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { motion, type Variants } from 'framer-motion';
+import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
+import { EliteGhostLoader } from '../components/EliteGhostLoader';
+import { DayOneTour } from '../components/DayOneTour';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -52,6 +63,7 @@ interface DashboardStats {
   in_waiting: number;
   recent_patients: RecentPatient[];
   weekly_activity: number[];
+  weekly_patients?: number;
 }
 
 interface ProactiveAlert {
@@ -83,6 +95,7 @@ interface ConversionData {
 
 interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'forecast'; }
 interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
+interface LatentCashData { total_opportunites: number; valeur_totale_latente: number; opportunites: any[]; }
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -98,13 +111,34 @@ export const Dashboard: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [projection, setProjection] = useState<ProjectionData | null>(null);
+  const [latentCash, setLatentCash] = useState<LatentCashData | null>(null);
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  
+  // Ghost Secrétariat (To-Do List Magique)
+  const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{nom: string; prenom: string} | null>(null);
+  const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
+
+  useEffect(() => {
+    if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
+      setTimeout(() => {
+        setGhostSecretariatPatient(null);
+        setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
+      }, 1000);
+    }
+  }, [ghostChecklist]);
 
   const hasAccess = (permission: string) => {
     if (!user) return true;
-    if (user.role === 'ADMIN' || user.role === 'DENTISTE') return true;
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
+
     if (user.permissions && typeof user.permissions === 'object') {
       return user.permissions[permission] ?? false;
     }
+    
     if (user.role === 'SECRETAIRE') {
       const defaults: Record<string, boolean> = {
         agenda: true,
@@ -116,6 +150,9 @@ export const Dashboard: React.FC = () => {
         settings: false
       };
       return defaults[permission] ?? false;
+    }
+    if (user.role === 'DENTISTE') {
+      return true; // Fallback pour ancien sous-dentiste
     }
     return true;
   };
@@ -145,6 +182,14 @@ export const Dashboard: React.FC = () => {
       // Mettre aussi à jour les stats pour répercuter le in_waiting
       const response = await api.get('/admin/dashboard/stats');
       setStats(response.data);
+
+      if (newStatus === 'TERMINÉ') {
+        const appt = todayAppointments.find(a => a.id === apptId);
+        if (appt && appt.patient) {
+          setGhostSecretariatPatient({ nom: appt.patient.nom, prenom: appt.patient.prenom });
+          setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
+        }
+      }
     } catch (e) {
       console.error("Erreur changement de statut du rendez-vous");
     }
@@ -184,33 +229,39 @@ export const Dashboard: React.FC = () => {
         if (config.header_lines_fr && config.header_lines_fr.length > 0) {
           setPraticienName(config.header_lines_fr[0]);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Erreur chargement configuration cabinet", e);
+      }
     };
 
     fetchStats();
     fetchConfig();
     fetchTodayAppointments();
-    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(() => {});
-    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(() => {});
-    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(() => {});
-    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(() => {});
+    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(err => console.warn("Erreur alerts", err));
+    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(err => console.warn("Erreur forecast", err));
+    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
+    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
+    api.get('/intelligence/latent-cash').then(res => setLatentCash(res.data)).catch(err => console.warn("Erreur latent cash", err));
   }, []);
 
   const markAlertRead = async (alertId: number) => {
     try {
       await api.patch(`/intelligence/alerts/${alertId}/read`);
       setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch {}
+    } catch (err) {
+      console.warn("Erreur lors du marquage de l'alerte", err);
+    }
   };
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-        <p className="text-slate-400 font-black uppercase tracking-widest text-xs text-primary">Initialisation de votre cabinet...</p>
-      </div>
-    </div>
-  );
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Naviguer vers la liste avec paramètre search
+      navigate(`/patients?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  if (loading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
 
   return (
     <motion.div 
@@ -219,6 +270,7 @@ export const Dashboard: React.FC = () => {
       animate="visible"
       className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12"
     >
+      <DayOneTour />
       <motion.header variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {displayName}</h1>
@@ -228,13 +280,87 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        
-        <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
-          <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Elite Cloud Connecté</span>
+        <div className="flex items-center gap-4">
+          
+          {/* Barre de Recherche rapide */}
+          <div className="relative flex items-center">
+            {isSearchExpanded ? (
+              <form onSubmit={handleSearchSubmit} className="absolute right-0 flex items-center bg-white dark:bg-slate-800 border border-border-main rounded-full px-2 py-1 shadow-elite animate-in fade-in slide-in-from-right-4 w-64 z-20">
+                <Search size={18} className="text-text-muted ml-2" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Chercher un patient..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => { if(!searchQuery) setIsSearchExpanded(false); }}
+                  className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm px-2 py-1.5"
+                />
+                <button type="button" onClick={() => setIsSearchExpanded(false)} className="text-text-muted hover:text-red-500 mr-2">
+                  <X size={16} />
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsSearchExpanded(true)}
+                className="p-3 bg-white dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
+                title="Chercher un patient"
+              >
+                <Search size={20} />
+              </button>
+            )}
+          </div>
+
+          {/* Bouton d'ajout rapide (+) */}
+          <div className="relative">
+            <button
+              onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+              className="p-3 bg-primary text-white hover:bg-primary/90 rounded-full shadow-md transition-all flex items-center justify-center"
+              title="Ajout Rapide"
+            >
+              <Plus size={20} />
+            </button>
+            {isAddMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsAddMenuOpen(false)}></div>
+                <div className="absolute top-14 right-0 bg-white dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95">
+                  <Link
+                    to="/patients/new"
+                    onClick={() => setIsAddMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                  >
+                    <UserPlus size={16} className="text-primary" />
+                    Nouveau Patient
+                  </Link>
+                  <Link
+                    to="/agenda"
+                    onClick={() => setIsAddMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                  >
+                    <Calendar size={16} className="text-emerald-500" />
+                    Nouveau RDV
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => setIsMobileModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
+            title="Appairer le téléphone"
+          >
+            <Smartphone size={20} />
+            <span className="hidden md:inline">Mobile</span>
+          </button>
+          
+          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
+            <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Elite Cloud Connecté</span>
+              </div>
             </div>
           </div>
         </div>
@@ -318,8 +444,20 @@ export const Dashboard: React.FC = () => {
                 );
               })
             ) : (
-              <div className="py-12 text-center">
-                <p className="text-text-muted font-bold italic text-xs uppercase tracking-widest">Aucun patient récent à afficher.</p>
+              <div className="py-14 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
+                  <UserPlus className="text-primary w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-black text-primary font-outfit mb-2">Bienvenue dans Digital Crown</h3>
+                <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
+                  Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
+                </p>
+                <Link 
+                  to="/patients/new" 
+                  className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
+                >
+                  Créer mon 1er patient <ChevronRight size={14} />
+                </Link>
               </div>
             )}
           </div>
@@ -330,7 +468,7 @@ export const Dashboard: React.FC = () => {
             <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
               <TrendingUp size={16} /> Performance Hebdomadaire
             </h2>
-            <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-8 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
+            <div data-tour="dashboard-stats" className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-8 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
               
               {/* Header statistics inside the widget */}
@@ -343,7 +481,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">Volume Hebdo</span>
                     <span className="text-xs font-black text-main">
-                      {stats?.total_patients ? stats.total_patients * 2 : 14} Dossiers
+                      {stats?.weekly_patients !== undefined ? stats.weekly_patients : 0} Dossier{stats?.weekly_patients !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="text-right">
@@ -524,15 +662,21 @@ export const Dashboard: React.FC = () => {
                     })
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-                    <div className="w-14 h-14 bg-primary/5 rounded-full flex items-center justify-center text-primary">
-                      <Calendar size={28} />
+                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
+                      <Calendar size={28} className="text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-primary font-outfit">Aucun patient aujourd'hui</h4>
-                      <p className="text-text-muted text-[11px] font-medium mt-1">
+                      <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
+                      <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
                         Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
                       </p>
                     </div>
+                    <Link 
+                      to="/agenda" 
+                      className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                    >
+                      Ouvrir l'agenda
+                    </Link>
                   </div>
                 )}
               </div>
@@ -623,8 +767,8 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* C4 — Taux Conversion + C5 — Projection Mensuelle */}
-        {(conversion || projection) && (
+        {/* C4 — Taux Conversion + C5 — Projection Mensuelle + Ghost Re-Call */}
+        {(conversion || projection || latentCash) && (
           <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
             {/* C4 — Taux de Conversion Devis */}
@@ -688,9 +832,122 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* GHOST RE-CALL : Cash Latent */}
+            {latentCash && latentCash.total_opportunites > 0 && (
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-purple-500/10 rounded-elite-sm flex items-center justify-center border border-purple-500/20">
+                      <Banknote size={18} className="text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Ghost Re-Call (Cash Latent)</h3>
+                      <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{latentCash.total_opportunites} Opportunités</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-end gap-2">
+                    <span className="text-3xl font-black text-purple-400 font-outfit">{latentCash.valeur_totale_latente.toLocaleString('fr-FR')}</span>
+                    <span className="text-sm text-text-muted font-bold mb-1">MAD récupérables</span>
+                  </div>
+                  <p className="text-[11px] text-text-muted font-medium mb-3">
+                    Devis signés de plus de 15 jours sans actes commencés.
+                  </p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                    {latentCash.opportunites.map((opp: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-purple-50 hover:border-purple-200 transition-all cursor-pointer" onClick={() => navigate(`/patients/${opp.patient_id}`)}>
+                        <div>
+                          <p className="text-xs font-black text-slate-800">{opp.patient_name}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{opp.type} • {opp.date_devis}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-purple-600">{opp.montant.toLocaleString('fr-FR')} <span className="text-[9px] text-purple-400">MAD</span></p>
+                          <a href={`tel:${opp.telephone}`} onClick={(e) => e.stopPropagation()} className="text-[10px] text-emerald-500 hover:text-emerald-600 font-bold flex items-center gap-1 justify-end mt-0.5"><Phone size={10} /> Appeler</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.section>
         )}
       </div>
+
+      {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
+      <AnimatePresence>
+        {ghostSecretariatPatient && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-50 w-80 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700/50 p-5 overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-cyan-400" />
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1"><Sparkles size={10} /> Ghost Action</p>
+                <h3 className="text-sm font-black text-white truncate max-w-[200px]">Patient Sortant : {ghostSecretariatPatient.nom.toUpperCase()} {ghostSecretariatPatient.prenom}</h3>
+              </div>
+              <button onClick={() => setGhostSecretariatPatient(null)} className="text-slate-400 hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" checked={ghostChecklist.encaisser} onChange={(e) => setGhostChecklist(prev => ({...prev, encaisser: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn("text-xs font-bold", ghostChecklist.encaisser ? "text-slate-500 line-through" : "text-slate-200")}>Encaisser les soins du jour</span>
+              </label>
+              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" checked={ghostChecklist.ordonnance} onChange={(e) => setGhostChecklist(prev => ({...prev, ordonnance: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn("text-xs font-bold", ghostChecklist.ordonnance ? "text-slate-500 line-through" : "text-slate-200")}>Remettre l'ordonnance</span>
+              </label>
+              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" checked={ghostChecklist.rdv} onChange={(e) => setGhostChecklist(prev => ({...prev, rdv: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn("text-xs font-bold", ghostChecklist.rdv ? "text-slate-500 line-through" : "text-slate-200")}>Fixer le RDV de contrôle</span>
+              </label>
+            </div>
+            {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">
+                Action terminée !
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Mobile Security Modal */}
+      <AnimatePresence>
+        {isMobileModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
+            >
+              <button
+                onClick={() => setIsMobileModalOpen(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
+              >
+                <X size={24} />
+              </button>
+              <div className="p-8 overflow-y-auto">
+                <MobileSecurity />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

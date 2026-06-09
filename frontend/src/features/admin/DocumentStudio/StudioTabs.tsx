@@ -40,6 +40,13 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
         tourId="tab-honoraires"
       />
       <TabButton 
+        active={activeTab === 'echeancier'} 
+        onClick={() => onTabChange('echeancier')} 
+        icon={<Calculator size={16} />} 
+        label="Suivi Paiement" 
+        tourId="tab-suivi"
+      />
+      <TabButton 
         active={activeTab === 'libre'} 
         onClick={() => onTabChange('libre')} 
         icon={<Type size={16} />} 

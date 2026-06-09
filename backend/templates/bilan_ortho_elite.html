@@ -68,6 +68,7 @@
             border-left: 4px solid var(--dc-primary);
             padding: 12px;
             margin-bottom: 20px;
+            page-break-inside: avoid;
         }
 
         .info-col {
@@ -105,6 +106,7 @@
             margin-bottom: 15px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             text-align: justify;
+            page-break-inside: avoid;
         }
 
         .text-block p {
@@ -162,6 +164,7 @@
             border-collapse: collapse;
             margin-bottom: 20px;
             font-size: 9pt;
+            page-break-inside: avoid;
         }
         th, td {
             border: 1px solid #e2e8f0;
@@ -216,22 +219,29 @@
     </div>
     {% endif %}
 
-    <h2 class="section-title">1. Diagnostic Squelettique & Céphalométrique</h2>
+    {% if analyse_dentaire %}
+    <h2 class="section-title">1. Analyse Dentaire et Alvéolaire</h2>
+    <div class="text-block">
+        {{ analyse_dentaire | replace('\n', '<br>') | safe }}
+    </div>
+    {% endif %}
+
+    <h2 class="section-title">{% if analyse_dentaire %}2{% else %}1{% endif %}. Analyse Squelettique</h2>
     <div class="text-block">
         {{ diagnostic_squelettique | replace('\n', '<br>') | safe }}
     </div>
 
-    <h2 class="section-title">2. Analyse Clinique & Moulages</h2>
+    <h2 class="section-title">{% if analyse_dentaire %}3{% else %}2{% endif %}. Examen des Moulages</h2>
     <div class="text-block">
         {{ analyse_moulages | replace('\n', '<br>') | safe }}
     </div>
 
-    <h2 class="section-title">3. Synthèse Diagnostique</h2>
+    <h2 class="section-title">{% if analyse_dentaire %}4{% else %}3{% endif %}. Diagnostic / Résumé Diagnostique</h2>
     <div class="text-block synthese-block">
         {{ synthese_diagnostique | replace('\n', '<br>') | safe }}
     </div>
 
-    <h2 class="section-title">4. Plan de Traitement Proposé</h2>
+    <h2 class="section-title">{% if analyse_dentaire %}5{% else %}4{% endif %}. Plan de Traitement Proposé</h2>
     <div class="text-block plan-traitement">
         {{ strategie_therapeutique | replace('\n', '<br>') | safe }}
     </div>
@@ -260,15 +270,19 @@
     </table>
     {% endif %}
 
-    <div class="footer-container" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-        <div class="qr-auth" style="text-align: left;">
+    <div class="footer-container" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px; page-break-inside: avoid;">
+        <div class="qr-auth" style="text-align: left; max-width: 30%;">
             {% if qr_code_base64 %}
             <img src="{{ qr_code_base64 }}" alt="QR Code Authentification" style="width: 80px; height: 80px;">
             <div style="font-size: 7pt; color: var(--dc-secondary); margin-top: 5px;">Scannez pour vérifier l'authenticité<br>de ce diagnostic clinique.</div>
             {% endif %}
         </div>
         
-        <div class="signature" style="text-align: right; font-style: italic;">
+        <div class="legal-disclaimer" style="text-align: center; max-width: 40%; font-size: 7pt; color: var(--dc-secondary); font-style: italic; padding: 0 10px;">
+            Ce plan de traitement est le fruit d'une analyse clinique assistée par algorithme (Méthode COM). Il est souverainement validé et assumé par le praticien signataire.
+        </div>
+
+        <div class="signature" style="text-align: right; font-style: italic; max-width: 30%; margin-top: 0;">
             Rapport généré numériquement le {{ date_analyse }}<br><br>
             <div class="doctor-name" style="font-weight: bold; font-size: 12pt; font-style: normal; color: var(--dc-primary);">{{ doctor_name }}</div>
             <div style="font-size: 9pt; color: var(--dc-secondary); font-style: normal;">Signature électronique certifiée</div>

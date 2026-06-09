@@ -6,12 +6,6 @@ import time
 import math
 import logging
 
-# --- 0. MONKEY PATCH FOR LEGACY CODE (PILLOW_VERSION) ---
-# Prevents torchvision/CephLD-CCA import crash related to Pillow > 7.0.0
-import PIL
-if not hasattr(PIL, 'PILLOW_VERSION'):
-    PIL.PILLOW_VERSION = PIL.__version__
-# ------------------------------------------------------------
 
 # --- 1. DYNAMIC PATH INJECTION (NAMESPACE HACK) ---
 # Resolving absolute import issues from the 'CephLD-CCA' research repository
@@ -178,17 +172,13 @@ class VisionEngine:
                 point_id = CEPH_LANDMARKS_MAPPING.get(idx, f"P_{idx}")
                 final_landmarks.append({"id": point_id, "x": final_x, "y": final_y})
                 
-        # 5. Mock Mode (Safety Fallback for API robustness)
+        # 5. Mode Fallback Sécurisé
         elif not final_landmarks:
-            mode_inference = "MOCK"
-            warning_msg = "AI model unavailable - Random points placed for demonstration"
-            logger.warning(f"VisionEngine: {warning_msg}")
-            
-            for idx in range(self.num_landmarks):
-                final_x = int(np.random.randint(0, self.target_size) * scale_x)
-                final_y = int(np.random.randint(0, self.target_size) * scale_y)
-                point_id = CEPH_LANDMARKS_MAPPING.get(idx, f"P_{idx}")
-                final_landmarks.append({"id": point_id, "x": final_x, "y": final_y})
+            mode_inference = "FAILED"
+            warning_msg = "Moteurs d'IA (SOTA et PyTorch) indisponibles. Placement manuel requis."
+            logger.error(f"VisionEngine: {warning_msg}")
+            # Renvoyer une liste vide pour forcer le tracé manuel au lieu de points aléatoires
+            final_landmarks = []
 
         # --- DENTAL APEX INJECTION (Default COM Norms) ---
         # Apex is placed to respect:

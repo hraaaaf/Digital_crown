@@ -9,8 +9,8 @@ import {
   Calendar,
   Receipt,
   FlaskConical,
-  LogOut,
-  BookOpen
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
@@ -29,10 +29,13 @@ export const Sidebar = () => {
 
   const hasAccess = (permission: string) => {
     if (!user) return true;
-    if (user.role === 'ADMIN' || user.role === 'DENTISTE') return true;
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
+
     if (user.permissions && typeof user.permissions === 'object') {
       return user.permissions[permission] ?? false;
     }
+    
     if (user.role === 'SECRETAIRE') {
       const defaults: Record<string, boolean> = {
         agenda: true,
@@ -44,6 +47,9 @@ export const Sidebar = () => {
         settings: false
       };
       return defaults[permission] ?? false;
+    }
+    if (user.role === 'DENTISTE') {
+      return true; // Fallback pour ancien sous-dentiste
     }
     return true;
   };
@@ -186,10 +192,19 @@ export const Sidebar = () => {
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
           
           <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
+          <NavItem to="/analytics" icon={<Activity size={20} />} label="Analytics" />
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" />
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
+
+          {/* SUPER ADMIN (Hidden for non-admin users) */}
+          {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+            <div className="mt-4 pt-4 border-t border-border-main">
+              <NavItem to="/super-admin" icon={<Shield size={20} className="text-amber-500" />} label="Gestion des Dentistes" />
+            </div>
+          )}
 
           {/* ACTIVE PATIENT NAVIGATION */}
           {currentPatientId && (
@@ -231,28 +246,6 @@ export const Sidebar = () => {
             </div>
           )}
 
-          {/* EXPERIMENTAL SECTION */}
-          <div className="mt-8 pt-8 border-t border-border-main">
-            <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-4">Système</div>
-            <button
-               onClick={() => {
-                 localStorage.removeItem('appMode');
-                 window.location.href = '/welcome';
-               }}
-               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-elite-sm transition-elite group cursor-pointer hover:bg-primary/10"
-               style={{ color: 'var(--primary)' }}
-            >
-              <FlaskConical size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold tracking-tight">Activer Lab Mode</span>
-            </button>
-            <button
-               onClick={() => authService.logout()}
-               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-elite-sm transition-elite group cursor-pointer hover:bg-red-500/10 text-red-500 mt-2"
-            >
-              <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold tracking-tight">Déconnexion</span>
-            </button>
-          </div>
         </nav>
       </aside>
     </>

@@ -1,11 +1,18 @@
 import React, { useEffect } from 'react';
 import { Sidebar } from '../Sidebar';
 import { Header } from '../Header';
+import { LicenseBanner } from '../LicenseBanner';
 import { useEliteStore } from '../../stores/useEliteStore';
 import { useSettingsStore } from '../../features/admin/Settings/hooks/useSettingsStore';
 import { useLocation } from 'react-router-dom';
+import { safeStorage } from '../../hooks/useLocalStorage';
+import { AnimatedBackground } from '../AnimatedBackground';
+import { PREMIUM_FONTS } from '../../features/admin/constants';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { Bot } from 'lucide-react';
+import { CrownBotChat } from '../CrownBot/CrownBotChat';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +31,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname, fetchPatientIntelligence]);
 
   const { profile, fetchProfile } = useSettingsStore();
+  const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
   
   // Rigueur CTO : Chargement du profil et application du thème au montage du layout
   useEffect(() => {
@@ -32,8 +40,20 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [profile.nom, fetchProfile]);
 
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setAnimatedBg(safeStorage.get('app_background_animated') === 'true');
+    };
+    window.addEventListener('settings_updated', handleSettingsUpdate);
+    return () => window.removeEventListener('settings_updated', handleSettingsUpdate);
+  }, []);
+
+  const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
+  const [isBotOpen, setIsBotOpen] = useState(false);
+
   return (
-    <div className="flex flex-row h-screen overflow-hidden font-sans selection:bg-primary selection:text-white relative bg-medical-pearl" style={{ color: 'var(--text-main)' }}>
+    <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
+      {animatedBg && <AnimatedBackground />}
       
       {/* BACKGROUND DYNAMIQUE */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -44,6 +64,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       <Sidebar />
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+        <LicenseBanner />
         <Header />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
@@ -65,6 +86,31 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Bouton Flottant Crown Bot (Desktop) */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <button 
+          onClick={() => setIsBotOpen(!isBotOpen)} 
+          className="w-14 h-14 bg-gradient-to-tr from-primary to-secondary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20"
+        >
+          <Bot size={24} />
+        </button>
+      </div>
+
+      {/* Overlay / Popover Crown Bot */}
+      <AnimatePresence>
+        {isBotOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 right-8 w-[400px] h-[600px] z-50 rounded-[24px] overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-3xl"
+          >
+            <CrownBotChat onClose={() => setIsBotOpen(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

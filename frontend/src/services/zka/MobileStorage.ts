@@ -24,6 +24,14 @@ export interface ZKACredentials {
   api_base_url: string;
 }
 
+export interface QueuedAction {
+  id: string;
+  url: string;
+  method: string;
+  body?: any;
+  timestamp: number;
+}
+
 export const MobileStorage = {
   async saveCredentials(creds: ZKACredentials): Promise<void> {
     if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
@@ -54,4 +62,30 @@ export const MobileStorage = {
     const creds = await this.getCredentials();
     return !!(creds?.publicId && creds?.masterKey && creds?.access_token);
   },
+
+  // --- M3: OFFLINE ACTION QUEUE ---
+  async enqueueAction(url: string, method: string, body?: any): Promise<void> {
+    const queue = await this.getActionQueue();
+    const action: QueuedAction = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      url, method, body, timestamp: Date.now()
+    };
+    queue.push(action);
+    await localforage.setItem('zka_action_queue', queue);
+  },
+
+  async getActionQueue(): Promise<QueuedAction[]> {
+    const queue = await localforage.getItem<QueuedAction[]>('zka_action_queue');
+    return queue || [];
+  },
+
+  async clearActionQueue(): Promise<void> {
+    await localforage.removeItem('zka_action_queue');
+  },
+
+  async removeActionFromQueue(id: string): Promise<void> {
+    const queue = await this.getActionQueue();
+    const filtered = queue.filter(a => a.id !== id);
+    await localforage.setItem('zka_action_queue', filtered);
+  }
 };

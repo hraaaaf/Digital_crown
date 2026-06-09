@@ -3,14 +3,20 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+import logging
 
 from backend import database, models
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, require_permission, require_elite_license
 from backend.services.elite_manager import elite_manager
 from backend.services.habits_engine import habits_engine
 from backend.utils.access_control import assert_patient_access
 
-router = APIRouter(tags=["Elite Intelligence"])
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    tags=["Elite Intelligence"],
+    dependencies=[Depends(require_elite_license)]
+)
 
 @router.get("/patient/{patient_id}")
 async def get_patient_intelligence(
@@ -92,10 +98,9 @@ def get_briefing_j1(
         if not patient:
             continue
 
-        solde = db.query(func.sum(models.Acte.montant)).filter(
-            models.Acte.patient_id == appt.patient_id,
-            models.Acte.statut_paiement == "EN_ATTENTE"
-        ).scalar() or 0.0
+        p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == appt.patient_id).scalar() or 0.0
+        p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == appt.patient_id).scalar() or 0.0
+        solde = max(float(p_acts) - float(p_pays), 0.0)
 
         total_outstanding += solde
         result.append({
@@ -112,6 +117,61 @@ def get_briefing_j1(
         "total_patients": len(result),
         "total_outstanding": round(total_outstanding, 2),
         "patients": result,
+    }
+
+
+@router.get("/briefing-today")
+def get_briefing_today(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """Briefing financier d'aujourd'hui : patients du jour avec leurs soldes impayés."""
+    employer_id = current_user.get_employer_id()
+    today = datetime.now().date()
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today, datetime.max.time())
+
+    appts = db.query(models.Appointment).filter(
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.datetime_start >= today_start,
+        models.Appointment.datetime_start <= today_end,
+        models.Appointment.status != "ANNULÉ"
+    ).order_by(models.Appointment.datetime_start).all()
+
+    result = []
+    total_outstanding = 0.0
+    seen_patient_ids = set()
+
+    for appt in appts:
+        if appt.patient_id is None:
+            continue
+        if appt.patient_id in seen_patient_ids:
+            continue
+        seen_patient_ids.add(appt.patient_id)
+
+        patient = db.query(models.Patient).filter(models.Patient.id == appt.patient_id).first()
+        if not patient:
+            continue
+
+        p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == appt.patient_id).scalar() or 0.0
+        p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == appt.patient_id).scalar() or 0.0
+        solde = max(float(p_acts) - float(p_pays), 0.0)
+
+        total_outstanding += solde
+        result.append({
+            "patient_id": appt.patient_id,
+            "nom": patient.nom,
+            "prenom": patient.prenom,
+            "appointment_time": appt.datetime_start.strftime("%H:%M"),
+            "motif": appt.motif or "",
+            "solde_attente": round(float(solde), 2),
+        })
+
+    return {
+        "date": today.strftime("%d/%m/%Y"),
+        "total_patients": len(result),
+        "total_outstanding": round(total_outstanding, 2),
+        "patients": sorted(result, key=lambda x: x["solde_attente"], reverse=True),
     }
 
 
@@ -246,9 +306,23 @@ def get_taux_conversion(
             models.Acte.date_debut > d.created_at,
             models.Acte.date_debut <= d.created_at + timedelta(days=90)
         ).order_by(models.Acte.date_debut).first()
-        if first_acte:
+        
+        first_note = db.query(models.DocumentArchive).filter(
+            models.DocumentArchive.patient_id == d.patient_id,
+            models.DocumentArchive.document_type == "NOTE_HONORAIRES",
+            models.DocumentArchive.created_at > d.created_at,
+            models.DocumentArchive.created_at <= d.created_at + timedelta(days=90)
+        ).order_by(models.DocumentArchive.created_at).first()
+
+        if first_acte or first_note:
             converted += 1
-            total_days.append((first_acte.date_debut - d.created_at).days)
+            if first_acte and first_note:
+                days = min((first_acte.date_debut - d.created_at).days, (first_note.created_at - d.created_at).days)
+            elif first_acte:
+                days = (first_acte.date_debut - d.created_at).days
+            else:
+                days = (first_note.created_at - d.created_at).days
+            total_days.append(days)
 
     avg_days = round(sum(total_days) / len(total_days), 1) if total_days else None
     return {
@@ -258,51 +332,134 @@ def get_taux_conversion(
         "avg_days": avg_days,
     }
 
+@router.get("/latent-cash")
+def get_latent_cash(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """Ghost Re-Call: Trouve le cash latent (Devis non convertis depuis > 15j et échéances en retard)."""
+    employer_id = current_user.get_employer_id()
+    
+    # 1. Devis Dormants (> 15 jours sans actes)
+    cutoff_date = datetime.now() - timedelta(days=15)
+    devis_list = db.query(models.DocumentArchive).join(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.DocumentArchive.document_type == "DEVIS",
+        models.DocumentArchive.created_at <= cutoff_date
+    ).all()
+    
+    dormant_devis = []
+    total_dormant_amount = 0.0
+    
+    for d in devis_list:
+        # Check si aucun acte n'a été fait après le devis
+        acts_after = db.query(models.Acte).filter(
+            models.Acte.patient_id == d.patient_id,
+            models.Acte.date_debut >= d.created_at
+        ).count()
+        if acts_after == 0:
+            import json
+            try:
+                data = json.loads(d.document_data)
+                total = sum([item.get("montant", 0) for item in data.get("items", [])])
+                if total > 0:
+                    dormant_devis.append({
+                        "patient_id": d.patient_id,
+                        "patient_name": f"{d.patient.prenom} {d.patient.nom}",
+                        "telephone": d.patient.telephone,
+                        "date_devis": d.created_at.strftime("%d/%m/%Y"),
+                        "montant": total,
+                        "type": "Devis En Attente"
+                    })
+                    total_dormant_amount += total
+            except:
+                pass
+
+    return {
+        "total_opportunites": len(dormant_devis),
+        "valeur_totale_latente": total_dormant_amount,
+        "opportunites": sorted(dormant_devis, key=lambda x: x["montant"], reverse=True)
+    }
 
 @router.get("/projection-mensuelle")
 def get_projection_mensuelle(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
-    """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast)."""
+    """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast avec WMA)."""
     employer_id = current_user.get_employer_id()
     now = datetime.now()
+    import calendar
 
     historical = []
+    
+    def get_month_boundaries(year, month):
+        start = datetime(year, month, 1)
+        _, last_day = calendar.monthrange(year, month)
+        end = datetime(year, month, last_day, 23, 59, 59)
+        return start, end
+
+    # 1. Historique (M-3 à M-1)
     for i in range(3, 0, -1):
-        month_start = (now.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
-        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
-        rev = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
+        target_month = now.month - i
+        target_year = now.year
+        if target_month <= 0:
+            target_month += 12
+            target_year -= 1
+            
+        month_start, month_end = get_month_boundaries(target_year, target_month)
+        
+        # Revenus purs (Actes, évite le double comptage avec les devis/notes)
+        rev_actes = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
             models.Patient.employer_id == employer_id,
             models.Acte.date_debut >= month_start,
-            models.Acte.date_debut <= month_end
+            models.Acte.date_debut <= month_end,
+            models.Acte.montant > 0
         ).scalar() or 0.0
-        historical.append({"month": month_start.strftime("%Y-%m"), "revenue": round(float(rev), 2), "type": "actual"})
+        
+        historical.append({
+            "month": month_start.strftime("%Y-%m"), 
+            "revenue": round(float(rev_actes), 2), 
+            "type": "actual"
+        })
 
-    avg_monthly = sum(h["revenue"] for h in historical) / 3 if historical else 0
+    # 2. Modèle de Prévision (Moyenne Mobile Pondérée WMA)
+    if len(historical) == 3:
+        # Poids FP&A standard : M-1=50%, M-2=30%, M-3=20%
+        base_forecast = (historical[2]["revenue"] * 0.5) + (historical[1]["revenue"] * 0.3) + (historical[0]["revenue"] * 0.2)
+    else:
+        base_forecast = sum(h["revenue"] for h in historical) / len(historical) if historical else 0.0
 
-    total_rdv_90d = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
-        models.Patient.employer_id == employer_id,
-        models.Appointment.datetime_start >= now - timedelta(days=90)
-    ).scalar() or 1
-    avg_rdv_per_month = max(total_rdv_90d / 3, 1)
+    # Lissage de croissance (CAGR) capé à +/- 5% pour éviter les aberrations
+    growth_rate = 1.0
+    if len(historical) >= 3 and historical[0]["revenue"] > 0:
+        raw_growth = historical[2]["revenue"] / historical[0]["revenue"]
+        growth_rate = min(max(raw_growth ** (1/2), 0.95), 1.05)
 
     projections = []
-    for i in range(1, 7):
-        proj_month_start = (now.replace(day=1) + timedelta(days=32 * i)).replace(day=1)
-        proj_month_end = (proj_month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
-        rdv_count = db.query(func.count(models.Appointment.id)).join(models.Patient).filter(
-            models.Patient.employer_id == employer_id,
-            models.Appointment.datetime_start >= proj_month_start,
-            models.Appointment.datetime_start <= proj_month_end,
-            models.Appointment.status != "ANNULÉ"
-        ).scalar() or 0
-        factor = min(rdv_count / avg_rdv_per_month, 1.5) if rdv_count else 1.0
+    current_forecast = base_forecast
+
+    # 3. Projections (M à M+5)
+    for i in range(0, 6):
+        target_month = now.month + i
+        target_year = now.year
+        if target_month > 12:
+            target_month -= 12
+            target_year += 1
+            
+        proj_month_start, _ = get_month_boundaries(target_year, target_month)
+        
+        # Application de la tendance sur la base WMA
+        if current_forecast > 0:
+            current_forecast = current_forecast * growth_rate
+            
         projections.append({
             "month": proj_month_start.strftime("%Y-%m"),
-            "revenue": round(avg_monthly * factor, 2),
+            "revenue": round(current_forecast, 2),
             "type": "forecast",
         })
+
+    avg_monthly = sum(h["revenue"] for h in historical) / len(historical) if historical else 0.0
 
     return {"historical": historical, "projections": projections, "avg_monthly": round(avg_monthly, 2)}
 
@@ -337,3 +494,50 @@ async def get_upcoming_prescription(
             "prescription_suggestion": smart,
         }
     }
+
+
+@router.get("/distribution-assurances")
+def get_distribution_assurances(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """C6 — Répartition des honoraires par assurance (chiffre d'affaires total)."""
+    employer_id = current_user.get_employer_id()
+    
+    # Depuis les actes
+    results_actes = db.query(
+        models.Patient.assurance,
+        func.sum(models.Acte.montant).label("total_revenue"),
+        func.count(models.Acte.id).label("acts_count")
+    ).join(models.Acte, models.Acte.patient_id == models.Patient.id).filter(
+        models.Patient.employer_id == employer_id
+    ).group_by(models.Patient.assurance).all()
+    
+    assurance_map = {}
+    for r in results_actes:
+        assur = r[0] if r[0] else "AUCUNE"
+        assurance_map[assur] = {"revenue": float(r[1]) if r[1] else 0.0, "count": r[2] or 0}
+        
+    # Depuis les notes d'honoraires
+    docs = db.query(models.DocumentArchive).join(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.DocumentArchive.document_type == "NOTE_HONORAIRES"
+    ).all()
+    
+    from backend.routers.documents import extract_amount_from_clinical_data
+    for d in docs:
+        assur = d.patient.assurance if d.patient.assurance else "AUCUNE"
+        amount = extract_amount_from_clinical_data(d.clinical_data)
+        if assur not in assurance_map:
+            assurance_map[assur] = {"revenue": 0.0, "count": 0}
+        assurance_map[assur]["revenue"] += amount
+        assurance_map[assur]["count"] += 1
+
+    return [
+        {
+            "assurance": k,
+            "revenue": round(v["revenue"], 2),
+            "count": v["count"]
+        }
+        for k, v in assurance_map.items()
+    ]

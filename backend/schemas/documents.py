@@ -345,9 +345,12 @@ class HonoraireItem(BaseModel):
     amount: float
     file_url: str
     payment_status: Optional[str] = "EN_ATTENTE"
+    validated_by: Optional[str] = None
 
 
 class HonoraireListResponse(BaseModel):
     total: int
     total_amount: float
+    total_collected: float = 0.0
     items: List[HonoraireItem]
+    summary_by_title: dict = {}

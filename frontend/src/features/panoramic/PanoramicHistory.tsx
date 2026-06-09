@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
+import toast from 'react-hot-toast';
 import { 
   Calendar, 
   ChevronRight, 
@@ -7,7 +8,8 @@ import {
   FileText,
   Loader2,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 interface PanoramicAnalysis {
   id: number;
@@ -20,9 +22,10 @@ interface PanoramicAnalysis {
 interface PanoramicHistoryProps {
   patientId: number;
   onSelect: (analysis: any) => void;
+  onDelete?: (analysisId: number) => void;
 }
 
-export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, onSelect }) => {
+export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, onSelect, onDelete }) => {
   const [analyses, setAnalyses] = useState<PanoramicAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,7 +107,29 @@ export const PanoramicHistory: React.FC<PanoramicHistoryProps> = ({ patientId, o
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+               <div className="flex items-center gap-4">
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet examen panoramique et son bilan ?")) {
+                      try {
+                        await api.delete(`/ia/panoramic/${analysis.id}`);
+                        setAnalyses(prev => prev.filter(a => a.id !== analysis.id));
+                        toast.success("Examen supprimé avec succès.");
+                        if (onDelete) {
+                          onDelete(analysis.id);
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Erreur lors de la suppression.");
+                      }
+                    }
+                  }}
+                  className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all border border-rose-100/50 hover:border-rose-500 shadow-sm active:scale-95 z-10"
+                  title="Supprimer l'examen"
+                >
+                  <Trash2 size={16} />
+                </button>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest">
                   Ouvrir dans le studio
                   <ExternalLink size={14} />

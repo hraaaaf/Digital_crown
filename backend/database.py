@@ -109,6 +109,14 @@ if "pysqlcipher" in SQLALCHEMY_DATABASE_URL or SQLALCHEMY_DATABASE_URL.startswit
         SQLALCHEMY_DATABASE_URL, 
         connect_args={"check_same_thread": False} # Requis pour FastAPI
     )
+    
+    from sqlalchemy import event
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
 else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
@@ -134,144 +142,3 @@ def get_db():
         db.close()
 
 # --- AUTO-MIGRATION (Self-Healing) ---
-def check_and_update_db():
-    from sqlalchemy import text
-    
-    # Utiliser une approche ligne par ligne avec des transactions isolées (engine.begin)
-    # pour éviter qu'un échec sur PostgreSQL n'annule les requêtes suivantes.
-    def safe_execute(sql):
-        try:
-            with engine.begin() as conn:
-                conn.execute(text(sql))
-        except Exception as e:
-            logger.debug(f"Migration (ignoré): {sql[:60]!r} — {e}")
-
-    # Vérifier et ajouter les colonnes de branding et structure manquantes
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_theme VARCHAR DEFAULT 'elite'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_cabinet VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_praticien VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS nom_praticien_ar VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS secondary_color VARCHAR DEFAULT '#1e40af'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS accent_color VARCHAR DEFAULT '#60a5fa'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cabinet_type VARCHAR DEFAULT 'PRIVE'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS logo_path VARCHAR")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS letterhead_path VARCHAR")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS selected_template VARCHAR DEFAULT 'classic'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_fr VARCHAR DEFAULT 'inter'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS font_ar VARCHAR DEFAULT 'amiri'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_lines_fr JSONB DEFAULT '[]'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_lines_ar JSONB DEFAULT '[]'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS specialty_ids JSONB DEFAULT '[]'")
-
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_top FLOAT DEFAULT 3.6")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS margin_bottom FLOAT DEFAULT 3.2")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_font_scale FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_logo_scale FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS header_line_height FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS footer_font_scale FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS footer_qr_scale FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS footer_line_height FLOAT DEFAULT 1.0")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS ice VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS if_ VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS inpe VARCHAR DEFAULT ''")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS contacts_json JSONB DEFAULT '{}'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_note_template TEXT DEFAULT 'Arrêtée la présente note à la somme de {total_words} TTC.'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS cloture_devis_template TEXT DEFAULT 'Arrêté le présent devis à la somme de {total_words} TTC.'")
-    
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS performance_mode BOOLEAN DEFAULT FALSE")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS clinical_tips_enabled BOOLEAN DEFAULT TRUE")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS hide_header BOOLEAN DEFAULT TRUE")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS hide_footer BOOLEAN DEFAULT TRUE")
-
-    # --- QR CODE STRATEGY ---
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_enabled BOOLEAN DEFAULT FALSE")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_type VARCHAR DEFAULT 'VCARD'")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_value VARCHAR(500)")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_color VARCHAR(7)")
-    safe_execute("ALTER TABLE cabinet_configs ADD COLUMN IF NOT EXISTS qr_code_label VARCHAR(100)")
-    
-    # --- MIGRATIONS PATIENTS & ACCESS CONTROL ---
-    safe_execute("ALTER TABLE patients ADD COLUMN IF NOT EXISTS adresse VARCHAR(255)")
-    safe_execute("ALTER TABLE patients ADD COLUMN IF NOT EXISTS assurance VARCHAR(50)")
-    safe_execute("ALTER TABLE patients ADD COLUMN IF NOT EXISTS numero_dossier VARCHAR(20)")
-    safe_execute("ALTER TABLE patients ADD COLUMN IF NOT EXISTS employer_id INTEGER DEFAULT 1")
-    
-    safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS employer_id INTEGER DEFAULT 1")
-    safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE")
-    safe_execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP WITH TIME ZONE")
-    
-    # --- MIGRATIONS USERS PERMISSIONS & MULTI-TENANCY ---
-    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'")
-    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSON DEFAULT '{}'")
-    safe_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_id INTEGER")
-    
-    def add_column(table, column, type, default):
-        try:
-            with engine.begin() as conn:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {type} DEFAULT {default}"))
-            print(f"Added column {column} to {table}")
-        except Exception:
-            pass # Already exists or other error
-
-    add_column("document_archives", "payment_status", "VARCHAR(20)", "'EN_ATTENTE'")
-    add_column("document_archives", "is_accounted", "BOOLEAN", "1")
-    add_column("document_archives", "is_collected", "BOOLEAN", "0")
-    add_column("document_archives", "is_latest_version", "BOOLEAN", "1")
-    add_column("document_archives", "status", "VARCHAR(20)", "'ACTIF'")
-    
-    add_column("actes", "is_accounted", "BOOLEAN", "0")
-    add_column("actes", "is_collected", "BOOLEAN", "0")
-    
-    # --- INDEX CRÉATION (idempotent via IF NOT EXISTS) ---
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_actes_patient_id ON actes(patient_id)")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_actes_date_debut ON actes(date_debut)")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_appointments_employer_date ON appointments(employer_id, datetime_start)")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_documents_patient_created ON document_archives(patient_id, created_at)")
-
-    # --- APPAIRAGE MOBILE ZKA (tokens éphémères) ---
-    safe_execute("""
-        CREATE TABLE IF NOT EXISTS zka_pairing_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            token VARCHAR(36) NOT NULL UNIQUE,
-            employer_id INTEGER NOT NULL REFERENCES users(id),
-            public_id VARCHAR(16) NOT NULL,
-            master_key VARCHAR(64) NOT NULL,
-            expires_at DATETIME NOT NULL,
-            used_at DATETIME,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_token ON zka_pairing_tokens(token)")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_zka_tokens_expires ON zka_pairing_tokens(expires_at)")
-
-    # --- GHOST HUB : FTS5 FULL-TEXT SEARCH (RAG) ---
-    safe_execute("""CREATE VIRTUAL TABLE IF NOT EXISTS patient_fts USING fts5(
-        patient_id UNINDEXED,
-        content,
-        content_type,
-        date_str UNINDEXED,
-        tokenize='unicode61'
-    )""")
-    safe_execute("""CREATE TABLE IF NOT EXISTS patient_fts_indexed (
-        patient_id INTEGER PRIMARY KEY,
-        indexed_at DATETIME
-    )""")
-
-    # --- GHOST HUB : FEEDBACK LOOP ---
-    safe_execute("""CREATE TABLE IF NOT EXISTS ai_feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        patient_id INTEGER NOT NULL,
-        insight_type VARCHAR(50),
-        insight_content TEXT,
-        action VARCHAR(20) NOT NULL,
-        corrected_text TEXT,
-        employer_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )""")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_ai_feedback_patient ON ai_feedback(patient_id)")
-    safe_execute("CREATE INDEX IF NOT EXISTS idx_ai_feedback_employer ON ai_feedback(employer_id)")
-
-    print("Database self-healing migration successfully completed.")
-
-# Exécuter au chargement du module
-check_and_update_db()

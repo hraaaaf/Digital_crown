@@ -1,9 +1,12 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
+
+logger = logging.getLogger(__name__)
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
@@ -23,17 +26,29 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
         query = query.filter(models.Patient.id != exclude_id)
     return query.first()
 
+import re
+
 def generate_next_dossier_number(db: Session, employer_id: int) -> str:
-    last_patient = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).order_by(models.Patient.id.desc()).first()
-    if last_patient and last_patient.numero_dossier:
-        try:
-            last_num = int(last_patient.numero_dossier.split('-')[1])
-            next_num = last_num + 1
-        except (ValueError, IndexError):
-            next_num = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).count() + 1
-    else:
-        next_num = 1
-    return f"P-{next_num:06d}"
+    dossiers = db.query(models.Patient.numero_dossier).filter(
+        models.Patient.employer_id == employer_id,
+        models.Patient.numero_dossier.isnot(None)
+    ).all()
+    
+    max_num = 0
+    for (dossier,) in dossiers:
+        if not dossier: continue
+        numbers = re.findall(r'\d+', str(dossier))
+        if numbers:
+            try:
+                # Extraire le dernier nombre trouvé dans la chaîne
+                num = int(numbers[-1])
+                if num > max_num:
+                    max_num = num
+            except ValueError:
+                logger.debug("Impossible d'extraire un numéro de dossier depuis : %s", dossier)
+
+    next_num = max_num + 1
+    return str(next_num)
 
 
 # --- ROUTES CRUD ---
@@ -44,11 +59,31 @@ def get_next_dossier_number(db: Session = Depends(database.get_db), current_user
 
 @router.get("/check-dossier/{numero}")
 def check_dossier_availability(numero: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    exists = db.query(models.Patient).filter(models.Patient.numero_dossier == numero).first()
+    exists = db.query(models.Patient).filter(
+        models.Patient.numero_dossier == numero,
+        models.Patient.employer_id == current_user.get_employer_id()
+    ).first()
     return {
         "exists": bool(exists),
         "patient_id": exists.id if exists else None,
         "patient_name": f"{exists.nom.upper()} {exists.prenom.capitalize()}" if exists else None
+    }
+
+from pydantic import BaseModel
+class DuplicateCheckRequest(BaseModel):
+    nom: str
+    prenom: str
+    date_naissance: datetime
+    exclude_id: Optional[int] = None
+
+@router.post("/check-duplicate")
+def check_duplicate_api(payload: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, payload.exclude_id)
+    return {
+        "isDuplicate": bool(existing),
+        "patientName": f"{existing.nom} {existing.prenom}" if existing else None,
+        "dateNaissance": existing.date_naissance.strftime("%Y-%m-%d") if existing else None,
+        "existingId": existing.id if existing else None
     }
 
 @router.get("/", response_model=List[schemas.PatientOut],
@@ -83,12 +118,14 @@ from backend.services.audit_service import audit_service
 @router.post("/", response_model=schemas.PatientOut,
     summary="Créer un patient",
     description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
-def create_patient(patient: schemas.PatientBase, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def create_patient(patient: schemas.PatientCreate, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance)
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
     
     patient_data = patient.model_dump() if hasattr(patient, 'model_dump') else patient.dict()
+    is_ortho_active = patient_data.pop('is_ortho_active', False)
+    
     patient_data['nom'] = patient_data['nom'].upper().strip()
     patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
     
@@ -100,7 +137,7 @@ def create_patient(patient: schemas.PatientBase, force_create: bool = False, db:
     
     db_patient = models.Patient(**patient_data)
     db.add(db_patient); db.flush()
-    db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=False))
+    db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=is_ortho_active))
     
     # Audit log
     audit_service.log(
@@ -186,63 +223,30 @@ def read_patient(patient_id: int, db: Session = Depends(database.get_db), curren
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     return patient
 
+from backend.services.patient_scoring_service import patient_scoring_service
 @router.get("/{patient_id}/score")
 def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     
-    # 1. Calcul Assiduité (Rendez-vous)
-    rdvs = db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).all()
-    honores = sum(1 for r in rdvs if r.status == models.AppointmentStatus.TERMINE)
-    annules = sum(1 for r in rdvs if r.status == models.AppointmentStatus.ANNULE)
+    # 1. Obtenir le score via le Service Métier dédié
+    score_data = patient_scoring_service.calculate_score(db, patient_id)
     
-    total_rdv = honores + annules
-    assiduite_score = 100
-    if total_rdv > 0:
-        assiduite_score = int((honores / total_rdv) * 100)
-        
-    # 2. Calcul Solvabilité (Actes / Paiements)
-    actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).all()
-    total_facture = sum(a.montant for a in actes)
-    
-    total_encaisse = 0
-    for a in actes:
-        if a.statut_paiement == models.PaiementStatut.PAYE:
-            total_encaisse += a.montant
-        elif a.statut_paiement == models.PaiementStatut.PARTIEL:
-            total_encaisse += a.montant * 0.5  # Heuristique basique si on n'a pas les reçus exacts
-
-    solvabilite_score = 100
-    if total_facture > 0:
-        solvabilite_score = int((total_encaisse / total_facture) * 100)
-        
-    # 3. Score Global (60% Assiduité, 40% Solvabilité)
-    score_global = int((assiduite_score * 0.6) + (solvabilite_score * 0.4))
-    
-    # 4. Détermination du Grade (Priorité au Manuel)
+    # 2. Détermination du Grade (Priorité au Manuel)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    grade = patient.manual_grade if patient and patient.manual_grade else "BRONZE"
     
-    if not (patient and patient.manual_grade):
-        if score_global >= 90:
-            grade = "PLATINUM"
-        elif score_global >= 75:
-            grade = "GOLD"
-        elif score_global >= 50:
-            grade = "SILVER"
+    is_manual = False
+    grade = score_data["grade"]
+    
+    if patient and patient.manual_grade:
+        grade = patient.manual_grade
+        is_manual = True
         
     return {
-        "score": score_global,
+        "score": score_data["score"],
         "grade": grade,
-        "is_manual": bool(patient and patient.manual_grade),
+        "is_manual": is_manual,
         "comment": patient.grade_comment if patient else None,
-        "details": {
-            "assiduite_score": assiduite_score,
-            "solvabilite_score": solvabilite_score,
-            "rdv_honores": honores,
-            "rdv_annules": annules,
-            "total_facture": total_facture,
-            "total_encaisse": total_encaisse
-        }
+        "details": score_data["details"]
     }
 
 @router.patch("/{patient_id}/grade")
@@ -261,6 +265,19 @@ def update_patient_grade(patient_id: int, data: dict, db: Session = Depends(data
     db.commit()
     return {"status": "success"}
 
+@router.patch("/{patient_id}/ortho")
+def update_patient_ortho(patient_id: int, data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    dossier = db.query(models.DossierClinique).filter(models.DossierClinique.patient_id == patient_id).first()
+    if not dossier:
+        raise HTTPException(status_code=404, detail="Dossier non trouvé")
+        
+    if "is_ortho_active" in data:
+        dossier.is_ortho_active = data["is_ortho_active"]
+        
+    db.commit()
+    return {"status": "success", "is_ortho_active": dossier.is_ortho_active}
+
 # --- CLINICAL INTELLIGENCE ---
 
 @router.get("/{patient_id}/documents")
@@ -275,11 +292,19 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
-    static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    from backend.core.paths import AppPaths
+    MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     results = []
     for doc in docs:
         rel_path = doc.file_path.split('static/')[-1]
-        abs_path = os.path.join(static_root, rel_path)
+        
+        if doc.file_path.startswith("static/archives/") or doc.file_path.startswith("static/documents/"):
+            abs_path = str(MEDIA_DIR / doc.file_path.replace("static/", "", 1))
+        else:
+            abs_path = os.path.join(BASE_DIR, doc.file_path)
+            
         results.append({
             "id": str(doc.id), "name": doc.original_filename, "type": doc.document_type.value,
             "date": doc.created_at.strftime("%d/%m/%Y"), "url": f"static/{rel_path}",
@@ -288,7 +313,7 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         })
         
     # 2. Legacy
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    static_dir = os.path.join(BASE_DIR, "static")
     p_folder = f"{patient.id}_{patient.nom.upper()}_{patient.prenom.capitalize()}"
     legacy_dir = os.path.join(static_dir, "patients", p_folder, "Documents")
     
@@ -308,10 +333,9 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
 def get_patient_intel(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     devis = db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id, models.DocumentArchive.document_type == models.DocumentType.DEVIS).all()
-    solde_attente = db.query(func.sum(models.Acte.montant)).filter(
-        models.Acte.patient_id == patient_id,
-        models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
-    ).scalar() or 0.0
+    p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+    p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+    solde_attente = max(float(p_acts) - float(p_pays), 0.0)
     return {
         "suggestion": "Suite de traitement" if devis else "Consultation",
         "duration": 45 if devis else 30,
@@ -339,6 +363,13 @@ def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.ge
     assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
+
+@router.get("/{patient_id}/cmo-synthesis")
+def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    """Agent Multimodal — Chief Medical Officer (Synthèse Pano + Cephalo)."""
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services.cmo_agent_service import cmo_agent
+    return cmo_agent.generate_global_synthesis(db, patient_id, current_user.id)
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
@@ -417,6 +448,105 @@ def generate_cephalo_pdf(
         analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
     
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
+    
+    if req.archive:
+        from backend.services.archive_service import ArchiveService
+        from backend.schemas import ConflictResolution
+        
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+            
+        archive_svc = ArchiveService(db)
+        try:
+            archive_svc.archive_document(
+                patient_id=patient_id,
+                file_content=pdf_bytes,
+                filename=os.path.basename(pdf_path),
+                doc_type=models.DocumentType.RAPPORT_CEPHALO,
+                uploaded_by_id=current_user.id,
+                title="Bilan Céphalométrique et Plan ODF",
+                clinical_data=analysis_data.get("results", {}).get("clinical_data", {}),
+                on_conflict=ConflictResolution.CREATE_VERSION
+            )
+        except Exception as e:
+            logger.warning("Archivage du rapport céphalo ignoré (doublon ou erreur) : %s", e)
+            
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
+
+# --- MASTER PLAN CLINIQUE ---
+
+@router.get("/{patient_id}/master-plan", response_model=Optional[schemas.TreatmentMasterPlanOut])
+def get_master_plan(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
+    return plan
+
+@router.put("/{patient_id}/master-plan", response_model=schemas.TreatmentMasterPlanOut)
+def update_master_plan(patient_id: int, steps: List[schemas.TreatmentPlanStepCreate], db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    assert_patient_access(patient_id, current_user, db)
+    plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
+    if not plan:
+        plan = models.TreatmentMasterPlan(patient_id=patient_id)
+        db.add(plan)
+        db.flush()
+    else:
+        db.query(models.TreatmentPlanStep).filter(models.TreatmentPlanStep.plan_id == plan.id).delete()
+        
+    for i, step_data in enumerate(steps):
+        step = models.TreatmentPlanStep(
+            plan_id=plan.id,
+            title=step_data.title,
+            assistant=step_data.assistant,
+            status=step_data.status,
+            date_str=step_data.date_str,
+            order_index=i
+        )
+        db.add(step)
+        
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
+# --- SUPPRESSION ---
+
+@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient(
+    patient_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """Supprime un patient et ses donnees associees (Seul Dentiste/Proprio ou Admin)"""
+    from backend.services.audit_service import audit_service
+    
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+        
+    assert_patient_access(patient_id, current_user, db)
+    
+    if not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de supprimer un patient")
+
+    try:
+        # Audit log before deletion
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="Patient",
+            resource_id=str(patient_id),
+            details=f"Suppression du patient {patient.nom} {patient.prenom}"
+        )
+        
+        # Supprimer le patient. SQL Alchemy cascade ou la BDD s'occupe du reste
+        db.delete(patient)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

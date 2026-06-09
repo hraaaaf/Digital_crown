@@ -197,13 +197,57 @@ class SOTAPanoramicEngine:
         return refined
 
     def _run_simulation(self) -> Dict[str, Any]:
+        """
+        Simulation de la nouvelle vision produit : On retourne uniquement les Bounding Boxes des 32 dents.
+        Aucune pathologie n'est devinée par l'IA (Friction Zéro). C'est le dentiste qui cliquera.
+        """
+        teeth_detections = []
+        
+        # Dimensions standards d'une radio pano (simulation)
+        img_w, img_h = 1280, 640
+        center_y = img_h * 0.52
+        curvature = 0.15
+        
+        # Quadrants : Haut Droit (1), Haut Gauche (2), Bas Gauche (3), Bas Droit (4)
+        for quad in [1, 2, 3, 4]:
+            is_upper = quad in [1, 2]
+            is_right_side = quad in [1, 4] # Droite du patient = gauche de l'image
+            
+            for tooth_idx in range(1, 9):
+                # Calcul de la position X
+                # Distance depuis le centre
+                dist_factor = {1: 0.04, 2: 0.11, 3: 0.17, 4: 0.24, 5: 0.32, 6: 0.45, 7: 0.65, 8: 0.85}[tooth_idx]
+                x_rel = 0.5 - (dist_factor / 2.0) if is_right_side else 0.5 + (dist_factor / 2.0)
+                
+                # Calcul de la position Y (Smile Curve)
+                occlusal_y = curvature * (x_rel - 0.5)**2 + center_y
+                
+                # Taille de la dent
+                tooth_w = 40 if tooth_idx < 4 else 60 # Molaires plus larges
+                tooth_h = 80 if is_upper else 70
+                
+                # Bounding box
+                cx = x_rel * img_w
+                cy = occlusal_y - (tooth_h/2) if is_upper else occlusal_y + (tooth_h/2)
+                
+                bbox = [
+                    cx - tooth_w/2,
+                    cy - tooth_h/2,
+                    cx + tooth_w/2,
+                    cy + tooth_h/2
+                ]
+                
+                teeth_detections.append({
+                    "tooth": quad * 10 + tooth_idx,
+                    "confidence": 0.99, # IA très confiante sur la détection des dents
+                    "bbox": [round(b, 1) for b in bbox],
+                    "pathology": "None" # La pathologie sera définie par le médecin via l'UI
+                })
+
         return {
-            "status": "SIMULATED",
-            "inference_mode": "FALLBACK_EXPERT",
-            "detections": [
-                {"tooth": 18, "pathology": "Impacted Teeth", "confidence": 0.94, "bbox": [100.0, 100.0, 300.0, 300.0]},
-                {"tooth": 36, "pathology": "Caries", "confidence": 0.88, "bbox": [800.0, 600.0, 950.0, 750.0]}
-            ]
+            "status": "SIMULATED_INTERACTIVE_GRID",
+            "inference_mode": "TOOTH_DETECTION_ONLY",
+            "detections": teeth_detections
         }
 
 panoramic_engine = SOTAPanoramicEngine()

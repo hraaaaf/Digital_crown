@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { cephaloRepository } from '../cephaloRepository';
 import { 
-  buildPayload, computeMcNamaraProjections, initializeDefaultApexes, 
+  buildPayload, computeMcNamaraProjections, 
   calcDDMCephalo, computeLocalImpa 
 } from '../cephaloUtils';
-import type { Landmark, SyncState, ImageFilters } from '../cephaloShared';
+import { type Landmark, type SyncState, type ImageFilters, REQUIRED_LANDMARKS } from '../cephaloShared';
 import type { DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, LocalState } from '../cephaloTypes';
 
 export const useCephaloPersistence = (
@@ -85,7 +85,9 @@ export const useCephaloPersistence = (
     try {
       const projections = computeMcNamaraProjections(l.landmarks);
       await cephaloRepository.saveAnalysis(aid, buildPayload(l.landmarks, max, mand, real, g, projections, mmPerPixel, e2, e3));
-    } catch {}
+    } catch (err) {
+      console.warn("Autosave failed:", err);
+    }
   }, [analysisId, mmPerPixel]);
 
   const handleSave = useCallback(async () => {
@@ -127,13 +129,13 @@ export const useCephaloPersistence = (
           setTimeout(() => setAutoCalibMessage(null), 8000);
         }
       }
-      if (data.landmarks) {
-          const landmarksWithApex = initializeDefaultApexes(data.landmarks);
-          setLocal({ landmarks: landmarksWithApex, version: 1 });
+      if (data.landmarks && data.landmarks.length > 0) {
+        setLocal(prev => ({ ...prev, landmarks: data.landmarks }));
       }
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
         setDiag(prev => ({
+          analyse_dentaire: prev.analyse_dentaire || n.analyse_dentaire || '',
           diagnostic_squelettique: prev.diagnostic_squelettique || n.diagnostic_squelettique || '',
           analyse_moulages: prev.analyse_moulages || n.analyse_moulages || '',
           synthese_diagnostique: prev.synthese_diagnostique || n.synthese_diagnostique || '',
@@ -204,10 +206,7 @@ export const useCephaloPersistence = (
     }
   }, [analysisId, calibrationClickPoints, calibrationDistance, local.landmarks]);
 
-  const REQUIRED_LANDMARKS = [
-    'Po', 'Or', 'N', 'S', 'A', 'B', 'Go', 'Me',
-    'U1_incisal', 'U1_apex', 'L1_incisal', 'L1_apex',
-  ];
+  // REQUIRED_LANDMARKS is now imported from cephaloShared
 
   const tracingPct = useMemo(() => {
     const n = REQUIRED_LANDMARKS.filter(id => local.landmarks.some(l => l.id === id)).length;
@@ -216,13 +215,14 @@ export const useCephaloPersistence = (
 
   const allLandmarksPlaced = tracingPct === 1;
 
-  const generateDocumentData = async (preview: boolean) => {
+  const generateDocumentData = useCallback(async (preview: boolean) => {
     const max = ddm.maxillaire === '' ? null : Number(ddm.maxillaire);
     const mand = ddm.mandibulaire === '' ? null : Number(ddm.mandibulaire);
     const real = (max !== null && mand !== null) ? (max + mand) : null;
 
     return await cephaloRepository.generatePDF(patientId, {
       ai_diagnostic: {
+        analyse_dentaire: diag.analyse_dentaire || '',
         diagnostic_squelettique: diag.diagnostic_squelettique || '',
         analyse_moulages: diag.analyse_moulages || '',
         synthese_diagnostique: diag.synthese_diagnostique || '',
@@ -238,12 +238,12 @@ export const useCephaloPersistence = (
       },
       archive: !preview,
     });
-  };
+  }, [patientId, ddm, diag, etape3Data]);
 
   const handlePreview = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;
     setIsPreviewLoading(true);
-    setPreviewPdfUrl(null); 
+    setPreviewPdfUrl(null);
     await silentSave();
     try {
       const data = await generateDocumentData(true);
@@ -254,7 +254,7 @@ export const useCephaloPersistence = (
       console.error('[Preview] Erreur génération Aperçu', e);
       setIsPreviewLoading(false);
     }
-  }, [analysisId, allLandmarksPlaced, silentSave, patientId, diag, ddm, etape3Data]);
+  }, [analysisId, allLandmarksPlaced, silentSave, generateDocumentData]);
 
   const handlePrint = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;
@@ -264,13 +264,13 @@ export const useCephaloPersistence = (
       const data = await generateDocumentData(false);
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-      
+
       const userChoice = window.confirm(
         'Le PDF a été généré avec succès.\n\n' +
         '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
         '• Annuler = Télécharger le fichier'
       );
-      
+
       if (userChoice) {
         window.open(url, '_blank');
       } else {
@@ -286,7 +286,7 @@ export const useCephaloPersistence = (
     } finally {
       setIsPrinting(false);
     }
-  }, [analysisId, allLandmarksPlaced, patientId, patientName, diag, ddm, etape3Data, silentSave]);
+  }, [analysisId, allLandmarksPlaced, patientName, silentSave, generateDocumentData]);
 
   return {
     analysisId, imageSrc, anglesData, visionMetadata,

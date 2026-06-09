@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
@@ -11,7 +11,11 @@ import {
   Archive,
   FileDigit,
   Target,
-  HeartPulse
+  HeartPulse,
+  Stethoscope,
+  Mail,
+  MapPin,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -21,11 +25,14 @@ import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
-import { PeriodontalChart } from './components/PeriodontalChart';
+import { ClinicalHub } from './components/ClinicalHub';
+import { PatientTracking } from './components/PatientTracking';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
+import { usePatientStore } from '../../stores/usePatientStore';
+import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { Banknote } from 'lucide-react';
 
 interface Patient {
@@ -35,36 +42,51 @@ interface Patient {
   prenom: string;
   date_naissance: string;
   telephone: string;
-  assurance: string;
+  telephone_2?: string;
+  telephone_3?: string;
+  email?: string;
   adresse?: string;
+  assurance: string;
+  assurance_privee_nom?: string;
+  assurance_complementaire?: boolean;
+  assurance_complementaire_nom?: string;
+  antecedents_medicaux?: string;
+  motif_consultation?: string;
+  dossier?: {
+    is_ortho_active: boolean;
+  };
 }
 
-type TabType = 'radiology' | 'periodontal' | 'admin' | 'archives';
+type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives';
 
 export const PatientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as TabType) || 'admin';
+  const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingDoc, setEditingDoc] = useState<any>(null);
+  const { editingDoc, setEditingDoc } = usePatientStore();
   const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';
   const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
+  const lastEditingDoc = useRef(null);
+
   useEffect(() => {
-    const handleEditDoc = (e: any) => {
-      setEditingDoc(e.detail);
-      setSearchParams({ tab: 'admin' });
-    };
-    window.addEventListener('edit_document', handleEditDoc);
-    return () => window.removeEventListener('edit_document', handleEditDoc);
-  }, [setSearchParams]);
+    if (editingDoc && editingDoc !== lastEditingDoc.current) {
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        p.set('tab', 'admin');
+        return p;
+      });
+    }
+    lastEditingDoc.current = editingDoc;
+  }, [editingDoc, setSearchParams]);
 
   useEffect(() => {
     const handlePrescription = () => setSearchParams({ tab: 'admin' });
@@ -88,31 +110,38 @@ export const PatientDetails = () => {
     fetchPatient();
   }, [id]);
 
-  // D1 — NBA : afficher la prochaine meilleure action quand on quitte la fiche patient
   useEffect(() => {
     if (!id) return;
-    return () => {
+    const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
         if (res.data.nba) {
           toast(`💡 ${res.data.nba.title} — ${res.data.nba.action}`, { duration: 6000 });
         }
       }).catch(() => {});
-    };
+    }, 1500); // Délai pour ne pas spammer au chargement immédiat
+    
+    return () => clearTimeout(timer);
   }, [id]);
+
+  const activateOrtho = async () => {
+    try {
+      setLoading(true);
+      await api.patch(`/patients/${id}/ortho`, { is_ortho_active: true });
+      setPatient(prev => prev ? { ...prev, dossier: { ...prev.dossier, is_ortho_active: true } } : null);
+      toast.success('Suivi orthodontique activé');
+    } catch (err) {
+      toast.error('Erreur lors de l\'activation');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (tab: TabType) => {
     setSearchParams({ tab });
   };
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center flex-col gap-6 bg-transparent">
-        <Loader2 className="w-14 h-14 animate-spin" style={{ color: 'var(--primary)' }} />
-        <p className="text-text-muted font-black uppercase tracking-[0.2em] text-[10px]">
-          Ouverture du dossier clinique...
-        </p>
-      </div>
-    );
+    return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
   }
 
   if (!patient) return null;
@@ -165,19 +194,22 @@ export const PatientDetails = () => {
                   )}
                 </div>
                 
-                <div className={cn("flex items-center gap-6 mt-2 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
+                <div className={cn("flex flex-wrap items-center gap-4 mt-3 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
                   <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
                     <FileDigit size={14} style={{ color: 'var(--primary)' }} />
                     <span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span>
                   </div>
                   <div className="flex items-center gap-2"><Calendar size={16} className="text-text-muted" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
                   <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone}</span></div>
+                  {patient.telephone_2 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_2}</span></div>}
+                  {patient.telephone_3 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_3}</span></div>}
+                  {patient.email && <div className="flex items-center gap-2"><Mail size={16} className="text-text-muted" /><span>{patient.email}</span></div>}
+                  {patient.adresse && <div className="flex items-center gap-2"><MapPin size={16} className="text-text-muted" /><span>{patient.adresse}</span></div>}
                 </div>
               </div>
             </div>
             
             <div className="flex items-center gap-3">
-              {/* Quick Pay Button */}
               <button
                 onClick={() => setIsPayModalOpen(true)}
                 className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
@@ -193,8 +225,9 @@ export const PatientDetails = () => {
           </div>
 
           <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
+            <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={18} />} label="Séances & Suivi" />
+            <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
-            <TabButton active={activeTab === 'periodontal'} onClick={() => handleTabChange('periodontal')} icon={<HeartPulse size={18} />} label="Parodontologie" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
           </div>
@@ -206,6 +239,30 @@ export const PatientDetails = () => {
         isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-10 py-10 space-y-10"
       )}>
         
+        
+        {!isCompact && (patient.antecedents_medicaux || patient.motif_consultation) && (
+          <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+            {patient.antecedents_medicaux && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 shadow-sm">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-black text-sm uppercase tracking-widest mb-1">Antécédents Médicaux</h4>
+                  <p className="text-sm font-medium whitespace-pre-wrap">{patient.antecedents_medicaux}</p>
+                </div>
+              </div>
+            )}
+            {patient.motif_consultation && (
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-800 shadow-sm">
+                <Activity className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-black text-sm uppercase tracking-widest mb-1">Motif de Consultation Initial</h4>
+                  <p className="text-sm font-medium whitespace-pre-wrap">{patient.motif_consultation}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <FlashSummary patientId={Number(id)} patientName={fullName} />
 
         <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
@@ -239,7 +296,24 @@ export const PatientDetails = () => {
 
               <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[85vh]">
                 {radioTab === 'cephalo' ? (
-                  <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                  patient?.dossier?.is_ortho_active ? (
+                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10">
+                      <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                        <Activity className="w-12 h-12 text-slate-400" />
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-800 mb-2">Module Céphalométrique Verrouillé</h3>
+                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés COM.</p>
+                      <button 
+                        onClick={activateOrtho}
+                        className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"
+                      >
+                        <Target className="w-5 h-5" />
+                        Activer le Suivi Orthodontique
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <PanoramicStudio patientId={Number(id)} patientName={fullName} />
                 )}
@@ -247,9 +321,9 @@ export const PatientDetails = () => {
             </div>
           )}
           
-          {activeTab === 'periodontal' && (
-            <PeriodontalChart patientId={Number(id)} />
-          )}
+          {activeTab === 'tracking' && <PatientTracking patientId={Number(id)} />}
+          
+          {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
           {activeTab === 'admin' && (
             <DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />

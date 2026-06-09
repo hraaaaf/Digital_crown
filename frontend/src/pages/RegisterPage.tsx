@@ -13,6 +13,7 @@ export const RegisterPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
   // Capture des paramètres URL pour pré-remplir le formulaire
@@ -30,10 +31,10 @@ export const RegisterPage: React.FC = () => {
 
     try {
       await authService.register(email, password, fullName);
-      toast.success('Compte créé avec succès ! Bienvenue.');
-      navigate('/welcome');
+      setSuccess(true);
+      toast.success('Demande envoyée avec succès !');
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de l\'inscription.');
+      setError(err.response?.data?.detail || err.message || 'Une erreur est survenue lors de l\'inscription.');
       toast.error('Échec de l\'inscription');
     } finally {
       setLoading(false);
@@ -58,11 +59,32 @@ export const RegisterPage: React.FC = () => {
             </Link>
             <h1 className="font-bold text-slate-900 text-lg uppercase tracking-wider">Rejoindre l'Elite</h1>
             <p className="text-slate-500 text-xs mt-1 text-center">
-              Activez votre intelligence clinique augmentée en quelques secondes.
+              Demandez votre accès à Digital Crown Elite.
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5">
+          {success ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center text-center p-6 bg-slate-50 rounded-2xl border border-slate-100"
+            >
+              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-black text-slate-800 mb-2">Demande Envoyée</h2>
+              <p className="text-sm font-bold text-slate-500 mb-6">
+                Votre cabinet a bien été pré-enregistré.<br/><br/>
+                Votre compte est actuellement <strong>en attente de validation</strong> par notre équipe (SuperAdmin). Vous recevrez un accès dès sa vérification.
+              </p>
+              <Link to="/login" className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors">
+                Retour à l'accueil
+              </Link>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleRegister} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Nom Complet</label>
               <div className="relative">
@@ -102,8 +124,8 @@ export const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-slate-900"
-                  placeholder="8 caractères minimum"
-                  minLength={8}
+                  placeholder="4 caractères minimum"
+                  minLength={4}
                   required
                 />
               </div>
@@ -135,20 +157,23 @@ export const RegisterPage: React.FC = () => {
               )}
             </button>
           </form>
+          )}
 
-          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-4">
-            <p className="text-sm text-slate-600">
-              Déjà inscrit ?{' '}
-              <Link to="/login" className="text-primary font-bold hover:underline">
-                Se connecter
-              </Link>
-            </p>
-            
-            <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-              En vous inscrivant, vous acceptez nos Conditions d'Utilisation et notre Politique de Confidentialité. 
-              <br />© 2026 SANINOVA - Digital Crown Elite
-            </p>
-          </div>
+          {!success && (
+            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-4">
+              <p className="text-sm text-slate-600">
+                Déjà inscrit ?{' '}
+                <Link to="/login" className="text-primary font-bold hover:underline">
+                  Se connecter
+                </Link>
+              </p>
+              
+              <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+                En vous inscrivant, vous acceptez nos Conditions d'Utilisation et notre Politique de Confidentialité. 
+                <br />© 2026 SANINOVA - Digital Crown Elite
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

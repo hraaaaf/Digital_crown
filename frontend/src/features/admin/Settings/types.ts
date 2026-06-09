@@ -18,6 +18,7 @@ export interface CabinetProfile {
   inpe: string;
   nom_cabinet?: string;
   letterhead_path?: string;
+  use_letterhead?: boolean;
   margin_top?: number;
   margin_bottom?: number;
   header_scale?: number;
@@ -42,11 +43,15 @@ export interface CabinetProfile {
   clinical_tips_enabled?: boolean;
   hide_header?: boolean;
   hide_footer?: boolean;
+  cabinet_type?: 'PRIVE' | 'CLINIQUE';
   nom_praticien_ar?: string;
   specialty_ids?: string[];
+  custom_specialty_fr?: string;
+  custom_specialty_ar?: string;
   logo_path?: string;
   header_lines_fr?: string[];
   header_lines_ar?: string[];
+  header_customized?: boolean;
   qr_code_style?: string;
   header_font_scale?: number;
   header_logo_scale?: number;
@@ -56,4 +61,4 @@ export interface CabinetProfile {
   footer_line_height?: number;
 }
 
-export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe';
+export type Tab = 'profil' | 'branding' | 'ia' | 'securite' | 'equipe' | 'catalogue' | 'agenda';

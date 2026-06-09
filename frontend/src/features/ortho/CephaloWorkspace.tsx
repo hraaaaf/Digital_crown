@@ -44,6 +44,7 @@ import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 import { StepTab } from './components/StepTab';
 import { SyncBadge } from './components/SyncBadge';
 import { Step2BlockerModal } from './components/Step2BlockerModal';
+import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
 
 
@@ -72,6 +73,21 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const mode = store.mode;
   const P = PALETTE[mode];
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
+  const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+
+  const handleSelectHistory = (analysis: any) => {
+    // Load selected analysis into store and switch to studio view
+    store.setAnalysisId(analysis.id);
+    setViewMode('studio');
+  };
+
+  const handleDeleteHistory = (analysisId: number) => {
+    // If the currently loaded analysis is deleted, clear it
+    if (store.analysisId === analysisId) {
+      store.setAnalysisId(undefined as any);
+    }
+    // No additional state to update here; CephaloHistory will refresh its list
+  };
 
   // Initialisation du Store Zustand & Sync Thème
   useEffect(() => {
@@ -88,6 +104,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     
     syncTheme(); // Init immédiat
     return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
   // Initialisation Patient
@@ -119,6 +136,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   //  Refs 
   const fileRef = useRef<HTMLInputElement>(null);
   const step1ContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     analysisId, imageSrc,
@@ -178,6 +196,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         esthetique: { ...prev.esthetique, ...automated.esthetique },
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis, store.diag.analyse_moulages]);
 
   
@@ -193,6 +212,13 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   }, [uploadError]);
 
+  // Reset scroll on step change
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
+
   //  Effects
   useEffect(() => {
     if (!store.isStep1Fullscreen) return;
@@ -201,6 +227,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isStep1Fullscreen]);
 
   useEffect(() => {
@@ -276,6 +303,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
           <p className="text-xs" style={{ color: P.textMuted }}>{patientName}</p>
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex bg-black/5 rounded-lg p-1">
+             <button onClick={() => setViewMode('studio')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'studio' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Actuel</button>
+             <button onClick={() => setViewMode('history')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
+          </div>
           <SyncBadge state={syncState} P={P} />
           <button 
             onClick={handleSave} 
@@ -297,7 +328,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={3} label="Diagnostic" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={4} label="Export" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
+        <StepTab id={4} label="Ghost Brain & Plan" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
       </div>
 
       {/* Message d'erreur navigation */}
@@ -313,45 +344,45 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       </AnimatePresence>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6" style={{ background: P.bg }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 scroll-smooth" style={{ background: P.bg }}>
         <div className="max-w-4xl mx-auto">
-          {step === 1 && renderStep1()}
-          {step === 2 && (
-            <Step2Occlusal P={P} />
-          )}
-          {step === 3 && (
-            <Step3Clinical P={P} />
-          )}
-          {step === 4 && (
-            <Step4Documents P={P} />
-          )}
+          {viewMode === 'studio' ? (
+            <>
+              {step === 1 && renderStep1()}
+              {step === 2 && <Step2Occlusal P={P} />}
+              {step === 3 && <Step3Clinical P={P} />}
+              {step === 4 && <Step4Documents P={P} />}
 
-          {/* Navigation des étapes */}
-          <div className={`flex mt-8 pt-6 border-t ${step > 1 ? 'justify-between' : 'justify-end'}`} style={{ borderColor: P.border }}>
-            {step > 1 && (
-              <button
-                onClick={() => goToStep((step - 1) as StepId)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80"
-                style={{ border: `1px solid ${P.border}`, color: P.textMuted }}
-              >
-                <ChevronLeft size={18} />
-                Précédent
-              </button>
-            )}
-            
-            {step < 4 && (
-              <button
-                onClick={() => goToStep((step + 1) as StepId)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg"
-                style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}
-              >
-                {step === 1 && 'Passer aux moulages'}
-                {step === 2 && 'Passer au diagnostic'}
-                {step === 3 && 'Exporter le bilan'}
-                <ChevronRight size={18} />
-              </button>
-            )}
-          </div>
+              {/* Navigation des étapes */}
+              <div className={`flex mt-8 pt-6 border-t ${step > 1 ? 'justify-between' : 'justify-end'}`} style={{ borderColor: P.border }}>
+                {step > 1 && (
+                  <button
+                    onClick={() => goToStep((step - 1) as StepId)}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80"
+                    style={{ border: `1px solid ${P.border}`, color: P.textMuted }}
+                  >
+                    <ChevronLeft size={18} />
+                    Précédent
+                  </button>
+                )}
+                
+                {step < 4 && (
+                  <button
+                    onClick={() => goToStep((step + 1) as StepId)}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg"
+                    style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}
+                  >
+                    {step === 1 && 'Passer aux moulages'}
+                    {step === 2 && 'Passer au diagnostic'}
+                    {step === 3 && 'Discuter du plan (Ghost Brain)'}
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+             <CephaloHistory patientId={patientId} onSelect={handleSelectHistory} onDelete={handleDeleteHistory} />
+          )}
         </div>
       </div>
     </div>

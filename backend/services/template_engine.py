@@ -282,8 +282,38 @@ class TemplateEngine:
         """Génération via WeasyPrint (haute qualité)."""
         
         # Process medications to add adaptive styles and prevent wrapping
+        raw_meds = context.get('medications', [])
+        
+        # Pass 1: Find the global minimum scale required so the whole document stays uniform
+        global_scale = 1.0
+        for med in raw_meds:
+            def get_val(o, k):
+                if isinstance(o, dict): return o.get(k, '')
+                return getattr(o, k, '')
+                
+            nom = get_val(med, 'nom') or ''
+            dosage = get_val(med, 'dosage') or ''
+            forme = get_val(med, 'forme') or ''
+            posologie = get_val(med, 'posologie') or ''
+            
+            display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
+            header_str = f"{nom} {dosage} {display_forme}"
+            
+            header_len = len(header_str)
+            if header_len > 40:
+                scale = max(0.65, 40.0 / header_len)
+                if scale < global_scale:
+                    global_scale = scale
+                    
+            poso_len = len(posologie)
+            if poso_len > 60:
+                scale = max(0.65, 60.0 / poso_len)
+                if scale < global_scale:
+                    global_scale = scale
+
+        # Pass 2: Apply the global scale to all items
         processed_meds = []
-        for med in context.get('medications', []):
+        for med in raw_meds:
             def get_val(o, k):
                 if isinstance(o, dict): return o.get(k, '')
                 return getattr(o, k, '')
@@ -296,18 +326,12 @@ class TemplateEngine:
             
             display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
             
-            header_str = f"{nom} {dosage} {display_forme}"
-            header_len = len(header_str)
             header_style = "white-space: nowrap;"
-            if header_len > 40:
-                scale = max(0.65, 40.0 / header_len)
-                header_style += f" font-size: calc(11pt * {scale:.2f});"
-                
-            poso_len = len(posologie)
             poso_style = "white-space: nowrap;"
-            if poso_len > 60:
-                scale = max(0.65, 60.0 / poso_len)
-                poso_style += f" font-size: calc(10pt * {scale:.2f});"
+            
+            if global_scale < 1.0:
+                header_style += f" font-size: calc(11pt * {global_scale:.2f});"
+                poso_style += f" font-size: calc(10pt * {global_scale:.2f});"
                 
             processed_meds.append({
                 'nom': nom,

@@ -178,6 +178,7 @@ class PrescriptionService:
         
         meds = [m[0] for m in med_habits]
         
+        import urllib.request, urllib.parse, re
         # 2. Compléter avec la base globale si besoin (< 5 résultats)
         if len(meds) < 10:
             global_meds = db.query(models.Medication.nom).filter(
@@ -193,6 +194,24 @@ class PrescriptionService:
                 models.Medication.usage_count.desc()
             ).limit(10 - len(meds)).all()
             meds.extend([m[0] for m in global_meds])
+            
+        # 3. Si toujours peu de résultats, interroger medicament.ma en direct
+        if len(meds) < 3 and len(query) >= 3:
+            try:
+                url = f'https://medicament.ma/?choice=specialite&keyword=starts&s={urllib.parse.quote(query.strip())}'
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=3) as response:
+                    html = response.read().decode('utf-8', errors='ignore')
+                    matches = re.findall(r'<p class="primary">([^<]+)</p>', html)
+                    for match in matches[:5]:
+                        name = match.split(',', 1)[0].strip()
+                        dosage_match = re.search(r'\b(\d+(?:,\d+)?\s*(?:MG|G|ML|UI|UI/ML|%|MCG))\b', name, re.IGNORECASE)
+                        if dosage_match:
+                            name = name.replace(dosage_match.group(1), "").strip()
+                        if name not in meds:
+                            meds.append(name)
+            except Exception as e:
+                logger.error(f"Erreur scraping medicament.ma: {e}")
         
         return {
             "medications": meds,
@@ -446,19 +465,24 @@ class PrescriptionService:
                 break
 
         if has_antibiotic:
-            from datetime import date
+            from datetime import date, timedelta
             today_date = date.today()
-            # Rechercher les rendez-vous du jour
-            appts_today = db.query(models.Appointment).filter(
+            past_date = today_date - timedelta(days=7)
+            future_date = today_date + timedelta(days=14)
+
+            # Rechercher les rendez-vous dans la fenêtre temporelle [-7 jours, +14 jours]
+            appts_window = db.query(models.Appointment).filter(
                 models.Appointment.patient_id == patient_id,
-                func.date(models.Appointment.datetime_start) == today_date,
+                func.date(models.Appointment.datetime_start) >= past_date,
+                func.date(models.Appointment.datetime_start) <= future_date,
                 models.Appointment.status != models.AppointmentStatus.ANNULE
             ).all()
 
-            # Rechercher les actes du jour
-            acts_today = db.query(models.Acte).filter(
+            # Rechercher les actes dans la fenêtre temporelle [-7 jours, +14 jours]
+            acts_window = db.query(models.Acte).filter(
                 models.Acte.patient_id == patient_id,
-                func.date(models.Acte.date_debut) == today_date
+                func.date(models.Acte.date_debut) >= past_date,
+                func.date(models.Acte.date_debut) <= future_date
             ).all()
 
             surgical_keywords = {
@@ -468,14 +492,14 @@ class PrescriptionService:
             }
 
             has_surgical_context = False
-            for appt in appts_today:
+            for appt in appts_window:
                 text = f"{appt.motif or ''} {appt.notes or ''}".lower()
                 if any(kw in text for kw in surgical_keywords):
                     has_surgical_context = True
                     break
 
             if not has_surgical_context:
-                for acte in acts_today:
+                for acte in acts_window:
                     text = (acte.libelle or "").lower()
                     if any(kw in text for kw in surgical_keywords):
                         has_surgical_context = True
@@ -486,7 +510,7 @@ class PrescriptionService:
                     "type": "coherence",
                     "severity": "medium",
                     "drug": "antibiotique-injustifie",
-                    "message": "🤖 Incohérence clinique : Prescription d'antibiothérapie sans acte chirurgical ou endodontique associé à la séance du jour."
+                    "message": "🤖 Incohérence clinique : Prescription d'antibiothérapie sans acte chirurgical ou endodontique récent (7 derniers jours) ou planifié (14 prochains jours)."
                 })
 
         # 4. Détection d'Omissions prophylactiques (détartrage depuis 12 mois)
@@ -546,6 +570,14 @@ class PrescriptionService:
                 "drugs": p.drugs_json
             } for p in presets
         ]
+
+    def delete_doctor_preset(self, db: Session, doctor_id: int, act_code: str):
+        db.query(models.DoctorActHabit).filter(
+            models.DoctorActHabit.doctor_id == doctor_id,
+            models.DoctorActHabit.act_context == act_code
+        ).delete()
+        db.commit()
+        return True
 
     def get_doctor_habits_summary(self, db: Session, doctor_id: int) -> Dict[str, Any]:
         """

@@ -7,8 +7,7 @@ def assert_patient_access(patient_id: int, current_user: models.User, db) -> Non
     """Raise 403 if the current user is not allowed to access the patient.
     Admins have full access. For other roles, ensure the patient belongs to the
     practitioner's cabinet."""
-    if current_user.role == models.UserRole.ADMIN:
-        return
+    # Suppression du bypass ADMIN pour garantir l'isolement multi-tenant
         
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if not patient:

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
@@ -23,7 +23,7 @@ interface PatientDetails {
 }
 
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre';
+type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre' | 'echeancier';
 
 interface UseDocumentGeneratorParams {
   patientId: string | undefined;
@@ -71,7 +71,8 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
       errors.push({ field: 'drugs', message: "L'ordonnance ne contient aucun médicament. Ajoutez au moins un médicament avant de générer." });
     }
     drugs.forEach((d, i) => {
-      if (d.name.trim() && !d.posologie.trim()) {
+      const isExamen = d.type === 'EXAMEN' || /radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name);
+      if (d.name.trim() && !d.posologie.trim() && !isExamen) {
         errors.push({ field: `drug_${i}`, message: `Posologie manquante pour : ${d.name}` });
       }
     });
@@ -130,7 +131,11 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
   const { activeTab, drugs, items } = params;
 
   if (activeTab === 'ordonnance') {
-    const namedDrugs = drugs.filter(d => d.name.trim());
+    const namedDrugs = drugs.filter(d => 
+      d.name.trim() && 
+      d.type !== 'EXAMEN' && 
+      !/radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name)
+    );
     const hasMissingDosage = namedDrugs.some(d => !d.dosage.trim());
     if (hasMissingDosage) {
       warnings.push({ level: 'warning', message: "Certains médicaments n'ont pas de dosage spécifié. Vérifiez avant impression." });
@@ -140,6 +145,22 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
     );
     if (antibiotics.length > 1) {
       warnings.push({ level: 'warning', message: `Association antibiotique détectée (${antibiotics.map(a => a.name).join(', ')}). Vérifiez la pertinence clinique.` });
+    }
+
+    const ains = namedDrugs.filter(d => /ibuprofène|ibuprofene|antadys|nurofen|ketoprofène|biprofenid|diclofenac|voltarène/i.test(d.name));
+    const corticos = namedDrugs.filter(d => /solupred|prednisolone|cortancyl|celestene/i.test(d.name));
+    
+    if (ains.length > 0 && corticos.length > 0) {
+      warnings.push({ level: 'warning', message: `Association AINS et Corticoïdes détectée (${ains[0].name} + ${corticos[0].name}). Risque ulcérogène accru.` });
+    }
+    
+    if (ains.length > 1) {
+      warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
+    }
+
+    const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
+    if (paracetamol.length > 1) {
+      warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
     }
   }
 
@@ -159,6 +180,7 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
 
 export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -175,6 +197,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     if (smartSuggestion?.applied && drugs.length > 0) setHasChanges(true);
   }, [drugs, smartSuggestion]);
 
+  useEffect(() => {
+    const ref = blobUrlRef;
+    return () => { if (ref.current) URL.revokeObjectURL(ref.current); };
+  }, []);
+
   // Impression automatique après génération PDF
   useEffect(() => {
     if (!pendingPrint || !pdfUrl) return;
@@ -186,10 +213,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         
         console.log("🖨️ Tentative d'impression directe :", fetchUrl);
         
-        const response = await fetch(fetchUrl);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // Extract the path from fetchUrl since api.get will prepend the base URL
+        const basePath = fetchUrl.replace(`${API_BASE}/api`, '');
         
-        const blob = await response.blob();
+        const response = await api.get(basePath, { responseType: 'blob' });
+        const blob = response.data;
         const localBlobUrl = URL.createObjectURL(blob);
         
         // Création d'un iframe caché pour l'impression
@@ -259,7 +287,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           dosage: d.dosage,
           forme: d.forme || 'Sachets',
           posologie: d.posologie,
-          type: d.type || 'MEDICAMENT'
+          type: d.type || 'MEDICAMENT',
+          non_substituable: d.non_substituable ?? false,
         })),
         doc_date: docDate,
       };
@@ -281,6 +310,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         custom_date: libreCustomDate, hide_patient_header: libreHideHeader,
         page_size: librePageSize, alignment: libreAlignment,
       };
+    } else if (activeTab === 'echeancier') {
+      const container = document.getElementById('installment-studio-container');
+      if (container) {
+        const planData = JSON.parse(container.getAttribute('data-plan-data') || '{}');
+        payload.data = planData;
+      }
     } else {
       const commonItems = items
         .filter(i => i.description.trim() !== '')
@@ -302,7 +337,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     }
 
     return payload;
-  }, [params]);
+  }, [
+    params.patientId, params.activeTab, params.drugs, params.certifType, params.certifDays,
+    params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
+    params.libreContent, params.libreCustomPatient, params.libreCustomDate,
+    params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
+    params.patientDetails, params.selectedTeethFromOdontogram, params.installments,
+    params.isAccounted, params.paymentStatus, params.isGlobalNote,
+  ]);
 
   const handleGenerate = useCallback(async (
     archive = false,
@@ -321,7 +363,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     if (!isPreview) {
       const errors = validatePayload(params);
       setValidationErrors(errors);
-      if (errors.length > 0) return;
+      if (errors.length > 0) {
+        errors.forEach(e => toast.error(e.message));
+        return;
+      }
 
       // Cohérence Phase 4
       const warnings = analyzeCoherence(params);
@@ -343,10 +388,20 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       const payload = buildPayload();
       const res = await api.post(`/documents/generate?archive=${archive}&preview=${isPreview}&force=${force}`, payload);
       if (res.data.pdf_url) {
-        const baseUrl = `${API_BASE}/api`;
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
-        const fullUrl = `${baseUrl}/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
-        setPdfUrl(fullUrl);
+        // Fetch as blob so the iframe gets the PDF without auth headers issue
+        let finalUrl = '';
+        try {
+          const pdfBlob = await api.get(`/${cleanPdfPath}`, { responseType: 'blob' });
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+          const blobUrl = URL.createObjectURL(new Blob([pdfBlob.data], { type: 'application/pdf' }));
+          blobUrlRef.current = blobUrl;
+          finalUrl = blobUrl;
+          setPdfUrl(blobUrl);
+        } catch {
+          finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
+          setPdfUrl(finalUrl);
+        }
 
         // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
         if (res.data.warnings && res.data.warnings.length > 0) {
@@ -358,7 +413,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
         // Si ce n'est pas une preview et pas une impression directe, on ouvre le PDF
         if (!isPreview && !print) {
-          window.open(fullUrl, '_blank');
+          window.open(finalUrl, '_blank');
         }
 
         // --- Apprentissage automatique des habitudes (Phase 2) ---
@@ -409,13 +464,22 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         setDuplicateArgs({ archive, print });
       } else {
         const detail = e.response?.data?.detail;
-        const msg = typeof detail === 'string' ? detail : detail?.message || 'Impossible de générer le document.';
+        let msg: string;
+        if (typeof detail === 'string') {
+          msg = detail;
+        } else if (Array.isArray(detail)) {
+          // Erreur de validation Pydantic (422) : tableau de {loc, msg, type}
+          msg = detail.map((d: any) => d.msg || JSON.stringify(d)).join(' | ');
+        } else {
+          msg = detail?.message || e.message || 'Impossible de générer le document.';
+        }
         toast.error('Erreur : ' + msg, { duration: 6000 });
       }
     } finally {
       setLoading(false);
       setShowPrintWarning(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, activeTab, buildPayload, params]);
 
   const handleGenerateAI = useCallback(async () => {

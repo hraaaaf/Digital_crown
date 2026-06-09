@@ -13,6 +13,7 @@ export interface AppUser extends User {
   nom_complet?: string | null;
   cabinet_name?: string;
   permissions?: Record<string, boolean> | null;
+  employer_id?: number;
 }
 
 export interface Patient {

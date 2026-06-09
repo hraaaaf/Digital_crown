@@ -6,6 +6,7 @@ import { api } from '../../../services/api';
 
 export const MobileSecurity = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isRevoking, setIsRevoking] = useState(false);
@@ -28,6 +29,7 @@ export const MobileSecurity = () => {
     try {
       const response = await api.get('/admin/zka-key-qr');
       setQrCode(response.data.qr_code);
+      setTokenCode(response.data.token_code);
       setIsVisible(true);
       setCountdown(30); // 30 secondes de visibilité
     } catch (error) {
@@ -77,11 +79,18 @@ export const MobileSecurity = () => {
               Scannez ce code avec l'application mobile Digital Crown pour importer votre clé de déchiffrement locale.
             </p>
 
-            <div className="relative w-64 h-64 mx-auto group">
+            <div className="relative w-64 mx-auto group">
               {/* QR Code avec masque de sécurité */}
-              <div className={`w-full h-full rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-800/30 transition-all duration-500 ${!isVisible ? 'p-0' : 'p-4'}`}>
+              <div className={`w-full h-72 rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-800/30 transition-all duration-500 ${!isVisible ? 'p-0' : 'p-4'}`}>
                 {qrCode ? (
-                  <img src={qrCode} alt="ZKA Key QR" className={`w-full h-full object-contain transition-all duration-700 ${!isVisible ? 'blur-2xl opacity-0 scale-95' : 'blur-0 opacity-100 scale-100'}`} />
+                  <>
+                    <img src={qrCode} alt="ZKA Key QR" className={`w-full h-44 object-contain transition-all duration-700 ${!isVisible ? 'blur-2xl opacity-0 scale-95' : 'blur-0 opacity-100 scale-100'}`} />
+                    {tokenCode && (
+                      <div className={`mt-3 font-black text-3xl tracking-[0.25em] text-indigo-600 transition-all duration-700 ${!isVisible ? 'blur-xl opacity-0' : 'blur-0 opacity-100'}`}>
+                        {tokenCode}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <Smartphone size={48} className="text-slate-300 dark:text-slate-700" />
                 )}

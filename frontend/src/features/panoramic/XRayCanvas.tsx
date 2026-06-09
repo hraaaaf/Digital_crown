@@ -8,7 +8,7 @@ interface BoundingBox {
 }
 
 interface EliteDetection {
-  label: string; fdi: number; bbox: BoundingBox; confidence: number;
+  label: string; fdi: number; bbox: BoundingBox; confidence: number; rejected?: boolean;
 }
 
 interface FullAnalysis {
@@ -22,6 +22,7 @@ interface XRayCanvasProps {
   onImgLoad: (e: React.SyntheticEvent<HTMLImageElement>) => void;
   filterString: string;
   activeDet: string | null;
+  onHoverDetection?: (id: string | null) => void;
 }
 
 const CATEGORY_COLORS: Record<AnomalyCategory, string> = {
@@ -34,7 +35,7 @@ const CATEGORY_COLORS: Record<AnomalyCategory, string> = {
 };
 
 export const XRayCanvas: React.FC<XRayCanvasProps> = ({
-  imgUrl, visionData, imgSize, onImgLoad, filterString, activeDet
+  imgUrl, visionData, imgSize, onImgLoad, filterString, activeDet, onHoverDetection
 }) => {
   const [popover, setPopover] = useState<{ screenX: number, screenY: number, fdi: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<AnomalyCategory>('Conservatrice');
@@ -78,12 +79,20 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
     }
 
     setPopover({ screenX: (x_rel * 100), screenY: (y_rel * 100), fdi });
+
+    // Activate detection for this tooth in sidebar table
+    if (visionData?.detections) {
+      const idx = visionData.detections.findIndex(det => det.fdi === fdi);
+      if (idx !== -1) {
+        onHoverDetection?.(`det-${idx}`);
+      }
+    }
   };
   
   const displayItems = useMemo(() => {
     if (!visionData?.detections) return [];
     return visionData.detections.map((det, idx) => ({
-      id: `det-${idx}`, label: det.label, fdi: det.fdi, bbox: det.bbox, isParent: false
+      id: `det-${idx}`, label: det.label, fdi: det.fdi, bbox: det.bbox, confidence: det.confidence, rejected: det.rejected, isParent: false
     }));
   }, [visionData]);
 
@@ -110,23 +119,56 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
           preserveAspectRatio="xMidYMid meet"
           onClick={handleSvgClick}
         >
+          {/* Grille Dentaire (Quadrillage) */}
+          {[1,2,3,4].flatMap(quad => [1,2,3,4,5,6,7,8].map(num => quad*10 + num)).map(fdi => {
+            const is_upper = Math.floor(fdi / 10) <= 2;
+            const is_right = Math.floor(fdi / 10) === 1 || Math.floor(fdi / 10) === 4;
+            const num = fdi % 10;
+            const dist_x = [0, 0.04, 0.11, 0.17, 0.24, 0.32, 0.45, 0.65, 0.85][num];
+            const x_rel = is_right ? 0.5 - (dist_x / 2) : 0.5 + (dist_x / 2);
+            const curvature = 0.15;
+            const occlusal_y = curvature * Math.pow(x_rel - 0.5, 2) + 0.52;
+            const y_rel = is_upper ? occlusal_y - 0.15 : occlusal_y + 0.15;
+
+            const cx = x_rel * imgSize.w;
+            const cy = y_rel * imgSize.h;
+            
+            return (
+              <g key={`grid-${fdi}`} className="opacity-40 hover:opacity-100 transition-opacity pointer-events-none">
+                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
+                <text x={cx} y={is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06} fill="rgba(255,255,255,0.5)" fontSize={Math.max(imgSize.w * 0.01, 10)} textAnchor="middle" alignmentBaseline="middle" className="font-mono font-bold">{fdi}</text>
+              </g>
+            );
+          })}
+
           {displayItems.map((item) => {
             const { x_min, y_min, x_max, y_max } = item.bbox;
             const width = Math.max(x_max - x_min, 1);
             const height = Math.max(y_max - y_min, 1);
-            const color = getClinicalColor(item.label);
+            const color = item.rejected ? '#94a3b8' : getClinicalColor(item.label);
             const isActive = activeDet === item.id;
             
             return (
-              <motion.g key={item.id} animate={{ opacity: activeDet === null || isActive ? 1 : 0.3 }}>
+              <motion.g 
+                key={item.id} 
+                animate={{ opacity: item.rejected ? 0.3 : (activeDet === null || isActive ? 1 : 0.3) }}
+                onMouseEnter={() => onHoverDetection?.(item.id)}
+                onMouseLeave={() => onHoverDetection?.(null)}
+                style={{ cursor: 'pointer', pointerEvents: 'all' }}
+              >
                 <rect 
                   x={x_min} y={y_min} width={width} height={height} 
-                  fill={isActive ? color : 'transparent'} fillOpacity={0.15}
-                  stroke={color} strokeWidth={isActive ? 3 : 1} rx={4}
+                  fill={isActive && !item.rejected ? color : 'transparent'} fillOpacity={0.15}
+                  stroke={color} strokeWidth={isActive ? 3 : (item.rejected ? 1 : 2)} strokeDasharray={item.rejected ? "4 4" : "none"} rx={4}
                 />
-                <foreignObject x={x_min} y={Math.max(0, y_min - 25)} width="150" height="30" className="overflow-visible">
-                  <div className="inline-flex px-2 py-0.5 rounded bg-slate-900/80 text-white font-black text-[9px] border border-white/10 whitespace-nowrap">
+                <foreignObject x={x_min} y={Math.max(0, y_min - 25)} width="200" height="30" className="overflow-visible pointer-events-none">
+                  <div className="inline-flex px-2 py-0.5 rounded bg-slate-900/80 text-white font-black text-[9px] border border-white/10 whitespace-nowrap items-center gap-1">
                     {item.fdi}: {item.label}
+                    {item.confidence && (
+                      <span className="text-[7px] text-slate-400 font-mono bg-black/40 px-1 rounded">
+                        {Math.round(item.confidence * 100)}%
+                      </span>
+                    )}
                   </div>
                 </foreignObject>
               </motion.g>

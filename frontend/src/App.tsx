@@ -20,9 +20,12 @@ const PatientDocuments = lazy(() => import('./features/patients/PatientDocuments
 const AgendaPage      = lazy(() => import('./pages/AgendaPage').then(m => ({ default: m.AgendaPage })));
 const AccountingPage  = lazy(() => import('./pages/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const Settings        = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Analytics       = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })));
 const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m => ({ default: m.SetupWizard })));
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
+const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
+const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -30,10 +33,10 @@ const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDa
 
 import { MobileStorage } from './services/zka/MobileStorage';
 
+import { DigitalCrownLoader } from './components/DigitalCrownLoader';
+
 const PageLoader = () => (
-  <div className="flex items-center justify-center h-full min-h-[60vh]">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--primary)' }} />
-  </div>
+  <DigitalCrownLoader minHeight="min-h-[60vh]" className="bg-transparent" spinnerColor="border-blue-600" />
 );
 
 // ==============================================================================
@@ -52,11 +55,34 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAuthAndInit = async () => {
+      // 1. Attendre que la base de données / le backend soit complètement chargé
+      const waitForBackend = async () => {
+        const { API_BASE } = await import('./services/api');
+        const axios = (await import('axios')).default;
+        
+        const MAX_ATTEMPTS = 15; // 15 × 2s = 30s max
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          try {
+            await axios.get(`${API_BASE}/health`);
+            break;
+          } catch (error: any) {
+            if (error.response && error.response.status !== 502 && error.response.status !== 503) {
+              break;
+            }
+            if (attempt < MAX_ATTEMPTS - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+      };
+
       try {
+        await waitForBackend();
+        
         const authStatus = await authService.isAuthenticated();
         setIsAuthenticated(authStatus);
         
-        if (authStatus) {
+        if (authStatus && location.pathname !== '/login') {
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
           
@@ -76,14 +102,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-slate-600">Vérification de la configuration...</p>
-        </div>
-      </div>
-    );
+    return <DigitalCrownLoader text="Patientez pendant le démarrage de l'IA..." />;
   }
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
@@ -92,32 +111,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-slate-600">Vérification de la configuration...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Force le choix du mode s'il n'existe pas (Mode PROD par défaut désormais)
   const appMode = safeStorage.get('appMode');
-  if (!appMode && location.pathname !== '/welcome') {
-    return <Navigate to="/welcome" replace />;
+  if (!appMode) {
+    safeStorage.set('appMode', 'prod');
   }
 
-  // Si mode réel, on impose /setup si non init.
-  if (!isInitialized && location.pathname !== '/setup') {
-    return <Navigate to="/setup" replace />;
-  }
+  // Si le cabinet est déjà initialisé, on empêche l'accès au setup
   if (isInitialized && location.pathname === '/setup') {
     return <Navigate to="/dashboard" replace />;
   }
-
 
   return <>{children}</>;
 };
@@ -159,9 +162,12 @@ const ProtectedRoutes = () => (
         <Route path="/patients/:id/archives" element={<PatientDocuments />} />
         <Route path="/patients/:id/edit" element={<EditPatientForm />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/labo" element={<LabJobsBoard />} />
         <Route path="/bibliotheque" element={<EliteLibrary />} />
         <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
         <Route path="/science-hub" element={<EliteScienceHub />} />
+        <Route path="/super-admin" element={<SuperAdminDashboard />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Suspense>
@@ -169,16 +175,49 @@ const ProtectedRoutes = () => (
 );
 
 // =============================================================================
+// ROUTAGE INTELLIGENT PWA (Mobile vs Desktop)
+// =============================================================================
+
+const SmartRootRouter = () => {
+  const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+  if (isMobile) {
+    return <Navigate to="/mobile/dashboard" replace />;
+  }
+  return <Navigate to="/login" replace />;
+};
+
+// =============================================================================
 // APP PRINCIPAL
 // =============================================================================
 
 function App() {
-  // Application globale du thème (Persistance)
+  const [animatedBg, setAnimatedBg] = useState(() => safeStorage.get('app_background_animated') === 'true');
+
+  // Application globale du thème (Persistance) et Paramètres IA
   useEffect(() => {
     const savedTheme = localStorage.getItem('digitalcrown_theme');
     if (savedTheme) {
       document.body.dataset.theme = savedTheme;
     }
+
+    const applySettings = () => {
+      // Mode Performance
+      const isPerfMode = safeStorage.get('performanceMode') === 'true';
+      if (isPerfMode) {
+        document.body.classList.add('performance-mode');
+      } else {
+        document.body.classList.remove('performance-mode');
+      }
+
+      // Arrière-plan Animé
+      setAnimatedBg(safeStorage.get('app_background_animated') === 'true');
+    };
+
+    applySettings();
+
+    // Permet la mise à jour réactive sans recharger si déclenché manuellement
+    window.addEventListener('settings_updated', applySettings);
+    return () => window.removeEventListener('settings_updated', applySettings);
   }, []);
 
   return (
@@ -192,9 +231,9 @@ function App() {
         }}
       />
       <Routes>
-        {/* Route d'entrée absolue (sans protection) */}
-        <Route path="/welcome" element={<WelcomeScreen />} />
-        
+        {/* ROUTAGE INTELLIGENT RACINE (PWA Entry Point) */}
+        <Route path="/" element={<SmartRootRouter />} />
+
         {/* ROUTES PWA MOBILE (Accès Direct) */}
         <Route path="/mobile/onboarding" element={
           <Suspense fallback={<PageLoader />}><OnboardingScanner /></Suspense>
@@ -204,7 +243,7 @@ function App() {
             <Suspense fallback={<PageLoader />}><MobileDashboard /></Suspense>
           </MobileProtectedRoute>
         } />
-
+        
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>

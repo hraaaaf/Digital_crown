@@ -8,7 +8,7 @@ from backend import models
 from backend.database import SessionLocal
 from backend.services.zka_service import zka_service
 from backend.services.state_extractor import state_extractor
-from backend.services.supabase_sync_service import supabase_sync_service
+from backend.services.firebase_sync_service import firebase_sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +107,9 @@ class SyncManager:
 
             # 4. Chiffrement AES-GCM 256
             encrypted_blob = zka_service.encrypt_payload(raw_state, master_key)
-            
-            # 5. Push vers le relais Cloud
-            success = supabase_sync_service.push_snapshot(config.public_id, encrypted_blob)
+            # 3. PUSH vers Firebase (Cloud Relay)
+            logger.info("Envoi du snapshot vers Firebase...")
+            success = firebase_sync_service.push_snapshot(config.public_id, encrypted_blob)
             
             if success:
                 logger.info(f"✅ Sync ZKA réussie pour le cabinet {config.public_id}")

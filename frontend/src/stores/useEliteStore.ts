@@ -27,14 +27,14 @@ interface EliteState {
   // Async Actions
   fetchPatientIntelligence: (patientId: number) => Promise<void>;
   auditDocument: (patientId: number, contextType: string, docData: any) => Promise<void>;
-  analyzeAgendaDensity: () => Promise<void>;
+  computeIntelligenceScore: () => void;
 }
 
 export const useEliteStore = create<EliteState>()(
   persist(
     (set, get) => ({
       insights: [],
-      intelligenceScore: 85,
+      intelligenceScore: 0,
       dockPosition: { x: 0, y: 0 },
       isAssistantExpanded: false,
       treatmentPlan: null,
@@ -44,7 +44,29 @@ export const useEliteStore = create<EliteState>()(
       isLoading: false,
       error: null,
 
-      setInsights: (insights) => set({ insights }),
+      computeIntelligenceScore: () => {
+        try {
+          const history = JSON.parse(localStorage.getItem('ghost_act_brain') || '{}');
+          const actsCount = Object.keys(history).length;
+          
+          let score = 30; // Base score (système initialisé)
+          
+          // Bonus Apprentissage (PriceBrain)
+          score += Math.min(actsCount * 5, 40); // Jusqu'à +40% (8 actes maîtrisés)
+          
+          // Bonus Détection (Insights actifs)
+          score += Math.min(get().insights.length * 5, 30); // Jusqu'à +30% (6 alertes)
+
+          set({ intelligenceScore: Math.min(score, 100) });
+        } catch {
+          set({ intelligenceScore: 30 });
+        }
+      },
+
+      setInsights: (insights) => {
+        set({ insights });
+        get().computeIntelligenceScore();
+      },
       setIntelligenceScore: (intelligenceScore) => set({ intelligenceScore }),
       setDockPosition: (dockPosition) => set({ dockPosition }),
       setAssistantExpanded: (isAssistantExpanded) => set({ isAssistantExpanded }),
@@ -74,7 +96,6 @@ export const useEliteStore = create<EliteState>()(
         const state = get();
         const now = Date.now();
 
-        // Cache Logic: Si c'est le même patient et que le fetch date de moins de 5 min
         if (state.lastPatientId === patientId && state.lastFetchTime && (now - state.lastFetchTime < 300000)) {
           return;
         }
@@ -84,11 +105,11 @@ export const useEliteStore = create<EliteState>()(
           const response = await api.get(`/intelligence/patient/${patientId}`);
           set({
             insights: response.data.insights || [],
-            intelligenceScore: response.data.intelligence_score || 85,
             lastPatientId: patientId,
             lastFetchTime: now,
             isLoading: false
           });
+          get().computeIntelligenceScore();
         } catch (error: any) {
           set({ isLoading: false, error: error?.response?.data?.detail ?? 'Erreur intelligence patient' });
         }
@@ -108,88 +129,7 @@ export const useEliteStore = create<EliteState>()(
         }
       },
 
-      analyzeAgendaDensity: async () => {
-        try {
-          const res = await api.get('/appointments/');
-          const appointments = res.data || [];
-          
-          const now = new Date();
-          const nextWeek = new Date();
-          nextWeek.setDate(now.getDate() + 7);
 
-          let extractions = 0;
-          let implants = 0;
-          let composites = 0;
-          let endo = 0;
-          let prothese = 0;
-
-          appointments.forEach((apt: any) => {
-            const aptDate = new Date(apt.datetime_start);
-            if (aptDate >= now && aptDate <= nextWeek && apt.motif) {
-              const motif = apt.motif.toLowerCase();
-              if (motif.includes('extraction') || motif.includes('avulsion') || motif.includes('dds')) extractions++;
-              if (motif.includes('implant') || motif.includes('implanto')) implants++;
-              if (motif.includes('composite') || motif.includes('restauration') || motif.includes('carie') || motif.includes('plombage')) composites++;
-              if (motif.includes('endo') || motif.includes('canalaire') || motif.includes('pulpectomie') || motif.includes('dévitalisation')) endo++;
-              if (motif.includes('couronne') || motif.includes('bridge') || motif.includes('empreinte') || motif.includes('prothèse') || motif.includes('inlay')) prothese++;
-            }
-          });
-
-          const newInsights: Insight[] = [];
-
-          if (extractions > 0 || implants > 0) {
-            newInsights.push({
-              id: 'global-agenda-insight-chirurgie',
-              type: 'habit',
-              title: 'Intelligence Prédictive : Chirurgie',
-              content: `Densité chirurgicale (7 jours) : ${extractions} extraction(s) et ${implants} implant(s) prévus. Pensez à vérifier vos stocks de compresses, sutures, lames de bistouri et cartouches d'anesthésie.`,
-              source_type: 'DETERMINISTIC'
-            });
-          }
-
-          if (composites > 3) {
-            newInsights.push({
-              id: 'global-agenda-insight-composite',
-              type: 'habit',
-              title: 'Intelligence Prédictive : Soins Conservateurs',
-              content: `Haute activité restauratrice (${composites} composites prévus). Vérifiez vos stocks d'adhésif, de composites (teintes A2/A3 généralement), de matrices et de coins de bois.`,
-              source_type: 'DETERMINISTIC'
-            });
-          }
-
-          if (endo > 2) {
-            newInsights.push({
-              id: 'global-agenda-insight-endo',
-              type: 'habit',
-              title: 'Intelligence Prédictive : Endodontie',
-              content: `Plusieurs traitements canalaires prévus (${endo}). Assurez-vous d'avoir suffisamment de limes rotatives, cônes de papier/gutta, digues et d'hypochlorite de sodium.`,
-              source_type: 'DETERMINISTIC'
-            });
-          }
-
-          if (prothese > 2) {
-            newInsights.push({
-              id: 'global-agenda-insight-prothese',
-              type: 'habit',
-              title: 'Intelligence Prédictive : Prothèse',
-              content: `Densité prothétique détectée (${prothese} RDV). Vérifiez vos matériaux d'empreinte (silicone/alginate), embouts mélangeurs, fils de rétraction et ciments de scellement.`,
-              source_type: 'DETERMINISTIC'
-            });
-          }
-
-          // Nettoyer les anciens insights globaux
-          const existingFiltered = get().insights.filter(i => !i.id.startsWith('global-agenda-insight'));
-          
-          if (newInsights.length > 0) {
-            set({ insights: [...newInsights, ...existingFiltered] });
-          } else if (existingFiltered.length !== get().insights.length) {
-             set({ insights: existingFiltered });
-          }
-
-        } catch (err: any) {
-          set({ error: err?.response?.data?.detail ?? 'Erreur analyse agenda' });
-        }
-      }
     }),
     {
       name: 'elite-intelligence-storage',

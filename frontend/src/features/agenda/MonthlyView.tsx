@@ -64,6 +64,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
 
   useEffect(() => {
     fetchAppointments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   return (
@@ -111,11 +112,17 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                 </div>
                 
                 <div className="space-y-1 overflow-hidden">
-                  {dayAppts.slice(0, 3).map(a => (
-                    <div key={a.id} className="text-[9px] font-bold bg-white border border-slate-100 p-1 rounded-md text-slate-700 truncate shadow-sm">
-                      {new Date(a.datetime_start).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})} - {a.patient_name}
-                    </div>
-                  ))}
+                  {dayAppts.slice(0, 3).map(a => {
+                    let timeLabel = new Date(a.datetime_start).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    if (a.scheduling_type === 'FULL_DAY') timeLabel = 'JOUR';
+                    if (a.scheduling_type === 'MORNING') timeLabel = 'MATIN';
+                    if (a.scheduling_type === 'AFTERNOON') timeLabel = 'APREM';
+                    return (
+                      <div key={a.id} className="text-[9px] font-bold bg-white border border-slate-100 p-1 rounded-md text-slate-700 truncate shadow-sm">
+                        {timeLabel} - {a.patient_name}
+                      </div>
+                    );
+                  })}
                   {dayAppts.length > 3 && <div className="text-[9px] font-bold text-slate-400 pl-1">+{dayAppts.length - 3} autres...</div>}
                 </div>
               </div>

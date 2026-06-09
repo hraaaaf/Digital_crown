@@ -20,5 +20,6 @@ class PaymentOut(BaseModel):
     acte_id: Optional[int]
     installment_id: Optional[int]
     notes: Optional[str]
+    validated_by: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)

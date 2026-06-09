@@ -40,6 +40,7 @@ def build_executable():
         (str(FRONTEND_DIR / "dist"), "frontend/dist"),
         (str(BACKEND_DIR / "templates"), "backend/templates"),
         (str(BACKEND_DIR / "ai_models"), "backend/ai_models"),
+        (str(BACKEND_DIR / "static"), "backend/static"),
     ]
     
     # Ajout optionnel des credentials Firebase
@@ -50,20 +51,7 @@ def build_executable():
     data_args = " ".join([f'--add-data "{src}{separator}{dest}"' for src, dest in datas])
     
     pyinstaller_cmd = (
-        f'pyinstaller --noconfirm --onedir --windowed --name "DigitalCrown" '
-        f'{data_args} '
-        f'--hidden-import uvicorn.logging '
-        f'--hidden-import uvicorn.loops '
-        f'--hidden-import uvicorn.loops.auto '
-        f'--hidden-import uvicorn.protocols '
-        f'--hidden-import uvicorn.protocols.http '
-        f'--hidden-import uvicorn.protocols.http.auto '
-        f'--hidden-import uvicorn.protocols.websockets '
-        f'--hidden-import uvicorn.protocols.websockets.auto '
-        f'--hidden-import uvicorn.lifespan '
-        f'--hidden-import uvicorn.lifespan.on '
-        f'--hidden-import fastapi.staticfiles '
-        f'"{BACKEND_DIR / "main.py"}"'
+        f'"{sys.executable}" -m PyInstaller --noconfirm --onedir --windowed --name "DigitalCrown" {data_args} --hidden-import passlib.handlers.bcrypt --collect-all fastapi --collect-all uvicorn "{BACKEND_DIR / "main.py"}"'
     )
     
     run_command(pyinstaller_cmd, cwd=str(PROJECT_ROOT))
@@ -79,7 +67,7 @@ def main():
     # 3. Création de l'EXE
     build_executable()
     
-    print("\n✅ BUILD TERMINE !")
+    print("\n[BUILD SUCCESS]")
     print(f"L'exécutable se trouve dans : {PROJECT_ROOT / 'dist' / 'DigitalCrown'}")
 
 if __name__ == "__main__":

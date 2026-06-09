@@ -268,10 +268,10 @@ class AccountingGenerator:
         # Détermination du facteur de compression si trop d'actes (Single Page Force)
         num_acts = len(data.payments)
         compression_factor = 1.0
-        if num_acts > 8:
-            compression_factor = 0.9
-        elif num_acts > 12:
-            compression_factor = 0.8
+        if num_acts > 10:
+            compression_factor = 0.75
+        elif num_acts > 6:
+            compression_factor = 0.85
             
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17 * compression_factor, textColor=p_color, alignment=TA_CENTER, spaceAfter=12 * compression_factor)
         elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>{title_text}</b></u>", title_style), Spacer(1, 0.8*cm if num_acts > 8 else 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.0*cm if num_acts > 8 else 1.2*cm)]
@@ -284,11 +284,19 @@ class AccountingGenerator:
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
+        acte_w = 4.8*cm
+        min_fs = base_fs
         for p in data.payments:
-            # Application de la police adaptative pour l'acte (précision absolue)
-            acte_w = 4.8*cm
-            dyn_style = self.base_template.get_adaptive_style(acte_style, p.acte, acte_w - 0.2*cm)
-            acte_para = Paragraph(p.acte, dyn_style)
+            acte_nbsp = p.acte.replace(' ', '\u00A0')
+            dyn_style = self.base_template.get_adaptive_style(acte_style, acte_nbsp, acte_w - 0.2*cm, min_fs=2.0)
+            if dyn_style.fontSize < min_fs:
+                min_fs = dyn_style.fontSize
+                
+        uniform_acte_style = ParagraphStyle(name='UniformActe', parent=acte_style, fontSize=min_fs, leading=min_fs * 1.4)
+
+        for p in data.payments:
+            acte_nbsp = p.acte.replace(' ', '\u00A0')
+            acte_para = Paragraph(acte_nbsp, uniform_acte_style)
             dent_display = getattr(p, 'dent', '-')
             if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
                 dent_display = ', '.join([str(d) for d in p.dents])
@@ -296,13 +304,13 @@ class AccountingGenerator:
             total += p.montant
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
-        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=12, textColor=p_color, alignment=TA_CENTER)
+        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
         
-        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f}\u00A0MAD</b>", total_amount_style)])
         
         t = Table(table_data, colWidths=[4.8*cm, 2.0*cm, 3.0*cm, 3.0*cm])
         # Ajustement du padding pour gagner de l'espace si num_acts est élevé
-        v_pad = 8 if num_acts < 8 else 5
+        v_pad = 8 if num_acts <= 5 else (4 if num_acts <= 8 else 2)
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
@@ -342,9 +350,18 @@ class AccountingGenerator:
         
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
-        # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
-        if len(cloture) < 20:
-            cloture = f"Arrêtée la présente note d'honoraires à la somme de : {total_words_elite} TTC."
+        # Cloture Flowable
+        cloture_style = ParagraphStyle(
+            name='Cloture', parent=self.styles['Normal'],
+            fontName=self.base_template.premium_font, fontSize=9.5,
+            textColor=p_color, alignment=TA_CENTER, leading=14
+        )
+        
+        cloture_nbsp = cloture.replace(' ', '\u00A0')
+        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 11.5*cm, min_fs=6.0)
+        
+        from backend.services.base_template import PinnedCloture
+        elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
         
         highlighted_teeth = []
         for p in data.payments:
@@ -357,7 +374,7 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=facture_number, p_color=p_color)
+        return self._build_pdf(filepath, elements, "", config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=facture_number, p_color=p_color)
 
     def generate_devis(self, patient, data, document_number=None, db=None, user_id=None, **kwargs):
         filepath = self._get_save_path(patient, "DEVIS", data, doc_id=document_number)
@@ -374,10 +391,10 @@ class AccountingGenerator:
         # Détermination du facteur de compression si trop d'items (Single Page Force)
         num_items = len(data.items)
         compression_factor = 1.0
-        if num_items > 8:
-            compression_factor = 0.9
-        elif num_items > 12:
-            compression_factor = 0.8
+        if num_items > 10:
+            compression_factor = 0.75
+        elif num_items > 6:
+            compression_factor = 0.85
             
         title_style = ParagraphStyle(name='TitleA5', parent=self.styles['Normal'], fontName=font_bold, fontSize=17 * compression_factor, textColor=p_color, alignment=TA_CENTER, spaceAfter=12 * compression_factor)
         elements = [Spacer(1, 0.4*cm), Paragraph(f"<u><b>DEVIS N° {document_number}</b></u>" if document_number else "<u><b>DEVIS DENTAIRE</b></u>", title_style), Spacer(1, 0.8*cm if num_items > 8 else 1.0*cm), self._create_header(patient, data, p_color), Spacer(1, 1.0*cm if num_items > 8 else 1.2*cm)]
@@ -390,11 +407,19 @@ class AccountingGenerator:
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
+        acte_w = 6.8*cm
+        min_fs = base_fs
         for item in data.items:
-            # Application de la police adaptative pour l'acte (précision absolue)
-            acte_w = 6.8*cm
-            dyn_style = self.base_template.get_adaptive_style(acte_style, item.acte, acte_w - 0.3*cm)
-            acte_para = Paragraph(item.acte, dyn_style)
+            acte_nbsp = item.acte.replace(' ', '\u00A0')
+            dyn_style = self.base_template.get_adaptive_style(acte_style, acte_nbsp, acte_w - 0.3*cm, min_fs=2.0)
+            if dyn_style.fontSize < min_fs:
+                min_fs = dyn_style.fontSize
+                
+        uniform_acte_style = ParagraphStyle(name='UniformActe', parent=acte_style, fontSize=min_fs, leading=min_fs * 1.4)
+
+        for item in data.items:
+            acte_nbsp = item.acte.replace(' ', '\u00A0')
+            acte_para = Paragraph(acte_nbsp, uniform_acte_style)
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
                 dent_display = ', '.join([str(d) for d in item.dents])
@@ -402,13 +427,13 @@ class AccountingGenerator:
             total += item.prix_unitaire
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
-        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=12, textColor=p_color, alignment=TA_CENTER)
+        total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
         
-        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f} MAD</b>", total_amount_style)])
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f}\u00A0MAD</b>", total_amount_style)])
         
         t = Table(table_data, colWidths=[6.8*cm, 3.0*cm, 3.0*cm])
         # Ajustement du padding pour gagner de l'espace si num_items est élevé
-        v_pad = 8 if num_items < 8 else 5
+        v_pad = 8 if num_items <= 5 else (4 if num_items <= 8 else 2)
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), p_color), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
@@ -448,10 +473,63 @@ class AccountingGenerator:
         
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
-        # Sécurité : Si le template était vide ou mal formé (Master Elite v6.0)
-        if len(cloture) < 20:
-            cloture = f"Arrêté le présent devis à la somme de : {total_words_elite} TTC."
+        # Cloture Flowable
+        cloture_style = ParagraphStyle(
+            name='Cloture', parent=self.styles['Normal'],
+            fontName=self.base_template.premium_font, fontSize=9.5,
+            textColor=p_color, alignment=TA_CENTER, leading=14
+        )
         
+        cloture_nbsp = cloture.replace(' ', '\u00A0')
+        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 11.5*cm, min_fs=6.0)
+        
+        from backend.services.base_template import PinnedCloture
+        elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
+
+        # Bloc de signature électronique
+        sig_image_path = kwargs.get("signature_path")
+        if not sig_image_path and hasattr(data, "clinical_data") and data.clinical_data:
+            sig_image_path = data.clinical_data.get("signature_path")
+        elif not sig_image_path and hasattr(data, "signature_path") and data.signature_path:
+            sig_image_path = data.signature_path
+
+        sig_label_style = ParagraphStyle(
+            name='SigLabel', parent=self.styles['Normal'],
+            fontName=font_bold, fontSize=8, textColor=p_color, alignment=TA_LEFT
+        )
+        sig_label_right = ParagraphStyle(
+            name='SigLabelRight', parent=self.styles['Normal'],
+            fontName=font_bold, fontSize=8, textColor=p_color, alignment=TA_RIGHT
+        )
+
+        patient_sig_flowable = Paragraph("", sig_label_style)
+        if sig_image_path:
+            resolved_path = sig_image_path
+            if not os.path.isabs(resolved_path):
+                resolved_path = os.path.abspath(resolved_path)
+                if not os.path.exists(resolved_path):
+                    # Try from parent path of project
+                    resolved_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", sig_image_path))
+            
+            if os.path.exists(resolved_path):
+                from reportlab.platypus import Image
+                patient_sig_flowable = Image(resolved_path, width=3.5*cm, height=1.5*cm)
+
+        sig_data = [
+            [Paragraph("<b>Signature et Cachet :</b>", sig_label_style), Paragraph("<b>Signature du Patient (lu et approuvé) :</b>", sig_label_right)]
+        ]
+        sig_data.append([Paragraph("", sig_label_style), patient_sig_flowable])
+
+        sig_table = Table(sig_data, colWidths=[6.0*cm, 6.8*cm])
+        sig_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+        ]))
+        elements.append(Spacer(1, 0.4*cm))
+        elements.append(sig_table)
+
         highlighted_teeth = []
         for item in data.items:
             if hasattr(item, 'dents') and item.dents:
@@ -463,20 +541,40 @@ class AccountingGenerator:
         if db and user_id:
             from backend.models import User
             user_obj = db.query(User).filter(User.id == user_id).first()
-        return self._build_pdf(filepath, elements, cloture, config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number, p_color=p_color)
+        return self._build_pdf(filepath, elements, "", config=config, user=user_obj, highlighted_teeth=list(set(highlighted_teeth)), doc_id=document_number, p_color=p_color)
 
     def _build_pdf(self, filepath, elements, cloture_text, config=None, user=None, highlighted_teeth=None, doc_id=None, p_color=None):
-        # Utilisation des marges configurées avec un seuil minimal de sécurité (v5.0)
-        m_top = (max(config.margin_top, 4.8) if config and config.margin_top is not None else 4.8) * cm
-        # La marge inférieure est forcée à au moins 5.0 cm pour protéger la zone du QR Code et de la Clôture
-        m_bottom = (max(config.margin_bottom, 5.0) if config and config.margin_bottom is not None else 5.0) * cm
-        doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=m_top, bottomMargin=m_bottom)
+        # Utilisation des marges configurées.
+        m_top_val = config.margin_top if config and config.margin_top is not None else 4.8
+        m_bottom_val = config.margin_bottom if config and config.margin_bottom is not None else 1.8
+        
+        lh_path_str = getattr(config, 'letterhead_path', None) if config else None
+        
+        has_letterhead = False
+        if lh_path_str and str(lh_path_str) not in ["null", "None", ""]:
+            import os
+            import sys
+            base_p = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            lh_full_path = os.path.join(base_p, "static", "uploads", str(lh_path_str))
+            if os.path.exists(lh_full_path):
+                has_letterhead = True
+        
+        if has_letterhead:
+            m_top = m_top_val * cm
+        else:
+            m_top = max(m_top_val, 4.8) * cm
+            
+        m_bottom = m_bottom_val * cm
+        
+        p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         doc.doc_id = doc_id
         doc.qr_type = 'PAYMENT'
         draw_method = lambda canv, d: self._draw_canvas(
             canv, d,
             config=config, user=user, highlighted_teeth=highlighted_teeth,
-            cloture_text=cloture_text, p_color=p_color
+            cloture_text="", p_color=p_color
         )
         doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
         return filepath.replace("\\", "/")

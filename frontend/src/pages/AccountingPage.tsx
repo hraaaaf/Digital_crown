@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { 
@@ -19,6 +19,7 @@ import {
   Calculator,
   Check
 } from 'lucide-react';
+import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { cn } from '../utils/cn';
 import { 
   AreaChart, 
@@ -27,7 +28,12 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie
 } from 'recharts';
 import { api } from '../services/api';
 
@@ -44,6 +50,7 @@ interface HonoraireItem {
   file_url: string;
   payment_status?: string;
   is_collected?: boolean;
+  validated_by?: string;
 }
 
 // --- Groupe les notes par patient_id + date (clé composite) ---
@@ -82,21 +89,48 @@ const groupByPatientDate = (items: HonoraireItem[]): GroupedItem[] => {
 
 export const AccountingPage = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'treasury' ? 'treasury' : 'history';
   
   const [items, setItems] = useState<HonoraireItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [totalCollected, setTotalCollected] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'history' | 'treasury'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'history' | 'treasury' | 'insights'>(
+    searchParams.get('tab') === 'insights' ? 'insights' : 
+    (searchParams.get('tab') === 'treasury' ? 'treasury' : 'history')
+  );
   const [treasuryData, setTreasuryData] = useState<any>(null);
   const [loadingTreasury, setLoadingTreasury] = useState(false);
+
+  // États pour Visual Insights
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [projections, setProjections] = useState<any>(null);
+  const [conversions, setConversions] = useState<any>(null);
+  const [distributions, setDistributions] = useState<any[]>([]);
+
+  const [financialData, setFinancialData] = useState<any>(null);
+
+  const fetchVisualInsights = useCallback(async () => {
+    setLoadingInsights(true);
+    try {
+      const res = await api.get('/analytics/financial');
+      setFinancialData(res.data);
+    } catch (err) {
+      console.error("Erreur chargement Visual Insights:", err);
+    } finally {
+      setLoadingInsights(false);
+    }
+  }, []);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   };
@@ -108,53 +142,60 @@ export const AccountingPage = () => {
   const [treasuryStatusFilter, setTreasuryStatusFilter] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filterType, setFilterType] = useState<'all' | 'insured_notes_only'>('all');
+  const [summaryByTitle, setSummaryByTitle] = useState<Record<string, number>>({});
 
   const months = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
 
-  const fetchHonoraires = async () => {
+  const fetchHonoraires = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `/documents/accounting/honoraires?year=${selectedYear}`;
+      let url = `/accounting/honoraires?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
+      url += `&filter_type=${filterType}`;
       
       const res = await api.get(url);
       setItems(res.data.items || []);
       setTotalAmount(res.data.total_amount || 0);
+      setTotalCollected(res.data.total_collected || 0);
+      setSummaryByTitle(res.data.summary_by_title || {});
     } catch (err) {
       console.error("Erreur honoraires:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth, selectedAssurance, filterType]);
 
-  const fetchTreasury = async () => {
+  const fetchTreasury = useCallback(async () => {
     setLoadingTreasury(true);
     try {
-      const res = await api.get('/documents/accounting/treasury-hub');
+      const res = await api.get('/accounting/treasury-hub');
       setTreasuryData(res.data);
     } catch (err) {
       console.error("Erreur treasury hub:", err);
     } finally {
       setLoadingTreasury(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'history') {
       fetchHonoraires();
-    } else {
+    } else if (activeTab === 'treasury') {
       fetchTreasury();
+    } else if (activeTab === 'insights') {
+      fetchVisualInsights();
     }
-  }, [selectedMonth, selectedYear, selectedAssurance, activeTab]);
+  }, [activeTab, fetchHonoraires, fetchTreasury, fetchVisualInsights]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      let url = `/documents/accounting/export-pdf?year=${selectedYear}`;
+      let url = `/accounting/export-pdf?year=${selectedYear}`;
       if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
       if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
       
@@ -228,7 +269,7 @@ export const AccountingPage = () => {
 
   const handleEncaisser = async (id: number | string) => {
     try {
-      await api.post(`/documents/accounting/encaisser/${id}`);
+      await api.post(`/accounting/encaisser/${id}`);
       toast.success("Règlement encaissé avec succès !");
       fetchTreasury(); // Rafraîchir les données
     } catch (err) {
@@ -252,15 +293,21 @@ export const AccountingPage = () => {
     if (item.payment_status === 'PAYE') {
       if (item.is_collected) {
         return (
-          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">
-            Encaissé
-          </span>
+          <div className="flex flex-col items-center gap-1">
+            <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">
+              Encaissé
+            </span>
+            {item.validated_by && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
+          </div>
         );
       }
       return (
-        <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">
-          Réglé
-        </span>
+        <div className="flex flex-col items-center gap-1">
+          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">
+            Réglé
+          </span>
+          {item.validated_by && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
+        </div>
       );
     }
     
@@ -358,9 +405,15 @@ export const AccountingPage = () => {
               </div>
             ))}
           </div>
-          <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Période</span>
-            <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</span>
+          <div className="flex gap-2">
+            <div className="bg-slate-50 px-6 py-4 rounded-3xl border border-slate-100 flex flex-col items-end shadow-sm">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Facturé</span>
+              <span className="text-xl font-black text-slate-400">{totalAmount.toLocaleString('fr-FR')} MAD</span>
+            </div>
+            <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Encaissé</span>
+              <span className="text-2xl font-black" style={{ color: 'var(--primary)' }}>{totalCollected.toLocaleString('fr-FR')} MAD</span>
+            </div>
           </div>
 
           <button 
@@ -484,6 +537,16 @@ export const AccountingPage = () => {
             </span>
           )}
         </button>
+        <button 
+          onClick={() => setActiveTab('insights')}
+          className={cn(
+            "px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative",
+            activeTab === 'insights' ? "bg-white shadow-lg text-primary" : "text-slate-500 hover:text-slate-800"
+          )}
+          style={activeTab === 'insights' ? { color: 'var(--primary)' } : {}}
+        >
+          <BarChart2 size={14} /> Visual Insights
+        </button>
       </div>
 
       {activeTab === 'history' ? (
@@ -536,6 +599,19 @@ export const AccountingPage = () => {
           </select>
         </div>
 
+        {/* Filtre Type */}
+        <div className="flex items-center gap-3">
+          <Filter size={18} style={{ color: 'var(--primary)' }} />
+          <select 
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as any)}
+          >
+            <option value="all">Tous les Actes & Notes</option>
+            <option value="insured_notes_only">Notes d'honoraires Assurées</option>
+          </select>
+        </div>
+
         {/* Filtre Année */}
         <select 
           className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
@@ -547,6 +623,40 @@ export const AccountingPage = () => {
           ))}
         </select>
       </section>
+
+      {/* BILAN MENSUEL PAR ACTE */}
+      {Object.keys(summaryByTitle).length > 0 && (
+        <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm mb-6">
+          <h2 className="text-lg font-black tracking-tight mb-4 flex items-center gap-2" style={{ color: 'var(--primary)' }}>
+            <Calculator size={20} />
+            Bilan des Actes
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left bg-white border border-slate-100 rounded-xl">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Acte / Prestation</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total Facturé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(summaryByTitle)
+                  .sort((a, b) => b[1] - a[1]) // Tri décroissant par montant
+                  .map(([title, amount]) => (
+                  <tr key={title} className="border-b border-slate-50">
+                    <td className="px-6 py-4 text-sm font-bold text-slate-700">{title}</td>
+                    <td className="px-6 py-4 text-sm font-black text-slate-800 text-right">{amount.toLocaleString('fr-FR')} MAD</td>
+                  </tr>
+                ))}
+                <tr className="bg-emerald-50/50">
+                  <td className="px-6 py-4 text-sm font-black text-slate-800 uppercase tracking-widest text-right">Total Général</td>
+                  <td className="px-6 py-4 text-lg font-black text-right" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* CONFIRMATION SUPPRESSION */}
       {confirmDeleteId && (
@@ -560,9 +670,8 @@ export const AccountingPage = () => {
       {/* LISTE DES HONORAIRES */}
       <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">
         {loading ? (
-          <div className="py-40 flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={48} />
-            <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Extraction des encaissements...</p>
+          <div className="py-20 relative h-[400px]">
+            <EliteGhostLoader text="Extraction des encaissements..." fullScreen={false} size="medium" />
           </div>
         ) : filteredItems.length > 0 ? (
           <div className="overflow-x-auto">
@@ -716,7 +825,7 @@ export const AccountingPage = () => {
         )}
       </main>
         </>
-      ) : (
+      ) : activeTab === 'treasury' ? (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
            {/* Treasury Overview Cards */}
            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -776,19 +885,12 @@ export const AccountingPage = () => {
                       <option value="EN_ATTENTE">En Attente</option>
                       <option value="PARTIEL">Partiel</option>
                     </select>
-                    <button
-                      disabled
-                      title="Fonctionnalité disponible prochainement"
-                      className="px-4 py-2 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-slate-200"
-                    >
-                      Rappels Auto
-                    </button>
                  </div>
               </div>
              
              {loadingTreasury ? (
-               <div className="py-20 flex flex-col items-center gap-4">
-                 <Loader2 className="animate-spin text-indigo-600" size={32} />
+               <div className="py-10 relative h-[300px]">
+                 <EliteGhostLoader text="Chargement..." fullScreen={false} size="small" />
                </div>
              ) : (
                <table className="w-full text-left">
@@ -857,6 +959,137 @@ export const AccountingPage = () => {
                </table>
              )}
            </div>
+         </div>
+      ) : (
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          {loadingInsights ? (
+            <div className="py-20 relative h-[400px]">
+              <EliteGhostLoader text="Calcul des indicateurs financiers..." fullScreen={false} size="medium" />
+            </div>
+          ) : (
+            <>
+              {/* KPIs Financiers */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Ce Mois</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-slate-800">
+                      {financialData?.revenue_this_month ? Math.round(financialData.revenue_this_month).toLocaleString('fr-FR') : 0}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Mois Dernier</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-slate-800">
+                      {financialData?.revenue_last_month ? Math.round(financialData.revenue_last_month).toLocaleString('fr-FR') : 0}
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de Recouvrement</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-slate-800">{financialData?.recovery_rate || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-1000" 
+                      style={{ width: `${financialData?.recovery_rate || 0}%`, backgroundColor: 'var(--primary)' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-8 rounded-[2rem] shadow-xl shadow-primary/10 flex flex-col gap-2 text-white relative overflow-hidden group hover:brightness-105 transition-all" style={{ backgroundColor: 'var(--primary)' }}>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-125 transition-all duration-700" />
+                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest relative z-10">Total Facturé Global</span>
+                  <div className="flex items-baseline gap-2 mt-1 relative z-10">
+                    <span className="text-3xl font-black">
+                      {financialData?.total_billed ? Math.round(financialData.total_billed).toLocaleString('fr-FR') : 0}
+                    </span>
+                    <span className="text-xs font-bold text-white/80 ml-1">MAD</span>
+                  </div>
+                  <span className="text-[10px] font-medium text-white/70 mt-4 block relative z-10">
+                    Total encaissé : {financialData?.total_paid ? Math.round(financialData.total_paid).toLocaleString('fr-FR') : 0} MAD
+                  </span>
+                </div>
+              </div>
+
+              {/* GRAPHIQUES */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                {/* 1. Évolution Revenu */}
+                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution du Revenu</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Chiffre d'Affaires Mensuel (6 derniers mois)</p>
+                  </div>
+                  <div className="flex-1 min-h-0 w-full mt-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={financialData?.monthly_revenue || []}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const item = payload[0];
+                              return (
+                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
+                                  <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
+                                    {(item.value as number).toLocaleString('fr-FR')} MAD
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="revenue" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 2. Top Actes */}
+                <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Actes les plus rentables</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top 5 actes (Chiffre d'Affaires généré)</p>
+                  </div>
+                  <div className="flex-1 min-h-0 w-full mt-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart layout="vertical" data={financialData?.top_acts_revenue || []}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const item = payload[0];
+                              return (
+                                <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
+                                  <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
+                                    {(item.value as number).toLocaleString('fr-FR')} MAD
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

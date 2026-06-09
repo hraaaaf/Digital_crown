@@ -8,7 +8,9 @@ import {
   Users,
   Save,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  BookOpen,
+  Calendar
 } from 'lucide-react';
 import { useSettingsStore } from './hooks/useSettingsStore';
 import { TabButton } from './components/SharedUI';
@@ -16,13 +18,16 @@ import { ProfileTab } from './tabs/ProfileTab';
 import { BrandingTab } from './tabs/BrandingTab';
 import { IATab } from './tabs/IATab';
 import { SecurityTab } from './tabs/SecurityTab';
+import { CatalogTab } from './tabs/CatalogTab';
+import { AgendaTab } from './tabs/AgendaTab';
 import { TeamManager } from '../TeamManager';
 import { cn } from '../../../utils/cn';
 import type { Tab } from './types';
+import { DigitalCrownLoader } from '../../../components/DigitalCrownLoader';
 
 const SettingsContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('profil');
-  const { fetchProfile, saveProfile, loading, saving, saveSuccess } = useSettingsStore();
+  const { fetchProfile, saveProfile, loading, saving, saveSuccess, isDirty } = useSettingsStore();
 
   useEffect(() => {
     fetchProfile();
@@ -30,16 +35,15 @@ const SettingsContainer: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
-        <Loader2 className="animate-spin text-primary" size={48} />
-        <p className="text-sm font-black text-slate-400 uppercase tracking-widest animate-pulse">Initialisation du Centre de Contrôle...</p>
-      </div>
+      <DigitalCrownLoader text="Initialisation du Centre de Contrôle..." minHeight="min-h-[600px]" />
     );
   }
 
   const tabs = [
     { id: 'profil', label: 'Profil Cabinet', icon: <UserCircle size={20} /> },
     { id: 'branding', label: 'Design & Ambiance', icon: <Palette size={20} /> },
+    { id: 'catalogue', label: 'Catalogue Actes', icon: <BookOpen size={20} /> },
+    { id: 'agenda', label: 'Horaires & Agenda', icon: <Calendar size={20} /> },
     { id: 'ia', label: 'IA & Système', icon: <Brain size={20} /> },
     { id: 'securite', label: 'Sécurité & Backup', icon: <Shield size={20} /> },
     { id: 'equipe', label: 'Mon Équipe', icon: <Users size={20} /> },
@@ -61,7 +65,7 @@ const SettingsContainer: React.FC = () => {
             </div>
           </div>
 
-          <nav className="space-y-2 bg-white/50 backdrop-blur-md p-3 rounded-[2rem] border border-slate-100 shadow-sm">
+          <nav data-tour="settings-navigation" className="space-y-2 bg-white/50 backdrop-blur-md p-3 rounded-[2rem] border border-slate-100 shadow-sm">
             {tabs.map(t => (
               <TabButton 
                 key={t.id}
@@ -77,12 +81,14 @@ const SettingsContainer: React.FC = () => {
           <div className="pt-6">
             <button
               onClick={saveProfile}
-              disabled={saving}
+              disabled={saving || (!isDirty && !saveSuccess)}
               className={cn(
                 "w-full py-5 rounded-[1.5rem] font-black text-base transition-all duration-500 shadow-2xl flex items-center justify-center gap-4",
                 saveSuccess 
                   ? "bg-emerald-500 text-white shadow-emerald-500/30" 
-                  : "bg-slate-900 text-white hover:bg-black shadow-slate-900/20"
+                  : (!isDirty && !saveSuccess) 
+                    ? "bg-slate-200 text-slate-400 shadow-none cursor-not-allowed" 
+                    : "bg-slate-900 text-white hover:bg-black shadow-slate-900/20"
               )}
             >
               {saving ? (
@@ -110,6 +116,8 @@ const SettingsContainer: React.FC = () => {
           <div className="p-8 sm:p-12">
              {activeTab === 'profil' && <ProfileTab />}
              {activeTab === 'branding' && <BrandingTab />}
+             {activeTab === 'catalogue' && <CatalogTab />}
+             {activeTab === 'agenda' && <AgendaTab />}
              {activeTab === 'ia' && <IATab />}
              {activeTab === 'securite' && <SecurityTab />}
              {activeTab === 'equipe' && <TeamManager />}

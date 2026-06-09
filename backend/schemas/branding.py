@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
+from typing import Any
 
 
 class BrandingPreviewPayload(BaseModel):
@@ -23,3 +24,9 @@ class BrandingPreviewPayload(BaseModel):
     qr_code_style: Optional[str] = None
     qr_code_value: Optional[str] = None
     qr_code_label: Optional[str] = None
+
+    @field_validator('*', mode='before')
+    def empty_str_to_none(cls, v: Any) -> Any:
+        if v == "":
+            return None
+        return v

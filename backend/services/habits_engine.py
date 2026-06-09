@@ -137,9 +137,25 @@ class HabitsEngine:
                 triggers.append({
                     "type": "PHASE_END",
                     "title": "Fin de Traitement Actif",
-                    "message": "Phase de contention détectée. Prévoir le suivi à 6 mois.",
-                    "action": "Planifier contrôle"
+                    "message": "Contention posée. Souhaitez-vous générer le document de fin de traitement ?",
+                    "action": f"/patients/{patient_id}/documents/new"
                 })
+
+        # OVERDUE_PAYMENT: Echéances en retard
+        # Rechercher les échéances dont la date est passée et qui ne sont pas payées
+        overdue_installments = db.query(models.Installment).join(models.InstallmentPlan).filter(
+            models.InstallmentPlan.patient_id == patient_id,
+            models.Installment.due_date < datetime.now(),
+            models.Installment.status != "PAYE"
+        ).all()
+        
+        for inst in overdue_installments:
+            triggers.append({
+                "type": f"OVERDUE_PAYMENT_{inst.id}",
+                "title": f"Paiement en retard - {inst.plan.title}",
+                "message": f"L'échéance '{inst.label}' de {inst.amount} MAD était prévue pour le {inst.due_date.strftime('%d/%m/%Y')}.",
+                "action": f"/patients/{patient_id}/archives"
+            })
 
         # Exemple 2 : Prévention (Trigger Temps)
         last_detartrage = db.query(models.Acte).filter(
@@ -165,7 +181,13 @@ class HabitsEngine:
                 })
 
         # Exemple 3 : Dossier Incomplet (Trigger Qualité)
-        if not patient.antecedents_medicaux or len(patient.antecedents_medicaux) < 5:
+        has_antecedents = False
+        if patient.antecedents_medicaux:
+            cleaned_ant = patient.antecedents_medicaux.strip()
+            if len(cleaned_ant) >= 3:
+                has_antecedents = True
+
+        if not has_antecedents:
             triggers.append({
                 "type": "QUALITY",
                 "title": "Sécurité Clinique",
@@ -347,6 +369,41 @@ class HabitsEngine:
                         "message": f"Fin ortho estimée dans ~{_months_left} mois ({_predicted_end.strftime('%B %Y')}).",
                         "action": "Voir progression"
                     })
+
+        # C4: Rappels Semestriels Ortho (Notes d'honoraires)
+        if dossier and dossier.is_ortho_active:
+            _ortho_notes = db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.patient_id == patient_id,
+                models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
+                models.DocumentArchive.status != models.DocumentStatus.SUPPRIME
+            ).order_by(models.DocumentArchive.created_at).all()
+
+            if _ortho_notes:
+                _first_note_date = _ortho_notes[0].created_at
+                _now = datetime.now()
+                
+                _semesters = [
+                    (2, _first_note_date + timedelta(days=182)),
+                    (3, _first_note_date + timedelta(days=365)),
+                    (4, _first_note_date + timedelta(days=547))
+                ]
+                
+                for _sem_num, _sem_date in _semesters:
+                    _days_diff = (_sem_date - _now).days
+                    
+                    if -30 <= _days_diff <= 15:
+                        _recent_note_exists = any(
+                            _note.created_at >= _sem_date - timedelta(days=45) 
+                            for _note in _ortho_notes
+                        )
+                        
+                        if not _recent_note_exists:
+                            triggers.append({
+                                "type": f"ORTHO_SEMESTER_{_sem_num}_REMINDER",
+                                "title": f"Semestre Ortho #{_sem_num} — Note d'honoraires",
+                                "message": f"Le semestre #{_sem_num} débute le {_sem_date.strftime('%d/%m/%Y')}. Pensez à générer la note d'honoraires.",
+                                "action": "Générer Note"
+                            })
 
         return triggers
 

@@ -19,6 +19,9 @@ import { useEliteStore } from '../../../stores/useEliteStore';
 import { HouseWizard } from './HouseWizard';
 import { api } from '../../../services/api';
 import toast from 'react-hot-toast';
+import { PriceBrain } from '../../../components/odontogram/PriceBrain';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export interface Insight {
   id: string;
@@ -42,6 +45,8 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
   intelligenceScore: propScore = 85,
   isEmbedded = false
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     insights: storeInsights,
     intelligenceScore: storeScore,
@@ -50,14 +55,78 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     setAssistantExpanded: setIsExpanded,
     lastFetchTime,
     lastPatientId,
-    analyzeAgendaDensity,
     setInsights,
     setIntelligenceScore
   } = useEliteStore();
 
+  const { user } = useAuthStore();
+  const employerId = user?.employer_id || user?.id;
+
+  // Real-time WebSocket connection for proactive insights (Ghost Brain V2)
+  useEffect(() => {
+    if (!employerId || !isEmbedded) return;
+    
+    let ws: WebSocket;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectWS = () => {
+      const wsUrl = `${api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8005/api'}/ai/ws/ghost-insights/${employerId}`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.insights && Array.isArray(data.insights)) {
+            // Transform realtime insights into EliteAssistant format
+            const wsInsights: Insight[] = data.insights.map((item: any) => ({
+              id: `ws-${item.id}`,
+              type: item.insight_type === 'FINANCIAL' ? 'financial' : 'suggestion',
+              title: item.insight_type || 'Ghost Insight',
+              content: item.content,
+              source_type: 'HEURISTIC'
+            }));
+            
+            // Add new WS insights at the beginning, avoiding duplicates
+            const currentInsights = useEliteStore.getState().insights;
+            const newInsights = wsInsights.filter(wsI => !currentInsights.some(cI => cI.id === wsI.id));
+            if (newInsights.length > 0) {
+              setInsights([...newInsights, ...currentInsights]);
+            }
+          }
+        } catch (err) {
+          // parse error
+        }
+      };
+
+      ws.onclose = () => {
+        reconnectTimer = setTimeout(connectWS, 5000);
+      };
+    };
+
+    connectWS();
+
+    return () => {
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [employerId, isEmbedded, setInsights]);
+
+  // eslint-disable-next-line react-hooks/purity
   const isStale = lastFetchTime && (Date.now() - lastFetchTime > 86400000); // 24h
 
-  const insights = propInsights.length > 0 ? propInsights : storeInsights;
+  const rawInsights = propInsights.length > 0 ? propInsights : storeInsights;
+  
+  // OPTION 1: Filter insights based on current tab to avoid intrusive UX
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab');
+  const insights = rawInsights.filter(insight => {
+    const isRadiologyAlert = insight.id.startsWith('pano_detect') || insight.id.startsWith('rag_pano');
+    if (isRadiologyAlert && (activeTab === 'admin' || activeTab === 'archives')) {
+      return false; // Hide radiology alerts when in Documents or Archives tabs
+    }
+    return true;
+  });
+
   const intelligenceScore = propInsights.length > 0 ? propScore : storeScore;
   const hasFinancialRisk = insights.some(i => i.type === 'financial_risk');
 
@@ -89,37 +158,47 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     }
   };
 
-  // Initialize Global Agenda Insight
   useEffect(() => {
-    analyzeAgendaDensity();
-    api.get('/intelligence/briefing-j1').then(res => setBriefingData(res.data)).catch(() => {});
-  }, [analyzeAgendaDensity]);
+    // --- Algorithmic Daily Briefing (Backend Driven) ---
+    api.get('/intelligence/briefing-today').then(res => {
+      setBriefingData(res.data);
+    }).catch(() => {});
+  }, []);
 
-  // D4 — Ordonnance anticipée : fetch quand un patient est sélectionné
+  // --- Algorithmic Upcoming Prescription (Backend Driven) ---
   useEffect(() => {
     if (!lastPatientId) { setUpcomingPrescription(null); return; }
-    api.get(`/intelligence/patient/${lastPatientId}/upcoming-prescription`)
-      .then(res => setUpcomingPrescription(res.data.upcoming))
-      .catch(() => setUpcomingPrescription(null));
+    
+    api.get(`/intelligence/patient/${lastPatientId}/upcoming-prescription`).then(res => {
+      const suggestion = res.data;
+      if (suggestion && suggestion.motif && (suggestion.motif.toLowerCase().includes('extraction') || suggestion.motif.toLowerCase().includes('implant'))) {
+        setUpcomingPrescription({
+          appointment_date: suggestion.appointment_date || 'Prochain RDV',
+          motif: suggestion.motif,
+          days_until: suggestion.days_until || 0,
+          prescription_suggestion: {}
+        });
+      } else {
+        setUpcomingPrescription(null);
+      }
+    }).catch(() => setUpcomingPrescription(null));
   }, [lastPatientId]);
 
   const currentInsight = insights[activeInsightIndex];
 
   const assistantContent = (
-    <div className={cn(
-      isEmbedded ? "relative flex flex-col items-center" : "fixed bottom-8 right-8 z-[500] flex flex-col items-end gap-4 pointer-events-none"
-    )}>
+    <div className="relative flex flex-col items-center">
 
       {/* 1. INSIGHT CARD */}
       <AnimatePresence>
         {isExpanded && !showHouseWizard && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: isEmbedded ? -20 : 20, filter: 'blur(10px)' }}
+            initial={{ opacity: 0, scale: 0.9, y: -20, filter: 'blur(10px)' }}
             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 0.9, y: isEmbedded ? -20 : 20, filter: 'blur(10px)' }}
+            exit={{ opacity: 0, scale: 0.9, y: -20, filter: 'blur(10px)' }}
             className={cn(
               "pointer-events-auto w-72 bg-white/90 dark:bg-slate-900/80 backdrop-blur-3xl border border-slate-200/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden z-[10002]",
-              isEmbedded ? "absolute top-20 right-2" : "mb-2"
+              "absolute top-12 right-0 mt-2"
             )}
           >
             {/* Header - More Compact */}
@@ -129,7 +208,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                   <Brain size={14} className="text-white" />
                 </div>
                 <div>
-                  <h4 className="text-[9px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Ghost Brain</h4>
+                  <h4 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Ghost Brain</h4>
                 </div>
               </div>
               <button
@@ -155,30 +234,24 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <Zap size={12} className="text-amber-500" />
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Actes Maîtrisés</span>
+                    <div className="space-y-1.5">
+                      <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <Zap size={12} className="text-amber-500" />
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Actes Maîtrisés</span>
+                        </div>
+                        <span className="text-[11px] font-black text-slate-900 dark:text-white">
+                          {Object.keys(PriceBrain.getHistory()).length}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-900 dark:text-white">12</span>
-                    </div>
                     <div className="p-2.5 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Sparkles size={12} className="text-primary" />
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Protocoles</span>
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Protocoles & Règles</span>
                       </div>
-                      {isLoading ? (
-                        <span className="text-[6px] font-black animate-pulse opacity-50">MISE À JOUR...</span>
-                      ) : isStale ? (
-                        <span className="text-[6px] font-black text-amber-500 flex items-center gap-1">
-                          <AlertCircle size={8} /> DONNÉES ANCIENNES
-                        </span>
-                      ) : (
-                        <span className="text-[6px] font-black text-emerald-500 opacity-50 flex items-center gap-1">
-                          <ShieldCheck size={8} /> TEMPS RÉEL
-                        </span>
-                      )}
+                      <span className="text-[11px] font-black text-emerald-500 flex items-center gap-1">
+                        <ShieldCheck size={10} /> 14 Actifs
+                      </span>
                     </div>
                   </div>
 
@@ -198,7 +271,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     className="space-y-2.5"
                   >
                     <div className={cn(
-                      "w-fit px-2.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest flex items-center gap-1.5",
+                      "w-fit px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5",
                       currentInsight.type === 'safety' ? "bg-rose-500/10 text-rose-600 border border-rose-500/20" :
                         currentInsight.type === 'financial_risk' ? "bg-amber-500/10 text-amber-600 border border-amber-500/20 animate-pulse" :
                           currentInsight.type === 'financial' ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" :
@@ -223,14 +296,54 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                       )}
                     </div>
 
-                    <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-normal px-1">
+                    <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 leading-normal px-1">
                       {currentInsight.content}
                     </p>
 
                     {currentInsight.actionLabel && (
                       <button
-                        onClick={currentInsight.onAction}
-                        className="w-full mt-1 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[9px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group"
+                        onClick={() => {
+                          if (currentInsight.onAction) {
+                            currentInsight.onAction();
+                          } else {
+                            // Fallback for backend insights missing an explicit onAction
+                            const idStr = currentInsight.id || '';
+                            const actionLabel = currentInsight.actionLabel || '';
+                            
+                            if (idStr.startsWith('pano_detect') || idStr.startsWith('rag_pano')) {
+                              navigate(`/patients/${lastPatientId}?tab=radiology&radioTab=panoramic`);
+                            } else if (idStr.startsWith('financial_alert')) {
+                              navigate(`/patients/${lastPatientId}?tab=admin`);
+                            } else if (idStr.startsWith('rag_history')) {
+                              navigate(`/patients/${lastPatientId}?tab=archives`);
+                            } else if (idStr.startsWith('trigger_')) {
+                              if (actionLabel.startsWith('/')) {
+                                let path = actionLabel;
+                                if (path.includes('/documents/new')) {
+                                  path = `/patients/${lastPatientId}?tab=admin`;
+                                }
+                                navigate(path);
+                              } else {
+                                const actionLower = actionLabel.toLowerCase();
+                                if (actionLower.includes('dossier') || actionLower.includes('compléter')) {
+                                  navigate(`/patients/${lastPatientId}/edit`);
+                                } else if (actionLower.includes('agenda') || actionLower.includes('planifier') || actionLower.includes('rdv') || actionLower.includes('créneau') || actionLower.includes('reprogrammer') || actionLower.includes('avancer')) {
+                                  navigate(`/agenda?patientId=${lastPatientId}`);
+                                } else if (actionLower.includes('appeler') || actionLower.includes('rappeler') || actionLower.includes('contacter') || actionLower.includes('whatsapp')) {
+                                  navigate(`/patients/${lastPatientId}`);
+                                } else if (actionLower.includes('paiement') || actionLower.includes('solde') || actionLower.includes('relancer')) {
+                                  navigate(`/patients/${lastPatientId}?tab=admin`);
+                                } else if (actionLower.includes('traitement') || actionLower.includes('progression')) {
+                                  navigate(`/patients/${lastPatientId}?tab=clinical`);
+                                } else {
+                                  navigate(`/patients/${lastPatientId}`);
+                                }
+                              }
+                            }
+                            setIsExpanded(false);
+                          }
+                        }}
+                        className="w-full mt-1 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 group"
                       >
                         {currentInsight.actionLabel}
                         <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
@@ -240,31 +353,31 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     {/* Feedback loop — practitioner reaction */}
                     {!feedbackSent[currentInsight.id] ? (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest flex-1">Utile ?</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex-1">Utile ?</span>
                         <button
                           onClick={() => submitFeedback(currentInsight, 'accept')}
                           className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-500 transition-all"
                           title="Oui, pertinent"
                         >
-                          <ThumbsUp size={10} />
+                          <ThumbsUp size={12} />
                         </button>
                         <button
                           onClick={() => submitFeedback(currentInsight, 'reject')}
                           className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-400 transition-all"
                           title="Non, pas pertinent"
                         >
-                          <ThumbsDown size={10} />
+                          <ThumbsDown size={12} />
                         </button>
                       </div>
                     ) : (
-                      <p className="text-[7px] font-bold text-emerald-500 text-center mt-1">✓ Retour enregistré</p>
+                      <p className="text-[9px] font-bold text-emerald-500 text-center mt-1">✓ Retour enregistré</p>
                     )}
 
                     <button
                       onClick={() => setShowHouseWizard(true)}
-                      className="w-full mt-2 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-1.5"
+                      className="w-full mt-2 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-1.5"
                     >
-                      <Brain size={12} className="animate-pulse" />
+                      <Brain size={14} className="animate-pulse" />
                       Mode Expert
                     </button>
                   </motion.div>
@@ -272,27 +385,34 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                   !lastPatientId && briefingData && briefingData.total_patients > 0 ? (
                     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-2.5">
                       <div className="flex items-center gap-2">
-                        <CalendarDays size={12} className="text-primary" />
-                        <span className="text-[9px] font-black text-slate-700 dark:text-white uppercase tracking-widest">Briefing du Jour</span>
-                        <span className="ml-auto text-[7px] font-black text-slate-400">{briefingData.date}</span>
+                        <CalendarDays size={14} className="text-primary" />
+                        <span className="text-[10px] font-black text-slate-700 dark:text-white uppercase tracking-widest">Briefing du Jour</span>
+                        <span className="ml-auto text-[9px] font-black text-slate-400">{briefingData.date}</span>
                       </div>
                       <div className="flex gap-2">
                         <div className="flex-1 p-2 bg-primary/5 rounded-xl border border-primary/10 text-center">
                           <div className="text-base font-black text-primary">{briefingData.total_patients}</div>
-                          <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Patients</div>
+                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Patients</div>
                         </div>
                         <div className="flex-1 p-2 bg-amber-500/5 rounded-xl border border-amber-500/10 text-center">
                           <div className="text-base font-black text-amber-500">{briefingData.total_outstanding.toLocaleString()}</div>
-                          <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">MAD impayés</div>
+                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">MAD impayés</div>
                         </div>
                       </div>
                       {briefingData.patients.filter(p => p.solde_attente > 0).slice(0, 3).map(p => (
-                        <div key={p.patient_id} className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
+                        <div 
+                          key={p.patient_id} 
+                          onClick={() => {
+                            navigate(`/patients/${p.patient_id}?tab=accounting`);
+                            setIsExpanded(false);
+                          }}
+                          className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group"
+                        >
                           <div>
-                            <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">{p.prenom} {p.nom}</span>
-                            <div className="text-[7px] text-slate-400">{p.appointment_time}</div>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{p.prenom} {p.nom}</span>
+                            <div className="text-[9px] text-slate-400">{p.appointment_time}</div>
                           </div>
-                          <span className="text-[9px] font-black text-amber-500">{p.solde_attente.toLocaleString()} MAD</span>
+                          <span className="text-[10px] font-black text-amber-500">{p.solde_attente.toLocaleString()} MAD</span>
                         </div>
                       ))}
                     </motion.div>
@@ -301,14 +421,14 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
                     <div className="w-10 h-10 bg-slate-100 dark:bg-white/5 rounded-xl mx-auto flex items-center justify-center text-slate-300 dark:text-white/20">
                       <Sparkles size={20} />
                     </div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       Audit Live Actif...
                     </p>
                     <button
                       onClick={() => setShowHouseWizard(true)}
-                      className="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-1.5"
                     >
-                      <Brain size={12} className="animate-pulse" />
+                      <Brain size={14} className="animate-pulse" />
                       Mode Expert
                     </button>
                   </div>
@@ -354,17 +474,25 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
             {upcomingPrescription && (
               <div className="mx-5 mb-3 p-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700/30 rounded-xl">
                 <div className="flex items-start gap-2">
-                  <CalendarDays size={14} className="text-violet-500 mt-0.5 flex-shrink-0" />
+                  <CalendarDays size={16} className="text-violet-500 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black text-violet-700 dark:text-violet-300 uppercase tracking-wider">
+                    <p className="text-[11px] font-black text-violet-700 dark:text-violet-300 uppercase tracking-wider">
                       RDV dans {upcomingPrescription.days_until}j — {upcomingPrescription.appointment_date}
                     </p>
                     {upcomingPrescription.motif && (
-                      <p className="text-[10px] text-violet-600 dark:text-violet-400 font-medium truncate">{upcomingPrescription.motif}</p>
+                      <p className="text-[11px] text-violet-600 dark:text-violet-400 font-medium truncate">{upcomingPrescription.motif}</p>
                     )}
                     <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('perio-create-prescription'))}
-                      className="mt-1.5 px-3 py-1 bg-violet-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-600 transition-colors"
+                      onClick={() => {
+                        if (lastPatientId) {
+                          navigate(`/patients/${lastPatientId}?tab=documents`);
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent('perio-create-prescription'));
+                          }, 500);
+                        }
+                        setIsExpanded(false);
+                      }}
+                      className="mt-1.5 px-3 py-1.5 bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-600 transition-colors"
                     >
                       Préparer l'ordonnance
                     </button>
@@ -377,16 +505,16 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
               onClick={() => setShowStats(true)}
               className="px-5 py-3 bg-slate-50 dark:bg-black/20 flex items-center justify-between border-t border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-black/30 transition-all"
             >
-              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">IAmina Score</span>
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">IAmina Score</span>
               <div className="flex items-center gap-2">
-                <div className="w-16 h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                <div className="w-16 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${intelligenceScore}%` }}
                     className="h-full bg-primary"
                   />
                 </div>
-                <span className="text-[9px] font-black text-primary">{intelligenceScore}%</span>
+                <span className="text-[10px] font-black text-primary">{intelligenceScore}%</span>
               </div>
             </div>
           </motion.div>
@@ -414,17 +542,10 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
         )}
       </AnimatePresence>
 
-
-      {/* 2. FLOATING TRIGGER (The Orb style button) */}
+      {/* TRIGGER (The Orb style button) */}
       <motion.button
         layout
         data-tour="elite-orb"
-        {...(!isEmbedded ? {
-          drag: true,
-          dragConstraints: { left: -window.innerWidth + 100, right: 0, top: -window.innerHeight + 100, bottom: 0 },
-          dragElastic: 0.1,
-          whileDrag: { scale: 1.1, cursor: 'grabbing', boxShadow: hasFinancialRisk ? '0 0 30px rgba(245,158,11,0.6)' : '0 0 30px rgba(var(--primary-rgb), 0.4)' }
-        } : {})}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsExpanded(!isExpanded)}
@@ -461,6 +582,8 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
       </motion.button>
     </div>
   );
+
+  if (!isEmbedded) return null;
 
   return assistantContent;
 };

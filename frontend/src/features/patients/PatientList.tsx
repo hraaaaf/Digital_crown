@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types'; 
 import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight, LayoutGrid, List } from 'lucide-react';
@@ -6,6 +6,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
+import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
+import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -15,6 +17,53 @@ export const PatientList = () => {
   const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
   const [fantomeIds, setFantomeIds] = useState<Set<number>>(new Set());
+
+  // État pour la carte de survol intelligente
+  const [hoveredPatient, setHoveredPatient] = useState<{
+    id: number;
+    name: string;
+    dossier: string;
+    rect: DOMRect;
+  } | null>(null);
+
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    id: number,
+    nom: string,
+    prenom: string,
+    dossier: string
+  ) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredPatient({
+        id,
+        name: `${prenom} ${nom.toUpperCase()}`,
+        dossier: dossier || `ID-${id}`,
+        rect
+      });
+    }, 250);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredPatient(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // État du mode d'affichage (Table ou Grille) avec persistance localStorage
   const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
@@ -162,9 +211,29 @@ export const PatientList = () => {
       {/* TABLEAU OU GRILLE DES DOSSIERS */}
       <div className="bg-card-bg backdrop-blur-2xl rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden">
         {loading ? (
-          <div className="p-32 flex flex-col items-center justify-center gap-6">
-            <Loader2 className="animate-spin text-primary" size={36} />
-            <p className="text-sm font-black text-text-muted uppercase tracking-widest">Chargement...</p>
+          <div className="h-[500px] relative">
+            <EliteGhostLoader text="Chargement des dossiers..." fullScreen={false} size="medium" />
+          </div>
+        ) : patients.length === 0 ? (
+          /* AUCUN PATIENT EN BASE (JOUR 1) */
+          <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
+            <div className="w-24 h-24 bg-primary/5 rounded-[2rem] flex items-center justify-center">
+              <UserPlus className="text-primary w-12 h-12" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-main font-outfit" style={{ color: 'var(--text-main)' }}>Votre base de données est vierge</h3>
+              <p className="text-text-muted mt-3 font-medium text-sm max-w-[320px] mx-auto leading-relaxed">
+                Il est temps de donner vie à votre clinique. Ajoutez votre premier patient pour accéder à son dossier clinique, ses ordonnances et son historique.
+              </p>
+            </div>
+            <Link
+              to="/patients/new"
+              className="mt-6 bg-primary text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-lg shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 transition-all duration-300"
+            >
+              <UserPlus size={22} strokeWidth={2.5} />
+              Créer mon premier dossier
+              <ArrowRight size={18} />
+            </Link>
           </div>
         ) : filtered.length === 0 && searchTerm.trim() ? (
           /* AUCUN RÉSULTAT - PROPOSITION DE CRÉATION */
@@ -210,7 +279,9 @@ export const PatientList = () => {
                   <tr 
                     key={rowKey} 
                     onClick={() => p.id && navigate(`/patients/${p.id}`)}
-                    className="hover:bg-primary/5 transition-all duration-300 cursor-pointer group"
+                    onMouseEnter={(e) => p.id && handleMouseEnter(e, p.id, p.nom, p.prenom, p.numero_dossier)}
+                    onMouseLeave={handleMouseLeave}
+                    className="hover:bg-primary/5 transition-all duration-300 cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary hover:scale-[1.002]"
                   >
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-5">
@@ -292,7 +363,9 @@ export const PatientList = () => {
                 <div
                   key={cardKey}
                   onClick={() => p.id && navigate(`/patients/${p.id}`)}
-                  className="bg-card-bg/60 backdrop-blur-xl border border-border-main/60 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group relative flex flex-col justify-between min-h-[220px]"
+                  onMouseEnter={(e) => p.id && handleMouseEnter(e, p.id, p.nom, p.prenom, p.numero_dossier)}
+                  onMouseLeave={handleMouseLeave}
+                  className="bg-card-bg/60 backdrop-blur-xl border border-border-main/60 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 hover:border-primary/30 hover:bg-card-bg/90 transition-all duration-300 cursor-pointer group relative flex flex-col justify-between min-h-[220px]"
                 >
                   <div>
                     {/* Ligne du haut: Bulle Patient et Actions rapides */}
@@ -410,6 +483,16 @@ export const PatientList = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pop-over d'intelligence au survol (Lazy loaded) */}
+      {hoveredPatient && (
+        <PatientSummaryHoverCard
+          patientId={hoveredPatient.id}
+          patientName={hoveredPatient.name}
+          patientDossier={hoveredPatient.dossier}
+          triggerRect={hoveredPatient.rect}
+        />
       )}
     </div>
   );

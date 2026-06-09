@@ -33,6 +33,7 @@ def run_daily_alerts():
                 triggers = _engine.check_proactive_triggers(db, patient_id)
             except Exception as e:
                 logger.warning("Trigger error patient %s: %s", patient_id, e)
+                db.rollback()
                 continue
             for t in triggers:
                 exists = db.query(models.ProactiveAlert).filter(
@@ -54,7 +55,19 @@ def run_daily_alerts():
                     ))
                     new_count += 1
                     new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
+                    
+                    # Ghost Brain V2 : Conscience temporelle
+                    from backend.services.ghost_memory_service import ghost_memory
+                    ghost_memory.add_memory(
+                        db=db,
+                        patient_id=patient_id,
+                        employer_id=patient.employer_id,
+                        insight_type="TEMPOREL",
+                        content=f"Analyse Proactive: {t['title']} - {t['message']}",
+                        context_data=f"{t['type']}_{patient_id}_{datetime.now().strftime('%Y-%m')}"
+                    )
         db.commit()
+
         logger.info("Daily alerts: %d new alerts for %d active patients", new_count, len(all_ids))
 
         for emp_id, count in new_by_employer.items():
@@ -67,18 +80,49 @@ def run_daily_alerts():
                 logger.info("Push sent to employer %s: %d device(s)", emp_id, sent)
 
 
+_stop_flag = False
+_current_timer = None
+
 def start_daily_scheduler():
     """Lance le scheduler récursif — première exécution après 10s, puis toutes les 24h."""
+    global _current_timer, _stop_flag
+    _stop_flag = False
+    
     def _run_and_reschedule():
+        global _current_timer
+        if _stop_flag:
+            return
+            
         try:
+            # 1. Sauvegarde automatique de la DB (V1 Requirement)
+            from backend.services.backup_service import backup_service
+            backup_service.run_daily_backup()
+            
+            # 2. Alertes proactives
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)
-        t = threading.Timer(86400, _run_and_reschedule)
-        t.daemon = True
-        t.start()
+            
+        if not _stop_flag:
+            try:
+                _current_timer = threading.Timer(86400, _run_and_reschedule)
+                _current_timer.daemon = True
+                _current_timer.start()
+            except RuntimeError:
+                # L'interpréteur Python est en cours d'arrêt (souvent pendant les tests)
+                pass
 
-    initial = threading.Timer(10, _run_and_reschedule)
-    initial.daemon = True
-    initial.start()
-    logger.info("Daily scheduler armed (first run in 10s)")
+    try:
+        _current_timer = threading.Timer(10, _run_and_reschedule)
+        _current_timer.daemon = True
+        _current_timer.start()
+        logger.info("Daily scheduler armed (first run in 10s)")
+    except RuntimeError:
+        pass
+
+def stop_daily_scheduler():
+    """Arrête proprement le scheduler (utile pour les tests)."""
+    global _current_timer, _stop_flag
+    _stop_flag = True
+    if _current_timer:
+        _current_timer.cancel()

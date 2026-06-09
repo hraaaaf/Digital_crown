@@ -10,6 +10,7 @@ import { cn } from '../../../../utils/cn';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
 import type { ValidationError } from '../useDocumentGenerator';
+import { MOROCCAN_CLINICAL_RULES, getPediatricGuide } from '../clinical_rules';
 
 export interface DrugItem {
   id: number;
@@ -73,8 +74,7 @@ const DEFAULT_MOROCCO_PRESETS = [
     color: 'emerald',
     drugs: [
       { name: 'AUGMENTIN', dosage: '1G', forme: 'SACHETS', posologie: '1 sach Matin et Soir pendant 7 jours' },
-      { name: 'BI-RODOGYL', dosage: '-', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour pendant 7 jours' },
-      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour' }
+      { name: 'DOLIPRANE', dosage: '1G', forme: 'COMPRIMÉS', posologie: '1 cp x 3 / jour si douleur' }
     ]
   },
   {
@@ -146,6 +146,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [savingAsPreset, setSavingAsPreset] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+  const [patientAdvice, setPatientAdvice] = useState('');
+  const [showPatientAdvice, setShowPatientAdvice] = useState(false);
+  const [forcedDrugs, setForcedDrugs] = useState<number[]>([]);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [guideWeight, setGuideWeight] = useState(25);
+  const [guideAge, setGuideAge] = useState(8);
 
   // --- MOVE DRUG LOGIC ---
   const moveDrug = useCallback((id: number, direction: 'up' | 'down') => {
@@ -174,6 +180,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       try {
         const res = await api.get(`/prescriptions/agentic/assessment/${patientId}`);
         setAssessment(res.data);
+        if (res.data?.age) setGuideAge(res.data.age);
       } catch (err) {
         console.error('Silent AI Error:', err);
       } finally {
@@ -379,14 +386,49 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     }
   }, [onUpdateDrug]);
 
-  const applyPresetWithSafety = useCallback((presetDrugs: any[]) => {
+  // FIX 3 — Vérification déterministe locale, indépendante de l'assessment IA
+  const checkLocalSafetyConstraints = useCallback((
+    antecedents: string,
+    _isChildAge: boolean
+  ): { blocked: boolean; reason: string } => {
+    const history = (antecedents || '').toUpperCase();
+
+    // Allergie pénicilline
+    const PENICILLIN_KEYWORDS = ['PENICILLINE', 'PENICILLIN', 'AMOXICILLINE', 'CLAMOXYL', 'AUGMENTIN', 'BETA-LACTAMINE'];
+    const isAllergicToPenicillin = history.includes('ALLERGI') &&
+      PENICILLIN_KEYWORDS.some(k => history.includes(k));
+
+    // Grossesse
+    const PREGNANCY_KEYWORDS = ['GROSSESSE', 'ENCEINTE', 'PREGNANT', 'TRIMESTRE'];
+    const isPregnant = PREGNANCY_KEYWORDS.some(k => history.includes(k));
+
+    return {
+      blocked: isAllergicToPenicillin || isPregnant,
+      reason: isAllergicToPenicillin
+        ? '⚠️ Allergie pénicilline détectée dans les antécédents.'
+        : isPregnant
+        ? '⚠️ Grossesse détectée dans les antécédents. Vérifiez les contre-indications.'
+        : ''
+    };
+  }, []);
+
+  const applyPresetWithSafety = useCallback((presetDrugs: any[], presetLabel?: string) => {
     // 1. Détection de l'âge du patient (si dispo dans assessment)
     const isChild = assessment?.age < 15 || assessment?.is_child;
     const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
 
+    // FIX 3 — Vérification déterministe locale AVANT toute logique IA
+    const localSafety = checkLocalSafetyConstraints(
+      assessment?.patient_context?.antecedents || assessment?.antecedents || '',
+      isChild
+    );
+    if (localSafety.blocked) {
+      toast(localSafety.reason, { icon: '⚠️', duration: 6000 });
+    }
+
     const adaptedDrugs = presetDrugs.map((d: any, i: number) => {
-      let drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
-      
+      const drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
+
       // LOGIQUE D'ADAPTATION SMART
       // a. Allergie Pénicilline
       if (history.includes('ALLERGIE') && (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'))) {
@@ -412,13 +454,45 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       return drug;
     });
 
-    setDrugs(adaptedDrugs);
+    // FIX 1 — Déduplication paracétamol : évite le double dosage pédiatrique
+    const PARACETAMOL_NAMES = ['paracetamol', 'doliprane', 'efferalgan', 'dafalgan', 'perfalgan'];
+    const isParacetamol = (name: string) =>
+      PARACETAMOL_NAMES.some(n => name.toLowerCase().includes(n));
+
+    const deduplicatedDrugs = adaptedDrugs.reduce((acc: DrugItem[], drug: DrugItem) => {
+      if (isParacetamol(drug.name)) {
+        const existingParacetamol = acc.find(d => isParacetamol(d.name));
+        if (existingParacetamol) {
+          // Garder la ligne existante, ignorer le doublon
+          console.warn(`[Safety] Doublon paracétamol supprimé : ${drug.name}`);
+          return acc;
+        }
+      }
+      acc.push(drug);
+      return acc;
+    }, []);
+
+    setDrugs(deduplicatedDrugs);
+    setNewPresetName(presetLabel || '');
     setStep('PLANNING');
-    
+
     if (isChild) {
       toast("Ordonnance adaptée au profil pédiatrique.", { icon: '👶' });
+    } else {
+      toast.success(presetLabel ? `Protocole "${presetLabel}" appliqué.` : "Protocole appliqué.");
     }
-  }, [assessment, setDrugs]);
+  }, [assessment, setDrugs, checkLocalSafetyConstraints]);
+
+  const deletePreset = async (actCode: string) => {
+    if (!window.confirm(`Supprimer le preset "${actCode}" ?`)) return;
+    try {
+      await api.delete(`/prescriptions/preferences/${encodeURIComponent(actCode)}`);
+      toast.success('Preset supprimé');
+      fetchPresets();
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
 
   const saveCurrentAsPreset = async () => {
     if (!newPresetName.trim()) return;
@@ -442,18 +516,20 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   };
 
   // Ajouter une molécule depuis les suggestions IA — sans race condition
-  const addMolecule = useCallback((molecule: string) => {
+  const addMolecule = useCallback((molecule: string, forcedDosage?: string, forcedPosology?: string) => {
     const newId = Date.now();
     const newDrug: DrugItem = {
-      id: newId, name: molecule, dosage: '', forme: 'COMPRIMÉS',
-      posologie: '', type: 'MEDICAMENT', quantite: 1, non_substituable: false,
+      id: newId, name: molecule, dosage: forcedDosage || '', forme: 'COMPRIMÉS',
+      posologie: forcedPosology || '', type: 'MEDICAMENT', quantite: 1, non_substituable: false,
     };
     setDrugs([...drugs, newDrug]);
-    // Récupère les détails habituels après que le drug est dans le state
-    api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(molecule)}`).then(res => {
-      if (res.data.dosages?.length === 1) onUpdateDrug(newId, 'dosage', res.data.dosages[0]);
-      if (res.data.posologies?.length === 1) onUpdateDrug(newId, 'posologie', res.data.posologies[0]);
-    }).catch(() => {});
+    // Récupère les détails habituels après que le drug est dans le state seulement si pas de dosage forcé
+    if (!forcedDosage || !forcedPosology) {
+      api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(molecule)}`).then(res => {
+        if (!forcedDosage && res.data.dosages?.length === 1) onUpdateDrug(newId, 'dosage', res.data.dosages[0]);
+        if (!forcedPosology && res.data.posologies?.length === 1) onUpdateDrug(newId, 'posologie', res.data.posologies[0]);
+      }).catch(() => {});
+    }
   }, [drugs, setDrugs, onUpdateDrug]);
 
   // Batch save — un seul appel API
@@ -533,6 +609,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               IAmina Intelligence
               <span className="bg-primary/10 text-primary text-[7px] px-1.5 py-0.5 rounded-full">v4.8</span>
             </h3>
+            {drugs.length > 0 && (
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                {drugs.length} médicament{drugs.length > 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         </div>
 
@@ -561,6 +642,14 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           )}
           
           <button
+            onClick={() => setShowGuideModal(true)}
+            className="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-xl hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Stethoscope size={14} />
+            <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Guide IA</span>
+          </button>
+
+          <button
             onClick={() => { setStep('IDLE'); setAssessment(null); }}
             className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition-all"
           >
@@ -568,6 +657,24 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </button>
         </div>
       </div>
+
+      {/* ALLERGY BANNER */}
+      {assessment && (assessment?.patient_context?.antecedents || assessment?.antecedents) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 p-4 rounded-[1.5rem] flex items-start gap-3 shadow-sm relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+          <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+          <div className="relative z-10">
+            <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest mb-1">Alerte Médicale & Allergies</h4>
+            <p className="text-xs font-bold text-red-700">
+              {assessment?.patient_context?.antecedents || assessment?.antecedents}
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* COMMAND BAR & SPEED-PILLS (Phase 3) */}
       <div className="space-y-4">
@@ -672,48 +779,71 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             exit={{ opacity: 0, height: 0 }}
             className="flex flex-col gap-3"
           >
-            <div className="flex items-center justify-between px-4">
+            <div className="flex items-center justify-between px-4 mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocoles Cliniques Marocains</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocoles Cliniques</span>
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
                 <span className="text-[8px] font-bold text-slate-300 uppercase italic">Smart Adaptation active</span>
               </div>
               <button onClick={() => setShowPresets(false)} className="text-[9px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-tighter transition-colors">Masquer</button>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide px-4">
+            <div className="px-4 space-y-4">
               {/* SYSTEM PRESETS */}
-              {DEFAULT_MOROCCO_PRESETS.map(p => (
-                <button
-                  key={p.label}
-                  onClick={() => applyPresetWithSafety(p.drugs)}
-                  className={cn(
-                    "px-4 py-2 bg-white border rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip",
-                    p.color === 'blue' ? "border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
-                    p.color === 'rose' ? "border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
-                    p.color === 'emerald' ? "border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white" :
-                    p.color === 'amber' ? "border-amber-100 text-amber-600 hover:bg-amber-600 hover:text-white" :
-                    p.color === 'indigo' ? "border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white" :
-                    "border-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white"
-                  )}
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover/chip:opacity-100" />
-                  {p.label}
-                </button>
-              ))}
+              <div className="space-y-2">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block pl-1">Presets</span>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {DEFAULT_MOROCCO_PRESETS.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => applyPresetWithSafety(p.drugs, p.label)}
+                      className={cn(
+                        "px-4 py-2 bg-white border rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip",
+                        p.color === 'blue' ? "border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white" :
+                        p.color === 'rose' ? "border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
+                        p.color === 'emerald' ? "border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white" :
+                        p.color === 'amber' ? "border-amber-100 text-amber-600 hover:bg-amber-600 hover:text-white" :
+                        p.color === 'indigo' ? "border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white" :
+                        "border-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white"
+                      )}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 group-hover/chip:opacity-100" />
+                      {p.label}
+                      <span className="bg-current/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* USER PRESETS */}
-              {presets.length > 0 && <div className="h-4 w-px bg-slate-200 mx-2 shrink-0" />}
-              {presets.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => applyPresetWithSafety(p.drugs)}
-                  className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2 group/chip"
-                >
-                  <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
-                  {p.act_context}
-                </button>
-              ))}
+              {presets.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block pl-1">Ordonnances personnalisées</span>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {presets.map(p => (
+                      <div key={p.id} className="relative group/chip flex items-center">
+                        <button
+                          onClick={() => applyPresetWithSafety(p.drugs, p.act_context)}
+                          className="px-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all whitespace-nowrap shadow-sm active:scale-95 flex items-center gap-2"
+                        >
+                          <Brain size={10} className="text-blue-400 group-hover/chip:text-white transition-colors" />
+                          {p.act_context}
+                          {p.drugs?.length > 0 && (
+                            <span className="bg-white/10 group-hover/chip:bg-white/20 px-1.5 py-0.5 rounded-md text-[7px] font-black tabular-nums">{p.drugs.length}</span>
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deletePreset(p.act_context); }}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/chip:opacity-100 transition-all hover:bg-red-600 hover:scale-110 shadow-sm text-[10px] pb-0.5"
+                          title="Supprimer ce preset"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -848,6 +978,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               {drugs.map((drug, idx) => {
                 const fieldError = validationErrors.find(e => e.field === `drug_${idx}`);
                 const isRadio = drug.type === 'EXAMEN';
+                
+                // SAFETY CHECK
+                const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || "").toUpperCase();
+                const isPenicillinAllergic = history.includes('ALLERGIE') && (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'));
+                const isAllergen = drug.name && drug.name.toUpperCase().match(/AUGMENTIN|CLAMOXYL|AMOXICILLINE|PENICILLINE/);
+                const isBlockedByAllergy = isPenicillinAllergic && isAllergen && !forcedDrugs.includes(drug.id);
 
                 return (
                   <motion.div
@@ -857,9 +993,27 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     className={cn(
                       'bg-white/60 p-4 rounded-[1.8rem] border transition-all group relative backdrop-blur-xl',
                       fieldError ? 'border-red-200 bg-red-50/10' : 'border-white/80 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20',
-                      isRadio && 'border-amber-100 bg-amber-50/5'
+                      isRadio && 'border-amber-100 bg-amber-50/5',
+                      isBlockedByAllergy && 'border-red-500 bg-red-50 overflow-hidden'
                     )}
                   >
+                    {isBlockedByAllergy && (
+                      <div className="absolute inset-0 z-50 bg-red-500/10 backdrop-blur-md flex flex-col items-center justify-center rounded-[1.8rem] border-2 border-red-500 shadow-inner">
+                        <div className="bg-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-sm">
+                          <AlertCircle size={32} className="text-red-500 mb-2 animate-bounce" />
+                          <h4 className="text-sm font-black text-red-600 uppercase tracking-widest mb-1">Alerte Vitale : Allergie</h4>
+                          <p className="text-xs font-bold text-slate-600 mb-4">Le patient est allergique à la Pénicilline. L'ajout de <span className="text-red-500">{drug.name}</span> est bloqué par sécurité.</p>
+                          <div className="flex gap-3 w-full">
+                            <button onClick={() => onRemoveDrug(drug.id)} className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors">
+                              Retirer
+                            </button>
+                            <button onClick={() => setForcedDrugs(prev => [...prev, drug.id])} className="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-colors" title="Sous votre responsabilité">
+                              Forcer (Débloquer)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-12 gap-3 items-center">
                       {/* MOVE ACTIONS (LEFT) */}
                       <div className="col-span-12 lg:col-span-1 flex flex-col items-center justify-center self-stretch border-r border-slate-100/50 pr-2">
@@ -959,6 +1113,20 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                     onChange={e => handleSearch(drug.id, 'dosage', e.target.value)}
                                   />
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateDrug(drug.id, 'non_substituable', !drug.non_substituable)}
+                                  className={cn(
+                                    'px-2.5 py-1.5 rounded-xl border text-[8px] font-black uppercase tracking-widest transition-all select-none',
+                                    drug.non_substituable
+                                      ? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-500/20'
+                                      : 'bg-white/80 text-slate-300 border-slate-100 hover:border-slate-300 hover:text-slate-500'
+                                  )}
+                                  title="Non Substituable"
+                                >
+                                  NS
+                                </button>
                               </div>
                             )}
                           </div>
@@ -970,7 +1138,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                                 <textarea
                                   rows={1}
                                   className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-tight"
-                                  placeholder="Posologie et instructions..."
+                                  placeholder="ex : 1 gél. × 3/jour pendant 7j"
                                   value={drug.posologie}
                                   onFocus={() => handleSearch(drug.id, 'posologie', drug.posologie)}
                                   onChange={e => {
@@ -1013,7 +1181,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                       <div className="col-span-12 lg:col-span-1 flex items-center justify-end">
                         <button
                           onClick={() => onRemoveDrug(drug.id)}
-                          className="p-2.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 active:scale-95"
+                          className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                           title="Supprimer"
                         >
                           <Trash2 size={18} />
@@ -1058,15 +1226,48 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 </button>
               )}
 
+                <button
+                  onClick={handleBatchSave}
+                  disabled={savingHabits}
+                  className="flex-1 min-w-[200px] py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
+                  title="Enregistre la fréquence d'utilisation de chaque médicament"
+                >
+                  <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
+                  {savingHabits ? 'Mémorisation...' : 'Apprendre ces posologies'}
+                </button>
+            </div>
+
+            {/* CONSEILS AU PATIENT */}
+            <div className="mt-4">
               <button
-                onClick={handleBatchSave}
-                disabled={savingHabits}
-                className="flex-1 min-w-[200px] py-5 bg-white text-slate-800 border border-slate-200 rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200/50 disabled:opacity-50"
-                title="Enregistre la fréquence d'utilisation de chaque médicament"
+                type="button"
+                onClick={() => setShowPatientAdvice(v => !v)}
+                className="flex items-center gap-2 text-[9px] font-black text-slate-400 hover:text-primary uppercase tracking-widest transition-colors px-2"
               >
-                <Brain size={20} className="text-primary" style={{ color: 'var(--primary)' }} />
-                {savingHabits ? 'Mémorisation...' : 'Habitudes Apprises'}
+                <div className={cn("w-3 h-3 rounded-full border-2 border-current transition-colors", showPatientAdvice ? "bg-primary border-primary" : "border-slate-300")} />
+                Conseils au Patient
+                {patientAdvice.trim() && <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[7px]">✓</span>}
               </button>
+              <AnimatePresence>
+                {showPatientAdvice && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 overflow-hidden"
+                  >
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-[1.5rem] p-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/20 transition-all">
+                      <textarea
+                        rows={3}
+                        className="w-full bg-transparent border-none p-0 text-[11px] font-bold text-slate-600 focus:ring-0 resize-none placeholder:text-slate-300 leading-relaxed"
+                        placeholder="Ex : Éviter les aliments durs pendant 48h. Ne pas fumer. Rincer avec le bain de bouche après chaque repas..."
+                        value={patientAdvice}
+                        onChange={e => setPatientAdvice(e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
           </motion.div>
@@ -1188,6 +1389,88 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           }}
         />
       )}
+
+      {/* MODAL GUIDE IA PÉDIATRIQUE */}
+      <AnimatePresence>
+        {showGuideModal && (
+          <div className="fixed inset-0 z-[40000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+              onClick={() => setShowGuideModal(false)} 
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[2rem] p-6 w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-indigo-500/10 text-indigo-600 rounded-2xl flex items-center justify-center">
+                  <Stethoscope size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Guide Pédiatrique & Posologies</h3>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Intelligence Dosages Maroc</p>
+                </div>
+                <button onClick={() => setShowGuideModal(false)} className="ml-auto w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full">×</button>
+              </div>
+
+              <div className="flex gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="flex-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest block mb-2">Âge (ans)</label>
+                  <input type="number" min={0} value={guideAge} onChange={e => setGuideAge(Number(e.target.value))} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold focus:border-indigo-500 outline-none" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest block mb-2">Poids (kg)</label>
+                  <input type="number" min={0} value={guideWeight} onChange={e => setGuideWeight(Number(e.target.value))} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold focus:border-indigo-500 outline-none" />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+                {Object.values(MOROCCAN_CLINICAL_RULES).map(rule => {
+                  const ped = rule.pediatric_calc(guideWeight);
+                  return (
+                    <div key={rule.molecule} className="p-4 border border-slate-100 rounded-2xl hover:border-indigo-100 hover:bg-indigo-50/30 transition-all flex items-start justify-between group">
+                      <div className="space-y-1 pr-4">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-800 text-sm">{rule.molecule}</h4>
+                          {guideAge < 15 && <span className="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-black">PÉDIATRIE</span>}
+                        </div>
+                        {guideAge >= 15 ? (
+                          <div className="text-xs text-slate-600">
+                            <span className="font-bold text-slate-800">{rule.adult_dose}</span> — {rule.adult_posology}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-indigo-700">
+                            <span className="font-bold">{ped.dosage}</span> — {ped.posology}
+                          </div>
+                        )}
+                        <div className="text-[9px] text-rose-500 font-medium uppercase mt-2">
+                          Contre-indications: {rule.contraindications.join(' • ')}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const dose = guideAge >= 15 ? rule.adult_dose : ped.dosage;
+                          const poso = guideAge >= 15 ? rule.adult_posology : ped.posology;
+                          addMolecule(rule.molecule, dose, poso);
+                          setShowGuideModal(false);
+                          toast.success(`${rule.molecule} ajouté.`);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 w-8 h-8 shrink-0 bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 transition-all shadow-md"
+                        title="Ajouter à l'ordonnance"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

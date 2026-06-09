@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { AlertCircle, RefreshCcw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -27,16 +28,34 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="flex flex-col items-center justify-center h-screen gap-4 bg-slate-50">
-          <div className="text-red-400 text-5xl">⚠</div>
-          <h2 className="text-xl font-bold text-slate-700">Une erreur inattendue s'est produite</h2>
-          <p className="text-slate-500 text-sm max-w-sm text-center">{this.state.error?.message}</p>
-          <button
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
-            onClick={() => window.location.reload()}
-          >
-            Recharger l'application
-          </button>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner relative">
+               <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full" />
+               <AlertCircle size={40} className="relative z-10" />
+            </div>
+            
+            <div>
+              <h1 className="text-2xl font-black text-slate-800 mb-2">Erreur Inattendue</h1>
+              <p className="text-slate-500 font-medium text-sm">
+                Une erreur s'est produite lors de l'affichage de cette page.
+              </p>
+            </div>
+
+            {this.state.error && (
+              <div className="bg-slate-50 p-4 rounded-xl text-left overflow-auto max-h-32 text-[10px] font-mono text-slate-600 border border-slate-200">
+                {this.state.error.message}
+              </div>
+            )}
+
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-primary transition-all flex items-center justify-center gap-2 shadow-lg"
+            >
+              <RefreshCcw size={18} />
+              Redémarrer l'application
+            </button>
+          </div>
         </div>
       );
     }

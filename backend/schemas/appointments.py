@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 import datetime
 from typing import Optional, List
 
-from .base import AppointmentStatus
+from .base import AppointmentStatus, SchedulingType
 
 
 class AppointmentBase(BaseModel):
@@ -13,10 +13,12 @@ class AppointmentBase(BaseModel):
     duration_minutes: int = 30
     motif: Optional[str] = None
     status: AppointmentStatus = AppointmentStatus.PREVU
+    scheduling_type: SchedulingType = SchedulingType.EXACT_TIME
     notes: Optional[str] = None
     employer_id: Optional[int] = None
     reminder_sent: bool = False
     reminder_sent_at: Optional[datetime.datetime] = None
+    ticket_number: Optional[int] = None
 
 
 class AppointmentCreate(AppointmentBase):
@@ -31,9 +33,11 @@ class AppointmentUpdate(BaseModel):
     duration_minutes: Optional[int] = None
     motif: Optional[str] = None
     status: Optional[AppointmentStatus] = None
+    scheduling_type: Optional[SchedulingType] = None
     notes: Optional[str] = None
     reminder_sent: Optional[bool] = None
     reminder_sent_at: Optional[datetime.datetime] = None
+    ticket_number: Optional[int] = None
 
 
 class AppointmentOut(AppointmentBase):
@@ -50,6 +54,7 @@ class AppointmentImportItem(BaseModel):
     notes: Optional[str] = None
     patient_id: Optional[int] = None
     status: AppointmentStatus = AppointmentStatus.PREVU
+    scheduling_type: SchedulingType = SchedulingType.EXACT_TIME
 
 
 class AppointmentBulkCreate(BaseModel):

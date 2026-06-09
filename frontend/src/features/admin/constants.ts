@@ -57,16 +57,14 @@ export const CROWN_MESSAGES: Record<number, string> = {
 export const PREMIUM_FONTS = [
   { id: 'inter', name: 'Inter Tight', desc: 'Clarté clinique absolue, lecture rapide.', class: 'font-sans' },
   { id: 'outfit', name: 'Outfit', desc: 'Design premium, élégance moderne.', class: 'font-outfit' },
-  { id: 'playfair', name: 'Playfair Display', desc: 'Prestige traditionnel, haute spécialité.', class: 'font-playfair' }
+  { id: 'playfair', name: 'Playfair Display', desc: 'Prestige traditionnel, haute spécialité.', class: 'font-playfair' },
+  { id: 'mono', name: 'JetBrains Mono', desc: 'Sécurité maximale des dosages (Monospace).', class: 'font-mono' },
+  { id: 'serif', name: 'Lora', desc: 'Sérif humaniste, lisibilité optimale sur papier.', class: 'font-serif' }
 ];
 
 export const DESIGN_VARIANTS = [
-  { id: 'classic', name: 'Haute Couture (Classique)', icon: Building2 },
-  { id: 'elite', name: 'Ghost Elite (Signature)', icon: Sparkles },
-  { id: 'sidebar', name: 'Clinique Technique (Latéral)', icon: LayoutGrid },
-  { id: 'royal', name: 'Royal Prestige (Centré)', icon: Wand2 },
-  { id: 'prestige', name: 'Nuit Noire (Luxe Sombre)', icon: Moon },
-  { id: 'minimal', name: 'Épure Zen (Minimaliste)', icon: Layers }
+  { id: 'swiss', name: 'Swiss Clinic (Asymétrique)', icon: LayoutGrid },
+  { id: 'royal', name: 'Royal Elite (Classique)', icon: Building2 }
 ];
 
 export const BRAND_IDENTITIES = [
@@ -111,6 +109,20 @@ export const BRAND_IDENTITIES = [
     desc: 'Excellence & Tradition',
     primary: '#854d0e', secondary: '#a16207', accent: '#fef9c3',
     vibe: 'Prestigieux & Ancien'
+  },
+  {
+    id: 'mono-black',
+    name: 'Monochrome Absolu',
+    desc: 'Noir & Blanc Pur',
+    primary: '#000000', secondary: '#475569', accent: '#94a3b8',
+    vibe: 'Impression Économique & Nette'
+  },
+  {
+    id: 'pediatric-soft',
+    name: 'Pédiatrie Douce',
+    desc: 'Chaleur & Bienveillance',
+    primary: '#f97316', secondary: '#fb923c', accent: '#7dd3fc',
+    vibe: 'Enfance & Sérénité'
   }
 ];
 
@@ -162,5 +174,13 @@ export const APP_THEMES = [
     desc: 'Minimalisme Total',
     defaultAccent: '#475569',
     preview: { bg: '#f1f5f9', card: '#ffffff', border: '#e2e8f0', text: '#0f172a', accent: '#475569' }
+  },
+  {
+    id: 'high-contrast',
+    dataTheme: 'high-contrast',
+    name: 'Haut Contraste',
+    desc: 'Lisibilité Clinique',
+    defaultAccent: '#000000',
+    preview: { bg: '#ffffff', card: '#ffffff', border: '#000000', text: '#000000', accent: '#000000' }
   }
 ] as const;

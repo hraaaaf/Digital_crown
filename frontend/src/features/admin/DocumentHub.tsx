@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
+import { cn } from '../../utils/cn';
 
 // Composants Modulaires
 import { StudioHeader } from './DocumentStudio/StudioHeader';
@@ -12,26 +13,15 @@ import { LivePreview } from './DocumentStudio/LivePreview';
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
 import { CertificateForm } from './DocumentStudio/Forms/CertificateForm';
+import { InstallmentStudio } from './DocumentStudio/Forms/InstallmentStudio';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
-import { type SelectedSurfaceData, TREATMENT_TEMPLATES } from '../../components/odontogram/types';
+import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
-
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'libre';
-type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-
-interface PriceItem {
-  id: number;
-  description: string;
-  dent: string;
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
+import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -65,6 +55,8 @@ interface PatientDetails {
   prenom: string;
   date_naissance?: string;
   genre?: string;
+  antecedents_medicaux?: string;
+  assurance?: string;
 }
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
@@ -77,17 +69,40 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
+
+
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [certifType, setCertifType] = useState('Repos médical');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const [items, setItems] = useState<PriceItem[]>([]);
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('Espèces');
-  const [installments, setInstallments] = useState<{ id: number; date: string; amount: number; label: string }[]>([]);
-  const [isAccounted, setIsAccounted] = useState(true);
-  const [paymentStatus, setPaymentStatus] = useState('EN_ATTENTE');
-  const [isGlobalNote, setIsGlobalNote] = useState(false);
+  const { 
+    items, setItems, paymentMode, installments, setInstallments, 
+    isAccounted, paymentStatus, isGlobalNote 
+  } = useAccountingStore();
+
+  // --- PERSISTENCE ECHEANCES ---
+  useEffect(() => {
+    if (patientId && patientId !== '0') {
+      api.get(`/installments/patient/${patientId}`)
+        .then(res => {
+          const plans = res.data;
+          if (plans && plans.length > 0) {
+            const latestPlan = plans[plans.length - 1];
+            if (latestPlan && latestPlan.installments && latestPlan.installments.length > 0) {
+              const loadedInstallments = latestPlan.installments.map((inst: any) => ({
+                id: inst.id,
+                date: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+                amount: inst.amount,
+                label: inst.label || 'Versement'
+              }));
+              setInstallments(loadedInstallments);
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [patientId]);
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -126,26 +141,19 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [activeTab, items]);
 
   // --- ÉTATS UI ---
-  const [showOdontoPanoramique, setShowOdontoPanoramique] = useState(true);
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
-  const [odontogramMode, setOdontogramMode] = useState<'individual' | 'group' | 'ortho'>('individual');
-  const [groupSelectedTeeth, setGroupSelectedTeeth] = useState<number[]>([]);
-  const [groupTreatmentName, setGroupTreatmentName] = useState('');
-  const [groupTreatmentPrice, setGroupTreatmentPrice] = useState<number | ''>('');
-  const [actSuggestions, setActSuggestions] = useState<{ id: string | number; name: string; base_price: number; category: string; isLocal?: boolean }[]>([]);
-  const [activeActSearchId, setActiveActSearchId] = useState<number | null>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus,
+    installments, isAccounted, paymentStatus, isGlobalNote,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus,
+    installments, isAccounted, paymentStatus, isGlobalNote,
   ]);
 
   // --- INTELLIGENCE SCOPE ---
@@ -190,6 +198,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
     // 2. Intelligence Elite : Détection des Protocoles Oubliés
     if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
+       
       setInsights(prev => [{
         id: 'ins-missing-protocol',
         type: 'safety',
@@ -212,7 +221,77 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
        }, ...prev]);
     }
 
-    // 4. Sécurité Clinique : Double-contrôle CRE, DDI et Omissions
+    // 4. GHOST COMPLICATIONS (Bouclier de Sécurité Médicolégal)
+    if (patientDetails?.antecedents_medicaux) {
+      const ant = patientDetails.antecedents_medicaux.toLowerCase();
+      const currentActNames = items.map(i => i.description.toLowerCase());
+      const hasSurgery = currentActNames.some(a => a.includes('extraction') || a.includes('implant') || a.includes('chirurgie') || a.includes('lambeau'));
+      const hasRadio = currentActNames.some(a => a.includes('radio') || a.includes('panoramique') || a.includes('cbct') || a.includes('cone beam'));
+
+      const complications: any[] = [];
+
+      if (hasSurgery && (ant.includes('sintrom') || ant.includes('anticoagulant') || ant.includes('kardegic') || ant.includes('aspirine'))) {
+        complications.push({
+          id: 'ghost-comp-bleeding', type: 'safety', title: '⚠️ Risque Hémorragique',
+          content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
+        });
+      }
+      
+      if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
+        complications.push({
+          id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
+          content: "Risque accru d'infection et de retard de cicatrisation osseuse. Couverture antibiotique stricte recommandée."
+        });
+      }
+
+      if (hasSurgery && (ant.includes('bisphosphonate') || ant.includes('prolia') || ant.includes('xgeva'))) {
+        complications.push({
+          id: 'ghost-comp-mronj', type: 'safety', title: '🚨 DANGER : Ostéochimionécrose',
+          content: "Antécédent de bisphosphonates. Risque majeur d'ostéochimionécrose des mâchoires (MRONJ). Prudence extrême."
+        });
+      }
+
+      if (hasRadio && (ant.includes('enceinte') || ant.includes('grossesse'))) {
+        complications.push({
+          id: 'ghost-comp-pregnancy', type: 'safety', title: '⚠️ Grossesse',
+          content: "Radiographies contre-indiquées (surtout T1). Utiliser un tablier de plomb si urgence absolue."
+        });
+      }
+
+      complications.forEach(comp => {
+        if (!insights.find(ins => ins.id === comp.id)) {
+          setInsights(prev => [comp, ...prev]);
+        }
+      });
+    }
+
+    // 5. GHOST MUTUELLE (Optimiseur de Plafond Fin d'Année)
+    // Les mutuelles privées ont un plafond annuel. CNSS/CNOPS ont un plafond prothèse (3000 MAD/2 ans).
+    if (patientDetails?.assurance && patientDetails.assurance !== 'AUCUNE') {
+      const currentMonth = new Date().getMonth(); // 0 = Jan, 11 = Dec
+      const isEndOfYear = currentMonth >= 9; // Octobre à Décembre
+      const currentActNames = items.map(i => i.description.toLowerCase());
+      const hasProsthesis = currentActNames.some(a => a.includes('couronne') || a.includes('bridge') || a.includes('inlay') || a.includes('prothèse') || a.includes('facette'));
+      const totalAmount = items.reduce((sum, item: any) => sum + ((item.price || item.montant || 0) * (item.toothNumbers?.length || item.dents?.length || 1)), 0);
+
+      // Si le montant global est lourd et contient de la prothèse
+      if (isEndOfYear && hasProsthesis && totalAmount >= 3000) {
+        if (!insights.find(ins => ins.id === 'ghost-mutuelle-plafond')) {
+          setInsights(prev => [{
+            id: 'ghost-mutuelle-plafond',
+            type: 'habit',
+            title: '💡 Ghost Mutuelle : Optimisation',
+            content: `Le plafond prothétique de la ${patientDetails.assurance} se renouvelle bientôt. Séparer ce devis de ${totalAmount} MAD (Décembre / Janvier) maximisera le remboursement du patient !`,
+            actionLabel: 'Scinder le Devis',
+            onAction: () => {
+              window.dispatchEvent(new CustomEvent('toast-alert', { detail: { type: 'success', message: "Ghost Mutuelle a scindé le devis en deux phases annuelles." }}));
+            }
+          }, ...prev]);
+        }
+      }
+    }
+
+    // 6. Sécurité Clinique Médicamenteuse : Double-contrôle CRE, DDI et Omissions
     const drugNames = drugs.map(d => d.name).filter(Boolean);
     if (drugNames.length > 0 && patientId) {
       const timer = setTimeout(() => {
@@ -238,6 +317,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       }, 800);
       return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, drugs, patientDetails, insights, patientId]);
 
   useEffect(() => {
@@ -265,7 +345,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setActiveTab('ordonnance');
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
@@ -300,32 +380,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [editData]);
 
-  const handleTeethFromOdontogram = useCallback((teeth: SelectedSurfaceData[]) => {
-    setSelectedTeethFromOdontogram(teeth);
-    setItems(prev => {
-      const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
-      // Filter out empty manual rows OR rows whose odontogram key is no longer active
-      const surviving = prev.filter(i => {
-        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
-        return i.description.trim() !== ''; // Keep manual rows only if they have content
-      });
-      const existingKeys = new Set(surviving.map(i => i._odontogramKey).filter(Boolean));
-      const newItems: PriceItem[] = [];
-      teeth.forEach(t => {
-        t.treatments.forEach(tr => {
-          const k = `${t.toothNumber}::${tr.id}`;
-          if (!existingKeys.has(k)) {
-            newItems.push({
-              id: Date.now() + Math.random(),
-              description: tr.name, dent: t.toothNumber.toString(),
-              price: tr.price, toothNumbers: [t.toothNumber], _odontogramKey: k,
-            });
-          }
-        });
-      });
-      return [...surviving, ...newItems as PriceItem[]];
-    });
-  }, []);
+
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -351,30 +406,45 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (sideStudioType !== 'PREVIEW') return;
     const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sideStudioType, drugs, items, certifType, certifDays, paymentMode, 
     libreTitle, libreContent, docDate, activeTab, 
     generator.handleGenerate // Seule la fonction stable est nécessaire
   ]);
 
+  useEffect(() => {
+    if (activeTab === 'certificat' || activeTab === 'libre') {
+       
+      setSideStudioType('PREVIEW');
+    }
+  }, [activeTab]);
+
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
 
       {/* ESPACE DE TRAVAIL */}
-      <div className="flex-1 h-full flex flex-col px-8 pt-6 pb-2 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-colors duration-500">
+      <div className={cn(
+        "flex-1 h-full flex flex-col px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        sideStudioType === 'PREVIEW' ? "pr-[570px]" : ""
+      )}>
 
         <StudioHeader
           patientName={patientName}
           docDate={docDate}
           onDateChange={setDocDate}
           activeTab={activeTab}
-          showOdontoPanoramique={showOdontoPanoramique}
-          onToggleOdonto={() => setShowOdontoPanoramique(v => !v)}
+          showOdontoPanoramique={useAccountingStore(s => s.showOdontoPanoramique)}
+          onToggleOdonto={() => useAccountingStore.getState().setShowOdontoPanoramique(v => !v)}
+          onGenerate={generator.handleGenerate}
+          loading={generator.loading}
+          sideStudioType={sideStudioType}
+          onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
 
         <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <div data-tour="document-hub-content" className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
             <TreatmentPlanStudio 
               patientId={Number(patientId)} 
@@ -435,80 +505,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
+          
+          {activeTab === 'echeancier' && (
+            <InstallmentStudio patientId={patientId || '0'} />
+          )}
 
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
             <AccountingStudio
               isDevis={activeTab === 'devis'}
-              patientId={patientId || '0'} items={items} setItems={(newItems) => {
-                // Si on change les items, on peut aussi apprendre les prix ici si c'est pertinent
-                setItems(newItems);
-              }}
-              coherenceWarnings={generator.coherenceWarnings}
-              paymentMode={paymentMode} setPaymentMode={(m) => setPaymentMode(m as PaymentMode)}
-              installments={installments} setInstallments={setInstallments}
-              isAccounted={isAccounted} setIsAccounted={setIsAccounted}
-              paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus}
-              isGlobalNote={isGlobalNote} setIsGlobalNote={setIsGlobalNote}
-              showOdontoPanoramique={showOdontoPanoramique} odontogramMode={odontogramMode} setOdontogramMode={setOdontogramMode}
-              groupSelectedTeeth={groupSelectedTeeth}
-              handleToothDirectClick={(n) => setGroupSelectedTeeth(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}
-              selectTeethGroup={(g) => {
-                const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
-                const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
-                if (g === 'all') setGroupSelectedTeeth([...max, ...mand]);
-                else if (g === 'maxillaire') setGroupSelectedTeeth(max);
-                else if (g === 'mandibule') setGroupSelectedTeeth(mand);
-                else setGroupSelectedTeeth([]);
-              }}
-              groupTreatmentName={groupTreatmentName} setGroupTreatmentName={setGroupTreatmentName}
-              groupTreatmentPrice={groupTreatmentPrice} setGroupTreatmentPrice={setGroupTreatmentPrice}
-              applyGroupTreatment={() => {
-                if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
-                const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                setItems(prev => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: Number(groupTreatmentPrice) || 0, toothNumbers: sorted }]);
-                setGroupSelectedTeeth([]);
-                setGroupTreatmentName('');
-                setGroupTreatmentPrice('');
-              }}
-              handleTeethFromOdontogram={handleTeethFromOdontogram}
-              addEmptyRow={() => setItems([...items, { id: Date.now(), description: '', dent: '0', price: 0 }])}
-              removeItem={(id) => setItems(items.filter(i => i.id !== id))}
-              updateItem={(id, f, v) => {
-                const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
-                setItems(newItems);
-                // Apprentissage Brain Ghost (v4.9)
-                const item = newItems.find(i => i.id === id);
-                if (item && item.description && item.price > 0 && (f === 'price' || f === 'description')) {
-                  PriceBrain.recordAct(item.description, item.price, item.category || 'CONSERVATRICE');
-                }
-              }}
-              handleActSearch={async (q, id) => {
-                setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
-                if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
-                setActiveActSearchId(id);
-                
-                // 1. Search in Treatment Templates (Odontogram acts)
-                const localMatches = TREATMENT_TEMPLATES.filter((t: { name: string; category: string; id: string }) => 
-                  t.name.toLowerCase().includes(q.toLowerCase()) || 
-                  t.category.toLowerCase().includes(q.toLowerCase())
-                ).map((t: { id: string; name: string; category: string }) => ({ 
-                  id: `template_${t.id}`, 
-                  name: t.name, 
-                  base_price: 0, 
-                  category: t.category, 
-                  isLocal: true,
-                  is_habit: false
-                }));
-
-                // 2. Search in API (Enhanced with Habits in backend)
-                try {
-                  const res = await api.get(`/actes/catalog/search?q=${q}`);
-                  const apiMatches = res.data || [];
-                  
-                  // Priorité 0 : Local Brain (Ghost Conscience)
-                  const brainHistory = PriceBrain.getHistory();
-                  const localBrainMatches = Object.values(brainHistory)
-                    .filter(a => a.name.toLowerCase().includes(q.toLowerCase()))
                     .map(a => ({
                       id: `brain_${a.name}`,
                       name: a.name,
@@ -655,6 +659,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 'certificat': 'Certificat',
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
+                'echeancier': 'Échéancier',
                 'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />

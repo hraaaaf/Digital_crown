@@ -33,7 +33,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
   const { profile } = useSettingsStore();
   
   // Directly pull state from props or fallback to profile
-  const selectedTemplate = props.selectedTemplate || profile.selected_template || 'classic';
+  const selectedTemplate = props.selectedTemplate || profile.selected_template || 'swiss';
   const selectedFont = props.selectedFont || profile.font_fr || 'inter';
   const headerOption = props.headerOption || (profile.letterhead_path ? 'letterhead' : 'auto');
   const headerScale = props.headerScale ?? profile.header_scale ?? 1.1;
@@ -128,16 +128,10 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
         {headerOption === 'auto' && (
           <div className={cn(
             "relative z-20 flex transition-all duration-500 overflow-hidden shrink-0",
-            selectedTemplate === 'classic' && "grid grid-cols-[1.5fr_1fr_1.5fr] items-center text-center px-6 border-b border-slate-50",
-            selectedTemplate === 'elite' && "items-start gap-6 px-8 py-6 border-b border-slate-100",
-            selectedTemplate === 'sidebar' && "flex-row-reverse justify-between items-start border-l-4 pr-6 py-6",
-            selectedTemplate === 'royal' && "flex-col items-center text-center gap-4 py-8",
-            selectedTemplate === 'prestige' && "flex-col items-center text-center pb-8 pt-6 border-b-2 bg-slate-50/20",
-            selectedTemplate === 'minimal' && "items-center justify-between py-6 px-10 border-none"
+            selectedTemplate === 'royal' && "grid grid-cols-[1.5fr_1fr_1.5fr] items-center text-center px-6 border-b border-slate-50",
+            selectedTemplate === 'swiss' && "flex items-center justify-between px-6 border-b border-slate-50"
           )} style={{ 
-            height: `${headerHeight}px`,
-            borderLeftColor: selectedTemplate === 'sidebar' ? brandColor : undefined,
-            borderBottomColor: selectedTemplate === 'prestige' ? brandColor : undefined
+            height: `${headerHeight}px`
           }}>
 
             {selectedTemplate === 'sidebar' && (
@@ -158,13 +152,13 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
             )}
 
             {selectedTemplate === 'royal' && (
-              <div className="flex flex-col items-center w-full gap-3">
+              <div className="flex flex-col items-center w-full gap-3 py-6">
                 {resolvedLogo ? (
                   <img src={resolvedLogo} className="w-16 h-16 object-contain drop-shadow-lg" alt="Logo" />
                 ) : (
                   <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border-2 border-double shadow-sm" style={{ borderColor: brandColor }}><Sparkles style={{ color: brandColor }} size={24} /></div>
                 )}
-                <div className="flex items-center gap-4 w-full">
+                <div className="flex items-center gap-4 w-full px-8">
                    <div className="h-[1px] flex-1" style={{ backgroundImage: `linear-gradient(to right, transparent, ${brandColor}40)` }} />
                    <div className="text-center">
                       <h4 className="font-black uppercase tracking-[0.1em] leading-none" style={{ color: brandColor, fontSize: `${15 * headerScale}px` }}>{identity.nomPraticien || 'DR. NOM DE FAMILLE'}</h4>
@@ -175,43 +169,15 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
               </div>
             )}
 
-            {selectedTemplate === 'classic' && (
-              <>
-                <div className="text-left space-y-1">
-                  <h4 className="font-black uppercase tracking-tight leading-none" style={{ color: brandColor, fontSize: `${11 * headerScale}px` }}>{identity.nomPraticien || 'DR. NOM'}</h4>
-                  <p className="font-extrabold uppercase" style={{ color: secondaryColor, fontSize: `${7 * headerScale}px` }}>Dentiste</p>
-                  <p className="font-medium opacity-50 leading-tight" style={{ fontSize: `${6 * headerScale}px`, color: secondaryColor }}>{specialtyStrings.fr || 'Spécialités'}</p>
-                </div>
-
-                <div className="flex flex-col items-center">
-                  {resolvedLogo ? (
-                    <img src={resolvedLogo} className="w-12 h-12 object-contain" alt="Logo" />
-                  ) : (
-                    <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center"><ImageIcon className="text-slate-100" size={18} /></div>
-                  )}
-                </div>
-
-                <div className="text-right" dir="rtl">
-                  <h4 className="font-black tracking-tight font-arabic leading-none" style={{ color: brandColor, fontSize: `${12 * headerScale}px` }}>د. {identity.nomPraticienAR || 'الاسم'}</h4>
-                  <p className="font-extrabold" style={{ color: secondaryColor, fontSize: `${8 * headerScale}px` }}>طبيب أسنان</p>
-                  <p className="font-arabic opacity-50 leading-tight" style={{ fontSize: `${7 * headerScale}px`, color: secondaryColor }}>{specialtyStrings.ar || 'التخصصات'}</p>
-                </div>
-              </>
-            )}
-
-            {(selectedTemplate !== 'classic' && selectedTemplate !== 'sidebar' && selectedTemplate !== 'royal') && (
-              <div className={cn(
-                "flex-1 flex items-center gap-6",
-                selectedTemplate === 'prestige' && "flex-col",
-                selectedTemplate === 'minimal' && "justify-between w-full"
-              )}>
+            {selectedTemplate === 'swiss' && (
+              <div className="flex-1 flex items-center gap-6 py-6 px-4">
                 {resolvedLogo ? (
-                  <img src={resolvedLogo} className={cn("object-contain", selectedTemplate === 'minimal' ? "w-10 h-10" : "w-14 h-14")} alt="Logo" />
+                  <img src={resolvedLogo} className="object-contain w-14 h-14" alt="Logo" />
                 ) : (
                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-50 shadow-sm"><ImageIcon className="text-slate-200" size={20} /></div>
                 )}
                 
-                <div className={cn(selectedTemplate === 'prestige' && "text-center", "space-y-1")}>
+                <div className="space-y-1 text-left">
                   <h4 className="font-black uppercase tracking-tight leading-none" style={{ color: brandColor, fontSize: `${14 * headerScale}px` }}>{identity.nomPraticien || 'DR. NOM DE FAMILLE'}</h4>
                   {identity.nomPraticienAR && <h4 className="font-black font-arabic" style={{ color: brandColor, fontSize: `${16 * headerScale}px` }}>د. {identity.nomPraticienAR}</h4>}
                   <p className="font-bold uppercase tracking-widest opacity-60" style={{ fontSize: `${8 * headerScale}px`, color: secondaryColor }}>{specialtyStrings.fr || 'Chirurgien Dentiste'}</p>

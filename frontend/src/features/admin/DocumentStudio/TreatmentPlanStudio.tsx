@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb, ShieldCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { safeStorage } from '../../../hooks/useLocalStorage';
+import { useSettingsStore } from '../Settings/hooks/useSettingsStore';
 
-type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'RESULT';
+type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'PEDIATRIE' | 'RESULT';
 
 interface ChatMessage {
   role: 'bot' | 'user';
@@ -45,19 +46,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     if (patientId) fetchPatient();
   }, [patientId]);
 
-  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(safeStorage.get('clinicalTipsEnabled') !== 'false');
-
-  React.useEffect(() => {
-    const handleSettingsChange = () => {
-      setClinicalTipsEnabled(safeStorage.get('clinicalTipsEnabled') !== 'false');
-    };
-    window.addEventListener('settings-changed', handleSettingsChange);
-    window.addEventListener('storage', handleSettingsChange);
-    return () => {
-      window.removeEventListener('settings-changed', handleSettingsChange);
-      window.removeEventListener('storage', handleSettingsChange);
-    };
-  }, []);
+  const { profile } = useSettingsStore();
+  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false';
 
   const getClinicalTip = (diagnosis: string) => {
     if (diagnosis.includes('Pulpite Irréversible')) return "Rappel scientifique: Le succès d'une pulpectomie d'urgence dépend d'un parage canalaire minimal d'au moins le tiers cervical pour éliminer le maximum de charge bactérienne aiguë.";
@@ -76,6 +66,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     if (diagnosis.includes('Subluxation')) return "Traumatologie: Tester la vitalité pulpaire (au froid) immédiatement puis à 2, 4 et 12 semaines post-traumatisme.";
     if (diagnosis.includes('Avulsion traumatique')) return "Urgence: La réimplantation doit idéalement être réalisée dans les 60 minutes. Prescrire antibiotiques (Amoxicilline) et vérifier le statut tétanique.";
     if (diagnosis.includes('Gingivite') || diagnosis.includes('Parodontite')) return "Parodontie: Le sondage parodontal (charting) est indispensable pour objectiver la perte d'attache avant le surfaçage radiculaire.";
+    if (diagnosis.includes('Pulpite / Nécrose sur dent temporaire')) return "Pédodontie: L'utilisation du MTA ou de la Biodentine pour les pulpotomies offre un taux de succès clinique supérieur au formocrésol.";
+    if (diagnosis.includes('Prévention carieuse pédiatrique')) return "Prévention: Le scellement des puits et fissures est indiqué dès l'éruption complète des premières molaires permanentes (vers 6 ans).";
     return "Optimisation: Vérifiez toujours les antécédents médicaux avant d'initier la phase thérapeutique.";
   };
 
@@ -139,6 +131,9 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
         case 'CONTROLE':
           nextQuestion = 'Quel est le type de contrôle souhaité ?';
           break;
+        case 'PEDIATRIE':
+          nextQuestion = 'Quel est le problème dentaire de l\'enfant ?';
+          break;
         case 'RESULT':
           nextQuestion = 'Diagnostic établi. Voici le plan de traitement scientifique recommandé :';
           break;
@@ -160,6 +155,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
             <OptionButton text="Problème Prothétique / Fonctionnel" onClick={() => handleAnswer("Problème Prothétique / Fonctionnel", 'PROTHESE_FONCTION')} />
             <OptionButton text="Traumatisme" onClick={() => handleAnswer("Traumatisme Dentaire", 'TRAUMATISME')} />
             <OptionButton text="Contrôle de routine / Tartre" onClick={() => handleAnswer("Contrôle de routine / Tartre", 'CONTROLE')} />
+            <OptionButton text="Soins Pédiatriques (Enfant)" onClick={() => handleAnswer("Soins Pédiatriques", 'PEDIATRIE')} />
           </div>
         );
       case 'URGENCE_DOULEUR':
@@ -305,6 +301,22 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
               { phase: 'INITIALE', act: 'Sondage parodontal et bilan radiographique long cône' },
               { phase: 'CONSERVATRICE', act: 'Surfaçage radiculaire (Assainissement parodontal)' },
               { phase: 'INITIALE', act: 'Enseignement à l\'hygiène orale' }
+            ])} />
+          </>
+        );
+      case 'PEDIATRIE':
+        return (
+          <>
+            <OptionButton text="Carie profonde avec douleur (Dent de lait)" onClick={() => handleAnswer("Carie profonde avec douleur", 'RESULT', 'Pulpite / Nécrose sur dent temporaire', [
+              { phase: 'URGENCE', act: 'Pulpotomie ou Pulpectomie temporaire' },
+              { phase: 'REHABILITATION', act: 'Coiffe pédodontique préformée' }
+            ])} />
+            <OptionButton text="Carie débutante (sans douleur)" onClick={() => handleAnswer("Carie débutante", 'RESULT', 'Carie dentine superficielle (Dent temporaire)', [
+              { phase: 'CONSERVATRICE', act: 'Éviction carieuse et restauration Verre Ionomère (CVI)' }
+            ])} />
+            <OptionButton text="Prévention / Scellement" onClick={() => handleAnswer("Prévention", 'RESULT', 'Prévention carieuse pédiatrique', [
+              { phase: 'CONSERVATRICE', act: 'Scellement des sillons (Sealants)' },
+              { phase: 'INITIALE', act: 'Application topique de vernis fluoré' }
             ])} />
           </>
         );

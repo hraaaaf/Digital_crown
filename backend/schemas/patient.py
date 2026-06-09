@@ -37,10 +37,16 @@ class PatientBase(BaseModel):
     sexe: str
     email: Optional[EmailStr] = Field(None, validate_default=True)
     telephone: Optional[str] = None
+    telephone_2: Optional[str] = None
+    telephone_3: Optional[str] = None
     adresse: Optional[str] = None
     assurance: Optional[str] = "AUCUNE"
+    assurance_privee_nom: Optional[str] = None
+    assurance_complementaire: Optional[bool] = False
+    assurance_complementaire_nom: Optional[str] = None
     photo_url: Optional[str] = None
     antecedents_medicaux: Optional[str] = None
+    motif_consultation: Optional[str] = None
     employer_id: Optional[int] = None
 
     @field_validator('sexe', mode='before')
@@ -89,14 +95,21 @@ class PatientUpdate(BaseModel):
     sexe: Optional[str] = None
     email: Optional[EmailStr] = Field(None, validate_default=True)
     telephone: Optional[str] = None
+    telephone_2: Optional[str] = None
+    telephone_3: Optional[str] = None
     adresse: Optional[str] = None
     assurance: Optional[str] = None
+    assurance_privee_nom: Optional[str] = None
+    assurance_complementaire: Optional[bool] = None
+    assurance_complementaire_nom: Optional[str] = None
     photo_url: Optional[str] = None
     antecedents_medicaux: Optional[str] = None
+    motif_consultation: Optional[str] = None
+    is_ortho_active: Optional[bool] = None
 
 
 class PatientCreate(PatientBase):
-    pass
+    is_ortho_active: Optional[bool] = False
 
 
 class PatientOut(PatientBase):
@@ -105,4 +118,27 @@ class PatientOut(PatientBase):
     created_at: datetime.datetime
     dossier: Optional[DossierOut] = None
     employer_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class TreatmentPlanStepBase(BaseModel):
+    title: str
+    assistant: str
+    status: str = "pending"
+    date_str: str = "Aujourd'hui"
+    order_index: int = 0
+
+class TreatmentPlanStepCreate(TreatmentPlanStepBase):
+    pass
+
+class TreatmentPlanStepOut(TreatmentPlanStepBase):
+    id: int
+    plan_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class TreatmentMasterPlanOut(BaseModel):
+    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    steps: List[TreatmentPlanStepOut] = []
     model_config = ConfigDict(from_attributes=True)

@@ -72,7 +72,10 @@ class ReportGenerator:
         filename = f"report_honoraires_{timestamp}.pdf"
         filepath = os.path.join(self.base_output_dir, filename)
         
-        doc = SimpleDocTemplate(filepath, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=4*cm, bottomMargin=3*cm)
+        
+        p_width_val = A4[0] if isinstance(A4, tuple) else (14.8*cm if A4 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(filepath, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         
         elements = []
         

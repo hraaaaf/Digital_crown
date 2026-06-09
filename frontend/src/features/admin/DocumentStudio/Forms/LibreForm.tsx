@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { cn } from '../../../../utils/cn';
 
 import type { ValidationError } from '../useDocumentGenerator';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Bold, Italic, Underline, Baseline, Table, Type } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface LibreFormProps {
   title: string;
@@ -32,98 +33,159 @@ export const LibreForm: React.FC<LibreFormProps> = ({
   alignment, setAlignment,
   validationErrors = []
 }) => {
-  const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertTag = (openTag: string, closeTag: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = content.substring(start, end);
+    
+    const newText = content.substring(0, start) + openTag + selected + closeTag + content.substring(end);
+    setContent(newText);
+    
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + openTag.length, start + openTag.length + selected.length);
+    }, 10);
+  };
+
+  const handleTableInsert = () => {
+    const tableSnippet = `\n| Colonne 1 | Colonne 2 |\n|-----------|-----------|\n| Ligne 1   | Valeur    |\n`;
+    insertTag(tableSnippet, '');
+  };
+
+  const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-100 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
+  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2 ml-1";
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 mb-2">
-        <div className="md:col-span-1">
-          <label className={labelClass}>Titre du Document</label>
-          <input type="text" className={cn(inputClass, "font-black", validationErrors.find(e => e.field === 'title') && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
-          {validationErrors.find(e => e.field === 'title') && (
-            <div className="mt-1 text-[8px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
-              <AlertCircle size={10} /> Titre Requis
-            </div>
-          )}
-        </div>
-        <div>
-          <label className={labelClass}>Destinataire (Édition Dynamique)</label>
-          <input type="text" className={inputClass} value={customPatient} onChange={(e) => setCustomPatient(e.target.value)} placeholder="Ex: À qui de droit..." />
-        </div>
-        <div>
-          <label className={labelClass}>Date/Lieu (Édition Dynamique)</label>
-          <input type="text" className={inputClass} value={customDate} onChange={(e) => setCustomDate(e.target.value)} placeholder="Ex: Rabat, le 12/05/2026" />
-        </div>
+    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col max-w-4xl mx-auto py-8 w-full">
+      
+      {/* 🌟 Header Glassmorphism */}
+      <div className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-8 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
         
-        <div className="md:col-span-3 flex flex-wrap items-center gap-6 mt-1 border-t border-slate-100 pt-4">
-          <div className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              id="hideHeader" 
-              checked={hideHeader} 
-              onChange={(e) => setHideHeader(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
-            />
-            <label htmlFor="hideHeader" className="text-xs font-bold text-slate-500 cursor-pointer">Masquer l'en-tête patient standard</label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+          <div className="md:col-span-1">
+            <label className={labelClass}>Titre du Document</label>
+            <input type="text" className={cn(inputClass, validationErrors.find(e => e.field === 'title') && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
+            {validationErrors.find(e => e.field === 'title') && (
+              <div className="mt-2 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
+                <AlertCircle size={12} /> Titre Requis
+              </div>
+            )}
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Format :</span>
-            <div className="flex bg-slate-200/50 p-1 rounded-lg gap-1">
-              {['A5', 'A4'].map((size) => (
-                <button 
-                  key={size}
-                  onClick={() => setPageSize(size as any)}
-                  className={cn(
-                    "px-3 py-1 rounded-md text-[10px] font-black transition-all",
-                    pageSize === size ? "bg-white text-primary shadow-sm" : "text-slate-400 hover:text-slate-600"
-                  )}
-                >
-                  {size}
-                </button>
-              ))}
+          <div>
+            <label className={labelClass}>Destinataire <span className="opacity-50">(Optionnel)</span></label>
+            <input type="text" className={inputClass} value={customPatient} onChange={(e) => setCustomPatient(e.target.value)} placeholder="Ex: À qui de droit..." />
+          </div>
+          <div>
+            <label className={labelClass}>Date/Lieu <span className="opacity-50">(Optionnel)</span></label>
+            <input type="text" className={inputClass} value={customDate} onChange={(e) => setCustomDate(e.target.value)} placeholder="Ex: Rabat, le 12/05/2026" />
+          </div>
+          
+          <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-6 mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <input 
+                type="checkbox" 
+                id="hideHeader" 
+                checked={hideHeader} 
+                onChange={(e) => setHideHeader(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary"
+              />
+              <label htmlFor="hideHeader" className="text-[11px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Masquer l'en-tête patient</label>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alignement :</span>
-            <div className="flex bg-slate-200/50 p-1 rounded-lg gap-1">
-              {[
-                { id: 'left', label: 'Gauche' },
-                { id: 'center', label: 'Centre' },
-                { id: 'right', label: 'Droite' },
-                { id: 'justify', label: 'Justifié' }
-              ].map((align) => (
-                <button 
-                  key={align.id}
-                  onClick={() => setAlignment(align.id as any)}
-                  className={cn(
-                    "px-3 py-1 rounded-md text-[10px] font-black transition-all",
-                    alignment === align.id ? "bg-white text-primary shadow-sm" : "text-slate-400 hover:text-slate-600"
-                  )}
-                >
-                  {align.label}
-                </button>
-              ))}
+            <div className="flex gap-8">
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Format</span>
+                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100 gap-1">
+                  {['A5', 'A4'].map((size) => (
+                    <button 
+                      key={size}
+                      onClick={() => setPageSize(size as any)}
+                      className={cn(
+                        "px-4 py-1.5 rounded-lg text-[10px] font-black transition-all",
+                        pageSize === size ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Alignement</span>
+                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100 gap-1">
+                  {[
+                    { id: 'left', label: 'Gauche' },
+                    { id: 'center', label: 'Centre' },
+                    { id: 'right', label: 'Droite' },
+                    { id: 'justify', label: 'Justifié' }
+                  ].map((align) => (
+                    <button 
+                      key={align.id}
+                      onClick={() => setAlignment(align.id as any)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
+                        alignment === align.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {align.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 min-h-[300px] relative">
+      {/* ✍️ Zone de Rédaction avec Toolbar */}
+      <div className="flex-1 min-h-[400px] flex flex-col bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden relative">
+        
+        {/* Toolbar */}
+        <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center gap-2 flex-wrap">
+          <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+             <button onClick={() => insertTag('<b>', '</b>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Gras">
+               <Bold size={16} strokeWidth={2.5} />
+             </button>
+             <button onClick={() => insertTag('<i>', '</i>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Italique">
+               <Italic size={16} strokeWidth={2.5} />
+             </button>
+             <button onClick={() => insertTag('<u>', '</u>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Souligné">
+               <Underline size={16} strokeWidth={2.5} />
+             </button>
+          </div>
+          
+          <div className="w-px h-6 bg-slate-200 mx-2" />
+          
+          <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+             <button onClick={() => insertTag('<font size="16">', '</font>')} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Agrandir">
+               <Type size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Grand Titre</span>
+             </button>
+             <button onClick={handleTableInsert} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Tableau">
+               <Table size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Tableau</span>
+             </button>
+          </div>
+        </div>
+
         <textarea
+          ref={textareaRef}
           className={cn(
-            "w-full h-full p-8 bg-white border rounded-[2rem] text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner resize-none leading-relaxed",
-            validationErrors.find(e => e.field === 'content') ? "border-red-200" : "border-slate-200"
+            "w-full flex-1 p-8 text-sm font-medium text-slate-700 outline-none transition-all resize-none leading-relaxed custom-scrollbar",
+            validationErrors.find(e => e.field === 'content') ? "bg-red-50/30" : "bg-transparent"
           )}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Rédigez votre document ici... Le texte sera automatiquement formaté dans le PDF final."
+          placeholder="Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte."
         />
         {validationErrors.find(e => e.field === 'content') && (
-          <div className="absolute top-4 right-8 px-4 py-2 bg-red-50 border border-red-200 rounded-xl text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2 shadow-sm">
-            <AlertCircle size={12} /> Contenu Requis
+          <div className="absolute bottom-6 right-6 px-5 py-3 bg-red-50 border border-red-200 rounded-2xl text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2 shadow-lg">
+            <AlertCircle size={16} /> Le contenu ne peut être vide
           </div>
         )}
       </div>

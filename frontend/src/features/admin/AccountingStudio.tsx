@@ -12,110 +12,233 @@ import {
   History,
   LayoutGrid,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
+import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
+import { createPortal } from 'react-dom';
 import type { SelectedSurfaceData } from '../../components/odontogram/types';
-import { TREATMENTS_BY_CATEGORY, CATEGORY_LABELS } from '../../components/odontogram/types';
 import { api } from '../../services/api';
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
+import { useAccountingStore, type PriceItem, type InstallmentItem } from './store/useAccountingStore';
+import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 
-interface PriceItem { 
-  id: number; 
-  description: string; 
-  dent: string; 
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
 
-export interface InstallmentItem {
-  id: number;
-  date: string;
-  amount: number;
-  label: string;
-}
+const detectRegion = (teeth: number[]): string => {
+  if (teeth.length === 0) return 'Général';
+  const first = teeth[0];
+  const q = Math.floor(first / 10);
+  const qName = q === 1 ? 'Sup. Droit' : q === 2 ? 'Sup. Gauche' : q === 3 ? 'Inf. Gauche' : q === 4 ? 'Inf. Droit' : q === 5 ? 'Prim. Sup. Droit' : q === 6 ? 'Prim. Sup. Gauche' : q === 7 ? 'Prim. Inf. Gauche' : 'Prim. Inf. Droit';
+  const isAnterior = teeth.every(t => [1,2,3].includes(t % 10));
+  if (isAnterior) return q <= 2 || q === 5 || q === 6 ? 'Sextant Antérieur Sup.' : 'Sextant Antérieur Inf.';
+  const isPosterior = teeth.every(t => [4,5,6,7,8].includes(t % 10));
+  if (isPosterior) return `Sextant ${qName}`;
+  return `Quadrant ${q}`;
+};
+
+
+
 
 interface AccountingStudioProps {
   isDevis?: boolean;
   patientId: string;
-  items: PriceItem[];
-  setItems: (items: PriceItem[]) => void;
-  paymentMode: string;
-  setPaymentMode: (mode: string) => void;
-  showOdontoPanoramique: boolean;
-  odontogramMode: 'individual' | 'group' | 'ortho';
-  setOdontogramMode: (mode: 'individual' | 'group' | 'ortho') => void;
-  groupSelectedTeeth: number[];
-  handleToothDirectClick: (toothNumber: number) => void;
-  selectTeethGroup: (group: 'all' | 'maxillaire' | 'mandibule' | 'none') => void;
-  handleTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
-  addEmptyRow: () => void;
-  removeItem: (id: number) => void;
-  updateItem: (id: number, field: keyof PriceItem, value: string | number) => void;
-  handleActSearch: (query: string, itemId: number) => void;
-  activeActSearchId: number | null;
-  setActiveActSearchId: (id: number | null) => void;
-  actSuggestions: any[];
-  applyActSuggestion: (itemId: number, act: any) => void;
-  installments: InstallmentItem[];
-  setInstallments: (val: InstallmentItem[]) => void;
-  isAccounted: boolean;
-  setIsAccounted: (val: boolean) => void;
-  paymentStatus: string;
-  setPaymentStatus: (val: string) => void;
-  isGlobalNote: boolean;
-  setIsGlobalNote: (val: boolean) => void;
-  validationErrors?: ValidationError[];
   coherenceWarnings?: CoherenceWarning[];
-  groupTreatmentName: string;
-  setGroupTreatmentName: (val: string) => void;
-  groupTreatmentPrice: number | '';
-  setGroupTreatmentPrice: (val: number | '') => void;
-  applyGroupTreatment: () => void;
+  setSelectedTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
 }
 
 
-export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
+export const AccountingStudio: React.FC<AccountingStudioProps> = ({
+  isDevis = false,
+  patientId,
+  coherenceWarnings = [],
+  setSelectedTeethFromOdontogram,
+}) => {
   const {
-    isDevis = false,
-    items,
-    setItems,
-    paymentMode,
-    setPaymentMode,
-    showOdontoPanoramique,
-    odontogramMode,
-    setOdontogramMode,
-    groupSelectedTeeth,
-    handleToothDirectClick,
-    addEmptyRow,
-    removeItem,
-    updateItem,
-    handleActSearch,
-    activeActSearchId,
-    setActiveActSearchId,
-    actSuggestions,
-    applyActSuggestion,
-    installments,
-    setInstallments,
-    isAccounted,
-    setIsAccounted,
-    paymentStatus,
-    setPaymentStatus,
-    isGlobalNote,
-    setIsGlobalNote,
-    groupTreatmentName,
-    setGroupTreatmentName,
-    groupTreatmentPrice,
-    setGroupTreatmentPrice,
-    applyGroupTreatment,
-    validationErrors = [],
-    coherenceWarnings = [],
-  } = props;
+    items, setItems,
+    paymentMode, setPaymentMode,
+    showOdontoPanoramique, setShowOdontoPanoramique,
+    odontogramMode, setOdontogramMode,
+    groupSelectedTeeth, setGroupSelectedTeeth,
+    actSuggestions, setActSuggestions,
+    activeActSearchId, setActiveActSearchId,
+    installments, setInstallments,
+    isAccounted, setIsAccounted,
+    paymentStatus, setPaymentStatus,
+    isGlobalNote, setIsGlobalNote,
+    groupTreatmentName, setGroupTreatmentName,
+    groupTreatmentPrice, setGroupTreatmentPrice
+  } = useAccountingStore();
+
+  const { specialties, fetchCatalog } = useCatalogStore();
+  
+  React.useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
+
+  const TREATMENT_TEMPLATES = React.useMemo(() => {
+    return specialties.flatMap(s => s.acts.map(act => ({
+      id: act.id.toString(),
+      name: act.name,
+      category: s.name,
+      base_price: act.base_price,
+    })));
+  }, [specialties]);
+
+  const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
+  
+  const selectTeethGroup = (g: string) => {
+    const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+    const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+    const regions: Record<string, number[]> = {
+      'all': [...max, ...mand],
+      'maxillaire': max,
+      'mandibule': mand,
+      'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
+      'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
+      'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
+      'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
+      'S1': [14, 15, 16, 17, 18],
+      'S2': [13, 12, 11, 21, 22, 23],
+      'S3': [24, 25, 26, 27, 28],
+      'S4': [34, 35, 36, 37, 38],
+      'S5': [33, 32, 31, 41, 42, 43],
+      'S6': [44, 45, 46, 47, 48]
+    };
+    if (regions[g]) setGroupSelectedTeeth(regions[g]);
+    else setGroupSelectedTeeth([]);
+  };
+
+  const applyGroupTreatment = () => {
+    if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
+    const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: Number(groupTreatmentPrice) || 0, toothNumbers: sorted }]);
+    setGroupSelectedTeeth([]);
+    setGroupTreatmentName('');
+    setGroupTreatmentPrice('');
+  };
+
+  const handleTeethFromOdontogram = React.useCallback((teeth: SelectedSurfaceData[]) => {
+    setSelectedTeethFromOdontogram(teeth);
+    setItems((prev: any) => {
+      const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
+      const surviving = prev.filter((i: any) => {
+        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
+        return i.description.trim() !== '';
+      });
+      const existingKeys = new Set(surviving.map((i: any) => i._odontogramKey).filter(Boolean));
+      const newItems: PriceItem[] = [];
+      teeth.forEach(t => {
+        t.treatments.forEach(tr => {
+          const k = `${t.toothNumber}::${tr.id}`;
+          if (!existingKeys.has(k)) {
+            newItems.push({
+              id: Date.now() + Math.random(),
+              description: tr.name, dent: t.toothNumber.toString(),
+              price: tr.price, toothNumbers: [t.toothNumber], _odontogramKey: k,
+            });
+          }
+        });
+      });
+      return [...surviving, ...newItems];
+    });
+  }, [setSelectedTeethFromOdontogram, setItems]);
+
+  const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
+  const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
+  
+  const updateItem = (id: number, f: string, v: string | number) => {
+    const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
+    setItems(newItems);
+    const item = newItems.find(i => i.id === id);
+    if (item && item.description && item.price > 0 && (f === 'price' || f === 'description')) {
+      PriceBrain.recordAct(item.description, item.price, item.category || 'CONSERVATRICE');
+    }
+  };
+
+  const handleActSearch = async (q: string, id: number) => {
+    setItems(items.map(i => i.id === id ? { ...i, description: q } : i));
+    if (q.length < 2) { setActSuggestions([]); setActiveActSearchId(null); return; }
+    setActiveActSearchId(id);
+    
+    const localMatches = TREATMENT_TEMPLATES.filter((t: any) => 
+      t.name.toLowerCase().includes(q.toLowerCase()) || 
+      t.category.toLowerCase().includes(q.toLowerCase())
+    ).map((t: any) => ({ 
+      id: `template_${t.id}`, 
+      name: t.name, 
+      base_price: 0, 
+      category: t.category, 
+      isLocal: true,
+      is_habit: false
+    }));
+
+    try {
+      const res = await api.get(`/actes/search?q=${encodeURIComponent(q)}`);
+      const apiMatches = res.data.map((m: any) => ({ ...m, is_habit: true }));
+      
+      const merged = [...localMatches];
+      apiMatches.forEach((am: any) => {
+        if (!merged.find(lm => lm.name.toLowerCase() === am.name.toLowerCase())) {
+          merged.push(am);
+        }
+      });
+      setActSuggestions(merged);
+    } catch {
+      setActSuggestions(localMatches);
+    }
+  };
+
+  const applyActSuggestion = (itemId: number, act: any) => {
+    setItems(items.map(i => i.id === itemId ? {
+      ...i,
+      description: act.name,
+      price: act.base_price || 0,
+      category: act.category
+    } : i));
+    setActSuggestions([]);
+    setActiveActSearchId(null);
+  };
+
+  const handleAIPhaseSequencing = () => {
+    const cleanItems = items.filter(i => !i.description.startsWith('--- '));
+    const newItems: PriceItem[] = [];
+    const assainissement = cleanItems.filter(i => /détartrage|composite|carie|surfaçage|endo|pulpectomie|traitement|obturation/i.test(i.description));
+    const chirurgie = cleanItems.filter(i => /extraction|implant|greffe|sinus|lambeau/i.test(i.description));
+    const prothese = cleanItems.filter(i => /couronne|bridge|inlay|onlay|facette|prothèse/i.test(i.description));
+    const autres = cleanItems.filter(i => !assainissement.includes(i) && !chirurgie.includes(i) && !prothese.includes(i));
+    
+    let currentId = Date.now();
+    const addPhaseTitle = (title: string) => {
+        newItems.push({ id: currentId++, description: `--- ${title} ---`, dent: '', price: 0, toothNumbers: [] });
+    };
+
+    if (assainissement.length > 0) {
+        addPhaseTitle("PHASE 1 : ASSAINISSEMENT");
+        newItems.push(...assainissement);
+    }
+    if (chirurgie.length > 0) {
+        addPhaseTitle("PHASE 2 : CHIRURGIE");
+        newItems.push(...chirurgie);
+    }
+    if (prothese.length > 0) {
+        if (chirurgie.length > 0) addPhaseTitle("DÉLAI DE CICATRISATION (ESTIMÉ : 3 MOIS)");
+        addPhaseTitle("PHASE 3 : PROTHÉTIQUE");
+        newItems.push(...prothese);
+    }
+    if (autres.length > 0) {
+        if (newItems.length > 0) addPhaseTitle("AUTRES ACTES");
+        newItems.push(...autres);
+    }
+
+    props.setItems(newItems);
+    toast.success("Séquençage IA appliqué au devis !");
+  };
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
@@ -123,11 +246,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
   const [activeTooth, setActiveTooth] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   
-
-  useEffect(() => {
-    fetchQuickActs();
-  }, []);
 
   const fetchQuickActs = async () => {
     try {
@@ -149,6 +269,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchQuickActs();
+  }, []);
+
+  useEffect(() => {
     const lastItem = items[items.length - 1];
     if (lastItem && lastItem.description.trim().length > 2) {
       const timer = setTimeout(async () => {
@@ -161,6 +286,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
       }, 500);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestedBundles([]);
     }
   }, [items]);
@@ -175,6 +301,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
 
   useEffect(() => {
     if (items.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsOdontoOpen(true);
     }
   }, [items.length]);
@@ -182,11 +309,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
   const labelClass = "text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1.5 ml-1";
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-7xl mx-auto">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-[95rem] mx-auto">
 
       {/* ⚠️ Alertes Section */}
       {(validationErrors.length > 0 || coherenceWarnings.length > 0) && (
-        <div className="space-y-2 px-2">
+        <div className="space-y-2 px-2 mb-6">
           {validationErrors.map((err, idx) => (
             <div key={`v-${idx}`} className="px-6 py-3 bg-red-50 border border-red-100 rounded-2xl text-[11px] text-red-600 font-black flex items-center gap-3 animate-in slide-in-from-top-2">
               <AlertCircle size={16} /> {err.message}
@@ -205,34 +332,46 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
         </div>
       )}
 
-      {/* ⚡ Elite Quick Bar : Light Glassmorphism */}
-      <div className="flex flex-col gap-4 p-6 bg-white/60 backdrop-blur-xl rounded-[2.5rem] shadow-xl relative z-20 border border-white">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3 pl-4 pr-6 border-r border-slate-100 shrink-0">
-            <Zap className="w-5 h-5 text-amber-400 fill-amber-400/20" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Smart Acts</span>
-          </div>
-          <div className="flex flex-wrap gap-2 flex-1">
-            {quickActs.map((act, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  props.setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
-                  saveActAsHabit(act.name, act.price, act.category);
-                }}
-                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all flex items-center gap-2 group shadow-sm"
-              >
-                {act.name} <span className="text-primary transition-colors">+{act.price} MAD</span>
-              </button>
-            ))}
-            <button
-               onClick={addEmptyRow}
-               className="px-5 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
-            >
-              <Plus size={14} /> Nouvel Acte
-            </button>
-          </div>
+      <div className="flex flex-col gap-10 max-w-5xl mx-auto items-center">
+        {/* === ODONTOGRAMME & SUGGESTIONS === */}
+        <div className="w-full space-y-6">
+
+      {/* ⚡ Elite Quick Bar : Expandable Pill */}
+      <div className="group flex flex-col px-6 py-3 bg-white/50 backdrop-blur-md rounded-[2rem] shadow-sm relative z-20 border border-white opacity-60 hover:opacity-100 hover:bg-white/90 transition-all duration-500 ease-in-out overflow-hidden cursor-pointer max-w-[220px] hover:max-w-4xl max-h-[46px] hover:max-h-[500px] mx-auto hover:shadow-xl">
+        
+        {/* Title Bar - Always Visible */}
+        <div className="flex items-center gap-3 shrink-0 whitespace-nowrap w-full">
+          <Zap className="w-5 h-5 text-amber-400 fill-amber-400/20" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Smart Acts</span>
+          <span className="ml-auto text-[9px] text-primary opacity-100 group-hover:opacity-0 transition-opacity whitespace-nowrap">Survoler</span>
         </div>
+
+        {/* Buttons - Visible on Hover */}
+        <div className="flex flex-wrap gap-2 pt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 border-t border-slate-100 mt-2">
+          {quickActs.map((act, i) => (
+            <button
+              key={i}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
+                saveActAsHabit(act.name, act.price, act.category);
+              }}
+              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all flex items-center gap-2 shadow-sm hover:border-primary/30"
+            >
+              {act.name} <span className="text-primary transition-colors">+{act.price} MAD</span>
+            </button>
+          ))}
+          <button
+             onClick={(e) => {
+               e.stopPropagation();
+               addEmptyRow();
+             }}
+             className="px-5 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
+          >
+            <Plus size={14} /> Nouvel Acte
+          </button>
+        </div>
+      </div>
 
         <AnimatePresence>
           {suggestedBundles.length > 0 && (
@@ -331,7 +470,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                             "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                             odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                           )}
-                        >{mode === 'individual' ? 'Unitaire' : mode === 'group' ? 'Groupe' : 'Global'}</button>
+                        >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Ponts & Prothèses' : 'Soins Généraux'}</button>
                       ))}
                     </div>
 
@@ -340,181 +479,213 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                     </div>
                   </div>
 
-                  <AnimatePresence mode="wait">
-                    {!activeTooth ? (
-                      <motion.div 
-                        key="odontogram"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 1.05 }}
-                        className="flex-1 flex items-center justify-center p-8 bg-slate-50/20"
-                      >
-                        <div className="w-full max-w-3xl transform scale-[0.75] origin-center">
-                          <OdontogramSVG 
-                            type={odontogramType} 
-                            teethSurfaces={{}}
-                            selectedTooth={null}
-                            selectedSurface={null}
-                            onSurfaceClick={() => {}}
-                            multiSelectedTeeth={groupSelectedTeeth} 
-                            onToothDirectClick={(n) => {
-                              handleToothDirectClick(n);
-                              if (odontogramMode === 'individual') setActiveTooth(n);
-                            }} 
-                            showNumbers={false}
-                            className="w-full drop-shadow-xl"
-                          />
+                  <div className="relative flex-1 flex flex-col p-8 bg-slate-50/20 overflow-hidden">
+                    {/* 🧠 Ghost Assistant Tooltip */}
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+                      <div className="px-5 py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4">
+                        <Brain size={16} className="animate-pulse" />
+                        {odontogramMode === 'individual' && "Sélectionnez une dent pour lui associer un soin"}
+                        {odontogramMode === 'group' && "Cliquez sur les piliers et inters pour créer un bridge ou un stellite"}
+                        {odontogramMode === 'ortho' && "Sélectionnez un acte s'appliquant à l'ensemble de la cavité buccale"}
+                      </div>
+                    </div>
 
-                          {/* 💎 Floating Group Action Bar */}
-                          {odontogramMode === 'group' && groupSelectedTeeth.length > 0 && (
-                            <motion.div 
-                              initial={{ y: 20, opacity: 0 }}
-                              animate={{ y: 0, opacity: 1 }}
-                              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-6"
-                            >
-                              <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-4 border border-white/10 shadow-2xl flex items-center gap-4">
-                                <div className="flex -space-x-2">
-                                  {groupSelectedTeeth.slice(0, 3).map(n => (
-                                    <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
-                                  ))}
-                                  {groupSelectedTeeth.length > 3 && (
-                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 3}</div>
-                                  )}
-                                </div>
+                    {/* ODONTOGRAMME (Faded in ortho mode) */}
+                    <div className={cn(
+                      "flex-1 flex flex-col items-center justify-center relative transition-all duration-700",
+                      odontogramMode === 'ortho' ? "opacity-10 pointer-events-none scale-95 blur-sm" : "opacity-100 scale-100 blur-none"
+                    )}>
+                      <div className="w-full flex justify-center items-center">
+                        <OdontogramSVG 
+                          type={odontogramType} 
+                          teethSurfaces={{}}
+                          selectedTooth={activeTooth}
+                          selectedSurface={null}
+                          onSurfaceClick={() => {}}
+                          multiSelectedTeeth={groupSelectedTeeth} 
+                          onToothDirectClick={(n) => {
+                            handleToothDirectClick(n);
+                            if (odontogramMode === 'individual') setActiveTooth(n);
+                          }} 
+                          showNumbers={false}
+                          hideSurfaces={true}
+                          className="w-full max-w-[480px] drop-shadow-xl"
+                        />
+                      </div>
 
-                                <div className="flex-1 flex gap-2">
-                                  <input 
-                                    type="text"
-                                    placeholder="Nom de l'acte..."
-                                    className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
-                                    value={groupTreatmentName}
-                                    onChange={(e) => setGroupTreatmentName(e.target.value)}
-                                  />
-                                  <input 
-                                    type="number"
-                                    placeholder="Prix"
-                                    className="bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-primary/50 w-24"
-                                    value={groupTreatmentPrice}
-                                    onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                                  />
-                                </div>
-
-                                <button 
-                                  onClick={applyGroupTreatment}
-                                  className="p-3 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20"
-                                >
-                                  <Plus size={18} />
-                                </button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div 
-                        key="selection"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="flex-1 flex flex-col p-8 bg-white/40"
-                      >
-                        <div className="flex items-center justify-between mb-8">
-                          <div className="flex items-center gap-4">
-                            <button 
-                              onClick={() => { setActiveTooth(null); setActiveCategory(null); }}
-                              className="p-3 bg-white rounded-2xl border border-slate-100 hover:border-primary/30 transition-all shadow-sm"
-                            >
-                              <ArrowLeft size={16} className="text-slate-600" />
-                            </button>
-                            <div>
-                              <h3 className="text-lg font-black text-slate-800 tracking-tight">Dent {activeTooth}</h3>
-                              <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Saisie des prestations</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2 bg-slate-100/50 p-1 rounded-xl overflow-x-auto max-w-[60%] no-scrollbar">
-                             {Object.keys(TREATMENTS_BY_CATEGORY).map((cat) => (
-                               <button
-                                 key={cat}
-                                 onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
-                                 className={cn(
-                                   "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                                   activeCategory === cat 
-                                     ? "bg-white text-primary shadow-sm border border-slate-100" 
-                                     : "text-slate-400 hover:text-slate-600"
-                                 )}
-                               >
-                                 {CATEGORY_LABELS[cat] || cat}
-                               </button>
-                             ))}
-                          </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                          {activeCategory ? (
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                 {TREATMENTS_BY_CATEGORY[activeCategory].map((template) => (
-                                   <button
-                                     key={template.id}
-                                     onClick={() => {
-                                        const price = PriceBrain.suggestPrice(template.name) || 0;
-                                        setItems([...items, { 
-                                          id: Date.now() + Math.random(), 
-                                          description: template.name, 
-                                          dent: activeTooth.toString(), 
-                                          price,
-                                          toothNumbers: [activeTooth],
-                                          category: template.category
-                                        }]);
-                                        toast.success(`Ajouté : ${template.name}`, {
+                        {/* 🌍 Panneau Soins Généraux (Mode ortho) */}
+                        {odontogramMode === 'ortho' && (
+                          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 pointer-events-auto">
+                             <div className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-8 w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                               <div className="flex items-center justify-between mb-6">
+                                 <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                   <Sparkles className="text-primary"/> Soins Généraux
+                                 </h3>
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actes Globaux</span>
+                               </div>
+                               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {[
+                                    {name: 'Détartrage & Polissage', price: 400, category: 'PREVENTION'},
+                                    {name: 'Bilan Parodontal', price: 600, category: 'PARO'},
+                                    {name: 'Surfaçage Radiculaire (Secteur)', price: 1500, category: 'PARO'},
+                                    {name: 'Blanchiment Dentaire', price: 2500, category: 'ESTHETIQUE'},
+                                    {name: 'Semestre ODF', price: 4500, category: 'ORTHO'},
+                                    {name: 'Gouttière de Bruxisme', price: 1500, category: 'PROTHESE'},
+                                    {name: 'Fluorisation', price: 300, category: 'PREVENTION'},
+                                    {name: 'Consultation Standard', price: 300, category: 'CONSERVATRICE'}
+                                  ].map(act => (
+                                    <button 
+                                      key={act.name} 
+                                      onClick={() => {
+                                        const price = PriceBrain.suggestPrice(act.name) || act.price;
+                                        props.setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
+                                        toast.success(`Ajouté : ${act.name}`, {
                                           style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
                                         });
-                                        setActiveTooth(null);
-                                        setActiveCategory(null);
-                                     }}
-                                     className="group relative p-5 rounded-2xl bg-white/60 border border-slate-100 hover:bg-white hover:border-primary/20 hover:shadow-xl transition-all text-left flex flex-col gap-2"
-                                   >
-                                     <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-800 transition-colors">
-                                          {template.name}
-                                        </span>
-                                        <Plus size={14} className="text-primary opacity-0 group-hover:opacity-100 transition-all" />
+                                      }} 
+                                      className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm"
+                                    >
+                                      <span className="text-xs font-bold text-slate-700 group-hover:text-primary transition-colors">{act.name}</span>
+                                      <span className="text-[10px] font-black text-slate-400 group-hover:text-primary/70">{PriceBrain.suggestPrice(act.name) || act.price} MAD</span>
+                                    </button>
+                                  ))}
+                               </div>
+                             </div>
+                          </div>
+                        )}
+
+                        {/* 💎 Floating Group Action Bar */}
+                        {odontogramMode === 'group' && (
+                          <motion.div 
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-20 pointer-events-auto"
+                          >
+                             <div className="bg-slate-900/95 backdrop-blur-2xl rounded-[2rem] p-5 border border-white/10 shadow-2xl flex flex-col gap-4">
+                               {groupSelectedTeeth.length === 0 ? (
+                                 <div className="flex flex-col gap-3">
+                                   <div className="flex items-center gap-3 text-white">
+                                     <Sparkles className="w-4 h-4 text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Sélection Rapide</span>
+                                   </div>
+                                   <div className="grid grid-cols-4 gap-2">
+                                     {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                                        <button key={q} onClick={() => selectTeethGroup(q as any)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{q}</button>
+                                     ))}
+                                   </div>
+                                   <div className="grid grid-cols-6 gap-2">
+                                     {['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(s => (
+                                        <button key={s} onClick={() => selectTeethGroup(s as any)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{s}</button>
+                                     ))}
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <>
+                                   <div className="flex items-center justify-between">
+                                     <div className="flex items-center gap-3">
+                                       <div className="flex -space-x-2">
+                                         {groupSelectedTeeth.slice(0, 4).map(n => (
+                                           <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
+                                         ))}
+                                         {groupSelectedTeeth.length > 4 && (
+                                           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
+                                         )}
+                                       </div>
+                                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{groupSelectedTeeth.length} dents sélectionnées</span>
                                      </div>
-                                     <div className="flex items-center gap-1">
-                                        <span className="text-[10px] font-black text-primary/40 group-hover:text-primary transition-colors">
-                                          {PriceBrain.suggestPrice(template.name) || '---'} MAD
-                                        </span>
-                                     </div>
-                                   </button>
-                                 ))}
-                                 
-                                 {/* ➕ Add Custom Act Button */}
-                                 <button
-                                   onClick={addEmptyRow}
-                                   className="group relative p-5 rounded-2xl bg-primary/5 border border-primary/20 border-dashed hover:bg-primary/10 hover:border-primary/40 transition-all text-center flex flex-col items-center justify-center gap-2"
-                                 >
-                                   <Plus size={20} className="text-primary" />
-                                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">Ajouter un acte manuel</span>
-                                 </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-200 gap-4">
-                               <Sparkles size={40} strokeWidth={1} />
-                               <p className="text-[10px] font-black uppercase tracking-[0.3em]">Séléctionner une spécialité</p>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
+                                     <button onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
+                                   </div>
+
+                                   <div className="grid grid-cols-3 gap-2">
+                                     {['Bridge', 'Stellite', 'Prothèse Adjointe (PAP)', `Curetage (${detectRegion(groupSelectedTeeth)})`, `Surfaçage (${detectRegion(groupSelectedTeeth)})`, 'Attelle de contention'].map(act => (
+                                       <button
+                                         key={act}
+                                         onClick={() => {
+                                           const price = PriceBrain.suggestPrice(act) || 0;
+                                           setGroupTreatmentName(act);
+                                           setGroupTreatmentPrice(price);
+                                           const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
+                                           props.setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: Number(price), toothNumbers: sorted }]);
+                                           selectTeethGroup('none');
+                                           setGroupTreatmentName('');
+                                           setGroupTreatmentPrice('');
+                                           toast.success(`Ajouté : ${act}`);
+                                         }}
+                                         className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                       >{act}</button>
+                                     ))}
+                                   </div>
+
+                                   <div className="flex gap-2 pt-2 border-t border-white/10">
+                                     <input 
+                                       type="text"
+                                       placeholder="Ou saisir un autre acte..."
+                                       className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 flex-1"
+                                       value={groupTreatmentName}
+                                       onChange={(e) => setGroupTreatmentName(e.target.value)}
+                                     />
+                                     <input 
+                                       type="number"
+                                       placeholder="Prix"
+                                       className="bg-white/10 border border-white/10 rounded-xl px-3 py-3 text-xs font-bold text-white outline-none focus:border-primary/50 w-24 text-center"
+                                       value={groupTreatmentPrice}
+                                       onChange={(e) => setGroupTreatmentPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                     />
+                                     <button 
+                                       onClick={applyGroupTreatment}
+                                       className="px-6 bg-primary text-white rounded-xl hover:bg-primary/80 transition-all shadow-lg shadow-primary/20 text-[10px] font-black uppercase tracking-widest"
+                                     >
+                                       Appliquer
+                                     </button>
+                                   </div>
+                                 </>
+                               )}
+                             </div>
+                          </motion.div>
+                        )}
+                    </div>
+
+                    {/* MODALE DE SÉLECTION (TREATMENT SELECTOR INTÉGRÉ) */}
+                    <AnimatePresence>
+                    {activeTooth && (
+                      <TreatmentSelector
+                        toothNumber={activeTooth as any}
+                        currentTreatments={[]}
+                        onConfirm={(treatments, surfaces, notes) => {
+                          const newItems = [...items];
+                          treatments.forEach(t => {
+                            newItems.push({
+                              id: Date.now() + Math.random(),
+                              description: t.name,
+                              dent: activeTooth.toString() + (surfaces.length > 0 ? ` (${surfaces.join('')})` : ''),
+                              price: t.price || 0,
+                              category: t.category,
+                              toothNumbers: [activeTooth]
+                            });
+                            // Ghost Brain apprend le prix saisi (ou suggéré par défaut)
+                            if (t.price && t.price > 0) {
+                              PriceBrain.recordAct(t.name, t.price, t.category, t.id);
+                            }
+                          });
+                          props.setItems(newItems);
+                          setActiveTooth(null);
+                        }}
+                        onCancel={() => setActiveTooth(null)}
+                        embedded={false}
+                      />
                     )}
-                  </AnimatePresence>
+                    </AnimatePresence>
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       )}
+      
+        </div> {/* FIN COLONNE GAUCHE */}
+
+        {/* === PANIER & FACTURATION === */}
+        <div className="w-full space-y-6">
 
       {/* 📊 Elite Table : Détail des actes */}
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden">
@@ -523,10 +694,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
              <History className="w-5 h-5 text-slate-400" />
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Détail des prestations</h3>
           </div>
-          <button
-            onClick={addEmptyRow}
-            className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
-          >+ Ligne Manuelle</button>
+          <div className="flex items-center gap-4">
+            {props.isDevis && props.items.length > 0 && (
+               <button
+                 onClick={handleAIPhaseSequencing}
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
+               >
+                 <Wand2 size={12} /> Séquencer avec l'IA
+               </button>
+            )}
+            <button
+              onClick={addEmptyRow}
+              className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+            >+ Ligne Manuelle</button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -623,14 +804,46 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
             </tbody>
           </table>
         </div>
+        
+        {/* Résumé & Boutons d'Action (Nouveau) */}
+        <div className="px-10 py-6 border-t border-slate-50 bg-slate-50/30 flex flex-col items-end gap-4">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total</span>
+            <span className="text-xl font-black text-primary">{items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)} MAD</span>
+          </div>
+          {!isDevis && (
+             <button 
+                onClick={() => setIsTreasuryModalOpen(true)}
+                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex justify-center items-center gap-2"
+             >
+                <Banknote size={20} /> Procéder à l'Encaissement
+             </button>
+          )}
+        </div>
       </div>
+      
+      </div> {/* FIN GRID SPLIT SCREEN */}
 
-      {/* 💰 Ghost Treasury Hub : Light Glassmorphism */}
-      {!isDevis && (
-        <div className="p-10 bg-white/60 backdrop-blur-xl rounded-[3rem] border border-white shadow-xl space-y-10 relative overflow-hidden">
+      {/* 💰 Ghost Treasury Hub : Light Glassmorphism -> MODAL */}
+      <AnimatePresence>
+        {!isDevis && isTreasuryModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="p-6 sm:p-10 bg-white rounded-[2rem] sm:rounded-[3rem] border border-white shadow-2xl space-y-6 sm:space-y-10 relative overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <button 
+                onClick={() => setIsTreasuryModalOpen(false)}
+                className="absolute top-6 right-6 w-10 h-10 bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all z-20"
+              >
+                <Plus size={24} className="rotate-45" />
+              </button>
+              
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
           
-          <div className="flex items-center justify-between relative z-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between relative z-10 gap-6 sm:gap-0">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 bg-primary/10 text-primary rounded-[1.25rem] flex items-center justify-center border border-primary/20 shadow-inner">
                 <Banknote size={28} />
@@ -660,7 +873,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-4 relative z-10">
             {/* Statut */}
             <div className="space-y-4">
               <label className={cn(labelClass, "text-slate-400")}>Statut de Règlement</label>
@@ -745,16 +958,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                 
                 <div className="space-y-4">
                   {installments.map((inst) => (
-                    <div key={inst.id} className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-5">
+                    <div key={inst.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-4 sm:gap-4 items-center bg-white p-4 sm:p-0 rounded-2xl sm:bg-transparent">
+                      <div className="w-full sm:col-span-5">
                         <input 
                           type="text" 
-                          className="w-full px-5 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                          className="w-full px-5 py-3 bg-white sm:bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
                           value={inst.label}
                           onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div className="w-full sm:col-span-3">
                         <input 
                           type="date" 
                           className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
@@ -762,7 +975,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                           onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
                         />
                       </div>
-                      <div className="col-span-3 relative">
+                      <div className="w-full sm:col-span-3 relative">
                         <input 
                           type="number" 
                           className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
@@ -771,12 +984,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">MAD</span>
                       </div>
-                      <div className="col-span-1 flex justify-end">
+                      <div className="w-full sm:col-span-1 flex justify-end sm:justify-center">
                         <button 
                           onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
-                          className="p-3 text-slate-300 hover:text-rose-400 transition-all"
+                          className="p-3 text-slate-300 hover:text-rose-400 transition-all bg-rose-50 sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={16} className="mx-auto" />
                         </button>
                       </div>
                     </div>
@@ -785,8 +998,23 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = (props) => {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      )}
+
+          {/* Actions Modale Treasury */}
+          <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-4 relative z-10">
+             <button 
+               onClick={() => setIsTreasuryModalOpen(false)}
+               className="w-full sm:w-auto px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
+             >Fermer</button>
+             <button 
+               onClick={() => setIsTreasuryModalOpen(false)}
+               className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
+             >Valider la Caisse</button>
+          </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

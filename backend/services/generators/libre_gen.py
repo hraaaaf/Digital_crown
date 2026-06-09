@@ -147,16 +147,74 @@ class LibreGenerator:
             leading=16
         )
         
+        # 4. Parsing du contenu pour gérer les tableaux Markdown
+        contenu_raw = getattr(data, 'contenu', '')
+        lines = contenu_raw.split('\n')
+        
+        parsed_elements = []
+        current_text = []
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if line.strip().startswith('|') and line.strip().endswith('|'):
+                if current_text:
+                    parsed_elements.append(Paragraph("<br/>".join(current_text), body_style))
+                    current_text = []
+                
+                table_data = []
+                while i < len(lines) and lines[i].strip().startswith('|') and lines[i].strip().endswith('|'):
+                    row_line = lines[i].strip()
+                    if not re.match(r'^\|[\s\-\|]+\|$', row_line):
+                        cells = [cell.strip() for cell in row_line.strip('|').split('|')]
+                        # Envelopper les cellules dans des Paragraph pour supporter le HTML interne (<b>, <i>...)
+                        # Si c'est la première ligne, on peut forcer le gras
+                        is_header = (len(table_data) == 0)
+                        cell_style = ParagraphStyle(
+                            'Cell', parent=body_style, 
+                            fontName=font_bold if is_header else font_name,
+                            alignment=TA_LEFT
+                        )
+                        paragraph_cells = [Paragraph(cell, cell_style) for cell in cells]
+                        table_data.append(paragraph_cells)
+                    i += 1
+                
+                if table_data:
+                    # Calcul automatique des largeurs non nécessaire si on laisse Table faire,
+                    # mais on peut limiter à la largeur dispo (ex: 13cm max divisé par colonnes)
+                    t = Table(table_data, colWidths=None)
+                    t.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f8fafc')),
+                        ('TEXTCOLOR', (0,0), (-1,0), p_color),
+                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('FONTNAME', (0,0), (-1,0), font_bold),
+                        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+                        ('TOPPADDING', (0,0), (-1,0), 8),
+                        ('BACKGROUND', (0,1), (-1,-1), colors.white),
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+                        ('PADDING', (0,0), (-1,-1), 6)
+                    ]))
+                    parsed_elements.append(t)
+                    parsed_elements.append(Spacer(1, 0.4*cm))
+                continue
+            else:
+                current_text.append(line)
+                i += 1
+                
+        if current_text:
+            parsed_elements.append(Paragraph("<br/>".join(current_text), body_style))
+
         elements = [
             Spacer(1, 0.4*cm),
             Paragraph(f"<u><b>{titre.upper()}</b></u>", title_style),
             Spacer(1, 0.8*cm),
             self._create_header(patient, data, p_color, config),
-            Spacer(1, 1.2*cm),
-            Paragraph(contenu_html, body_style)
+            Spacer(1, 1.2*cm)
         ]
+        elements.extend(parsed_elements)
 
-        cloture_text = "Signature et Cachet"
+        cloture_text = ""
         cloture_style = ParagraphStyle(
             name='LibreCloture', 
             parent=self.styles['Normal'], 
@@ -175,7 +233,10 @@ class LibreGenerator:
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
         
-        doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=m_top, bottomMargin=m_bottom)
+        
+        p_width_val = page_size[0] if isinstance(page_size, tuple) else (14.8*cm if page_size == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
         doc.qr_type = 'WEBSITE'
         doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
         doc.cloture_text = cloture_text

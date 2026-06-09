@@ -10,6 +10,21 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 
+# Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
+_DAYS_WORDS = {
+    1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
+    6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
+    11: 'onze', 12: 'douze', 13: 'treize', 14: 'quatorze', 15: 'quinze',
+    16: 'seize', 17: 'dix-sept', 18: 'dix-huit', 19: 'dix-neuf', 20: 'vingt',
+    21: 'vingt-et-un', 22: 'vingt-deux', 23: 'vingt-trois', 24: 'vingt-quatre',
+    25: 'vingt-cinq', 26: 'vingt-six', 27: 'vingt-sept', 28: 'vingt-huit',
+    29: 'vingt-neuf', 30: 'trente', 31: 'trente-et-un',
+}
+
+
+def _days_in_words(n: int) -> str:
+    return _DAYS_WORDS.get(n, str(n))
+
 
 class CertificatGenerator:
     def __init__(self, output_dir="static/documents"):
@@ -49,6 +64,12 @@ class CertificatGenerator:
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
 
+        # Date de naissance formatée pour identification obligatoire
+        dob_str = ""
+        if patient.date_naissance:
+            dob = patient.date_naissance.date() if hasattr(patient.date_naissance, 'date') else patient.date_naissance
+            dob_str = dob.strftime('%d/%m/%Y')
+
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
@@ -58,7 +79,7 @@ class CertificatGenerator:
             fontName=font_bold,
             fontSize=11,
             textColor=p_color,
-            leading=14,
+            leading=16,
         )
         style_right = ParagraphStyle(
             'DocDate',
@@ -69,12 +90,14 @@ class CertificatGenerator:
             fontSize=11,
         )
 
-        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        patient_line = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b>"
+        patient_line += f", {age} ans"
+
         patient_w = 7.5 * cm
-        adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
-        
+        adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_line, patient_w - 0.2*cm)
+
         header_content = [[
-            Paragraph(patient_text, adaptive_patient_style),
+            Paragraph(patient_line, adaptive_patient_style),
             Paragraph(f"Le : <u>{current_date}</u>", style_right),
         ]]
 
@@ -112,7 +135,6 @@ class CertificatGenerator:
         )
 
         elements = [
-            # Offset initial réduit pour un meilleur équilibre vertical (v4.0)
             Spacer(1, 0.4 * cm),
             Paragraph("<u><b>CERTIFICAT MEDICAL</b></u>", title_style),
             Spacer(1, 1.0 * cm),
@@ -124,38 +146,45 @@ class CertificatGenerator:
         is_minor = age < 16
         gender = getattr(patient, 'sexe', getattr(patient, 'genre', 'M'))
         is_male = gender in ["Homme", "Garçon", "M", "m", "Male", "male"]
-        
-        # Honorifiques Pédiatriques vs Adultes
+
+        # Accord grammatical selon âge et genre
         if is_minor:
             hon = "l'enfant"
             pres = "présent" if is_male else "présente"
             int_ = "l'intéressé" if is_male else "l'intéressée"
             eviction_term = "une éviction scolaire"
-            reprise_term = "une reprise des cours"
+            reprise_term = "la reprise des cours"
+            ne_e = "né" if is_male else "née"
         else:
             hon = "Monsieur" if is_male else "Madame"
             pres = "présent" if is_male else "présente"
             int_ = "l'intéressé" if is_male else "l'intéressée"
+            # Le praticien demande explicitement "arrêt de travail"
             eviction_term = "un arrêt de travail"
-            reprise_term = "une reprise du travail"
-        
+            reprise_term = "la reprise de son activité professionnelle"
+            ne_e = "né" if is_male else "née"
+
         # Déterminer la spécialité (Ortho vs Dentaire)
         is_ortho = False
         if hasattr(patient, 'dossier') and patient.dossier:
             is_ortho = patient.dossier.is_ortho_active
 
-        # Phrasage Elite dynamique selon le choix du praticien
         reason = (getattr(data, 'reason', "Repos médical") or "Repos médical").strip()
         days = getattr(data, 'days', 1)
         observations = getattr(data, 'observations', '').strip()
         reason_lower = reason.lower()
-        dr_name = config.nom_praticien if config and config.nom_praticien else "BENMOUSSA Achraf"
+        if user_obj and getattr(user_obj, 'nom_complet', None):
+            dr_name = user_obj.nom_complet
+        else:
+            dr_name = "BENMOUSSA Achraf"
+            
+        # Nettoyage pour éviter "Dr Dr."
+        dr_name_clean = dr_name.replace("Dr.", "").replace("Dr ", "").replace("Docteur ", "").strip()
+            
         nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
-        
-        # Initialisation par défaut
+
         certif_text = ""
-        
-        # Calcul précis des dates d'arrêt/éviction
+
         from datetime import timedelta
         doc_date_obj = getattr(data, 'doc_date', date.today())
         if isinstance(doc_date_obj, str):
@@ -163,56 +192,36 @@ class CertificatGenerator:
                 doc_date_obj = datetime.strptime(doc_date_obj, '%Y-%m-%d').date()
             except Exception:
                 doc_date_obj = date.today()
-        
+
         days_int = int(days)
+        days_words = _days_in_words(days_int)
+        days_label = f"({days_int} jours)"
+
         if days_int > 0:
             end_date = doc_date_obj + timedelta(days=days_int - 1)
-            date_phrase = f"allant du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
+            date_phrase = (
+                f"du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> "
+                f"au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
+            )
         else:
             date_phrase = f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>"
 
-        if "post-opératoire" in reason_lower:
+        age = self._calculate_age(patient.date_naissance)
+        age_text = f", âgé(e) de {age} ans"
+
+        if "présence" in reason_lower:
+            spec = "orthodontiques" if is_ortho else "bucco-dentaires"
             certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b> nécessite <b>{eviction_term} de {days} jours</b>, {date_phrase}, "
-                f"suite à une intervention chirurgicale buccale.<br/><br/>"
-            )
-        elif "intervention" in reason_lower:
-            spec = "orthodontique" if is_ortho else "dentaire"
-            certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b> nécessite des <b>soins de suite d'intervention</b> "
-                f"{spec} pour une période de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
-            )
-        elif "présence" in reason_lower:
-            spec = "orthodontiques" if is_ortho else "dentaires"
-            certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> a été "
-                f"<b>{pres} au cabinet</b> {date_phrase} pour y recevoir des soins {spec} professionnels.<br/><br/>"
-            )
-        elif "aptitude" in reason_lower or "sport" in reason_lower:
-            spec = "à la pratique de l'éducation physique et sportive" if is_minor else "à la pratique du sport en compétition"
-            certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que {hon} <b>{nom_complet}</b> "
-                f"<b>ne présente à ce jour aucune contre-indication clinique apparente</b> {spec}.<br/><br/>"
-            )
-        elif "reprise" in reason_lower:
-            certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie que {hon} <b>{nom_complet}</b> est en état "
-                f"d'assurer <b>{reprise_term}</b> à compter du {doc_date_obj.strftime('%d/%m/%Y')}.<br/><br/>"
-            )
-        elif "contre-indication" in reason_lower:
-            certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b> présente une <b>contre-indication médicale temporaire</b> "
-                f"à la pratique ou à l'acte mentionné, pour une durée de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
+                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que "
+                f"{hon} <b>{nom_complet}</b> a été <b>{pres} à notre cabinet</b> "
+                f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
             )
         else:
-            phrase_motif = f"<b>{reason}</b>" if reason else f"<b>{eviction_term}</b>"
+            # Fallback par défaut (Repos, Autre, etc.)
             certif_text = (
-                f"Je, soussigné Dr. <b>{dr_name}</b>, certifie après examen clinique que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b> nécessite {phrase_motif} "
-                f"de <b>{days} jours</b>, {date_phrase}.<br/><br/>"
+                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
+                f"{date_phrase} {days_label}.<br/><br/>"
             )
 
         body_style = ParagraphStyle(
@@ -227,29 +236,33 @@ class CertificatGenerator:
 
         if observations:
             certif_text += f"<b>Observations :</b> {observations}<br/><br/>"
-            
-        certif_text += f"Ce certificat est délivré à {int_} pour servir et faire valoir ce que de droit."
-        
+
+        certif_text += (
+            f"Ce certificat est délivré à {int_}, remis en main propre à sa demande, "
+            f"pour servir et valoir ce que de droit."
+        )
+
         elements.append(Paragraph(certif_text, body_style))
 
-        # Clôture ancrée en bas
         cloture_style = ParagraphStyle(
-            name='CertifCloture', 
-            parent=self.styles['Normal'], 
-            fontName=font_bold, 
-            fontSize=10, 
-            textColor=p_color, 
+            name='CertifCloture',
+            parent=self.styles['Normal'],
+            fontName=font_bold,
+            fontSize=10,
+            textColor=p_color,
             alignment=TA_CENTER
         )
-        elements.append(PinnedCloture("Signature et Cachet", cloture_style))
+        # elements.append(PinnedCloture("Signature et Cachet", cloture_style))
 
-        # Forçage d'une marge supérieure minimale de sécurité (v5.0)
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
+        
+        p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         doc = SimpleDocTemplate(
             filepath, pagesize=A5,
-            rightMargin=1.8 * cm, leftMargin=1.8 * cm,
+            rightMargin=m_right, leftMargin=m_left,
             topMargin=m_top, bottomMargin=m_bottom,
         )
         doc.qr_type = 'VALIDATION'

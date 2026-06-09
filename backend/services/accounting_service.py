@@ -110,7 +110,7 @@ class AccountingService:
                         "id": f"cat_{c.id}",
                         "name": c.name,
                         "base_price": c.base_price,
-                        "category": c.category,
+                        "category": getattr(c, 'category', 'Général'),
                         "is_habit": False
                     })
 
@@ -166,20 +166,20 @@ class AccountingService:
         Calcule un résumé de la trésorerie pour le Treasury Hub.
         Inclut les Documents (Notes) et les Actes marqués pour la compta.
         """
-        # 1. Documents non encore encaissés (is_collected = False)
+        # 1. Documents non encore encaissés (is_collected != True)
         docs = db.query(models.DocumentArchive).join(models.Patient).filter(
             or_(models.DocumentArchive.status == models.DocumentStatus.ACTIF, models.DocumentArchive.status == None),
             models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
-            models.DocumentArchive.is_collected == False,
+            or_(models.DocumentArchive.is_collected == False, models.DocumentArchive.is_collected == None),
             or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None),
             or_(models.DocumentArchive.is_accounted == True, models.DocumentArchive.is_accounted == None),
             models.Patient.employer_id == user_employer_id
         ).all()
 
-        # 2. Actes non encore encaissés (is_collected = False)
+        # 2. Actes non encore encaissés (is_collected != True)
         actes = db.query(models.Acte).join(models.Patient).filter(
             models.Acte.is_accounted == True,
-            models.Acte.is_collected == False,
+            or_(models.Acte.is_collected == False, models.Acte.is_collected == None),
             models.Patient.employer_id == user_employer_id
         ).all()
 
@@ -253,6 +253,107 @@ class AccountingService:
             "cheques_count": len([i for i in items if i["status"] == models.PaiementStatut.A_ENCAISSER]),
             "items": items,
             "proactive_alerts": sorted(proactive_alerts, key=lambda x: -1 if x["severity"] == "critical" else 1)
+        }
+
+    def get_finance_kpis(self, db: Session, employer_id: int, today: datetime.date) -> Dict[str, Any]:
+        """Centralise le calcul des KPIs financiers pour le mobile (ou autres dashboards)."""
+        from datetime import datetime as dt, time as dt_time, timedelta
+        from sqlalchemy import extract
+        
+        day_start = dt.combine(today, dt_time.min)
+        day_end = dt.combine(today, dt_time.max)
+        
+        # 1. Recettes du jour
+        today_revenue = (
+            db.query(func.sum(models.Payment.amount))
+            .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+            .filter(
+                models.Patient.employer_id == employer_id,
+                models.Payment.payment_date >= day_start,
+                models.Payment.payment_date <= day_end,
+            )
+            .scalar() or 0.0
+        )
+        
+        # 2. Recettes du mois
+        month_revenue = (
+            db.query(func.sum(models.Payment.amount))
+            .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+            .filter(
+                models.Patient.employer_id == employer_id,
+                extract("year", models.Payment.payment_date) == today.year,
+                extract("month", models.Payment.payment_date) == today.month,
+            )
+            .scalar() or 0.0
+        )
+        
+        # 3. Variation mois précédent
+        last_month_last_day = today.replace(day=1) - timedelta(days=1)
+        prev_month_revenue = (
+            db.query(func.sum(models.Payment.amount))
+            .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+            .filter(
+                models.Patient.employer_id == employer_id,
+                extract("year", models.Payment.payment_date) == last_month_last_day.year,
+                extract("month", models.Payment.payment_date) == last_month_last_day.month,
+            )
+            .scalar() or 0.0
+        )
+        
+        month_variation = None
+        if prev_month_revenue > 0:
+            month_variation = round(((month_revenue - prev_month_revenue) / prev_month_revenue) * 100, 1)
+            
+        # 4. Recettes 7 derniers jours
+        week_start = dt.combine(today - timedelta(days=6), dt_time.min)
+        weekly_rows = (
+            db.query(
+                func.date(models.Payment.payment_date).label("day"),
+                func.sum(models.Payment.amount).label("total"),
+            )
+            .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+            .filter(
+                models.Patient.employer_id == employer_id,
+                models.Payment.payment_date >= week_start,
+            )
+            .group_by(func.date(models.Payment.payment_date))
+            .all()
+        )
+        weekly_map = {str(r.day): float(r.total) for r in weekly_rows}
+        weekly_revenue = [
+            {"date": str(today - timedelta(days=6 - i)), "amount": weekly_map.get(str(today - timedelta(days=6 - i)), 0.0)}
+            for i in range(7)
+        ]
+        
+        # 5. Débiteurs (Actes - Paiements)
+        patients_q = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).all()
+        debtors_list = []
+        total_debt = 0.0
+
+        for p in patients_q:
+            p_acts = db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == p.id).scalar() or 0.0
+            p_pays = db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == p.id).scalar() or 0.0
+            debt = float(p_acts) - float(p_pays)
+            if debt > 0:
+                total_debt += debt
+                debtors_list.append({
+                    "id": p.id,
+                    "name": f"{p.prenom} {p.nom}",
+                    "amount": round(debt, 2),
+                    "phone": p.telephone,
+                })
+
+        debtors_list.sort(key=lambda x: x["amount"], reverse=True)
+        debtors = debtors_list[:20]
+        total_debt = round(total_debt, 2)
+        
+        return {
+            "today_revenue": round(today_revenue, 2),
+            "month_revenue": round(month_revenue, 2),
+            "month_variation": month_variation,
+            "weekly_revenue": weekly_revenue,
+            "total_debt": total_debt,
+            "debtors": debtors
         }
 
 accounting_service = AccountingService()

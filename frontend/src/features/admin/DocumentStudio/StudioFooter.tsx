@@ -1,6 +1,7 @@
 import React from 'react';
-import { Archive, Printer, Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { Loader2, AlertTriangle, Eye, Archive, Printer } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { createPortal } from 'react-dom';
 
 interface StudioFooterProps {
   loading: boolean;
@@ -54,17 +55,10 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
       
       <div className="flex items-center gap-6">
-        {activeTab === 'ordonnance' && hasChanges && onSavePreference && (
-          <button 
-            onClick={onSavePreference}
-            className="px-5 py-2.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-          >
-            Sauver ce protocole
-          </button>
-        )}
+        {/* Le bouton de sauvegarde du protocole a été déplacé dans le composant de l'ordonnance lui-même pour éviter les doublons */}
         
         {(activeTab === 'devis' || activeTab === 'honoraires') && typeof total === 'number' && (
           <div className="flex items-center gap-4 px-6 border-r border-slate-200">
@@ -78,42 +72,41 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-4">
+      <div className="flex items-center gap-3">
+        {onTogglePreview && (
+          <button 
+            onClick={onTogglePreview}
+            className={cn(
+              "flex items-center gap-2 px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 border",
+              sideStudioType === 'PREVIEW' 
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
+            )}
+          >
+            <Eye size={16} /> {sideStudioType === 'PREVIEW' ? "Fermer Aperçu" : "Aperçu"}
+          </button>
+        )}
+        
         <button 
           onClick={() => onGenerate(true, false, false, false)}
           disabled={loading}
-          className="group flex items-center gap-2 px-5 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md"
         >
-          <Archive size={16} className="group-hover:scale-110 transition-transform" />
-          Archive
+          <Archive size={16} /> Enregistrer
         </button>
 
         <button 
           onClick={() => onGenerate(false, true, false, false)}
           disabled={loading}
-          className="group flex items-center gap-2 px-5 py-3.5 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 px-8 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="animate-spin" size={16} /> : <Printer size={16} className="group-hover:rotate-12 transition-transform" />}
-          Imprimer
-        </button>
-
-        <button 
-          onClick={onTogglePreview}
-          className={cn(
-            "group flex items-center gap-3 px-8 py-3.5 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-2xl active:scale-95 border",
-            sideStudioType === 'PREVIEW' 
-              ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
-              : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-          )}
-        >
-          <Eye size={18} className="group-hover:scale-110 transition-transform" />
-          {sideStudioType === 'PREVIEW' ? "Fermer l'Aperçu" : "Aperçu Live"}
+          <Printer size={16} /> Imprimer
         </button>
       </div>
 
-      {showPrintWarning && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-[70] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
-          <div className="flex flex-col items-center text-center max-w-sm">
+      {showPrintWarning && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex flex-col items-center text-center max-w-sm bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
             <AlertTriangle className="text-amber-500 mb-4" size={48} />
             <h4 className="text-lg font-black text-slate-800 mb-2">Attention : Impression Directe</h4>
             <p className="text-sm text-slate-500 font-medium mb-6">Assurez-vous que votre imprimante est prête. Le document sera archivé automatiquement après l'impression.</p>
@@ -122,7 +115,8 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
               <button onClick={() => onGenerate(true, true, false, true)} className="px-8 py-2 bg-primary text-white rounded-xl font-black" style={{ backgroundColor: 'var(--primary)' }}>Confirmer</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -97,6 +97,7 @@ def create_bulk_appointments(
             duration_minutes=item.duration_minutes,
             notes=item.notes,
             status=item.status,
+            scheduling_type=item.scheduling_type,
             employer_id=user_employer_id
         )
         db.add(db_appt)
@@ -167,3 +168,15 @@ async def suggest_appointment(
         duration_minutes=15,
         notes="Aucun acte pending – suggestion générique"
     )
+
+@router.get("/patient/{patient_id}", response_model=List[schemas.AppointmentOut])
+def get_patient_appointments(
+    patient_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Retourne tous les rendez-vous d'un patient
+    """
+    assert_patient_access(patient_id, current_user, db)
+    return db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).order_by(models.Appointment.datetime_start.desc()).all()

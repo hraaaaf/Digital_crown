@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, ZoomIn, ZoomOut, Maximize, CheckCircle2, Loader2 } from 'lucide-react';
 
@@ -41,15 +41,38 @@ export const CephaloStudio: React.FC<CephaloStudioProps> = ({
   initialLandmarks,
   onUpdateSuccess 
 }) => {
-  // --- ÉTATS ---
   const [landmarks, setLandmarks] = useState<Record<string, Point>>(initialLandmarks);
   const [isSaving, setIsSaving] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   // Dimensions de travail IA (Source de vérité mathématique)
   const VIEWBOX_WIDTH = 800;
   const VIEWBOX_HEIGHT = 640;
+
+  // Écouteur pour la touche Espace (Pan mode)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   // --- LOGIQUE DE DRAG-AND-DROP ---
   const handleDragEnd = (name: string, info: any) => {
@@ -58,7 +81,7 @@ export const CephaloStudio: React.FC<CephaloStudioProps> = ({
     const rect = workspaceRef.current.getBoundingClientRect();
     
     // Calcul de la position relative dans le repère 800x640
-    // On compense le zoom et le scale de l'affichage
+    // On compense le zoom et le pan (déplacement) de l'affichage
     const x = ((info.point.x - rect.left) / (rect.width)) * VIEWBOX_WIDTH;
     const y = ((info.point.y - rect.top) / (rect.height)) * VIEWBOX_HEIGHT;
 
@@ -130,29 +153,44 @@ export const CephaloStudio: React.FC<CephaloStudioProps> = ({
       {/* 2. ZONE DE TRAVAIL (WORKSPACE) */}
       <div className="flex-1 relative bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-200 shadow-inner flex items-center justify-center group">
         
-        <div 
+        {/* SKELETON LOADER POUR L'IMAGE */}
+        {!isImageLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-900/50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="animate-spin text-white" size={32} />
+              <span className="text-white/70 text-xs font-bold tracking-widest uppercase">Chargement Radio...</span>
+            </div>
+          </div>
+        )}
+
+        <motion.div 
           ref={workspaceRef}
-          className="relative transition-transform duration-200 ease-out cursor-crosshair"
+          className={`relative transition-colors duration-200 ease-out ${isSpacePressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}`}
           style={{ 
             width: '100%', 
             height: '100%', 
             maxWidth: '800px', 
             maxHeight: '640px',
-            transform: `scale(${zoom})`,
+            scale: zoom,
             aspectRatio: '800 / 640'
           }}
+          drag={isSpacePressed}
+          dragConstraints={{ left: -600, right: 600, top: -600, bottom: 600 }}
+          dragElastic={0.1}
+          dragMomentum={false}
         >
           {/* IMAGE RADIO DE FOND */}
           <img 
             src={imageUrl} 
             alt="Cephalometric X-Ray" 
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none opacity-90"
+            onLoad={() => setIsImageLoaded(true)}
+            className={`absolute inset-0 w-full h-full object-contain pointer-events-none select-none transition-opacity duration-500 ${isImageLoaded ? 'opacity-90' : 'opacity-0'}`}
           />
 
           {/* CALQUE SVG INTERACTIF */}
           <svg 
             viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-            className="absolute inset-0 w-full h-full z-10 overflow-visible"
+            className={`absolute inset-0 w-full h-full z-10 overflow-visible ${isSpacePressed ? 'pointer-events-none' : ''}`}
           >
             {Object.entries(landmarks).map(([name, point]) => (
               <g key={name}>
@@ -184,7 +222,7 @@ export const CephaloStudio: React.FC<CephaloStudioProps> = ({
               </g>
             ))}
           </svg>
-        </div>
+        </motion.div>
 
         {/* INDICATEUR D'AIDE */}
         <div className="absolute bottom-6 left-6 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-[10px] font-bold text-white/80 uppercase tracking-widest pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">

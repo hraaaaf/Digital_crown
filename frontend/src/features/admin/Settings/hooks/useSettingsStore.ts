@@ -10,6 +10,7 @@ interface SettingsState {
   loading: boolean;
   saving: boolean;
   saveSuccess: boolean;
+  isDirty: boolean;
   
   // Actions
   fetchProfile: () => Promise<void>;
@@ -49,11 +50,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     clinical_tips_enabled: true,
     hide_header: true,
     hide_footer: true,
+    cabinet_type: 'PRIVE',
     nom_praticien_ar: '',
     specialty_ids: [],
+    custom_specialty_fr: '',
+    custom_specialty_ar: '',
     logo_path: '',
     font_fr: 'inter',
-    selected_template: 'classic',
+    selected_template: 'swiss',
     header_lines_fr: [],
     header_lines_ar: [],
     qr_code_style: 'dots',
@@ -73,17 +77,29 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   loading: true,
   saving: false,
   saveSuccess: false,
+  isDirty: false,
 
   fetchProfile: async () => {
     set({ loading: true });
     try {
       const res = await api.get('/clinics/me');
       if (res.data) {
-        const activeId = localStorage.getItem('active_cabinet_id') || 'benmoussa';
-        const cabinet = get().cabinets.find(c => c.id === activeId);
+        const activeId = localStorage.getItem('active_cabinet_id') || 'default';
+        
+        const dynamicCabinet = {
+           id: activeId,
+           nom: res.data.nom_cabinet || res.data.nom_praticien || 'Mon Cabinet',
+           specialty: res.data.header_lines_fr?.[1] || 'Chirurgien Dentiste',
+           primary_color: res.data.primary_color || '#1E40AF',
+           accent_color: res.data.accent_color || '#3B82F6',
+           theme: res.data.selected_theme || 'elite',
+           caisse: 0
+        };
+        set({ cabinets: [dynamicCabinet] });
+        const cabinet = dynamicCabinet;
 
         const profile = {
-          nom: cabinet ? cabinet.nom : (res.data.header_lines_fr?.[0] || res.data.nom_praticien || ''),
+          nom: res.data.nom_praticien || (cabinet ? cabinet.nom : ''),
           adresse: res.data.footer_address || res.data.adresse || '',
           telephone: res.data.footer_phones || res.data.telephone || '',
           inpe: res.data.inpe || '',
@@ -93,13 +109,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           margin_bottom: res.data.margin_bottom ?? 3.2,
           watermark_enabled: res.data.watermark_enabled ?? true,
           letterhead_path: res.data.letterhead_path || undefined,
-          selected_theme: cabinet ? cabinet.theme : (res.data.selected_theme || 'elite'),
+          selected_theme: res.data.selected_theme || (cabinet ? cabinet.theme : 'elite'),
           app_accent_color: res.data.app_accent_color || undefined,
           font_fr: res.data.font_fr || 'inter',
-          selected_template: res.data.selected_template || 'classic',
-          primary_color: cabinet ? cabinet.primary_color : (res.data.primary_color || '#003380'),
+          selected_template: res.data.selected_template || 'swiss',
+          primary_color: res.data.primary_color || (cabinet ? cabinet.primary_color : '#003380'),
           secondary_color: res.data.secondary_color || '#1e40af',
-          accent_color: cabinet ? cabinet.accent_color : (res.data.accent_color || '#60a5fa'),
+          accent_color: res.data.accent_color || (cabinet ? cabinet.accent_color : '#60a5fa'),
           qr_code_enabled: res.data.qr_code_enabled ?? false,
           qr_code_type: res.data.qr_code_type || 'VCARD',
           qr_code_value: res.data.qr_code_value || '',
@@ -110,10 +126,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           clinical_tips_enabled: res.data.clinical_tips_enabled ?? true,
           hide_header: res.data.hide_header ?? true,
           hide_footer: res.data.hide_footer ?? true,
+          cabinet_type: res.data.cabinet_type || 'PRIVE',
           nom_praticien_ar: res.data.nom_praticien_ar || '',
           specialty_ids: res.data.specialty_ids || [],
+          custom_specialty_fr: res.data.custom_specialty_fr || '',
+          custom_specialty_ar: res.data.custom_specialty_ar || '',
           logo_path: res.data.logo_path || '',
-          header_lines_fr: cabinet ? [cabinet.nom, cabinet.specialty] : (res.data.header_lines_fr || []),
+          header_lines_fr: res.data.header_lines_fr?.length ? res.data.header_lines_fr : (cabinet ? [cabinet.nom, cabinet.specialty] : []),
           header_lines_ar: res.data.header_lines_ar || [],
           header_scale: res.data.header_scale ?? 1.1,
           qr_code_style: res.data.qr_code_style || 'dots',
@@ -140,63 +159,98 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch (err) {
       console.warn("Error fetching profile, using fallback", err);
     } finally {
-      set({ loading: false });
+      set({ loading: false, isDirty: false });
       get().applyTheme();
     }
   },
 
   applyTheme: () => {
     const { profile } = get();
-    const theme = profile.selected_theme || 'elite';
+    const finalTheme = profile.selected_theme || 'elite';
     
     // Application aux deux niveaux pour compatibilité maximale
-    document.body.dataset.theme = theme === 'elite' ? '' : theme;
-    document.documentElement.dataset.theme = theme === 'elite' ? '' : theme;
+    document.body.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
+    document.documentElement.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
     
     // Sauvegarde localStorage pour le flash au chargement (App.tsx)
-    localStorage.setItem('digitalcrown_theme', theme);
+    localStorage.setItem('digitalcrown_theme', finalTheme);
     
-    // Application des couleurs accentuées
+    // Application des couleurs de palette personnalisée en priorité
     if (profile.primary_color) {
       document.documentElement.style.setProperty('--primary', profile.primary_color);
       document.body.style.setProperty('--primary', profile.primary_color);
+      
+      // Luminance calculation for --text-on-primary
+      const hex = profile.primary_color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      const textOnPrimary = (yiq >= 128) ? '#0f172a' : '#ffffff';
+      document.documentElement.style.setProperty('--text-on-primary', textOnPrimary);
+      document.body.style.setProperty('--text-on-primary', textOnPrimary);
+    } else {
+      document.documentElement.style.removeProperty('--primary');
+      document.body.style.removeProperty('--primary');
+      document.documentElement.style.removeProperty('--text-on-primary');
+      document.body.style.removeProperty('--text-on-primary');
     }
+
     if (profile.secondary_color) {
       document.documentElement.style.setProperty('--secondary', profile.secondary_color);
+    } else {
+      document.documentElement.style.removeProperty('--secondary');
     }
+
     if (profile.accent_color) {
       document.documentElement.style.setProperty('--accent', profile.accent_color);
+    } else {
+      document.documentElement.style.removeProperty('--accent');
     }
     
     // Support legacy pour la couleur d'accent d'application
     if (profile.app_accent_color) {
       document.documentElement.style.setProperty('--app-accent', profile.app_accent_color);
     }
+    
+    // Synchro Meta theme-color
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    // Set theme color based on active theme
+    const isDark = ['prestige', 'graphite'].includes(finalTheme);
+    metaThemeColor.setAttribute('content', isDark ? '#020617' : '#f8fafc');
   },
 
   updateProfile: (updates) => {
-    set((state) => ({ profile: { ...state.profile, ...updates } }));
+    set((state) => ({ profile: { ...state.profile, ...updates }, isDirty: true }));
     if (updates.selected_theme || updates.primary_color || updates.accent_color) {
       get().applyTheme();
     }
   },
   
   updateContacts: (updates) => set((state) => ({ 
-    contacts: { ...state.contacts, ...updates } as ContactsJson 
+    contacts: { ...state.contacts, ...updates } as ContactsJson,
+    isDirty: true
   })),
 
   toggleContact: (type) => set((state) => ({
     contacts: {
       ...state.contacts,
       [type]: { ...state.contacts[type], enabled: !state.contacts[type].enabled }
-    }
+    },
+    isDirty: true
   })),
 
   updateContactValue: (type, value) => set((state) => ({
     contacts: {
       ...state.contacts,
       [type]: { ...state.contacts[type], value }
-    }
+    },
+    isDirty: true
   })),
 
   saveProfile: async () => {
@@ -232,7 +286,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }));
       }
 
-      set({ saveSuccess: true });
+      set({ saveSuccess: true, isDirty: false });
       toast.success("Profil mis à jour");
       setTimeout(() => set({ saveSuccess: false }), 3000);
     } catch (err) {
@@ -247,14 +301,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ saving: true });
     const formData = new FormData();
     formData.append('file', file);
+    
+    const uploadPromise = api.post('/clinics/me/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    toast.promise(uploadPromise, {
+      loading: 'Détourage IA en cours... ✨',
+      success: 'Logo Premium généré avec succès !',
+      error: 'Erreur lors du traitement du logo'
+    });
+
     try {
-      const res = await api.post('/clinics/me/logo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await uploadPromise;
       set((state) => ({ profile: { ...state.profile, logo_path: res.data.logo_url } }));
-      toast.success("Logo mis à jour");
     } catch (err) {
-      toast.error("Erreur upload logo");
+      // toast already handled
     } finally {
       set({ saving: false });
     }
@@ -299,10 +361,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   // Multi-Cabinet Support
-  activeCabinetId: localStorage.getItem('active_cabinet_id') || 'benmoussa',
-  cabinets: [
-    { id: 'benmoussa', nom: 'Centre Dentaire Benmoussa', specialty: 'Dr. Benmoussa', primary_color: '#1E40AF', accent_color: '#3B82F6', theme: 'elite', caisse: 85400 }
-  ],
+  activeCabinetId: localStorage.getItem('active_cabinet_id') || 'default',
+  cabinets: [],
   switchCabinet: (id: string) => {
     const cabinet = get().cabinets.find(c => c.id === id);
     if (!cabinet) return;

@@ -16,6 +16,7 @@ import {
 import { cn } from '../../../utils/cn';
 import { api } from '../../../services/api';
 import { useEliteStore } from '../../../stores/useEliteStore';
+import { evaluateDiagnosis } from './DiagnosticEngine';
 
 interface HouseWizardProps {
   onClose: () => void;
@@ -113,124 +114,15 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
 
   // Clinically deterministic decision logic
   const calculateDiagnosis = () => {
-    let title = "Consultation Standard";
-    let description = "Examen clinique normal. Aucun traitement urgent requis.";
-    let protocol = ["PARACETAMOL 1g si douleur"];
-    let treatmentPlan = [{ phase: "CONSERVATRICE", act: "Détartrage & Polissage", price: 400 }];
-    let warnings: string[] = [];
-
-    if (motif === 'DOULEUR') {
-      if (vitality === 'POSITIVE_PERSISTANTE') {
-        title = "🦷 Pulpite Irréversible Aiguë";
-        description = "Inflammation sévère et irréversible de la pulpe. Douleur spontanée lancinante, accrue en position couchée.";
-        protocol = ["PARACETAMOL 1g x3/jour", "⚠️ AINS contre-indiqués sans couverture antibiotique"];
-        treatmentPlan = [
-          { phase: "ENDO", act: "Traitement Canalaire (Pulpectomie)", price: 1200 },
-          { phase: "PROTHESE", act: "Reconstruction Corono-Radiculaire (Inlay-Core) + Couronne", price: 3500 }
-        ];
-        warnings = ["⚠️ Risque de nécrose pulpaire rapide en l'absence de traitement étiologique direct sous digue."];
-      } else if (vitality === 'POSITIVE_TRANSITOIRE') {
-        title = "🦷 Pulpite Réversible / Hyperémie Pulpaire";
-        description = "Réaction inflammatoire pulpaire modérée liée à une carie active ou une agression mécanique.";
-        protocol = ["PARACETAMOL 500mg si besoin"];
-        treatmentPlan = [
-          { phase: "CONSERVATRICE", act: "Restauration Composite / Cavotech", price: 400 }
-        ];
-      } else if (vitality === 'NEGATIVE') {
-        if (percussion === 'POSITIVE_AXIALE') {
-          title = "🌋 Parodontite Apicale Aiguë";
-          description = "Nécrose pulpaire compliquée d'une infection du ligament parodontal apical. Dent extrudée et très douloureuse à la mastication.";
-          protocol = ["AMOXICILLINE 1g x2/jour (dalacine si allergie)", "PARACETAMOL 1g x3/jour", "🛡️ Saccharomyces Boulardii 250mg"];
-          treatmentPlan = [
-            { phase: "ENDO", act: "Ouverture de chambre & Désinfection canalaire", price: 800 },
-            { phase: "ENDO", act: "Obturation Canalaire Définitive (Gutta)", price: 1200 }
-          ];
-          warnings = ["🔴 Contre-indication formelle d'AINS seul : Risque majeur de cellulite cervico-faciale agressive."];
-        } else {
-          title = "💀 Nécrose Pulpaire Asymptomatique";
-          description = "Mortification complète de la pulpe dentaire suite à un traumatisme ou une carie profonde non traitée.";
-          protocol = [];
-          treatmentPlan = [
-            { phase: "ENDO", act: "Traitement endodontique complet", price: 1200 }
-          ];
-        }
-      }
-    } else if (motif === 'GONFLEMENT') {
-      if (palpation === 'FLUCTUANTE' || percussion === 'POSITIVE_AXIALE') {
-        title = "🌋 Abcès Périapical Aigu";
-        description = "Collection purulente localisée au niveau de l'apex radiculaire d'origine pulpaire.";
-        protocol = ["AMOXICILLINE 1g x2/jour (ou Clindamycine 600mg)", "PARACETAMOL 1g x3/jour", "🛡️ Saccharomyces Boulardii 250mg"];
-        treatmentPlan = [
-          { phase: "ENDO", act: "Ouverture & Drainage canalaire d'urgence", price: 800 },
-          { phase: "CHIRURGIE", act: "Extraction chirurgicale si dent non conservable", price: 900 }
-        ];
-        warnings = ["🔴 Urgence Médicale : Prescription immédiate d'Amoxicilline. Proscription absolue des AINS (risque de diffusion bactérienne cervico-faciale)."];
-      } else {
-        title = "🌋 Abcès Parodontal Aigu";
-        description = "Infection purulente localisée dans les tissus parodontaux de soutien.";
-        protocol = ["SPIRAMYCINE_METRONIDAZOLE 1.5MUI/250mg (Bi-Rodogyl)", "Chlorhexidine 0.12% (Bain de bouche)"];
-        treatmentPlan = [
-          { phase: "PARO", act: "Drainage de la poche & Irrigation sous-gingivale", price: 500 },
-          { phase: "PARO", act: "Surfaçage Radiculaire (SRP) après phase aiguë", price: 1500 }
-        ];
-      }
-    } else if (motif === 'PARO') {
-      if (radiology === 'PERTE_OSSEUSE') {
-        title = "🦷 Parodontite Chronique Active (EFP/AAP 2017)";
-        description = "Destruction progressive de l'os alvéolaire et du ligament parodontal d'origine bactérienne.";
-        protocol = ["AMOXICILLINE 500mg + METRONIDAZOLE 500mg x3/jour (Adjuvant)", "Bain de bouche Chlorhexidine"];
-        treatmentPlan = [
-          { phase: "PARO", act: "Bilan Parodontal & Sondage systématique", price: 600 },
-          { phase: "PARO", act: "Détartrage & Surfaçage Radiculaire (SRP) complet", price: 3000 }
-        ];
-        warnings = ["⚠️ Risque de mobilités dentaires accrues et pertes dentaires multiples sans traitement de soutien."];
-      } else {
-        title = "🩸 Gingivite Chronique Induite par la Plaque";
-        description = "Inflammation superficielle et réversible de la gencive marginale sans perte d'attache.";
-        protocol = ["Bain de bouche Chlorhexidine 0.12%"];
-        treatmentPlan = [
-          { phase: "CONSERVATRICE", act: "Détartrage supra-gingival complet & Aéropolissage", price: 500 }
-        ];
-      }
-    } else if (motif === 'LESION') {
-      if (lesionDuration === 'PLUS_14') {
-        title = "🚨 Lésion Suspecte de la Muqueuse (> 14 jours)";
-        description = "Lésion ulcérée, érythroplasique ou leucoplasique persistante au-delà de la période normale de cicatrisation de 14 jours.";
-        protocol = ["⚠️ Référer en Service Spécialisé de Stomatologie"];
-        treatmentPlan = [
-          { phase: "CHIRURGIE", act: "Biopsie anatomopathologique sous anesthésie locale", price: 1500 }
-        ];
-        warnings = ["🔴 ALERTE CARCINOME : Toute lésion muqueuse ne présentant aucune tendance à la guérison après 14 jours doit impérativement faire l'objet d'une biopsie pour dépistage précoce du cancer buccal."];
-      } else {
-        title = "👅 Lésion Traumatique Muqueuse Récente";
-        description = "Ulcération muqueuse superficielle probablement d'origine traumatique ou aphteuse.";
-        protocol = ["Gel buccal antiseptique / antalgique local"];
-        treatmentPlan = [
-          { phase: "CONSERVATRICE", act: "Élimination des facteurs irritants (dent cassée, crochet)", price: 300 }
-        ];
-        warnings = ["🕒 Règle de sécurité : À réévaluer dans 14 jours. Si la lésion persiste, planifier d'office une biopsie."];
-      }
-    }
-
-    // APPLY PHARMACOVIGILANCE
-    const atcd = medicalHistory.toLowerCase();
-    const hasPenicillinAllergy = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
-    const hasAinsAllergy = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
-
-    protocol = protocol.map(p => {
-      let modifiedP = p;
-      if (hasPenicillinAllergy && modifiedP.toLowerCase().includes('amoxicilline')) {
-        modifiedP = modifiedP.replace('AMOXICILLINE', 'CLINDAMYCINE/MACROLIDE (⚠️ Substitution cause Allergie Pénicilline)');
-        warnings.push("⚠️ Allergie à la Pénicilline détectée. Antibiothérapie modifiée automatiquement vers une classe alternative.");
-      }
-      if (hasAinsAllergy && modifiedP.toLowerCase().includes('ains')) {
-        modifiedP = modifiedP.replace('AINS', 'CORTICOSTÉROÏDES (⚠️ Substitution cause Allergie AINS)');
-        warnings.push("⚠️ Allergie aux AINS détectée. Modification du protocole anti-inflammatoire suggérée.");
-      }
-      return modifiedP;
+    return evaluateDiagnosis({
+      motif,
+      vitality,
+      percussion,
+      palpation,
+      radiology,
+      lesionDuration,
+      medicalHistory
     });
-
-    return { title, description, protocol, treatmentPlan, warnings };
   };
 
   // Dynamic Loading of Physician Act/Price Habits
@@ -264,7 +156,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
         } catch (err) {
           console.error("Error loading habits pricing:", err);
           setEditableActs(
-            baseResult.treatmentPlan.map(i => ({ ...i, enabled: true }))
+            baseResult.treatmentPlan.map((i: any) => ({ ...i, enabled: true }))
           );
         } finally {
           setIsLoadingPrices(false);
@@ -272,6 +164,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
       };
       loadHabitsAndPrices();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, motif, vitality, percussion, palpation, radiology, lesionDuration]);
 
   const handleNext = () => {
@@ -589,7 +482,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                 </div>
 
                 {/* WARNINGS */}
-                {result.warnings.map((w, idx) => (
+                {result.warnings.map((w: string, idx: number) => (
                   <div key={idx} className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex gap-2.5 items-start">
                     <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
                     <p className="text-[10px] font-bold text-rose-600 leading-normal">
@@ -605,7 +498,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
                       <ShieldCheck size={11} className="text-emerald-500" /> Recommandations Cliniques
                     </h4>
                     <ul className="space-y-1">
-                      {result.protocol.map((p, idx) => (
+                      {result.protocol.map((p: string, idx: number) => (
                         <li key={idx} className="text-[10px] font-bold text-slate-700 dark:text-slate-300 list-disc list-inside">
                           {p}
                         </li>

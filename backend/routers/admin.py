@@ -9,7 +9,7 @@ import subprocess
 import logging
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.services.zka_service import zka_service
 from backend.services.sync_manager import sync_manager
 from backend.services.qr_service import QRService
@@ -72,12 +72,20 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
         models.Appointment.status == 'EN_S_ATTENTE'
     ).count()
 
+    from datetime import timedelta
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    weekly_p = db.query(models.Patient).filter(
+        models.Patient.employer_id == emp_id,
+        models.Patient.created_at >= seven_days_ago
+    ).count()
+
     return {
         "total_patients": total_p,
         "total_analyses": total_a,
         "recent_patients": recent_list,
         "weekly_activity": weekly_activity,
-        "in_waiting": in_waiting
+        "in_waiting": in_waiting,
+        "weekly_patients": weekly_p
     }
 
 
@@ -182,13 +190,15 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
         models.ZKAPairingToken.expires_at < datetime.utcnow(),
     ).delete()
 
-    # Générer un token éphémère à usage unique (5 min)
-    pairing_token = str(uuid.uuid4())
+    # Générer un token éphémère à usage unique (5 min) - Code à 6 chiffres
+    import random
+    pairing_token = f"{random.randint(100000, 999999)}"
     db.add(models.ZKAPairingToken(
         token=pairing_token,
         employer_id=emp_id,
         public_id=config.public_id,
         master_key=master_key,
+        role=current_user.role.value if current_user.role else "DENTISTE",
         expires_at=datetime.utcnow() + timedelta(minutes=5),
     ))
     db.commit()
@@ -211,6 +221,7 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
             "qr_code": f"data:image/png;base64,{img_str}",
             "expires_in": 300,
             "lan_url": base_url,
+            "token_code": pairing_token,
         }
     except Exception as e:
         logger.error(f"Erreur génération QR ZKA: {e}")
@@ -236,3 +247,56 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
     except Exception as e:
         logger.error(f"Erreur lors de la révocation ZKA: {e}")
         raise HTTPException(status_code=500, detail="Échec de la révocation")
+
+@router.get("/backups")
+def list_backups(current_user: models.User = Depends(require_permission("admin"))):
+    """Liste les sauvegardes chiffrées existantes."""
+    from backend.core.paths import AppPaths
+    import os
+    from datetime import datetime
+
+    backups_dir = AppPaths.get_user_data_dir() / "backups"
+    if not backups_dir.exists():
+        return []
+
+    backups = []
+    for f in os.listdir(backups_dir):
+        if f.endswith(".enc"):
+            path = backups_dir / f
+            stat = path.stat()
+            backups.append({
+                "filename": f,
+                "size_bytes": stat.st_size,
+                "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+            
+    return sorted(backups, key=lambda x: x["created_at"], reverse=True)
+
+@router.post("/backups/trigger")
+def trigger_backup(current_user: models.User = Depends(require_permission("admin"))):
+    """Déclenche manuellement une sauvegarde chiffrée de la base de données."""
+    from backend.services.backup_service import backup_service
+    
+    success = backup_service.run_daily_backup()
+    if success:
+        return {"status": "success", "message": "Sauvegarde chiffrée générée avec succès."}
+    else:
+        raise HTTPException(status_code=500, detail="Échec de la sauvegarde chiffrée.")
+
+@router.get("/backups/download/{filename}")
+def download_backup(filename: str, current_user: models.User = Depends(require_permission("admin"))):
+    """Télécharge un fichier de sauvegarde."""
+    from backend.core.paths import AppPaths
+    from fastapi.responses import FileResponse
+    import os
+    
+    if not filename.endswith(".enc"):
+        raise HTTPException(status_code=400, detail="Fichier invalide.")
+        
+    backups_dir = AppPaths.get_user_data_dir() / "backups"
+    file_path = backups_dir / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Fichier introuvable.")
+        
+    return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")

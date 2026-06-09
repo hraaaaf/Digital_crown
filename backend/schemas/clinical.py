@@ -62,8 +62,8 @@ class AnalysisMetrics(BaseModel):
 class CephaloAnalysisOut(BaseModel):
     id: int
     image_original_path: str
-    angles_data: Optional[Dict] = None
-    landmarks_data: Optional[Dict] = None
+    angles_data: Optional[Any] = None
+    landmarks_data: Optional[Any] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -129,6 +129,7 @@ class CephaloAnalysisResult(BaseModel):
     metrics: AnalysisMetrics
     visual_debug: Dict[str, Any]
     t1_projection: Dict[str, Tuple[float, float]]
+    t2_projection: Dict[str, Tuple[float, float]]
     ai_narrative: Optional[Dict[str, str]] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
     clinical_data: ClinicalData

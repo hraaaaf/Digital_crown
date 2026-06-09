@@ -3,13 +3,15 @@
  * Modal de sélection des traitements - Elite Data Table Edition
  * Design Premium Onyx & Ghost Intelligence
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Check, Clock, Zap, Search, Plus, Star } from 'lucide-react';
 import type { ToothNumberFDI, ToothTreatment, ToothSurface } from './types';
-import { TREATMENT_TEMPLATES, TREATMENTS_BY_CATEGORY, TOOTH_NAMES, CATEGORY_LABELS } from './types';
+import { TOOTH_NAMES } from './types';
 import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
+import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 
 interface TreatmentSelectorProps {
   toothNumber: ToothNumberFDI;
@@ -61,6 +63,52 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   const [activeCategory, setActiveCategory] = useState<string>('FREQUENTS');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const { specialties, fetchCatalog } = useCatalogStore();
+
+  const CATEGORY_LABELS = useMemo(() => {
+    const labels: Record<string, string> = {};
+    specialties.forEach(s => {
+      labels[s.name] = s.name;
+    });
+    return labels;
+  }, [specialties]);
+
+  const TREATMENTS_BY_CATEGORY = useMemo(() => {
+    const treatments: Record<string, Omit<ToothTreatment, 'price'>[]> = {};
+    specialties.forEach(s => {
+      treatments[s.name] = s.acts.map(act => ({
+        id: `act_${act.id}`,
+        name: act.name,
+        category: s.name as any,
+        scope: 'UNITAIRE',
+        duration: 30,
+        code: act.code,
+      }));
+    });
+    return treatments;
+  }, [specialties]);
+
+  const TREATMENT_TEMPLATES = useMemo(() => {
+    return Object.values(TREATMENTS_BY_CATEGORY).flat();
+  }, [TREATMENTS_BY_CATEGORY]);
+
+  useEffect(() => {
+    if (specialties.length === 0) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, specialties.length]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+    if (!embedded) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [embedded]);
 
   const toothName = TOOTH_NAMES[toothNumber];
   
@@ -100,13 +148,13 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
   const containerClasses = embedded 
     ? "w-full h-full flex flex-col overflow-hidden bg-slate-900"
-    : "fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-10 bg-slate-950/80 backdrop-blur-xl";
+    : "fixed inset-0 z-[100000] flex items-center justify-center p-4 md:p-10 bg-slate-800/40 backdrop-blur-md";
 
   const modalClasses = embedded
     ? "w-full h-full flex flex-col overflow-hidden"
-    : "bg-white rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.5)] w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden border border-white/20";
+    : "bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.3)] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-white/50";
 
-  return (
+  const content = (
     <div className={containerClasses}>
       <motion.div
         initial={embedded ? { opacity: 0, x: 20 } : { opacity: 0, scale: 0.9, y: 40 }}
@@ -140,27 +188,26 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
           <div className={cn("flex-1 flex flex-col min-w-0", embedded ? "bg-white/5" : "bg-slate-50/30")}>
             
             {/* Toolbar */}
-            <div className="p-6 pb-0 shrink-0">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative flex-1 group">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un acte (Composite, Extraction, Couronne...)"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      if (e.target.value.length > 0) setActiveCategory('SEARCH');
-                      else setActiveCategory('FREQUENTS');
-                    }}
-                    className={cn(
-                      "w-full pl-14 pr-6 py-4 border rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all shadow-sm",
-                      embedded ? "bg-white/10 border-white/10 text-white placeholder:text-white/20" : "bg-white border-slate-200 text-slate-800"
-                    )}
-                  />
-                </div>
-                
-                <div className="flex flex-wrap justify-center bg-slate-200/50 p-1.5 rounded-2xl shrink-0 gap-1">
+            <div className="p-6 pb-0 shrink-0 flex flex-col gap-4 mb-4">
+              <div className="relative w-full group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un acte (Composite, Extraction, Couronne...)"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value.length > 0) setActiveCategory('SEARCH');
+                    else setActiveCategory('FREQUENTS');
+                  }}
+                  className={cn(
+                    "w-full pl-14 pr-6 py-4 border rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all shadow-sm",
+                    embedded ? "bg-white/10 border-white/10 text-white placeholder:text-white/20" : "bg-white border-slate-200 text-slate-800"
+                  )}
+                />
+              </div>
+              
+              <div className="flex flex-wrap bg-slate-200/50 p-1.5 rounded-2xl gap-1">
                   <button
                     onClick={() => { setActiveCategory('FREQUENTS'); setSearchQuery(''); }}
                     className={cn(
@@ -168,6 +215,13 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                       activeCategory === 'FREQUENTS' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
                   >Favoris</button>
+                  <button
+                    onClick={() => { setActiveCategory('ALL'); setSearchQuery(''); }}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      activeCategory === 'ALL' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >Tous les actes</button>
                   {Object.keys(TREATMENTS_BY_CATEGORY).map(cat => (
                     <button
                       key={cat}
@@ -179,7 +233,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                     >{CATEGORY_LABELS[cat]}</button>
                   ))}
                 </div>
-              </div>
             </div>
 
             {/* Elite Data Table */}
@@ -199,6 +252,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                       let items = [];
                       if (activeCategory === 'SEARCH') items = TREATMENT_TEMPLATES.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
                       else if (activeCategory === 'FREQUENTS') items = frequentActs;
+                      else if (activeCategory === 'ALL') items = TREATMENT_TEMPLATES;
                       else items = TREATMENTS_BY_CATEGORY[activeCategory] || [];
 
                       return (items as (ActHistory | Omit<ToothTreatment, 'price'>)[]).map(template => {
@@ -283,30 +337,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
           {/* Right: Elite Panel */}
           <div className={cn("w-full lg:w-[18rem] border-l p-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-100")}>
-            <div className="mb-10">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
-                <Zap className="w-5 h-5 text-primary" /> Configuration Surfaces
-              </h3>
-              <div className="grid grid-cols-5 gap-2">
-                {SURFACES.map(({ code, label }) => (
-                  <button
-                    key={code}
-                    onClick={() => toggleSurface(code)}
-                    className={cn(
-                      "aspect-square rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 group",
-                      selectedSurfaces.includes(code)
-                        ? "bg-primary border-primary text-white shadow-xl shadow-primary/20"
-                        : "bg-slate-50 border-transparent text-slate-400 hover:border-slate-200 hover:text-slate-600"
-                    )}
-                    style={selectedSurfaces.includes(code) ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : {}}
-                    title={label}
-                  >
-                    <span className="text-xl font-black">{code}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="mb-10 flex-1">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Notes Cliniques</h3>
               <textarea
@@ -348,6 +378,10 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
       </motion.div>
     </div>
   );
+
+  if (!mounted) return null;
+  if (embedded) return content;
+  return createPortal(content, document.body);
 };
 
 export default TreatmentSelector;

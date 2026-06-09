@@ -46,20 +46,15 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
   const certifTypes = [
-    { id: 'Repos Post-Opératoire', label: 'Repos Post-Op', icon: <Clock size={14} /> },
-    { id: 'Suite d\'Intervention', label: 'Suite d\'Acte', icon: <CheckCircle2 size={14} /> },
+    { id: 'Arrêt de travail', label: 'Arrêt de travail', icon: <Clock size={14} /> },
     { id: 'Certificat de Présence', label: 'Présence (Soin)', icon: <CheckCircle2 size={14} /> },
-    { id: 'Certificat d\'aptitude', label: 'Aptitude / Sport', icon: <CheckCircle2 size={14} /> },
-    { id: 'Certificat de Reprise', label: 'Reprise Travail', icon: <CheckCircle2 size={14} /> },
-    { id: 'Contre-indication', label: 'Contre-Indication', icon: <AlertCircle size={14} /> },
-    { id: 'Autre', label: 'Autre motif', icon: <Edit3 size={14} /> },
+    { id: 'Autre', label: 'Modèle Libre', icon: <Edit3 size={14} /> },
   ];
 
-
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-2xl mx-auto py-8">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl w-full mx-auto py-8">
       <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
 
         <div className="relative z-10 space-y-10">
           {/* TYPE DE CERTIFICAT */}
@@ -98,12 +93,8 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     {type.label}
                   </button>
                   <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4">
-                    {type.id === 'Repos Post-Opératoire' && "Génère un arrêt de travail"}
-                    {type.id === 'Suite d\'Intervention' && "Génère un certificat de soins"}
-                    {type.id === 'Certificat de Présence' && "Génère un justificatif horaire"}
-                    {type.id === 'Certificat d\'aptitude' && "Génère un certificat médical"}
-                    {type.id === 'Certificat de Reprise' && "Génère un avis de reprise"}
-                    {type.id === 'Contre-indication' && "Génère une inaptitude tempo."}
+                    {type.id === 'Arrêt de travail' && "Génère un arrêt de travail / repos"}
+                    {type.id === 'Certificat de Présence' && "Génère un justificatif de présence"}
                     {type.id === 'Autre' && "Saisie libre du motif"}
                   </span>
                 </div>
@@ -130,7 +121,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <label className={labelClass + " mb-1"}>Durée du repos</label>
-                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'interventions faciales.</p>
+                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'actes bucco-dentaires.</p>
                 </div>
                 <span className="text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
                   {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
@@ -140,7 +131,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <input
                 type="range"
                 min="1"
-                max="15"
+                max="30"
                 step="1"
                 value={certifDays}
                 onChange={(e) => setCertifDays(parseInt(e.target.value))}

@@ -20,6 +20,7 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ isEmbedded = false }
   useEffect(() => {
     const completed = localStorage.getItem(TOUR_STORAGE_KEY);
     if (!completed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsFirstVisit(true);
       // Auto-lancement au premier accès (délai pour le layout)
       const timer = setTimeout(() => setIsOpen(true), 1500);

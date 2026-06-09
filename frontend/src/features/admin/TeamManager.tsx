@@ -32,6 +32,7 @@ interface TeamMember {
     patients?: boolean;
     prescriptions?: boolean;
     accounting?: boolean;
+    payments?: boolean;
     panoramic?: boolean;
     cephalo?: boolean;
     settings?: boolean;
@@ -43,11 +44,13 @@ interface CreateForm {
   password: string;
   nom_complet: string;
   telephone_mobile: string;
+  role: string;
   permissions: {
     agenda: boolean;
     patients: boolean;
     prescriptions: boolean;
     accounting: boolean;
+    payments: boolean;
     panoramic: boolean;
     cephalo: boolean;
     settings: boolean;
@@ -71,11 +74,13 @@ export const TeamManager: React.FC = () => {
     password: '',
     nom_complet: '',
     telephone_mobile: '',
+    role: 'SECRETAIRE',
     permissions: {
       agenda: true,
       patients: true,
       prescriptions: false,
       accounting: false,
+      payments: false,
       panoramic: false,
       cephalo: false,
       settings: false
@@ -84,8 +89,13 @@ export const TeamManager: React.FC = () => {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const res = await api.get('/team/');
-      setMembers(res.data);
+      const res = await api.get(`/team/?_t=${Date.now()}`);
+      if (Array.isArray(res.data)) {
+        setMembers(res.data);
+      } else {
+        console.error("Erreur: L'API n'a pas retourné une liste", res.data);
+        setMembers([]);
+      }
     } catch {
       console.error("Erreur chargement équipe");
     } finally {
@@ -111,11 +121,13 @@ export const TeamManager: React.FC = () => {
         password: '',
         nom_complet: '',
         telephone_mobile: '',
+        role: 'SECRETAIRE',
         permissions: {
           agenda: true,
           patients: true,
           prescriptions: false,
           accounting: false,
+          payments: false,
           panoramic: false,
           cephalo: false,
           settings: false
@@ -125,7 +137,29 @@ export const TeamManager: React.FC = () => {
       fetchMembers();
       setTimeout(() => setSuccess(null), 4000);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erreur lors de la création du compte.");
+      let errorMessage = "Erreur lors de la création du compte.";
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          // FastAPI Validation Error
+          const msgs = detail.map(d => {
+            if (d.loc?.includes('password') && d.type === 'string_too_short') {
+              return "Le mot de passe doit contenir au moins 4 caractères.";
+            }
+            if (d.loc?.includes('email')) {
+              return "L'adresse email est invalide.";
+            }
+            if (d.loc?.includes('nom_complet') && d.type === 'string_too_short') {
+              return "Le nom complet est trop court.";
+            }
+            return "Vérifiez vos informations.";
+          });
+          errorMessage = msgs[0]; // On affiche la première erreur pour ne pas surcharger
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      }
+      setError(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -164,7 +198,7 @@ export const TeamManager: React.FC = () => {
           <div>
             <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>Mon Équipe</h3>
             <p className="text-slate-500 text-sm font-medium mt-1">
-              Gérez les sous-comptes de vos assistantes. Elles auront un accès restreint (Agenda, Patients, Salle d'attente).
+              Gérez les sous-comptes de vos collaborateurs (Assistantes, Dentistes associés).
             </p>
           </div>
         </div>
@@ -174,7 +208,7 @@ export const TeamManager: React.FC = () => {
           style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 25px -8px var(--primary)' }}
         >
           {showForm ? <X size={18} /> : <UserPlus size={18} />}
-          {showForm ? 'Annuler' : 'Ajouter une assistante'}
+          {showForm ? 'Annuler' : 'Ajouter un membre'}
         </button>
       </div>
 
@@ -207,7 +241,7 @@ export const TeamManager: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
-                Nom complet de l'assistante
+                Nom complet du collaborateur
               </label>
               <div className="relative">
                 <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -221,6 +255,30 @@ export const TeamManager: React.FC = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+                Rôle du collaborateur
+              </label>
+              <select
+                value={form.role}
+                onChange={(e) => {
+                  const role = e.target.value;
+                  setForm(f => ({
+                    ...f,
+                    role,
+                    permissions: role === 'DENTISTE' 
+                      ? { agenda: true, patients: true, prescriptions: true, accounting: true, payments: true, panoramic: true, cephalo: true, settings: false }
+                      : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, panoramic: false, cephalo: false, settings: false }
+                  }));
+                }}
+                className="w-full px-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
+              >
+                <option value="SECRETAIRE">Assistante (Accès restreint par défaut)</option>
+                <option value="DENTISTE">Dentiste Associé (Accès complet par défaut)</option>
+              </select>
             </div>
 
             <div>
@@ -294,6 +352,7 @@ export const TeamManager: React.FC = () => {
                   { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
                   { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
+                  { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
                   { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
                   { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                   { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
@@ -340,7 +399,7 @@ export const TeamManager: React.FC = () => {
               {creating ? 'Création en cours...' : 'Créer le compte'}
             </button>
             <p className="text-xs text-slate-400 font-medium max-w-xs">
-              L'assistante pourra se connecter avec cet email et ce mot de passe.
+              L'accès de ce membre sera sécurisé avec cet email et ce mot de passe.
             </p>
           </div>
         </form>
@@ -356,9 +415,9 @@ export const TeamManager: React.FC = () => {
           <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6" style={{ color: 'var(--primary)' }}>
             <Users size={36} />
           </div>
-          <h4 className="text-xl font-black text-slate-700">Aucune assistante enregistrée</h4>
+          <h4 className="text-xl font-black text-slate-700">Aucun membre dans l'équipe</h4>
           <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto">
-            Ajoutez un premier sous-compte pour permettre à votre assistante de gérer l'agenda et la file d'attente des patients.
+            Ajoutez un premier sous-compte pour permettre à votre équipe de gérer le cabinet.
           </p>
         </div>
       ) : (

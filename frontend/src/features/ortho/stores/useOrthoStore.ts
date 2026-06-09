@@ -24,6 +24,7 @@ interface OrthoState {
   performanceMode: boolean;
   isStep1Fullscreen: boolean;
   vtoSettings: VTOSettings;
+  activeMorphing: 'none' | 'T1' | 'T2';
   anglesData: Record<string, any>;
   visionMetadata: any;
   
@@ -75,6 +76,7 @@ interface OrthoState {
   setPerformanceMode: (enabled: boolean) => void;
   setIsStep1Fullscreen: (updater: boolean | ((prev: boolean) => boolean)) => void;
   setVtoSettings: (updater: VTOSettings | ((prev: VTOSettings) => VTOSettings)) => void;
+  setActiveMorphing: (morphing: 'none' | 'T1' | 'T2') => void;
   setAnglesData: (data: Record<string, any>) => void;
   setVisionMetadata: (meta: any) => void;
   
@@ -98,6 +100,7 @@ interface OrthoState {
   setPreviewPdfUrl: (url: string | null) => void;
   setIsPreviewLoading: (loading: boolean) => void;
   setSyncState: (state: SyncState) => void;
+  clearSyncTimer: () => void;
 
   // Actions API & Logique Métier
   runAnalysis: (file: File) => Promise<void>;
@@ -123,7 +126,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   activePointId: null,
   imgFilters: { brightness: 100, contrast: 110, invert: false },
   imgDim: { w: 800, h: 1000 },
-  mode: (document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige') ? 'dark' : 'light',
+  mode: (typeof document !== 'undefined' && (document.body?.dataset?.theme === 'dark' || document.body?.dataset?.theme === 'prestige')) ? 'dark' : 'light',
   magnifierEnabled: false,
   performanceMode: false,
   isStep1Fullscreen: false,
@@ -135,6 +138,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     l1_offset: { x: 0, y: 0 },
     mand_offset: { x: 0, y: 0 }
   },
+  activeMorphing: 'none',
   anglesData: {},
   visionMetadata: {},
   
@@ -148,20 +152,22 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
 
   ddm: { maxillaire: '', mandibulaire: '' },
   diag: {
+    analyse_dentaire: '',
     diagnostic_squelettique: '',
     analyse_moulages: '',
     synthese_diagnostique: '',
     strategie_therapeutique: ''
   },
   etape2Data: { 
-    occlusal: { molaire_gauche: 'I', molaire_droite: 'I', canine_gauche: 'I', canine_droite: 'I' } 
+    occlusal: { molaire_gauche: 'I', molaire_droite: 'I', canine_gauche: 'I', canine_droite: 'I' },
+    type_arcade: null
   },
   etape3Data: {
     age: '', cvm: '', date_teles: new Date().toISOString().split('T')[0],
     dentaire: { surplomb: '', recouvrement: '', impa: '', i_francfort: '', inter_incisif: '' },
     osseuse: { angle_tweed: '', decalage_ab: '', situation_a: '', situation_b: '', profondeur_faciale: '', sna: '', snb: '', anb: '' },
     esthetique: { ligne_e_ls: '', ligne_e_li: '', angle_nasolabial: '' },
-    ddm_clinique: '', ddm_cephalo: '', division: null, type_arcade: null, classe_squelettique: '',
+    ddm_clinique: '', ddm_cephalo: '', division: null, classe_squelettique: '',
     pattern_vertical: '', profil: '', severite_ddm: '', subdivision: false, analyse_moulages_auto: '',
     selectedAnalysis: 'COM',
     denture_type: 'PERMANENTE', preference_technique: 'DAMON'
@@ -210,7 +216,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         set(s => ({
           photos: s.photos.map(p => ({ ...p, preview: parsed[p.id] || null }))
         }));
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse savedPhotos", err);
+      }
     }
     if (savedMeta) {
       try {
@@ -219,13 +227,15 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
           dateConsultation: parsed.dateConsultation || new Date().toISOString().split('T')[0],
           sexePatient: parsed.sexePatient || 'M'
         });
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse savedMeta", err);
+      }
     }
     if (savedE2) {
-      try { set({ etape2Data: JSON.parse(savedE2) }); } catch {}
+      try { set({ etape2Data: JSON.parse(savedE2) }); } catch (err) { console.warn(err); }
     }
     if (savedE3) {
-      try { set({ etape3Data: JSON.parse(savedE3) }); } catch {}
+      try { set({ etape3Data: JSON.parse(savedE3) }); } catch (err) { console.warn(err); }
     }
   },
   setAnalysisId: (id) => set({ analysisId: id }),
@@ -239,6 +249,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setPerformanceMode: (enabled) => set({ performanceMode: enabled }),
   setIsStep1Fullscreen: (updater) => set((state) => ({ isStep1Fullscreen: typeof updater === 'function' ? updater(state.isStep1Fullscreen) : updater })),
   setVtoSettings: (updater) => set((state) => ({ vtoSettings: typeof updater === 'function' ? updater(state.vtoSettings) : updater })),
+  setActiveMorphing: (morphing) => set({ activeMorphing: morphing }),
   setAnglesData: (data) => set({ anglesData: data }),
   setVisionMetadata: (meta) => set({ visionMetadata: meta }),
   setIsCalibrated: (calibrated) => set({ isCalibrated: calibrated }),
@@ -271,6 +282,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setPreviewPdfUrl: (url) => set({ previewPdfUrl: url }),
   setIsPreviewLoading: (loading) => set({ isPreviewLoading: loading }),
   setSyncState: (s) => set({ syncState: s }),
+  clearSyncTimer: () => {
+    if (syncTimer) { clearTimeout(syncTimer); syncTimer = undefined; }
+  },
 
   handlePhotoUpload: (id, file) => {
     const url = URL.createObjectURL(file);
@@ -377,8 +391,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         }
       }
       if (data.landmarks) {
-        const landmarksWithApex = initializeDefaultApexes(data.landmarks);
-        set({ local: { landmarks: landmarksWithApex, version: 1 } });
+        set({ local: { landmarks: data.landmarks, version: 1 } });
       }
       if (data.results?.ai_narrative) {
         const n = data.results.ai_narrative;
@@ -415,7 +428,9 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const projections = computeMcNamaraProjections(s.local.landmarks);
       await cephaloRepository.saveAnalysis(aid, buildPayload(s.local.landmarks, max, mand, real, s.diag, projections, s.mmPerPixel, s.etape2Data, s.etape3Data));
-    } catch {}
+    } catch (err) {
+      console.warn("Silent save failed:", err);
+    }
   },
 
   handleSave: async () => {

@@ -21,6 +21,13 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserSignup(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=4)
+    nom_complet: str = Field(min_length=2)
+    telephone_mobile: Optional[str] = None
+    adresse_complete: Optional[str] = None
+
 
 class UserOut(BaseModel):
     id: int
@@ -30,14 +37,17 @@ class UserOut(BaseModel):
     is_active: bool = True
     employer_id: Optional[int] = None
     permissions: Optional[dict] = None
+    is_licensed: Optional[bool] = None
+    license_expires_at: Optional[datetime.datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 
 class TeamMemberCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=4)
     nom_complet: str = Field(min_length=2)
+    role: Optional[str] = "SECRETAIRE"
     telephone_mobile: Optional[str] = None
     permissions: Optional[dict] = None
 
@@ -48,7 +58,7 @@ class TeamMemberUpdate(BaseModel):
     email: Optional[EmailStr] = None
     telephone_mobile: Optional[str] = None
     is_active: Optional[bool] = None
-    new_password: Optional[str] = Field(None, min_length=8)
+    new_password: Optional[str] = Field(None, min_length=4)
     permissions: Optional[dict] = None
 
 

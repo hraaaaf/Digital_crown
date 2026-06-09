@@ -24,6 +24,10 @@ from .patient import (
     PatientUpdate,
     PatientCreate,
     PatientOut,
+    TreatmentPlanStepBase,
+    TreatmentPlanStepCreate,
+    TreatmentPlanStepOut,
+    TreatmentMasterPlanOut,
 )
 
 from .appointments import (
@@ -158,6 +162,7 @@ from .auth import (
     TokenData,
     UserLogin,
     UserOut,
+    UserSignup,
     TeamMemberCreate,
     TeamMemberUpdate,
     TeamMemberOut,
@@ -220,7 +225,7 @@ __all__ = [
     "DocumentTemplateBase", "DocumentTemplateCreate", "DocumentTemplateUpdate",
     "DocumentTemplateOut", "DocumentTemplateList", "TemplatePreviewRequest",
     # auth
-    "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut",
+    "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut", "UserSignup",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
     "SupabaseSyncRequest",
     # branding
