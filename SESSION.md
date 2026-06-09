@@ -46,7 +46,16 @@
 - **Fichier** : `frontend/src/pages/Dashboard.tsx`
 - **Commit** : `1dc0215`
 
-#### 6. Fix : Double `/api` dans AgendaStudio
+#### 6. Feat : Dictionnaire de motifs de première consultation + Ghost Brain
+- **Problème** : Le motif de consultation était un textarea libre — non structuré, inutilisable par l'IA.
+- **Solution** : 
+  - `motifsDictionary.ts` : 9 catégories cliniques, 47 motifs (DOULEUR, URGENCE, PARO, ESTHÉTIQUE, CONSERVATRICE, PROTHÈSE, ORTHODONTIE, IMPLANTO, PRÉVENTION). Chaque motif a un niveau d'urgence, des `specialty_hints` et `act_hints`.
+  - `MotifSelector.tsx` : sélecteur à tags avec recherche, catégories dépliables, badges urgence, compteur par catégorie, alerte "URGENCE DÉTECTÉE" si motif urgent sélectionné.
+  - `AddPatientForm.tsx` : textarea remplacé par MotifSelector. Stockage JSON array d'IDs (rétrocompatible : ancien texte libre affiché tel quel).
+  - `clinical_intelligence.py` : `MOTIF_CATALOG` backend + `_resolve_motifs()` pour parser. `get_patient_summary()` génère des alertes automatiques pour les motifs urgents et retourne `motif_specialties` + `motif_treatment_hints` pour injection dans le plan de traitement.
+- **Commit** : `3b59f77`
+
+#### 7. Fix : Double `/api` dans AgendaStudio
 - **Cause** : `AgendaStudio.tsx` appelait `api.get('/api/upcoming-holidays')` et `api.get('/api/agenda/settings')` alors que l'instance `api` a déjà `baseURL = '.../api'`. Résultat : `/api/api/upcoming-holidays` → 307 → 404.
 - **Fix** : Suppression du préfixe `/api/` redondant sur les 3 appels (`/upcoming-holidays`, `/agenda/settings`, `/agenda/exceptions`).
 - **Fichier** : `frontend/src/features/agenda/AgendaStudio.tsx`
