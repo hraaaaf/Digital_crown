@@ -40,6 +40,12 @@
 ### 🛠️ Commits Pushés
 - `2ba65f6` — `fix: eliminate double DB connection per request and 307 redirect loop`
 
+#### 5. Fix : Double `/api` dans AgendaStudio
+- **Cause** : `AgendaStudio.tsx` appelait `api.get('/api/upcoming-holidays')` et `api.get('/api/agenda/settings')` alors que l'instance `api` a déjà `baseURL = '.../api'`. Résultat : `/api/api/upcoming-holidays` → 307 → 404.
+- **Fix** : Suppression du préfixe `/api/` redondant sur les 3 appels (`/upcoming-holidays`, `/agenda/settings`, `/agenda/exceptions`).
+- **Fichier** : `frontend/src/features/agenda/AgendaStudio.tsx`
+- **Commit** : `2d88f3e`
+
 ---
 
 ### 📋 Points de Vigilance
