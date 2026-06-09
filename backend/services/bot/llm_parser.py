@@ -87,9 +87,10 @@ Exemple de sortie :
                         entities[key] = data_sanitizer.restore(val, mapping)
                         
                 intent_str = parsed_json.get("intent", "UNKNOWN")
-                
+                entities = self._normalize_entities(entities)
+
                 logger.info(f"LLM parsed intent: {intent_str} with entities: {entities}")
-                
+
                 return ParsedIntent(
                     intent=intent_str,
                     confidence=0.9,
@@ -103,5 +104,14 @@ Exemple de sortie :
         except Exception as e:
             logger.warning(f"LLM parsing failed ({e}). Fallback to Regex.")
             return self.fallback_parser.parse(message)
+
+    def _normalize_entities(self, entities: dict) -> dict:
+        """Aligne les clés LLM sur le schéma attendu par l'ActionDispatcher."""
+        key_map = {
+            "date": "target_date",
+            "tooth": "tooth_number",
+        }
+        return {key_map.get(k, k): v for k, v in entities.items() if v}
+
 
 llm_parser = LLMIntentParser()

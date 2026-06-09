@@ -192,4 +192,9 @@ async def bot_execute(
     """
     Exécute une action en attente (pending_action) après confirmation utilisateur.
     """
-    return {"status": "success", "message": "Action exécutée via endpoint métier."}
+    pending_action = payload.get("pending_action")
+    if not pending_action:
+        raise HTTPException(status_code=400, detail="pending_action manquant")
+
+    response = dispatcher.execute(pending_action, db, current_user)
+    return response.to_dict()
