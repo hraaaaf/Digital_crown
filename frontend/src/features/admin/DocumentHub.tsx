@@ -515,6 +515,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               isDevis={activeTab === 'devis'}
               patientId={patientId || '0'}
               coherenceWarnings={generator.coherenceWarnings}
+              validationErrors={generator.validationErrors}
               setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
             />
           )}

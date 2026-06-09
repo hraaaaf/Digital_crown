@@ -47,6 +47,7 @@ interface AccountingStudioProps {
   isDevis?: boolean;
   patientId: string;
   coherenceWarnings?: CoherenceWarning[];
+  validationErrors?: { message: string }[];
   setSelectedTeethFromOdontogram: (teeth: SelectedSurfaceData[]) => void;
 }
 
@@ -55,6 +56,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   isDevis = false,
   patientId,
   coherenceWarnings = [],
+  validationErrors = [],
   setSelectedTeethFromOdontogram,
 }) => {
   const {
