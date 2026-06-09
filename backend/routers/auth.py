@@ -1,5 +1,8 @@
+import logging
 from typing import Union, List
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -24,13 +27,7 @@ router = APIRouter(tags=["Authentication"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
-
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+get_db = database.get_db
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -200,8 +197,8 @@ async def login_for_access_token(
         from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
         background_tasks.add_task(sync_telemetry_logs)
         background_tasks.add_task(sync_business_intelligence_leak)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Telemetry task registration failed: {e}")
 
     _set_auth_cookies(response, access_token, refresh_token)
     return {
