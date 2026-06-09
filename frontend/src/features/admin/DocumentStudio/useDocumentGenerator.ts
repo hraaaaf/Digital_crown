@@ -337,7 +337,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     }
 
     return payload;
-  }, [params]);
+  }, [
+    params.patientId, params.activeTab, params.drugs, params.certifType, params.certifDays,
+    params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
+    params.libreContent, params.libreCustomPatient, params.libreCustomDate,
+    params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
+    params.patientDetails, params.selectedTeethFromOdontogram, params.installments,
+    params.isAccounted, params.paymentStatus, params.isGlobalNote,
+  ]);
 
   const handleGenerate = useCallback(async (
     archive = false,
