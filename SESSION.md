@@ -61,6 +61,14 @@
 - **Fichier** : `frontend/src/features/agenda/AgendaStudio.tsx`
 - **Commit** : `2d88f3e`
 
+#### 8. Feat : CrownBot Copilote — fusion Ghost Brain + Guide contextuel (en cours)
+- **Objectif** : Désencombrer le header (supprimer GuideTower Compass + EliteAssistant orbe embedded), tout consolider dans le bouton bot flottant bas-droite.
+- **Architecture retenue** :
+  - Header : ne garde que Bell (treasury), Settings, Profil, Logout
+  - CrownBot enrichi : message d'accueil dynamique selon la page courante (`useLocation` → suggestions d'actions contextuelles), Ghost Brain insights intégrés comme messages proactifs dans le chat, bouton flottant pulse si insights non lus
+  - `GhostBrainWidget` absorbé dans `CrownBotChat`
+  - `GuideTower` logique migrée dans le message d'ouverture du bot
+
 ---
 
 ### 📋 Points de Vigilance
