@@ -34,6 +34,73 @@ interface GhostInsight {
 
 type Tab = 'chat' | 'brain';
 
+function PendingActionCard({
+  action,
+  onConfirm,
+  onCancel,
+}: {
+  action: any;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const p = action?.params ?? {};
+  const type = action?.type ?? '';
+
+  const rows: { label: string; value: string }[] = [];
+
+  if (type === 'CREATE_APPOINTMENT') {
+    if (p.patient_name || p.patient_id) rows.push({ label: 'Patient', value: p.patient_name || `#${p.patient_id}` });
+    if (p.datetime_start) {
+      const d = new Date(p.datetime_start);
+      rows.push({ label: 'Date', value: d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) });
+      rows.push({ label: 'Heure', value: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) });
+    }
+    if (p.motif) rows.push({ label: 'Motif', value: p.motif });
+    if (p.duration_minutes) rows.push({ label: 'Durée', value: `${p.duration_minutes} min` });
+  } else if (type === 'OPEN_PRESCRIPTION_EDITOR') {
+    if (p.patient_id || p.patient_name) rows.push({ label: 'Patient', value: p.patient_name || `#${p.patient_id}` });
+    if (p.procedure) rows.push({ label: 'Acte', value: p.procedure });
+    if (p.suggested_drugs?.length) {
+      rows.push({ label: 'Médicaments', value: p.suggested_drugs.map((d: any) => d.name || d).join(', ') });
+    }
+  } else if (type === 'OPEN_DEVIS_EDITOR') {
+    if (p.patient_id || p.patient_name) rows.push({ label: 'Patient', value: p.patient_name || `#${p.patient_id}` });
+    if (p.procedure) rows.push({ label: 'Acte', value: p.procedure });
+    if (p.tooth_number) rows.push({ label: 'Dent', value: p.tooth_number });
+  }
+
+  const label = type === 'CREATE_APPOINTMENT' ? '📅 Créer ce rendez-vous ?'
+    : type === 'OPEN_PRESCRIPTION_EDITOR' ? '💊 Ouvrir l\'éditeur d\'ordonnance ?'
+    : type === 'OPEN_DEVIS_EDITOR' ? '📄 Ouvrir le module devis ?'
+    : '✅ Confirmer cette action ?';
+
+  return (
+    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-[12px]">
+      <p className="text-xs font-bold text-amber-800 mb-2">{label}</p>
+      {rows.length > 0 && (
+        <div className="space-y-1 mb-3">
+          {rows.map((row, i) => (
+            <div key={i} className="flex items-start gap-2 text-[11px]">
+              <span className="text-amber-600 font-bold w-20 shrink-0">{row.label}</span>
+              <span className="text-slate-700 font-medium">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button onClick={onConfirm}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-[8px] transition-colors">
+          <Check size={14} /> Confirmer
+        </button>
+        <button onClick={onCancel}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-[8px] transition-colors">
+          <XCircle size={14} /> Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const TypewriterText = ({ text, delay = 5 }: { text: string; delay?: number }) => {
   const [current, setCurrent] = useState('');
   const [idx, setIdx] = useState(0);
@@ -265,9 +332,18 @@ export function CrownBotChat({
     setIsLoading(true);
     try {
       const res = await api.post('/bot/execute', { pending_action: actionData });
+      const data = res.data;
+
+      // Redirect si l'action ouvre un module (prescription, devis)
+      if (data.action_type === 'redirect' && data.data?.redirect_url) {
+        navigate(data.data.redirect_url);
+        onClose?.();
+        return;
+      }
+
       setMessages(prev => [...prev, {
         id: Date.now().toString(), sender: 'bot',
-        text: res.data.message || "Action exécutée avec succès.",
+        text: data.message || "Action exécutée avec succès.",
       }]);
     } catch {
       setMessages(prev => [...prev, {
@@ -417,23 +493,12 @@ export function CrownBotChat({
                   }
 
                   {msg.pendingAction && (
-                    <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-[12px]">
-                      <p className="text-xs font-semibold text-amber-800 mb-2">Confirmez-vous cette action ?</p>
-                      <pre className="text-[10px] bg-white p-2 rounded border border-amber-50 mb-3 overflow-x-auto text-amber-900">
-                        {JSON.stringify(msg.pendingAction, null, 2)}
-                      </pre>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleConfirmAction(msg.id, msg.pendingAction)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-[8px] transition-colors">
-                          <Check size={14} /> Confirmer
-                        </button>
-                        <button onClick={() => setMessages(prev => prev.map(m =>
-                          m.id === msg.id ? { ...m, pendingAction: null, text: m.text + '\n\n*Action annulée.*' } : m))}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-[8px] transition-colors">
-                          <XCircle size={14} /> Annuler
-                        </button>
-                      </div>
-                    </div>
+                    <PendingActionCard
+                      action={msg.pendingAction}
+                      onConfirm={() => handleConfirmAction(msg.id, msg.pendingAction)}
+                      onCancel={() => setMessages(prev => prev.map(m =>
+                        m.id === msg.id ? { ...m, pendingAction: null, text: m.text + '\n\n*Action annulée.*' } : m))}
+                    />
                   )}
 
                   {msg.suggestions && msg.suggestions.length > 0 && (
