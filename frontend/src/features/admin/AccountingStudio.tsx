@@ -238,7 +238,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         newItems.push(...autres);
     }
 
-    props.setItems(newItems);
+    setItems(newItems);
     toast.success("Séquençage IA appliqué au devis !");
   };
 
@@ -355,7 +355,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               key={i}
               onClick={(e) => {
                 e.stopPropagation();
-                props.setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
+                setItems([...items.filter(it => it.description.trim()), { id: Date.now()+i, description: act.name, price: act.price, dent: '-', category: act.category }]);
                 saveActAsHabit(act.name, act.price, act.category);
               }}
               className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all flex items-center gap-2 shadow-sm hover:border-primary/30"
@@ -400,7 +400,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
                     }
                   });
-                  props.setItems(newItems);
+                  setItems(newItems);
                   setSuggestedBundles([]);
                   toast.success("Intelligence appliquée");
                 }}
@@ -540,7 +540,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                       key={act.name} 
                                       onClick={() => {
                                         const price = PriceBrain.suggestPrice(act.name) || act.price;
-                                        props.setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
+                                        setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
                                         toast.success(`Ajouté : ${act.name}`, {
                                           style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
                                         });
@@ -606,7 +606,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                            setGroupTreatmentName(act);
                                            setGroupTreatmentPrice(price);
                                            const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                           props.setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: Number(price), toothNumbers: sorted }]);
+                                           setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: Number(price), toothNumbers: sorted }]);
                                            selectTeethGroup('none');
                                            setGroupTreatmentName('');
                                            setGroupTreatmentPrice('');
@@ -668,7 +668,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               PriceBrain.recordAct(t.name, t.price, t.category, t.id);
                             }
                           });
-                          props.setItems(newItems);
+                          setItems(newItems);
                           setActiveTooth(null);
                         }}
                         onCancel={() => setActiveTooth(null)}
@@ -697,7 +697,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Détail des prestations</h3>
           </div>
           <div className="flex items-center gap-4">
-            {props.isDevis && props.items.length > 0 && (
+            {isDevis && items.length > 0 && (
                <button
                  onClick={handleAIPhaseSequencing}
                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
