@@ -1,38 +1,37 @@
-# STATE — Digital Crown
+# STATE — DigitalCrown
 
 > Fichier de reprise (handoff). **Lis-moi en premier** pour savoir où on en est.
-> Le bloc AUTO ci-dessous est régénéré automatiquement à chaque fin de session par le hook : ne l'édite pas à la main.
+> Le bloc AUTO ci-dessous est régénéré automatiquement à chaque fin de session : ne l'édite pas à la main.
 > Les sections plus bas sont à toi (l'agent) : tiens-les à jour avant de t'arrêter.
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** Initialisation
-- **Branche :** `inconnue`
-- **Worktree :** `inconnu`
+- **Mis à jour :** 2026-06-09 19:37
+- **Branche :** `feature/master-plan-architecture`
+- **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
 ### Fichiers touchés
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- _(rien à extraire)_
+- What’s next now !?
+- Non regarde le master plan architecture ! Il est fini !?
+- okay finis l plan prod! mais avant règardè l plan établi hièr matin èt finis lè
+- This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
+- Audit the app getters setters frontend all and score everything
+- Go
+- Desinstalle ce repo vc
+- What’s next !?
 <!-- STATE:AUTO:END -->
 
-## Historique de Session (Antigravity)
-- **Fichiers modifiés** : 
-  - `frontend/src/features/admin/SetupWizard/SetupWizard.tsx`
-  - `frontend/src/features/admin/Settings/types.ts`
-  - `frontend/src/features/admin/Settings/hooks/useSettingsStore.ts`
-  - `frontend/src/features/admin/Settings/tabs/ProfileTab.tsx`
-- **Dernière action** : Correction des failles de synchronisation (ajout du `cabinet_type` et réparation du bug destructeur de la Spécialité Personnalisée).
-
 ## Prochaine action
-- Attendre ton feu vert pour tester l'interface ou explorer d'autres optimisations.
+- _(à remplir : la toute prochaine chose concrète à faire)_
 
 ## Blocker / en attente
-- Aucun.
+- _(ce qui empêche d'avancer, dépendances externes, décisions en suspens)_
 
 ## Décisions prises
-- Refactorisation via un store Zustand dédié (`useSetupStore`) avec le middleware `persist` (sur le sessionStorage) pour garantir la reprise du wizard après un `F5` sans conserver les données à vie.
+- _(choix d'archi/produit + le « pourquoi », pour ne pas les rediscuter)_
 
 ## Questions ouvertes
-- Souhaites-tu que je règle immédiatement le problème de synchronisation (le bug de la Spécialité Personnalisée effacée dans les Réglages) ?
+- _(ce qui reste flou et qu'il faut trancher)_
