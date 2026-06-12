@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from datetime import datetime
+import pathlib
 
 from backend import models, database
 from backend.schemas import installments as schemas
 from backend.routers.auth import get_current_user
+from backend.core.paths import AppPaths
+
+MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+DOCS_DIR  = str(MEDIA_DIR / "documents")
 
 router = APIRouter(tags=["installments"])
 
@@ -81,6 +87,42 @@ def update_installment(installment_id: int, req: schemas.InstallmentUpdate, db: 
     db.commit()
     db.refresh(inst)
     return inst
+
+@router.post("/generate-preview")
+def generate_installment_preview(
+    req: schemas.InstallmentPreviewRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    patient = db.query(models.Patient).filter(models.Patient.id == req.patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == current_user.id
+    ).first()
+
+    patient_name = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
+
+    from backend.services.generators.installment_receipt_gen import generate_installment_receipt
+    filepath = generate_installment_receipt(
+        patient_name=patient_name,
+        title=req.title,
+        total_amount=req.total_amount,
+        items=[{"label": it.label, "amount": it.amount, "due_date": it.due_date, "paid": it.paid}
+               for it in req.items],
+        output_dir=DOCS_DIR,
+        config=config,
+        user=current_user,
+    )
+    pdf_url = filepath.replace("\\", "/")
+    media_path_str = str(MEDIA_DIR).replace("\\", "/")
+    if media_path_str in pdf_url:
+        pdf_url = "static" + pdf_url.split(media_path_str)[1]
+    elif "static/" in pdf_url:
+        pdf_url = pdf_url[pdf_url.find("static/"):]
+    return {"pdf_url": pdf_url}
+
 
 @router.delete("/plan/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_installment_plan(plan_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):

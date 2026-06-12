@@ -282,6 +282,31 @@ class BaseTemplate:
         )
 
     
+    @staticmethod
+    def scale_elements(elements, factor):
+        """Réduction proportionnelle de tous les Paragraph et Spacer pour forcer 1 page."""
+        if factor >= 0.99:
+            return elements
+        from reportlab.platypus import Paragraph as RLParagraph, Spacer as RLSpacer
+        from reportlab.lib.styles import ParagraphStyle
+        scaled = []
+        for el in elements:
+            if isinstance(el, RLParagraph):
+                s = el.style
+                new_s = ParagraphStyle(
+                    s.name + '_sc',
+                    parent=s,
+                    fontSize=max(s.fontSize * factor, 6),
+                    leading=max((s.leading if s.leading else s.fontSize * 1.2) * factor, 7),
+                    spaceAfter=(getattr(s, 'spaceAfter', 0) or 0) * factor,
+                )
+                scaled.append(RLParagraph(el.text, new_s))
+            elif isinstance(el, RLSpacer):
+                scaled.append(RLSpacer(el.width, max(el.height * factor, 1)))
+            else:
+                scaled.append(el)
+        return scaled
+
     def get_document_margins(self, config, p_width):
         from reportlab.lib.units import cm
         selected_template = self._get_val(config, 'selected_template', 'swiss')
@@ -987,3 +1012,18 @@ class BaseTemplate:
             # Ne jamais bloquer la génération du PDF pour un QR défaillant
             import logging
             logging.getLogger(__name__).warning(f"QR Code ignoré (erreur rendu): {e}")
+
+
+class PageCounter:
+    """Compteur de pages pour le mécanisme Single-Page Force — partagé par tous les générateurs."""
+    def __init__(self):
+        self.page_count = 0
+
+    def make_canvas_class(self):
+        counter = self
+        from reportlab.pdfgen.canvas import Canvas
+        class CountingCanvas(Canvas):
+            def showPage(self_canvas):
+                counter.page_count += 1
+                super().showPage()
+        return CountingCanvas

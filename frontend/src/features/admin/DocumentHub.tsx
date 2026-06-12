@@ -122,8 +122,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // Garde sur changement d'onglet (1.3)
   const handleTabChange = (newTab: HubDocumentType) => {
+    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire)
+    const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
+      (newTab === 'devis' || newTab === 'honoraires');
     const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      items.some(i => i.description.trim()) && newTab !== activeTab;
+      items.some(i => i.description.trim()) && newTab !== activeTab && !isAccountingSwitch;
     if (hasUnsaved) {
       setPendingTab(newTab);
     } else {
@@ -145,6 +148,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
+  const [installmentPdfUrl, setInstallmentPdfUrl] = useState<string | null>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const handleSuggestRadio = useCallback(() => {
@@ -553,7 +557,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           )}
           
           {activeTab === 'echeancier' && (
-            <InstallmentStudio patientId={patientId || '0'} />
+            <InstallmentStudio
+              patientId={patientId || '0'}
+              onPdfGenerated={(url) => {
+                setInstallmentPdfUrl(url);
+                setSideStudioType('PREVIEW');
+              }}
+            />
           )}
 
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
@@ -603,7 +613,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
               >Annuler</button>
               <button
-                onClick={() => { setActiveTab(pendingTab); setPendingTab(null); }}
+                onClick={() => {
+                  // Effacement réel des actes avant de changer d'onglet
+                  useAccountingStore.getState().setItems([]);
+                  useAccountingStore.getState().setGroupSelectedTeeth([]);
+                  useAccountingStore.getState().setOdontogramMode('individual');
+                  setActiveTab(pendingTab);
+                  setPendingTab(null);
+                }}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-primary transition-all"
                 style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
               >Continuer</button>
@@ -648,7 +665,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
           >
             <LivePreview
-              pdfUrl={generator.pdfUrl}
+              pdfUrl={activeTab === 'echeancier' ? installmentPdfUrl : generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
               onRefresh={() => generator.handleGenerate(false, false, true)}

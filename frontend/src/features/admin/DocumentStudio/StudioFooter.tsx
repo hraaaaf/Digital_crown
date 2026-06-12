@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 
 interface StudioFooterProps {
   loading: boolean;
-  activeTab: string;
+  activeTab: import('../DocumentHub').HubDocumentType;
   onGenerate: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
   showPrintWarning: boolean;
   onCloseWarning: () => void;
@@ -34,7 +34,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   sideStudioType,
   onTogglePreview
 }) => {
-  if (activeTab === 'plan') {
+  if (activeTab === 'plan' || activeTab === 'echeancier') {
     return null;
   }
 

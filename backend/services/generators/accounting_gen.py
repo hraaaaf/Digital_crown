@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
-from backend.services.base_template import BaseTemplate, NAVY_BLUE
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -568,13 +568,23 @@ class AccountingGenerator:
         
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
-        doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
-        doc.doc_id = doc_id
-        doc.qr_type = 'PAYMENT'
         draw_method = lambda canv, d: self._draw_canvas(
             canv, d,
             config=config, user=user, highlighted_teeth=highlighted_teeth,
             cloture_text="", p_color=p_color
         )
-        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
+        compression = 1.0
+        for _ in range(7):
+            scaled = BaseTemplate.scale_elements(elements, compression)
+            doc = SimpleDocTemplate(filepath, pagesize=A5, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
+            doc.doc_id = doc_id
+            doc.qr_type = 'PAYMENT'
+            page_counter = PageCounter()
+            doc.build(scaled, onFirstPage=draw_method, onLaterPages=draw_method,
+                      canvasmaker=page_counter.make_canvas_class())
+            if page_counter.page_count <= 1:
+                break
+            compression *= 0.82
+            if compression < 0.35:
+                break
         return filepath.replace("\\", "/")

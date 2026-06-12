@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
+import { useAccountingStore } from '../store/useAccountingStore';
 
 interface PriceItem {
   id: number;
@@ -356,6 +357,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     force = false,
   ) => {
     if (!patientId) return;
+    // Ces onglets ont leur propre flux de génération — pas via /documents/generate
+    if (activeTab === 'echeancier' || activeTab === 'plan') return;
 
     if (print && !isPreview && !force) {
       setShowPrintWarning(true);
@@ -439,6 +442,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         // --- Apprentissage automatique des Actes (Phase 2) ---
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
           try {
+            useAccountingStore.getState().setGroupSelectedTeeth([]);
+            useAccountingStore.getState().setOdontogramMode('individual');
             const { items } = params;
             for (const item of items) {
               if (item.description.trim()) {

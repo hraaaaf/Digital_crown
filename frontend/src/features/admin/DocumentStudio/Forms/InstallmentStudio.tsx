@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle, Eye, Printer, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
-import { api } from '../../../../services/api';
+import { api, API_BASE } from '../../../../services/api';
 
 interface InstallmentStudioProps {
   patientId: string;
+  onPdfGenerated?: (blobUrl: string) => void;
 }
 
 interface InstallmentItem {
@@ -14,10 +15,11 @@ interface InstallmentItem {
   label: string;
   amount: number;
   dueDate: string;
+  paid?: boolean;
   sendReminder?: boolean;
 }
 
-export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId }) => {
+export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId, onPdfGenerated }) => {
   const [title, setTitle] = useState('Traitement Orthodontique');
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -25,6 +27,18 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
   const [monthsCount, setMonthsCount] = useState<number>(1);
   const [monthlyAmount, setMonthlyAmount] = useState<number>(0);
   const [items, setItems] = useState<InstallmentItem[]>([]);
+  const [patientPhone, setPatientPhone] = useState<string>('');
+  const [loadingPdf, setLoadingPdf] = useState(false);
+
+  useEffect(() => {
+    if (patientId && patientId !== '0') {
+      api.get(`/patients/${patientId}`).then((res: any) => {
+        const p = res.data;
+        const phone = p.telephone_mobile || p.telephone || p.telephone_fixe || '';
+        setPatientPhone(phone.replace(/\s/g, ''));
+      }).catch(() => {});
+    }
+  }, [patientId]);
 
   useEffect(() => {
     if (patientId && patientId !== '0') {
@@ -41,6 +55,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
                 label: inst.label || 'Versement',
                 amount: inst.amount,
                 dueDate: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+                paid: inst.status === 'PAYE',
                 sendReminder: false
               }));
               setItems(loadedItems);
@@ -65,6 +80,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         label: 'Avance Initiale',
         amount: advanceAmount,
         dueDate: advanceDate,
+        paid: false,
         sendReminder: false
       });
     }
@@ -78,6 +94,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         label: `Mensualité ${i + 1}`,
         amount: monthlyAmount,
         dueDate: currentDate.toISOString().split('T')[0],
+        paid: false,
         sendReminder: false
       });
     }
@@ -125,10 +142,40 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
     setItems(items.filter(item => item.id !== id));
   };
 
-  // Ce composant va exposer les données via un ref ou context si nécessaire pour useDocumentGenerator
-  // Pour l'instant, DocumentHub s'attend à passer des données, mais useDocumentGenerator a peut-être besoin
-  // d'être adapté pour extraire l'échéancier. On stocke l'état ici.
-  
+  const handleGeneratePreview = async (openPrint = false) => {
+    if (!patientId || patientId === '0') { toast.error('Patient introuvable'); return; }
+    if (items.length === 0) { toast.error('Ajoutez au moins une échéance'); return; }
+    setLoadingPdf(true);
+    try {
+      const res = await api.post('/installments/generate-preview', {
+        patient_id: parseInt(patientId, 10),
+        title,
+        total_amount: totalAmount,
+        items: items.map(it => ({
+          label: it.label,
+          amount: it.amount,
+          due_date: it.dueDate,
+          paid: it.paid ?? false,
+        })),
+      });
+      const cleanPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
+      const blob = await api.get(`/${cleanPath}`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(new Blob([blob.data], { type: 'application/pdf' }));
+      onPdfGenerated?.(blobUrl);
+      if (openPrint) {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none';
+        frame.src = blobUrl;
+        document.body.appendChild(frame);
+        frame.onload = () => { frame.contentWindow?.print(); setTimeout(() => document.body.removeChild(frame), 5000); };
+      }
+    } catch {
+      toast.error('Erreur lors de la génération du PDF');
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({title, totalAmount, items})}>
       <div className="mb-6">
@@ -190,25 +237,36 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
             <tr>
+              <th className="px-3 py-3 font-semibold w-16 text-center text-emerald-600">Réglé ✓</th>
               <th className="px-4 py-3 font-semibold">Libellé</th>
               <th className="px-4 py-3 font-semibold w-32">Date</th>
               <th className="px-4 py-3 font-semibold w-32">Montant</th>
-              <th className="px-4 py-3 font-semibold w-32 text-center" title="Notification WhatsApp manuelle">Rappel WhatsApp</th>
+              <th className="px-4 py-3 font-semibold w-32 text-center" title="Notification WhatsApp manuelle">Rappel WA</th>
               <th className="px-4 py-3 w-16"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-4 py-2">
-                  <input type="text" value={item.label} onChange={(e) => updateItem(item.id, 'label', e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-medium text-slate-700" />
+              <tr key={item.id} className={item.paid ? 'bg-emerald-50/60' : 'hover:bg-slate-50/50'}>
+                {/* Case à cocher Réglé */}
+                <td className="px-3 py-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={item.paid ?? false}
+                    onChange={(e) => updateItem(item.id, 'paid', e.target.checked)}
+                    className="w-5 h-5 rounded border-2 border-slate-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer accent-emerald-500"
+                    title="Marquer comme réglé"
+                  />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="date" value={item.dueDate} onChange={(e) => updateItem(item.id, 'dueDate', e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm text-slate-600" />
+                  <input type="text" value={item.label} onChange={(e) => updateItem(item.id, 'label', e.target.value)} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-medium ${item.paid ? 'text-slate-400 line-through' : 'text-slate-700'}`} />
+                </td>
+                <td className="px-4 py-2">
+                  <input type="date" value={item.dueDate} onChange={(e) => updateItem(item.id, 'dueDate', e.target.value)} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm ${item.paid ? 'text-slate-400' : 'text-slate-600'}`} />
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
-                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-slate-900" />
+                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold ${item.paid ? 'text-emerald-500' : 'text-slate-900'}`} />
                     <span className="text-xs text-slate-400">MAD</span>
                   </div>
                 </td>
@@ -224,7 +282,14 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
                       <button 
                         onClick={() => {
                           const msg = `Bonjour, ceci est un rappel pour votre échéance: ${item.label} d'un montant de ${item.amount} MAD prévue le ${item.dueDate}. Merci.`;
-                          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                          let phone = patientPhone.replace(/\s|-/g, '');
+                          if (phone.startsWith('+')) phone = phone.slice(1);
+                          else if (phone.startsWith('00')) phone = phone.slice(2);
+                          else if (phone.startsWith('0')) phone = '212' + phone.slice(1);
+                          const url = phone
+                            ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                            : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                          window.open(url, '_blank');
                         }}
                         className="text-emerald-500 hover:text-emerald-600 transition-colors"
                         title="Envoyer le rappel maintenant"
@@ -243,7 +308,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 text-sm">
                   Aucune échéance définie. Utilisez la génération rapide ou ajoutez manuellement.
                 </td>
               </tr>
@@ -252,13 +317,35 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         </table>
       </div>
       
-      <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
-        <span className="text-slate-500">Total planifié : <b className="text-slate-900">{items.reduce((acc, it) => acc + (it.amount || 0), 0).toFixed(2)} MAD</b></span>
-        {totalAmount > 0 && (
-          <span className={items.reduce((acc, it) => acc + (it.amount || 0), 0) !== totalAmount ? "text-amber-500 font-medium" : "text-emerald-500 font-medium"}>
-            {items.reduce((acc, it) => acc + (it.amount || 0), 0) === totalAmount ? "Total équilibré" : "Le total planifié diffère du total prévu"}
-          </span>
-        )}
+      <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-slate-500">Total planifié : <b className="text-slate-900">{items.reduce((acc, it) => acc + (it.amount || 0), 0).toFixed(2)} MAD</b></span>
+          {totalAmount > 0 && (
+            <span className={items.reduce((acc, it) => acc + (it.amount || 0), 0) !== totalAmount ? "text-amber-500 font-medium" : "text-emerald-500 font-medium"}>
+              {items.reduce((acc, it) => acc + (it.amount || 0), 0) === totalAmount ? "Total équilibré" : "Le total planifié diffère du total prévu"}
+            </span>
+          )}
+        </div>
+
+        {/* Boutons Aperçu / Imprimer */}
+        <div className="flex items-center gap-3 justify-end">
+          <button
+            onClick={() => handleGeneratePreview(false)}
+            disabled={loadingPdf || items.length === 0}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+          >
+            {loadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+            Aperçu
+          </button>
+          <button
+            onClick={() => handleGeneratePreview(true)}
+            disabled={loadingPdf || items.length === 0}
+            className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            {loadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+            Imprimer
+          </button>
+        </div>
       </div>
     </div>
   );
