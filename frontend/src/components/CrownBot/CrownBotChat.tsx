@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, X, Bot, User, Check, XCircle, Loader2, Menu, Plus,
-  Archive, BrainCircuit, Zap, ArrowRight, MessageSquare,
+  Archive, BrainCircuit, Zap, ArrowRight, MessageSquare, Crown, Sparkles,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
@@ -16,6 +16,7 @@ interface Message {
   actionType?: string;
   pendingAction?: any;
   suggestions?: string[];
+  showUpsell?: boolean;
 }
 
 interface Session {
@@ -96,6 +97,56 @@ function PendingActionCard({
           className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-[8px] transition-colors">
           <XCircle size={14} /> Annuler
         </button>
+      </div>
+    </div>
+  );
+}
+
+function PremiumUpsellCard({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="mt-4 rounded-[16px] overflow-hidden border border-amber-200 shadow-lg">
+      {/* Header gradient */}
+      <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 flex items-center gap-2">
+        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <Crown size={14} className="text-white" />
+        </div>
+        <div>
+          <p className="text-white font-black text-xs tracking-wide leading-none">Crown Bot Premium</p>
+          <p className="text-white/75 text-[9px] mt-0.5">Limite de l'assistant IA atteinte</p>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="bg-amber-50 px-4 py-3">
+        <p className="text-amber-900 text-[11px] font-semibold mb-2 leading-relaxed">
+          Vous avez utilisé vos <strong>3 échanges IA</strong> gratuits. Passez à Premium pour des conversations illimitées.
+        </p>
+        <ul className="space-y-1 mb-3">
+          {[
+            'Conversations LLM illimitées',
+            'Mémoire contextuelle étendue (Ghost Brain+)',
+            'Actions avancées (ordonnances, devis auto)',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-1.5 text-[10px] text-amber-800 font-medium">
+              <Sparkles size={10} className="text-amber-500 mt-0.5 shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2">
+          <a
+            href="/settings?tab=license"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black rounded-[8px] transition-all shadow-md shadow-amber-500/30"
+          >
+            <Crown size={12} /> Passer à Premium
+          </a>
+          <button
+            onClick={onClose}
+            className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 text-[10px] font-bold rounded-[8px] transition-colors"
+          >
+            Plus tard
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -313,7 +364,8 @@ export function CrownBotChat({
       }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(), sender: 'bot', text: data.message,
-        actionType: data.action_type, pendingAction: data.pending_action, suggestions: data.suggestions,
+        actionType: data.action_type, pendingAction: data.pending_action,
+        suggestions: data.suggestions, showUpsell: data.show_upsell === true,
       }]);
     } catch {
       setMessages(prev => [...prev, {
@@ -323,6 +375,10 @@ export function CrownBotChat({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const dismissUpsell = (msgId: string) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, showUpsell: false } : m));
   };
 
   const handleConfirmAction = async (msgId: string, actionData: any) => {
@@ -510,6 +566,10 @@ export function CrownBotChat({
                         </button>
                       ))}
                     </div>
+                  )}
+
+                  {msg.showUpsell && (
+                    <PremiumUpsellCard onClose={() => dismissUpsell(msg.id)} />
                   )}
                 </div>
               </div>

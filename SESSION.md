@@ -2,6 +2,83 @@
 
 ---
 
+### 📅 Date : 12 Juin 2026 (session 2)
+**Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
+**Objectif** : 4 bugfixes post-recette + CrownBot upsell Premium + documentation architecture.
+
+---
+
+### 🎯 Réalisations
+
+#### 54. Fix Login email/password — "Erreur réseau" (CONFIRMÉ CORRIGÉ)
+- **Cause racine** : `authService.login()` utilisait `new FormData()` qui génère un corps `multipart/form-data`, alors que FastAPI `OAuth2PasswordRequestForm` exige `application/x-www-form-urlencoded`
+- **Fix** : `new URLSearchParams()` (sérialise correctement) + `withCredentials: true`
+- **Chaîne vérifiée** : `LoginPage.tsx` → `authService.login()` → `POST /api/auth/login` (OAuth2PasswordRequestForm) ✅
+- **Fichier** : `frontend/src/services/auth.ts`
+
+#### 55. Fix Tour guidé — réapparaît à chaque session
+- **Cause** : `handleClose` dans `TourLauncher.tsx` fermait juste le modal sans écrire en `localStorage` → `TOUR_STORAGE_KEY` jamais valorisé → tour relancé à chaque rechargement
+- **Fix** : `localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION)` avant `setIsOpen(false)`
+- **Fichier** : `frontend/src/components/GuidedTour/TourLauncher.tsx`
+
+#### 56. Fix Radio panoramique — numéros FDI illisibles
+- **Cause** : groupe `<g>` à `opacity-40` + texte `rgba(255,255,255,0.5)` sans fond → labels invisibles sur fond radio sombre
+- **Fix** : opacité fixe `0.82`, fond `rgba(0,0,0,0.72)` arrondi derrière chaque numéro, texte `rgba(255,255,255,0.95)`, contour dent `0.3→0.5`
+- **Fichier** : `frontend/src/features/panoramic/XRayCanvas.tsx`
+
+#### 57. Fix Tendances de la Semaine — données mockées
+- **Cause** : `AnalyticsCharts.tsx` utilisait un tableau `mockData` hardcodé, jamais connecté au backend
+- **Fix** : fetch `GET /admin/dashboard/stats` → `weekly_activity` (7 jours réels, normalisé 0-100%) avec libellés de jours dynamiques relatifs à aujourd'hui
+- Y-axis `%`, tooltip "Activité", fallback silencieux si le fetch échoue
+- **Fichier** : `frontend/src/features/analytics/AnalyticsCharts.tsx`
+
+#### 58. CrownBot — Upsell Premium après 3 échanges LLM
+- **Backend** : flag `used_llm: true` ajouté dans `raw_data` du `BotMessage` à chaque appel Ollama/LLM réel (les réponses regex ne comptent pas). Comptage post-save par session → retourne `show_upsell: true` dès `llm_exchange_count >= 3`.
+- **Frontend** : `PremiumUpsellCard` inline — dégradé amber/orange, icône `Crown`, 3 avantages Premium, CTA "Passer à Premium" → `/settings?tab=license`, bouton "Plus tard" (dismiss local). Affiché sous la réponse bot qui déclenche le seuil.
+- **Fichiers** : `backend/routers/bot.py`, `frontend/src/components/CrownBot/CrownBotChat.tsx`
+
+#### 59. Documentation — ARCHITECTURE.md créé
+- Arborescence complète commentée (970 entrées) avec description inline pour chaque fichier/dossier significatif
+- 4 flux de données documentés : génération PDF, auth, panoramique, CrownBot
+- Table de conventions (ports, auth, stores, branches)
+- **Fichier** : `ARCHITECTURE.md`
+
+#### 60. Documentation — README.md mis à jour
+- Version `v2.0_Ghost_Hub` → `v3.0_CrownBot`
+- Port corrigé `8000` → `8005` (partout)
+- Références `SKILLS.md` / `ROADMAP.md` supprimées (fichiers inexistants)
+- Section "Nouveautés Juin 2026" ajoutée (CrownBot, Échéancier, Analytics réel, 4 bug fixes)
+- Architecture simplifiée avec renvoi vers `ARCHITECTURE.md`
+- **Fichier** : `README.md`
+
+---
+
+### 📋 Reste à faire
+
+#### Phase 3 (prochaine session)
+- **3A** Documents Hub → wizard 4 slides (Devis + Honoraires)
+- **3B** Radio panoramique → 5 slides de tagging
+- **3C** Bot → historique par patient (lier sessions à `patient_id`)
+- **Céphalo P1** → typo `mcnmara` → `mcnamara`, warning HUD, recalcul T1/T2 post-landmark
+
+---
+
+### 📅 Date : 12 Juin 2026 (session 1)
+**Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
+**Objectif** : Fix échéancier PDF + alignement flux Document Studio.
+
+#### Réalisations
+
+##### Échéancier — Génération PDF unifiée avec Devis/Honoraires
+- `InstallmentStudio.tsx` : supprimé boutons internes Aperçu/Imprimer, ajout prop `onPayloadChange`
+- `useDocumentGenerator.ts` : gestion complète `activeTab === 'echeancier'` — POST `/installments/generate-preview`, blob URL, print/archive
+- `StudioFooter.tsx` : early return sur `plan` seulement (plus `echeancier`) → boutons Aperçu/Enregistrer/Imprimer actifs
+- `DocumentHub.tsx` : `echeancierPayload` state branché sur `generatorParams`
+- `backend/services/generators/installment_receipt_gen.py` : générateur A5 ReportLab avec CheckBox (✓/●/□)
+- `backend/routers/installments.py` : endpoint `/generate-preview` avec normalisation chemin `AppPaths`
+
+---
+
 ### 📅 Date : 11 Juin 2026 (session 3)
 **Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
 **Objectif** : Sprint 15 corrections UI (recette post-connexion mobile) + fix bot mobile + audit sécurité LLM.
@@ -124,6 +201,36 @@
 | `rag_context.py` | Non directement | Utilisé pour insights UI — jamais injecté dans un prompt |
 
 **Note** : le fallback Gemini de `ai_coherence.py` (cloud) utilise `mask_patient_context()` avant envoi — acceptable, à documenter dans la politique de données.
+
+---
+
+### 📅 Date : 12 Juin 2026
+**Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
+**Objectif** : Hotfixes post-recette — 3 bugs réglages + WhatsApp rappel direct.
+
+---
+
+### 🔥 Hotfixes rapides
+
+#### 51. Nom de la structure vide à chaque rechargement
+- **Cause** : `fetchProfile` construisait l'objet `profile` avec 30+ champs mais omettait `nom_cabinet` — champ présent en DB mais jamais mappé côté frontend
+- **Fix** : ajout `nom_cabinet: res.data.nom_cabinet || ''` dans le mapping `fetchProfile`
+- **Fichier** : `frontend/src/features/admin/Settings/hooks/useSettingsStore.ts`
+
+#### 52. En-tête bilingue — "Benmoussa Achraf" au lieu de "Dr. Benmoussa Achraf"
+- **Cause (backend)** : le PUT `/clinics/me` écrasait `header_lines_fr[0]` avec `nom_val` brut à chaque sauvegarde — le préfixe `Dr.` était perdu
+- **Fix backend** : auto-préfixe `Dr.` si le nom ne commence pas déjà par `Dr.`, `Pr.`, `Docteur`, `Professeur`
+- **Fichier** : `backend/routers/clinics.py`
+- **Cause (frontend)** : `fetchProfile` chargeait `header_lines_fr` tel quel depuis la DB — les anciennes données sans préfixe n'étaient pas corrigées au chargement
+- **Fix frontend** : normalisation de `header_lines_fr[0]` au fetch — préfixe `Dr.` ajouté si absent (correction transparente des données historiques)
+- **Fichier** : `frontend/src/features/admin/Settings/hooks/useSettingsStore.ts`
+
+#### 53. WhatsApp rappel échéancier — n'ouvrait pas la conversation du patient
+- **Cause 1** : `wa.me/?text=...` sans numéro → ouvre WhatsApp sans destinataire
+- **Cause 2** : numéro marocain local `0612345678` non converti en format international `wa.me`
+- **Fix** : fetch `GET /patients/{patientId}` au mount pour récupérer `telephone_mobile` → `telephone` → `telephone_fixe`; normalisation complète : `0XXXXXXXXX` → `212XXXXXXXXX`, strip `+`/`00`/espaces/tirets
+- **URL finale** : `https://wa.me/212XXXXXXXXX?text=...` → ouvre directement la fenêtre du patient
+- **Fichier** : `frontend/src/features/admin/DocumentStudio/Forms/InstallmentStudio.tsx`
 
 ---
 

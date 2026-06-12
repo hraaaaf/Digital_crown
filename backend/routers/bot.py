@@ -172,17 +172,19 @@ async def bot_chat(
     parsed_intent = regex_parser.parse(message, context=context_window)
 
     # 4. Si le regex n'est pas confiant, on essaye le LLM avec le contexte
+    llm_used = False
     if parsed_intent.confidence < 0.85 and parsed_intent.intent == "UNKNOWN":
         logger.info("Regex non confiant, appel au LLM avec contexte...")
         parsed_intent = parser.parse(message, context=context_window)
+        llm_used = True
 
     # 5. Dispatch Action
     response = dispatcher.dispatch(parsed_intent, db, current_user)
-    
+
     # Récupération des données brutes
     response_dict = response.to_dict()
-    
-    # 4. Sauvegarder la réponse du bot
+
+    # 6. Sauvegarder la réponse du bot (avec marqueur LLM)
     bot_msg = models.BotMessage(
         session_id=session_id,
         sender="bot",
@@ -190,11 +192,27 @@ async def bot_chat(
         raw_data={
             "action_type": response_dict.get("action_type"),
             "pending_action": response_dict.get("pending_action"),
-            "suggestions": response_dict.get("suggestions", [])
+            "suggestions": response_dict.get("suggestions", []),
+            "used_llm": llm_used,
         }
     )
     db.add(bot_msg)
     db.commit()
+
+    # 7. Compter les échanges LLM dans cette session (incluant celui qui vient d'être sauvegardé)
+    if llm_used:
+        all_bot_msgs = db.query(models.BotMessage).filter(
+            models.BotMessage.session_id == session_id,
+            models.BotMessage.sender == "bot"
+        ).all()
+        llm_exchange_count = sum(
+            1 for m in all_bot_msgs
+            if m.raw_data and m.raw_data.get("used_llm")
+        )
+        response_dict["llm_exchange_count"] = llm_exchange_count
+        response_dict["show_upsell"] = llm_exchange_count >= 3
+    else:
+        response_dict["show_upsell"] = False
 
     # On ajoute le session_id à la réponse pour que le front puisse s'y attacher
     response_dict["session_id"] = session_id

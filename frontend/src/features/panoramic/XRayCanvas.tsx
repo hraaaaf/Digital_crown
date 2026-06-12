@@ -133,10 +133,16 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
             const cx = x_rel * imgSize.w;
             const cy = y_rel * imgSize.h;
             
+            const labelY = is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06;
+            const fontSize = Math.max(imgSize.w * 0.011, 10);
+            const bgPad = 3;
+            const bgW = fontSize * 2.2;
+            const bgH = fontSize + bgPad * 2;
             return (
-              <g key={`grid-${fdi}`} className="opacity-40 hover:opacity-100 transition-opacity pointer-events-none">
-                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
-                <text x={cx} y={is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06} fill="rgba(255,255,255,0.5)" fontSize={Math.max(imgSize.w * 0.01, 10)} textAnchor="middle" alignmentBaseline="middle" className="font-mono font-bold">{fdi}</text>
+              <g key={`grid-${fdi}`} style={{ opacity: 0.82 }} className="pointer-events-none">
+                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
+                <rect x={cx - bgW / 2} y={labelY - bgH / 2} width={bgW} height={bgH} fill="rgba(0,0,0,0.72)" rx="4" />
+                <text x={cx} y={labelY} fill="rgba(255,255,255,0.95)" fontSize={fontSize} textAnchor="middle" alignmentBaseline="middle" fontFamily="monospace" fontWeight="bold">{fdi}</text>
               </g>
             );
           })}
