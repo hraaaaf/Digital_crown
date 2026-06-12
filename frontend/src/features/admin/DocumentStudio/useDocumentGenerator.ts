@@ -48,6 +48,7 @@ interface UseDocumentGeneratorParams {
   smartSuggestion: any;
   installments: any[];
   isAccounted?: boolean;
+  echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
   paymentStatus?: string;
   isGlobalNote?: boolean;
   onSuggestRadio?: () => void;
@@ -357,8 +358,43 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     force = false,
   ) => {
     if (!patientId) return;
-    // Ces onglets ont leur propre flux de génération — pas via /documents/generate
-    if (activeTab === 'echeancier' || activeTab === 'plan') return;
+    if (activeTab === 'plan') return;
+
+    // Flux dédié échéancier — même pattern blob+fallback que honoraires
+    if (activeTab === 'echeancier') {
+      const payload = params.echeancierPayload;
+      if (!payload || payload.items.length === 0) {
+        toast.error('Ajoutez au moins une échéance avant de générer');
+        return;
+      }
+      if (print && !isPreview && !force) { setShowPrintWarning(true); return; }
+      setLoading(true);
+      if (print) setPendingPrint(true);
+      try {
+        const res = await api.post('/installments/generate-preview', payload);
+        if (res.data.pdf_url) {
+          const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
+          let finalUrl = '';
+          try {
+            const pdfBlob = await api.get(`/${cleanPdfPath}`, { responseType: 'blob' });
+            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+            const blobUrl = URL.createObjectURL(new Blob([pdfBlob.data], { type: 'application/pdf' }));
+            blobUrlRef.current = blobUrl;
+            finalUrl = blobUrl;
+            setPdfUrl(blobUrl);
+          } catch {
+            finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
+            setPdfUrl(finalUrl);
+          }
+          if (!isPreview && !print) window.open(finalUrl, '_blank');
+        }
+      } catch (e: any) {
+        toast.error(e?.response?.data?.detail || 'Erreur lors de la génération du PDF');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (print && !isPreview && !force) {
       setShowPrintWarning(true);

@@ -34,7 +34,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   sideStudioType,
   onTogglePreview
 }) => {
-  if (activeTab === 'plan' || activeTab === 'echeancier') {
+  if (activeTab === 'plan') {
     return null;
   }
 

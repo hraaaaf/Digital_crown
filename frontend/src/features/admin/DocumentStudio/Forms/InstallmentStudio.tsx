@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle, Eye, Printer, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
-import { api, API_BASE } from '../../../../services/api';
+import { api } from '../../../../services/api';
 
 interface InstallmentStudioProps {
   patientId: string;
-  onPdfGenerated?: (blobUrl: string) => void;
+  onPayloadChange?: (payload: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> }) => void;
 }
 
 interface InstallmentItem {
@@ -19,7 +19,7 @@ interface InstallmentItem {
   sendReminder?: boolean;
 }
 
-export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId, onPdfGenerated }) => {
+export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId, onPayloadChange }) => {
   const [title, setTitle] = useState('Traitement Orthodontique');
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -28,7 +28,6 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
   const [monthlyAmount, setMonthlyAmount] = useState<number>(0);
   const [items, setItems] = useState<InstallmentItem[]>([]);
   const [patientPhone, setPatientPhone] = useState<string>('');
-  const [loadingPdf, setLoadingPdf] = useState(false);
 
   useEffect(() => {
     if (patientId && patientId !== '0') {
@@ -142,39 +141,20 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
     setItems(items.filter(item => item.id !== id));
   };
 
-  const handleGeneratePreview = async (openPrint = false) => {
-    if (!patientId || patientId === '0') { toast.error('Patient introuvable'); return; }
-    if (items.length === 0) { toast.error('Ajoutez au moins une échéance'); return; }
-    setLoadingPdf(true);
-    try {
-      const res = await api.post('/installments/generate-preview', {
-        patient_id: parseInt(patientId, 10),
-        title,
-        total_amount: totalAmount,
-        items: items.map(it => ({
-          label: it.label,
-          amount: it.amount,
-          due_date: it.dueDate,
-          paid: it.paid ?? false,
-        })),
-      });
-      const cleanPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
-      const blob = await api.get(`/${cleanPath}`, { responseType: 'blob' });
-      const blobUrl = URL.createObjectURL(new Blob([blob.data], { type: 'application/pdf' }));
-      onPdfGenerated?.(blobUrl);
-      if (openPrint) {
-        const frame = document.createElement('iframe');
-        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none';
-        frame.src = blobUrl;
-        document.body.appendChild(frame);
-        frame.onload = () => { frame.contentWindow?.print(); setTimeout(() => document.body.removeChild(frame), 5000); };
-      }
-    } catch {
-      toast.error('Erreur lors de la génération du PDF');
-    } finally {
-      setLoadingPdf(false);
-    }
-  };
+  // Notifie le parent du payload courant dès que les données changent
+  useEffect(() => {
+    onPayloadChange?.({
+      patient_id: parseInt(patientId, 10) || 0,
+      title,
+      total_amount: totalAmount,
+      items: items.map(it => ({
+        label: it.label,
+        amount: it.amount,
+        due_date: it.dueDate,
+        paid: it.paid ?? false,
+      })),
+    });
+  }, [items, title, totalAmount, patientId]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({title, totalAmount, items})}>
@@ -327,25 +307,6 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           )}
         </div>
 
-        {/* Boutons Aperçu / Imprimer */}
-        <div className="flex items-center gap-3 justify-end">
-          <button
-            onClick={() => handleGeneratePreview(false)}
-            disabled={loadingPdf || items.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-          >
-            {loadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-            Aperçu
-          </button>
-          <button
-            onClick={() => handleGeneratePreview(true)}
-            disabled={loadingPdf || items.length === 0}
-            className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50"
-          >
-            {loadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
-            Imprimer
-          </button>
-        </div>
       </div>
     </div>
   );

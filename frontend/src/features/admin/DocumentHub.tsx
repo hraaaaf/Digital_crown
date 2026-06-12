@@ -148,7 +148,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
-  const [installmentPdfUrl, setInstallmentPdfUrl] = useState<string | null>(null);
+  const [echeancierPayload, setEcheancierPayload] = useState<any>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const handleSuggestRadio = useCallback(() => {
@@ -176,12 +176,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, onSuggestRadio: handleSuggestRadio,
-    showLegalAnnotations,
+    showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations,
+    installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
   ]);
 
   // --- INTELLIGENCE SCOPE ---
@@ -559,10 +559,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           {activeTab === 'echeancier' && (
             <InstallmentStudio
               patientId={patientId || '0'}
-              onPdfGenerated={(url) => {
-                setInstallmentPdfUrl(url);
-                setSideStudioType('PREVIEW');
-              }}
+              onPayloadChange={setEcheancierPayload}
             />
           )}
 
@@ -665,7 +662,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
           >
             <LivePreview
-              pdfUrl={activeTab === 'echeancier' ? installmentPdfUrl : generator.pdfUrl}
+              pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
               onRefresh={() => generator.handleGenerate(false, false, true)}
