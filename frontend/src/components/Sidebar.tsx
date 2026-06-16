@@ -212,7 +212,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" />
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
@@ -269,7 +269,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
 };
 
 // NavItem Component Adapted for Elite Design System
-const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.ReactNode, label: string, forceActive?: boolean }) => (
+const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: React.ReactNode, label: string, forceActive?: boolean, badge?: string }) => (
   <NavLink
     to={to}
     className={({ isActive }) => {
@@ -302,12 +302,17 @@ const NavItem = ({ to, icon, label, forceActive }: { to: string, icon: React.Rea
           >
             {icon}
           </span>
-          <span 
+          <span
             className={cn("text-sm relative z-10 tracking-tight transition-elite", isActuallyActive ? "font-black" : "font-bold")}
             style={isActuallyActive ? { color: 'var(--primary)' } : {}}
           >
             {label}
           </span>
+          {badge && (
+            <span className="relative z-10 ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              {badge}
+            </span>
+          )}
         </>
       );
     }}

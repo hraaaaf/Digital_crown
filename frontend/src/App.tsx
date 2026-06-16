@@ -27,7 +27,8 @@ const SetupWizard     = lazy(() => import('./features/admin/SetupWizard').then(m
 const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary').then(m => ({ default: m.EliteLibrary })));
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
-const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
+// Module Labo — EN CONSTRUCTION / BIENTÔT DISPONIBLE (désactivé temporairement)
+// const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
 const LegalPage       = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
 // MOBILE PWA
@@ -37,6 +38,7 @@ const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDa
 import { MobileStorage } from './services/zka/MobileStorage';
 
 import { DigitalCrownLoader } from './components/DigitalCrownLoader';
+import { ComingSoon } from './components/ComingSoon';
 
 const PageLoader = () => (
   <DigitalCrownLoader minHeight="min-h-[60vh]" className="bg-transparent" spinnerColor="border-blue-600" />
@@ -167,7 +169,9 @@ const ProtectedRoutes = () => (
         <Route path="/patients/:id/edit" element={<EditPatientForm />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/labo" element={<LabJobsBoard />} />
+        {/* Module Labo — EN CONSTRUCTION / BIENTÔT DISPONIBLE */}
+        <Route path="/labo" element={<ComingSoon title="Module Labo" description="Le suivi des travaux de laboratoire (prothèses) sera bientôt disponible." />} />
+        {/* <Route path="/labo" element={<LabJobsBoard />} /> */}
         <Route path="/bibliotheque" element={<EliteLibrary />} />
         <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
         <Route path="/science-hub" element={<EliteScienceHub />} />
