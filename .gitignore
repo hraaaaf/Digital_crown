@@ -11,6 +11,12 @@
 certs/
 
 # ========================================
+# ARTEFACTS LOCAUX (backups, données patients — NE JAMAIS PUSHER)
+# ========================================
+artifacts/
+.mimocode/
+
+# ========================================
 # MODELES IA (Trop lourds pour Git)
 # ========================================
 backend/ai_models/

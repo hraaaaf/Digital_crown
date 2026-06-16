@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-16 08:53
+- **Mis à jour :** 2026-06-16 09:05
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- Go <system-reminder>Message sent at Tue 2026-06-16 08:29:03 UTC.</system-reminder>
-- Pas de nom de domaine, je ne compte pas en faire un sas. Je vais je vais tout faire en local first. Ce qui serait en ligne seulement l'authentification, l'enreg
-- [Request interrupted by user for tool use]
 - Go <system-reminder>Message sent at Tue 2026-06-16 08:35:42 UTC.</system-reminder>
 - Go <system-reminder>Message sent at Tue 2026-06-16 08:36:05 UTC.</system-reminder>
 - Oki go <system-reminder>Message sent at Tue 2026-06-16 08:40:10 UTC.</system-reminder>
 - Pour chaque compte qu’il soit dentiste ou assistante le proprio lui donne les acces qu’il veut <system-reminder>Message sent at Tue 2026-06-16 08:49:23 UTC.</sy
 - Quand si tu as fini, mets à jour session point m t et la route map et tous les fichiers point m t et on ferme cette session pour ouvrir une autre qui se, qui se
+- 4.8/10 !? <system-reminder>Message sent at Tue 2026-06-16 08:53:57 UTC.</system-reminder>
+- Fais cet audit et donne une note réelle si c’est encore 4.8 dis le <system-reminder>Message sent at Tue 2026-06-16 08:55:36 UTC.</system-reminder>
+- Sur la partie prothese en general commente le code et mets la section comme en construction ou bientôt disponible.. <system-reminder>Message sent at Tue 2026-06
 <!-- STATE:AUTO:END -->
 
 ## Prochaine action
