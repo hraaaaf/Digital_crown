@@ -5,6 +5,7 @@ Aucune donnÃ©e ne sort du rÃ©seau local du cabinet.
 import uuid
 import socket
 import os
+from typing import Optional
 from datetime import datetime, date, timedelta, time as dt_time, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks
 from sqlalchemy import func, extract
@@ -93,6 +94,30 @@ def get_lan_base_url() -> str:
         return f"http://{lan_ip}:{port}"
     except Exception:
         return "http://127.0.0.1:8005"
+
+
+# ── MAPPING STATUT RDV ────────────────────────────────────────────────────────
+# Le mobile utilise un vocabulaire simplifié à 4 états ; le métier en a 5.
+_MOBILE_TO_BACKEND_STATUS = {
+    "PLANIFIE": models.AppointmentStatus.PREVU,
+    "EN_COURS": models.AppointmentStatus.EN_FAUTEUIL,
+    "TERMINE": models.AppointmentStatus.TERMINE,
+    "ANNULE": models.AppointmentStatus.ANNULE,
+}
+_BACKEND_TO_MOBILE_STATUS = {
+    models.AppointmentStatus.PREVU: "PLANIFIE",
+    models.AppointmentStatus.EN_SALLE_ATTENTE: "PLANIFIE",
+    models.AppointmentStatus.EN_FAUTEUIL: "EN_COURS",
+    models.AppointmentStatus.TERMINE: "TERMINE",
+    models.AppointmentStatus.ANNULE: "ANNULE",
+}
+
+
+def _to_mobile_status(status) -> Optional[str]:
+    """Convertit un statut métier en vocabulaire mobile (défaut: PLANIFIE)."""
+    if status is None:
+        return None
+    return _BACKEND_TO_MOBILE_STATUS.get(status, "PLANIFIE")
 
 
 # â”€â”€ PING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -309,7 +334,7 @@ def get_mobile_snapshot(
             ),
             "phone": a.patient.telephone if a.patient else None,
             "motif": a.motif or "Consultation",
-            "status": a.status.value if a.status else None,
+            "status": _to_mobile_status(a.status),
             "duration_minutes": a.duration_minutes,
         }
         for a in apts
@@ -326,8 +351,9 @@ def get_mobile_snapshot(
         .scalar() or 0
     )
 
+    _superadmin_email = os.getenv("SUPERADMIN_EMAIL", "").lower().strip()
     user = db.query(models.User).filter(models.User.id == employer_id).first()
-    is_superadmin = user and user.email.lower() == "benmoussa.achraf@gmail.com"
+    is_superadmin = bool(_superadmin_email and user and user.email.lower() == _superadmin_email)
 
     if role == "SECRETAIRE":
         finance_data = {
@@ -380,9 +406,10 @@ def update_appointment_status(
     employer_id: int = Depends(get_mobile_employer_id),
     db: Session = Depends(database.get_db),
 ):
-    allowed = {"PLANIFIE", "EN_COURS", "TERMINE", "ANNULE"}
-    if body.status not in allowed:
-        raise HTTPException(status_code=422, detail=f"Statut invalide. Valeurs: {allowed}")
+    backend_status = _MOBILE_TO_BACKEND_STATUS.get(body.status)
+    if backend_status is None:
+        valeurs = ", ".join(_MOBILE_TO_BACKEND_STATUS.keys())
+        raise HTTPException(status_code=422, detail=f"Statut invalide. Valeurs: {valeurs}")
 
     apt = db.query(models.Appointment).filter(
         models.Appointment.id == appointment_id,
@@ -391,7 +418,7 @@ def update_appointment_status(
     if not apt:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
 
-    apt.status = models.AppointmentStatus(body.status)
+    apt.status = backend_status
     db.commit()
     return {"id": appointment_id, "status": body.status}
 
@@ -419,7 +446,6 @@ def register_device(
     return {"status": "registered"}
 
 
-from typing import Optional
 from fastapi.responses import FileResponse
 from backend.routers.accounting import get_accounting_honoraires
 from backend.services.generators.report_gen import ReportGenerator
@@ -473,7 +499,7 @@ def get_mobile_appointments(
         'patient_id': a.patient_id,
         'phone': a.patient.telephone if a.patient else None,
         'motif': a.motif,
-        'status': a.status.value if a.status else None,
+        'status': _to_mobile_status(a.status),
         'duration_minutes': a.duration_minutes
     } for a in apts]
     return encrypt_payload({"data": data})
@@ -494,7 +520,7 @@ def create_mobile_appointment(
         datetime_start=dt_start,
         datetime_end=dt_end,
         duration_minutes=body.duration_minutes,
-        status=models.AppointmentStatus.PLANIFIE
+        status=models.AppointmentStatus.PREVU
     )
     db.add(new_apt)
     db.commit()
