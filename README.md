@@ -15,6 +15,21 @@ Digital Crown est une plateforme **Ghost Elite** conçue pour transformer la ges
 
 ---
 
+## Nouveautés — Juin 2026 (V1 Commercialisation — Local-First)
+
+### Déploiement Local-First
+- **Aucun domaine, aucun SaaS hébergé** : tout tourne en local (SQLite dans `%APPDATA%`).
+- **Seul lien en ligne = Firebase** : inscription (`pending_clients`), validation SuperAdmin, kill-switch licence (sync 6h → SQLite). Middleware licence fail-open si DB inaccessible.
+- **Onboarding client** : signup public `/register` (CGU + Politique de Confidentialité obligatoires), emails transactionnels (`email_service.py`), activation + 30j d'essai via le panneau SuperAdmin.
+- **Checklist de mise en prod** : `scripts/check-production-readiness.ps1` (10 vérifications). Reste = config (SMTP, `SUPERADMIN_EMAIL`, validation juridique CGU/Privacy).
+
+### RBAC — Accès par compte décidé par le proprio
+- Le propriétaire attribue librement les 9 permissions à chaque sous-compte (dentiste associé **ou** assistante) via `TeamManager`. Accès total réservé au proprio (`employer_id=NULL`).
+
+### Mobile + PWA — Fixes V1
+- Statuts RDV mobile alignés sur l'enum métier (couche de mapping dans `mobile.py`) — création et changement de statut depuis le téléphone ne crashent plus.
+- Icônes PWA carrées (192/512/maskable) — installation propre sur écran d'accueil iOS/Android.
+
 ## Nouveautés — Juin 2026 (Sprint CrownBot)
 
 ### CrownBot — Assistant Conversationnel Natif
@@ -156,4 +171,4 @@ cd frontend && npm run dev
 
 ## Équipe & Version
 **Staff Engineering — Digital Crown SANINOVA**
-*Dernière mise à jour : 12 Juin 2026 — CrownBot v3.0 + Échéancier PDF + Analytics réel (sprint crownbot)*
+*Dernière mise à jour : 16 Juin 2026 — V1 Commercialisation Local-First (signup en ligne, RBAC, fixes mobile/PWA)*

@@ -2,6 +2,47 @@
 
 ---
 
+### 📅 Date : 16 Juin 2026
+**Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
+**Objectif** : Bouclage V1 commercialisation (local-first) + audit RBAC / mobile / PWA + fixes.
+
+---
+
+### 🎯 Décision d'architecture — Local-First confirmé
+- **Pas de domaine, pas de SaaS hébergé.** Tout tourne en local (`%APPDATA%`, SQLite).
+- **Seul lien en ligne = Firebase** : signup (`pending_clients`), validation SuperAdmin, kill-switch licence (sync toutes les 6h vers SQLite, `main.py:151`).
+- Le login lui-même reste local (SQLite) mais gated par la licence venue du online. Middleware licence : cache 60s, **fail-open** si DB inaccessible (`main.py:81`).
+
+### ✅ V1 commercialisation — commit `3377eb7`
+- Signup public `/register` avec `accept_terms` + `accept_privacy` obligatoires + push Firebase.
+- Emails transactionnels (`email_service.py`) : signup reçu, notice admin, compte activé, expiration licence.
+- SuperAdmin `/validate` → email activation + 30j d'essai auto.
+- Pages légales `/terms` et `/privacy` (`LegalPage.tsx`) — **à faire valider par un juriste avant lancement public**.
+- `check-production-readiness.ps1` : 10 vérifications avant lancement.
+- `config.py` : SMTP, Google OAuth, SUPPORT_EMAIL, APP_PUBLIC_URL.
+
+### 🔍 Audit RBAC / rôles — RAS, déjà conforme
+- 3 rôles : `ADMIN`, `DENTISTE`, `SECRETAIRE`. Distinction clinique/cabinet via `cabinet_type` (PRIVE/CLINIQUE) + `clinic_id` + hiérarchie `employer_id`.
+- **Décision validée** : pour CHAQUE sous-compte (dentiste associé OU assistante), le proprio attribue librement les accès case par case. C'est l'option déjà implémentée — `TeamManager.tsx` propose les 2 rôles + 9 permissions cochables ; `team.py` sanitize et applique. Aucun changement nécessaire.
+- Accès total réservé au proprio (`role∈ADMIN/DENTISTE` ET `employer_id=NULL`). Tout sous-compte est permission-gated quel que soit son rôle.
+
+### 🔧 Fixes mobile + PWA — commit `f6b5552`
+- 🔴 **Bug bloquant** : `AppointmentStatus.PLANIFIE` n'existe pas → création RDV mobile crashait (AttributeError). Init désormais `PREVU`.
+- 🔴 **Bug bloquant** : update statut mobile acceptait `"PLANIFIE"`/`"EN_COURS"` → ValueError. Ajout couche de mapping bidirectionnelle mobile↔métier (`_MOBILE_TO_BACKEND_STATUS` / `_to_mobile_status`).
+- 🟠 Snapshot/liste RDV renvoyaient les valeurs FR brutes (`"TERMINÉ"`) → `termineCount` toujours 0. Corrigé.
+- 🟠 Email superadmin codé en dur (`benmoussa.achraf@gmail.com`) → lit `SUPERADMIN_EMAIL` (env).
+- 🟠 PWA : icônes carrées générées (192/512/512-maskable) — l'ancienne `logo.png` 677×369 était déformée. `manifest.json` + `index.html` mis à jour, bloc `screenshots` (fichiers inexistants) supprimé.
+- **Fichiers** : `backend/routers/mobile.py`, `frontend/public/manifest.json`, `frontend/index.html`, `frontend/public/icon-{192,512,512-maskable}.png`.
+
+### 📋 Reste pour la commercialisation (config, pas de code)
+- SMTP (host/from/password), `SUPERADMIN_EMAIL`, validation juridique CGU/Privacy.
+- Pas de domaine requis (local-first).
+
+### ➡️ Prochaine session : **CrownBot / chatbot**
+Voir la branche `crownbot` (déjà mergée) et l'audit préliminaire plus bas (score 4.8/10). Pistes ouvertes : streaming des réponses, couverture d'intents, historique par patient (`patient_id`), qualité du parsing LLM multi-turn.
+
+---
+
 ### 📅 Date : 12 Juin 2026 (session 2)
 **Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
 **Objectif** : 4 bugfixes post-recette + CrownBot upsell Premium + documentation architecture.
