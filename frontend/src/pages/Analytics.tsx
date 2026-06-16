@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, PlusCircle } from 'lucide-react';
 import { DigitalCrownLoader } from '../components/DigitalCrownLoader';
+import toast from 'react-hot-toast';
 
 // Code Splitting for Recharts (to avoid blocking the main thread)
 const AnalyticsCharts = lazy(() => import('../features/analytics/AnalyticsCharts').then(m => ({ default: m.AnalyticsCharts })));
@@ -158,7 +159,6 @@ export const Analytics = () => {
                  {/* Bouton d'action (Sofia) */}
                  <button 
                    onClick={() => {
-                     const toast = require('react-hot-toast').toast;
                      toast.promise(
                        new Promise(resolve => setTimeout(resolve, 2000)),
                        {

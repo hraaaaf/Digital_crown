@@ -49,6 +49,20 @@ class BotResponse:
 class ActionDispatcher:
     """Exécute les intents en appelant les services existants."""
 
+    def _patient_query_by_name(self, db: Session, employer_id: int, name: str):
+        query = db.query(models.Patient).filter(models.Patient.employer_id == employer_id)
+        tokens = [token.strip() for token in (name or "").split() if token.strip()]
+        for token in tokens:
+            pattern = f"%{token}%"
+            query = query.filter(or_(
+                models.Patient.nom.ilike(pattern),
+                models.Patient.prenom.ilike(pattern),
+            ))
+        return query
+
+    def _find_patient_by_name(self, db: Session, employer_id: int, name: str):
+        return self._patient_query_by_name(db, employer_id, name).first()
+
     def execute(
         self, pending_action: Dict[str, Any], db: Session, user: models.User
     ) -> BotResponse:
@@ -91,13 +105,7 @@ class ActionDispatcher:
 
         # Résoudre patient_id si absent
         if not patient_id and patient_name:
-            patient = db.query(models.Patient).filter(
-                models.Patient.employer_id == employer_id,
-                or_(
-                    func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{patient_name}%"),
-                    func.concat(models.Patient.nom, " ", models.Patient.prenom).ilike(f"%{patient_name}%"),
-                )
-            ).first()
+            patient = self._find_patient_by_name(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -160,7 +168,7 @@ class ActionDispatcher:
     ) -> BotResponse:
         """Retourne un redirect_url pour ouvrir le module devis."""
         patient_id = params.get("patient_id")
-        url = f"/patients/{patient_id}?tab=devis"
+        url = f"/patients/{patient_id}?tab=admin&documentTab=devis"
         return BotResponse(
             message="✅ Ouverture du module devis...",
             data={"redirect_url": url},
@@ -220,15 +228,7 @@ class ActionDispatcher:
             ).first()
         elif "patient_name" in parsed.entities:
             name = parsed.entities["patient_name"]
-            patient = db.query(models.Patient).filter(
-                models.Patient.employer_id == employer_id,
-                or_(
-                    models.Patient.nom.ilike(f"%{name}%"),
-                    models.Patient.prenom.ilike(f"%{name}%"),
-                    func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{name}%"),
-                    func.concat(models.Patient.nom, " ", models.Patient.prenom).ilike(f"%{name}%"),
-                )
-            ).first()
+            patient = self._find_patient_by_name(db, employer_id, name)
 
         if not patient:
             return BotResponse(
@@ -558,13 +558,7 @@ class ActionDispatcher:
         patient_id = e.get("patient_id")
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = db.query(models.Patient).filter(
-                models.Patient.employer_id == employer_id,
-                or_(
-                    func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{patient_name}%"),
-                    func.concat(models.Patient.nom, " ", models.Patient.prenom).ilike(f"%{patient_name}%"),
-                )
-            ).first()
+            patient = self._find_patient_by_name(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -623,13 +617,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = db.query(models.Patient).filter(
-                models.Patient.employer_id == employer_id,
-                or_(
-                    func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{patient_name}%"),
-                    func.concat(models.Patient.nom, " ", models.Patient.prenom).ilike(f"%{patient_name}%"),
-                )
-            ).first()
+            patient = self._find_patient_by_name(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -687,13 +675,7 @@ class ActionDispatcher:
 
         if not patient_id and patient_name:
             employer_id = user.get_employer_id()
-            patient = db.query(models.Patient).filter(
-                models.Patient.employer_id == employer_id,
-                or_(
-                    func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{patient_name}%"),
-                    func.concat(models.Patient.nom, " ", models.Patient.prenom).ilike(f"%{patient_name}%"),
-                )
-            ).first()
+            patient = self._find_patient_by_name(db, employer_id, patient_name)
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
@@ -745,14 +727,7 @@ class ActionDispatcher:
                 action_type="clarification",
             )
 
-        patients = db.query(models.Patient).filter(
-            models.Patient.employer_id == employer_id,
-            or_(
-                models.Patient.nom.ilike(f"%{name}%"),
-                models.Patient.prenom.ilike(f"%{name}%"),
-                func.concat(models.Patient.prenom, " ", models.Patient.nom).ilike(f"%{name}%"),
-            )
-        ).limit(10).all()
+        patients = self._patient_query_by_name(db, employer_id, name).limit(10).all()
 
         if not patients:
             return BotResponse(

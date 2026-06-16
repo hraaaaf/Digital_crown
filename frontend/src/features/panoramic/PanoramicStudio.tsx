@@ -85,6 +85,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       report_narrative: analysis.report_narrative,
       created_at: analysis.created_at
     };
+    setAnnotations(analysis.detections_data?.visual_annotations || []);
     
     if (compareMode) {
       setCompareResult(data);
@@ -111,6 +112,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       if (!responseData.file_url || responseData.file_url.includes('localhost:8000')) {
         responseData.file_url = `${API_BASE}/${responseData.image_path || responseData.file_url.split('8000/')[1]}`;
       }
+      if (responseData.vision?.is_simulation || responseData.vision?.simulation_warning) {
+        toast.error(responseData.vision?.simulation_warning || "Analyse panoramique simulée : modèle IA indisponible.");
+      }
+      setAnnotations([]);
       setResult(responseData);
     } catch (err) {
       console.error("Erreur lors de l'upload de la panoramique :", err);
@@ -132,7 +137,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       const response = await api.post('/ia/generate-panoramic-report', {
         analysis_id: result.id,
         manual_anomalies: toothAnomalies,
-        rejected_detections: rejectedIndices
+        rejected_detections: rejectedIndices,
+        visual_annotations: annotations
       });
       
       setResult((prev: any) => ({

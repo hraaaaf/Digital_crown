@@ -12,13 +12,14 @@ import json
 import logging
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, has_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
 from backend.services.generators.report_gen import ReportGenerator
 from backend.services.clinical_coherence import coherence_service
 from backend.utils.accounting_utils import extract_amount_from_clinical_data
+from backend.services.audit_service import audit_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
@@ -36,10 +37,38 @@ doc_factory = DocumentFactory(output_dir=DOCS_DIR, static_dir=STATIC_DIR)
 
 # Logic moved to backend.utils.accounting_utils
 
+
+DOCUMENT_TYPE_PERMISSIONS = {
+    "ordonnance": "prescriptions",
+    "rapport_cephalo": "cephalo",
+    "certificat": "patients",
+    "devis": "accounting",
+    "note": "accounting",
+    "note_honoraires": "accounting",
+    "honoraires": "accounting",
+    "libre": "patients",
+    "lettre": "patients",
+    "lettre_medicale": "patients",
+    "document_libre": "patients",
+    "photo_clinique": "patients",
+    "radiographie": "patients",
+    "moulage": "patients",
+    "autre": "patients",
+    "echeancier": "accounting",
+}
+
+
+def require_document_permission(doc_type: str, current_user: models.User) -> None:
+    normalized_type = doc_type.lower()
+    permission = DOCUMENT_TYPE_PERMISSIONS.get(normalized_type)
+    if permission and not has_permission(current_user, permission):
+        raise HTTPException(status_code=403, detail=f"Accès refusé. Permission requise : {permission}.")
+
 @router.post("/generate",
     summary="Générer un document PDF",
     description="Génère une ordonnance, certificat, devis ou note d'honoraires. La génération ReportLab tourne dans un thread dédié pour ne pas bloquer l'event loop.")
 async def generate_document(req: schemas.DocumentRequest, archive: bool = False, preview: bool = False, force: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    require_document_permission(req.type, current_user)
     assert_patient_access(req.patient_id, current_user, db)
     patient_id = req.patient_id
     user_id = current_user.id
@@ -238,6 +267,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     suggest_radio = True
                     break
 
+        audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {archive}")
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
     except ValueError as e:
         msg = str(e)
@@ -258,6 +288,8 @@ async def generate_sample_preview(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
+    if not has_permission(current_user, "settings"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : settings.")
     # Patient fictif pour l'aperçu dynamique
     mock_patient = models.Patient(
         nom="EL ALAMI",
@@ -301,6 +333,7 @@ async def generate_sample_preview(
 
 @router.post("/archive", response_model=schemas.DocumentArchiveResponse)
 async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file: UploadFile = File(...), title: Optional[str] = None, on_conflict: schemas.ConflictResolution = schemas.ConflictResolution.CREATE_VERSION, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    require_document_permission(doc_type.value if hasattr(doc_type, "value") else str(doc_type), current_user)
     assert_patient_access(patient_id, current_user, db)
     content = await file.read()
     archive_service = get_archive_service(db)
@@ -309,6 +342,8 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
 
 @router.get("/", response_model=schemas.DocumentListResponse)
 def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.DocumentType] = None, search: Optional[str] = None, page: int = 1, page_size: int = 20, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if patient_id:
         assert_patient_access(patient_id, current_user, db)
     
@@ -402,6 +437,8 @@ def download_document(
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if document_id.startswith("legacy:"):
         raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
     
@@ -434,6 +471,8 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
 
 @router.post("/{document_id}/restore")
 def restore_from_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if document_id.startswith("doc_"):
         doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.public_id == document_id).first()
         if not doc: raise HTTPException(status_code=404, detail="Introuvable")
@@ -454,6 +493,8 @@ def restore_from_trash(document_id: str, db: Session = Depends(database.get_db),
 
 @router.delete("/{document_id}")
 def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not has_permission(current_user, "patients"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if not confirm: raise HTTPException(status_code=400, detail="Confirmation requise")
     
     if document_id.startswith("doc_"):
@@ -475,6 +516,8 @@ def permanent_delete(document_id: str, confirm: bool = False, db: Session = Depe
 
 @router.post("/patients/{patient_id}/report")
 def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not has_permission(current_user, "cephalo"):
+        raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : cephalo.")
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     last_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.id.desc()).first()

@@ -9,6 +9,7 @@ from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.prescription_service import prescription_service
+from backend.services.audit_service import audit_service
 
 prescription_router = APIRouter(tags=["Prescriptions"])
 actes_router = APIRouter(tags=["Actes Cliniques"])
@@ -230,6 +231,7 @@ def create_acte(
         # 3. Commit de la transaction combinée (Atomique : Acte + LabJob)
         db.commit()
         db.refresh(new_act)
+        audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="CREATE", resource_type="Acte", resource_id=str(new_act.id), details=f"Acte: {new_act.libelle}, Montant: {new_act.montant}")
         
         return {"status": "success", "act_id": new_act.id, "labjob_created": is_prothetic}
 
@@ -271,6 +273,7 @@ def update_acte(
 
         db.commit()
         db.refresh(act)
+        audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="UPDATE", resource_type="Acte", resource_id=str(acte_id), details=f"Champs: {', '.join(acte_data.keys())}")
         return {"status": "success", "acte": {
             "id": act.id,
             "libelle": act.libelle,

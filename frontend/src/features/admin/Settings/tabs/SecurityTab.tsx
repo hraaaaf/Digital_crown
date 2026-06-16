@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Database, Download, Loader2 } from 'lucide-react';
 import { SettingsSection } from '../components/SharedUI';
 import { MobileSecurity } from '../../Security/MobileSecurity';
+import { AuditLogViewer } from '../../Security/AuditLogViewer';
 import { API_BASE, api } from '../../../../services/api';
 import toast from 'react-hot-toast';
 
@@ -59,6 +60,10 @@ export const SecurityTab: React.FC = () => {
 
         <div className="pt-10 border-t border-slate-100">
            <MobileSecurity />
+        </div>
+
+        <div className="pt-10 border-t border-slate-100">
+           <AuditLogViewer />
         </div>
       </SettingsSection>
     </div>

@@ -493,6 +493,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           } catch (e) {
             console.warn("Échec de l'apprentissage des actes (silencieux)", e);
           }
+
+          if (activeTab === 'honoraires') {
+            useAccountingStore.getState().setItems([{ id: Date.now(), description: '', dent: '0', price: 0 }]);
+          }
         }
       }
       if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');

@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Joyride as OriginalJoyride, STATUS } from 'react-joyride';
-import type { Step } from 'react-joyride';
+import { TOUR_STORAGE_KEY, TOUR_VERSION } from './GuidedTour/tourConfig';
 
 const Joyride: any = OriginalJoyride;
+const LEGACY_TOUR_STORAGE_KEY = 'digital_crown_tour_completed';
 
 export const DayOneTour: React.FC = () => {
   const [run, setRun] = useState(false);
 
   useEffect(() => {
-    const hasCompletedTour = localStorage.getItem('digital_crown_tour_completed');
+    const hasCompletedTour = localStorage.getItem(TOUR_STORAGE_KEY);
+    const legacyCompletedTour = localStorage.getItem(LEGACY_TOUR_STORAGE_KEY);
+
+    if (!hasCompletedTour && legacyCompletedTour) {
+      localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+      localStorage.removeItem(LEGACY_TOUR_STORAGE_KEY);
+      return;
+    }
+
     if (!hasCompletedTour) {
       // Small delay to allow dashboard to render completely
       const timer = setTimeout(() => {
@@ -24,7 +33,8 @@ export const DayOneTour: React.FC = () => {
 
     if (finishedStatuses.includes(status)) {
       setRun(false);
-      localStorage.setItem('digital_crown_tour_completed', 'true');
+      localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+      localStorage.removeItem(LEGACY_TOUR_STORAGE_KEY);
     }
   };
 
@@ -71,7 +81,6 @@ export const DayOneTour: React.FC = () => {
     }
   ];
 
-  // @ts-ignore
   return (
     <Joyride
       steps={steps}

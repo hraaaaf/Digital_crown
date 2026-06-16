@@ -214,11 +214,13 @@ def update_my_clinic(
         if "nom_cabinet" not in update_dict:
             update_dict["nom_cabinet"] = nom_val
             
+        dr_prefixes = ("Dr.", "Dr ", "Pr.", "Pr ", "Docteur", "Professeur")
+        display_name = nom_val if any(nom_val.startswith(p) for p in dr_prefixes) else f"Dr. {nom_val}"
         current_headers = list(config.header_lines_fr) if config.header_lines_fr else []
         if current_headers:
-            current_headers[0] = nom_val
+            current_headers[0] = display_name
         else:
-            current_headers = [nom_val]
+            current_headers = [display_name]
         update_dict["header_lines_fr"] = current_headers
         
     for key, value in update_dict.items():

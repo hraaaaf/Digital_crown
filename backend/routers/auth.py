@@ -98,10 +98,21 @@ async def get_current_user(
     return user
 
 
+def has_permission(current_user: models.User, permission_name: Union[str, List[str]]) -> bool:
+    """Valide une permission en tenant compte des sous-comptes du cabinet."""
+    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if role in ("ADMIN", "DENTISTE") and current_user.employer_id is None:
+        return True
+
+    perms = current_user.permissions or {}
+    perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
+    return any(perms.get(p, False) for p in perms_to_check)
+
+
 def require_permission(permission_name: Union[str, List[str]]):
     """Dépendance FastAPI pour valider les privilèges d'accès du collaborateur."""
     def dependency(current_user: models.User = Depends(get_current_user)):
-        if current_user.role in [models.UserRole.ADMIN, models.UserRole.DENTISTE]:
+        if has_permission(current_user, permission_name):
             return current_user
         perms = current_user.permissions or {}
         
@@ -116,14 +127,21 @@ def require_permission(permission_name: Union[str, List[str]]):
         return current_user
     return dependency
 
-def require_elite_license(current_user: models.User = Depends(get_current_user)):
+def require_elite_license(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
     # Le middleware global gère déjà le read-only, mais pour l'IA, on bloque spécifiquement
     # si la licence est absente ou expirée (même pour un simple GET).
     if current_user.role == "SUPERADMIN":
         return current_user
         
-    if not current_user.is_licensed:
+    license_owner = current_user
+    if current_user.employer_id:
+        license_owner = db.query(models.User).filter(models.User.id == current_user.employer_id).first() or current_user
+
+    if not license_owner.is_licensed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès refusé. Cette fonctionnalité requiert une licence active."
@@ -476,6 +494,6 @@ async def google_callback(
         severity="INFO",
     )
 
-    return RedirectResponse(
-        url=f"{frontend_url}/login?token={access_token}&refresh={refresh_token}"
-    )
+    redirect = RedirectResponse(url=f"{frontend_url}/login?google=success")
+    _set_auth_cookies(redirect, access_token, refresh_token)
+    return redirect

@@ -7,7 +7,7 @@ from backend.services.security.data_sanitizer import data_sanitizer
 
 from backend.database import get_db
 from backend import models
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, has_permission
 from backend.services.bot.intent_parser import intent_parser as regex_parser
 from backend.services.bot.llm_parser import llm_parser
 from backend.services.bot.action_dispatcher import ActionDispatcher
@@ -20,6 +20,31 @@ logger = logging.getLogger(__name__)
 parser = llm_parser
 dispatcher = ActionDispatcher()
 
+INTENT_PERMISSIONS = {
+    "QUERY_PATIENT": "patients",
+    "SEARCH_PATIENT": "patients",
+    "QUERY_AGENDA": "agenda",
+    "CREATE_APPOINTMENT": "agenda",
+    "QUERY_FINANCE": "accounting",
+    "QUERY_STATS": "accounting",
+    "QUERY_LAB": "patients",
+    "QUERY_ALERTS": "patients",
+    "CREATE_PRESCRIPTION": "prescriptions",
+    "CREATE_DEVIS": "accounting",
+    "CHANGE_STATUS": "agenda",
+}
+
+ACTION_PERMISSIONS = {
+    "CREATE_APPOINTMENT": "agenda",
+    "OPEN_PRESCRIPTION_EDITOR": "prescriptions",
+    "OPEN_DEVIS_EDITOR": "accounting",
+}
+
+
+def require_bot_permission(current_user: models.User, permission: str | None) -> None:
+    if permission and not has_permission(current_user, permission):
+        raise HTTPException(status_code=403, detail=f"Accès refusé. Permission requise : {permission}.")
+
 @router.get("/sessions")
 async def get_sessions(
     db: Session = Depends(get_db),
@@ -31,6 +56,7 @@ async def get_sessions(
     employer_id = current_user.get_employer_id()
     sessions = db.query(models.BotSession).filter(
         models.BotSession.employer_id == employer_id,
+        models.BotSession.user_id == current_user.id,
         models.BotSession.is_archived == False
     ).order_by(desc(models.BotSession.updated_at)).all()
     
@@ -55,12 +81,13 @@ async def get_session_messages(
     employer_id = current_user.get_employer_id()
     session = db.query(models.BotSession).filter(
         models.BotSession.id == session_id,
-        models.BotSession.employer_id == employer_id
+        models.BotSession.employer_id == employer_id,
+        models.BotSession.user_id == current_user.id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session introuvable")
-        
+
     messages = db.query(models.BotMessage).filter(
         models.BotMessage.session_id == session_id
     ).order_by(models.BotMessage.created_at).all()
@@ -90,12 +117,13 @@ async def archive_session(
     employer_id = current_user.get_employer_id()
     session = db.query(models.BotSession).filter(
         models.BotSession.id == session_id,
-        models.BotSession.employer_id == employer_id
+        models.BotSession.employer_id == employer_id,
+        models.BotSession.user_id == current_user.id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session introuvable")
-        
+
     session.is_archived = True
     db.commit()
     
@@ -125,6 +153,7 @@ async def bot_chat(
         title = " ".join(title_words) + ("..." if len(message.split()) > 5 else "")
         bot_session = models.BotSession(
             employer_id=employer_id,
+            user_id=current_user.id,
             title=title
         )
         db.add(bot_session)
@@ -135,7 +164,8 @@ async def bot_chat(
         # Vérifier que la session existe et appartient à l'utilisateur
         bot_session = db.query(models.BotSession).filter(
             models.BotSession.id == session_id,
-            models.BotSession.employer_id == employer_id
+            models.BotSession.employer_id == employer_id,
+            models.BotSession.user_id == current_user.id
         ).first()
         if not bot_session:
             raise HTTPException(status_code=404, detail="Session introuvable")
@@ -177,6 +207,8 @@ async def bot_chat(
         logger.info("Regex non confiant, appel au LLM avec contexte...")
         parsed_intent = parser.parse(message, context=context_window)
         llm_used = True
+
+    require_bot_permission(current_user, INTENT_PERMISSIONS.get(parsed_intent.intent))
 
     # 5. Dispatch Action
     response = dispatcher.dispatch(parsed_intent, db, current_user)
@@ -231,6 +263,8 @@ async def bot_execute(
     pending_action = payload.get("pending_action")
     if not pending_action:
         raise HTTPException(status_code=400, detail="pending_action manquant")
+
+    require_bot_permission(current_user, ACTION_PERMISSIONS.get(pending_action.get("type")))
 
     response = dispatcher.execute(pending_action, db, current_user)
     return response.to_dict()

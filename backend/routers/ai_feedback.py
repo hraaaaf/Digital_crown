@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -8,6 +9,7 @@ import asyncio
 
 from backend import database, models
 from backend.routers.auth import get_current_user, require_permission, require_elite_license
+from backend.security import SECRET_KEY, ALGORITHM, token_blacklist
 
 router = APIRouter(
     tags=["Ghost Hub Feedback"]
@@ -20,6 +22,39 @@ class AIFeedbackCreate(BaseModel):
     insight_content: str
     action: str  # accept | reject | edit | resolved
     corrected_text: Optional[str] = None
+
+
+def _get_websocket_user(websocket: WebSocket, db: Session) -> Optional[models.User]:
+    token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
+    if token and token.lower().startswith("bearer "):
+        token = token.split(" ", 1)[1]
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        token_type: str = payload.get("type")
+        jti: str = payload.get("jti")
+
+        if token_type not in ("access", "mobile"):
+            return None
+        if jti and token_blacklist.is_revoked(jti, db):
+            return None
+
+        if token_type == "mobile":
+            user_id = int(payload["sub"])
+            user = db.query(models.User).filter(models.User.id == user_id).first()
+        else:
+            email: str = payload.get("sub")
+            if email is None:
+                return None
+            user = db.query(models.User).filter(models.User.email == email).first()
+    except (JWTError, ValueError, KeyError):
+        return None
+
+    if user is None or not user.is_active:
+        return None
+    return user
 
 
 @router.post("/feedback", dependencies=[Depends(require_elite_license)])
@@ -111,9 +146,15 @@ def mark_ghost_insight_read(
     current_user: models.User = Depends(require_permission("patients")),
 ):
     """Marque un insight comme lu par le praticien."""
-    success = ghost_memory.mark_as_read(db, log_id)
-    if not success:
+    emp_id = current_user.employer_id or current_user.id
+    log = db.query(models.GhostMemoryLog).filter(
+        models.GhostMemoryLog.id == log_id,
+        models.GhostMemoryLog.employer_id == emp_id,
+    ).first()
+    if not log:
         raise HTTPException(status_code=404, detail="Insight introuvable")
+    log.is_read = True
+    db.commit()
     return {"status": "read"}
 
 
@@ -123,6 +164,12 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int, db: S
     Flux WebSocket Temps Réel pour les insights du Ghost Brain.
     Remplace le polling HTTP par un push Server-Side.
     """
+    current_user = _get_websocket_user(websocket, db)
+    if current_user is None or (current_user.employer_id or current_user.id) != employer_id:
+        await websocket.accept()
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     last_count = -1
     try:

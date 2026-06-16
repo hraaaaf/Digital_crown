@@ -43,7 +43,7 @@ export const AnalyticsCharts = () => {
             <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
             <Tooltip
               contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              formatter={(value: number) => [`${value}%`, 'Activité']}
+              formatter={(value) => [`${Number(value ?? 0)}%`, 'Activite']}
             />
             <Area type="monotone" dataKey="activite" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorActivite)" />
           </AreaChart>

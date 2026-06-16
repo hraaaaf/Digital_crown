@@ -8,7 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
 
 # Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
 _DAYS_WORDS = {
@@ -260,16 +260,51 @@ class CertificatGenerator:
         
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
-        doc = SimpleDocTemplate(
-            filepath, pagesize=A5,
-            rightMargin=m_right, leftMargin=m_left,
-            topMargin=m_top, bottomMargin=m_bottom,
-        )
-        doc.qr_type = 'VALIDATION'
-        doc.doc_id = getattr(data, 'id', 'CERT-TEMP')
-        doc.cloture_text = None
-
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
-        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
+
+        # Single-Page Force : compression progressive jusqu'à ce que tout tienne sur 1 page
+        compression_factor = 1.0
+        for _ in range(6):
+            scaled_elements = self._scale_elements(elements, compression_factor)
+            doc = SimpleDocTemplate(
+                filepath, pagesize=A5,
+                rightMargin=m_right, leftMargin=m_left,
+                topMargin=m_top, bottomMargin=m_bottom,
+            )
+            doc.qr_type = 'VALIDATION'
+            doc.doc_id = getattr(data, 'id', 'CERT-TEMP')
+            doc.cloture_text = None
+            page_counter = PageCounter()
+            doc.build(scaled_elements, onFirstPage=draw_method, onLaterPages=draw_method,
+                      canvasmaker=page_counter.make_canvas_class())
+            if page_counter.page_count <= 1:
+                break
+            compression_factor *= 0.85
+            if compression_factor < 0.4:
+                break
 
         return filepath.replace("\\", "/")
+
+    def _scale_elements(self, elements, factor):
+        """Retourne une copie des éléments avec les ParagraphStyle redimensionnés."""
+        if factor >= 0.99:
+            return elements
+        from reportlab.platypus import Paragraph as RLParagraph, Spacer as RLSpacer
+        from reportlab.lib.styles import ParagraphStyle
+        scaled = []
+        for el in elements:
+            if isinstance(el, RLParagraph):
+                style = el.style
+                new_style = ParagraphStyle(
+                    style.name + '_scaled',
+                    parent=style,
+                    fontSize=max(style.fontSize * factor, 6),
+                    leading=max(style.leading * factor if hasattr(style, 'leading') and style.leading else style.fontSize * factor * 1.2, 7),
+                    spaceAfter=style.spaceAfter * factor if hasattr(style, 'spaceAfter') else 0,
+                )
+                scaled.append(RLParagraph(el.text, new_style))
+            elif isinstance(el, RLSpacer):
+                scaled.append(RLSpacer(el.width, max(el.height * factor, 2)))
+            else:
+                scaled.append(el)
+        return scaled

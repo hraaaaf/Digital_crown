@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient } from '../../types'; 
 import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight, LayoutGrid, List } from 'lucide-react';
@@ -8,11 +8,13 @@ import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
+import { usePatientStore } from '../../stores/usePatientStore';
 
 export const PatientList = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { patientsCache, patientsCacheLoaded, patientsCacheUpdatedAt, setPatientsCache } = usePatientStore();
+  const [patients, setPatients] = useState<Patient[]>(patientsCache);
+  const [loading, setLoading] = useState(!patientsCacheLoaded);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest'|'oldest'|'az'|'za'|'dossier'|'created'>('newest');
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
@@ -77,34 +79,43 @@ export const PatientList = () => {
     name: ""
   });
 
-  useEffect(() => {
-    fetchPatients();
-    api.get('/patients/fantomes').then(res => {
-      setFantomeIds(new Set((res.data as { patient_id: number }[]).map(f => f.patient_id)));
-    }).catch(() => {});
-  }, []);
+  const fetchPatients = useCallback(async (force = false) => {
+    const cacheAgeMs = Date.now() - patientsCacheUpdatedAt;
+    if (!force && patientsCacheLoaded && cacheAgeMs < 120000) {
+      setLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    localStorage.setItem('patient_list_view_mode', viewMode);
-  }, [viewMode]);
-
-  const fetchPatients = async () => {
     try {
       const res = await api.get('/patients/');
       setPatients(res.data);
+      setPatientsCache(res.data);
     } catch (err) {
       console.error("Erreur chargement:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientsCacheLoaded, patientsCacheUpdatedAt, setPatientsCache]);
+
+  useEffect(() => {
+    fetchPatients();
+    api.get('/patients/fantomes').then(res => {
+      setFantomeIds(new Set((res.data as { patient_id: number }[]).map(f => f.patient_id)));
+    }).catch(() => {});
+  }, [fetchPatients]);
+
+  useEffect(() => {
+    localStorage.setItem('patient_list_view_mode', viewMode);
+  }, [viewMode]);
 
   // Logique de suppression liée à la modale
   const confirmDelete = async () => {
     if (!deleteModal.id) return;
     try {
       await api.delete(`/patients/${deleteModal.id}`);
-      setPatients(patients.filter(p => p.id !== deleteModal.id));
+      const nextPatients = patients.filter(p => p.id !== deleteModal.id);
+      setPatients(nextPatients);
+      setPatientsCache(nextPatients);
       setDeleteModal({ open: false, id: null, name: "" });
     } catch (err) {
       alert("Erreur lors de la suppression.");
@@ -293,7 +304,7 @@ export const PatientList = () => {
                             <div className="font-black text-primary text-lg tracking-tight">
                               {p.nom.toUpperCase()} {p.prenom}
                             </div>
-                            {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={fetchPatients} />}
+                            {show_patient_badges && <PatientScoreBadge patientId={p.id!} className="scale-75 origin-left" onUpdate={() => fetchPatients(true)} />}
                             {p.id && fantomeIds.has(p.id) && (
                               <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
                                 <AlertTriangle size={10} /> Fantôme
@@ -435,7 +446,7 @@ export const PatientList = () => {
 
                       {show_patient_badges && p.id && (
                         <div onClick={(e) => e.stopPropagation()} className="scale-90 origin-left">
-                          <PatientScoreBadge patientId={p.id} onUpdate={fetchPatients} />
+                          <PatientScoreBadge patientId={p.id} onUpdate={() => fetchPatients(true)} />
                         </div>
                       )}
                     </div>

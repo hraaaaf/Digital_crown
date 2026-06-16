@@ -1006,15 +1006,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                onClick={() => setIsTreasuryModalOpen(false)}
                className="w-full sm:w-auto px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
              >Fermer</button>
-             <button
-               onClick={() => {
-                 setIsTreasuryModalOpen(false);
-                 setGroupSelectedTeeth([]);
-                 setOdontogramMode('individual');
-                 setItems([{ id: Date.now(), description: '', dent: '0', price: 0 }]);
-               }}
-               className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
-             >Valider la Caisse</button>
+              <button
+                onClick={() => {
+                  setIsTreasuryModalOpen(false);
+                }}
+                className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
+              >Confirmer l'Encaissement</button>
           </div>
 
             </motion.div>

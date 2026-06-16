@@ -32,6 +32,7 @@ import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
 import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { usePatientStore } from '../../stores/usePatientStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { Banknote } from 'lucide-react';
 
@@ -67,9 +68,15 @@ export const PatientDetails = () => {
   const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { editingDoc, setEditingDoc } = usePatientStore();
+  // Permission « clinical » : le propriétaire (sans employer_id) passe toujours,
+  // un sous-compte doit l'avoir explicitement (miroir de has_permission backend).
+  const user = useAuthStore(state => state.user);
+  const canClinical = !user?.employer_id || Boolean(user?.permissions?.clinical);
+
+  const { editingDoc, setEditingDoc, patientsCache } = usePatientStore();
+  const cachedPatient = patientsCache.find(p => String(p.id) === id);
+  const [patient, setPatient] = useState<Patient | null>(cachedPatient ? { ...cachedPatient, assurance: cachedPatient.assurance } : null);
+  const [loading, setLoading] = useState(!cachedPatient);
   const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';
   const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
@@ -98,7 +105,7 @@ export const PatientDetails = () => {
     const fetchPatient = async () => {
       if (!id) return;
       try {
-        setLoading(true);
+        if (!cachedPatient) setLoading(true);
         const response = await api.get(`/patients/${id}`);
         setPatient(response.data);
       } catch (error) {
@@ -108,7 +115,7 @@ export const PatientDetails = () => {
       }
     };
     fetchPatient();
-  }, [id]);
+  }, [id, cachedPatient]);
 
   useEffect(() => {
     if (!id) return;
@@ -122,6 +129,14 @@ export const PatientDetails = () => {
     
     return () => clearTimeout(timer);
   }, [id]);
+
+  // Garde-fou : l'onglet clinique peut être atteint via l'URL (?tab=clinical).
+  // Sans la permission, on bascule sur le suivi pour éviter un onglet vide.
+  useEffect(() => {
+    if (!canClinical && activeTab === 'clinical') {
+      setSearchParams({ tab: 'tracking' }, { replace: true });
+    }
+  }, [canClinical, activeTab, setSearchParams]);
 
   const activateOrtho = async () => {
     try {
@@ -188,9 +203,18 @@ export const PatientDetails = () => {
                     </span>
                   )}
                   {!isCompact && (
-                    <span className="px-2.5 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-lg uppercase tracking-widest border border-primary/10 shadow-sm" style={{ color: 'var(--primary)' }}>
-                      Dossier Actif
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-lg uppercase tracking-widest border border-primary/10 shadow-sm" style={{ color: 'var(--primary)' }}>
+                        Dossier Actif
+                      </span>
+                      <button 
+                        onClick={() => navigate(`/patients/${id}/edit`)}
+                        className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg uppercase tracking-widest shadow-sm hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: 'var(--primary)' }}
+                      >
+                        Modifier Dossier
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -226,7 +250,7 @@ export const PatientDetails = () => {
 
           <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
             <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={18} />} label="Séances & Suivi" />
-            <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />
+            {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />}
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />

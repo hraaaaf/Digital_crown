@@ -53,14 +53,14 @@ const FORMES = [
 function fuzzyMatch(input: string, target: string): boolean {
   const a = input.toLowerCase().trim();
   const b = target.toLowerCase();
-  if (b.includes(a)) return true;
+  if (b.includes(a) || a.includes(b)) return true;
   if (a.length < 3) return false;
   let dist = 0, i = 0, j = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) { i++; j++; } else { dist++; j++; }
   }
-  dist += a.length - i;
-  return dist <= 2;
+  dist += Math.abs((a.length - i) - (b.length - j));
+  return dist <= 3;
 }
 
 const KIN_PRESET = { name: 'KIN', dosage: '-', forme: 'BAIN DE BOUCHE', posologie: '1 rinçage / jour pendant 7 jours' };
@@ -303,6 +303,44 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     }
   }, 300);
 
+  const getDefaultMedicationDetails = useCallback((name: string) => {
+    const upperName = name.trim().toUpperCase();
+    if (upperName.includes('KIN')) return KIN_PRESET;
+
+    return DEFAULT_MOROCCO_PRESETS
+      .flatMap(p => p.drugs)
+      .find(d => d.name.toUpperCase() === upperName);
+  }, []);
+
+  const hydrateMedicationDetails = useCallback(async (drug: DrugItem): Promise<DrugItem> => {
+    if (drug.type === 'EXAMEN') return drug;
+
+    const preset = getDefaultMedicationDetails(drug.name);
+    let hydrated: DrugItem = preset ? {
+      ...drug,
+      name: preset.name,
+      dosage: drug.dosage || preset.dosage,
+      forme: drug.forme || preset.forme,
+      posologie: drug.posologie || preset.posologie,
+    } : drug;
+
+    try {
+      const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(hydrated.name)}`);
+      hydrated = {
+        ...hydrated,
+        dosage: hydrated.dosage || res.data.dosages?.[0] || '',
+        posologie: hydrated.posologie || res.data.posologies?.[0] || '',
+      };
+    } catch {
+      // Les valeurs parsees ou les presets locaux restent utilisables hors reseau.
+    }
+
+    return hydrated;
+  }, [getDefaultMedicationDetails]);
+
+  const addDrugAtEnd = useCallback((drug: DrugItem) => {
+    setDrugs([...drugs, drug]);
+  }, [drugs, setDrugs]);
 
   const parseQuickEntry = (text: string): DrugItem => {
     const originalText = text;
@@ -313,12 +351,13 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     const radioKeywords = ['radio', 'télé-radio', 'teleradio', 'conebeam', 'scanner', 'irm', 'panoramique', 'rvg', 'bitewing', 'status', 'dentoscan', 'cbct', 'examen'];
     const isExamen = radioKeywords.some(k => lowerText.includes(k));
 
+    const preset = getDefaultMedicationDetails(parts[0]);
     const drug: DrugItem = {
       id: Date.now(),
-      name: parts[0].toUpperCase(),
-      dosage: '',
-      forme: isExamen ? '' : 'COMPRIMÉS',
-      posologie: '',
+      name: (preset?.name || parts[0]).toUpperCase(),
+      dosage: preset?.dosage || '',
+      forme: isExamen ? '' : (preset?.forme || 'COMPRIMÉS'),
+      posologie: preset?.posologie || '',
       type: isExamen ? 'EXAMEN' : 'MEDICAMENT',
       quantite: 1,
       non_substituable: false
@@ -397,7 +436,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     if (formeTextFound) poso = poso.replace(formeTextFound, '');
     if (qtyTextFound) poso = poso.replace(qtyTextFound, '');
 
-    drug.posologie = poso.replace(/\s+/g, ' ').trim();
+    const parsedPosologie = poso.replace(/\s+/g, ' ').trim();
+    if (parsedPosologie) drug.posologie = parsedPosologie;
     
     return drug;
   };
@@ -407,19 +447,18 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     setSuggestions({ medications: [], dosages: [], posologies: [] });
     setActiveSearchId(null);
     if (field === 'name') {
-      // KIN: auto-fill preset directly without API round-trip
-      if (val.toUpperCase() === 'KIN') {
-        onUpdateDrug(id, 'dosage', KIN_PRESET.dosage);
-        onUpdateDrug(id, 'forme', KIN_PRESET.forme as any);
-        onUpdateDrug(id, 'posologie', KIN_PRESET.posologie);
-        return;
+      const preset = getDefaultMedicationDetails(val);
+      if (preset) {
+        onUpdateDrug(id, 'dosage', preset.dosage);
+        onUpdateDrug(id, 'forme', preset.forme as any);
+        onUpdateDrug(id, 'posologie', preset.posologie);
       }
       api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(val)}`).then(res => {
-        if (res.data.dosages?.length === 1) onUpdateDrug(id, 'dosage', res.data.dosages[0]);
-        if (res.data.posologies?.length === 1) onUpdateDrug(id, 'posologie', res.data.posologies[0]);
+        if (!preset && res.data.dosages?.[0]) onUpdateDrug(id, 'dosage', res.data.dosages[0]);
+        if (!preset && res.data.posologies?.[0]) onUpdateDrug(id, 'posologie', res.data.posologies[0]);
       }).catch(() => {});
     }
-  }, [onUpdateDrug]);
+  }, [getDefaultMedicationDetails, onUpdateDrug]);
 
   // FIX 3 — Vérification déterministe locale, indépendante de l'assessment IA
   const checkLocalSafetyConstraints = useCallback((
@@ -708,7 +747,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               }}
               className="w-full bg-white/60 border border-white/80 backdrop-blur-xl rounded-[2rem] pl-16 pr-8 py-5 text-sm font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300"
               placeholder="Saisie Rapide : Taper un médicament, un dosage ou une posologie... (Ex: Augmentin 1g sachet 2x/j)"
-              onKeyDown={(e) => {
+              onKeyDown={async (e) => {
                 if (e.key === 'ArrowDown') {
                   e.preventDefault();
                   setQuickHighlightedIdx(i => Math.min(i + 1, quickSuggestions.length - 1));
@@ -726,8 +765,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                   }
                   
                   if (finalVal.trim()) {
-                    const newDrug = parseQuickEntry(finalVal);
-                    setDrugs([newDrug, ...drugs]);
+                    const newDrug = await hydrateMedicationDetails(parseQuickEntry(finalVal));
+                    addDrugAtEnd(newDrug);
                     setQuickVal('');
                     setQuickSuggestions([]);
                     setQuickHighlightedIdx(-1);
@@ -756,12 +795,12 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                   {quickSuggestions.map((s, i) => (
                     <button
                       key={s}
-                      onClick={() => {
+                      onClick={async () => {
                         const parts = quickVal.split(' ');
                         parts[0] = s;
                         const final = parts.join(' ');
-                        const newDrug = parseQuickEntry(final);
-                        setDrugs([newDrug, ...drugs]);
+                        const newDrug = await hydrateMedicationDetails(parseQuickEntry(final));
+                        addDrugAtEnd(newDrug);
                         setQuickVal('');
                         setQuickSuggestions([]);
                         setStep('PLANNING');
@@ -1236,15 +1275,6 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               >
                 <Plus size={20} /> Ajouter une ligne
               </button>
-
-              {drugs.length > 0 && (
-                <button
-                  onClick={() => setShowSavePresetModal(true)}
-                  className="flex-1 min-w-[200px] py-5 bg-slate-800 text-white rounded-[2.5rem] flex items-center justify-center gap-3 hover:bg-primary transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-900/10"
-                >
-                  <ShieldCheck size={20} className="text-blue-400" /> Mémoriser ce Preset
-                </button>
-              )}
             </div>
 
             {/* CONSEILS AU PATIENT */}

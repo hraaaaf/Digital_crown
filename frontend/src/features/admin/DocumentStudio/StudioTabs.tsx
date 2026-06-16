@@ -3,8 +3,8 @@ import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react'
 import { cn } from '../../../utils/cn';
 
 interface StudioTabsProps {
-  activeTab: string;
-  onTabChange: (tab: any) => void;
+  activeTab: import('../DocumentHub').HubDocumentType;
+  onTabChange: (tab: import('../DocumentHub').HubDocumentType) => void;
   'data-tour'?: string;
 }
 

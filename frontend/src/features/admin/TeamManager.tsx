@@ -33,6 +33,7 @@ interface TeamMember {
     prescriptions?: boolean;
     accounting?: boolean;
     payments?: boolean;
+    clinical?: boolean;
     panoramic?: boolean;
     cephalo?: boolean;
     settings?: boolean;
@@ -51,6 +52,7 @@ interface CreateForm {
     prescriptions: boolean;
     accounting: boolean;
     payments: boolean;
+    clinical: boolean;
     panoramic: boolean;
     cephalo: boolean;
     settings: boolean;
@@ -81,6 +83,7 @@ export const TeamManager: React.FC = () => {
       prescriptions: false,
       accounting: false,
       payments: false,
+      clinical: false,
       panoramic: false,
       cephalo: false,
       settings: false
@@ -128,6 +131,7 @@ export const TeamManager: React.FC = () => {
           prescriptions: false,
           accounting: false,
           payments: false,
+          clinical: false,
           panoramic: false,
           cephalo: false,
           settings: false
@@ -269,8 +273,8 @@ export const TeamManager: React.FC = () => {
                     ...f,
                     role,
                     permissions: role === 'DENTISTE' 
-                      ? { agenda: true, patients: true, prescriptions: true, accounting: true, payments: true, panoramic: true, cephalo: true, settings: false }
-                      : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, panoramic: false, cephalo: false, settings: false }
+                      ? { agenda: true, patients: true, prescriptions: true, accounting: true, payments: true, clinical: true, panoramic: true, cephalo: true, settings: false }
+                      : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, clinical: false, panoramic: false, cephalo: false, settings: false }
                   }));
                 }}
                 className="w-full px-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
@@ -353,6 +357,7 @@ export const TeamManager: React.FC = () => {
                   { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                   { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
+                  { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },
                   { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
                   { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                   { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }
@@ -526,6 +531,8 @@ export const TeamManager: React.FC = () => {
                 { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
                 { key: 'prescriptions', label: 'Studio Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                 { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
+                { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
+                { key: 'clinical', label: 'Examen Clinique & IA', desc: 'Diagnostic, plan de traitement, synthèses IA' },
                 { key: 'panoramic', label: 'Imagerie OPG IA', desc: 'Analyses radio panoramiques' },
                 { key: 'cephalo', label: 'Tracés Céphalométriques', desc: 'Analyses et rapports ortho' },
                 { key: 'settings', label: 'Réglages Cabinet', desc: 'Configuration de l\'en-tête et thèmes' }

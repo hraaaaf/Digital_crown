@@ -47,6 +47,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         patients: true,
         prescriptions: false,
         accounting: false,
+        payments: false,
         panoramic: false,
         cephalo: false,
         settings: false

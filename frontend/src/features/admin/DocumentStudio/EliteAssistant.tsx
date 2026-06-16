@@ -23,6 +23,13 @@ import { PriceBrain } from '../../../components/odontogram/PriceBrain';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../../stores/useAuthStore';
 
+const buildGhostBrainWsUrl = (employerId: number | string) => {
+  const wsBaseUrl = api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8005/api';
+  const baseUrl = `${wsBaseUrl}/ai/ws/ghost-insights/${employerId}`;
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+};
+
 export interface Insight {
   id: string;
   type: 'suggestion' | 'safety' | 'habit' | 'financial_risk' | 'financial';
@@ -70,7 +77,7 @@ export const EliteAssistant: React.FC<EliteAssistantProps> = ({
     let reconnectTimer: NodeJS.Timeout;
 
     const connectWS = () => {
-      const wsUrl = `${api.defaults.baseURL?.replace(/^http/, 'ws') || 'ws://localhost:8005/api'}/ai/ws/ghost-insights/${employerId}`;
+      const wsUrl = buildGhostBrainWsUrl(employerId);
       ws = new WebSocket(wsUrl);
 
       ws.onmessage = (event) => {

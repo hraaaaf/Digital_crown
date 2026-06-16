@@ -85,7 +85,7 @@ export const SetupWizard: React.FC = () => {
     try {
       const data = await cabinetApi.extractCard(file);
       if (data && !data.error) {
-        setIdentity(prev => ({
+        setIdentity((prev: IdentityState) => ({
           ...prev,
           nomCabinet: data.nom_cabinet || prev.nomCabinet,
           nomPraticien: data.nom_praticien || prev.nomPraticien,
@@ -145,13 +145,13 @@ export const SetupWizard: React.FC = () => {
       if (!identity.adresse) errs.adresse = "Requis";
     }
     if (step === 2 && selectedSpecialties.length === 0) errs.specialties = "Choisissez au moins une spécialité";
-    if (step === 3 && !Object.values(contacts).some(c => c.enabled && c.value.trim())) errs.contacts = "Renseignez au moins un contact";
+    if (step === 3 && !Object.values(contacts).some((c: any) => c.enabled && c.value.trim())) errs.contacts = "Renseignez au moins un contact";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleNext = () => {
-    if (currentStep === 3 && !Object.values(contacts).some(c => c.enabled && c.value.trim())) {
+    if (currentStep === 3 && !Object.values(contacts).some((c: any) => c.enabled && c.value.trim())) {
       setErrors({ contacts: "Activez et renseignez au moins un contact" });
       return;
     }
@@ -360,7 +360,7 @@ export const SetupWizard: React.FC = () => {
         value={showArKeyboard.target === 'identity' ? identity.nomPraticienAR : customSpecialty.ar}
         onChange={(val) => {
           if (showArKeyboard.target === 'identity') {
-            setIdentity(prev => ({ ...prev, nomPraticienAR: val }));
+            setIdentity((prev: IdentityState) => ({ ...prev, nomPraticienAR: val }));
           } else {
             setCustomSpecialty(prev => ({ ...prev, ar: val }));
           }

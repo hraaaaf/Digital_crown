@@ -1,4 +1,5 @@
-import { ShieldCheck, Wifi, WifiOff, RefreshCw, LogOut, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { ShieldCheck, Wifi, WifiOff, RefreshCw, LogOut, FileText, AlertTriangle } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import type { Snapshot, SyncStatus } from '../types';
 
@@ -13,6 +14,8 @@ export function SecuriteView({
   isOnline: boolean;
   handleLogout: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <div className="space-y-5">
       {/* Shield card */}
@@ -74,13 +77,38 @@ export function SecuriteView({
         <FileText size={16} className="ml-auto text-text-muted" />
       </div>
 
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="w-full py-5 bg-rose-500/5 border border-rose-200 text-rose-500 rounded-[24px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-rose-50"
-      >
-        <LogOut size={16} /> Révoquer cet accès
-      </button>
+      {/* Logout — confirmation inline (window.confirm bloqué sur iOS PWA) */}
+      {!confirming ? (
+        <button
+          onClick={() => setConfirming(true)}
+          className="w-full py-5 bg-rose-500/5 border border-rose-200 text-rose-500 rounded-[24px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-rose-50"
+        >
+          <LogOut size={16} /> Délier ce téléphone
+        </button>
+      ) : (
+        <div className="bg-rose-50 border border-rose-200 rounded-[24px] p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={20} className="text-rose-500 shrink-0" />
+            <p className="text-xs font-black text-rose-700 leading-relaxed">
+              Cela supprimera les clés de ce téléphone. Il faudra re-scanner le QR Code pour se reconnecter.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setConfirming(false)}
+              className="py-4 rounded-[16px] text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 bg-white active:scale-95 transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleLogout}
+              className="py-4 rounded-[16px] text-xs font-black uppercase tracking-widest bg-rose-500 text-white active:scale-95 transition-all"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

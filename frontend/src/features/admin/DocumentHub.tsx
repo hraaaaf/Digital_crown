@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
@@ -61,15 +62,29 @@ interface PatientDetails {
 
 export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
 
+const isHubDocumentType = (value: string | null): value is HubDocumentType =>
+  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
+
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [activeTab, setActiveTab] = useState<HubDocumentType>('ordonnance');
+  const [searchParams] = useSearchParams();
+  const requestedDocumentTab = searchParams.get('documentTab');
+  const [activeTab, setActiveTab] = useState<HubDocumentType>(() =>
+    isHubDocumentType(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
+  );
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
+
+  useEffect(() => {
+    const nextTab = searchParams.get('documentTab');
+    if (isHubDocumentType(nextTab)) {
+      setActiveTab(nextTab);
+    }
+  }, [searchParams]);
 
 
 

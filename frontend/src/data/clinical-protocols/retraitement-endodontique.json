@@ -38,7 +38,7 @@
   "steps": [
     {
       "order": 1,
-      "label": "Dépose couronne/pont si nécessaire",
+      "label": "Dépose couronne/bridge si nécessaire",
       "tip": "Décider avant d'ouvrir — accès coronaire direct"
     },
     {

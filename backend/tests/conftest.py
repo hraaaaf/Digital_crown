@@ -76,6 +76,9 @@ def client(db):
     with patch("backend.main.panoramic_engine.initialize", new_callable=AsyncMock), \
          patch("backend.main.run_full_seed", return_value=None), \
          patch("backend.main.seed_admin_user", return_value=None), \
+         patch("backend.main.sync_manager.start_listening", return_value=None), \
+         patch("backend.main._sync_all_licenses_from_firebase", new_callable=AsyncMock), \
+         patch("backend.services.daily_scheduler.start_daily_scheduler", return_value=None), \
          patch("backend.routers.auth.check_rate_limit", return_value=None):
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c

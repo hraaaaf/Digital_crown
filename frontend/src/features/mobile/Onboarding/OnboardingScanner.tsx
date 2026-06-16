@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock } from 'lucide-react';
+import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
 import Logo from '../../../assets/logo.png';
 
@@ -11,10 +11,11 @@ import Logo from '../../../assets/logo.png';
  * - En dev (Vite :5173) → VITE_API_URL ou localhost:8000
  */
 function resolveApiBase(): string {
-  const origin = window.location.origin;
-  const isDevServer = origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes(':5173');
-  if (!isDevServer) return origin;
-  return import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8005';
+  }
+  return `${window.location.protocol}//${hostname}:8005`;
 }
 
 const API_BASE = resolveApiBase();
@@ -23,7 +24,7 @@ export const OnboardingScanner = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'error' | 'denied'>('welcome');
+  const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'cert-setup' | 'error' | 'denied'>('welcome');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [manualToken, setManualToken] = useState('');
 
@@ -63,7 +64,13 @@ export const OnboardingScanner = () => {
 
       await MobileStorage.saveCredentials({ publicId, masterKey, access_token, api_base_url: API_BASE });
       setPhase('success');
-      setTimeout(() => navigate('/mobile/dashboard', { replace: true }), 1500);
+      // Si déjà en HTTPS → dashboard direct. Sinon → proposer l'install cert (optionnel).
+      const alreadySecure = window.isSecureContext;
+      const certSkipped = localStorage.getItem('dc_cert_skipped') === '1';
+      setTimeout(() => {
+        if (alreadySecure || certSkipped) navigate('/mobile/dashboard', { replace: true });
+        else setPhase('cert-setup');
+      }, 1200);
     } catch (err: any) {
       setErrorMessage(err.message ?? 'Token invalide ou expiré. Régénérez le QR Code.');
       setPhase('error');
@@ -224,6 +231,67 @@ export const OnboardingScanner = () => {
         <CheckCircle2 size={72} className="text-emerald-500 z-10" />
         <p className="font-black text-2xl tracking-tight z-10 text-emerald-600">Appairage réussi</p>
         <p className="text-emerald-700 font-bold text-sm z-10">Redirection vers le tableau de bord…</p>
+      </div>
+    );
+  }
+
+  // ── ACTIVATION HTTPS (optionnel) ─────────────────────────────────────────────
+  if (phase === 'cert-setup') {
+    const certUrl = `${API_BASE}/api/mobile/ca-cert`;
+    const skipAndGo = () => {
+      localStorage.setItem('dc_cert_skipped', '1');
+      navigate('/mobile/dashboard', { replace: true });
+    };
+
+    return (
+      <div className="min-h-screen flex flex-col p-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+        <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
+        <div className="z-10 flex-1 flex flex-col max-w-xs mx-auto w-full justify-center">
+
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
+              <ShieldCheck size={40} className="text-emerald-500" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-center mb-2">Connexion sécurisée</h2>
+            <p className="text-xs text-text-muted font-medium text-center leading-relaxed">
+              Activez HTTPS pour chiffrer vos données sur le réseau local.{' '}
+              <span className="font-black text-primary">Une seule fois.</span>
+            </p>
+          </div>
+
+          {/* Étapes condensées */}
+          <div className="w-full p-4 rounded-2xl bg-white border border-border-main shadow-elite mb-6 space-y-3">
+            {[
+              'Appuyez sur « Activer la sécurité »',
+              'Autorisez le téléchargement du profil',
+              'Réglages → Installer le profil → Installer',
+              'Réglages → À propos → Certificats → Activer',
+            ].map((step, i) => (
+              <div key={i} className="flex gap-3 items-center">
+                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0">
+                  {i + 1}
+                </span>
+                <p className="text-[11px] text-text-muted font-medium">{step}</p>
+              </div>
+            ))}
+          </div>
+
+          <a
+            href={certUrl}
+            className="w-full py-4 mb-3 bg-emerald-600 hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white uppercase tracking-widest transition-all shadow-elite flex items-center justify-center gap-2"
+          >
+            <ShieldCheck size={16} />
+            Activer la sécurité
+          </a>
+
+          <button
+            onClick={skipAndGo}
+            className="w-full py-3 text-xs font-bold text-text-muted hover:text-text-main transition-colors flex items-center justify-center gap-1"
+          >
+            Accéder au cabinet sans HTTPS
+            <ArrowRight size={14} />
+          </button>
+        </div>
       </div>
     );
   }

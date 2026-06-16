@@ -26,12 +26,8 @@ const ToggleRow = ({ icon, title, description, state, onToggle, activeColorClass
 
 export const IATab: React.FC = () => {
   const { profile, updateProfile } = useSettingsStore();
-  const [performanceMode, setPerformanceMode] = useState(
-    profile.performance_mode ?? safeStorage.get('performanceMode') === 'true'
-  );
-  const [clinicalTipsEnabled, setClinicalTipsEnabled] = useState(
-    profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false'
-  );
+  const performanceMode = profile.performance_mode ?? safeStorage.get('performanceMode') === 'true';
+  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinical_tips_enabled') !== 'false';
 
   const [animatedBgEnabled, setAnimatedBgEnabled] = useState(
     safeStorage.get('app_background_animated') === 'true'
@@ -39,17 +35,16 @@ export const IATab: React.FC = () => {
 
   const togglePerformanceMode = () => {
     const newVal = !performanceMode;
-    setPerformanceMode(newVal);
     safeStorage.set('performanceMode', String(newVal));
     updateProfile({ performance_mode: newVal });
-    window.dispatchEvent(new Event('settings_updated'));
   };
 
   const toggleClinicalTips = () => {
     const newVal = !clinicalTipsEnabled;
-    setClinicalTipsEnabled(newVal);
+    safeStorage.set('clinical_tips_enabled', String(newVal));
     safeStorage.set('clinicalTipsEnabled', String(newVal));
     updateProfile({ clinical_tips_enabled: newVal });
+    window.dispatchEvent(new Event('clinical-tips-changed'));
   };
 
   const toggleAnimatedBg = () => {
@@ -103,7 +98,7 @@ export const IATab: React.FC = () => {
             onToggle={() => {
               const newVal = !profile.show_patient_badges;
               updateProfile({ show_patient_badges: newVal });
-              localStorage.setItem('show_patient_badges', String(newVal));
+              safeStorage.set('show_patient_badges', String(newVal));
             }}
             activeColorClass="bg-indigo-600"
           />

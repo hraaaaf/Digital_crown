@@ -16,7 +16,7 @@
     },
     {
       "id": "edente",
-      "label": "Espace édenté mesuré — largeur pont adaptée",
+      "label": "Espace édenté mesuré — largeur de bridge adaptée",
       "critical": false
     },
     {
@@ -100,7 +100,7 @@
     },
     {
       "timing": "day1",
-      "instruction": "Apprendre à utiliser le super-floss sous le pont"
+      "instruction": "Apprendre à utiliser le super-floss sous le bridge"
     },
     {
       "timing": "week1",

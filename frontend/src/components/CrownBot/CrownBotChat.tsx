@@ -35,6 +35,12 @@ interface GhostInsight {
 
 type Tab = 'chat' | 'brain';
 
+const buildGhostBrainWsUrl = (employerId: number | string) => {
+  const baseUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+};
+
 function PendingActionCard({
   action,
   onConfirm,
@@ -268,7 +274,7 @@ export function CrownBotChat({
 
     const connectWS = () => {
       if (isCleaned || retryCount >= MAX_RETRIES) return;
-      const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
+      const wsUrl = buildGhostBrainWsUrl(employerId);
       ws = new WebSocket(wsUrl);
       ws.onopen = () => { retryCount = 0; };
       ws.onmessage = (event) => {

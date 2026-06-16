@@ -4,6 +4,12 @@ import { api, API_BASE } from '../services/api';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Link, useNavigate } from 'react-router-dom';
 
+const buildGhostBrainWsUrl = (employerId: number | string) => {
+  const baseUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+};
+
 // Typewriter Effect Component
 const TypewriterText = ({ text, delay = 5 }: { text: string, delay?: number }) => {
   const [currentText, setCurrentText] = useState('');
@@ -55,7 +61,7 @@ export const GhostBrainWidget = () => {
       if (isCleaned) return;
       if (retryCount >= MAX_RETRIES) return;
 
-      const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ai/ws/ghost-insights/${employerId}`;
+      const wsUrl = buildGhostBrainWsUrl(employerId);
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => { retryCount = 0; };

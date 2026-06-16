@@ -9,7 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
 
 class LibreGenerator:
     def __init__(self, output_dir="static/documents"):
@@ -116,14 +116,18 @@ class LibreGenerator:
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
+        titre_nbsp = titre.replace(' ', ' ')
+        title_base_fs = 17
+        title_w = (getattr(data, 'page_size_val', None) or A5)[0] if isinstance(getattr(data, 'page_size_val', None) or A5, tuple) else 14.8 * cm
+        title_base_fs = self.base_template.get_adaptive_font_size(titre_nbsp, font_bold, title_base_fs, title_w * 0.7)
         title_style = ParagraphStyle(
-            name='TitleA5', 
-            parent=self.styles['Normal'], 
-            fontName=font_bold, 
-            fontSize=17, 
-            textColor=p_color, 
+            name='TitleA5',
+            parent=self.styles['Normal'],
+            fontName=font_bold,
+            fontSize=title_base_fs,
+            textColor=p_color,
             alignment=TA_CENTER,
-            leading=22,
+            leading=title_base_fs * 1.3,
             spaceAfter=12
         )
         
@@ -207,7 +211,7 @@ class LibreGenerator:
 
         elements = [
             Spacer(1, 0.4*cm),
-            Paragraph(f"<u><b>{titre.upper()}</b></u>", title_style),
+            Paragraph(f"<u><b>{titre_nbsp.upper()}</b></u>", title_style),
             Spacer(1, 0.8*cm),
             self._create_header(patient, data, p_color, config),
             Spacer(1, 1.2*cm)
@@ -236,12 +240,47 @@ class LibreGenerator:
         
         p_width_val = page_size[0] if isinstance(page_size, tuple) else (14.8*cm if page_size == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
-        doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
-        doc.qr_type = 'WEBSITE'
-        doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
-        doc.cloture_text = cloture_text
-        
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
-        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
-        
+        doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
+
+        # Single-Page Force : compression progressive si contenu dépasse la page
+        compression_factor = 1.0
+        for _ in range(5):
+            doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
+            doc.qr_type = 'WEBSITE'
+            doc.doc_id = doc_id
+            doc.cloture_text = cloture_text
+            scaled = self._scale_elements(elements, compression_factor)
+            page_counter = PageCounter()
+            doc.build(scaled, onFirstPage=draw_method, onLaterPages=draw_method,
+                      canvasmaker=page_counter.make_canvas_class())
+            if page_counter.page_count <= 1:
+                break
+            compression_factor *= 0.85
+            if compression_factor < 0.4:
+                break
+
         return filepath.replace("\\", "/")
+
+    def _scale_elements(self, elements, factor):
+        if factor >= 0.99:
+            return elements
+        from reportlab.platypus import Paragraph as RLParagraph, Spacer as RLSpacer
+        from reportlab.lib.styles import ParagraphStyle
+        scaled = []
+        for el in elements:
+            if isinstance(el, RLParagraph):
+                style = el.style
+                new_style = ParagraphStyle(
+                    style.name + '_s',
+                    parent=style,
+                    fontSize=max(style.fontSize * factor, 6),
+                    leading=max((style.leading if style.leading else style.fontSize * 1.2) * factor, 7),
+                    spaceAfter=(style.spaceAfter or 0) * factor,
+                )
+                scaled.append(RLParagraph(el.text, new_style))
+            elif isinstance(el, RLSpacer):
+                scaled.append(RLSpacer(el.width, max(el.height * factor, 2)))
+            else:
+                scaled.append(el)
+        return scaled

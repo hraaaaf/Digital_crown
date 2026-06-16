@@ -9,6 +9,7 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
+from backend.services.audit_service import audit_service
 
 router = APIRouter(tags=["Appointments"])
 
@@ -42,6 +43,7 @@ def create_appointment(
     db.add(db_appt)
     db.commit()
     db.refresh(db_appt)
+    audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="CREATE", resource_type="Appointment", resource_id=str(db_appt.id), details=f"RDV patient {appt.patient_id}")
     return db_appt
 
 @router.put("/{id}", response_model=schemas.AppointmentOut)
@@ -64,6 +66,7 @@ def update_appointment(
         
     db.commit()
     db.refresh(db_appt)
+    audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="UPDATE", resource_type="Appointment", resource_id=str(id), details=f"Champs: {', '.join(update_data.keys())}")
     return db_appt
 
 @router.delete("/{id}")
@@ -76,6 +79,7 @@ def delete_appointment(id: int, db: Session = Depends(database.get_db), current_
     if not db_appt: raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     db.delete(db_appt)
     db.commit()
+    audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="DELETE", resource_type="Appointment", resource_id=str(id))
     return {"status": "success"}
 
 @router.post("/bulk", response_model=List[schemas.AppointmentOut])

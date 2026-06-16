@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { IdentityState, HeaderOption, TemplateOption, ContactConfig } from '../types';
-import { BRAND_IDENTITIES } from '../constants';
+import type { IdentityState, HeaderOption, TemplateOption, ContactConfig } from '../../types';
+import { BRAND_IDENTITIES } from '../../constants';
 
 interface SetupState {
   currentStep: number;
