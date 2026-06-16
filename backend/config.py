@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     
     # Environment
     ENVIRONMENT: str = "development"
+    APP_PUBLIC_URL: str = "http://localhost:5173"
+    SUPPORT_EMAIL: str = "support@digitalcrown.local"
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
@@ -33,6 +35,16 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
+
+    # Transactional Email
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "no-reply@digitalcrown.local"
+    SMTP_FROM_NAME: str = "Digital Crown"
+    SMTP_USE_TLS: bool = True
+    ADMIN_NOTIFICATION_EMAIL: str = ""
 
     
     model_config = SettingsConfigDict(

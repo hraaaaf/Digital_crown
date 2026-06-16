@@ -1,8 +1,20 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { VitePWA } from 'vite-plugin-pwa'
+
+const certPath = path.resolve(__dirname, '../certs/cert.pem')
+const keyPath = path.resolve(__dirname, '../certs/key.pem')
+const enableHttps = process.env.VITE_ENABLE_HTTPS === 'true'
+const httpsConfig = enableHttps && fs.existsSync(certPath) && fs.existsSync(keyPath)
+  ? {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    }
+  : undefined
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -83,9 +95,7 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
-    // HTTPS désactivé — backend en HTTP, mixed-content bloqué sinon
-    // Pour réactiver : supprimer ce commentaire et ajouter les certs
-    // https: { cert: fs.readFileSync('../certs/cert.pem'), key: fs.readFileSync('../certs/key.pem') },
+    https: httpsConfig,
   },
   test: {
     environment: 'jsdom',

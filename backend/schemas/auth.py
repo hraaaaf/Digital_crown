@@ -27,6 +27,8 @@ class UserSignup(BaseModel):
     nom_complet: str = Field(min_length=2)
     telephone_mobile: Optional[str] = None
     adresse_complete: Optional[str] = None
+    accept_terms: bool
+    accept_privacy: bool
 
 
 class UserOut(BaseModel):

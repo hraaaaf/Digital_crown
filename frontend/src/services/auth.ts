@@ -133,11 +133,13 @@ export const authService = {
   /**
    * Créer un nouveau compte (Cloud/SaaS)
    */
-  async register(email: string, password: string, fullName: string) {
+  async register(email: string, password: string, fullName: string, acceptTerms = false, acceptPrivacy = false) {
     const response = await axios.post(`${API_URL}/auth/signup`, {
       email,
       password,
       nom_complet: fullName,
+      accept_terms: acceptTerms,
+      accept_privacy: acceptPrivacy,
     });
     return response.data;
   }

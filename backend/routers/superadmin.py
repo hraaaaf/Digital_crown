@@ -87,6 +87,18 @@ def validate_client(
             active=True,
             expiration_date=user.license_expires_at
         )
+
+    try:
+        from backend.services.email_service import email_service
+        background_tasks.add_task(
+            email_service.send_account_activated,
+            user.email,
+            user.nom_complet,
+            user.license_expires_at,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Email activation non programme pour %s: %s", user.email, e)
     
     return {"status": "success", "message": f"Compte de {user.email} activé avec 30 jours d'essai."}
 

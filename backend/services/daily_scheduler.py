@@ -9,6 +9,60 @@ from backend.services.push_service import send_push_to_employer
 logger = logging.getLogger(__name__)
 
 
+def send_license_expiry_emails() -> int:
+    """Envoie une relance email une seule fois a J-7, J-3 et J-1."""
+    from backend.services.email_service import email_service
+
+    now = datetime.utcnow()
+    sent_count = 0
+    checkpoints = {7, 3, 1}
+
+    with database.SessionLocal() as db:
+        users = db.query(models.User).filter(
+            models.User.employer_id == None,
+            models.User.is_active == True,
+            models.User.is_licensed == True,
+            models.User.license_expires_at != None,
+            models.User.license_expires_at >= now,
+            models.User.license_expires_at <= now + timedelta(days=8),
+        ).all()
+
+        for user in users:
+            days_left = (user.license_expires_at.date() - now.date()).days
+            if days_left not in checkpoints:
+                continue
+
+            action = f"license_expiry_email_{days_left}d"
+            already_sent = db.query(models.LicenseHistory).filter(
+                models.LicenseHistory.user_id == user.id,
+                models.LicenseHistory.action == action,
+            ).first()
+            if already_sent:
+                continue
+
+            try:
+                if email_service.send_license_expiry_notice(
+                    user.email,
+                    user.nom_complet,
+                    user.license_expires_at,
+                    days_left,
+                ):
+                    db.add(models.LicenseHistory(
+                        user_id=user.id,
+                        admin_id=None,
+                        action=action,
+                        duration=days_left,
+                    ))
+                    sent_count += 1
+            except Exception as exc:
+                logger.warning("License expiry email failed for %s: %s", user.email, exc)
+
+        db.commit()
+
+    logger.info("License expiry emails sent: %d", sent_count)
+    return sent_count
+
+
 def run_daily_alerts():
     """Calcule les alertes proactives pour tous les patients actifs et les stocke en DB."""
     with database.SessionLocal() as db:
@@ -97,8 +151,11 @@ def start_daily_scheduler():
             # 1. Sauvegarde automatique de la DB (V1 Requirement)
             from backend.services.backup_service import backup_service
             backup_service.run_daily_backup()
+
+            # 2. Relances transactionnelles de licence
+            send_license_expiry_emails()
             
-            # 2. Alertes proactives
+            # 3. Alertes proactives
             run_daily_alerts()
         except Exception as e:
             logger.warning("Daily scheduler failed: %s", e)

@@ -74,8 +74,7 @@ export const LoginPage: React.FC = () => {
         }
         navigate('/dashboard');
       } else {
-        await authService.register(email, password, fullName);
-        navigate('/setup');
+        navigate('/register');
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Une erreur est survenue.');
@@ -285,7 +284,11 @@ export const LoginPage: React.FC = () => {
                 <button 
                   type="button" 
                   onClick={() => {
-                    setIsLogin(!isLogin);
+                    if (isLogin) {
+                      navigate('/register');
+                      return;
+                    }
+                    setIsLogin(true);
                     setError('');
                   }} 
                   className="ml-2 font-bold text-primary hover:underline"

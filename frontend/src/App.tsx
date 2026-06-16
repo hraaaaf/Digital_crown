@@ -9,6 +9,7 @@ import { useAuthStore } from './stores/useAuthStore';
 // Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { WelcomeScreen } from './pages/WelcomeScreen';
 import { authService } from './services/auth';
 
@@ -27,6 +28,7 @@ const EliteLibrary    = lazy(() => import('./features/clinical-ref/EliteLibrary'
 const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceHub').then(m => ({ default: m.EliteScienceHub })));
 const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
+const LegalPage       = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
@@ -109,7 +111,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // BYPASS AUTH : Si on est sur /login et pas connecté, on laisse passer pour afficher la page
   if (!isAuthenticated) {
-    if (location.pathname === '/login') return <>{children}</>;
+    if (['/login', '/register', '/terms', '/privacy'].includes(location.pathname)) return <>{children}</>;
     return <Navigate to="/login" replace />;
   }
 
@@ -255,6 +257,9 @@ function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/terms" element={<LegalPage type="terms" />} />
+                <Route path="/privacy" element={<LegalPage type="privacy" />} />
                 <Route path="/setup" element={<SetupWizard />} />
                 <Route path="/*" element={<ProtectedRoutes />} />
               </Routes>

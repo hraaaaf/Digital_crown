@@ -14,6 +14,8 @@ export const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const navigate = useNavigate();
 
   // Capture des paramètres URL pour pré-remplir le formulaire
@@ -30,7 +32,7 @@ export const RegisterPage: React.FC = () => {
     setError('');
 
     try {
-      await authService.register(email, password, fullName);
+      await authService.register(email, password, fullName, acceptTerms, acceptPrivacy);
       setSuccess(true);
       toast.success('Demande envoyée avec succès !');
     } catch (err: any) {
@@ -131,6 +133,41 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              <label className="flex items-start gap-3 text-xs font-semibold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20"
+                  required
+                />
+                <span>
+                  J'accepte les{' '}
+                  <Link to="/terms" className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                    Conditions Generales d'Utilisation
+                  </Link>
+                  .
+                </span>
+              </label>
+              <label className="flex items-start gap-3 text-xs font-semibold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={acceptPrivacy}
+                  onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20"
+                  required
+                />
+                <span>
+                  J'accepte la{' '}
+                  <Link to="/privacy" className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                    Politique de Confidentialite
+                  </Link>
+                  .
+                </span>
+              </label>
+            </div>
+
             {error && (
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
@@ -144,7 +181,7 @@ export const RegisterPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !acceptTerms || !acceptPrivacy}
               className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 group"
             >
               {loading ? (
@@ -169,7 +206,7 @@ export const RegisterPage: React.FC = () => {
               </p>
               
               <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                En vous inscrivant, vous acceptez nos Conditions d'Utilisation et notre Politique de Confidentialité. 
+                Les CGU et la politique de confidentialite doivent etre acceptees avant creation du compte.
                 <br />© 2026 SANINOVA - Digital Crown Elite
               </p>
             </div>

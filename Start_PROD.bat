@@ -1,22 +1,44 @@
 @echo off
 chcp 65001 >nul
 echo ==========================================
-echo  DIGITAL CROWN - PRODUCTION (Port 8000/5173)
+echo  DIGITAL CROWN - PRODUCTION
 echo ==========================================
 echo.
 
-:: Backend PROD (Port 8000)
-start "Backend PROD - 8000" cmd /k "cd /d %~dp0 && venv\Scripts\activate && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 4"
+set ROOT=%~dp0
+set BACKEND_PORT=8000
+set FRONTEND_PORT=5173
+set CERT_FILE=%ROOT%certs\cert.pem
+set KEY_FILE=%ROOT%certs\key.pem
 
-:: Attente pour que le backend démarre
+set BACKEND_SSL=
+set FRONTEND_HTTPS=
+set BACKEND_SCHEME=http
+set FRONTEND_SCHEME=http
+
+if exist "%CERT_FILE%" if exist "%KEY_FILE%" (
+  set BACKEND_SSL=--ssl-certfile "%CERT_FILE%" --ssl-keyfile "%KEY_FILE%"
+  set FRONTEND_HTTPS=true
+  set BACKEND_SCHEME=https
+  set FRONTEND_SCHEME=https
+)
+
+:: Backend production
+start "Backend PROD - %BACKEND_PORT%" cmd /k "cd /d %ROOT% && venv\Scripts\activate && uvicorn backend.main:app --host 0.0.0.0 --port %BACKEND_PORT% --workers 4 %BACKEND_SSL%"
+
 timeout /t 3 /nobreak >nul
 
-:: Frontend PROD (Port 5173)
-start "Frontend PROD - 5173" cmd /k "cd /d %~dp0\frontend && npm run dev"
+:: Frontend production preview/dev host with optional HTTPS certs
+start "Frontend PROD - %FRONTEND_PORT%" cmd /k "cd /d %ROOT%frontend && set VITE_ENABLE_HTTPS=%FRONTEND_HTTPS%&& npm run dev"
 
 echo.
-echo ✅ Démarrage PRODUCTION en cours...
-echo 🔵 Backend : http://127.0.0.1:8000
-echo 🟢 Frontend: http://localhost:5173
+echo Demarrage production en cours...
+echo Backend : %BACKEND_SCHEME%://127.0.0.1:%BACKEND_PORT%
+echo Frontend: %FRONTEND_SCHEME%://localhost:%FRONTEND_PORT%
+if "%FRONTEND_HTTPS%"=="" (
+  echo HTTPS non actif: lancez scripts\setup-https.ps1 ou installez vos certificats dans certs\.
+) else (
+  echo HTTPS actif via certs\cert.pem et certs\key.pem.
+)
 echo.
 pause

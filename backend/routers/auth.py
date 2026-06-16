@@ -23,7 +23,6 @@ from backend.utils.rate_limit import check_rate_limit
 from backend.config import settings
 import httpx
 from urllib.parse import urlencode
-import secrets
 
 router = APIRouter(tags=["Authentication"])
 
@@ -329,9 +328,16 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
     description="Crée un compte cabinet (Dentiste) en attente de validation (is_active=False). Pousse aussi sur Firebase.")
 async def signup_client(
     req: schemas.UserSignup,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     from backend.security import get_password_hash
+    if not req.accept_terms or not req.accept_privacy:
+        raise HTTPException(
+            status_code=400,
+            detail="Vous devez accepter les CGU et la politique de confidentialite pour creer un compte.",
+        )
+
     # Check if email already exists
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
@@ -359,8 +365,15 @@ async def signup_client(
         resource_type="User",
         resource_id=new_user.email,
         severity="INFO",
-        details="Nouveau client inscrit. En attente de validation."
+        details="Nouveau client inscrit. CGU et politique de confidentialite acceptees. En attente de validation."
     )
+
+    try:
+        from backend.services.email_service import email_service
+        background_tasks.add_task(email_service.send_signup_received, new_user.email, new_user.nom_complet)
+        background_tasks.add_task(email_service.send_admin_signup_notice, new_user.email, new_user.nom_complet)
+    except Exception as e:
+        logger.warning("Email transactionnel inscription non programme: %s", e)
     
     # PUSH to Firebase for SuperAdmin validation (Option B)
     try:
@@ -426,7 +439,7 @@ async def google_callback(
     db: Session = Depends(get_db),
 ):
     from fastapi.responses import RedirectResponse
-    frontend_url = "http://127.0.0.1:5173"
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
 
     if error or not code:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")
@@ -461,22 +474,11 @@ async def google_callback(
     if not email:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_no_email")
 
-    # Find or create user
-    from backend.security import get_password_hash
+    # Find user. New accounts must pass through /register to collect legal consent.
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
-        user = models.User(
-            email=email,
-            hashed_password=get_password_hash(secrets.token_hex(32)),
-            role=models.UserRole.DENTISTE,
-            nom_complet=nom_complet,
-            is_active=False,  # Requires admin validation like regular signup
-            is_licensed=False,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return RedirectResponse(url=f"{frontend_url}/login?google_signup=true&email={email}")
+        params = urlencode({"email": email, "full_name": nom_complet, "google_signup": "true"})
+        return RedirectResponse(url=f"{frontend_url}/register?{params}")
 
     if not user.is_active:
         return RedirectResponse(url=f"{frontend_url}/login?error=account_inactive")

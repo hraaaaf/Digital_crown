@@ -106,3 +106,35 @@ class TestLogout:
         client.cookies.clear()
         resp = client.post("/api/auth/logout", json={"refresh_token": refresh_token})
         assert resp.status_code == 401
+
+
+class TestSignup:
+    def test_signup_requires_legal_consent(self, client):
+        resp = client.post(
+            "/api/auth/signup",
+            json={
+                "email": "new-client@cabinet.ma",
+                "password": "Pass123!",
+                "nom_complet": "Dr New Client",
+                "accept_terms": False,
+                "accept_privacy": True,
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_signup_with_legal_consent_creates_pending_user(self, client):
+        resp = client.post(
+            "/api/auth/signup",
+            json={
+                "email": "new-client@cabinet.ma",
+                "password": "Pass123!",
+                "nom_complet": "Dr New Client",
+                "accept_terms": True,
+                "accept_privacy": True,
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["email"] == "new-client@cabinet.ma"
+        assert body["is_active"] is False
+        assert body["is_licensed"] is False
