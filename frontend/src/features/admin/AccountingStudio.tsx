@@ -472,7 +472,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                             odontogramMode === mode ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                           )}
-                        >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Ponts & Prothèses' : 'Soins Généraux'}</button>
+                        >{mode === 'individual' ? 'Soins Ciblés (1 Dent)' : mode === 'group' ? 'Bridge & Prothèses' : 'Soins Généraux'}</button>
                       ))}
                     </div>
 
@@ -744,7 +744,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           onChange={(e) => {
                             const val = e.target.value;
                             handleActSearch(val, item.id);
-                            if (idx === items.length - 1 && !item.description && val.trim()) addEmptyRow();
                           }}
                           onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
                           placeholder="Rechercher ou saisir un acte..."
@@ -906,7 +905,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 {['Espèces', 'Chèque', 'TPE', 'Virement'].map((m) => (
                   <button
                     key={m}
-                    onClick={() => setPaymentMode(m)}
+                    onClick={() => setPaymentMode(m as any)}
                     className={cn(
                       "flex-1 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                       paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
@@ -1007,10 +1006,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                onClick={() => setIsTreasuryModalOpen(false)}
                className="w-full sm:w-auto px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
              >Fermer</button>
-             <button 
-               onClick={() => setIsTreasuryModalOpen(false)}
-               className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
-             >Valider la Caisse</button>
+              <button
+                onClick={() => {
+                  setIsTreasuryModalOpen(false);
+                }}
+                className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
+              >Confirmer l'Encaissement</button>
           </div>
 
             </motion.div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   UserPlus,
@@ -122,6 +122,7 @@ export const Dashboard: React.FC = () => {
   // Ghost Secrétariat (To-Do List Magique)
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{nom: string; prenom: string} | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
@@ -255,18 +256,21 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSearchChange = async (value: string) => {
+  const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (!value.trim()) { setSearchResults([]); return; }
     setSearchLoading(true);
-    try {
-      const res = await api.get(`/patients/?search=${encodeURIComponent(value.trim())}&limit=6`);
-      setSearchResults(res.data || []);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/patients/?search=${encodeURIComponent(value.trim())}&limit=6`);
+        setSearchResults(res.data || []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
   };
 
   const handleSearchClose = () => {

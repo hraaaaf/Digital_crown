@@ -4,6 +4,15 @@ import { safeStorage } from '../../../../hooks/useLocalStorage';
 import type { CabinetProfile, ContactsJson } from '../types';
 import toast from 'react-hot-toast';
 
+const syncRuntimePreferences = (profile: Pick<CabinetProfile, 'show_patient_badges' | 'performance_mode' | 'clinical_tips_enabled'>) => {
+  safeStorage.set('show_patient_badges', String(profile.show_patient_badges ?? true));
+  safeStorage.set('performanceMode', String(profile.performance_mode ?? false));
+  safeStorage.set('clinical_tips_enabled', String(profile.clinical_tips_enabled ?? true));
+  safeStorage.set('clinicalTipsEnabled', String(profile.clinical_tips_enabled ?? true));
+  window.dispatchEvent(new Event('settings_updated'));
+  window.dispatchEvent(new Event('clinical-tips-changed'));
+};
+
 interface SettingsState {
   profile: CabinetProfile;
   contacts: ContactsJson;
@@ -132,7 +141,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           custom_specialty_fr: res.data.custom_specialty_fr || '',
           custom_specialty_ar: res.data.custom_specialty_ar || '',
           logo_path: res.data.logo_path || '',
-          header_lines_fr: res.data.header_lines_fr?.length ? res.data.header_lines_fr : (cabinet ? [cabinet.nom, cabinet.specialty] : []),
+          header_lines_fr: (() => {
+            const drPrefixes = ['Dr.', 'Dr ', 'Pr.', 'Pr ', 'Docteur', 'Professeur'];
+            const raw: string[] = res.data.header_lines_fr?.length
+              ? res.data.header_lines_fr
+              : cabinet ? [cabinet.nom, cabinet.specialty] : [];
+            if (raw.length > 0 && !drPrefixes.some(p => raw[0].startsWith(p))) {
+              return [raw[0] ? `Dr. ${raw[0]}` : raw[0], ...raw.slice(1)];
+            }
+            return raw;
+          })(),
           header_lines_ar: res.data.header_lines_ar || [],
           header_scale: res.data.header_scale ?? 1.1,
           qr_code_style: res.data.qr_code_style || 'dots',
@@ -141,11 +159,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           header_line_height: res.data.header_line_height ?? 1.0,
           footer_font_scale: res.data.footer_font_scale ?? 1.0,
           footer_qr_scale: res.data.footer_qr_scale ?? 1.0,
-          footer_line_height: res.data.footer_line_height ?? 1.0
+          footer_line_height: res.data.footer_line_height ?? 1.0,
+          nom_cabinet: res.data.nom_cabinet || ''
         };
-        
+
         set({ profile });
-        localStorage.setItem('show_patient_badges', String(res.data.show_patient_badges ?? true));
+        syncRuntimePreferences(profile);
 
         if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
           set({ contacts: res.data.contacts_json as ContactsJson });
@@ -226,7 +245,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   updateProfile: (updates) => {
-    set((state) => ({ profile: { ...state.profile, ...updates }, isDirty: true }));
+    set((state) => {
+      const profile = { ...state.profile, ...updates };
+      if (
+        'show_patient_badges' in updates ||
+        'performance_mode' in updates ||
+        'clinical_tips_enabled' in updates
+      ) {
+        syncRuntimePreferences(profile);
+      }
+      return { profile, isDirty: true };
+    });
     if (updates.selected_theme || updates.primary_color || updates.accent_color) {
       get().applyTheme();
     }

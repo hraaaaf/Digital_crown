@@ -1,11 +1,11 @@
 # Digital Crown — SANINOVA Edition
 ## *L'Intelligence Clinique au service de la Dentisterie Moderne*
 
-![Version](https://img.shields.io/badge/Version-v2.0_Ghost_Hub-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-v3.0_CrownBot-blue?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?style=for-the-badge&logo=react)
 ![Engine](https://img.shields.io/badge/PDF_Engine-ReportLab_Elite-red?style=for-the-badge)
-![Intelligence](https://img.shields.io/badge/Intelligence-Ghost_Hub_v2-purple?style=for-the-badge)
+![Intelligence](https://img.shields.io/badge/Intelligence-Ghost_Brain_v3-purple?style=for-the-badge)
 
 ---
 
@@ -15,11 +15,32 @@ Digital Crown est une plateforme **Ghost Elite** conçue pour transformer la ges
 
 ---
 
-## Breakthroughs Techniques (Mai 2026)
+## Nouveautés — Juin 2026 (Sprint CrownBot)
+
+### CrownBot — Assistant Conversationnel Natif
+- **Intent Parser hybride** : regex rapide + fallback LLM (Ollama) pour les requêtes ambiguës.
+- **Action Dispatcher** : répond avec des cartes d'action (prise de RDV, consultation fiche patient, solde).
+- **Finance O(1)** : requêtes financières résolues en temps constant depuis la caisse locale.
+- **UX Confirmation Card** : carte de confirmation avant toute action irréversible.
+
+### Document Studio — Échéancier Unifié
+- Génération PDF ReportLab A5 (CheckBox : réglé ✓ / en cours ● / à venir □).
+- Flux unifié avec Devis/Honoraires : **Aperçu → Enregistrer → Imprimer** via `StudioFooter`.
+- Rappels WhatsApp intégrés par échéance (lien `wa.me` pré-formaté).
+
+### Analytiques Réelles
+- **Tendances de la Semaine** connecté à `/admin/dashboard/stats` (activité réelle 7 jours, plus de mock).
+
+### Corrections Critiques
+- **Login email/password** : corrigé (`URLSearchParams` → OAuth2PasswordRequestForm correct).
+- **Tour guidé** : persistance correcte en `localStorage` — ne se relance plus à chaque session.
+- **Radio panoramique** : numéros FDI lisibles (fond sombre + opacité 82%), directement superposés sur la radio.
+
+---
+
+## Breakthroughs Techniques — Mai 2026
 
 ### Ghost Hub Intelligence v2.0 — Moteur Proactif Complet
-
-Le système nerveux central de l'application. Analyse en continu les dossiers patients et génère des alertes actionnables avant même que le praticien ne le demande.
 
 **Catégorie A — Analyse Patient :**
 - **A1 Flash Summary** : Résumé IA de dossier en temps réel (antécédents, traitements actifs, solde).
@@ -46,14 +67,14 @@ Le système nerveux central de l'application. Analyse en continu les dossiers pa
 - **E1 Daily Scheduler** : Thread daemon récursif — génère les alertes à 10s de démarrage, puis toutes les 24h.
 - **E2 ProactiveAlert** : Table SQLite dédiée avec déduplication 24h et expiration 7j.
 - **E3 Hub Alertes du Jour** : Widget Dashboard avec navigation directe patient + mark-as-read.
-- **E5 Push Mobile FCM** : Notifications push Firebase vers l'app mobile compagnon après génération d'alertes.
+- **E5 Push Mobile FCM** : Notifications push Firebase vers l'app mobile compagnon.
 
 ---
 
 ### Panoramic ELITE Hub v2.0
-Diagnostic panoramique haute-fidélité.
 - **Taxonomie Clinique** : Groupement des anomalies par spécialité (Endo, Paro, Chirurgie, Prothèse).
 - **Multi-Tooth Selection** : Prise en charge native des bridges et zones infectieuses étendues (sélection FDI).
+- **Numérotation FDI superposée** : Labels lisibles directement sur la radio, fond sombre, sélection par clic.
 - **Live PDF Engine** : Génération instantanée de bilans structurés par secteur.
 
 ### Clinical Intelligence v1.5
@@ -61,8 +82,9 @@ Diagnostic panoramique haute-fidélité.
 - **EliteAssistant** : Compagnon contextuel avec awareness du module actif, insights cliniques, D4 ordonnance anticipée.
 
 ### Studio Documentaire v4.x
-- **Ordonnance Zero-Clavier** : Protocoles rapides, suggestion IA, architecture de forme galénique.
+- **Ordonnance Zero-Clavier** : Protocoles rapides, suggestion IA agentique, architecture galénique.
 - **Devis / Note d'Honoraires** : Odontogramme FDI interactif, archivage automatique, anti-doublon SHA-256.
+- **Échéancier** : Plan de paiement échelonné A5, CheckBox statuts, rappels WhatsApp.
 - **Certificats / Documents Libres** : Templates vectoriels ReportLab Elite.
 - **QR E-Verify** : Signature numérique injectée dans chaque ordonnance.
 
@@ -73,55 +95,29 @@ Diagnostic panoramique haute-fidélité.
 
 ### App Mobile ZKA
 - **Onboarding QR** : Appairage Zero-Knowledge via token éphémère.
-- **Cockpit Mobile** : Agenda, Performance, Liste Rouge (débiteurs) en temps réel sur LAN.
+- **Cockpit Mobile** : Agenda, Performance, Finance, Labo, Sécurité en temps réel sur LAN.
 - **Push FCM (E5)** : Réception des alertes proactives du scheduler quotidien.
+- **Offline Queue** : Actions POST/PUT/PATCH mises en file hors connexion (Workbox Background Sync).
 
 ---
 
-## Architecture du Système
+## Architecture
 
-### Backend (Elite Core)
-- **FastAPI** : Performance asynchrone, multi-tenant par `employer_id`.
-- **SQLAlchemy 2.0** : Mapped/mapped_column style, `create_all` sans Alembic.
-- **Services Intelligence** : `habits_engine.py` (triggers), `daily_scheduler.py` (daemon), `push_service.py` (FCM).
-- **Vision Engine** : U-Net CephLD-CCA (PyTorch), 19 landmarks céphalo.
-- **PDF Engine** : ReportLab + WeasyPrint (templates dédiés par type de document).
+Voir **[ARCHITECTURE.md](./ARCHITECTURE.md)** pour l'arborescence complète commentée et les flux de données.
 
-### Frontend (Elite UI)
-- **React 19** + **Tailwind CSS 4** + **Framer Motion**.
-- **Design System** : `cn()`, CSS Variables, glassmorphism, micro-animations.
-- **DocumentHub** : Orchestrateur central du Studio Documentaire.
-- **EliteAssistant** : Panneau latéral d'intelligence contextuelle.
-
----
-
-## Structure du Code
+### Vue d'ensemble
 
 ```
-DigitalCrown/
-├── backend/
-│   ├── services/
-│   │   ├── habits_engine.py      # Triggers proactifs (15 règles A/B/C/D)
-│   │   ├── daily_scheduler.py    # Daemon 24h — génère les ProactiveAlerts
-│   │   ├── push_service.py       # FCM multicast — E5 notifications mobiles
-│   │   ├── elite_manager.py      # Intelligence patient complète
-│   │   ├── vision_service.py     # IA Vision (PyTorch)
-│   │   ├── cephalo_engine.py     # Maths & Géométrie orthodontique
-│   │   └── generators/           # Moteurs ReportLab dédiés
-│   └── routers/
-│       ├── intelligence.py       # Endpoints Ghost Hub (C/D/E)
-│       ├── mobile.py             # API Mobile ZKA + device token
-│       └── ...                   # Autres modules métier
-├── frontend/src/
-│   ├── features/
-│   │   ├── admin/DocumentStudio/ # Studio documentaire (Ordonnance, Devis, etc.)
-│   │   ├── patients/             # Dossiers patients, fiche, archives
-│   │   └── ortho/                # Céphalométrie COM
-│   ├── pages/Dashboard.tsx       # Ghost Hub Dashboard (widgets A/B/C/D/E)
-│   └── services/api.ts           # Client Elite Axios
-├── SKILLS.md                     # Guide agents IA
-├── ROADMAP.md                    # Fonctionnalités déployées & prévues
-└── SESSION.md                    # Journal de sessions
+Backend  FastAPI :8005  →  SQLite (digital_crown.db)
+                        →  ReportLab (PDF génération)
+                        →  ONNX Runtime (panoramique)
+                        →  Ollama (LLM local)
+                        →  Firebase (licence + push FCM)
+
+Frontend React :5173   →  Zustand (état global)
+                        →  Axios (API client, refresh JWT auto)
+                        →  Framer Motion + TailwindCSS
+                        →  Vite PWA (Service Worker offline)
 ```
 
 ---
@@ -133,18 +129,19 @@ DigitalCrown/
 ./Start_DigitalCrown.bat
 ```
 
-### Développement
+### Développement manuel
 ```bash
 # Backend
 venv\Scripts\activate
-uvicorn backend.main:app --reload --port 8000
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8005
 
-# Frontend
+# Frontend (autre terminal)
 cd frontend && npm run dev
 ```
 
-API Docs : `http://localhost:8000/docs`  
-App : `http://localhost:5173`
+- API Docs : `http://localhost:8005/docs`
+- App : `http://localhost:5173`
+- Mobile (LAN) : `http://<ip-locale>:5173`
 
 ---
 
@@ -152,10 +149,11 @@ App : `http://localhost:5173`
 - **Zéro Data Leak** : Validation Pydantic stricte, multi-tenant isolé par `employer_id`.
 - **Archivage Immuable** : SHA-256 anti-doublon sur tous les documents cliniques.
 - **Local-First AI** : SLM local (Ollama) pour confidentialité maximale des données patient.
+- **Zero-Knowledge Architecture** : Données mobiles chiffrées AES-GCM, clé dérivée hors serveur.
 - **License System** : Coffre-fort chiffré AES-256 + anti-rollback temporel + grâce 72h offline.
 
 ---
 
 ## Équipe & Version
-**Staff Engineering — Digital Crown SANINOVA**  
-*Dernière mise à jour : 03 Juin 2026 — Ghost Brain v2.0 Proactive & Zero-Knowledge Backups (115 pts déployés)*
+**Staff Engineering — Digital Crown SANINOVA**
+*Dernière mise à jour : 12 Juin 2026 — CrownBot v3.0 + Échéancier PDF + Analytics réel (sprint crownbot)*

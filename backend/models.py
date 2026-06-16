@@ -1021,13 +1021,15 @@ class LabJob(Base):
 
 class BotSession(Base):
     """
-    Historique des sessions du chatbot par cabinet.
+    Historique des sessions du chatbot par utilisateur (isolation stricte).
+    employer_id = tenant du cabinet, user_id = auteur de la session.
     """
     __tablename__ = "bot_sessions"
-    
+
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="Nouvelle Conversation")
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     

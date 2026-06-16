@@ -37,6 +37,19 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RADIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "radios")
 os.makedirs(RADIO_DIR, exist_ok=True)
 
+
+def _format_panoramic_visual_annotations(annotations: Optional[List[schemas.PanoramicVisualAnnotation]]) -> str:
+    if not annotations:
+        return ""
+
+    lines = ["", "### ANNOTATIONS CLINIQUES LIBRES"]
+    for ann in annotations:
+        text = (ann.text or "").strip()
+        if not text:
+            continue
+        lines.append(f"- {text} (repère visuel x={ann.x:.1f}%, y={ann.y:.1f}%).")
+    return "\n".join(lines) if len(lines) > 2 else ""
+
 @router.post("/upload-radio")
 async def upload_radio(patient_id: int, background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
     assert_patient_access(patient_id, current_user, db)
@@ -269,11 +282,16 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
             detections=active_detections,
             manual_anomalies=req.manual_anomalies
         )
+        report_markdown += _format_panoramic_visual_annotations(req.visual_annotations)
 
         # Mise à jour persistante
         analysis.report_narrative = report_markdown
         # Forcer la mise à jour du JSON field dans SQLAlchemy
-        analysis.detections_data = {**analysis.detections_data, "detections": all_detections}
+        analysis.detections_data = {
+            **analysis.detections_data,
+            "detections": all_detections,
+            "visual_annotations": [ann.model_dump() for ann in (req.visual_annotations or [])],
+        }
 
         db.commit()
         db.refresh(analysis)

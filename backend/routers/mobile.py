@@ -83,14 +83,7 @@ def get_mobile_role(
 
 
 def get_lan_base_url() -> str:
-    """
-    Retourne l'URL LAN du serveur.
-    FRONTEND_URL override explicite si non-localhost.
-    Sinon, auto-dÃ©tection IP LAN via socket UDP.
-    """
-    configured = os.getenv("FRONTEND_URL", "").rstrip("/")
-    if configured and "localhost" not in configured and "127.0.0.1" not in configured:
-        return configured
+    """Retourne l'URL LAN du backend — toujours auto-détectée via socket, toujours HTTP."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -99,14 +92,96 @@ def get_lan_base_url() -> str:
         port = os.getenv("PORT", "8005")
         return f"http://{lan_ip}:{port}"
     except Exception:
-        return configured or "http://localhost:8005"
+        return "http://127.0.0.1:8005"
 
 
 # â”€â”€ PING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/ping", summary="VÃ©rification de connectivitÃ© LAN")
+@router.get("/ping", summary="Vérification de connectivité LAN")
 def ping():
     return {"status": "ok", "mode": "lan"}
+
+
+@router.get("/ca-cert", summary="Profil iOS (.mobileconfig) pour installation HTTPS sans friction")
+def get_ca_cert():
+    """
+    Sert un profil Apple .mobileconfig contenant le certificat CA mkcert.
+    Quand Safari ouvre ce fichier, iOS propose directement l'installation — aucune manipulation manuelle.
+    Accessible sans authentification (clé publique uniquement).
+    """
+    import subprocess
+    import pathlib
+    import base64
+    import uuid
+    from fastapi.responses import Response as FastAPIResponse
+
+    try:
+        ca_root = subprocess.check_output(["mkcert", "-CAROOT"], text=True).strip()
+        ca_file = pathlib.Path(ca_root) / "rootCA.pem"
+    except Exception:
+        ca_file = None
+
+    if not ca_file or not ca_file.exists():
+        raise HTTPException(status_code=404, detail="Certificat CA non trouvé. Lancez scripts/setup-https.ps1 d'abord.")
+
+    # Lire le PEM et extraire les bytes DER (entre -----BEGIN/END CERTIFICATE-----)
+    pem_text = ca_file.read_text()
+    b64_lines = [l for l in pem_text.splitlines()
+                 if l and not l.startswith("-----")]
+    cert_b64 = "".join(b64_lines)
+
+    profile_uuid = str(uuid.uuid4()).upper()
+    payload_uuid = str(uuid.uuid4()).upper()
+
+    mobileconfig = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadCertificateFileName</key>
+            <string>DigitalCrown-CA.crt</string>
+            <key>PayloadContent</key>
+            <data>{cert_b64}</data>
+            <key>PayloadDescription</key>
+            <string>Autorise la connexion sécurisée HTTPS au cabinet sur le réseau local.</string>
+            <key>PayloadDisplayName</key>
+            <string>Digital Crown — Certificat Cabinet</string>
+            <key>PayloadIdentifier</key>
+            <string>com.digitalcrown.ca.cert</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.root</string>
+            <key>PayloadUUID</key>
+            <string>{payload_uuid}</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>Active la connexion chiffrée entre cet iPhone et le logiciel Digital Crown de votre cabinet dentaire.</string>
+    <key>PayloadDisplayName</key>
+    <string>Digital Crown — Sécurité Cabinet</string>
+    <key>PayloadIdentifier</key>
+    <string>com.digitalcrown.profile</string>
+    <key>PayloadOrganization</key>
+    <string>Digital Crown</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>{profile_uuid}</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>"""
+
+    return FastAPIResponse(
+        content=mobileconfig.encode("utf-8"),
+        media_type="application/x-apple-aspen-config",
+        headers={"Content-Disposition": 'attachment; filename="DigitalCrown-Securite.mobileconfig"'},
+    )
 
 
 # â”€â”€ CLAIM TOKEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -181,7 +256,7 @@ def claim_pairing_token(
         except Exception as e:
             import logging
             logging.error(f"Erreur ECDH: {e}")
-            response_data["masterKey"] = record.master_key # Fallback
+            raise HTTPException(status_code=400, detail="Cle publique client invalide.")
     else:
         # Mode Legacy (Non sécurisé si HTTP local)
         response_data["masterKey"] = record.master_key

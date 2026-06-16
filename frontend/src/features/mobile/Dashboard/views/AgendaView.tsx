@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Clock, Plus } from 'lucide-react';
+import { Calendar, Clock, Plus, WifiOff } from 'lucide-react';
 import { DndContext, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { format, addDays, startOfWeek, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
@@ -196,8 +196,16 @@ export function AgendaView({
           <div className="space-y-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
           </div>
+        ) : syncStatus === 'error' && !snapshot ? (
+          <div className="bg-card border border-border-main rounded-[24px] py-20 text-center shadow-elite relative overflow-hidden mt-4">
+            <div className="w-16 h-16 bg-amber-500/5 border border-amber-500/10 rounded-[20px] flex items-center justify-center mx-auto mb-4 text-amber-500">
+              <WifiOff size={32} />
+            </div>
+            <h4 className="font-black text-amber-500 font-outfit">Données indisponibles</h4>
+            <p className="text-text-muted text-[11px] font-medium mt-1">Impossible de charger l'agenda hors-ligne.</p>
+          </div>
         ) : !dayAppointments.length ? (
-          <div className="bg-card border border-border-main rounded-[24px] py-20 text-center shadow-elite relative overflow-hidden">
+          <div className="bg-card border border-border-main rounded-[24px] py-20 text-center shadow-elite relative overflow-hidden mt-4">
             <div className="w-16 h-16 bg-primary/5 border border-primary/10 rounded-[20px] flex items-center justify-center mx-auto mb-4 text-primary">
               <Calendar size={32} />
             </div>
@@ -271,7 +279,7 @@ export function AgendaView({
         )}
 
         {/* Bouton d'ajout de RDV */}
-        <div className="fixed bottom-28 right-6 z-40">
+        <div className="fixed bottom-32 right-6 z-40">
           <button onClick={() => setShowAddModal(true)} className="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_30px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border border-white/20">
             <Plus size={24} />
           </button>

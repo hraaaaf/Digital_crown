@@ -6,7 +6,7 @@ interface StudioHeaderProps {
   patientName: string;
   docDate: string;
   onDateChange: (date: string) => void;
-  activeTab: string;
+  activeTab: import('../DocumentHub').HubDocumentType;
   showOdontoPanoramique: boolean;
   onToggleOdonto: () => void;
   onGenerate?: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;

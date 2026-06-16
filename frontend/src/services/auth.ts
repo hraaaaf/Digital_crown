@@ -8,12 +8,12 @@ export const authService = {
    * Login (Local API, qui vérifiera la licence Firebase via le middleware)
    */
   async login(email: string, password: string) {
-    const formData = new FormData();
+    const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
 
     const response = await axios.post(`${API_URL}/auth/login`, formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      withCredentials: true,
     });
 
     const data = response.data;
@@ -121,6 +121,13 @@ export const authService = {
   async resetPassword(email: string) {
     // A remplacer par un appel API local ou Firebase si nécessaire
     console.log("Password reset disabled during Firebase migration for", email);
+  },
+
+  /**
+   * Connexion via Google OAuth (redirect vers le backend)
+   */
+  loginWithGoogle() {
+    window.location.href = `${API_URL}/auth/google/authorize`;
   },
 
   /**

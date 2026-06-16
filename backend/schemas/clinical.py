@@ -65,6 +65,8 @@ class CephaloAnalysisOut(BaseModel):
     angles_data: Optional[Any] = None
     landmarks_data: Optional[Any] = None
     ai_diagnostic: Optional[DiagnosticSLM] = None
+    is_calibrated: bool = False
+    mm_per_pixel: Optional[float] = None
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -136,11 +138,12 @@ class CephaloAnalysisResult(BaseModel):
 
 
 class AnalysisUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     landmarks: List[LandmarkItem]
     mm_per_pixel: Optional[float] = None
     ai_diagnostic: Optional[Dict[str, str]] = None
     clinical_data: Optional[ClinicalData] = None
-    mcnmara_projections: Optional[McNamaraProjections] = None
+    mcnamara_projections: Optional[McNamaraProjections] = Field(default=None, alias="mcnmara_projections")
 
 
 class CephaloViewModel(BaseModel):

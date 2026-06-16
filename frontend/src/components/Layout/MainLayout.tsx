@@ -11,7 +11,7 @@ import { PREMIUM_FONTS } from '../../features/admin/constants';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Bot } from 'lucide-react';
+import { Bot, Menu } from 'lucide-react';
 import { CrownBotChat } from '../CrownBot/CrownBotChat';
 
 interface LayoutProps {
@@ -51,21 +51,35 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
   const [isBotOpen, setIsBotOpen] = useState(false);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Close sidebar on route change (mobile nav)
+  React.useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
       {animatedBg && <AnimatedBackground />}
-      
+
       {/* BACKGROUND DYNAMIQUE */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px]" />
         <div className="absolute -bottom-[10%] -right-[10%] w-[30%] h-[50%] rounded-full opacity-20 blur-[120px]" style={{ backgroundColor: 'var(--accent)' }} />
       </div>
-      
-      <Sidebar />
+
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <LicenseBanner />
+        {/* Hamburger button — visible only on mobile/tablet */}
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="lg:hidden fixed top-5 left-4 z-[9998] p-2 rounded-xl bg-card-bg border border-border-main shadow-elite text-text-main hover:text-primary hover:bg-primary/5 transition-all"
+          aria-label="Menu"
+        >
+          <Menu size={22} />
+        </button>
         <Header />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { DrugItem } from '../DocumentStudio/Forms/PrescriptionAgenticStudio';
-import type { DocumentType } from '../DocumentHub';
+import type { HubDocumentType } from '../DocumentHub';
 
 interface DocumentState {
-  activeTab: DocumentType;
+  activeTab: HubDocumentType;
   docDate: string;
   
   // Ordonnance
@@ -23,7 +23,7 @@ interface DocumentState {
   librePageSize: 'A5' | 'A4';
   libreAlignment: 'left' | 'center' | 'right' | 'justify';
 
-  setActiveTab: (tab: DocumentType) => void;
+  setActiveTab: (tab: HubDocumentType) => void;
   setDocDate: (date: string) => void;
   
   setDrugs: (drugs: DrugItem[]) => void;
@@ -44,7 +44,7 @@ interface DocumentState {
 }
 
 const initialState = {
-  activeTab: 'ordonnance' as DocumentType,
+  activeTab: 'ordonnance' as HubDocumentType,
   docDate: new Date().toISOString().split('T')[0],
   
   drugs: [{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }] as DrugItem[],

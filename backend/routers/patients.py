@@ -351,21 +351,21 @@ def get_patient_analyses(patient_id: int, db: Session = Depends(database.get_db)
 # --- CLINICAL INTELLIGENCE V2.0 ---
 
 @router.get("/{patient_id}/ai-summary")
-def get_patient_ai_summary(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def get_patient_ai_summary(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("clinical"))):
     """Module 2 — Résumé Flash Patient (P0)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_patient_summary(db, patient_id)
 
 @router.get("/{patient_id}/ai-diagnostic")
-def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def get_patient_ai_diagnostic(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("clinical"))):
     """Module 3 — Panneau Conseil Clinique (P2)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.clinical_intelligence import clinical_intel
     return clinical_intel.get_full_diagnostic(db, patient_id)
 
 @router.get("/{patient_id}/cmo-synthesis")
-def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("clinical"))):
     """Agent Multimodal — Chief Medical Officer (Synthèse Pano + Cephalo)."""
     assert_patient_access(patient_id, current_user, db)
     from backend.services.cmo_agent_service import cmo_agent
@@ -476,13 +476,13 @@ def generate_cephalo_pdf(
 # --- MASTER PLAN CLINIQUE ---
 
 @router.get("/{patient_id}/master-plan", response_model=Optional[schemas.TreatmentMasterPlanOut])
-def get_master_plan(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def get_master_plan(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("clinical"))):
     assert_patient_access(patient_id, current_user, db)
     plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
     return plan
 
 @router.put("/{patient_id}/master-plan", response_model=schemas.TreatmentMasterPlanOut)
-def update_master_plan(patient_id: int, steps: List[schemas.TreatmentPlanStepCreate], db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+def update_master_plan(patient_id: int, steps: List[schemas.TreatmentPlanStepCreate], db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("clinical"))):
     assert_patient_access(patient_id, current_user, db)
     plan = db.query(models.TreatmentMasterPlan).filter(models.TreatmentMasterPlan.patient_id == patient_id).first()
     if not plan:

@@ -6,6 +6,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from backend.models import InstallmentPlan, Patient, CabinetConfig
+from backend.services.base_template import BaseTemplate, PageCounter
 
 def generate_installment_plan(
     plan: InstallmentPlan, 
@@ -98,6 +99,23 @@ def generate_installment_plan(
     # Footer
     elements.append(Paragraph("<i>Document généré électroniquement par Digital Crown Elite Edition.</i>", normal_style))
 
-    doc.build(elements)
-    
+    compression = 1.0
+    for _ in range(7):
+        scaled = BaseTemplate.scale_elements(elements, compression)
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=A4,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
+        page_counter = PageCounter()
+        doc.build(scaled, canvasmaker=page_counter.make_canvas_class())
+        if page_counter.page_count <= 1:
+            break
+        compression *= 0.82
+        if compression < 0.35:
+            break
+
     return filepath

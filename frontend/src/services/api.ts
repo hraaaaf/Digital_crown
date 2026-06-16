@@ -1,7 +1,10 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8005').replace(/\/$/, '');
+const defaultApiUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:8005`
+  : 'http://127.0.0.1:8005';
+export const API_BASE = (import.meta.env.VITE_API_URL ?? defaultApiUrl).replace(/\/$/, '');
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
@@ -68,7 +71,14 @@ api.interceptors.response.use(
 
     if (!error.response) {
       if (!_authFailed) {
-        toast.error('Serveur injoignable', { id: 'network-error' });
+        const method = original?.method?.toLowerCase() || 'get';
+        if (!navigator.onLine && ['post', 'put', 'patch', 'delete'].includes(method)) {
+          toast.success('📡 Mode hors-ligne : Action mise en file d\'attente. Elle sera synchronisée.', { id: 'offline-queue', duration: 4000 });
+          // Résoudre silencieusement pour éviter le crash UI (Background Sync s'en chargera)
+          return Promise.resolve({ data: { _offline: true }, status: 200, statusText: 'OK', headers: {}, config: original });
+        } else {
+          toast.error('Serveur injoignable', { id: 'network-error' });
+        }
       }
       return Promise.reject(error);
     }
@@ -125,14 +135,18 @@ api.interceptors.response.use(
       }
 
       // Échec total → coupe-circuit ON + logout immédiat
+      // Sur le dashboard mobile, ne pas rediriger — la session mobile n'a pas de refresh token standard
+      if (window.location.pathname.startsWith('/mobile')) {
+        return Promise.reject(error);
+      }
       _authFailed = true;
       localStorage.removeItem('token');
       localStorage.removeItem('refresh_token');
       _authChannel?.postMessage({ type: 'LOGOUT' });
       if (window.location.pathname !== '/login') window.location.href = '/login';
     } else if (status === 402) {
-      // Licence expirée ou invalide (Soft-Lock)
-      if (window.location.pathname !== '/login' && !(window as any)._isRedirecting402) {
+      // Licence expirée ou invalide (Soft-Lock) — ne pas interrompre la session mobile
+      if (window.location.pathname !== '/login' && !(window as any)._isRedirecting402 && !window.location.pathname.startsWith('/mobile')) {
         (window as any)._isRedirecting402 = true;
         window.location.href = '/login?locked=true';
       }

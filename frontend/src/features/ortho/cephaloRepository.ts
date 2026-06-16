@@ -11,7 +11,7 @@ export const cephaloRepository = {
    * Récupère une analyse existante par son ID.
    */
   async getAnalysis(analysisId: number) {
-    const res = await api.get(`/analyses/${analysisId}`);
+    const res = await api.get(`/ia/analyses/${analysisId}`);
     return res.data;
   },
 

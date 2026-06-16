@@ -7,6 +7,7 @@ import { api } from '../../../../services/api';
 
 interface InstallmentStudioProps {
   patientId: string;
+  onPayloadChange?: (payload: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> }) => void;
 }
 
 interface InstallmentItem {
@@ -14,10 +15,11 @@ interface InstallmentItem {
   label: string;
   amount: number;
   dueDate: string;
+  paid?: boolean;
   sendReminder?: boolean;
 }
 
-export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId }) => {
+export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId, onPayloadChange }) => {
   const [title, setTitle] = useState('Traitement Orthodontique');
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -25,6 +27,17 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
   const [monthsCount, setMonthsCount] = useState<number>(1);
   const [monthlyAmount, setMonthlyAmount] = useState<number>(0);
   const [items, setItems] = useState<InstallmentItem[]>([]);
+  const [patientPhone, setPatientPhone] = useState<string>('');
+
+  useEffect(() => {
+    if (patientId && patientId !== '0') {
+      api.get(`/patients/${patientId}`).then((res: any) => {
+        const p = res.data;
+        const phone = p.telephone_mobile || p.telephone || p.telephone_fixe || '';
+        setPatientPhone(phone.replace(/\s/g, ''));
+      }).catch(() => {});
+    }
+  }, [patientId]);
 
   useEffect(() => {
     if (patientId && patientId !== '0') {
@@ -41,6 +54,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
                 label: inst.label || 'Versement',
                 amount: inst.amount,
                 dueDate: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+                paid: inst.status === 'PAYE',
                 sendReminder: false
               }));
               setItems(loadedItems);
@@ -65,6 +79,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         label: 'Avance Initiale',
         amount: advanceAmount,
         dueDate: advanceDate,
+        paid: false,
         sendReminder: false
       });
     }
@@ -78,6 +93,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         label: `Mensualité ${i + 1}`,
         amount: monthlyAmount,
         dueDate: currentDate.toISOString().split('T')[0],
+        paid: false,
         sendReminder: false
       });
     }
@@ -125,10 +141,21 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
     setItems(items.filter(item => item.id !== id));
   };
 
-  // Ce composant va exposer les données via un ref ou context si nécessaire pour useDocumentGenerator
-  // Pour l'instant, DocumentHub s'attend à passer des données, mais useDocumentGenerator a peut-être besoin
-  // d'être adapté pour extraire l'échéancier. On stocke l'état ici.
-  
+  // Notifie le parent du payload courant dès que les données changent
+  useEffect(() => {
+    onPayloadChange?.({
+      patient_id: parseInt(patientId, 10) || 0,
+      title,
+      total_amount: totalAmount,
+      items: items.map(it => ({
+        label: it.label,
+        amount: it.amount,
+        due_date: it.dueDate,
+        paid: it.paid ?? false,
+      })),
+    });
+  }, [items, title, totalAmount, patientId]);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({title, totalAmount, items})}>
       <div className="mb-6">
@@ -190,25 +217,36 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
             <tr>
+              <th className="px-3 py-3 font-semibold w-16 text-center text-emerald-600">Réglé ✓</th>
               <th className="px-4 py-3 font-semibold">Libellé</th>
               <th className="px-4 py-3 font-semibold w-32">Date</th>
               <th className="px-4 py-3 font-semibold w-32">Montant</th>
-              <th className="px-4 py-3 font-semibold w-32 text-center" title="Notification WhatsApp manuelle">Rappel WhatsApp</th>
+              <th className="px-4 py-3 font-semibold w-32 text-center" title="Notification WhatsApp manuelle">Rappel WA</th>
               <th className="px-4 py-3 w-16"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-4 py-2">
-                  <input type="text" value={item.label} onChange={(e) => updateItem(item.id, 'label', e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-medium text-slate-700" />
+              <tr key={item.id} className={item.paid ? 'bg-emerald-50/60' : 'hover:bg-slate-50/50'}>
+                {/* Case à cocher Réglé */}
+                <td className="px-3 py-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={item.paid ?? false}
+                    onChange={(e) => updateItem(item.id, 'paid', e.target.checked)}
+                    className="w-5 h-5 rounded border-2 border-slate-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer accent-emerald-500"
+                    title="Marquer comme réglé"
+                  />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="date" value={item.dueDate} onChange={(e) => updateItem(item.id, 'dueDate', e.target.value)} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm text-slate-600" />
+                  <input type="text" value={item.label} onChange={(e) => updateItem(item.id, 'label', e.target.value)} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-medium ${item.paid ? 'text-slate-400 line-through' : 'text-slate-700'}`} />
+                </td>
+                <td className="px-4 py-2">
+                  <input type="date" value={item.dueDate} onChange={(e) => updateItem(item.id, 'dueDate', e.target.value)} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm ${item.paid ? 'text-slate-400' : 'text-slate-600'}`} />
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
-                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-slate-900" />
+                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold ${item.paid ? 'text-emerald-500' : 'text-slate-900'}`} />
                     <span className="text-xs text-slate-400">MAD</span>
                   </div>
                 </td>
@@ -224,7 +262,14 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
                       <button 
                         onClick={() => {
                           const msg = `Bonjour, ceci est un rappel pour votre échéance: ${item.label} d'un montant de ${item.amount} MAD prévue le ${item.dueDate}. Merci.`;
-                          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                          let phone = patientPhone.replace(/\s|-/g, '');
+                          if (phone.startsWith('+')) phone = phone.slice(1);
+                          else if (phone.startsWith('00')) phone = phone.slice(2);
+                          else if (phone.startsWith('0')) phone = '212' + phone.slice(1);
+                          const url = phone
+                            ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                            : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                          window.open(url, '_blank');
                         }}
                         className="text-emerald-500 hover:text-emerald-600 transition-colors"
                         title="Envoyer le rappel maintenant"
@@ -243,7 +288,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 text-sm">
                   Aucune échéance définie. Utilisez la génération rapide ou ajoutez manuellement.
                 </td>
               </tr>
@@ -252,13 +297,16 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId 
         </table>
       </div>
       
-      <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
-        <span className="text-slate-500">Total planifié : <b className="text-slate-900">{items.reduce((acc, it) => acc + (it.amount || 0), 0).toFixed(2)} MAD</b></span>
-        {totalAmount > 0 && (
-          <span className={items.reduce((acc, it) => acc + (it.amount || 0), 0) !== totalAmount ? "text-amber-500 font-medium" : "text-emerald-500 font-medium"}>
-            {items.reduce((acc, it) => acc + (it.amount || 0), 0) === totalAmount ? "Total équilibré" : "Le total planifié diffère du total prévu"}
-          </span>
-        )}
+      <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-slate-500">Total planifié : <b className="text-slate-900">{items.reduce((acc, it) => acc + (it.amount || 0), 0).toFixed(2)} MAD</b></span>
+          {totalAmount > 0 && (
+            <span className={items.reduce((acc, it) => acc + (it.amount || 0), 0) !== totalAmount ? "text-amber-500 font-medium" : "text-emerald-500 font-medium"}>
+              {items.reduce((acc, it) => acc + (it.amount || 0), 0) === totalAmount ? "Total équilibré" : "Le total planifié diffère du total prévu"}
+            </span>
+          )}
+        </div>
+
       </div>
     </div>
   );

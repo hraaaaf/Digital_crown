@@ -96,9 +96,17 @@ class PanoramicAnalysis(BaseModel):
     model_version: str = "Loki-Silvres-v1.0"
 
 
+class PanoramicVisualAnnotation(BaseModel):
+    id: int
+    x: float
+    y: float
+    text: str
+
+
 class PanoramicReportRequest(BaseModel):
     """Demande de génération de rapport basé sur les annotations manuelles."""
     analysis_id: int
     manual_anomalies: Dict[int, List[str]]
-    rejected_detections: Optional[List[int]] = []
+    rejected_detections: Optional[List[int]] = Field(default_factory=list)
+    visual_annotations: Optional[List[PanoramicVisualAnnotation]] = Field(default_factory=list)
 

@@ -16,8 +16,10 @@ import {
   AlertCircle,
   RefreshCw,
   AlertTriangle,
-  UserCheck
+  UserCheck,
+  Mail
 } from 'lucide-react';
+import { MotifSelector } from './components/MotifSelector';
 
 
 export const EditPatientForm = () => {
@@ -31,11 +33,21 @@ export const EditPatientForm = () => {
     nom: '',
     prenom: '',
     date_naissance: '',
+    sexe: 'F',
     telephone: '',
+    telephone_2: '',
+    telephone_3: '',
+    email: '',
     adresse: '',
     assurance: 'AUCUNE',
-    antecedents_medicaux: ''
+    assurance_privee_nom: '',
+    assurance_complementaire: false,
+    assurance_complementaire_nom: '',
+    antecedents_medicaux: '',
+    motif_consultation: [] as string[]
   });
+  const [showPhone2, setShowPhone2] = useState(false);
+  const [showPhone3, setShowPhone3] = useState(false);
   const [numeroError, setNumeroError] = useState('');
   const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
   const [originalNumero, setOriginalNumero] = useState('');
@@ -60,11 +72,21 @@ export const EditPatientForm = () => {
           nom: patient.nom || '',
           prenom: patient.prenom || '',
           date_naissance: dateFormatted,
+          sexe: patient.sexe || 'F',
           telephone: patient.telephone || '',
+          telephone_2: patient.telephone_2 || '',
+          telephone_3: patient.telephone_3 || '',
+          email: patient.email || '',
           adresse: patient.adresse || '',
           assurance: patient.assurance || 'AUCUNE',
-          antecedents_medicaux: patient.antecedents_medicaux || ''
+          assurance_privee_nom: patient.assurance_privee_nom || '',
+          assurance_complementaire: patient.assurance_complementaire || false,
+          assurance_complementaire_nom: patient.assurance_complementaire_nom || '',
+          antecedents_medicaux: patient.antecedents_medicaux || '',
+          motif_consultation: patient.motif_consultation || []
         });
+        if (patient.telephone_2) setShowPhone2(true);
+        if (patient.telephone_3) setShowPhone3(true);
         setOriginalNumero(patient.numero_dossier || '');
       } catch (err) {
         console.error("Erreur de récupération:", err);
@@ -242,6 +264,19 @@ export const EditPatientForm = () => {
           </div>
 
           <div>
+            <label className={labelClass}><User size={12}/> Sexe</label>
+            <select 
+              name="sexe" 
+              value={formData.sexe} 
+              onChange={(e) => setFormData({...formData, sexe: e.target.value})}
+              className={inputClass}
+            >
+              <option value="F">Féminin</option>
+              <option value="M">Masculin</option>
+            </select>
+          </div>
+
+          <div>
             <label className={labelClass}><Activity size={12}/> Assurance / Couverture</label>
             <select 
               name="assurance" 
@@ -255,17 +290,124 @@ export const EditPatientForm = () => {
               <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
               <option value="PRIVEE">Assurance Privée</option>
             </select>
+
+            {formData.assurance === 'PRIVEE' && (
+              <div className="mt-3">
+                <label className={labelClass}>Nom de l'Assurance Privée</label>
+                <input 
+                  type="text" 
+                  name="assurance_privee_nom" 
+                  value={formData.assurance_privee_nom} 
+                  onChange={(e) => setFormData({...formData, assurance_privee_nom: e.target.value})}
+                  className={inputClass}
+                  placeholder="Ex: Sanlam, Wafa Assurance..."
+                />
+              </div>
+            )}
+            
+            {/* Assurance Complémentaire */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <label className="flex items-center gap-3 cursor-pointer mb-3">
+                <div className={cn(
+                  "w-10 h-5 rounded-full transition-all duration-300 relative",
+                  formData.assurance_complementaire ? "bg-[#003380]" : "bg-slate-300"
+                )}>
+                  <div className={cn(
+                    "absolute top-1 w-3 h-3 rounded-full bg-white shadow-md transition-all duration-300",
+                    formData.assurance_complementaire ? "left-6" : "left-1"
+                  )} />
+                </div>
+                <input 
+                  type="checkbox" 
+                  name="assurance_complementaire"
+                  checked={formData.assurance_complementaire} 
+                  onChange={(e) => setFormData({...formData, assurance_complementaire: e.target.checked})}
+                  className="hidden"
+                />
+                <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
+              </label>
+              
+              {formData.assurance_complementaire && (
+                <div>
+                  <label className={labelClass}>Nom de l'Assurance Complémentaire</label>
+                  <input 
+                    type="text" 
+                    name="assurance_complementaire_nom" 
+                    value={formData.assurance_complementaire_nom} 
+                    onChange={(e) => setFormData({...formData, assurance_complementaire_nom: e.target.value})}
+                    className={inputClass}
+                    placeholder="Ex: Mutuelle interne..."
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
-            <label className={labelClass}><Phone size={12}/> Téléphone de contact</label>
-            <input 
-              type="tel" 
-              className={inputClass} 
-              value={formData.telephone} 
-              onChange={(e) => setFormData({...formData, telephone: e.target.value})} 
-              required 
-            />
+            <label className={labelClass}><Phone size={12}/> Téléphone Principal</label>
+            <div className="relative mb-2">
+              <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input 
+                type="tel" 
+                className={cn(inputClass, "pl-14")} 
+                value={formData.telephone} 
+                onChange={(e) => setFormData({...formData, telephone: e.target.value})} 
+                required 
+              />
+            </div>
+
+            {showPhone2 && (
+              <div className="relative mb-2 mt-2">
+                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <input 
+                  type="tel" 
+                  className={cn(inputClass, "pl-14 py-3")} 
+                  value={formData.telephone_2} 
+                  onChange={(e) => setFormData({...formData, telephone_2: e.target.value})} 
+                  placeholder="Téléphone secondaire"
+                />
+              </div>
+            )}
+            
+            {showPhone3 && (
+              <div className="relative mb-2 mt-2">
+                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <input 
+                  type="tel" 
+                  className={cn(inputClass, "pl-14 py-3")} 
+                  value={formData.telephone_3} 
+                  onChange={(e) => setFormData({...formData, telephone_3: e.target.value})} 
+                  placeholder="Autre numéro"
+                />
+              </div>
+            )}
+            
+            {(!showPhone2 || !showPhone3) && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (!showPhone2) setShowPhone2(true);
+                  else if (!showPhone3) setShowPhone3(true);
+                }}
+                className="text-xs text-[#003380] font-bold hover:underline"
+              >
+                + Ajouter un numéro
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className={labelClass}><Mail size={12}/> Email</label>
+            <div className="relative">
+              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input 
+                type="email" 
+                className={cn(inputClass, "pl-14")} 
+                value={formData.email} 
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                placeholder="yazan.benmoussa@email.com"
+              />
+            </div>
           </div>
 
           <div>
@@ -280,7 +422,15 @@ export const EditPatientForm = () => {
           </div>
 
           <div>
-            <label className={labelClass}><Activity size={12}/> Antécédents médicaux</label>
+            <label className={labelClass}><Activity size={12}/> Motif(s) de première consultation</label>
+            <MotifSelector
+              selected={formData.motif_consultation}
+              onChange={(ids) => setFormData({...formData, motif_consultation: ids})}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}><Activity size={12}/> Historique médical et allergies</label>
             <textarea 
               className={cn(inputClass, "min-h-[120px] resize-none")} 
               value={formData.antecedents_medicaux} 

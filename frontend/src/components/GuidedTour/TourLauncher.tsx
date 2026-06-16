@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Compass } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { GuidedTour } from './GuidedTour';
-import { TOUR_STORAGE_KEY } from './tourConfig';
+import { TOUR_STORAGE_KEY, TOUR_VERSION } from './tourConfig';
 
 /**
  * TourLauncher — Bouton flottant + auto-lancement au premier usage.
@@ -29,6 +29,7 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ isEmbedded = false }
   }, []);
 
   const handleClose = () => {
+    localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
     setIsOpen(false);
     setIsFirstVisit(false);
   };

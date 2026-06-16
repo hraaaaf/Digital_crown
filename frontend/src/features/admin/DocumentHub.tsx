@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
@@ -59,9 +60,18 @@ interface PatientDetails {
   assurance?: string;
 }
 
+export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
+
+const isHubDocumentType = (value: string | null): value is HubDocumentType =>
+  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
+
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [activeTab, setActiveTab] = useState<DocumentType>('ordonnance');
+  const [searchParams] = useSearchParams();
+  const requestedDocumentTab = searchParams.get('documentTab');
+  const [activeTab, setActiveTab] = useState<HubDocumentType>(() =>
+    isHubDocumentType(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
+  );
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
@@ -69,10 +79,18 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
+  useEffect(() => {
+    const nextTab = searchParams.get('documentTab');
+    if (isHubDocumentType(nextTab)) {
+      setActiveTab(nextTab);
+    }
+  }, [searchParams]);
+
 
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
+  const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
   const [certifType, setCertifType] = useState('Repos médical');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
@@ -115,12 +133,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [insights, setInsights] = useState<Insight[]>([]);
 
   // --- GARDES NAVIGATION ---
-  const [pendingTab, setPendingTab] = useState<DocumentType | null>(null);
+  const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
 
   // Garde sur changement d'onglet (1.3)
-  const handleTabChange = (newTab: DocumentType) => {
+  const handleTabChange = (newTab: HubDocumentType) => {
+    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire)
+    const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
+      (newTab === 'devis' || newTab === 'honoraires');
     const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      items.some(i => i.description.trim()) && newTab !== activeTab;
+      items.some(i => i.description.trim()) && newTab !== activeTab && !isAccountingSwitch;
     if (hasUnsaved) {
       setPendingTab(newTab);
     } else {
@@ -142,18 +163,40 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
+  const [echeancierPayload, setEcheancierPayload] = useState<any>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
+  const handleSuggestRadio = useCallback(() => {
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <span className="font-semibold text-sm">Ordonnance radio recommandée</span>
+        <span className="text-xs text-slate-500">Un acte prothétique a été détecté. Souhaitez-vous créer une ordonnance radiologique ?</span>
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={() => { setActiveTab('ordonnance'); toast.dismiss(t.id); }}
+            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700"
+          >
+            Créer l'ordonnance
+          </button>
+          <button onClick={() => toast.dismiss(t.id)} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-lg hover:bg-slate-200">
+            Ignorer
+          </button>
+        </div>
+      </div>
+    ), { duration: 12000, icon: '🦷' });
+  }, [setActiveTab]);
+
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote,
+    installments, isAccounted, paymentStatus, isGlobalNote, onSuggestRadio: handleSuggestRadio,
+    showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote,
+    installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
   ]);
 
   // --- INTELLIGENCE SCOPE ---
@@ -463,6 +506,27 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           )}
 
           {activeTab === 'ordonnance' && (
+            <>
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <button
+                type="button"
+                onClick={() => setShowLegalAnnotations(v => !v)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none",
+                  showLegalAnnotations ? "bg-primary" : "bg-slate-200"
+                )}
+                role="switch"
+                aria-checked={showLegalAnnotations}
+              >
+                <span className={cn(
+                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200",
+                  showLegalAnnotations ? "translate-x-4" : "translate-x-0"
+                )} />
+              </button>
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                Mentions légales (Radioprotection)
+              </span>
+            </div>
             <PrescriptionAgenticStudio
               patientId={patientId || '0'}
               drugs={drugs}
@@ -481,6 +545,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               hasChanges={generator.hasChanges}
               coherenceWarnings={generator.coherenceWarnings}
             />
+            </>
           )}
 
           {activeTab === 'certificat' && (
@@ -507,7 +572,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           )}
           
           {activeTab === 'echeancier' && (
-            <InstallmentStudio patientId={patientId || '0'} />
+            <InstallmentStudio
+              patientId={patientId || '0'}
+              onPayloadChange={setEcheancierPayload}
+            />
           )}
 
           {(activeTab === 'devis' || activeTab === 'honoraires') && (
@@ -557,7 +625,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
               >Annuler</button>
               <button
-                onClick={() => { setActiveTab(pendingTab); setPendingTab(null); }}
+                onClick={() => {
+                  // Effacement réel des actes avant de changer d'onglet
+                  useAccountingStore.getState().setItems([]);
+                  useAccountingStore.getState().setGroupSelectedTeeth([]);
+                  useAccountingStore.getState().setOdontogramMode('individual');
+                  setActiveTab(pendingTab);
+                  setPendingTab(null);
+                }}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-primary transition-all"
                 style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
               >Continuer</button>
@@ -613,7 +688,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
                 'echeancier': 'Échéancier',
-                'libre': 'Document Libre'
+                'libre': 'Document Libre',
+                'ai': 'Assistant IA'
               }[activeTab] || activeTab.toUpperCase()}
             />
           </motion.div>

@@ -46,6 +46,9 @@ import { SyncBadge } from './components/SyncBadge';
 import { Step2BlockerModal } from './components/Step2BlockerModal';
 import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
+import { cephaloRepository } from './cephaloRepository';
+import { API_BASE } from '../../services/api';
+import toast from 'react-hot-toast';
 
 
 export interface CephaloWorkspaceProps {
@@ -75,10 +78,45 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
 
-  const handleSelectHistory = (analysis: any) => {
-    // Load selected analysis into store and switch to studio view
-    store.setAnalysisId(analysis.id);
-    setViewMode('studio');
+  const resolveImageSrc = (imagePath?: string) => {
+    if (!imagePath) return undefined;
+    if (/^https?:\/\//i.test(imagePath)) return imagePath;
+    return `${API_BASE.replace(/\/$/, '')}/${imagePath.replace(/^\//, '')}`;
+  };
+
+  const handleSelectHistory = async (analysis: any) => {
+    try {
+      const loaded = await cephaloRepository.getAnalysis(analysis.id);
+      const landmarks = loaded.landmarks_data || [];
+      const anglesData = loaded.angles_data || {};
+
+      store.setAnalysisId(loaded.id);
+      store.setImageSrc(resolveImageSrc(loaded.image_original_path));
+      store.setLocal({ landmarks, version: Date.now() });
+      store.setAnglesData(anglesData);
+      store.setVisionMetadata(anglesData.vision_metadata || {});
+      store.setIsCalibrated(Boolean(loaded.is_calibrated));
+      store.setMmPerPixel(typeof loaded.mm_per_pixel === 'number' ? loaded.mm_per_pixel : null);
+      store.setCompletedSteps(new Set(landmarks.length ? [1] : []));
+
+      const narrative = anglesData.ai_narrative || loaded.ai_diagnostic;
+      if (narrative) {
+        store.setDiag(prev => ({
+          ...prev,
+          diagnostic_squelettique: narrative.diagnostic_squelettique || prev.diagnostic_squelettique,
+          analyse_moulages: narrative.analyse_moulages || prev.analyse_moulages,
+          synthese_diagnostique: narrative.synthese_diagnostique || prev.synthese_diagnostique,
+          strategie_therapeutique: narrative.strategie_therapeutique || prev.strategie_therapeutique,
+        }));
+      }
+
+      store.setStep(1);
+      setViewMode('studio');
+      toast.success('Analyse céphalométrique chargée.');
+    } catch (error) {
+      console.error('Erreur chargement analyse céphalométrique:', error);
+      toast.error("Impossible d'ouvrir cette analyse céphalométrique.");
+    }
   };
 
   const handleDeleteHistory = (analysisId: number) => {

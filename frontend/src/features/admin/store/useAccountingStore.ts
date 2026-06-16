@@ -65,7 +65,7 @@ const initialState = {
   paymentStatus: 'EN_ATTENTE',
   isGlobalNote: false,
   groupTreatmentName: '',
-  groupTreatmentPrice: '',
+  groupTreatmentPrice: '' as number | '',
   showOdontoPanoramique: true,
   odontogramMode: 'individual' as const,
   groupSelectedTeeth: [],

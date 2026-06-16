@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
+import { useAccountingStore } from '../store/useAccountingStore';
 
 interface PriceItem {
   id: number;
@@ -23,12 +24,12 @@ interface PatientDetails {
 }
 
 type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
-type DocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'lettre' | 'libre' | 'echeancier';
+import type { HubDocumentType } from '../DocumentHub';
 
 interface UseDocumentGeneratorParams {
   patientId: string | undefined;
   patientDetails: PatientDetails | null;
-  activeTab: DocumentType;
+  activeTab: HubDocumentType;
   drugs: DrugItem[];
   certifType: string;
   certifDays: number;
@@ -47,8 +48,11 @@ interface UseDocumentGeneratorParams {
   smartSuggestion: any;
   installments: any[];
   isAccounted?: boolean;
+  echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
   paymentStatus?: string;
   isGlobalNote?: boolean;
+  onSuggestRadio?: () => void;
+  showLegalAnnotations?: boolean;
 }
 
 // --- Validation stricte (Phase 3) ---
@@ -291,6 +295,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           non_substituable: d.non_substituable ?? false,
         })),
         doc_date: docDate,
+        show_legal_annotations: params.showLegalAnnotations !== false,
       };
     } else if (activeTab === 'certificat') {
       const reason = certifType === 'Autre' ? certifCustomMotif || 'Repos Post-Opératoire' : certifType;
@@ -353,6 +358,43 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     force = false,
   ) => {
     if (!patientId) return;
+    if (activeTab === 'plan') return;
+
+    // Flux dédié échéancier — même pattern blob+fallback que honoraires
+    if (activeTab === 'echeancier') {
+      const payload = params.echeancierPayload;
+      if (!payload || payload.items.length === 0) {
+        toast.error('Ajoutez au moins une échéance avant de générer');
+        return;
+      }
+      if (print && !isPreview && !force) { setShowPrintWarning(true); return; }
+      setLoading(true);
+      if (print) setPendingPrint(true);
+      try {
+        const res = await api.post('/installments/generate-preview', payload);
+        if (res.data.pdf_url) {
+          const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
+          let finalUrl = '';
+          try {
+            const pdfBlob = await api.get(`/${cleanPdfPath}`, { responseType: 'blob' });
+            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+            const blobUrl = URL.createObjectURL(new Blob([pdfBlob.data], { type: 'application/pdf' }));
+            blobUrlRef.current = blobUrl;
+            finalUrl = blobUrl;
+            setPdfUrl(blobUrl);
+          } catch {
+            finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
+            setPdfUrl(finalUrl);
+          }
+          if (!isPreview && !print) window.open(finalUrl, '_blank');
+        }
+      } catch (e: any) {
+        toast.error(e?.response?.data?.detail || 'Erreur lors de la génération du PDF');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (print && !isPreview && !force) {
       setShowPrintWarning(true);
@@ -436,6 +478,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         // --- Apprentissage automatique des Actes (Phase 2) ---
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
           try {
+            useAccountingStore.getState().setGroupSelectedTeeth([]);
+            useAccountingStore.getState().setOdontogramMode('individual');
             const { items } = params;
             for (const item of items) {
               if (item.description.trim()) {
@@ -449,6 +493,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           } catch (e) {
             console.warn("Échec de l'apprentissage des actes (silencieux)", e);
           }
+
+          if (activeTab === 'honoraires') {
+            useAccountingStore.getState().setItems([{ id: Date.now(), description: '', dent: '0', price: 0 }]);
+          }
         }
       }
       if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');
@@ -458,6 +506,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           duration: 8000,
           icon: '📅',
         });
+      }
+
+      // D3: Suggestion ordonnance radio post-prothèse
+      if (res.data.suggest_radio && !isPreview && params.onSuggestRadio) {
+        params.onSuggestRadio();
       }
     } catch (e: any) {
       if (e.response?.status === 409 && e.response?.data?.detail?.code === 'DOUBLE_DETECTED') {

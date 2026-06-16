@@ -175,7 +175,14 @@ class PanoramicEngine:
             
         except Exception as e:
             logger.error(f"PanoramicEngine Error : {e}")
-            return self._run_simulation()
+            sim_result = self._run_simulation()
+            sim_result["is_simulation"] = True
+            sim_result["simulation_warning"] = (
+                "Erreur d'inférence IA panoramique. Les résultats affichés sont une simulation "
+                "et ne doivent pas être utilisés cliniquement."
+            )
+            sim_result["runtime_error"] = str(e)
+            return sim_result
 
     def _map_fdi_elite(self, x_rel: float, y_rel: float) -> int:
         """Mapping FDI avec compensation de la Smile Curve (v4.3)."""

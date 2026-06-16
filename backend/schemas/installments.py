@@ -2,6 +2,20 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
+
+class InstallmentPreviewItem(BaseModel):
+    label: str
+    amount: float
+    due_date: str
+    paid: bool = False
+
+
+class InstallmentPreviewRequest(BaseModel):
+    patient_id: int
+    title: str
+    total_amount: float
+    items: List[InstallmentPreviewItem]
+
 class InstallmentBase(BaseModel):
     label: str
     amount: float

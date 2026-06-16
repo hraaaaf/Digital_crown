@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc
 from typing import List, Optional, Dict
 from datetime import datetime
 import os
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin & Dashboard"])
 
 @router.get("/normalize-docs")
-def normalize_docs(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def normalize_docs(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     """Normalise les types de documents en DB."""
     try:
         db.execute(text("UPDATE document_archives SET document_type = 'NOTE_HONORAIRES' WHERE document_type::text IN ('note_honoraires', 'note_honoraire', 'NOTE_HONORAIRE');"))
@@ -31,6 +31,46 @@ def normalize_docs(db: Session = Depends(database.get_db), current_user: models.
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
+
+@router.get("/audit-logs")
+def get_audit_logs(
+    limit: int = 50,
+    offset: int = 0,
+    action: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("admin"))
+):
+    """Retourne les logs d'audit avec pagination et filtres."""
+    query = db.query(models.AuditLog)
+    if action:
+        query = query.filter(models.AuditLog.action == action)
+    if resource_type:
+        query = query.filter(models.AuditLog.resource_type == resource_type)
+    if severity:
+        query = query.filter(models.AuditLog.severity == severity)
+    total = query.count()
+    logs = query.order_by(desc(models.AuditLog.timestamp)).offset(offset).limit(limit).all()
+    return {
+        "total": total,
+        "logs": [
+            {
+                "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "user_id": log.user_id,
+                "employer_id": log.employer_id,
+                "action": log.action,
+                "resource_type": log.resource_type,
+                "resource_id": log.resource_id,
+                "severity": log.severity,
+                "ip_address": log.ip_address,
+                "details": log.details,
+            }
+            for log in logs
+        ],
+    }
+
 
 @router.get("/dashboard/stats")
 def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
@@ -110,7 +150,7 @@ def get_cabinet_info(db: Session = Depends(database.get_db), current_user: model
     return praticien
 
 @router.put("/cabinet/me", response_model=schemas.PraticienProfileOut)
-def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     emp_id = current_user.get_employer_id()
     praticien = db.query(models.User).filter(models.User.id == emp_id).first()
     
@@ -149,7 +189,7 @@ def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), 
 
 
 @router.get("/export-db")
-def export_database(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def export_database(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     db_url = str(database.engine.url)
     if "sqlite" in db_url:
@@ -167,7 +207,7 @@ def export_database(db: Session = Depends(database.get_db), current_user: models
 
 
 @router.get("/zka-key-qr")
-def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     """
     Génère un QR d'appairage mobile ZKA sécurisé.
     La masterKey NE transite PAS dans l'URL — le QR encode un token éphémère UUID (TTL 5 min).
@@ -229,7 +269,7 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
 
 
 @router.post("/revoke-mobile")
-def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     """Révoque l'accès mobile en changeant la clé maître et en forçant une synchro."""
     try:
         emp_id = current_user.get_employer_id()

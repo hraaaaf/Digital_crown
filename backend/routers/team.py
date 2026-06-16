@@ -5,6 +5,7 @@ RBAC : Seul un DENTISTE ou ADMIN peut créer/modifier/supprimer des sous-comptes
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user
@@ -12,12 +13,29 @@ from backend.security import get_password_hash
 
 router = APIRouter(tags=["Team Management"])
 
+ALLOWED_TEAM_PERMISSIONS = {
+    "agenda",
+    "patients",
+    "prescriptions",
+    "accounting",
+    "payments",
+    "clinical",
+    "panoramic",
+    "cephalo",
+    "settings",
+}
+
+
+def sanitize_permissions(permissions: dict | None, defaults: dict) -> dict:
+    source = permissions if permissions is not None else defaults
+    return {key: bool(source.get(key, False)) for key in ALLOWED_TEAM_PERMISSIONS}
+
 
 # --- DÉPENDANCE RBAC : Praticien uniquement ---
 
 def require_employer(current_user: models.User = Depends(get_current_user)) -> models.User:
     """Bloque l'accès aux sous-comptes (SECRETAIRE) pour les opérations de gestion d'équipe."""
-    if current_user.role == models.UserRole.SECRETAIRE:
+    if current_user.role not in [models.UserRole.ADMIN, models.UserRole.DENTISTE] or current_user.employer_id is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès réservé au praticien principal."
@@ -46,9 +64,18 @@ def create_team_member(
     current_user: models.User = Depends(require_employer)
 ):
     """Crée un sous-compte assistante rattaché au praticien connecté."""
-    # Anti-doublon email
-    existing = db.query(models.User).filter(models.User.email == member.email).first()
+    # Anti-doublon email, insensible à la casse.
+    normalized_email = member.email.lower()
+    existing = db.query(models.User).filter(func.lower(models.User.email) == normalized_email).first()
     if existing:
+        if existing.employer_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Ce collaborateur existe déjà dans votre équipe. "
+                    "Utilisez la liste des membres pour le réactiver ou modifier ses droits."
+                )
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"L'email '{member.email}' est déjà utilisé par un autre compte."
@@ -60,15 +87,29 @@ def create_team_member(
         "patients": True,
         "prescriptions": False,
         "accounting": False,
+        "payments": False,
+        "clinical": False,
         "panoramic": False,
         "cephalo": False,
         "settings": False
     }
-    user_perms = member.permissions if member.permissions is not None else default_permissions
+    if member.role == "DENTISTE":
+        default_permissions = {
+            "agenda": True,
+            "patients": True,
+            "prescriptions": True,
+            "accounting": True,
+            "payments": True,
+            "clinical": True,
+            "panoramic": True,
+            "cephalo": True,
+            "settings": False,
+        }
+    user_perms = sanitize_permissions(member.permissions, default_permissions)
 
     role_to_assign = models.UserRole.DENTISTE if member.role == "DENTISTE" else models.UserRole.SECRETAIRE
     new_user = models.User(
-        email=member.email,
+        email=normalized_email,
         hashed_password=get_password_hash(member.password),
         role=role_to_assign,
         nom_complet=member.nom_complet,
@@ -101,14 +142,15 @@ def update_team_member(
     if updates.nom_complet is not None:
         member.nom_complet = updates.nom_complet
     if updates.email is not None:
-        # Vérification unicité
+        # Vérification unicité, insensible à la casse.
+        normalized_email = updates.email.lower()
         conflict = db.query(models.User).filter(
-            models.User.email == updates.email,
+            func.lower(models.User.email) == normalized_email,
             models.User.id != member_id
         ).first()
         if conflict:
             raise HTTPException(status_code=409, detail=f"L'email '{updates.email}' est déjà utilisé.")
-        member.email = updates.email
+        member.email = normalized_email
     if updates.telephone_mobile is not None:
         member.telephone_mobile = updates.telephone_mobile
     if updates.is_active is not None:
@@ -116,7 +158,7 @@ def update_team_member(
     if updates.new_password is not None:
         member.hashed_password = get_password_hash(updates.new_password)
     if updates.permissions is not None:
-        member.permissions = updates.permissions
+        member.permissions = sanitize_permissions(updates.permissions, member.permissions or {})
 
     db.commit()
     db.refresh(member)

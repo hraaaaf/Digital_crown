@@ -4,6 +4,7 @@ import { X, CreditCard, Banknote, Landmark, FileSignature, Loader2 } from 'lucid
 import { paymentApi } from '../../../services/paymentApi';
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
+import { useAccountingStore } from '../../admin/store/useAccountingStore';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
       toast.success('Paiement enregistré avec succès');
       setAmount('');
       setNotes('');
+      useAccountingStore.getState().setGroupSelectedTeeth([]);
+      useAccountingStore.getState().setOdontogramMode('individual');
       onClose();
     } catch (error) {
       toast.error('Erreur lors de l\'enregistrement du paiement');

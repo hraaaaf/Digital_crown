@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { MainLayout } from './components/Layout/MainLayout';
 import { cabinetApi } from './services/templateApi';
 import { safeStorage } from './hooks/useLocalStorage';
+import { useAuthStore } from './stores/useAuthStore';
 
 // Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
@@ -83,6 +84,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(authStatus);
         
         if (authStatus && location.pathname !== '/login') {
+          useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
           
@@ -190,6 +192,8 @@ const SmartRootRouter = () => {
 // APP PRINCIPAL
 // =============================================================================
 
+import { OfflineQueueViewer } from './components/mobile/OfflineQueueViewer';
+
 function App() {
   const [animatedBg, setAnimatedBg] = useState(() => safeStorage.get('app_background_animated') === 'true');
 
@@ -222,6 +226,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <OfflineQueueViewer />
       <Toaster
         position="bottom-right"
         toastOptions={{
