@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-16 08:50
+- **Mis à jour :** 2026-06-16 08:53
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,7 +14,6 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- il rèstè quoi pour bouclèr laV1 ? è commèncèr la commèrcialisation?
 - Go <system-reminder>Message sent at Tue 2026-06-16 08:29:03 UTC.</system-reminder>
 - Pas de nom de domaine, je ne compte pas en faire un sas. Je vais je vais tout faire en local first. Ce qui serait en ligne seulement l'authentification, l'enreg
 - [Request interrupted by user for tool use]
@@ -22,10 +21,11 @@
 - Go <system-reminder>Message sent at Tue 2026-06-16 08:36:05 UTC.</system-reminder>
 - Oki go <system-reminder>Message sent at Tue 2026-06-16 08:40:10 UTC.</system-reminder>
 - Pour chaque compte qu’il soit dentiste ou assistante le proprio lui donne les acces qu’il veut <system-reminder>Message sent at Tue 2026-06-16 08:49:23 UTC.</sy
+- Quand si tu as fini, mets à jour session point m t et la route map et tous les fichiers point m t et on ferme cette session pour ouvrir une autre qui se, qui se
 <!-- STATE:AUTO:END -->
 
 ## Prochaine action
-- **Nouvelle session dédiée au CrownBot / chatbot.** V1 commercialisation et audit RBAC/mobile/PWA sont bouclés (commits `3377eb7` + `f6b5552`). Repartir de la branche `crownbot` (mergée) et de l'audit préliminaire dans `SESSION.md` (score 4.8/10). Pistes : streaming réponses, couverture d'intents, historique par `patient_id`, qualité parsing LLM multi-turn.
+- **Nouvelle session dédiée au CrownBot / chatbot.** V1 commercialisation et audit RBAC/mobile/PWA sont bouclés (commits `3377eb7` + `f6b5552`). Le bot a déjà été durci sur la branche `crownbot` (mergée, commits 9–13 : execute réel, finance O(1), sécurité lab, contexte multi-turn, carte de confirmation) — le score 4.8/10 cité dans `SESSION.md` est la **baseline de départ avant ces fixes**, pas l'état actuel. Pistes restantes : streaming réponses, élargir la couverture d'intents, historique par `patient_id`.
 
 ## État V1 (16 Juin 2026)
 - **Architecture local-first confirmée** : tout en local (SQLite/`%APPDATA%`), seul Firebase est en ligne (signup + validation + kill-switch licence). Pas de domaine, pas de SaaS hébergé.
