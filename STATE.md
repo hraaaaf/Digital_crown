@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-17 16:24
+- **Mis à jour :** 2026-06-17 16:35
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
-- moi un bilan de ce qui a été corrigé depuis.
 - Oui, le bilan est **très solide** : gros travail de hardening déjà fait. Mais je ne le considérerais pas encore comme “prod-ready total”, parce qu’il reste quel
 - Okay go
 - Okay
 - Okay bot
 - This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
 - Ok go
+- Bilan de tout ce qui a été fait ! Apres Push to dev sur github
+- Et pour le fichier readme.md tu peux le lire et le modifier il doit représenter fidèlementce qu’on fait !
 <!-- STATE:AUTO:END -->
 
 ## Prochaine action
