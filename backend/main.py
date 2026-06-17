@@ -518,6 +518,32 @@ async def serve_documents(
     _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path)
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "documents"), rel_path)
 
+# Pièces jointes d'actes — AUTH + tenant requis (stockées dans uploads/actes/).
+@app.get("/api/static/uploads/actes/{filename}", include_in_schema=False)
+async def serve_acte_attachment(
+    filename: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    # Path traversal guard
+    safe = os.path.basename(filename)
+    if safe != filename or ".." in filename:
+        raise HTTPException(status_code=403, detail="Chemin non autorisé")
+
+    # Retrouver le patient propriétaire via la table Acte
+    url_fragment = f"/actes/{safe}"
+    from sqlalchemy import cast, String
+    acte = (
+        db.query(models.Acte)
+        .filter(cast(models.Acte.attachments, String).like(f"%{safe}%"))
+        .join(models.Patient, models.Acte.patient_id == models.Patient.id)
+        .first()
+    )
+    if acte is not None and acte.patient.employer_id != current_user.get_employer_id():
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    return _serve_protected_file(os.path.join(UPLOAD_DIR, "actes"), safe)
+
 # --- Mounts PUBLICS (branding/logo/polices/modèles uniquement) ---------------
 # Les sous-chemins patients ci-dessus sont déjà interceptés ; ces mounts ne
 # servent donc plus que des assets non sensibles (clinics/, logo, assets, …).

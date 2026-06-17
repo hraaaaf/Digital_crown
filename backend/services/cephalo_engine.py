@@ -560,7 +560,7 @@ class CephaloEngine:
         if class_steiner == class_mcnamara:
             class_sq = f"Classe {class_steiner}"
         else:
-            class_sq = f"Classe {class_steiner} (Tendance {class_mcnamara})"
+            class_sq = f"Classe {class_steiner} — discordance angulaire/linéaire"
         
         div = "normodivergent"
         if val_tweed > 30: div = "hyperdivergent"

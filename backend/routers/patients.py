@@ -483,11 +483,12 @@ def generate_cephalo_pdf(
 
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
-    if not validation.is_valid:
+    # Bloquer uniquement l'archivage officiel — le brouillon (archive=False) reste accessible
+    if req.archive and not validation.is_valid:
         raise HTTPException(
             status_code=422,
             detail={
-                "message": "PDF refusé : incohérences bloquantes dans les mesures céphalo.",
+                "message": "Archivage refusé : incohérences bloquantes dans les mesures céphalo.",
                 "fatals": validation.fatals,
                 "warnings": validation.warnings,
             },

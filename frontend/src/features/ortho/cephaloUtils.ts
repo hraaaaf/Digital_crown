@@ -364,8 +364,8 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     if (classeSteiner === classeMcNamara) {
       results.classe_squelettique = `Classe ${classeSteiner}`;
     } else {
-      // En cas de désaccord, on prend la tendance la plus marquée ou Steiner par défaut (Gold Standard)
-      results.classe_squelettique = `Classe ${classeSteiner} (Tendance ${classeMcNamara})`;
+      // Discordance Steiner/McNamara — libellé neutre sans contradiction de classe
+      results.classe_squelettique = `Classe ${classeSteiner} — discordance angulaire/linéaire`;
     }
   } else if (classeSteiner) {
     results.classe_squelettique = `Classe ${classeSteiner}`;

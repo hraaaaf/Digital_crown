@@ -341,17 +341,20 @@ async def upload_acte_attachment(
 
         assert_patient_access(act.patient_id, current_user, db)
 
-        # Build path
+        # Build path — sous-dossier actes/ pour la route authentifiée dédiée
         from backend.main import UPLOAD_DIR
+        import pathlib
+        actes_dir = pathlib.Path(UPLOAD_DIR) / "actes"
+        actes_dir.mkdir(parents=True, exist_ok=True)
         safe_filename = f"acte_{acte_id}_{int(datetime.now().timestamp())}_{file.filename.replace(' ', '_')}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        file_path = str(actes_dir / safe_filename)
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Update DB
+        # Update DB — URL pointe vers la route protégée /api/static/uploads/actes/
         current_attachments = act.attachments or []
-        file_url = f"/api/static/uploads/{safe_filename}"
+        file_url = f"/api/static/uploads/actes/{safe_filename}"
         
         # Acte attachments should be a list of strings
         if not isinstance(current_attachments, list):

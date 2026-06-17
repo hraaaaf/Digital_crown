@@ -217,6 +217,19 @@ def approve_team_member(
     if getattr(member, "approval_status", "approved") != "pending":
         raise HTTPException(status_code=400, detail="Ce membre n'est pas en attente d'approbation.")
 
+    # Recheck quota au moment de l'approbation (anti-race condition)
+    plan = _get_plan(current_user)
+    limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
+    counts = _count_team(db, current_user.id)
+    # Retirer le pending qu'on s'apprête à approuver du comptage
+    role_key = "dentistes" if member.role == models.UserRole.DENTISTE else "secretaires"
+    already_approved = counts[role_key] - 1  # pending ne compte pas encore comme approuvé
+    if already_approved >= limits[role_key]:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Quota {role_key} atteint ({limits[role_key]} max) pour le plan {plan}. Passez à un plan supérieur."
+        )
+
     member.approval_status = "approved"
     member.is_active = True
     db.commit()

@@ -15,6 +15,16 @@ WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
 
 logger = logging.getLogger(__name__)
 
+# Métriques céphalo exprimées en mm (toutes les autres sont en °)
+_MM_KEYWORDS = (
+    "Ligne", "Surplomb", "Recouvrement", "Decalage", "Décalage",
+    "Situation", "Profondeur", "I_NA_mm", "I_NB_mm", "Wits",
+    "Longueur", "Differentiel", "Etage",
+)
+
+def _cephalo_unit(metric_name: str) -> str:
+    return "mm" if any(k.lower() in metric_name.lower() for k in _MM_KEYWORDS) else "°"
+
 class BilanOrthoPDFGenerator(BaseTemplate):
     """
     Générateur PDF du Bilan Orthodontique Complet (Elite Edition).
@@ -77,7 +87,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                         "valeur": data.valeur if data.valeur is not None else 'N/A',
                         "norme": f"[{data.norm_min} - {data.norm_max}]",
                         "status": data.status,
-                        "unite": "mm" if "Ligne" in metric_name or "Surplomb" in metric_name else "°"
+                        "unite": _cephalo_unit(metric_name)
                     })
 
         config = vm.cabinet_config
