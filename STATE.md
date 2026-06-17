@@ -6,43 +6,71 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-17 16:35
-- **Branche :** `master`
+- **Mis à jour :** 2026-06-18
+- **Branche :** `master` → remote `origin/modif`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
+- **DB :** PostgreSQL 18.2 `digitalcrown_db` — 197 patients / 149 RDV / 176 actes / 214 docs (intacts)
 
-### Fichiers touchés
-- _(aucun fichier modifié détecté)_
+### Commits de la session
+- `cb9d619` P1: Step3Clinical — accordion metric + diagnostic sections
+- `6200eda` P2: actes permission, cephalo_measure_registry, 3 suites tests (125 passed)
+- `bdbf417` P1: TeamManager quota/approval UI + dashboard stats + cephalo mm validator
+- `db4c9cc` P0+P1: 6 corrections pre-prod audit 8.1/10
 
-### Dernières demandes
-- Oui, le bilan est **très solide** : gros travail de hardening déjà fait. Mais je ne le considérerais pas encore comme “prod-ready total”, parce qu’il reste quel
-- Okay go
-- Okay
-- Okay bot
-- This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
-- Ok go
-- Bilan de tout ce qui a été fait ! Apres Push to dev sur github
-- Et pour le fichier readme.md tu peux le lire et le modifier il doit représenter fidèlementce qu’on fait !
+### Fichiers clés modifiés
+- `frontend/src/features/admin/TeamManager.tsx` — quota banner, pending section, approve/reject
+- `frontend/src/features/ortho/components/Step3Clinical.tsx` — accordéons métriques + diagnostics
+- `backend/routers/admin.py` — dashboard stats + pending_team_requests + team_quota
+- `backend/routers/team.py` — quota recheck dans approve (anti-race)
+- `backend/routers/prescriptions.py` — actes : permission `[clinical, agenda]` au lieu de `[agenda, accounting]`
+- `backend/services/cephalo_consistency_validator.py` — mm bounds + unit contradictions
+- `backend/services/cephalo_measure_registry.py` — NOUVEAU : source unique unités céphalo
+- `backend/tests/` — 3 nouvelles suites : test_cephalo_validator, test_team_quota, test_bot_pending_action
 <!-- STATE:AUTO:END -->
 
-## Prochaine action
-- **Nouvelle session dédiée au CrownBot / chatbot.** V1 commercialisation et audit RBAC/mobile/PWA sont bouclés (commits `3377eb7` + `f6b5552`). Le bot a déjà été durci sur la branche `crownbot` (mergée, commits 9–13 : execute réel, finance O(1), sécurité lab, contexte multi-turn, carte de confirmation) — le score 4.8/10 cité dans `SESSION.md` est la **baseline de départ avant ces fixes**, pas l'état actuel. Pistes restantes : streaming réponses, élargir la couverture d'intents, historique par `patient_id`.
+## Prochaine milestone (M5 — à planifier)
+Backlog audit 8.1/10 entièrement vidé (P0 ✅ P1 ✅ P2 ✅). Axes possibles pour M5 :
 
-## État V1 (16 Juin 2026)
-- **Architecture local-first confirmée** : tout en local (SQLite/`%APPDATA%`), seul Firebase est en ligne (signup + validation + kill-switch licence). Pas de domaine, pas de SaaS hébergé.
-- **Reste avant commercialisation = config seulement** (aucun code) : SMTP, `SUPERADMIN_EMAIL`, validation juridique des CGU/Privacy (`LegalPage.tsx`). Lancer `scripts/check-production-readiness.ps1` pour le check.
+**Option A — Facturation avancée**
+- Module notes d'honoraires complet (édition inline, envoi email patient)
+- Suivi encaissements + relances automatiques
+- Export comptable (CSV/Excel)
+
+**Option B — Agenda intelligent**
+- Rappels SMS/WhatsApp patients
+- Gestion des créneaux libres / surréservation
+- Vue semaine multi-praticien (PREMIUM/ELITE)
+
+**Option C — Onboarding & distribution**
+- Wizard first-run (config cabinet, import patients CSV)
+- Packaging installateur Windows (Electron ou NSIS)
+- Page de landing + formulaire de démo
+
+**Option D — Consolidation qualité**
+- Coverage tests > 80% (actuellement ~40%)
+- E2E Playwright sur les flows critiques (login, create patient, cephalo)
+- Monitoring Sentry + alertes
+
+## État courant (18 Juin 2026)
+- **Architecture local-first** : PostgreSQL local, Firebase pour auth/licence uniquement
+- **Score audit** : 8.1/10 → toutes les corrections P0/P1/P2 appliquées
+- **Tests** : 125 passed, 6 skipped, 0 failed (`pytest backend/tests/`)
+- **Abonnements** : GOLD (1D+2S) / PREMIUM (2D+6S) / ELITE (illimité) — workflow approve/reject opérationnel
+- **Cephalo studio** : 4 étapes, validator étendu (angles + mm + unités), Step3 en accordéon
+- **BotPendingAction** : server-side complet, TTL 30min, cancel endpoint, RBAC employer_id
 
 ## Blocker / en attente
-- Aucun blocker technique actuel.
-- Les tests RBAC (`backend/tests/test_access_control.py`) nécessitent le venv backend avec `python-jose` installé — à lancer dans l'environnement backend, pas le Python système.
+- Aucun blocker technique.
+- Push sur `origin/modif` — PR à ouvrir vers `dev` quand le CTO valide.
 
 ## Décisions prises
-- **Accès par sous-compte décidé par le proprio** : dentiste associé OU assistante, le proprio attribue librement chaque permission (9 cases) via `TeamManager`. Accès total réservé au proprio (`employer_id=NULL`). Déjà implémenté, validé CTO.
-- **Statuts RDV mobile** : vocabulaire mobile simplifié (PLANIFIE/EN_COURS/TERMINE/ANNULE) ≠ enum métier (PREVU/EN_FAUTEUIL/TERMINE/ANNULE). Mappés via une couche de conversion dans `mobile.py`. Ne jamais passer une valeur mobile directement à `models.AppointmentStatus()`.
-- **Email superadmin via `SUPERADMIN_EMAIL`** (env), plus jamais codé en dur.
-- **Permission `clinical` = portée complète** : couvre le CRUD données cliniques (pharmacopée, contre-indications, protocoles) ET les 5 routes IA par patient. Décision validée par le CTO.
-- **`user_id` nullable sur BotSession** : les anciennes sessions sans `user_id` n'apparaissent dans aucune liste (comportement clean sans migration de données, impossible de savoir à qui elles appartiennent).
-- **Cache patients 2 min TTL** : évite le rechargement à chaque navigation sans risque de stale trop long.
-- **WS auth via `?token=`** : contournement du cross-port en dev (les cookies ne suivent pas les WebSockets cross-origin) — le token vient de `localStorage`/`sessionStorage`.
+- **Actes cliniques** : permission `[clinical, agenda]` (pas `[agenda, accounting]`). Validé session 2026-06-18.
+- **CephaloConsistencyValidator** : unités mm vs ° = FATAL si contradiction, bornes physiologiques mm ajoutées pour Wits/Surplomb/Recouvrement/I_NA_mm/I_NB_mm/Ligne_E.
+- **cephalo_measure_registry.py** : source unique — importer de là, ne jamais dupliquer MM_KEYWORDS.
+- **Accès par sous-compte** : 9 permissions granulaires, workflow pending → approve/reject, quota vérifié à la création ET à l'approbation (anti-race).
+- **Statuts RDV mobile** : mappés via couche conversion dans `mobile.py`, ne jamais passer valeur mobile directement à `models.AppointmentStatus()`.
+- **WS auth via `?token=`** : contournement cross-port en dev.
+- **`user_id` nullable sur BotSession** : anciennes sessions orphelines restent invisibles, pas de migration.
 
 ## Questions ouvertes
-- Aucune question ouverte pour l'instant.
+- Quelle milestone M5 prioriser ? (voir options A/B/C/D ci-dessus)
