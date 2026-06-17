@@ -125,13 +125,39 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
         models.Patient.created_at >= seven_days_ago
     ).count()
 
+    # Pending team approval requests (only relevant for employer accounts)
+    pending_team = db.query(models.User).filter(
+        models.User.employer_id == emp_id,
+        models.User.approval_status == "pending",
+    ).count()
+
+    # Team quota snapshot for dashboard notifications
+    from backend.routers.team import PLAN_QUOTAS, _get_plan, _count_team
+    owner = db.query(models.User).filter(models.User.id == emp_id).first()
+    team_quota = None
+    if owner:
+        plan = _get_plan(owner)
+        limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
+        counts = _count_team(db, emp_id)
+        dentistes_used = counts["dentistes"] + 1
+        team_quota = {
+            "plan": plan,
+            "dentistes_used": dentistes_used,
+            "dentistes_max": limits["dentistes"],
+            "secretaires_used": counts["secretaires"],
+            "secretaires_max": limits["secretaires"],
+            "upgrade_required": dentistes_used >= limits["dentistes"] or counts["secretaires"] >= limits["secretaires"],
+        }
+
     return {
         "total_patients": total_p,
         "total_analyses": total_a,
         "recent_patients": recent_list,
         "weekly_activity": weekly_activity,
         "in_waiting": in_waiting,
-        "weekly_patients": weekly_p
+        "weekly_patients": weekly_p,
+        "pending_team_requests": pending_team,
+        "team_quota": team_quota,
     }
 
 

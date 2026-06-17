@@ -26,13 +26,22 @@ def _val(obj: Any, *keys: str) -> Optional[float]:
         cur = cur.get(k)
     if cur is None:
         return None
-    # MeasureData sérialisé en dict → champ "valeur"
     if isinstance(cur, dict):
         cur = cur.get("valeur")
     try:
         return float(cur)
     except (TypeError, ValueError):
         return None
+
+
+def _is_mm_name(name: str) -> bool:
+    """Vrai si le nom de la métrique implique une mesure en mm (pas en degrés)."""
+    n = name.lower()
+    return any(kw in n for kw in (
+        "ligne", "surplomb", "recouvrement", "decalage", "décalage",
+        "situation", "profondeur", "i_na_mm", "i_nb_mm", "wits",
+        "longueur", "differentiel", "etage",
+    ))
 
 
 # ─── Résultat ─────────────────────────────────────────────────────────────────
@@ -62,7 +71,7 @@ class CephaloConsistencyValidator:
     Appeler .validate(angles_data) et vérifier result.is_valid avant le PDF.
     """
 
-    # Bornes physiologiques absolues (au-delà = impossible anatomiquement)
+    # Bornes physiologiques absolues — angles (au-delà = impossible anatomiquement)
     _HARD_BOUNDS: dict[str, tuple[float, float]] = {
         "SNA":           (60.0, 105.0),
         "SNB":           (58.0, 102.0),
@@ -73,7 +82,7 @@ class CephaloConsistencyValidator:
         "Angle_Nasolabial": (50.0, 160.0),
     }
 
-    # Bornes cliniques normales (hors → warning)
+    # Bornes cliniques normales — angles (hors → warning)
     _SOFT_BOUNDS: dict[str, tuple[float, float]] = {
         "SNA":           (76.0, 88.0),
         "SNB":           (74.0, 86.0),
@@ -83,6 +92,82 @@ class CephaloConsistencyValidator:
         "IMPA":          (80.0, 105.0),
         "Angle_Nasolabial": (85.0, 125.0),
     }
+
+    # Métriques linéaires (mm) : (hard_lo, hard_hi, soft_lo, soft_hi)
+    _MM_METRICS: dict[str, tuple[float, float, float, float]] = {
+        "Wits":         (-15.0, 15.0,  -2.0,  4.0),
+        "I_NA_mm":      (-5.0,  15.0,   2.0,  6.0),
+        "I_NB_mm":      (-5.0,  15.0,   2.0,  6.0),
+        "Surplomb":     (-10.0, 12.0,   1.0,  4.0),
+        "Recouvrement": (-8.0,  10.0,   1.0,  4.0),
+        "Ligne_E":      (-10.0, 10.0,  -4.0,  2.0),
+    }
+
+    # ── Helpers internes ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _iter_metrics(metrics: dict):
+        """Génère (nom, valeur_float, unite_str) pour toutes les métriques de toutes sections."""
+        for section in metrics.values():
+            if not isinstance(section, dict):
+                continue
+            for name, data in section.items():
+                if not isinstance(data, dict):
+                    continue
+                raw = data.get("valeur")
+                unite = data.get("unite") or ""
+                try:
+                    yield name, float(raw), unite
+                except (TypeError, ValueError):
+                    continue
+
+    # ── Checks supplémentaires ────────────────────────────────────────────────
+
+    def _check_unit_contradictions(self, metrics: dict, result: ValidationResult) -> None:
+        """FATAL si une métrique à nom mm est étiquetée '°', ou si valeur hors plage mm."""
+        for name, val, unite in self._iter_metrics(metrics):
+            if not _is_mm_name(name):
+                continue
+            if unite == "°":
+                result.fatals.append(
+                    f"Unité contradictoire : '{name}' = {val:.1f} est étiqueté '°' "
+                    "mais devrait être en mm — corriger l'analyse ou recalculer."
+                )
+            elif abs(val) > 50:
+                # Valeur > 50 mm est physiologiquement impossible pour ces métriques
+                result.warnings.append(
+                    f"'{name}' = {val:.1f} : plage suspecte pour une mesure en mm "
+                    "(degrés stockés à la place ?). Vérifier l'unité et les landmarks."
+                )
+
+    def _check_mm_bounds(self, metrics: dict, result: ValidationResult) -> None:
+        """Bornes physiologiques et cliniques pour les métriques linéaires connues."""
+        flat: dict[str, tuple[float, str]] = {}
+        for section in metrics.values():
+            if isinstance(section, dict):
+                for name, data in section.items():
+                    if isinstance(data, dict):
+                        raw = data.get("valeur")
+                        unite = data.get("unite") or ""
+                        try:
+                            flat[name] = (float(raw), unite)
+                        except (TypeError, ValueError):
+                            pass
+
+        for name, (hard_lo, hard_hi, soft_lo, soft_hi) in self._MM_METRICS.items():
+            entry = flat.get(name)
+            if entry is None:
+                continue
+            val, _ = entry
+            if not (hard_lo <= val <= hard_hi):
+                result.fatals.append(
+                    f"{name} = {val:.1f} mm hors bornes physiologiques "
+                    f"[{hard_lo} mm, {hard_hi} mm] — valeur impossible, vérifier les landmarks."
+                )
+            elif not (soft_lo <= val <= soft_hi):
+                result.warnings.append(
+                    f"{name} = {val:.1f} mm hors norme [{soft_lo} mm–{soft_hi} mm]."
+                )
 
     def validate(self, angles_data: dict) -> ValidationResult:
         result = ValidationResult()
@@ -157,7 +242,7 @@ class CephaloConsistencyValidator:
                     "→ rétro-inclination sévère des deux arcades, confirmer les landmarks."
                 )
 
-        # 5. Bornes normales (warnings seulement)
+        # 5. Bornes normales — angles (warnings seulement)
         for name, val in named.items():
             if val is None:
                 continue
@@ -169,6 +254,10 @@ class CephaloConsistencyValidator:
             result.warnings.append(
                 f"{name} = {val:.1f}° hors norme [{lo}°–{hi}°]."
             )
+
+        # 6. Cohérence unités mm vs ° + bornes physiologiques métriques linéaires
+        self._check_unit_contradictions(metrics, result)
+        self._check_mm_bounds(metrics, result)
 
         return result
 

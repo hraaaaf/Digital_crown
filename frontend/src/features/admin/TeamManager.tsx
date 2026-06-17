@@ -12,7 +12,11 @@ import {
   Users,
   Mail,
   Phone,
-  Lock
+  Lock,
+  Clock,
+  TrendingUp,
+  CheckCheck,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -26,6 +30,8 @@ interface TeamMember {
   nom_complet: string | null;
   telephone_mobile: string | null;
   is_active: boolean;
+  approval_status?: string | null;
+  approval_note?: string | null;
   created_at: string | null;
   permissions?: {
     agenda?: boolean;
@@ -38,6 +44,17 @@ interface TeamMember {
     cephalo?: boolean;
     settings?: boolean;
   } | null;
+}
+
+interface QuotaData {
+  plan: string;
+  dentistes_used: number;
+  dentistes_max: number;
+  secretaires_used: number;
+  secretaires_max: number;
+  pending_count: number;
+  can_add_dentiste: boolean;
+  can_add_secretaire: boolean;
 }
 
 interface CreateForm {
@@ -63,6 +80,7 @@ interface CreateForm {
 
 export const TeamManager: React.FC = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [quota, setQuota] = useState<QuotaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -70,6 +88,7 @@ export const TeamManager: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [editingPermissionsMember, setEditingPermissionsMember] = useState<TeamMember | null>(null);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
 
   const [form, setForm] = useState<CreateForm>({
     email: '',
@@ -92,13 +111,16 @@ export const TeamManager: React.FC = () => {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const res = await api.get(`/team/?_t=${Date.now()}`);
-      if (Array.isArray(res.data)) {
-        setMembers(res.data);
+      const [membersRes, quotaRes] = await Promise.all([
+        api.get(`/team/?_t=${Date.now()}`),
+        api.get('/team/quota'),
+      ]);
+      if (Array.isArray(membersRes.data)) {
+        setMembers(membersRes.data);
       } else {
-        console.error("Erreur: L'API n'a pas retourné une liste", res.data);
         setMembers([]);
       }
+      setQuota(quotaRes.data);
     } catch {
       console.error("Erreur chargement équipe");
     } finally {
@@ -109,6 +131,34 @@ export const TeamManager: React.FC = () => {
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  const approveMember = async (member: TeamMember) => {
+    setApprovingId(member.id);
+    setError(null);
+    try {
+      await api.post(`/team/${member.id}/approve`);
+      setSuccess(`${member.nom_complet || member.email} est maintenant actif.`);
+      fetchMembers();
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Erreur lors de l'approbation.");
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const rejectMember = async (member: TeamMember) => {
+    if (!confirm(`Refuser l'accès de ${member.nom_complet || member.email} ?`)) return;
+    setError(null);
+    try {
+      await api.post(`/team/${member.id}/reject`);
+      setSuccess(`Demande de ${member.nom_complet || member.email} refusée.`);
+      fetchMembers();
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Erreur lors du refus.");
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +265,47 @@ export const TeamManager: React.FC = () => {
           {showForm ? 'Annuler' : 'Ajouter un membre'}
         </button>
       </div>
+
+      {/* QUOTA BANNER */}
+      {quota && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
+            <span
+              className="px-3 py-1 rounded-full text-xs font-black"
+              style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
+            >
+              {quota.plan}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+            <Users size={15} className="text-slate-400" />
+            Dentistes :
+            <span className={cn("font-black", !quota.can_add_dentiste ? "text-rose-600" : "text-emerald-600")}>
+              {quota.dentistes_used}/{quota.dentistes_max}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+            <Shield size={15} className="text-slate-400" />
+            Assistantes :
+            <span className={cn("font-black", !quota.can_add_secretaire ? "text-rose-600" : "text-emerald-600")}>
+              {quota.secretaires_used}/{quota.secretaires_max}
+            </span>
+          </div>
+          {quota.pending_count > 0 && (
+            <div className="flex items-center gap-1.5 text-sm font-bold text-amber-600">
+              <Clock size={15} />
+              {quota.pending_count} en attente
+            </div>
+          )}
+          {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
+            <div className="ml-auto flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
+              <TrendingUp size={14} />
+              Quota atteint — passez au plan supérieur
+            </div>
+          )}
+        </div>
+      )}
 
       {/* NOTIFICATIONS */}
       {success && (
@@ -410,6 +501,65 @@ export const TeamManager: React.FC = () => {
         </form>
       )}
 
+      {/* SECTION EN ATTENTE */}
+      {!loading && members.filter(m => m.approval_status === 'pending').length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+            <Clock size={14} /> En attente d'approbation ({members.filter(m => m.approval_status === 'pending').length})
+          </h4>
+          {members.filter(m => m.approval_status === 'pending').map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center justify-between p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-200 text-amber-800 font-black text-lg">
+                  {(member.nom_complet || 'A')[0].toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-800 flex items-center gap-2">
+                    {member.nom_complet || 'Sans nom'}
+                    <span className="text-[9px] font-black bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      En attente
+                    </span>
+                    <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {member.role}
+                    </span>
+                  </h4>
+                  <span className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
+                    <Mail size={12} /> {member.email}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => approveMember(member)}
+                  disabled={approvingId === member.id}
+                  className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl shadow transition-all hover:brightness-110 flex items-center gap-2 disabled:opacity-60"
+                >
+                  {approvingId === member.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
+                  Valider
+                </button>
+                <button
+                  onClick={() => rejectMember(member)}
+                  className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-black rounded-xl transition-all hover:bg-rose-100 flex items-center gap-2"
+                >
+                  <XCircle size={14} />
+                  Refuser
+                </button>
+                <button
+                  onClick={() => deleteMember(member)}
+                  className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 rounded-xl transition-all"
+                  title="Supprimer définitivement"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* LISTE DES MEMBRES */}
       {loading ? (
         <div className="flex justify-center py-20">
@@ -427,12 +577,14 @@ export const TeamManager: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {members.map((member) => (
+          {members.filter(m => m.approval_status !== 'pending').map((member) => (
             <div
               key={member.id}
               className={cn(
                 "flex items-center justify-between p-5 bg-white border rounded-2xl shadow-sm transition-all hover:shadow-md group",
-                member.is_active ? "border-slate-200" : "border-rose-200 bg-rose-50/30 opacity-70"
+                member.approval_status === 'rejected'
+                  ? "border-rose-200 bg-rose-50/20 opacity-60"
+                  : member.is_active ? "border-slate-200" : "border-amber-200 bg-amber-50/20 opacity-75"
               )}
             >
               {/* Infos du membre */}
@@ -449,9 +601,22 @@ export const TeamManager: React.FC = () => {
                 <div>
                   <h4 className="font-black text-slate-800 flex items-center gap-2">
                     {member.nom_complet || 'Sans nom'}
-                    {!member.is_active && (
+                    <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {member.role}
+                    </span>
+                    {member.approval_status === 'rejected' && (
                       <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Refusé
+                      </span>
+                    )}
+                    {!member.is_active && member.approval_status !== 'rejected' && (
+                      <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Suspendu
+                      </span>
+                    )}
+                    {member.is_active && (
+                      <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Actif
                       </span>
                     )}
                   </h4>
