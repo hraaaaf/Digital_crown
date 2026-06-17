@@ -56,6 +56,16 @@ MOTIF_CATALOG: Dict[str, Dict] = {
 }
 
 
+# S7 — Sûreté clinique : toute synthèse diagnostique générée par assistance IA
+# doit rappeler explicitement qu'elle requiert la validation du praticien.
+AI_VALIDATION_DISCLAIMER = (
+    "\n\n---\n"
+    "_⚠️ Synthèse générée par assistance algorithmique, fournie à titre d'aide au "
+    "diagnostic. Elle requiert la validation du praticien et ne se substitue pas au "
+    "jugement clinique._"
+)
+
+
 def _resolve_motifs(raw: Optional[str]) -> List[Dict]:
     """Parse motif_consultation (JSON array of IDs or legacy free text)."""
     if not raw:
@@ -235,11 +245,13 @@ class ClinicalIntelligenceService:
         
         if not last_analysis or not last_analysis.angles_data:
             return {
-                "report": "## Synthèse Clinique\nDonnées céphalométriques manquantes pour un diagnostic IA complet.\n\n" + 
+                "report": "## Synthèse Clinique\nDonnées céphalométriques manquantes pour un diagnostic IA complet.\n\n" +
                           f"**Contexte Patient** : {patient.nom.upper()} {patient.prenom.capitalize()}, {self._calculate_age(patient.date_naissance)} ans.\n" +
-                          f"**Antécédents** : {patient.antecedents_medicaux or 'Néant'}.",
+                          f"**Antécédents** : {patient.antecedents_medicaux or 'Néant'}." +
+                          AI_VALIDATION_DISCLAIMER,
                 "source": "heuristic",
                 "confidence": 0.5,
+                "requires_validation": True,
                 "generated_at": datetime.now().isoformat()
             }
 
@@ -289,11 +301,13 @@ class ClinicalIntelligenceService:
             
             markdown += "## 💡 Stratégie Thérapeutique (COM)\n"
             markdown += f"{report_dict.get('strategie_therapeutique', '')}"
+            markdown += AI_VALIDATION_DISCLAIMER
 
             return {
                 "report": markdown,
                 "source": "slm" if not report_dict.get("is_fallback") else "heuristic",
                 "confidence": 0.85,
+                "requires_validation": True,
                 "generated_at": datetime.now().isoformat()
             }
         except Exception as e:

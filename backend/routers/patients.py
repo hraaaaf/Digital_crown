@@ -217,13 +217,40 @@ def get_fantome_patients(
     return fantomes
 
 
+from backend.services.patient_scoring_service import patient_scoring_service
+
+
+@router.get("/scores")
+def get_patients_scores(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
+    """Scores de TOUS les patients du cabinet en UN appel (batch agrégé) — évite N appels /score."""
+    employer_id = current_user.get_employer_id()
+    scores = patient_scoring_service.calculate_scores_bulk(db, employer_id)
+
+    patients = db.query(
+        models.Patient.id, models.Patient.manual_grade, models.Patient.grade_comment
+    ).filter(models.Patient.employer_id == employer_id).all()
+
+    result = {}
+    for pid, manual_grade, comment in patients:
+        s = scores.get(pid)
+        if not s:
+            continue
+        result[pid] = {
+            "score": s["score"],
+            "grade": manual_grade or s["grade"],
+            "is_manual": bool(manual_grade),
+            "comment": comment,
+            "details": s["details"],
+        }
+    return result
+
+
 @router.get("/{patient_id}", response_model=schemas.PatientOut)
 def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     return patient
 
-from backend.services.patient_scoring_service import patient_scoring_service
 @router.get("/{patient_id}/score")
 def get_patient_score(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
@@ -414,12 +441,31 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
 
 # --- GÉNÉRATION RAPPORTS (COMPATIBILITÉ) ---
 
+@router.get("/{patient_id}/cephalo-validation")
+def validate_cephalo_before_pdf(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Pré-valide les mesures céphalo avant génération PDF. Retourne fatals + warnings."""
+    assert_patient_access(patient_id, current_user, db)
+    last_analysis = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.patient_id == patient_id
+    ).order_by(models.CephaloAnalysis.id.desc()).first()
+    if not last_analysis:
+        raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée")
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    result = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
+    return result.to_dict()
+
+
 @router.post("/{patient_id}/pdf")
 def generate_cephalo_pdf(
     patient_id: int, 
     req: schemas.CephaloPDFRequest, 
     db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("cephalo"))
 ):
     """Génération du rapport céphalo PDF (Route de compatibilité Ghost Elite)."""
     from backend.routers.documents import doc_factory
@@ -432,21 +478,33 @@ def generate_cephalo_pdf(
         models.CephaloAnalysis.patient_id == patient_id
     ).order_by(models.CephaloAnalysis.id.desc()).first()
     
-    if not last_analysis: 
+    if not last_analysis:
         raise HTTPException(status_code=404, detail="Aucune analyse céphalométrique trouvée pour ce patient")
-    
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "PDF refusé : incohérences bloquantes dans les mesures céphalo.",
+                "fatals": validation.fatals,
+                "warnings": validation.warnings,
+            },
+        )
+
     analysis_data = {
         "id": last_analysis.id,
         "image_path": last_analysis.image_original_path,
         "results": last_analysis.angles_data or {},
         "landmarks": last_analysis.landmarks_data
     }
-    
-    if req.ai_diagnostic: 
+
+    if req.ai_diagnostic:
         analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
-    if req.clinical_data: 
+    if req.clinical_data:
         analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
-    
+
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     
     if req.archive:

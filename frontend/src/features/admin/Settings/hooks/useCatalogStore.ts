@@ -36,6 +36,7 @@ interface CatalogState {
   updateSpecialty: (id: number, data: { name?: string; color?: string }) => Promise<void>;
   createPathology: (specialtyId: number, data: { name: string; description?: string }) => Promise<void>;
   createAct: (specialtyId: number, data: { name: string; base_price: number; code?: string; color?: string }) => Promise<void>;
+  updateAct: (actId: number, data: { name?: string; base_price?: number; code?: string; is_active?: boolean }) => Promise<void>;
 }
 
 export const useCatalogStore = create<CatalogState>((set, get) => ({
@@ -92,6 +93,16 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       get().fetchCatalog();
     } catch (err) {
       toast.error('Erreur ajout acte');
+    }
+  },
+
+  updateAct: async (actId, data) => {
+    try {
+      await api.put(`/catalog/acts/${actId}`, data);
+      toast.success('Acte modifié');
+      get().fetchCatalog();
+    } catch (err) {
+      toast.error('Erreur modification acte');
     }
   },
 }));

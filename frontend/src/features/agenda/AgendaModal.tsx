@@ -46,6 +46,11 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [selectedAct, setSelectedAct] = useState<ClinicalAct | null>(null);
   const [actsList, setActsList] = useState<ClinicalAct[]>([]);
   const [showActResults, setShowActResults] = useState(false);
+  // Ajout d'un acte absent au catalogue (nom + tarif + catégorie)
+  const [showAddActForm, setShowAddActForm] = useState(false);
+  const [newActPrice, setNewActPrice] = useState('');
+  const [newActCategory, setNewActCategory] = useState('');
+  const [specialties, setSpecialties] = useState<{ id: number; name: string }[]>([]);
 
   const [motif, setMotif] = useState('');
   const [time, setTime] = useState(initialTime || '09:00');
@@ -191,6 +196,40 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       fetchActs();
     }
   }, [actSearch, selectedAct, isOpen]);
+
+  // Charge les catégories (spécialités) du catalogue pour le sélecteur d'ajout
+  useEffect(() => {
+    if (!isOpen) return;
+    api.get('/catalog/specialties').then(r => setSpecialties(r.data || [])).catch(() => {});
+  }, [isOpen]);
+
+  // Liste des catégories proposées (spécialités existantes + DIVERS)
+  const categoryOptions = (() => {
+    const names = specialties.map(s => s.name);
+    return names.includes('DIVERS') ? names : [...names, 'DIVERS'];
+  })();
+
+  const openAddActForm = () => {
+    setNewActPrice('');
+    setNewActCategory(specialties[0]?.name || 'DIVERS');
+    setShowAddActForm(true);
+  };
+
+  // Ajoute au catalogue un acte saisi mais absent (avec catégorie), puis le sélectionne
+  const handleAddActToCatalog = async () => {
+    const name = actSearch.trim();
+    if (!name) return;
+    const base_price = parseFloat((newActPrice || '0').replace(',', '.')) || 0;
+    try {
+      const res = await api.post('/actes/catalog/quick-add', { name, base_price, category: newActCategory });
+      setSelectedAct({ id: res.data.id, name: res.data.name, base_price: res.data.base_price });
+      setShowAddActForm(false);
+      setShowActResults(false);
+      toast.success(`« ${res.data.name} » ajouté (${res.data.category})`);
+    } catch (e) {
+      toast.error("Erreur lors de l'ajout de l'acte");
+    }
+  };
 
   useEffect(() => {
     const actName = selectedAct ? selectedAct.name : actSearch;
@@ -507,7 +546,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               {showActResults && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
                   {actsList.map(act => (
-                    <button 
+                    <button
                       key={act.id}
                       type="button"
                       onClick={() => { setSelectedAct(act); setShowActResults(false); }}
@@ -518,6 +557,64 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       </div>
                     </button>
                   ))}
+
+                  {/* Acte absent du catalogue → proposer de l'ajouter */}
+                  {actSearch.trim().length >= 2 &&
+                    !actsList.some(a => a.name.toLowerCase() === actSearch.trim().toLowerCase()) &&
+                    !showAddActForm && (
+                    <button
+                      type="button"
+                      onClick={openAddActForm}
+                      className="w-full flex items-center gap-3 px-6 py-4 bg-blue-50/60 hover:bg-blue-100 transition-colors text-left border-t border-slate-100"
+                    >
+                      <Plus size={18} className="text-blue-600 shrink-0" />
+                      <span className="text-sm font-black text-blue-700">
+                        Ajouter « {actSearch.trim()} » aux actes
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Panneau d'ajout : tarif + catégorie */}
+                  {showAddActForm && (
+                    <div className="p-4 space-y-3 border-t border-slate-100 bg-slate-50/60">
+                      <div className="text-sm font-black text-slate-700">Ajouter « {actSearch.trim()} »</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
+                          <input
+                            type="number" min={0} value={newActPrice}
+                            onChange={e => setNewActPrice(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
+                          <select
+                            value={newActCategory}
+                            onChange={e => setNewActCategory(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                          >
+                            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button" onClick={handleAddActToCatalog}
+                          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl transition-colors"
+                        >
+                          Ajouter au catalogue
+                        </button>
+                        <button
+                          type="button" onClick={() => setShowAddActForm(false)}
+                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
+import { generateClientKeyPair, deriveMasterKey } from '../../../services/zka/ecdhPairing';
 import Logo from '../../../assets/logo.png';
 
 /**
@@ -44,10 +45,14 @@ export const OnboardingScanner = () => {
 
   async function exchangeToken(token: string) {
     try {
+      // ZKA (S5) : appairage sécurisé ECDH obligatoire — la masterKey ne transite
+      // jamais en clair. On génère une paire P-256 et on envoie la clé publique.
+      const { privateKey, publicKeyHex } = await generateClientKeyPair();
+
       const res = await fetch(`${API_BASE}/api/mobile/claim-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, client_public_key_hex: publicKeyHex }),
       });
 
       if (!res.ok) {
@@ -55,7 +60,18 @@ export const OnboardingScanner = () => {
         throw new Error(err.detail ?? `Erreur ${res.status}`);
       }
 
-      const { publicId, masterKey, access_token } = await res.json();
+      const { publicId, access_token, server_public_key_hex, encrypted_master_key_hex } =
+        await res.json();
+
+      if (!server_public_key_hex || !encrypted_master_key_hex) {
+        throw new Error('Réponse d\'appairage non sécurisée (ECDH manquant).');
+      }
+
+      const masterKey = await deriveMasterKey(
+        privateKey,
+        server_public_key_hex,
+        encrypted_master_key_hex,
+      );
 
       if (!/^[0-9a-fA-F]{16}$/.test(publicId) || !/^[0-9a-fA-F]{64}$/.test(masterKey)) {
         throw new Error('Credentials reçus invalides.');

@@ -10,13 +10,42 @@ doit confirmer avant exécution.
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
 from backend import models, database
 from backend.services.bot.intent_parser import ParsedIntent
+from backend.utils.access_control import assert_patient_access
 
 logger = logging.getLogger(__name__)
+
+# Réponses conversationnelles (GREETING/UNKNOWN) : suggestions + texte de repli
+# si le LLM est indisponible. Partagés entre le chemin non-stream et le streaming.
+CONVERSATIONAL_SUGGESTIONS = {
+    "GREETING": ["Aide", "Agenda du jour", "Chercher un patient"],
+    "UNKNOWN": ["Aide", "Agenda", "Finances"],
+}
+CONVERSATIONAL_FALLBACK = {
+    "GREETING": "Bonjour ! 👋 Je suis le **Crown Bot**.\n\nComment puis-je vous aider aujourd'hui ? (Agenda, Finances, Patients...)",
+    "UNKNOWN": "Je n'ai pas compris votre demande. Tapez **aide** pour voir ce que je sais faire.",
+}
+
+# Détection du statut RDV cible depuis le langage naturel (CHANGE_STATUS).
+# (mots-clés, nom d'enum AppointmentStatus, libellé lisible)
+_STATUS_KEYWORDS = [
+    (("annul",), "ANNULE", "annulé"),
+    (("termin", "fini", "fin de séance"), "TERMINE", "terminé"),
+    (("fauteuil", "en cours", "commenc", "installé", "installe", "démarr", "demarr"), "EN_FAUTEUIL", "en fauteuil"),
+    (("salle", "attente", "arrivé", "arrive", "présent", "present"), "EN_SALLE_ATTENTE", "en salle d'attente"),
+    (("prévu", "prevu", "replanifi", "reprogramm"), "PREVU", "prévu"),
+]
+
+# Emoji par statut (clé = nom d'enum AppointmentStatus).
+_STATUS_EMOJI = {
+    "PREVU": "⏳", "EN_SALLE_ATTENTE": "🪑", "EN_FAUTEUIL": "▶️",
+    "TERMINE": "✅", "ANNULE": "❌",
+}
 
 
 class BotResponse:
@@ -74,6 +103,7 @@ class ActionDispatcher:
             "CREATE_APPOINTMENT": self._exec_create_appointment,
             "OPEN_PRESCRIPTION_EDITOR": self._exec_open_prescription,
             "OPEN_DEVIS_EDITOR": self._exec_open_devis,
+            "CHANGE_STATUS": self._exec_change_status,
         }
         fn = executors.get(action_type)
         if not fn:
@@ -83,6 +113,10 @@ class ActionDispatcher:
             )
         try:
             return fn(params, db, user)
+        except HTTPException:
+            # S2 : refus permission/tenant (assert_patient_access) — on laisse
+            # remonter le 403/404 au routeur, jamais avalé en "succès".
+            raise
         except Exception as e:
             logger.exception("Erreur execute action=%s: %s", action_type, e)
             return BotResponse(
@@ -109,6 +143,11 @@ class ActionDispatcher:
             if patient:
                 patient_id = patient.id
                 patient_name = f"{patient.prenom} {patient.nom}"
+
+        # S2 : le patient_id de la pending_action est fourni par le client.
+        # On vérifie qu'il appartient bien au cabinet AVANT toute écriture.
+        if patient_id:
+            assert_patient_access(patient_id, user, db)
 
         if not datetime_str:
             return BotResponse(
@@ -148,12 +187,46 @@ class ActionDispatcher:
             suggestions=["Agenda d'aujourd'hui", "Créer un autre RDV"],
         )
 
+    def _exec_change_status(
+        self, params: Dict[str, Any], db: Session, user: models.User
+    ) -> BotResponse:
+        """Applique réellement le changement de statut du RDV."""
+        employer_id = user.get_employer_id()
+        appt = db.query(models.Appointment).filter(
+            models.Appointment.id == params.get("appointment_id"),
+            models.Appointment.employer_id == employer_id,
+        ).first()
+        if not appt:
+            return BotResponse(message="Rendez-vous introuvable.", action_type="error")
+
+        status_name = params.get("status", "")
+        try:
+            appt.status = models.AppointmentStatus[status_name]
+        except KeyError:
+            return BotResponse(message=f"Statut invalide : {status_name}", action_type="error")
+        db.commit()
+
+        return BotResponse(
+            message=(
+                f"✅ **Statut mis à jour**\n"
+                f"👤 {params.get('patient_name', '—')}\n"
+                f"📅 {params.get('when', '')}\n"
+                f"➡️ {params.get('status_label', status_name)}"
+            ),
+            data={"appointment_id": appt.id, "status": status_name},
+            action_type="write_done",
+            suggestions=["Agenda d'aujourd'hui"],
+        )
+
     def _exec_open_prescription(
         self, params: Dict[str, Any], db: Session, user: models.User
     ) -> BotResponse:
         """Retourne un redirect_url pour ouvrir l'éditeur d'ordonnance."""
         patient_id = params.get("patient_id")
         procedure = params.get("procedure", "")
+        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        if patient_id:
+            assert_patient_access(patient_id, user, db)
         url = f"/bibliotheque?mode=prescription&patient_id={patient_id}"
         if procedure:
             url += f"&procedure={procedure}"
@@ -168,6 +241,9 @@ class ActionDispatcher:
     ) -> BotResponse:
         """Retourne un redirect_url pour ouvrir le module devis."""
         patient_id = params.get("patient_id")
+        # S2 : patient_id client → vérification tenant avant de renvoyer un redirect.
+        if patient_id:
+            assert_patient_access(patient_id, user, db)
         url = f"/patients/{patient_id}?tab=admin&documentTab=devis"
         return BotResponse(
             message="✅ Ouverture du module devis...",
@@ -262,7 +338,7 @@ class ActionDispatcher:
         next_appt = db.query(models.Appointment).filter(
             models.Appointment.patient_id == patient.id,
             models.Appointment.datetime_start > datetime.now(),
-            models.Appointment.status != "ANNULÉ"
+            models.Appointment.status != models.AppointmentStatus.ANNULE
         ).order_by(models.Appointment.datetime_start).first()
 
         next_appt_str = "Aucun"
@@ -339,7 +415,8 @@ class ActionDispatcher:
                 p = db.query(models.Patient).filter(models.Patient.id == a.patient_id).first()
                 if p:
                     patient_name = f"{p.prenom} {p.nom}"
-            status_emoji = {"PLANIFIE": "⏳", "EN_COURS": "▶️", "TERMINE": "✅", "ANNULE": "❌"}.get(a.status, "⏳")
+            status_key = a.status.name if hasattr(a.status, "name") else str(a.status)
+            status_emoji = _STATUS_EMOJI.get(status_key, "⏳")
             lines.append(f"{status_emoji} **{time_str}** · {patient_name} · {a.motif or '—'}")
 
         return BotResponse(
@@ -749,13 +826,92 @@ class ActionDispatcher:
             suggestions=[f"Info patient {patients[0].id}" for p in patients[:1]],
         )
 
+    def _detect_status(self, text: str):
+        """Retourne (nom_enum, libellé) du statut détecté, ou (None, None)."""
+        t = (text or "").lower()
+        for keys, name, label in _STATUS_KEYWORDS:
+            if any(k in t for k in keys):
+                return name, label
+        return None, None
+
+    def _resolve_patient(self, db: Session, employer_id: int, entities: Dict[str, Any]):
+        if "patient_id" in entities:
+            return db.query(models.Patient).filter(
+                models.Patient.id == entities["patient_id"],
+                models.Patient.employer_id == employer_id,
+            ).first()
+        if "patient_name" in entities:
+            return self._find_patient_by_name(db, employer_id, entities["patient_name"])
+        return None
+
     def _handle_change_status(
         self, parsed: ParsedIntent, db: Session, user: models.User
     ) -> BotResponse:
+        employer_id = user.get_employer_id()
+
+        patient = self._resolve_patient(db, employer_id, parsed.entities)
+        if not patient:
+            return BotResponse(
+                message="Pour quel patient voulez-vous changer le statut du RDV ?",
+                action_type="clarification",
+                suggestions=["Agenda d'aujourd'hui"],
+            )
+
+        status_name, status_label = self._detect_status(parsed.raw_message)
+        if not status_name:
+            return BotResponse(
+                message=(
+                    f"Quel statut pour le RDV de {patient.prenom} {patient.nom} ? "
+                    "(en salle d'attente, en fauteuil, terminé, annulé)"
+                ),
+                action_type="clarification",
+                suggestions=["Marquer terminé", "Marquer annulé", "En fauteuil"],
+            )
+
+        # RDV cible : celui d'aujourd'hui en priorité, sinon le prochain à venir.
+        now = datetime.now()
+        today_start = datetime.combine(now.date(), datetime.min.time())
+        today_end = datetime.combine(now.date(), datetime.max.time())
+        base_q = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient.id,
+            models.Appointment.employer_id == employer_id,
+        )
+        appt = (
+            base_q.filter(
+                models.Appointment.datetime_start >= today_start,
+                models.Appointment.datetime_start <= today_end,
+            ).order_by(models.Appointment.datetime_start).first()
+            or base_q.filter(models.Appointment.datetime_start >= today_start)
+            .order_by(models.Appointment.datetime_start).first()
+        )
+        if not appt:
+            return BotResponse(
+                message=f"Aucun RDV à venir pour {patient.prenom} {patient.nom}.",
+                action_type="read",
+                suggestions=["Agenda d'aujourd'hui", "Prends un RDV"],
+            )
+
+        when = appt.datetime_start.strftime("%d/%m/%Y à %Hh%M")
         return BotResponse(
-            message="Pour changer le statut d'un RDV, précisez le patient et le nouveau statut (en cours, terminé, annulé).",
-            action_type="clarification",
-            suggestions=["Agenda d'aujourd'hui"],
+            message=(
+                f"🔄 **Changer le statut du RDV ?**\n"
+                f"👤 {patient.prenom} {patient.nom}\n"
+                f"📅 {when}\n"
+                f"➡️ Nouveau statut : **{status_label}**\n\n"
+                f"Confirmez-vous ?"
+            ),
+            action_type="write_pending",
+            pending_action={
+                "type": "CHANGE_STATUS",
+                "params": {
+                    "appointment_id": appt.id,
+                    "status": status_name,
+                    "status_label": status_label,
+                    "patient_name": f"{patient.prenom} {patient.nom}",
+                    "when": when,
+                },
+            },
+            suggestions=["Confirmer", "Annuler"],
         )
 
     # ── HELP & UNKNOWN ──────────────────────────────────────────────────────
@@ -801,97 +957,53 @@ class ActionDispatcher:
             ],
         )
 
+    def build_conversational(self, kind: str, raw_message: str):
+        """
+        Construit (messages_llm, mapping) pour une réponse conversationnelle
+        (GREETING/UNKNOWN). Le message est anonymisé avant passage au LLM.
+        Utilisé par le chemin non-stream ET le streaming SSE.
+        """
+        from backend.services.security.data_sanitizer import data_sanitizer
+        sanitized_message, mapping = data_sanitizer.sanitize(raw_message)
+        if kind == "GREETING":
+            prompt = (
+                f"L'utilisateur vient de te saluer ou de te dire : '{sanitized_message}'. "
+                "Réponds brièvement, de manière très naturelle et chaleureuse (1-2 phrases max) en tant que Crown Bot (assistant IA d'un logiciel de gestion dentaire). "
+                "Propose ton aide (ex: chercher un patient, afficher l'agenda, etc.). "
+                "Réponds en texte brut, n'utilise pas de JSON ni de markdown complexe."
+            )
+        else:
+            prompt = (
+                f"L'utilisateur t'a dit ceci : '{sanitized_message}'. "
+                "Cependant, tu n'as pas réussi à comprendre l'intention exacte car cela sort de tes capacités principales (agenda, finances, recherche patient, devis). "
+                "Réponds poliment en tant que Crown Bot (assistant de cabinet dentaire), indique avec tact que tu n'as pas compris, et invite l'utilisateur à taper 'aide'. "
+                "Réponds en texte brut (1-2 phrases max), sois concis et professionnel."
+            )
+        return [{"role": "user", "content": prompt}], mapping
+
+    def _conversational_response(self, kind: str, parsed: ParsedIntent) -> BotResponse:
+        """Réponse conversationnelle non-streaming (GREETING/UNKNOWN)."""
+        from backend.services.bot.llm_parser import llm_parser
+        from backend.services.security.data_sanitizer import data_sanitizer
+
+        messages, mapping = self.build_conversational(kind, parsed.raw_message)
+        raw = llm_parser.complete(messages, temperature=0.5, timeout=4.0)
+        text = data_sanitizer.restore(raw, mapping) if raw else CONVERSATIONAL_FALLBACK[kind]
+        return BotResponse(
+            message=text or CONVERSATIONAL_FALLBACK[kind],
+            action_type="info",
+            suggestions=CONVERSATIONAL_SUGGESTIONS[kind],
+        )
+
     def _handle_greeting(
         self, parsed: ParsedIntent, db: Session, user: models.User
     ) -> BotResponse:
-        from backend.services.bot.llm_parser import llm_parser
-        from backend.services.security.data_sanitizer import data_sanitizer
-        message = parsed.raw_message
-        
-        # Anonymisation
-        sanitized_message, mapping = data_sanitizer.sanitize(message)
-        
-        prompt = (
-            f"L'utilisateur vient de te saluer ou de te dire : '{sanitized_message}'. "
-            "Réponds brièvement, de manière très naturelle et chaleureuse (1-2 phrases max) en tant que Crown Bot (assistant IA d'un logiciel de gestion dentaire). "
-            "Propose ton aide (ex: chercher un patient, afficher l'agenda, etc.). "
-            "Réponds en texte brut, n'utilise pas de JSON ni de markdown complexe."
-        )
-        
-        try:
-            import httpx
-            with httpx.Client(timeout=4.0) as client:
-                response = client.post(
-                    f"{llm_parser.api_base}/chat/completions",
-                    headers={"Authorization": f"Bearer {llm_parser.api_key}"},
-                    json={
-                        "model": llm_parser.model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.5
-                    }
-                )
-            if response.status_code == 200:
-                data = response.json()
-                text = data["choices"][0]["message"]["content"].strip()
-                # Restauration
-                text = data_sanitizer.restore(text, mapping)
-            else:
-                text = "Bonjour ! 👋 Je suis le **Crown Bot**.\n\nComment puis-je vous aider aujourd'hui ? (Agenda, Finances, Patients...)"
-        except Exception as e:
-            logger.error(f"Erreur LLM conversationnel (Greeting): {e}")
-            text = "Bonjour ! 👋 Je suis le **Crown Bot**.\n\nComment puis-je vous aider aujourd'hui ? (Agenda, Finances, Patients...)"
-
-        return BotResponse(
-            message=text,
-            action_type="info",
-            suggestions=["Aide", "Agenda du jour", "Chercher un patient"],
-        )
+        return self._conversational_response("GREETING", parsed)
 
     def _handle_unknown(
         self, parsed: ParsedIntent, db: Session, user: models.User
     ) -> BotResponse:
-        from backend.services.bot.llm_parser import llm_parser
-        from backend.services.security.data_sanitizer import data_sanitizer
-        message = parsed.raw_message
-        
-        # Anonymisation
-        sanitized_message, mapping = data_sanitizer.sanitize(message)
-        
-        prompt = (
-            f"L'utilisateur t'a dit ceci : '{sanitized_message}'. "
-            "Cependant, tu n'as pas réussi à comprendre l'intention exacte car cela sort de tes capacités principales (agenda, finances, recherche patient, devis). "
-            "Réponds poliment en tant que Crown Bot (assistant de cabinet dentaire), indique avec tact que tu n'as pas compris, et invite l'utilisateur à taper 'aide'. "
-            "Réponds en texte brut (1-2 phrases max), sois concis et professionnel."
-        )
-        
-        try:
-            import httpx
-            with httpx.Client(timeout=4.0) as client:
-                response = client.post(
-                    f"{llm_parser.api_base}/chat/completions",
-                    headers={"Authorization": f"Bearer {llm_parser.api_key}"},
-                    json={
-                        "model": llm_parser.model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.5
-                    }
-                )
-            if response.status_code == 200:
-                data = response.json()
-                text = data["choices"][0]["message"]["content"].strip()
-                # Restauration
-                text = data_sanitizer.restore(text, mapping)
-            else:
-                text = "Je n'ai pas compris votre demande. Tapez **aide** pour voir ce que je sais faire."
-        except Exception as e:
-            logger.error(f"Erreur LLM conversationnel (Unknown): {e}")
-            text = "Je n'ai pas compris votre demande. Tapez **aide** pour voir ce que je sais faire."
-
-        return BotResponse(
-            message=text,
-            action_type="info",
-            suggestions=["Aide", "Agenda", "Finances"],
-        )
+        return self._conversational_response("UNKNOWN", parsed)
 
     def _contextual_suggestions(self, intent: str) -> List[str]:
         """Retourne des suggestions contextuelles pour un intent."""

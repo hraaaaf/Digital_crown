@@ -1,244 +1,297 @@
-import datetime
 import logging
-import os
-import json
-import httpx
-from typing import List, Dict, Any
+from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
+# --- Lexique des états dentaires (saisie manuelle du praticien) ---
 ANOMALY_LABELS = {
+    # Conservatrice
     'carie_email': "Carie de l'émail",
     'carie_dentinaire': "Carie dentinaire",
-    'carie_profonde': "Carie profonde (Pulpaire)",
-    'reprise_carie': "Reprise sous obturation",
-    'obturation_comp': "Obturation composite/amalgame",
+    'carie_profonde': "Carie profonde (atteinte pulpaire)",
+    'reprise_carie': "Reprise de carie sous obturation",
+    'obturation_comp': "Obturation (composite/amalgame)",
     'obturation_debord': "Obturation débordante",
-    'lesion_periapicale': "Lésion périapicale (Kyste)",
+    # Endodontie
+    'lesion_periapicale': "Lésion périapicale (kyste/granulome)",
     'elargissement_desmo': "Élargissement desmodontal",
     'tr_adequat': "Traitement canalaire adéquat",
     'tr_incomplet': "Traitement canalaire incomplet",
-    'depassement_pate': "Dépassement de pâte",
-    'instrument_fracture': "Instrument fracturé",
-    'perforation': "Faux-canal (Perforation)",
-    'alveolyse_h': "Alvéolyse horizontale",
-    'alveolyse_v': "Alvéolyse verticale",
+    'depassement_pate': "Dépassement de pâte canalaire",
+    'instrument_fracture': "Instrument fracturé intra-canalaire",
+    'perforation': "Perforation (faux-canal)",
+    # Parodontie
+    'alveolyse_h': "Alvéolyse horizontale localisée",
+    'alveolyse_v': "Alvéolyse verticale (défaut angulaire)",
     'furcation': "Atteinte de la furcation",
     'tartre': "Tartre sous-gingival",
-    'agenesie': "Agénésie (Dent manquante)",
+    # Chirurgie
+    'dent_absente': "Dent absente",
+    'agenesie': "Agénésie dentaire",
     'surnumeraire': "Dent surnuméraire",
     'incluse': "Dent incluse",
     'enclavee': "Dent enclavée",
     'reste_radiculaire': "Reste radiculaire",
     'resorption': "Résorption radiculaire",
-    'couronne': "Couronne unitaire",
+    # Prothèse
+    'couronne': "Couronne prothétique",
     'bridge': "Bridge prothétique",
     'implant': "Implant dentaire",
+    'appareil': "Appareil / prothèse amovible",
     'peri_implantite': "Péri-implantite",
     'infiltration_prothese': "Infiltration sous prothèse",
+    # ATM / Sinus
     'opacite_sinus': "Opacité sinusienne",
-    'racine_sinus': "Racine dans le sinus",
+    'racine_sinus': "Racine au contact du sinus",
     'condyle_asymetrie': "Asymétrie condylienne",
-    'arthrose_atm': "Arthrose ATM",
-    'calcification': "Calcification (Carotide/Sial.)",
+    'arthrose_atm': "Arthrose de l'ATM",
+    'calcification': "Calcification (carotide/sialolithe)",
 }
 
-CCAM_SUGGESTIONS = {
-    'carie_email': "HBMD038 (Restauration 1 face)",
-    'carie_dentinaire': "HBMD042 (Restauration 2 faces)",
-    'carie_profonde': "HBMD044 (Restauration 3 faces+) / HBFD033 (Endo)",
-    'reprise_carie': "HBMD042 (Dépose et restauration)",
-    'lesion_periapicale': "HBGD035 (Résection apicale) / Retraitement canalaire",
-    'tr_incomplet': "HBFD033 (Retraitement endo)",
-    'incluse': "HBGD036 (Extraction dent incluse)",
-    'reste_radiculaire': "HBGD031 (Extraction de racine)",
-    'implant': "LBLD015 (Pose d'implant)",
-    'couronne': "HBLD018 (Pose de couronne)",
-    'bridge': "HBLD023 (Bridge de 3 éléments)",
-    'tartre': "HBJD001 (Détartrage complet)",
+# --- Constats généraux (mouth-wide, pas rattachés à une dent) ---
+GLOBAL_FINDING_LABELS = {
+    'alveolyse_gen_legere': "Alvéolyse horizontale généralisée légère (parodontite débutante)",
+    'alveolyse_gen_moderee': "Alvéolyse horizontale généralisée modérée",
+    'alveolyse_gen_severe': "Alvéolyse généralisée sévère (parodontite avancée)",
+    'parodontite_gen': "Aspect de maladie parodontale généralisée",
+    'denture_mixte': "Denture mixte (phase de remplacement dentaire)",
+    'edentement_total_max': "Édentement total maxillaire",
+    'edentement_total_mand': "Édentement total mandibulaire",
 }
+
+# --- Suggestions CCAM (conduite à tenir, déterministe) ---
+CCAM_SUGGESTIONS = {
+    'carie_email': "HBMD038 — Restauration 1 face",
+    'carie_dentinaire': "HBMD042 — Restauration 2 faces",
+    'carie_profonde': "HBMD044 / HBFD033 — Restauration profonde ou traitement endodontique",
+    'reprise_carie': "HBMD042 — Dépose et restauration",
+    'lesion_periapicale': "HBFD033 / HBGD035 — Retraitement canalaire ou résection apicale",
+    'tr_incomplet': "HBFD033 — Retraitement endodontique",
+    'incluse': "HBGD036 — Avulsion de dent incluse",
+    'reste_radiculaire': "HBGD031 — Avulsion de racine résiduelle",
+    'tartre': "HBJD001 — Détartrage complet",
+    'furcation': "Bilan parodontal — assainissement",
+    'dent_absente': "Réhabilitation prothétique (implant / bridge / amovible)",
+}
+
+# Ordre d'affichage clinique des constats (du plus urgent au plus bénin)
+URGENT_KEYS = {'carie_profonde', 'lesion_periapicale', 'perforation', 'peri_implantite', 'reste_radiculaire'}
+
 
 class PanoramicReportEngine:
+    """
+    Générateur de bilan panoramique 100 % déterministe (sans LLM).
+    Le modèle IA ne fait que nommer les dents ; toute la sémiologie provient
+    des annotations manuelles du praticien (par dent) et des constats généraux.
+    """
 
-    """
-    Générateur de rapport Panoramique ELITE (v2.0).
-    Structure le bilan par secteurs et catégories cliniques pour une lecture professionnelle.
-    """
-    def generate_markdown(self, detections: List[Dict] = None, manual_anomalies: Dict[int, List[str]] = None) -> str:
+    def generate_markdown(
+        self,
+        detections: List[Dict] = None,
+        manual_anomalies: Dict[int, List[str]] = None,
+        global_findings: List[str] = None,
+    ) -> str:
         try:
             if isinstance(detections, dict):
                 detections = detections.get("detections", [])
             detections = detections or []
             manual_anomalies = manual_anomalies or {}
-            
-            teeth_map = {}
-            for d in detections:
-                fdi = int(d.get("fdi") or d.get("tooth") or 0)
-                if fdi == 0: continue
-                if fdi not in teeth_map: teeth_map[fdi] = set()
-                label = d.get("label", d.get("pathology", "Anomalie"))
-                teeth_map[fdi].add(label)
-                
+            global_findings = global_findings or []
+
+            # 1. Construction de la carte dent -> {id_anomalie} (manuel prioritaire)
+            #    On conserve les ids bruts pour la sémantique, et un label lisible.
+            teeth_ids: Dict[int, set] = {}      # fdi -> set(anomaly_id)
             for fdi_str, anomalies in manual_anomalies.items():
                 fdi = int(fdi_str)
-                if fdi not in teeth_map: teeth_map[fdi] = set()
+                teeth_ids.setdefault(fdi, set())
                 for a in anomalies:
-                    label = ANOMALY_LABELS.get(a, a)
-                    teeth_map[fdi].add(label)
+                    teeth_ids[fdi].add(a)
 
-            pathology_map = {}
-            for fdi, pathologies in teeth_map.items():
-                for p in pathologies:
-                    if p not in pathology_map:
-                        pathology_map[p] = []
-                    pathology_map[p].append(fdi)
-                    
-            for p in pathology_map:
-                pathology_map[p].sort()
+            # 2. Séparation des familles cliniques
+            absent_teeth = sorted([f for f, ids in teeth_ids.items() if 'dent_absente' in ids or 'agenesie' in ids])
 
-            lines = []
-            
-            lines.append("### TECHNIQUE")
-            lines.append("- Examen réalisé par un appareil numérique permettant un seul scannage à faible dose de rayonnement.")
+            # Regroupement id_anomalie -> [fdi] (hors dents absentes déjà traitées)
+            anomaly_map: Dict[str, List[int]] = {}
+            for fdi, ids in teeth_ids.items():
+                for aid in ids:
+                    if aid in ('dent_absente', 'agenesie'):
+                        continue
+                    anomaly_map.setdefault(aid, []).append(fdi)
+            for aid in anomaly_map:
+                anomaly_map[aid].sort()
+
+            lines: List[str] = []
+
+            # 3. SYNTHÈSE déterministe (en tête)
+            synthesis = self._build_synthesis(anomaly_map, absent_teeth, global_findings)
+            lines.append("### SYNTHÈSE CLINIQUE")
+            # Puce (et non paragraphe brut) pour être capturé par le générateur PDF Élite.
+            lines.append(f"- {synthesis}")
             lines.append("")
-            
+
+            # 4. TECHNIQUE
+            lines.append("### TECHNIQUE")
+            lines.append("- Examen réalisé sur appareil numérique, scannage unique à faible dose de rayonnement.")
+            lines.append("")
+
+            # 5. RÉSULTATS
             lines.append("### RÉSULTATS")
-            lines.append("- Dentition de type adulte.")
-            
-            for path, fdis in pathology_map.items():
-                if len(fdis) == 1:
-                    fdis_str = f"la dent {fdis[0]}"
-                elif len(fdis) == 2:
-                    fdis_str = f"les dents {fdis[0]} et {fdis[1]}"
-                else:
-                    fdis_str = f"les dents {', '.join(str(f) for f in fdis[:-1])} et {fdis[-1]}"
-                    
-                path_lower = path.lower()
-                
-                if "carie" in path_lower:
-                    lines.append(f"- Lésions carieuses au niveau de {fdis_str}.")
-                elif "kyste" in path_lower or "périapicale" in path_lower:
-                    lines.append(f"- Lésion périapicale / Granulome sur {fdis_str}.")
-                elif "couronne" in path_lower or "implant" in path_lower or "bridge" in path_lower:
-                    lines.append(f"- Matériel prothétique ({path}) en place sur {fdis_str}.")
-                elif "incluse" in path_lower or "enclavée" in path_lower:
-                    lines.append(f"- Dent(s) en inclusion / enclavée(s) : {fdis_str}.")
-                elif "reste" in path_lower or "radiculaire" in path_lower:
-                    lines.append(f"- Racines résiduelles de {fdis_str}.")
-                elif "obturation" in path_lower or "composite" in path_lower:
-                    lines.append(f"- Matériel radio-opaque (obturation) sur {fdis_str}.")
-                elif "canalaire" in path_lower:
-                    lines.append(f"- Traitement canalaire sur {fdis_str}.")
-                elif "alvéolyse" in path_lower:
-                    lines.append(f"- Alvéolyse visible au niveau de {fdis_str}.")
-                else:
-                    lines.append(f"- {path} objectivé(e) sur {fdis_str}.")
+            denture = "mixte" if 'denture_mixte' in global_findings else "adulte"
+            lines.append(f"- Dentition de type {denture}.")
 
-            sinus_roots = [f for f in teeth_map.keys() if f in [17, 16, 15, 27, 26, 25]]
-            if sinus_roots:
-                if len(sinus_roots) == 1:
-                    lines.append(f"- La racine de la dent {sinus_roots[0]} arrive au contact du plancher sinusien.")
-                else:
-                    s_str = ", ".join(str(f) for f in sorted(sinus_roots))
-                    lines.append(f"- Les racines des dents {s_str} font saillie ou arrivent au contact du plancher sinusien.")
+            # Édentement / dents absentes
+            if absent_teeth:
+                lines.append(f"- {self._fmt_teeth_phrase(absent_teeth, 'Absence')} (édentement à réhabiliter).")
 
-            mandibular_roots = [f for f in teeth_map.keys() if f in [38, 37, 48, 47]]
-            if mandibular_roots:
-                if len(mandibular_roots) == 1:
-                    lines.append(f"- La racine de la dent {mandibular_roots[0]} arrive au contact du canal mandibulaire.")
-                else:
-                    m_str = ", ".join(str(f) for f in sorted(mandibular_roots))
-                    lines.append(f"- Proximité entre les racines des dents {m_str} et le canal mandibulaire.")
-            else:
-                lines.append("- Canal mandibulaire à distance des racines dentaires.")
+            # Constats par anomalie (ordre : urgent d'abord)
+            ordered_aids = sorted(anomaly_map.keys(), key=lambda a: (a not in URGENT_KEYS, a))
+            for aid in ordered_aids:
+                fdis = anomaly_map[aid]
+                lines.append("- " + self._phrase_for(aid, fdis))
 
-            # Détections clés pour conditionner les phrases de normalité
-            all_pathologies_lower = [p.lower() for p in pathology_map.keys()]
-            all_labels_lower = [label.lower() for labels in teeth_map.values() for label in labels]
-            combined_lower = all_pathologies_lower + all_labels_lower
+            # Constats généraux (lyse généralisée, etc.)
+            for gid in global_findings:
+                if gid == 'denture_mixte':
+                    continue  # déjà reflété dans le type de denture
+                label = GLOBAL_FINDING_LABELS.get(gid, gid)
+                lines.append(f"- {label}.")
 
-            has_sinus_opacity = any("sinus" in p or "opacité" in p for p in combined_lower)
-            has_bone_lesion = any(k in combined_lower for k in [
-                "alvéolyse", "lésion osseuse", "kyste", "granulome", "périapicale", "résorption"
-            ])
-            has_atm_issue = any(k in combined_lower for k in ["arthrose", "condyle", "atm", "asymétrie"])
+            # 6. Phrases de normalité conditionnelles (sinus / os / ATM)
+            self._append_normality(lines, anomaly_map, global_findings)
 
-            # Sinus — conditionnel
-            if not has_sinus_opacity:
-                lines.append("- Transparence normale des cuvettes des sinus maxillaires.")
-            else:
-                lines.append("- Opacité sinusienne objectivée (voir détections ci-dessus).")
-
-            # Cloison nasale — invariant acceptable
-            lines.append("- Cloison nasale médiane.")
-
-            # Lésions osseuses et ATM — conditionnel
-            if not has_bone_lesion and not has_atm_issue:
-                lines.append("- Absence de lésion osseuse d'allure suspecte et respect des articulations temporo-mandibulaires.")
-            elif not has_bone_lesion:
-                lines.append("- Absence de lésion osseuse d'allure suspecte. Articulations temporo-mandibulaires : voir détections ci-dessus.")
-            elif not has_atm_issue:
-                lines.append("- Lésions osseuses objectivées (voir détections ci-dessus). Respect des articulations temporo-mandibulaires.")
-            else:
-                lines.append("- Lésions osseuses et anomalies des articulations temporo-mandibulaires objectivées (voir détections ci-dessus).")
-
-            # Ajout de la Synthèse IA (Protégée par le Data Firewall)
-            try:
-                base_report_text = "\n".join(lines[3:]) # On envoie juste les résultats cliniques
-                ai_synthesis = self._generate_ai_synthesis(base_report_text)
-                if ai_synthesis:
-                    lines.insert(0, "")
-                    lines.insert(0, ai_synthesis)
-                    lines.insert(0, "### SYNTHÈSE DU RADIOLOGUE")
-            except Exception as e:
-                logger.warning(f"Impossible de générer la synthèse IA: {e}")
+            # 7. CONDUITE À TENIR (CCAM déterministe)
+            recos = self._build_recommendations(anomaly_map, absent_teeth)
+            if recos:
+                lines.append("")
+                lines.append("### CONDUITE À TENIR")
+                for r in recos:
+                    lines.append(f"- {r}")
 
             return "\n".join(lines)
-            
+
         except Exception as e:
             logger.error(f"Erreur Report Engine : {e}")
             return "## Erreur lors de la génération du rapport."
 
-    def _generate_ai_synthesis(self, clinical_text: str) -> str:
-        """Appelle Groq pour générer un paragraphe de synthèse, tout en protégeant les données PII."""
-        # 1. Le Mur : Anonymisation
-        from backend.services.security.data_sanitizer import data_sanitizer
-        sanitized_text, mapping = data_sanitizer.sanitize(clinical_text)
-        
-        prompt = (
-            "Agis comme un expert radiologue dentaire. "
-            "Voici les anomalies détectées de manière déterministe sur une radio panoramique:\n"
-            f"{sanitized_text}\n"
-            "Rédige un court paragraphe (3-4 phrases max) de synthèse clinique globale pour le praticien. "
-            "Sois très professionnel, concis, et souligne l'urgence s'il y en a une (ex: multiples caries profondes). "
-            "Ne liste pas à nouveau les dents une par une. "
-            "Réponds uniquement avec le paragraphe, sans fioritures ni salutations."
-        )
+    # ----------------------------------------------------------------- helpers
 
-        api_base = os.getenv("LLM_API_BASE", "http://localhost:11434/v1")
-        api_key = os.getenv("LLM_API_KEY", "ollama")
-        model = os.getenv("LLM_MODEL", "llama3")
+    def _fmt_teeth_phrase(self, fdis: List[int], prefix: str) -> str:
+        """'Absence de la dent 16' / 'Absence des dents 16, 26 et 36'."""
+        if not fdis:
+            return prefix
+        if len(fdis) == 1:
+            return f"{prefix} de la dent {fdis[0]}"
+        body = ", ".join(str(f) for f in fdis[:-1])
+        return f"{prefix} des dents {body} et {fdis[-1]}"
 
-        try:
-            with httpx.Client(timeout=4.0) as client:
-                response = client.post(
-                    f"{api_base}/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.2,
-                        "max_tokens": 150
-                    }
-                )
-                response.raise_for_status()
-                result_text = response.json()["choices"][0]["message"]["content"].strip()
-                
-                # 2. Le Mur : Restauration des vraies données
-                final_text = data_sanitizer.restore(result_text, mapping)
-                return final_text
-        except Exception as e:
-            logger.warning(f"Erreur appel LLM dans panoramic_report_engine: {e}")
-            return ""
+    def _teeth_list(self, fdis: List[int]) -> str:
+        if len(fdis) == 1:
+            return f"la dent {fdis[0]}"
+        if len(fdis) == 2:
+            return f"les dents {fdis[0]} et {fdis[1]}"
+        return f"les dents {', '.join(str(f) for f in fdis[:-1])} et {fdis[-1]}"
+
+    def _phrase_for(self, aid: str, fdis: List[int]) -> str:
+        """Phrase clinique professionnelle pour une anomalie donnée."""
+        t = self._teeth_list(fdis)
+        templates = {
+            'carie_email': f"Lésion carieuse débutante de l'émail sur {t}.",
+            'carie_dentinaire': f"Lésion carieuse dentinaire sur {t}.",
+            'carie_profonde': f"Carie profonde avec atteinte pulpaire probable sur {t}.",
+            'reprise_carie': f"Reprise carieuse sous obturation sur {t}.",
+            'obturation_comp': f"Obturation coronaire en place sur {t}.",
+            'obturation_debord': f"Obturation débordante à reprendre sur {t}.",
+            'lesion_periapicale': f"Image périapicale radio-claire (lésion/granulome) sur {t}.",
+            'elargissement_desmo': f"Élargissement de l'espace desmodontal sur {t}.",
+            'tr_adequat': f"Traitement endodontique d'aspect satisfaisant sur {t}.",
+            'tr_incomplet': f"Traitement endodontique incomplet sur {t}.",
+            'depassement_pate': f"Dépassement de pâte canalaire sur {t}.",
+            'instrument_fracture': f"Instrument endodontique fracturé sur {t}.",
+            'perforation': f"Image de perforation radiculaire (faux-canal) sur {t}.",
+            'alveolyse_h': f"Alvéolyse horizontale localisée au niveau de {t}.",
+            'alveolyse_v': f"Alvéolyse verticale (défaut angulaire) au niveau de {t}.",
+            'furcation': f"Atteinte de la furcation sur {t}.",
+            'tartre': f"Dépôts de tartre sous-gingival au niveau de {t}.",
+            'surnumeraire': f"Dent surnuméraire au niveau de {t}.",
+            'incluse': f"Dent incluse : {t}.",
+            'enclavee': f"Dent enclavée : {t}.",
+            'reste_radiculaire': f"Reste radiculaire à avulser : {t}.",
+            'resorption': f"Résorption radiculaire sur {t}.",
+            'couronne': f"Couronne prothétique en place sur {t}.",
+            'bridge': f"Bridge prothétique sur {t}.",
+            'implant': f"Implant dentaire en place sur {t}.",
+            'appareil': f"Appareil / prothèse amovible au niveau de {t}.",
+            'peri_implantite': f"Image de péri-implantite sur {t}.",
+            'infiltration_prothese': f"Infiltration sous prothèse sur {t}.",
+            'opacite_sinus': f"Opacité du sinus maxillaire en regard de {t}.",
+            'racine_sinus': f"Racine au contact du plancher sinusien : {t}.",
+            'condyle_asymetrie': f"Asymétrie condylienne objectivée.",
+            'arthrose_atm': f"Remaniements arthrosiques de l'ATM.",
+            'calcification': f"Calcification des parties molles en regard de {t}.",
+        }
+        return templates.get(aid, f"{ANOMALY_LABELS.get(aid, aid)} sur {t}.")
+
+    def _append_normality(self, lines: List[str], anomaly_map: Dict[str, List[int]], global_findings: List[str]):
+        aids = set(anomaly_map.keys())
+        gids = set(global_findings)
+
+        has_sinus = bool(aids & {'opacite_sinus', 'racine_sinus'})
+        has_bone = bool(aids & {'alveolyse_h', 'alveolyse_v', 'lesion_periapicale', 'resorption', 'furcation'}) \
+            or bool(gids & {'alveolyse_gen_legere', 'alveolyse_gen_moderee', 'alveolyse_gen_severe', 'parodontite_gen'})
+        has_atm = bool(aids & {'condyle_asymetrie', 'arthrose_atm'})
+
+        if not has_sinus:
+            lines.append("- Transparence normale des cuvettes sinusiennes maxillaires.")
+        lines.append("- Cloison nasale médiane.")
+
+        if not has_bone and not has_atm:
+            lines.append("- Absence de lésion osseuse d'allure suspecte ; articulations temporo-mandibulaires respectées.")
+        elif not has_atm:
+            lines.append("- Articulations temporo-mandibulaires respectées.")
+
+    def _build_synthesis(self, anomaly_map, absent_teeth, global_findings) -> str:
+        aids = anomaly_map
+        sentences: List[str] = []
+
+        carie_keys = [k for k in aids if k.startswith('carie') or k == 'reprise_carie']
+        nb_caries = sum(len(aids[k]) for k in carie_keys)
+        urgent = [k for k in aids if k in URGENT_KEYS]
+        prostheses = [k for k in ('couronne', 'bridge', 'implant', 'appareil') if k in aids]
+        endo = [k for k in ('tr_adequat', 'tr_incomplet') if k in aids]
+        gen_lysis = [g for g in global_findings if g.startswith('alveolyse_gen') or g == 'parodontite_gen']
+
+        if nb_caries:
+            sentences.append(f"Bilan carieux : {nb_caries} site(s) carieux objectivé(s)")
+        if urgent:
+            labels = ", ".join(sorted({ANOMALY_LABELS.get(k, k) for k in urgent}))
+            sentences.append(f"⚠️ Foyer(s) nécessitant une prise en charge prioritaire ({labels})")
+        if absent_teeth:
+            sentences.append(f"Édentement de {len(absent_teeth)} dent(s) à réhabiliter")
+        if prostheses:
+            labels = ", ".join(ANOMALY_LABELS.get(k, k).lower() for k in prostheses)
+            sentences.append(f"Réhabilitations existantes : {labels}")
+        if endo:
+            sentences.append("Présence de traitements endodontiques (à recontrôler)")
+        if gen_lysis:
+            sentences.append("Contexte parodontal généralisé à surveiller")
+
+        if not sentences:
+            return ("Examen panoramique sans anomalie dentaire ou osseuse significative décelée. "
+                    "Structures osseuses, sinusiennes et articulaires d'aspect normal.")
+
+        return ". ".join(sentences) + "."
+
+    def _build_recommendations(self, anomaly_map, absent_teeth) -> List[str]:
+        recos: List[str] = []
+        seen = set()
+        # Recommandations par anomalie présente
+        for aid in anomaly_map:
+            if aid in CCAM_SUGGESTIONS and aid not in seen:
+                recos.append(CCAM_SUGGESTIONS[aid])
+                seen.add(aid)
+        if absent_teeth and 'dent_absente' not in seen:
+            recos.append(CCAM_SUGGESTIONS['dent_absente'])
+        return recos
+
 
 panoramic_report_engine = PanoramicReportEngine()

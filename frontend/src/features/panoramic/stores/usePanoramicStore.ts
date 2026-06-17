@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type AnomalyCategory = 'Conservatrice' | 'Endodontie' | 'Parodontie' | 'Chirurgie' | 'Prothèse' | 'ATM/Sinus';
 
@@ -8,6 +9,23 @@ export interface AnomalyDefinition {
   category: AnomalyCategory;
   isMultiTooth?: boolean;
 }
+
+/** Constats généraux (sur toute la bouche, non rattachés à une dent). */
+export interface GlobalFindingDefinition {
+  id: string;
+  label: string;
+  group: 'Parodonte' | 'Édentement' | 'Denture';
+}
+
+export const GLOBAL_FINDINGS: GlobalFindingDefinition[] = [
+  { id: 'alveolyse_gen_legere', label: 'Alvéolyse généralisée légère', group: 'Parodonte' },
+  { id: 'alveolyse_gen_moderee', label: 'Alvéolyse généralisée modérée', group: 'Parodonte' },
+  { id: 'alveolyse_gen_severe', label: 'Alvéolyse généralisée sévère', group: 'Parodonte' },
+  { id: 'parodontite_gen', label: 'Maladie parodontale généralisée', group: 'Parodonte' },
+  { id: 'edentement_total_max', label: 'Édentement total maxillaire', group: 'Édentement' },
+  { id: 'edentement_total_mand', label: 'Édentement total mandibulaire', group: 'Édentement' },
+  { id: 'denture_mixte', label: 'Denture mixte', group: 'Denture' },
+];
 
 export const ANOMALY_TAXONOMY: AnomalyDefinition[] = [
   // CONSERVATRICE
@@ -34,7 +52,8 @@ export const ANOMALY_TAXONOMY: AnomalyDefinition[] = [
   { id: 'tartre', label: 'Tartre sous-gingival', category: 'Parodontie', isMultiTooth: true },
 
   // CHIRURGIE
-  { id: 'agenesie', label: 'Agénésie (Dent manquante)', category: 'Chirurgie' },
+  { id: 'dent_absente', label: 'Dent absente / extraite', category: 'Chirurgie' },
+  { id: 'agenesie', label: 'Agénésie (germe absent)', category: 'Chirurgie' },
   { id: 'surnumeraire', label: 'Dent surnuméraire', category: 'Chirurgie' },
   { id: 'incluse', label: 'Dent incluse', category: 'Chirurgie' },
   { id: 'enclavee', label: 'Dent enclavée', category: 'Chirurgie' },
@@ -45,6 +64,7 @@ export const ANOMALY_TAXONOMY: AnomalyDefinition[] = [
   { id: 'couronne', label: 'Couronne unitaire', category: 'Prothèse' },
   { id: 'bridge', label: 'Bridge prothétique', category: 'Prothèse', isMultiTooth: true },
   { id: 'implant', label: 'Implant dentaire', category: 'Prothèse' },
+  { id: 'appareil', label: 'Appareil / prothèse amovible', category: 'Prothèse', isMultiTooth: true },
   { id: 'peri_implantite', label: 'Péri-implantite', category: 'Prothèse' },
   { id: 'infiltration_prothese', label: 'Infiltration sous prothèse', category: 'Prothèse' },
 
@@ -58,9 +78,11 @@ export const ANOMALY_TAXONOMY: AnomalyDefinition[] = [
 
 interface PanoramicState {
   toothAnomalies: Record<number, string[]>;
+  globalFindings: string[];
   multiSelectMode: { active: boolean; anomalyId: string | null; startFdi: number | null };
-  
+
   toggleAnomaly: (fdi: number, anomalyId: string) => void;
+  toggleGlobalFinding: (id: string) => void;
   startMultiSelect: (fdi: number, anomalyId: string) => void;
   finishMultiSelect: (endFdi: number) => void;
   cancelMultiSelect: () => void;
@@ -68,10 +90,20 @@ interface PanoramicState {
   resetAll: () => void;
 }
 
-export const usePanoramicStore = create<PanoramicState>((set) => ({
+export const usePanoramicStore = create<PanoramicState>()(persist((set) => ({
 
   toothAnomalies: {},
+  globalFindings: [],
   multiSelectMode: { active: false, anomalyId: null, startFdi: null },
+
+  toggleGlobalFinding: (id) => set((state) => {
+    const exists = state.globalFindings.includes(id);
+    return {
+      globalFindings: exists
+        ? state.globalFindings.filter(g => g !== id)
+        : [...state.globalFindings, id],
+    };
+  }),
 
   toggleAnomaly: (fdi, anomalyId) => set((state) => {
     const anomalies = state.toothAnomalies[fdi] || [];
@@ -144,5 +176,9 @@ export const usePanoramicStore = create<PanoramicState>((set) => ({
     return { toothAnomalies: nextState };
   }),
 
-  resetAll: () => set({ toothAnomalies: {}, multiSelectMode: { active: false, anomalyId: null, startFdi: null } }),
+  resetAll: () => set({ toothAnomalies: {}, globalFindings: [], multiSelectMode: { active: false, anomalyId: null, startFdi: null } }),
+}), {
+  name: 'panoramic-annotations',
+  // On ne persiste que les données cliniques (pas l'état transitoire du multi-select).
+  partialize: (state) => ({ toothAnomalies: state.toothAnomalies, globalFindings: state.globalFindings }),
 }));

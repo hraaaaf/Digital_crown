@@ -47,7 +47,7 @@ import { Step2BlockerModal } from './components/Step2BlockerModal';
 import { CephaloHistory } from './CephaloHistory';
 import { useOrthoStore } from './stores/useOrthoStore';
 import { cephaloRepository } from './cephaloRepository';
-import { API_BASE } from '../../services/api';
+import { API_BASE, api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 
@@ -276,12 +276,51 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   }, [store.isStep1Fullscreen]);
 
+  // M4 — Radio visible sous les landmarks.
+  // Les fichiers radio sont servis sous /api/static/uploads/radios/ qui requiert
+  // l'en-tête `Authorization: Bearer <jwt>`. Un <image href> SVG ou <img src>
+  // natif ne peut pas envoyer cet en-tête → 401 → radio invisible, landmarks visibles.
+  // Fix : fetch authentifié via le client Axios (qui joint le Bearer), création d'un
+  // blob URL local utilisable sans auth par le SVG.
   useEffect(() => {
     if (!imageSrc) return;
-    const img = new Image();
-    img.onload = () => setImgDim({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = imageSrc;
-  }, [imageSrc, setImgDim]);
+
+    // Blob / data URL déjà authentifiés — charger directement.
+    if (imageSrc.startsWith('blob:') || imageSrc.startsWith('data:')) {
+      const img = new Image();
+      img.onload = () => setImgDim({ w: img.naturalWidth, h: img.naturalHeight });
+      img.src = imageSrc;
+      return;
+    }
+
+    // URL HTTP(S) protégée : fetch avec headers auth, convertir en blob URL.
+    let cancelled = false;
+    let createdBlobUrl: string | null = null;
+
+    api.get(imageSrc, { responseType: 'blob' })
+      .then(response => {
+        if (cancelled) return;
+        const blobUrl = URL.createObjectURL(response.data as Blob);
+        createdBlobUrl = blobUrl;
+        store.setImageSrc(blobUrl);
+        // Le blob URL est transféré au store — annuler la révocation au cleanup.
+        createdBlobUrl = null;
+      })
+      .catch(() => {
+        // Fallback : tenter le chargement direct (permet le dev sans auth ou base64).
+        if (cancelled) return;
+        const img = new Image();
+        img.onload = () => { if (!cancelled) setImgDim({ w: img.naturalWidth, h: img.naturalHeight }); };
+        img.src = imageSrc;
+      });
+
+    return () => {
+      cancelled = true;
+      // Révoquer le blob URL seulement s'il n'a pas été transféré au store
+      // (cas : fetch annulé avant completion ou erreur).
+      if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl);
+    };
+  }, [imageSrc, setImgDim]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 
   // RENDU ÉTAPE 1 - CÉPHALOMÉTRIE

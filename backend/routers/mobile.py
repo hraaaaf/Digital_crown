@@ -5,6 +5,7 @@ Aucune donnÃ©e ne sort du rÃ©seau local du cabinet.
 import uuid
 import socket
 import os
+import re
 from typing import Optional
 from datetime import datetime, date, timedelta, time as dt_time, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, Body, BackgroundTasks
@@ -67,7 +68,14 @@ def get_mobile_role(
     authorization: str = Header(...),
     db: Session = Depends(database.get_db)
 ) -> str:
-    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne le role."""
+    """Dépendance : valide le JWT mobile, vérifie la révocation et retourne le role.
+
+    FAIL-CLOSED (S5) : tout token révoqué/invalide/sans claim de rôle est ramené au
+    MOINDRE privilège (SECRETAIRE), jamais à DENTISTE — pour ne jamais exposer les
+    données financières par défaut. (La révocation est de toute façon déjà bloquée
+    en amont par get_mobile_employer_id qui lève 401.)
+    """
+    LEAST_PRIVILEGE = "SECRETAIRE"
     try:
         scheme, token = authorization.split(" ", 1)
         if scheme.lower() == "bearer":
@@ -76,24 +84,50 @@ def get_mobile_role(
             if jti:
                 from backend.security import token_blacklist
                 if token_blacklist.is_revoked(jti, db):
-                    return "DENTISTE"
-            return payload.get("role", "DENTISTE")
+                    return LEAST_PRIVILEGE
+            return payload.get("role", LEAST_PRIVILEGE)
     except Exception:
         pass
-    return "DENTISTE"
+    return LEAST_PRIVILEGE
 
 
-def get_lan_base_url() -> str:
-    """Retourne l'URL LAN du backend — toujours auto-détectée via socket, toujours HTTP."""
+def _detect_lan_ip() -> str:
+    """Auto-détecte l'IP LAN courante via socket (robuste aux changements DHCP)."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         lan_ip = s.getsockname()[0]
         s.close()
-        port = os.getenv("PORT", "8005")
-        return f"http://{lan_ip}:{port}"
+        return lan_ip
     except Exception:
-        return "http://127.0.0.1:8005"
+        return "127.0.0.1"
+
+
+def get_lan_base_url() -> str:
+    """URL LAN du backend — auto-détectée, toujours HTTP."""
+    port = os.getenv("PORT", "8005")
+    return f"http://{_detect_lan_ip()}:{port}"
+
+
+def get_lan_frontend_url() -> str:
+    """URL LAN du frontend (Vite :5173) — auto-détectée."""
+    return f"http://{_detect_lan_ip()}:5173"
+
+
+def resolve_frontend_url(configured: str | None) -> str:
+    """
+    Résout l'URL du frontend. Si la valeur configurée est vide ou pointe vers
+    localhost / une IP LAN privée (valeur qui se périme au gré du DHCP), on
+    auto-détecte l'IP LAN courante. Une URL non-locale (vrai domaine) est respectée.
+    """
+    configured = (configured or "").rstrip("/")
+    is_local_or_lan = re.search(
+        r"://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:|/|$)",
+        configured,
+    )
+    if not configured or is_local_or_lan:
+        return get_lan_frontend_url()
+    return configured
 
 
 # ── MAPPING STATUT RDV ────────────────────────────────────────────────────────
@@ -246,45 +280,52 @@ def claim_pairing_token(
         "access_token": _create_mobile_jwt(record.employer_id, role),
     }
 
-    if body.client_public_key_hex:
-        # ECDH Key Exchange pour sécuriser la transmission de la masterKey
-        try:
-            from cryptography.hazmat.primitives.asymmetric import ec
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-            
-            client_pub_bytes = bytes.fromhex(body.client_public_key_hex)
-            client_public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), client_pub_bytes)
-            
-            server_private_key = ec.generate_private_key(ec.SECP256R1())
-            server_public_key = server_private_key.public_key().public_bytes(
-                encoding=serialization.Encoding.X962,
-                format=serialization.PublicFormat.UncompressedPoint
-            )
-            
-            shared_key = server_private_key.exchange(ec.ECDH(), client_public_key)
-            
-            derived_key = HKDF(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=None,
-                info=b'zka_mobile_bridge'
-            ).derive(shared_key)
-            
-            aesgcm = AESGCM(derived_key)
-            nonce = os.urandom(12)
-            encrypted_master_key = aesgcm.encrypt(nonce, record.master_key.encode(), None)
-            
-            response_data["server_public_key_hex"] = server_public_key.hex()
-            response_data["encrypted_master_key_hex"] = (nonce + encrypted_master_key).hex()
-        except Exception as e:
-            import logging
-            logging.error(f"Erreur ECDH: {e}")
-            raise HTTPException(status_code=400, detail="Cle publique client invalide.")
-    else:
-        # Mode Legacy (Non sécurisé si HTTP local)
-        response_data["masterKey"] = record.master_key
+    # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.
+    # La masterKey ne transite JAMAIS en clair (contrainte non-négociable),
+    # même sur le LAN HTTP. Le mode legacy en clair est supprimé.
+    if not body.client_public_key_hex:
+        raise HTTPException(
+            status_code=400,
+            detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",
+        )
+
+    # ECDH Key Exchange pour sécuriser la transmission de la masterKey
+    try:
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        client_pub_bytes = bytes.fromhex(body.client_public_key_hex)
+        client_public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), client_pub_bytes)
+
+        server_private_key = ec.generate_private_key(ec.SECP256R1())
+        server_public_key = server_private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint
+        )
+
+        shared_key = server_private_key.exchange(ec.ECDH(), client_public_key)
+
+        derived_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b'zka_mobile_bridge'
+        ).derive(shared_key)
+
+        aesgcm = AESGCM(derived_key)
+        nonce = os.urandom(12)
+        encrypted_master_key = aesgcm.encrypt(nonce, record.master_key.encode(), None)
+
+        response_data["server_public_key_hex"] = server_public_key.hex()
+        response_data["encrypted_master_key_hex"] = (nonce + encrypted_master_key).hex()
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"Erreur ECDH: {e}")
+        raise HTTPException(status_code=400, detail="Cle publique client invalide.")
 
     return response_data
 

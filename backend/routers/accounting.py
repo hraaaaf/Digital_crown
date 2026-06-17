@@ -133,8 +133,8 @@ def get_accounting_honoraires(
     year: Optional[int] = None, 
     month: Optional[int] = None, 
     filter_type: Optional[str] = "all",
-    db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     user_employer_id = current_user.get_employer_id()
     from backend.utils.accounting_utils import extract_amount_from_clinical_data
@@ -258,7 +258,7 @@ def get_accounting_honoraires(
 @router.get("/treasury-hub")
 async def get_treasury_hub(
     db: Session = Depends(database.get_db),
-    user: models.User = Depends(get_current_user)
+    user: models.User = Depends(require_permission("accounting"))
 ):
     from backend.services.accounting_service import accounting_service
     return accounting_service.get_treasury_summary(db, user.get_employer_id())
@@ -268,7 +268,7 @@ async def mark_as_paid(
     item_id: str,
     payment_method: str = Body(default="ESPECES", embed=True),
     db: Session = Depends(database.get_db),
-    user: models.User = Depends(get_current_user)
+    user: models.User = Depends(require_permission(["accounting", "payments"]))
 ):
     try:
         from backend.utils.access_control import assert_patient_access
@@ -348,7 +348,7 @@ async def mark_as_paid(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/export-pdf")
-def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
     data = get_accounting_honoraires(patient_id, assurance, year, month, db, current_user)
     report_gen = ReportGenerator()
     filepath = report_gen.generate_accounting_report(items=data["items"], total_amount=data["total_amount"], filters={"assurance": assurance, "month": month, "year": year})

@@ -71,9 +71,22 @@ class TeamMemberOut(BaseModel):
     nom_complet: Optional[str] = None
     telephone_mobile: Optional[str] = None
     is_active: bool
+    approval_status: str = "approved"
+    approval_note: Optional[str] = None
     created_at: Optional[datetime.datetime] = None
     permissions: Optional[dict] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class QuotaOut(BaseModel):
+    plan: str
+    dentistes_used: int
+    dentistes_max: int
+    secretaires_used: int
+    secretaires_max: int
+    pending_count: int
+    can_add_dentiste: bool
+    can_add_secretaire: bool
 
 
 class SupabaseSyncRequest(BaseModel):

@@ -1,263 +1,573 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Printer, Clock, FileText, CheckCircle2, Bot, User, Send, ChevronRight, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Camera, Printer, FileText, CheckCircle2, AlertTriangle,
+  XCircle, ChevronDown, ChevronUp, Loader2, Archive, Eye,
+  Activity, Shield,
+} from 'lucide-react';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { REQUIRED_LANDMARKS } from '../cephaloShared';
+import { api } from '../../../services/api';
+import toast from 'react-hot-toast';
 
 interface Step4DocumentsProps {
   P: any;
 }
 
-interface ChatMessage {
-  id: number;
-  text: string;
-  sender: 'bot' | 'user';
-  isTyping?: boolean;
+// --- Angle metadata for summary cards ---
+const ANGLE_CARDS = [
+  { key: 'SNA',            label: 'SNA',         unit: '°', lo: 76, hi: 88,   flo: 60,  fhi: 105 },
+  { key: 'SNB',            label: 'SNB',         unit: '°', lo: 74, hi: 86,   flo: 58,  fhi: 102 },
+  { key: 'ANB',            label: 'ANB',         unit: '°', lo: -2, hi: 6,    flo: -10, fhi: 15  },
+  { key: 'I_Francfort',    label: '1 / Francfort', unit: '°', lo: 102, hi: 112, flo: 60, fhi: 155 },
+  { key: 'IMPA',           label: 'IMPA',        unit: '°', lo: 85, hi: 95,   flo: 60,  fhi: 125 },
+  { key: 'Inter_Incisif',  label: 'Inter-Inc.',  unit: '°', lo: 118, hi: 144, flo: 80,  fhi: 180 },
+  { key: 'Angle_Nasolabial', label: 'Nasolabial', unit: '°', lo: 92, hi: 112, flo: 50, fhi: 160 },
+] as const;
+
+type AngleStatus = 'ok' | 'warning' | 'fatal' | 'missing';
+
+function getAngleStatus(val: number | undefined, card: typeof ANGLE_CARDS[number]): AngleStatus {
+  if (val === undefined || val === null || isNaN(val)) return 'missing';
+  if (val < card.flo || val > card.fhi) return 'fatal';
+  if (val < card.lo || val > card.hi) return 'warning';
+  return 'ok';
 }
 
-export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
-  const store = useOrthoStore();
-  const { 
-    photos, 
-    handlePhotoUpload: onUpload, 
-    handlePrint: onGeneratePDF, 
-    handlePreview: onPreviewPDF, 
-    isPrinting: isGenerating,
-    etape3Data,
-    patientName
-  } = store;
+const STATUS_COLORS: Record<AngleStatus, { bg: string; text: string; border: string }> = {
+  ok:      { bg: '#f0fdf4', text: '#16a34a', border: '#86efac' },
+  warning: { bg: '#fffbeb', text: '#d97706', border: '#fcd34d' },
+  fatal:   { bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
+  missing: { bg: '#f8fafc', text: '#94a3b8', border: '#e2e8f0' },
+};
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatState, setChatState] = useState<'init' | 'typing' | 'ask_appliance' | 'ask_ortho_technique' | 'ask_torque' | 'ask_extractions' | 'done'>('init');
-  const [options, setOptions] = useState<string[]>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+// --- Validation API result ---
+interface ValidationResult {
+  is_valid: boolean;
+  fatals: string[];
+  warnings: string[];
+}
 
-  const isChild = etape3Data.denture_type !== 'PERMANENTE' || (etape3Data.age !== '' && Number(etape3Data.age) < 12);
-  const isSevereDDM = etape3Data.severite_ddm === 'sévère';
-
-  const addBotMessage = (text: string, delay: number = 800) => {
-    return new Promise<void>(resolve => {
-      setChatMessages(prev => [...prev, { id: Date.now(), text: '', sender: 'bot', isTyping: true }]);
-      setTimeout(() => {
-        setChatMessages(prev => prev.map(m => m.isTyping ? { ...m, text, isTyping: false } : m));
-        resolve();
-      }, delay);
-    });
-  };
-
-  const addUserMessage = (text: string) => {
-    setChatMessages(prev => [...prev, { id: Date.now(), text, sender: 'user' }]);
-    setOptions([]); // hide options
-  };
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, options]);
-
-  // Initialisation de la discussion
-  useEffect(() => {
-    if (chatState !== 'init') return;
-    
-    const startConversation = async () => {
-      setChatState('typing');
-      await addBotMessage(`Bonjour Docteur. J'ai analysé les données de ${patientName || 'ce patient'}.`, 600);
-      
-      if (isChild) {
-        await addBotMessage(`Le patient est en phase de croissance (denture ${etape3Data.denture_type?.toLowerCase() || 'mixte'}). Une phase d'orthopédie est requise en première intention.`, 1200);
-        await addBotMessage(`Face à ce tableau clinique (Classe ${etape3Data.classe_squelettique || 'I'}, DDM ${etape3Data.severite_ddm || 'Légère'}), quel est votre appareil orthopédique de prédilection ?`, 1500);
-        setOptions(['D-Gainer', 'Perle de Tuca', 'QuadHelix', 'Disjoncteur', 'Activateur', 'Fronde']);
-        setChatState('ask_appliance');
-      } else {
-        await addBotMessage(`Le patient est en denture permanente. La stratégie s'oriente vers un traitement orthodontique global.`, 1200);
-        
-        if (isSevereDDM) {
-          await addBotMessage(`⚠️ Une DDM SÉVÈRE est détectée. Le plan d'extraction est souvent requis dans cette configuration.`, 1000);
-          await addBotMessage(`Validez-vous un traitement avec extractions (ex: 14, 24) ?`, 800);
-          setOptions(['Avec Extractions', 'Sans Extractions']);
-          setChatState('ask_extractions');
-        } else {
-          await addBotMessage(`Quelle technique orthodontique privilégiez-vous pour ce cas ?`, 1000);
-          setOptions(['Damon (Autoligaturant)', 'Multi-attaches Classique', 'Aligneurs (Invisalign)']);
-          setChatState('ask_ortho_technique');
-        }
-      }
-    };
-
-    startConversation();
-  }, [chatState, isChild, isSevereDDM, etape3Data, patientName]);
-
-  const handleOptionClick = async (opt: string) => {
-    addUserMessage(opt);
-    setChatState('typing');
-
-    if (chatState === 'ask_appliance') {
-      await addBotMessage(`Excellent choix, le ${opt} sera parfaitement adapté. Note mémorisée.`, 800);
-      await addBotMessage(`Voulez-vous associer à de l'orthodontie préceptive (technique 2x4) ou attendre la denture permanente pour la phase 2 ?`, 1200);
-      setOptions(['Associer orthodontie (2x4)', 'Attendre denture permanente']);
-      setChatState('ask_ortho_technique'); // Reusing state for simplicity
-    } 
-    else if (chatState === 'ask_extractions') {
-      await addBotMessage(`C'est noté pour le choix : ${opt}.`, 800);
-      await addBotMessage(`Quelle technique orthodontique privilégiez-vous pour aligner ?`, 1000);
-      setOptions(['Damon (Autoligaturant)', 'Multi-attaches Classique', 'Aligneurs (Invisalign)']);
-      setChatState('ask_ortho_technique');
-    }
-    else if (chatState === 'ask_ortho_technique') {
-      if (opt.includes('Damon')) {
-        await addBotMessage(`Technique Damon sélectionnée.`, 600);
-        await addBotMessage(`Pour optimiser la mécanique Damon, quel choix de torque préconisez-vous au maxillaire ? (Le profil du patient est ${etape3Data.profil || 'inconnu'})`, 1500);
-        setOptions(['High Torque', 'Standard Torque', 'Low Torque']);
-        setChatState('ask_torque');
-      } else {
-        finishConversation();
-      }
-    }
-    else if (chatState === 'ask_torque') {
-      await addBotMessage(`Torque ${opt.replace(' Torque', '')} sélectionné. Le plan mécanique est validé.`, 1000);
-      finishConversation();
-    }
-  };
-
-  const finishConversation = async () => {
-    setChatState('typing');
-    await addBotMessage(`Le plan de traitement est désormais verrouillé. Vous pouvez générer le bilan céphalométrique complet (PDF) pour l'archiver dans le dossier du patient.`, 1500);
-    setChatState('done');
-  };
+// --- AngleCard sub-component ---
+const AngleCard: React.FC<{
+  card: typeof ANGLE_CARDS[number];
+  value: number | undefined;
+  P: any;
+}> = ({ card, value, P }) => {
+  const status = getAngleStatus(value, card);
+  const colors = STATUS_COLORS[status];
+  const fmtVal = value !== undefined && !isNaN(value) ? value.toFixed(1) : '--';
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-h-[85vh] overflow-hidden flex flex-col">
-      
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
-        
-        {/* COLONNE GAUCHE : PHOTOS (Span 5) */}
-        <div className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: '75vh' }}>
-          <h3 className="text-sm font-black uppercase tracking-widest mb-2" style={{ color: P.text }}>Dossier Photographique</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {photos.map((photo) => (
-              <div 
-                key={photo.id}
-                className="group relative aspect-square rounded-2xl overflow-hidden border-2 border-dashed transition-all hover:border-solid"
-                style={{ 
-                  background: P.bgCard, 
-                  borderColor: photo.preview ? P.accentSuccess : P.border,
-                  borderStyle: photo.preview ? 'solid' : 'dashed'
-                }}
-              >
-                {photo.preview ? (
-                  <>
-                    <img src={photo.preview} alt={photo.label} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <label className="cursor-pointer p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40">
-                        <Camera size={20} />
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && onUpload(photo.id, e.target.files[0])} />
-                      </label>
-                    </div>
-                    <div className="absolute top-2 right-2 p-1 bg-emerald-500 rounded-full text-white shadow-lg">
-                      <CheckCircle2 size={12} />
-                    </div>
-                  </>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer p-4 text-center gap-3">
-                    <Camera size={24} style={{ color: P.textDim }} />
-                    <span className="text-[9px] font-black uppercase tracking-widest leading-tight" style={{ color: P.textMuted }}>{photo.label}</span>
-                    <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && onUpload(photo.id, e.target.files[0])} />
-                  </label>
-                )}
+    <div
+      className="rounded-xl p-3 flex flex-col gap-1 border transition-all"
+      style={{ background: colors.bg, borderColor: colors.border }}
+    >
+      <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: colors.text }}>
+        {card.label}
+      </span>
+      <div className="flex items-end gap-1">
+        <span className="text-xl font-black" style={{ color: colors.text }}>{fmtVal}</span>
+        <span className="text-xs font-bold mb-0.5" style={{ color: colors.text, opacity: 0.6 }}>{card.unit}</span>
+      </div>
+      <span className="text-[8px]" style={{ color: colors.text, opacity: 0.7 }}>
+        norme {card.lo}–{card.hi}{card.unit}
+      </span>
+    </div>
+  );
+};
+
+// --- Checklist item ---
+const CheckItem: React.FC<{
+  label: string;
+  status: 'ok' | 'warning' | 'fail' | 'loading';
+  detail?: string;
+}> = ({ label, status, detail }) => {
+  const iconMap = {
+    ok:      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />,
+    warning: <AlertTriangle size={15} className="text-amber-500 shrink-0" />,
+    fail:    <XCircle size={15} className="text-red-500 shrink-0" />,
+    loading: <Loader2 size={15} className="text-slate-400 animate-spin shrink-0" />,
+  };
+  const textColor = { ok: '#16a34a', warning: '#d97706', fail: '#dc2626', loading: '#94a3b8' }[status];
+
+  return (
+    <div className="flex items-start gap-2 py-1.5">
+      {iconMap[status]}
+      <div>
+        <span className="text-xs font-semibold" style={{ color: '#334155' }}>{label}</span>
+        {detail && (
+          <p className="text-[10px] mt-0.5" style={{ color: textColor }}>{detail}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Main Component ---
+export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
+  const store = useOrthoStore();
+  const {
+    photos,
+    handlePhotoUpload: onUpload,
+    handlePrint: onGeneratePDF,
+    handlePreview: onPreviewPDF,
+    isPrinting: isGenerating,
+    isPreviewLoading,
+    etape3Data,
+    diag,
+    setEtape3Data,
+    anglesData,
+    patientId,
+    patientName,
+    analysisId,
+    imageSrc,
+    isCalibrated,
+    local,
+  } = store;
+
+  const [showDetails, setShowDetails] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isBrouillon, setIsBrouillon] = useState(false);
+
+  // Checklist derived state
+  const hasImage = Boolean(imageSrc);
+  const hasCalibration = isCalibrated;
+  const reqSet = new Set<string>(REQUIRED_LANDMARKS as readonly string[]);
+  const landmarkCount = local.landmarks.filter(l => reqSet.has(l.id)).length;
+  const landmarkPct = Math.round((landmarkCount / REQUIRED_LANDMARKS.length) * 100);
+  const landmarksOk = landmarkPct === 100;
+  const diagOk = Boolean(diag.synthese_diagnostique?.trim());
+
+  // Fetch validation on mount if analysisId is present
+  const fetchValidation = useCallback(async () => {
+    if (!patientId || !analysisId) return;
+    setIsValidating(true);
+    try {
+      const { data } = await api.get(`/patients/${patientId}/cephalo-validation`);
+      setValidation(data);
+    } catch {
+      setValidation(null);
+    } finally {
+      setIsValidating(false);
+    }
+  }, [patientId, analysisId]);
+
+  useEffect(() => {
+    fetchValidation();
+  }, [fetchValidation]);
+
+  // Angles from anglesData
+  const getAngleVal = (key: string): number | undefined => {
+    const v = anglesData?.[key];
+    if (v === undefined || v === null || v === '') return undefined;
+    const n = parseFloat(v);
+    return isNaN(n) ? undefined : n;
+  };
+
+  const hasFatals = (validation?.fatals?.length ?? 0) > 0;
+  const hasWarnings = (validation?.warnings?.length ?? 0) > 0;
+
+  // --- Actions ---
+  const handlePrevisualiser = async () => {
+    await onPreviewPDF();
+  };
+
+  const handleBrouillon = async () => {
+    if (!patientId || !analysisId) return;
+    setIsBrouillon(true);
+    try {
+      await store.silentSave();
+      const { data } = await api.post(
+        `/patients/${patientId}/pdf`,
+        {},
+        { responseType: 'arraybuffer' }
+      );
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brouillon-bilan-${(patientName || 'patient').replace(/\s+/g, '-')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Brouillon téléchargé.');
+    } catch (e: any) {
+      const msg = e?.response?.data ? (() => {
+        try { return JSON.parse(new TextDecoder().decode(e.response.data)).detail; } catch { return null; }
+      })() : null;
+      toast.error(msg || 'Erreur lors de la génération du brouillon.');
+    } finally {
+      setIsBrouillon(false);
+    }
+  };
+
+  const handleValiderEtArchiver = async () => {
+    if (!patientId || !analysisId) return;
+
+    // Re-validate before archiving
+    setIsArchiving(true);
+    try {
+      const { data: vResult } = await api.get<ValidationResult>(`/patients/${patientId}/cephalo-validation`);
+      setValidation(vResult);
+
+      if ((vResult.fatals?.length ?? 0) > 0) {
+        toast.error(`Impossible d'archiver : ${vResult.fatals[0]}`);
+        setIsArchiving(false);
+        return;
+      }
+      if ((vResult.warnings?.length ?? 0) > 0) {
+        toast(`Attention : ${vResult.warnings.length} avertissement(s). Archivage en cours...`, { icon: '⚠️' });
+      }
+
+      await onGeneratePDF();
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail;
+      toast.error(msg || 'Erreur lors de l\'archivage.');
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const canArchive = !hasFatals && hasImage && landmarksOk;
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Fatal banner */}
+      {hasFatals && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border"
+             style={{ background: '#fef2f2', borderColor: '#fca5a5' }}>
+          <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-black text-red-700 uppercase tracking-wider">Erreurs cliniques bloquantes</p>
+            <ul className="mt-1 space-y-0.5">
+              {validation!.fatals.map((f, i) => (
+                <li key={i} className="text-xs text-red-600">{f}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {/* ── COLONNE GAUCHE : Synthèse + Photos ── */}
+        <div className="lg:col-span-5 space-y-6">
+
+          {/* Section 1 : Synthèse céphalométrique */}
+          <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity size={16} style={{ color: P.accent }} />
+                <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>
+                  Synthèse Céphalométrique
+                </h3>
               </div>
-            ))}
+              <button
+                onClick={() => setShowDetails(v => !v)}
+                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg transition-all hover:opacity-70"
+                style={{ color: P.textMuted, background: `${P.border}60` }}
+              >
+                {showDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                {showDetails ? 'Masquer détails' : 'Voir détails'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {ANGLE_CARDS.map(card => (
+                <AngleCard key={card.key} card={card} value={getAngleVal(card.key)} P={P} />
+              ))}
+            </div>
+
+            {/* Collapsible technical table */}
+            {showDetails && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: P.border }}>
+                <p className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: P.textMuted }}>
+                  Tous les angles calculés
+                </p>
+                <div className="space-y-1">
+                  {Object.entries(anglesData ?? {})
+                    .filter(([k]) => !k.startsWith('_') && k !== 'vision_metadata' && k !== 'ai_narrative')
+                    .map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center py-1 border-b" style={{ borderColor: `${P.border}50` }}>
+                        <span className="text-[10px] font-semibold" style={{ color: P.textMuted }}>{k}</span>
+                        <span className="text-[10px] font-black" style={{ color: P.text }}>
+                          {typeof v === 'number' ? v.toFixed(1) : String(v ?? '--')}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3 : Dossier photographique */}
+          <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>
+              Dossier Photographique
+            </h3>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {photos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="group relative aspect-square rounded-xl overflow-hidden border-2 border-dashed transition-all"
+                  style={{
+                    background: P.bgCard,
+                    borderColor: photo.preview ? '#86efac' : P.border,
+                    borderStyle: photo.preview ? 'solid' : 'dashed',
+                  }}
+                >
+                  {photo.preview ? (
+                    <>
+                      <img src={photo.preview} alt={photo.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <label className="cursor-pointer p-1.5 bg-white/20 backdrop-blur-md rounded-full text-white">
+                          <Camera size={16} />
+                          <input type="file" className="hidden" accept="image/*"
+                            onChange={(e) => e.target.files?.[0] && onUpload(photo.id, e.target.files[0])} />
+                        </label>
+                      </div>
+                      <div className="absolute top-1 right-1 p-0.5 bg-emerald-500 rounded-full text-white shadow">
+                        <CheckCircle2 size={10} />
+                      </div>
+                    </>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer p-2 text-center gap-1">
+                      <Camera size={18} style={{ color: P.textDim }} />
+                      <span className="text-[8px] font-black uppercase tracking-wider leading-tight" style={{ color: P.textMuted }}>
+                        {photo.label}
+                      </span>
+                      <input type="file" className="hidden" accept="image/*"
+                        onChange={(e) => e.target.files?.[0] && onUpload(photo.id, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* COLONNE DROITE : GHOST BRAIN CHAT (Span 7) */}
-        <div className="lg:col-span-7 flex flex-col h-[75vh] rounded-[2rem] overflow-hidden border shadow-xl relative" style={{ background: P.bgPanel, borderColor: P.border }}>
-          
-          {/* Header du Chat */}
-          <div className="px-6 py-4 border-b flex items-center justify-between bg-white/50 backdrop-blur-md z-10" style={{ borderColor: P.border }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                <Bot size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
-                  Ghost Brain ODF <span className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[8px]">v4.0</span>
+        {/* ── COLONNE DROITE : Validation + Plan ── */}
+        <div className="lg:col-span-7 space-y-6">
+
+          {/* Section 2 : Checklist de validation */}
+          <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Shield size={16} style={{ color: P.accent }} />
+                <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>
+                  Checklist de Validation
                 </h3>
-                <p className="text-[10px] font-bold text-slate-400">Assistant Clinique IA</p>
               </div>
+              <button
+                onClick={fetchValidation}
+                disabled={isValidating}
+                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg transition-all hover:opacity-70 disabled:opacity-40"
+                style={{ color: P.accent, background: `${P.accent}15` }}
+              >
+                {isValidating ? <Loader2 size={10} className="animate-spin" /> : null}
+                Actualiser
+              </button>
             </div>
-            {chatState === 'done' && (
-              <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 border border-emerald-200">
-                <CheckCircle2 size={12} /> Plan Validé
-              </div>
-            )}
-          </div>
 
-          {/* Zone des messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/50">
-            {chatMessages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                <div className={`max-w-[80%] p-4 rounded-[1.5rem] ${
-                  msg.sender === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-500/20' 
-                    : 'bg-white text-slate-700 rounded-bl-none shadow-sm border border-slate-100'
-                }`}>
-                  {msg.isTyping ? (
-                    <div className="flex items-center gap-1.5 px-2 py-1">
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  ) : (
-                    <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
+            <div className="space-y-0.5 divide-y" style={{ borderColor: `${P.border}60` }}>
+              <CheckItem
+                label="Image céphalométrique chargée"
+                status={hasImage ? 'ok' : 'fail'}
+                detail={hasImage ? undefined : 'Aucune image uploadée en Étape 1'}
+              />
+              <CheckItem
+                label="Calibration effectuée"
+                status={hasCalibration ? 'ok' : 'warning'}
+                detail={hasCalibration ? undefined : 'Calibration recommandée pour les mesures mm'}
+              />
+              <CheckItem
+                label={`Landmarks complets (${landmarkCount}/${REQUIRED_LANDMARKS.length})`}
+                status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'}
+                detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`}
+              />
+              <CheckItem
+                label="Cohérence clinique des angles"
+                status={
+                  isValidating ? 'loading'
+                  : !validation ? 'warning'
+                  : hasFatals ? 'fail'
+                  : hasWarnings ? 'warning'
+                  : 'ok'
+                }
+                detail={
+                  isValidating ? 'Vérification en cours...'
+                  : !validation ? 'Non vérifié'
+                  : hasFatals ? `${validation.fatals.length} erreur(s) fatale(s)`
+                  : hasWarnings ? `${validation.warnings.length} avertissement(s)`
+                  : 'Tous les angles sont cohérents'
+                }
+              />
+              <CheckItem
+                label="Diagnostic clinique rédigé"
+                status={diagOk ? 'ok' : 'warning'}
+                detail={diagOk ? undefined : 'Synthèse diagnostique vide (Étape 3)'}
+              />
+            </div>
 
-          {/* Zone des réponses (Options ou Boutons Finaux) */}
-          <div className="p-4 bg-white border-t" style={{ borderColor: P.border }}>
-            {options.length > 0 && (
-              <div className="flex flex-wrap gap-2 justify-end animate-in fade-in slide-in-from-bottom-2">
-                {options.map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => handleOptionClick(opt)}
-                    className="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all rounded-full text-xs font-bold shadow-sm"
-                  >
-                    {opt}
-                  </button>
+            {hasWarnings && !hasFatals && validation && (
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: P.border }}>
+                <p className="text-[9px] font-black uppercase tracking-wider mb-1.5" style={{ color: '#d97706' }}>
+                  Avertissements
+                </p>
+                {validation.warnings.map((w, i) => (
+                  <p key={i} className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <AlertTriangle size={10} className="shrink-0" />
+                    {w}
+                  </p>
                 ))}
               </div>
             )}
-            
-            {chatState === 'done' && (
-              <div className="flex flex-col gap-3 animate-in fade-in zoom-in duration-500">
-                <div className="text-[10px] font-black text-center text-slate-400 uppercase tracking-widest mb-1">
-                  ACTIONS DISPONIBLES
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={onPreviewPDF}
-                    disabled={isGenerating}
-                    className="w-full px-6 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 hover:border-slate-300 shadow-sm"
-                  >
-                    <FileText size={18} /> Aperçu
-                  </button>
-                  <button 
-                    onClick={onGeneratePDF}
-                    disabled={isGenerating}
-                    className="w-full px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 bg-gradient-to-r from-indigo-600 to-purple-600"
-                  >
-                    {isGenerating ? <Clock size={18} className="animate-spin" /> : <Printer size={18} />}
-                    Générer Bilan
-                  </button>
-                </div>
+          </div>
+
+          {/* Section 4 : Plan de traitement */}
+          <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
+            <div className="flex items-center gap-2 mb-5">
+              <FileText size={16} style={{ color: P.accent }} />
+              <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>
+                Plan de Traitement
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>
+                  Technique Orthodontique
+                </label>
+                <select
+                  value={etape3Data.preference_technique || 'DAMON'}
+                  onChange={e => setEtape3Data(prev => ({ ...prev, preference_technique: e.target.value as any }))}
+                  className="w-full bg-transparent font-bold text-sm outline-none"
+                  style={{ color: P.text }}
+                >
+                  <option value="DAMON">Damon (Autoligaturant)</option>
+                  <option value="CLASSIC">Multi-attaches Classique</option>
+                  <option value="ALIGNEURS">Aligneurs (Invisalign)</option>
+                </select>
               </div>
-            )}
-            
-            {chatState !== 'done' && options.length === 0 && chatState !== 'typing' && (
-              <div className="h-14 flex items-center justify-center text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                En attente de réponse...
+
+              <div className="p-3 rounded-xl border" style={{ background: P.bgInput, borderColor: P.border }}>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>
+                  Stade CVM
+                </label>
+                <select
+                  value={etape3Data.cvm || ''}
+                  onChange={e => setEtape3Data(prev => ({ ...prev, cvm: e.target.value as any }))}
+                  className="w-full bg-transparent font-bold text-sm outline-none"
+                  style={{ color: P.text }}
+                >
+                  <option value="">--</option>
+                  {['CS1','CS2','CS3','CS4','CS5','CS6'].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
               </div>
+
+              <div className="p-3 rounded-xl border col-span-2" style={{ background: P.bgInput, borderColor: P.border }}>
+                <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>
+                  Stratégie Thérapeutique (résumé pour le PDF)
+                </label>
+                <textarea
+                  value={diag.strategie_therapeutique}
+                  onChange={e => store.setDiag(prev => ({ ...prev, strategie_therapeutique: e.target.value }))}
+                  rows={4}
+                  className="w-full bg-transparent text-sm outline-none resize-none font-medium leading-relaxed"
+                  style={{ color: P.text }}
+                  placeholder="Décrivez le plan de traitement prévu..."
+                />
+              </div>
+
+              {/* Phase d'orthopédie (visible si denture non permanente) */}
+              {etape3Data.denture_type !== 'PERMANENTE' && (
+                <div className="p-3 rounded-xl border col-span-2" style={{ background: P.bgInput, borderColor: P.border }}>
+                  <label className="text-[9px] font-black uppercase tracking-widest block mb-2" style={{ color: P.textMuted }}>
+                    Appareil Orthopédique (phase 1)
+                  </label>
+                  <select
+                    value={etape3Data.profil || ''}
+                    onChange={e => setEtape3Data(prev => ({ ...prev, profil: e.target.value as any }))}
+                    className="w-full bg-transparent font-bold text-sm outline-none"
+                    style={{ color: P.text }}
+                  >
+                    <option value="">-- Sélectionner --</option>
+                    <option value="d-gainer">D-Gainer</option>
+                    <option value="quadhelix">QuadHelix</option>
+                    <option value="disjoncteur">Disjoncteur</option>
+                    <option value="activateur">Activateur</option>
+                    <option value="fronde">Fronde</option>
+                    <option value="perle-tuca">Perle de Tuca</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Boutons d'action ── */}
+          <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
+            <p className="text-[9px] font-black text-center uppercase tracking-widest mb-4" style={{ color: P.textMuted }}>
+              Actions disponibles
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {/* Prévisualiser */}
+              <button
+                onClick={handlePrevisualiser}
+                disabled={isPreviewLoading || !analysisId}
+                className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 border shadow-sm hover:shadow-md"
+                style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}
+              >
+                {isPreviewLoading
+                  ? <Loader2 size={20} className="animate-spin" />
+                  : <Eye size={20} />}
+                Prévisualiser
+              </button>
+
+              {/* Générer brouillon */}
+              <button
+                onClick={handleBrouillon}
+                disabled={isBrouillon || !analysisId}
+                className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 border shadow-sm hover:shadow-md"
+                style={{ background: P.bgCard, borderColor: P.border, color: P.text }}
+              >
+                {isBrouillon
+                  ? <Loader2 size={20} className="animate-spin" />
+                  : <FileText size={20} />}
+                Brouillon PDF
+              </button>
+
+              {/* Valider et archiver */}
+              <button
+                onClick={handleValiderEtArchiver}
+                disabled={isArchiving || isGenerating || !analysisId || !canArchive}
+                className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 shadow-xl"
+                style={{
+                  background: canArchive
+                    ? `linear-gradient(135deg, ${P.accent}, #7c3aed)`
+                    : '#94a3b8',
+                  boxShadow: canArchive ? `0 4px 16px ${P.accent}40` : 'none',
+                }}
+              >
+                {isArchiving || isGenerating
+                  ? <Loader2 size={20} className="animate-spin" />
+                  : <Archive size={20} />}
+                Valider & Archiver
+              </button>
+            </div>
+
+            {!canArchive && (
+              <p className="text-center text-[9px] mt-3" style={{ color: P.textMuted }}>
+                {hasFatals ? 'Corrigez les erreurs cliniques avant d\'archiver.'
+                  : !hasImage ? 'Uploadez une image céphalométrique.'
+                  : !landmarksOk ? `Placez tous les landmarks (${landmarkPct}% complétés).`
+                  : ''}
+              </p>
             )}
           </div>
         </div>

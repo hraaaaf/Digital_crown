@@ -104,34 +104,89 @@ CATALOG = [
             {"name": "Reconstitution esthétique", "base_price": 1500, "code": "HBMD162"},
         ],
     },
+    {
+        "name": "PEDODONTIE",
+        "color": "#F472B6",
+        "acts": [
+            {"name": "Consultation pédiatrique", "base_price": 200, "code": "HBMD180"},
+            {"name": "Scellement de sillons (enfant)", "base_price": 250, "code": "HBMD181"},
+            {"name": "Coiffage pulpaire (enfant)", "base_price": 400, "code": "HBMD182"},
+            {"name": "Pulpotomie dent temporaire", "base_price": 400, "code": "HBMD183"},
+            {"name": "Couronne pédodontique préformée", "base_price": 700, "code": "HBMD184"},
+            {"name": "Extraction dent de lait", "base_price": 200, "code": "HBMD185"},
+            {"name": "Mainteneur d'espace", "base_price": 1200, "code": "HBMD186"},
+        ],
+    },
+    {
+        "name": "DIAGNOSTIC & URGENCE",
+        "color": "#64748B",
+        "acts": [
+            {"name": "Consultation standard", "base_price": 200, "code": "HBMD200"},
+            {"name": "Consultation d'urgence", "base_price": 300, "code": "HBMD201"},
+            {"name": "Radiographie rétro-alvéolaire", "base_price": 100, "code": "HBMD202"},
+            {"name": "Radiographie panoramique", "base_price": 400, "code": "HBMD203"},
+            {"name": "Cone Beam (CBCT)", "base_price": 800, "code": "HBMD204"},
+            {"name": "Drainage d'abcès", "base_price": 400, "code": "HBMD205"},
+            {"name": "Sutures", "base_price": 300, "code": "HBMD206"},
+            {"name": "Pansement / soin palliatif", "base_price": 150, "code": "HBMD207"},
+        ],
+    },
 ]
 
 
-def seed_catalog():
-    db = SessionLocal()
+def seed_catalog(db=None):
+    """
+    Seed ADDITIF du catalogue : crée les spécialités/actes manquants sans toucher
+    aux existants (idempotent). Peut être appelé au démarrage à chaque boot.
+    Le matching se fait par nom de spécialité et par nom d'acte (insensible casse).
+    """
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
     try:
-        existing = db.query(models.Specialty).count()
-        if existing > 0:
-            print(f"Catalogue déjà seedé ({existing} spécialités). Rien à faire.")
-            return
-
+        added_spec = 0
+        added_acts = 0
         for spec_data in CATALOG:
-            acts_data = spec_data.pop("acts")
-            specialty = models.Specialty(**spec_data)
-            db.add(specialty)
-            db.flush()
+            acts_data = spec_data.get("acts", [])
+            specialty = db.query(models.Specialty).filter(
+                models.Specialty.name == spec_data["name"]
+            ).first()
+            if not specialty:
+                specialty = models.Specialty(name=spec_data["name"], color=spec_data.get("color"))
+                db.add(specialty)
+                db.flush()
+                added_spec += 1
+
+            # Actes existants de la spécialité (par nom, normalisé)
+            existing_names = {
+                a.name.strip().lower()
+                for a in db.query(models.CatalogAct).filter(
+                    models.CatalogAct.specialty_id == specialty.id
+                ).all()
+            }
             for act in acts_data:
-                db.add(models.CatalogAct(specialty_id=specialty.id, **act))
+                if act["name"].strip().lower() in existing_names:
+                    continue
+                # Évite les collisions de code unique
+                code = act.get("code")
+                if code and db.query(models.CatalogAct).filter(models.CatalogAct.code == code).first():
+                    code = None
+                db.add(models.CatalogAct(
+                    specialty_id=specialty.id,
+                    name=act["name"], base_price=act.get("base_price", 0), code=code,
+                ))
+                added_acts += 1
 
         db.commit()
-        total_acts = sum(len(s.get("acts", [])) for s in CATALOG) if False else db.query(models.CatalogAct).count()
-        print(f"OK Catalogue sede : {len(CATALOG)} specialites, {total_acts} actes.")
+        total_acts = db.query(models.CatalogAct).count()
+        print(f"OK Catalogue : +{added_spec} spécialité(s), +{added_acts} acte(s). Total actes = {total_acts}.")
     except Exception as e:
         db.rollback()
-        print(f"ERREUR : {e}")
+        print(f"ERREUR seed_catalog : {e}")
         raise
     finally:
-        db.close()
+        if own_session:
+            db.close()
 
 
 if __name__ == "__main__":

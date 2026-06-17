@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useCatalogStore } from '../hooks/useCatalogStore';
-import { Plus, FolderPlus, Activity, Stethoscope } from 'lucide-react';
+import { Plus, FolderPlus, Activity, Stethoscope, Pencil } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 
 export const CatalogTab: React.FC = () => {
-  const { specialties, loading, fetchCatalog, createSpecialty, createPathology, createAct } = useCatalogStore();
+  const { specialties, loading, fetchCatalog, createSpecialty, createPathology, createAct, updateAct } = useCatalogStore();
   const [activeSpecialtyId, setActiveSpecialtyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -27,6 +27,15 @@ export const CatalogTab: React.FC = () => {
     const priceStr = prompt('Prix de base (DHS) :');
     const price = parseFloat(priceStr || '0');
     createAct(specialtyId, { name, base_price: price });
+  };
+
+  const handleEditPrice = (act: { id: number; name: string; base_price: number }) => {
+    const priceStr = prompt(`Nouveau tarif pour « ${act.name} » (DHS) :`, String(act.base_price));
+    if (priceStr === null) return; // annulé
+    const price = parseFloat(priceStr.replace(',', '.'));
+    if (isNaN(price) || price < 0) return;
+    if (price === act.base_price) return;
+    updateAct(act.id, { base_price: price });
   };
 
   if (loading && specialties.length === 0) {
@@ -113,9 +122,14 @@ export const CatalogTab: React.FC = () => {
                       <p className="font-bold text-slate-700 group-hover:text-slate-900">{act.name}</p>
                       {act.code && <p className="text-[10px] text-slate-400 font-mono mt-1 font-bold bg-slate-50 inline-block px-1.5 py-0.5 rounded">{act.code}</p>}
                     </div>
-                    <div className="font-black text-sky-700 bg-sky-50 px-3 py-1.5 rounded-xl text-sm">
+                    <button
+                      onClick={() => handleEditPrice(act)}
+                      title="Modifier le tarif"
+                      className="font-black text-sky-700 bg-sky-50 px-3 py-1.5 rounded-xl text-sm flex items-center gap-1.5 hover:bg-sky-100 hover:ring-2 hover:ring-sky-200 transition-all cursor-pointer"
+                    >
                       {act.base_price} DHS
-                    </div>
+                      <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                    </button>
                   </div>
                 ))}
                 {activeSpecialty.acts.length === 0 && (

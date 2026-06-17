@@ -5,12 +5,19 @@ import cv2
 import numpy as np
 from typing import List, Dict, Any
 
+from backend.config import settings
+
 try:
     import onnxruntime as ort
 except ImportError:
     ort = None
 
 logger = logging.getLogger(__name__)
+
+
+def _is_production() -> bool:
+    """En production, aucune simulation IA clinique silencieuse n'est tolérée (P0.8)."""
+    return str(getattr(settings, "ENVIRONMENT", "development")).lower() == "production"
 
 class PanoramicEngine:
     """
@@ -79,11 +86,36 @@ class PanoramicEngine:
             return img
         except: return img
 
+    def detect_teeth_only(self, image_path: str) -> dict:
+        """
+        Mode produit (V8) : l'IA ne fait QUE nommer les dents (cartographie FDI).
+        Aucune pathologie ni lésion n'est devinée — toute la sémiologie est saisie
+        manuellement par le praticien. La grille FDI est rendue côté client.
+        """
+        return {
+            "status": "SUCCESS",
+            "mode_inference": "TOOTH_DETECTION_ONLY",
+            "detections_data": {
+                "detections": [],
+                "summary": "Cartographie dentaire FDI — annotation manuelle par le praticien",
+            },
+        }
+
     def predict(self, image_path: str) -> dict:
         """
         Pipeline Elite : CLAHE -> Letterbox -> YOLO11x -> FDI Mapping (Smile Curve).
+        ⚠️ Conservé pour compatibilité / R&D — non utilisé dans le flux produit (cf. detect_teeth_only).
         """
         if not self.is_ready:
+            if _is_production():
+                logger.error(
+                    "PanoramicEngine : modèle ONNX indisponible en PRODUCTION — "
+                    "analyse refusée (aucune simulation clinique silencieuse)."
+                )
+                raise RuntimeError(
+                    "Modèle IA panoramique indisponible : l'analyse est refusée en production. "
+                    "Aucun résultat clinique simulé n'est généré."
+                )
             logger.warning("PanoramicEngine : Mode simulation actif — modèle ONNX introuvable.")
             sim_result = self._run_simulation()
             sim_result["is_simulation"] = True
@@ -175,6 +207,12 @@ class PanoramicEngine:
             
         except Exception as e:
             logger.error(f"PanoramicEngine Error : {e}")
+            if _is_production():
+                logger.error(
+                    "PanoramicEngine : erreur d'inférence en PRODUCTION — "
+                    "propagation de l'erreur (aucune simulation clinique silencieuse)."
+                )
+                raise
             sim_result = self._run_simulation()
             sim_result["is_simulation"] = True
             sim_result["simulation_warning"] = (

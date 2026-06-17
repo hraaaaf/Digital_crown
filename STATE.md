@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-16 09:05
+- **Mis à jour :** 2026-06-17 16:24
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- Go <system-reminder>Message sent at Tue 2026-06-16 08:35:42 UTC.</system-reminder>
-- Go <system-reminder>Message sent at Tue 2026-06-16 08:36:05 UTC.</system-reminder>
-- Oki go <system-reminder>Message sent at Tue 2026-06-16 08:40:10 UTC.</system-reminder>
-- Pour chaque compte qu’il soit dentiste ou assistante le proprio lui donne les acces qu’il veut <system-reminder>Message sent at Tue 2026-06-16 08:49:23 UTC.</sy
-- Quand si tu as fini, mets à jour session point m t et la route map et tous les fichiers point m t et on ferme cette session pour ouvrir une autre qui se, qui se
-- 4.8/10 !? <system-reminder>Message sent at Tue 2026-06-16 08:53:57 UTC.</system-reminder>
-- Fais cet audit et donne une note réelle si c’est encore 4.8 dis le <system-reminder>Message sent at Tue 2026-06-16 08:55:36 UTC.</system-reminder>
-- Sur la partie prothese en general commente le code et mets la section comme en construction ou bientôt disponible.. <system-reminder>Message sent at Tue 2026-06
+- This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
+- moi un bilan de ce qui a été corrigé depuis.
+- Oui, le bilan est **très solide** : gros travail de hardening déjà fait. Mais je ne le considérerais pas encore comme “prod-ready total”, parce qu’il reste quel
+- Okay go
+- Okay
+- Okay bot
+- This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
+- Ok go
 <!-- STATE:AUTO:END -->
 
 ## Prochaine action

@@ -159,13 +159,25 @@ def mark_ghost_insight_read(
 
 
 @router.websocket("/ws/ghost-insights/{employer_id}")
-async def websocket_ghost_insights(websocket: WebSocket, employer_id: int, db: Session = Depends(database.get_db)):
+async def websocket_ghost_insights(websocket: WebSocket, employer_id: int):
     """
-    Flux WebSocket Temps Réel pour les insights du Ghost Brain.
-    Remplace le polling HTTP par un push Server-Side.
+    Flux WebSocket temps réel pour les insights du Ghost Brain.
+
+    IMPORTANT : on n'injecte PAS `Depends(get_db)` ici. Une connexion WebSocket
+    vit des heures ; une session injectée resterait ouverte tout ce temps et
+    monopoliserait une connexion du pool par onglet (→ épuisement du pool).
+    On ouvre donc une session COURTE (auth, puis par tick) qui est libérée
+    immédiatement après chaque requête.
     """
-    current_user = _get_websocket_user(websocket, db)
-    if current_user is None or (current_user.employer_id or current_user.id) != employer_id:
+    # 1. Authentification via une session courte, refermée aussitôt
+    with database.SessionLocal() as auth_db:
+        current_user = _get_websocket_user(websocket, auth_db)
+        authorized = (
+            current_user is not None
+            and (current_user.employer_id or current_user.id) == employer_id
+        )
+
+    if not authorized:
         await websocket.accept()
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
@@ -174,27 +186,32 @@ async def websocket_ghost_insights(websocket: WebSocket, employer_id: int, db: S
     last_count = -1
     try:
         while True:
-            # Server-side micro-polling (ultra léger sur SQLite, évite l'overhead HTTP)
-            unread_count = ghost_memory.get_unread_count(db, employer_id)
-            if unread_count != last_count:
-                logs = db.query(models.GhostMemoryLog).filter(
-                    models.GhostMemoryLog.employer_id == employer_id,
-                    models.GhostMemoryLog.is_read == False
-                ).order_by(models.GhostMemoryLog.created_at.desc()).limit(10).all()
-                
-                await websocket.send_json({
-                    "unread_count": unread_count,
-                    "insights": [
-                        {
-                            "id": log.id,
-                            "patient_id": log.patient_id,
-                            "insight_type": log.insight_type,
-                            "content": log.content,
-                            "created_at": log.created_at.isoformat()
-                        } for log in logs
-                    ]
-                })
-                last_count = unread_count
-            await asyncio.sleep(2)  # Latence max: 2 secondes
+            # 2. Session courte par tick : la connexion DB est rendue au pool
+            #    entre deux sondages (aucune connexion tenue pendant le sleep).
+            payload = None
+            with database.SessionLocal() as db:
+                unread_count = ghost_memory.get_unread_count(db, employer_id)
+                if unread_count != last_count:
+                    logs = db.query(models.GhostMemoryLog).filter(
+                        models.GhostMemoryLog.employer_id == employer_id,
+                        models.GhostMemoryLog.is_read == False
+                    ).order_by(models.GhostMemoryLog.created_at.desc()).limit(10).all()
+                    payload = {
+                        "unread_count": unread_count,
+                        "insights": [
+                            {
+                                "id": log.id,
+                                "patient_id": log.patient_id,
+                                "insight_type": log.insight_type,
+                                "content": log.content,
+                                "created_at": log.created_at.isoformat()
+                            } for log in logs
+                        ]
+                    }
+            # 3. Envoi hors session (connexion déjà libérée)
+            if payload is not None:
+                await websocket.send_json(payload)
+                last_count = payload["unread_count"]
+            await asyncio.sleep(5)  # Latence max ~5 s pour un insight proactif
     except (WebSocketDisconnect, asyncio.CancelledError):
         pass

@@ -2,21 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Crown, Gem, ShieldCheck, AlertCircle, Loader2, RefreshCcw } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
-
-interface PatientScoreData {
-  score: number;
-  grade: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE';
-  is_manual: boolean;
-  comment?: string;
-  details: {
-    assiduite_score: number;
-    solvabilite_score: number;
-    rdv_honores?: number;
-    rdv_annules?: number;
-    total_facture?: number;
-    total_encaisse?: number;
-  };
-}
+import { usePatientScoresStore } from '../../../stores/usePatientScoresStore';
 
 interface PatientScoreBadgeProps {
   patientId: number;
@@ -25,37 +11,31 @@ interface PatientScoreBadgeProps {
 }
 
 export const PatientScoreBadge = ({ patientId, className, onUpdate }: PatientScoreBadgeProps) => {
-  const [data, setData] = useState<PatientScoreData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Les scores sont chargés UNE fois en batch (store partagé) → plus de N appels /score.
+  const data = usePatientScoresStore(s => s.scores[patientId]) || null;
+  const storeLoading = usePatientScoresStore(s => s.loading);
+  const loaded = usePatientScoresStore(s => s.loaded);
+  const fetchScores = usePatientScoresStore(s => s.fetchScores);
+
   const [showMenu, setShowMenu] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const fetchScore = async () => {
-    if (!patientId) return;
-    try {
-      const response = await api.get(`/patients/${patientId}/score`);
-      setData(response.data);
-    } catch (error) {
-      console.error("Erreur récupération score patient", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Déclenche le chargement batch une seule fois (le store dédoublonne les appels concurrents)
   useEffect(() => {
-    fetchScore();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patientId]);
+    if (!loaded && !storeLoading) fetchScores();
+  }, [loaded, storeLoading, fetchScores]);
+
+  const loading = !loaded && !data;
 
   const handleUpdateGrade = async (newGrade: string | null) => {
     setIsUpdating(true);
     try {
-      await api.patch(`/patients/${patientId}/grade`, { 
+      await api.patch(`/patients/${patientId}/grade`, {
         grade: newGrade,
         comment: newGrade ? `Modifié manuellement par le praticien.` : null
       });
-      await fetchScore();
+      await fetchScores(true); // recharge le batch (reflète le nouveau grade)
       onUpdate?.();
       setShowMenu(false);
     } catch (error) {

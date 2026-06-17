@@ -122,37 +122,66 @@ def search_clinical_acts(q: str = "", db: Session = Depends(database.get_db), cu
     from backend.services.accounting_service import accounting_service
     
     if not q.strip():
-        # Renvoyer les actes fréquents du médecin fusionnés avec le catalogue par défaut
+        # Actes fréquents du médecin + TOUT le Catalogue Dynamique managé
+        # (source unique, partagée avec Réglages → Catalogue Dynamique).
         frequent = accounting_service.get_frequent_acts(db, current_user.id, limit=20)
         frequent_names = {f["name"].lower() for f in frequent} if frequent else set()
-            
-        fallback_names = [
-            ("Consultation dentaire", 200, "Diagnostic"),
-            ("Détartrage et polissage", 400, "Prévention"),
-            ("Extraction simple", 300, "Chirurgie"),
-            ("Extraction molaire", 450, "Chirurgie"),
-            ("Traitement canalaire (Monoradiculaire)", 500, "Endodontie"),
-            ("Traitement canalaire (Pluriradiculaire)", 800, "Endodontie"),
-            ("Composite 2 faces", 350, "Conservatrice"),
-            ("Composite 3 faces", 500, "Conservatrice"),
-            ("Couronne céramo-métallique", 2500, "Prothèse"),
-            ("Implant dentaire", 6000, "Implantologie"),
-        ]
-        
-        results = frequent if frequent else []
-        for i, (name, price, cat) in enumerate(fallback_names):
-            if name.lower() not in frequent_names:
+
+        results = list(frequent) if frequent else []
+
+        catalog = (
+            db.query(models.CatalogAct, models.Specialty.name)
+            .join(models.Specialty, models.CatalogAct.specialty_id == models.Specialty.id)
+            .filter(models.CatalogAct.is_active == True)
+            .order_by(models.Specialty.name, models.CatalogAct.name)
+            .all()
+        )
+        for c, spec_name in catalog:
+            if c.name.lower() not in frequent_names:
                 results.append({
-                    "id": f"default_{i}",
-                    "name": name,
-                    "base_price": price,
-                    "category": cat,
-                    "is_habit": False
+                    "id": f"cat_{c.id}",
+                    "name": c.name,
+                    "base_price": c.base_price,
+                    "category": spec_name or "Général",
+                    "is_habit": False,
                 })
-        
+
         return results
-        
+
     return accounting_service.search_acts(db, current_user.id, q)
+
+@actes_router.post("/catalog/quick-add")
+def quick_add_act(payload: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("agenda"))):
+    """Ajoute au catalogue un acte saisi dans l'agenda mais absent (sous la spécialité DIVERS)."""
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nom d'acte requis")
+    try:
+        base_price = float(payload.get("base_price") or 0)
+    except (TypeError, ValueError):
+        base_price = 0.0
+
+    # Acte déjà présent (peu importe la spécialité) → on le renvoie tel quel
+    existing = db.query(models.CatalogAct).filter(models.CatalogAct.name.ilike(name)).first()
+    if existing:
+        spec = db.query(models.Specialty).filter(models.Specialty.id == existing.specialty_id).first()
+        return {"id": existing.id, "name": existing.name, "base_price": existing.base_price,
+                "category": spec.name if spec else "DIVERS", "is_habit": False}
+
+    # Catégorie (spécialité) choisie par l'utilisateur, sinon "DIVERS" (get-or-create)
+    category = (payload.get("category") or "").strip().upper() or "DIVERS"
+    spec = db.query(models.Specialty).filter(models.Specialty.name == category).first()
+    if not spec:
+        spec = models.Specialty(name=category, color="#64748B")
+        db.add(spec)
+        db.flush()
+
+    act = models.CatalogAct(specialty_id=spec.id, name=name, base_price=base_price)
+    db.add(act)
+    db.commit()
+    db.refresh(act)
+    return {"id": act.id, "name": act.name, "base_price": act.base_price, "category": spec.name, "is_habit": False}
+
 
 @actes_router.get("/duration")
 def get_act_recommended_duration(q: str = "", current_user: models.User = Depends(get_current_user)):
@@ -188,8 +217,14 @@ def get_brain_summary(db: Session = Depends(database.get_db), current_user: mode
 def create_acte(
     acte_data: dict,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
 ):
+    # S1 : tenant + permission. assert_patient_access AVANT le try (sinon le 403/400
+    # serait avalé par le `except Exception` qui renvoie 500).
+    patient_id = acte_data.get("patient_id")
+    if patient_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="patient_id requis")
+    assert_patient_access(patient_id, current_user, db)
     try:
         type_acte_str = acte_data.get("type_acte", "SOIN").upper()
         type_acte = getattr(models.ActeType, type_acte_str, models.ActeType.SOIN)
@@ -248,7 +283,7 @@ def update_acte(
     acte_id: int,
     acte_data: dict,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
 ):
     """
     Met à jour un acte clinique existant (notes, montants, statut paiement, fichiers joints).
@@ -297,7 +332,7 @@ async def upload_acte_attachment(
     acte_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
 ):
     try:
         act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
@@ -341,7 +376,7 @@ async def upload_acte_attachment(
 def get_patient_actes(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
 ):
     """
     Récupère tous les actes d'un patient.

@@ -86,10 +86,18 @@ Si aucun risque, renvoie []. JSON brut uniquement, aucun texte autour."""
                     return json.loads(text)
 
             except (httpx.ConnectError, httpx.ConnectTimeout, httpx.HTTPStatusError):
-                # Ollama unavailable — try Gemini fallback if configured
-                if settings.GEMINI_API_KEY:
+                # Ollama indisponible. Le fallback Gemini est une SORTIE CLOUD :
+                # interdit sauf opt-in explicite du cabinet (S3 — capsule confinée).
+                # Sans opt-in, aucun contexte clinique ne quitte le cabinet.
+                if settings.CLOUD_AI_ENABLED and settings.GEMINI_API_KEY:
                     return await self._gemini_fallback(prompt)
-                logger.warning("AICoherenceService: Ollama hors-ligne, pas de fallback Gemini configuré.")
+                if settings.GEMINI_API_KEY and not settings.CLOUD_AI_ENABLED:
+                    logger.warning(
+                        "AICoherenceService: Ollama hors-ligne. Fallback Gemini BLOQUÉ "
+                        "(CLOUD_AI_ENABLED=False). Aucune donnée clinique envoyée au cloud."
+                    )
+                else:
+                    logger.warning("AICoherenceService: Ollama hors-ligne, pas de fallback IA configuré.")
                 return []
 
         except Exception as e:
@@ -97,7 +105,14 @@ Si aucun risque, renvoie []. JSON brut uniquement, aucun texte autour."""
             return []
 
     async def _gemini_fallback(self, prompt: str) -> List[Dict[str, Any]]:
-        """Fallback to Gemini API when Ollama is unavailable."""
+        """Fallback to Gemini API when Ollama is unavailable.
+
+        Sortie cloud : verrouillée par CLOUD_AI_ENABLED (S3). Défense en profondeur
+        — refuse l'envoi même si appelé directement sans passer par le garde-fou amont.
+        """
+        if not settings.CLOUD_AI_ENABLED:
+            logger.warning("AICoherenceService: _gemini_fallback refusé (CLOUD_AI_ENABLED=False).")
+            return []
         try:
             import google.generativeai as genai
             genai.configure(api_key=settings.GEMINI_API_KEY)

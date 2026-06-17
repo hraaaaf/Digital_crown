@@ -13,6 +13,7 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.services.zka_service import zka_service
 from backend.services.sync_manager import sync_manager
 from backend.services.qr_service import QRService
+from backend.services.audit_service import audit_service
 import qrcode
 import io
 import base64
@@ -43,7 +44,12 @@ def get_audit_logs(
     current_user: models.User = Depends(require_permission("admin"))
 ):
     """Retourne les logs d'audit avec pagination et filtres."""
-    query = db.query(models.AuditLog)
+    # S8 : isolation multi-tenant STRICTE. Un admin ne voit QUE les logs de son
+    # propre cabinet. Sans ce filtre, un admin du cabinet A lisait les IDs patients,
+    # emails, IP et détails (incluant des noms) de TOUS les cabinets = fuite RGPD.
+    query = db.query(models.AuditLog).filter(
+        models.AuditLog.employer_id == current_user.get_employer_id()
+    )
     if action:
         query = query.filter(models.AuditLog.action == action)
     if resource_type:
@@ -191,6 +197,18 @@ def update_cabinet_info(settings: Dict, db: Session = Depends(database.get_db), 
 @router.get("/export-db")
 def export_database(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("admin"))):
     now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # S8 : l'export complet de la base est l'opération la plus sensible de l'app
+    # (exfiltration potentielle de toutes les données patients). Traçabilité CRITICAL.
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="EXPORT_DB",
+        resource_type="Database",
+        resource_id=None,
+        severity="CRITICAL",
+        details=f"Export complet de la base déclenché ({now_str}).",
+    )
     db_url = str(database.engine.url)
     if "sqlite" in db_url:
         db_path = db_url.replace("sqlite:///", "")
@@ -243,6 +261,19 @@ def get_zka_key_qr(db: Session = Depends(database.get_db), current_user: models.
     ))
     db.commit()
 
+    # S8 : l'émission d'un token d'appairage ouvre un accès mobile au cabinet.
+    # Traçabilité sécurité (qui a généré un accès, quand).
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=emp_id,
+        action="MOBILE_PAIRING_TOKEN_ISSUED",
+        resource_type="ZKAPairingToken",
+        resource_id=None,
+        severity="WARNING",
+        details="Token d'appairage mobile ZKA généré (TTL 5 min).",
+    )
+
     # Le QR encode l'URL LAN du serveur avec le token — jamais la clé
     from backend.routers.mobile import get_lan_base_url
     base_url = get_lan_base_url()
@@ -281,8 +312,20 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
         # 2. Force une synchronisation immédiate avec la nouvelle clé
         # Cela rendra les anciens snapshots sur Supabase obsolètes ou illisibles avec l'ancienne clé
         sync_manager._perform_sync(emp_id)
-        
+
         logger.info(f"🚨 Accès mobile révoqué par l'utilisateur {current_user.id}")
+        # S8 : rotation de la clé maître = invalidation de tous les accès mobiles.
+        # Opération de sécurité majeure, traçabilité CRITICAL.
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=emp_id,
+            action="MOBILE_ACCESS_REVOKED",
+            resource_type="ZKAMasterKey",
+            resource_id=None,
+            severity="CRITICAL",
+            details="Rotation de la clé maître ZKA — tous les accès mobiles révoqués.",
+        )
         return {"status": "success", "message": "Accès mobile révoqué. Scannez le nouveau code pour vous reconnecter."}
     except Exception as e:
         logger.error(f"Erreur lors de la révocation ZKA: {e}")

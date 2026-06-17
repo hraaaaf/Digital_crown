@@ -133,10 +133,11 @@ async def upload_panoramic(patient_id: int, background_tasks: BackgroundTasks, f
     with open(file_location, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     
     try:
-        # 1. Vision Inference (Loki-Silvres Model via PanoramicEngine)
-        vision_data = panoramic_engine.predict(file_location)
-        
-        # 2. Deterministic Report Generation (Zéro-Hallucination)
+        # 1. Vision : nomination des dents UNIQUEMENT (aucune pathologie détectée par l'IA).
+        #    La sémiologie est entièrement saisie manuellement par le praticien.
+        vision_data = panoramic_engine.detect_teeth_only(file_location)
+
+        # 2. Bilan déterministe initial (squelette de normalité, sans LLM)
         from backend.services.panoramic_report_engine import panoramic_report_engine
         detections_data = vision_data.get("detections_data", {})
         report_markdown = panoramic_report_engine.generate_markdown(detections_data)
@@ -277,10 +278,11 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         # On ne passe au générateur que les détections non rejetées
         active_detections = [d for d in all_detections if not d.get("rejected")]
 
-        # Génération du nouveau rapport hybride (IA + Manuel)
+        # Génération du bilan déterministe (annotations manuelles + constats généraux)
         report_markdown = panoramic_report_engine.generate_markdown(
             detections=active_detections,
-            manual_anomalies=req.manual_anomalies
+            manual_anomalies=req.manual_anomalies,
+            global_findings=req.global_findings,
         )
         report_markdown += _format_panoramic_visual_annotations(req.visual_annotations)
 
@@ -290,6 +292,8 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
         analysis.detections_data = {
             **analysis.detections_data,
             "detections": all_detections,
+            "manual_anomalies": req.manual_anomalies,
+            "global_findings": req.global_findings,
             "visual_annotations": [ann.model_dump() for ann in (req.visual_annotations or [])],
         }
 
@@ -301,6 +305,24 @@ async def generate_panoramic_report(req: schemas.PanoramicReportRequest, db: Ses
     except Exception as e:
         db.rollback()
         logger.exception(f"Erreur lors de la génération du rapport panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/panoramic/{analysis_id}/report")
+def edit_panoramic_report(analysis_id: int, req: schemas.PanoramicReportEdit, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+    """Sauvegarde l'édition manuelle du bilan (paragraphe / ligne) par le praticien."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    try:
+        analysis.report_narrative = req.report_narrative
+        db.commit()
+        db.refresh(analysis)
+        return {"id": analysis.id, "report_narrative": analysis.report_narrative}
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de l'édition du bilan panoramique: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ===============================================================================

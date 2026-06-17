@@ -322,12 +322,12 @@ class CephaloEngine:
         # --- FLUX 1.D : ANALYSE DE STEINER & TISSUS MOUS ---
         if pts["S"] and pts["N"]:
             if pts["A"]:
-                sna = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["A"])
+                sna = self._get_clinical_angle(pts["N"], pts["S"], pts["N"], pts["A"])
                 payload["metrics"]["analyse_osseuse"]["SNA"] = self._evaluate_metric(
                     sna, 82.0, 2.0, "Prognathie maxillaire (SNA)", "Rétrognathie maxillaire (SNA)", "Normal"
                 )
             if pts["B"]:
-                snb = self._get_clinical_angle(pts["S"], pts["N"], pts["N"], pts["B"])
+                snb = self._get_clinical_angle(pts["N"], pts["S"], pts["N"], pts["B"])
                 payload["metrics"]["analyse_osseuse"]["SNB"] = self._evaluate_metric(
                     snb, 80.0, 2.0, "Prognathie mandibulaire (SNB)", "Rétrognathie mandibulaire (SNB)", "Normal"
                 )

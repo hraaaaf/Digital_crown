@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer
+from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # --- 1. ENUMÉRATIONS MÉTIER ---
@@ -11,6 +11,16 @@ class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     DENTISTE = "DENTISTE"
     SECRETAIRE = "SECRETAIRE"
+
+class SubscriptionPlan(str, enum.Enum):
+    GOLD    = "GOLD"     # 1 dentiste + 2 assistantes
+    PREMIUM = "PREMIUM"  # 2 dentistes + 6 assistantes
+    ELITE   = "ELITE"    # clinique — illimité
+
+class ApprovalStatus(str, enum.Enum):
+    PENDING  = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 class SexeType(str, enum.Enum):
     M = "M"
@@ -114,6 +124,11 @@ class User(Base):
     identifiants_legaux: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     permissions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=dict)
     
+    # Plans d'abonnement et workflow d'approbation équipe (M1)
+    subscription_plan: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default=SubscriptionPlan.GOLD.value)
+    approval_status: Mapped[str] = mapped_column(String(20), nullable=False, default=ApprovalStatus.APPROVED.value)
+    approval_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Hiérarchie : Sous-comptes rattachés à un employeur (Dentiste/Admin)
     employer_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
@@ -155,9 +170,17 @@ class LicenseHistory(Base):
 
 class Patient(Base):
     __tablename__ = "patients"
-    
+
+    # P0.4 : l'unicité de numero_dossier est désormais SCOPÉE au cabinet
+    # (employer_id), pas globale — deux cabinets peuvent réutiliser le même
+    # numéro sans collision. Les NULL restent autorisés en multiple (NULL
+    # distinct en SQL). L'index simple est conservé pour les recherches.
+    __table_args__ = (
+        UniqueConstraint("numero_dossier", "employer_id", name="uq_patients_numero_dossier_employer"),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    numero_dossier: Mapped[Optional[str]] = mapped_column(String(20), unique=True, index=True, nullable=True)
+    numero_dossier: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
     nom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     prenom: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     date_naissance: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -1029,6 +1052,9 @@ class BotSession(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Contexte patient : si la conversation est ouverte depuis un dossier patient,
+    # elle est rattachée à ce patient (historique par patient + injection auto de l'entité).
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="Nouvelle Conversation")
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
@@ -1056,6 +1082,32 @@ class BotMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     session: Mapped["BotSession"] = relationship("BotSession", back_populates="messages")
+
+
+class BotPendingAction(Base):
+    """
+    Action bot stockee cote serveur — seul l'ID est expose au client.
+    Le frontend ne peut pas forger l'action, seulement la confirmer par ID.
+    Expire automatiquement apres 30 minutes (non execute = dead).
+    """
+    __tablename__ = "bot_pending_actions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("bot_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    employer_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    params_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    # pending | executed | expired | cancelled
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    executed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 class CabinetSettings(Base):
     __tablename__ = "cabinet_settings"

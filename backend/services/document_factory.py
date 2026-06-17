@@ -74,10 +74,12 @@ class DocumentFactory:
         ).first()
     
     def _get_cabinet_config(self, user_id: int, db: Session) -> models.CabinetConfig:
-        """Récupère la config du cabinet d'un utilisateur."""
-        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user_id).first()
+        """Récupère la config du cabinet — filtre sur l'employeur (isolation multi-tenant)."""
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        employer_id = user.get_employer_id() if user else user_id
+        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
         if not config:
-            raise ValueError(f"Cabinet non configuré pour l'utilisateur {user_id}")
+            raise ValueError(f"Cabinet non configuré pour l'employeur {employer_id}")
         return config
     
     def _build_output_path(self, patient, doc_type: str) -> str:

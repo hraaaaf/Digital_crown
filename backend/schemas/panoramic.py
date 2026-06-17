@@ -107,6 +107,12 @@ class PanoramicReportRequest(BaseModel):
     """Demande de génération de rapport basé sur les annotations manuelles."""
     analysis_id: int
     manual_anomalies: Dict[int, List[str]]
+    global_findings: Optional[List[str]] = Field(default_factory=list)
     rejected_detections: Optional[List[int]] = Field(default_factory=list)
     visual_annotations: Optional[List[PanoramicVisualAnnotation]] = Field(default_factory=list)
+
+
+class PanoramicReportEdit(BaseModel):
+    """Édition manuelle du bilan (paragraphe / ligne) par le praticien."""
+    report_narrative: str
 

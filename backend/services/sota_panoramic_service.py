@@ -4,12 +4,19 @@ import numpy as np
 import logging
 from typing import List, Dict, Any
 
+from backend.config import settings
+
 try:
     import onnxruntime as ort
 except ImportError:
     ort = None
 
 logger = logging.getLogger(__name__)
+
+
+def _is_production() -> bool:
+    """En production, aucune simulation IA clinique silencieuse n'est tolérée (P0.8)."""
+    return str(getattr(settings, "ENVIRONMENT", "development")).lower() == "production"
 
 class SOTAPanoramicEngine:
     """
@@ -63,7 +70,17 @@ class SOTAPanoramicEngine:
         except: return img
 
     def analyze(self, image_path: str) -> Dict[str, Any]:
-        if self.session is None: return self._run_simulation()
+        if self.session is None:
+            if _is_production():
+                logger.error(
+                    "SOTAPanoramicEngine : modèle ONNX indisponible en PRODUCTION — "
+                    "analyse refusée (aucune simulation clinique silencieuse)."
+                )
+                raise RuntimeError(
+                    "Modèle IA panoramique indisponible : l'analyse est refusée en production. "
+                    "Aucun résultat clinique simulé n'est généré."
+                )
+            return self._run_simulation()
 
         try:
             original_img = cv2.imread(image_path)
@@ -132,6 +149,12 @@ class SOTAPanoramicEngine:
             }
         except Exception as e:
             logger.error(f"⚠️ Inference Error : {e}")
+            if _is_production():
+                logger.error(
+                    "SOTAPanoramicEngine : erreur d'inférence en PRODUCTION — "
+                    "propagation de l'erreur (aucune simulation clinique silencieuse)."
+                )
+                raise
             return self._run_simulation()
 
     def _map_fdi_refined(self, x_rel: float, y_rel: float) -> int:

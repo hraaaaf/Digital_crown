@@ -13,6 +13,15 @@ from reportlab.lib.utils import ImageReader
 # --- DESIGN SYSTEM : SINGLE SOURCE OF TRUTH ---
 NAVY_BLUE = colors.HexColor('#003380')
 
+# Tailles de police de BASE de l'en-tête (avant le scale utilisateur).
+# Le scale (header_font_scale / header_scale) reste pleinement fonctionnel et
+# s'applique par-dessus ces valeurs → l'utilisateur peut toujours agrandir/réduire.
+# Augmentées d'environ +12% par rapport à l'origine (FR 24/14, AR 26/16).
+HEADER_FS_FR_TITLE = 27   # nom du praticien (FR) — ligne 0
+HEADER_FS_FR_SUB = 16     # lignes suivantes (FR)
+HEADER_FS_AR_TITLE = 29   # nom (AR) — ligne 0
+HEADER_FS_AR_SUB = 18     # lignes suivantes (AR)
+
 class PinnedCloture(Flowable):
     """
     Flowable spécialisé pour ancrer la phrase de clôture au bas de la dernière page.
@@ -312,10 +321,12 @@ class BaseTemplate:
         selected_template = self._get_val(config, 'selected_template', 'swiss')
         
         # Determine defaults based on template
+        # Réduit de 0.3 cm (4.2→3.9 / 4.5→4.2) pour remonter le titre quand
+        # l'en-tête est court (sans logo) et que c'est cette marge qui domine.
         if selected_template == 'swiss' or selected_template == 'modern':
-            default_top = 4.2
+            default_top = 3.9
         else:
-            default_top = 4.5
+            default_top = 4.2
             
         default_bottom = 2.5
         
@@ -343,18 +354,21 @@ class BaseTemplate:
         
         text_height = 0
         for i, _ in enumerate(fr_lines):
-            fs = (24 if i == 0 else 14) * hf_scale
+            fs = (HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale
             text_height += (fs * 1.2) * lh_scale
             
         ar_text_height = 0
         for i, _ in enumerate(ar_lines):
-            fs = (26 if i == 0 else 16) * hf_scale
+            fs = (HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale
             ar_text_height += (fs * 1.3) * lh_scale
             
         max_text_height = max(text_height, ar_text_height) # en points (pas en cm!)
         
         base_padding_top = 1.5 * cm
-        bottom_spacing = 0.8 * cm # Espace garanti de respiration sous la ligne
+        # Espace de respiration entre l'en-tête et le début du corps (le titre).
+        # Réduit de 0.8 → 0.5 cm pour remonter légèrement le titre dans TOUS les
+        # documents (le titre est le 1er élément du corps, ancré à m_top).
+        bottom_spacing = 0.5 * cm
         
         if selected_template == 'swiss':
             min_header_height = base_padding_top + max(has_logo * logo_size, max_text_height) + bottom_spacing
@@ -470,7 +484,7 @@ class BaseTemplate:
         for i, line in enumerate(fr_lines):
             clean_text = re.sub(r'<[^>]+>', '', line).replace('&nbsp;', ' ')
             if not clean_text: continue
-            base_fs = (24 if i == 0 else 14) * hf_scale
+            base_fs = (HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale
             font = self.header_bold if i == 0 else self.header_font
             w = stringWidth(clean_text, font, base_fs)
             if w > 0:
@@ -481,7 +495,7 @@ class BaseTemplate:
         for i, line in enumerate(ar_lines):
             clean_text = re.sub(r'<[^>]+>', '', line).replace('&nbsp;', ' ')
             if not clean_text: continue
-            base_fs = (26 if i == 0 else 16) * hf_scale
+            base_fs = (HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale
             w = stringWidth(clean_text, font_ar, base_fs)
             if w > 0:
                 ratio = column_w / w
@@ -547,8 +561,8 @@ class BaseTemplate:
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'swiss')
 
         # [C1] Pré-calcul des hauteurs pour centrage vertical
-        fr_sizes = [(24 if i == 0 else 14) * hf_scale * global_ratio for i in range(len(fr_lines))]
-        ar_sizes = [(26 if i == 0 else 16) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
         fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
         ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
         max_h = max(fr_total_h, ar_total_h)
@@ -605,8 +619,8 @@ class BaseTemplate:
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'royal')
 
         # [C1] Pré-calcul des hauteurs pour centrage vertical
-        fr_sizes = [(24 if i == 0 else 14) * hf_scale * global_ratio for i in range(len(fr_lines))]
-        ar_sizes = [(26 if i == 0 else 16) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
         fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
         ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
         max_h = max(fr_total_h, ar_total_h)
@@ -663,8 +677,8 @@ class BaseTemplate:
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'clinical')
         
         # [C1] Centrage vertical
-        fr_sizes = [(24 if i == 0 else 14) * hf_scale * global_ratio for i in range(len(fr_lines))]
-        ar_sizes = [(26 if i == 0 else 16) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
         fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
         ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
         max_h = max(fr_total_h, ar_total_h)
@@ -722,8 +736,8 @@ class BaseTemplate:
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'modern')
         
         # [C1] Centrage vertical
-        fr_sizes = [(24 if i == 0 else 14) * hf_scale * global_ratio for i in range(len(fr_lines))]
-        ar_sizes = [(26 if i == 0 else 16) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
         fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
         ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
         max_h = max(fr_total_h, ar_total_h)
@@ -775,8 +789,8 @@ class BaseTemplate:
             y_start = logo_y - 0.4 * cm
 
         # [C1] Centrage vertical + [C2] Nom à 24pt comme les autres
-        fr_sizes = [(24 if i == 0 else 14) * hf_scale * global_ratio for i in range(len(fr_lines))]
-        ar_sizes = [(26 if i == 0 else 16) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
         fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
         ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
         max_h = max(fr_total_h, ar_total_h)

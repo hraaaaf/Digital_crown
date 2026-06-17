@@ -80,7 +80,7 @@ export function computeAngle(p1: {x:number, y:number}, p2: {x:number, y:number},
  * Calcule l'angle inter-incisif (1/1).
  */
 export function computeInterIncisalAngle(u1i: Landmark, u1a: Landmark, l1i: Landmark, l1a: Landmark): number {
-  return computeAngle(u1i, u1a, l1i, l1a);
+  return 180 - computeAngle(u1i, u1a, l1i, l1a);
 }
 
 
@@ -273,8 +273,8 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
 
   // B. Steiner (ANB)
   if (s && n && a && b) {
-    const sna = computeAngle(s, n, n, a);
-    const snb = computeAngle(s, n, n, b);
+    const sna = computeAngle(n, s, n, a);
+    const snb = computeAngle(n, s, n, b);
     results.osseuse!.sna = Math.round(sna * 10) / 10;
     results.osseuse!.snb = Math.round(snb * 10) / 10;
     results.osseuse!.anb = Math.round((sna - snb) * 10) / 10;
@@ -326,7 +326,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   }
 
   if (u1i && u1a && po && or_) {
-    results.dentaire!.i_francfort = computeAngle(u1i, u1a, po, or_);
+    results.dentaire!.i_francfort = computeAngle(u1a, u1i, po, or_);
   }
 
   if (u1i && l1i && po && or_) {
@@ -391,7 +391,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     results.dentaire!.impa = computeLocalImpa(lms) || '';
   }
   if (u1i && u1a && po && or_) {
-    results.dentaire!.i_francfort = computeAngle(u1i, u1a, po, or_);
+    results.dentaire!.i_francfort = computeAngle(u1a, u1i, po, or_);
   }
 
   // Analyse Esthétique
@@ -409,7 +409,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   }
 
   if (cm && sn && ls) {
-    const angleNL = computeAngle(cm, sn, sn, ls);
+    const angleNL = computeAngle(sn, cm, sn, ls);
     results.esthetique!.angle_nasolabial = Math.round(angleNL);
   }
 

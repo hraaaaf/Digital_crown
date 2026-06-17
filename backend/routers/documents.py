@@ -408,6 +408,9 @@ def download_document(
     if str(document_id).startswith("legacy:"):
         parts = str(document_id).split(":")
         patient_id = int(parts[1])
+        # Fichier patient generique : permission "patients" requise (S6).
+        if not has_permission(current_user, "patients"):
+            raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
         assert_patient_access(patient_id, current_user, db)
         patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
         folder = f"{patient.id}_{patient.nom.upper()}_{patient.prenom.capitalize()}"
@@ -420,6 +423,12 @@ def download_document(
     
     doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == int(document_id)).first()
     if not doc: raise HTTPException(status_code=404, detail="Introuvable")
+    # Gate de permission selon le type de document (S6) : symetrique a generate/archive.
+    # Ex : un PDF financier (devis/honoraires) exige la permission "accounting".
+    require_document_permission(
+        doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type),
+        current_user,
+    )
     assert_patient_access(doc.patient_id, current_user, db)
 
     # Résolution du chemin absolu
@@ -522,11 +531,23 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     last_analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.id.desc()).first()
     if not last_analysis: raise HTTPException(status_code=404, detail="Aucune analyse")
-    
+
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "PDF refusé : incohérences bloquantes dans les mesures céphalo.",
+                "fatals": validation.fatals,
+                "warnings": validation.warnings,
+            },
+        )
+
     analysis_data = {"id": last_analysis.id, "image_path": last_analysis.image_original_path, "results": last_analysis.angles_data or {}, "landmarks": last_analysis.landmarks_data}
     if req.ai_diagnostic: analysis_data["results"]["ai_diagnostic"] = req.ai_diagnostic
     if req.clinical_data: analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
-    
+
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 

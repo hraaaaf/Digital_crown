@@ -2,6 +2,609 @@
 
 ---
 
+### 📅 Date : 17 Juin 2026 (session — Roadmap de redressement pré-production + Sprint 0)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+
+#### 🎯 Contexte
+Audit pré-production section par section. App **avec données patients réelles** : 195 patients, 149 RDV, 176 actes, 164 dossiers cliniques, 212 documents, 115 paiements. Base vivante = **PostgreSQL 18.2 `digitalcrown_db`** (localhost) — PAS SQLite/SQLCipher dans cet env (le bloc SQLCipher de `config.py` ne s'active que si l'URL commence par `sqlite`). Les `.db` à la racine + `%APPDATA%/DigitalCrown/clinical_vault.db` sont des reliquats.
+
+#### 🔒 Contraintes NON-NÉGOCIABLES (valables pour TOUS les sprints)
+- JAMAIS supprimer / réinitialiser / recréer / reseeder / écraser des données patients.
+- JAMAIS `Base.metadata.drop_all()`, JAMAIS dropper la table patients, JAMAIS régénérer IDs/`numero_dossier`.
+- JAMAIS déplacer/supprimer un fichier patient sans migration réversible.
+- Migrations conservatrices uniquement : colonne nullable → backfill → contrainte. `count_before == count_after` (patients/appointments/actes/dossiers/documents/paiements) **prouvé à chaque sprint** en rejouant `scripts/preflight_data_audit.py`.
+- Backend = seule autorité. Frontend = non fiable. LLM = non fiable, enfermé en capsule (pas d'accès DB/outils/actions/fichiers/PII, sortie validée par schéma).
+- Pas de cross-tenant : chaque `patient_id` vérifié contre `employer_id`. Aucun fichier patient public. Télémétrie/cloud OFF par défaut (opt-in explicite). Aucune simulation IA clinique silencieuse en prod. masterKey jamais en clair. Sortie IA clinique = validation praticien.
+
+#### ✅ Sprint 0 — Filet de sécurité + audit (DONE)
+- **Backup** : `backups/digitalcrown_db_20260617_102554.dump` (pg_dump custom, 356 Ko, exit 0). Intégrité vérifiée `pg_restore -l` → 48/48 tables.
+- **Audit read-only** : `scripts/preflight_data_audit.py` (transaction `SET TRANSACTION READ ONLY`, rejouable). Rapports : `artifacts/preflight/preflight_audit_*.{json,md}`.
+- **Résultats** : 0 orphelin FK · 0 doublon `numero_dossier` · **0 `numero_dossier` partagé entre tenants → migration P0.4 sûre sans nettoyage** · patients tous `employer_id` (NOT NULL). `employer_id NULL` sur 5 tables (clinical_rules/diagnostic_templates/medicaments = référentiel global par conception ; audit_logs = events système ; users 8/9 = comptes propriétaires) — **aucune donnée patient en péril**.
+
+#### 🧱 P0 — Blockers production (vérifiés dans le code réel)
+1. **✅ P0.1 Télémétrie ON par défaut — FAIT.** Flag `TELEMETRY_ENABLED` (config.py, défaut False) ; garde `_telemetry_enabled()` en tête des deux fonctions de `telemetry.py` ; tâches non enregistrées dans `auth.py` si OFF ; collection Firestore `business_intelligence_leak` → renommée `cabinet_usage_metrics` ; docstring « mouchard » supprimée. Audit rejoué : counts intacts.
+2. **✅ P0.2 Fichiers patients publics — FAIT.** `main.py` : routes authentifiées (`Depends(get_current_user)`) pour `uploads/panoramic`, `uploads/radios`, `media/archives`, `media/documents`, enregistrées AVANT les mounts (précédence Starlette) → mêmes URLs, zéro changement frontend (cookie `access_token`). Branding/clinics/assets restent publics. Vérifié : anonyme 401, authentifié 200, traversal bloqué, audit intact.
+3. **✅ P0.4 Collision multi-tenant `numero_dossier` — FAIT.** `models.py` : `unique=True` retiré de `numero_dossier` + `UniqueConstraint("numero_dossier","employer_id", name="uq_patients_numero_dossier_employer")`. Migration idempotente transactionnelle `scripts/migrate_p04_numero_dossier_tenant.py` (pré-condition 0 numéro partagé entre tenants sinon ABORT ; ADD CONSTRAINT composite + index global UNIQUE → index simple ; assert count_before==count_after). Audit rejoué : counts intacts.
+4. **✅ P0.8 Simulation IA clinique silencieuse en prod — FAIT.** Garde `_is_production()` (`ENVIRONMENT==production`) dans `panoramic_service.PanoramicEngine.predict()` (modèle absent ou erreur d'inférence → `RuntimeError`, plus de `_run_simulation()`) **et** `sota_panoramic_service.SOTAPanoramicEngine.analyze()` (session absente ou erreur → refus). En dev la simulation reste active. Le flux produit `detect_teeth_only` (IA nomme les dents seulement, 0 pathologie devinée) est inchangé. Vérifié : prod refuse (RuntimeError), dev simule, audit intact (195/176/212).
+
+#### 🗺️ Sprints suivants (durcissement, post-P0)
+- S1 permissions (ordonnances/actes/compta) · S2 Crown Bot `pending_action` côté serveur · S3 capsule IA (contexte anonymisé, schéma strict, validateur, token vault jamais loggé) · S4 AI Gateway multi-provider (Ollama local-first, cloud opt-in) · S5 mobile/ZKA · S6 documents/uploads · S7 sûreté clinique · S8 audit logs · S9 CI/prod. Une branche par sprint, audit rejoué à chaque étape.
+
+#### ▶️ Décision
+Mode validation : **appliquer puis rejouer l'audit** (prouver count_before==count_after). On commence par les P0.
+**Périmètre tranché après audit (17 juin) : ROADMAP COMPLÈTE S1→S9, écriture SESSION.md après chaque étape.**
+
+#### ✅ S1 — Permissions ordonnances/actes/compta (DONE)
+Audit des gardes `require_permission` / `assert_patient_access` sur prescriptions, actes, comptabilité, échéanciers, documents.
+- **Faille critique corrigée** : `prescriptions.create_acte` n'avait **NI permission NI `assert_patient_access`** → écriture cross-tenant possible (créer un acte sur le patient d'un autre cabinet). Ajout `assert_patient_access(patient_id)` **avant** le `try` (sinon le `except Exception` l'aurait converti en 500) + garde `require_permission(["agenda","accounting"])`.
+- Actes : `update_acte`, `upload_acte_attachment`, `get_patient_actes` → ajout `require_permission(["agenda","accounting"])` (avaient déjà le tenant via `assert_patient_access`).
+- Compta : `get_accounting_honoraires`, `get_treasury_hub`, `mark_as_paid`, `export_accounting_pdf` n'avaient **aucune** permission (juste `get_current_user`) → un collaborateur sans droit compta lisait/encaissait. Ajout `require_permission("accounting")` (et `["accounting","payments"]` pour `mark_as_paid`). Tenant déjà assuré par le filtrage `employer_id` des requêtes.
+- Déjà conformes (vérifié) : `installments.py` (tout `accounting` + `assert_patient_access`), `accounting.py` plans/payments, `documents.generate_document` (`require_document_permission` mappe ordonnance→prescriptions, honoraires/devis/échéancier→accounting + `assert_patient_access`).
+- **Reste pour S6** : routes documents non-financières (`archive`/`list`/`download`/`trash`/`restore`/`delete`/`report`) en `get_current_user` — durcissement accès doc à traiter au sprint Documents.
+- Vérifié : routers importent OK ; audit rejoué (195/176/212) — **aucune donnée touchée** (changement code only).
+
+#### ✅ S2 — Crown Bot `pending_action` côté serveur (DONE)
+Principe : le LLM/regex ne fait que **proposer** des intentions ; toute écriture passe par `POST /bot/execute` (confirmation utilisateur). On a durci ce point d'exécution car la `pending_action` est **entièrement contrôlée par le client**.
+- **Faille tenant corrigée** : `_exec_create_appointment` utilisait le `patient_id` client **sans vérification de cabinet** → confirmer une `pending_action` forgée rattachait le patient d'un autre cabinet à mon `employer_id`. Ajout `assert_patient_access(patient_id, user, db)` avant l'écriture. Idem `_exec_open_prescription` / `_exec_open_devis` (redirect sur `patient_id` client). `_exec_change_status` était déjà sûr (filtre `employer_id`).
+- **Permission fail-closed** : `bot_execute` faisait `ACTION_PERMISSIONS.get(type)` → `None` pour un type non mappé → `require_bot_permission(user, None)` ne vérifiait rien. Désormais un type absent d'`ACTION_PERMISSIONS` est **refusé (403) avant** le dispatcher (allowlist explicite).
+- **Propagation des refus** : `ActionDispatcher.execute` ré-émet les `HTTPException` (403/404 tenant/permission) au lieu de les avaler en `BotResponse(error)` → un refus reste un refus côté API.
+- Rappels déjà en place (vérifiés) : chat/stream valident permission via `_parse_and_authorize` (`INTENT_PERMISSIONS`) ; sessions/messages filtrés par `employer_id` + `user_id` ; contexte LLM anonymisé (`data_sanitizer`). Confinement LLM complet → S3.
+- Vérifié : imports OK ; audit rejoué (195/176/212) — **aucune donnée touchée**.
+
+#### ✅ S3 — Capsule IA confinée (DONE)
+Objectif : LLM = composant **non fiable**, sans accès DB/outils/actions/fichiers/PII, sortie schématisée, et **aucune donnée hors cabinet** sans opt-in explicite.
+- **Audit des chemins LLM (4 fichiers à sortie réseau)** :
+  - `bot/llm_parser.py` → Ollama **local** (`LLM_API_BASE` défaut `localhost:11434`), prompt **anonymisé** via `data_sanitizer.sanitize()`, sortie **schématisée** (intents/entités fermés), restore + suppression des tokens orphelins. ✅ Confiné.
+  - `card_extractor.py` → Ollama **local uniquement**, image = carte de visite **du praticien** (onboarding), zéro PII patient, aucun fallback cloud. ✅ Hors risque.
+  - `notification_service.py` → WhatsApp/SMS (Twilio/WhatsMate), **pas un LLM** → hors périmètre capsule.
+  - `ai_coherence.py` (vigilance clinique) → **FUITE CLOUD identifiée**.
+- **Faille corrigée (ai_coherence)** : le fallback `_gemini_fallback` expédiait le **contexte clinique** (`doc_data` = médicaments/dosages/montants, libellés d'actes récents, habitudes docteur — tous **non masqués**) vers **Gemini (cloud Google)**, gardé uniquement par la présence de `GEMINI_API_KEY`. Viole « cloud OFF par défaut / opt-in explicite » + confinement capsule. (NB : `patient_info` était déjà masqué via `pii_masker.mask_patient_context` — tranche d'âge, genre, antécédents — mais le **document** ne l'était pas.)
+- **Correctif** : nouveau flag `Settings.CLOUD_AI_ENABLED: bool = False` (`config.py`). La sortie cloud est désormais verrouillée : condition amont `if settings.CLOUD_AI_ENABLED and settings.GEMINI_API_KEY` + **défense en profondeur** (refus à l'entrée de `_gemini_fallback` si flag False, même appelé directement). Tant que le flag est False (défaut), **aucune donnée clinique ne quitte le cabinet** ; l'IA reste 100 % locale (Ollama) et les vérifs déterministes de Phase 1 (`clinical_coherence.py`) restent actives.
+- **Reste pour S4** : formaliser la sélection multi-provider (AI Gateway) autour de ce flag (Ollama local-first, cloud opt-in unifié), et étendre l'anonymisation du `doc_data` si un jour une sortie cloud est activée.
+- Vérifié : syntaxe OK ; audit rejoué (195/176/212) — **aucune donnée touchée**.
+
+#### ✅ S4 — AI Gateway multi-provider / Ollama local-first (DONE)
+Objectif : un **point de contrôle unique** de la politique d'egress LLM, **local-first**, pour que « cloud OFF par défaut » soit garanti et auditable d'un coup d'œil.
+- **Constat avant** : aucun gateway. Endpoints éparpillés — `bot/llm_parser.py` lit `LLM_API_BASE` (env var **libre**, défaut `localhost:11434/v1`), `ai_coherence.py`/`card_extractor.py` via `settings.OLLAMA_URL`. Risque : `LLM_API_BASE` pointé vers un endpoint **cloud** → fuite hors cabinet **sans opt-in** (la sanitization anonymise la PII mais la règle « cloud OFF par défaut » s'applique quand même).
+- **Nouveau module `backend/services/ai_gateway.py`** : seul endroit où la politique d'egress IA est décidée.
+  - `cloud_ai_allowed()` → lit le flag S3 `CLOUD_AI_ENABLED` (False par défaut).
+  - `is_local_endpoint(url)` → loopback + plages LAN privées (RFC1918 : `10.`, `192.168.`, `172.16-31.`, `169.254.`, `*.local`).
+  - `resolve_llm_base(requested)` → **local conservé tel quel ; distant autorisé seulement si opt-in ; sinon refus + repli FORCÉ sur le local** (`OLLAMA_URL/v1`). Aucune donnée ne quitte le cabinet sans opt-in.
+- **Câblage** : `llm_parser.__init__` résout désormais `LLM_API_BASE` via `resolve_llm_base()` → les 3 sites d'appel (`parse`/`complete`/`stream_completion`) héritent automatiquement de la garde. (`ai_coherence` reste verrouillé par le même flag depuis S3 ; `card_extractor` est local-only.)
+- **Tests** : `localhost` et `192.168.x` conservés ; `api.openai.com` **bloqué→repli local** quand `CLOUD_AI_ENABLED=False`, **autorisé** quand True ; défaut `cloud_ai_allowed()=False`.
+- Vérifié : syntaxe OK ; tests gateway OK ; audit rejoué (195/176/212) — **aucune donnée touchée**.
+
+#### ✅ S5 — Mobile / ZKA (DONE)
+Audit du surface mobile (`backend/routers/mobile.py`) : isolation tenant **OK partout** (toutes les requêtes RDV/patients/documents/signature filtrent `employer_id`, 403/404 si hors cabinet). **Deux failles corrigées** :
+- **A. masterKey en clair (non-négociable violé)** : `claim_pairing_token` avait un **mode legacy** qui renvoyait `record.master_key` **en clair** dans le JSON si le client n'envoyait pas de clé publique — et le frontend (`OnboardingScanner.tsx`) utilisait justement ce chemin (`{ token }` seul). Sur LAN HTTP, la clé maître transitait en clair.
+  - **Backend** : mode legacy **supprimé**, ECDH (secp256r1) rendu **obligatoire** → 400 si `client_public_key_hex` absent ; la masterKey ne sort que chiffrée (AES-256-GCM, secret partagé HKDF-SHA256, `info="zka_mobile_bridge"`, nonce 12 o préfixé).
+  - **Frontend** : nouveau helper `services/zka/ecdhPairing.ts` (WebCrypto P-256 : `generateClientKeyPair` + `deriveMasterKey`) ; `OnboardingScanner.exchangeToken` génère la paire, envoie la clé publique, déchiffre la masterKey localement. Plus aucune masterKey en clair sur le réseau.
+  - **Interop validée end-to-end** : test croisé Node WebCrypto ↔ Python `cryptography` → masterKey récupérée identique (MATCH). Confirmé `HKDF salt=None` (Python) ≡ `salt = 32 octets nuls` (WebCrypto).
+- **B. `get_mobile_role` fail-open** : token révoqué/invalide/claim manquant retournait `"DENTISTE"` (rôle le **plus** privilégié → accès finances dans `snapshot`). Désormais **fail-closed** au moindre privilège (`"SECRETAIRE"`). (Défense en profondeur ; la révocation est déjà bloquée en amont par `get_mobile_employer_id` → 401.)
+- **Note compat** : seuls les **nouveaux** appairages passent par claim-token ; les appareils déjà appairés gardent leurs credentials stockés. Frontend + backend mis à niveau en lock-step.
+- Vérifié : syntaxe backend OK ; `tsc --noEmit` frontend propre ; interop crypto OK ; audit rejoué (195/176/212) — **aucune donnée touchée**.
+
+#### ✅ S6 — Documents / uploads (DONE)
+Audit complet du router documents + tous les endpoints d'upload des routers.
+- **État constaté** : le report S1/S2 (« routes documents en `get_current_user` ») était **déjà en grande partie traité** — `list`/`archive`/`trash`/`restore`/`delete`/`report` ont leur gate (`has_permission(...)` ou `require_document_permission(...)`) en plus de `assert_patient_access` (tenant). Vérifié un par un.
+- **Lacune restante corrigée** : `download_document` (l.374) validait token + tenant mais **sans gate de permission** → un utilisateur sans `accounting` pouvait télécharger un PDF financier (devis/honoraires) de son propre cabinet.
+  - Ajout : branche **legacy** (fichier patient générique) → `has_permission("patients")` ; branche **doc DB** → `require_document_permission(doc.document_type.value, ...)` (symétrique à generate/archive : ordonnance→`prescriptions`, devis/honoraires→`accounting`, cephalo→`cephalo`, etc.). Protection path-traversal legacy déjà présente (`safe_root`) conservée.
+- **Autres uploads vérifiés** : `ia.upload_radio` (`require_permission("cephalo")`), `ia.upload_panoramic` (`require_permission("panoramic")`), `prescriptions.upload_acte_attachment` (gaté en S1), `clinics.me/logo` + `me/letterhead` (auth + tenant via `get_employer_id`, écriture dans le dossier du cabinet, type/taille validés ; branding cabinet, zéro PII patient). Tous sûrs.
+- Vérifié : syntaxe OK ; audit rejoué (195/176/212) — **aucune donnée touchée**.
+
+#### ✅ S7 — Sûreté clinique (DONE)
+Objectif : toute sortie IA clinique requiert la validation du praticien et ne se substitue pas au jugement clinique.
+- **Audit des sorties IA cliniques** :
+  - `ai_advisor.generate_diagnostic` → NLG **déterministe** (GhostBrain), **aucun egress réseau** → pas de souci capsule/gateway.
+  - Alertes `ai_coherence` (🤖) et `clinical_intelligence.get_patient_summary` → **advisory** (affichées, non contraignantes, jamais auto-appliquées).
+  - Panoramique → déjà **déterministe + annotation manuelle** du praticien (pas de diagnostic IA auto).
+  - **Disclaimers existants confirmés** : `bilan_ortho_elite.html` (« souverainement validé et assumé par le praticien signataire ») ; `bilan_gen.py` (« Synthèse automatique en attente de validation », « Aucun plan de traitement saisi par le praticien »).
+- **Gaps comblés** :
+  - `panoramic_elite.html` : ajout d'un disclaimer « Analyse radiologique assistée par ordinateur … demeure souverainement validée et assumée par le praticien signataire … ne se substitue pas au jugement clinique. »
+  - `clinical_intelligence.get_full_diagnostic` : ajout d'une constante `AI_VALIDATION_DISCLAIMER` appendue à la synthèse markdown (branches complète + données manquantes) + flag `requires_validation: True` dans la réponse API.
+- **Confirmé : aucune auto-finalisation** — le diagnostic IA n'entre dans un PDF officiel que sur action praticien (frontend), jamais écrit silencieusement au dossier.
+- **⚠️ Note données live** : pendant cette étape, le compteur Patients est passé de **195 → 196**. Investigation read-only : patient `id=273 « EL JIYAD Hanane »`, `employer_id=1`, **créé 2026-06-17 12:25:37** = inscription patient **réelle via l'app en production** pendant la session (cabinet en activité). **Aucun lien avec mes éditions** (template HTML + disclaimer en mémoire ne créent pas de lignes DB) ; Actes/Documents/RDV restent 176/212/149. **Nouveau baseline d'audit : 196 / 176 / 212.** Donnée patient réelle — conservée, jamais touchée.
+- Vérifié : syntaxe OK ; audit rejoué (196/176/212, +1 patient d'origine externe légitime) — **mes changements n'ont touché aucune donnée**.
+
+#### ✅ S8 — Audit logs (DONE)
+Objectif : journalisation traçable et **étanche entre cabinets** des opérations sensibles.
+- **Audit du sous-système** : `AuditService.log` (fichier + persistance BDD `AuditLog`) est solide ; couverture déjà en place pour login (fail/inactive/success/google/logout/signup), patient CREATE/UPDATE/DELETE, acte CREATE/UPDATE, RDV CREATE/UPDATE/DELETE, cephalo/panoramic DELETE, document GENERATE, `ACCESS_DENIED` cross-tenant.
+- **🔴 Fuite cross-tenant corrigée (`admin.get_audit_logs`)** : la requête `db.query(models.AuditLog)` n'était **pas filtrée par `employer_id`** → un admin du cabinet A lisait les IDs patients, emails, IP et détails (incluant des noms) de **TOUS les cabinets**. Ajout du filtre `employer_id == current_user.get_employer_id()`. **Faille RGPD / isolation multi-tenant fermée.**
+- **Angles morts de couverture comblés** (ajout `audit_service.log`, opérations jusque-là non tracées en BDD) :
+  - `admin.export_database` → `EXPORT_DB` (CRITICAL) — dump complet = opération la plus sensible de l'app.
+  - `admin.get_zka_key_qr` → `MOBILE_PAIRING_TOKEN_ISSUED` (WARNING) — émission d'un accès mobile.
+  - `admin.revoke_mobile_access` → `MOBILE_ACCESS_REVOKED` (CRITICAL) — rotation clé maître (n'était qu'en `logger.info`, désormais en BDD).
+  - `bot.bot_execute` → `BOT_EXECUTE` (WARNING) — trace au point d'étranglement toute écriture confirmée par le LLM (origine Crown Bot).
+- **⚠️ Note données live** : pendant cette étape, Patients **196 → 197** et Documents **212 → 214**. Investigation read-only : patient `id=274 « BOUDIAB »` créé **2026-06-17 12:40:33** + ordonnances `id=253/252` (patients 274/273) créées ~12:27–12:40 = activité **réelle de l'app en production** pendant la session. Mes edits S8 sont **statiques** (un filtre `SELECT` en lecture + des appels `audit_service.log` qui ne s'exécutent que si l'endpoint est appelé — je n'ai appelé aucun endpoint) et l'audit a tourné à 15:10 : **aucune ligne créée par mon code**. **Nouveau baseline : 197 / 176 / 214** (RDV 149). Donnée patient réelle — conservée, jamais touchée.
+- Vérifié : syntaxe OK (`admin.py`, `bot.py`) ; audit rejoué (197/176/214) — **mes changements n'ont touché aucune donnée**.
+
+#### ✅ S9 — CI / prod (DONE) — 🏁 ROADMAP DE REDRESSEMENT COMPLÈTE
+Objectif : empêcher un déploiement avec une config non durcie + gate CI automatisé.
+- **Audit prod** : garde `SECRET_KEY` déjà présent au démarrage (`main.py` lifespan) ; CORS local-first (origines LAN/localhost intentionnelles, regex IP privée) ; `DEBUG=False`, `TELEMETRY_ENABLED=False`, `CLOUD_AI_ENABLED=False` par défaut (opt-in). Suite de tests existante : **86 passed / 6 skipped**.
+- **Gaps comblés** :
+  - `main.py` (lifespan) : **invariants production fail-fast** ajoutés — si `ENVIRONMENT=production`, refus de démarrer si `DEBUG=True`, `DATABASE_URL` sur SQLite, ou wildcard `*` dans `ALLOWED_ORIGINS`. Sans effet en développement.
+  - `scripts/prod_safety_check.py` (**créé**) : vérificateur rejouable lecture seule. Contrôle SECRET_KEY (toujours), wildcard CORS (toujours), et invariants prod (DEBUG/SQLite/localhost) si `ENVIRONMENT=production` ; signale l'opt-in télémétrie/cloud IA. Exit 1 si erreur bloquante. Vérifié : dev+clé faible → exit 1 ; dev+vraie clé → exit 0 ; simulation prod non durcie → 3 erreurs.
+  - `.github/workflows/ci.yml` (**créé**) : pipeline 2 jobs — (1) `test` : install deps + `prod_safety_check` + `pytest backend/tests` (SQLite in-memory isolé, zéro donnée réelle) ; (2) `prod-gate` : test **négatif** prouvant que le garde refuse bien une config prod non durcie.
+- **Note** : le repo n'est pas (encore) sous git ; le workflow est livré prêt à l'emploi pour le `git init` / push.
+- Vérifié : syntaxe `main.py` OK ; suite **86 passed / 6 skipped** (inchangée) ; `prod_safety_check` validé dans les 2 modes ; audit rejoué **197 / 176 / 214** (RDV 149, 0 orphelin, 0 doublon) — **mes changements n'ont touché aucune donnée**.
+
+---
+
+### 📅 Date : 17 Juin 2026 (session — Nouveau roadmap M4/M2/M1/M3)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+
+#### ✅ M4 — Landmarks overlay fix (radio visible sous les landmarks) (DONE)
+
+**Contexte** : dans le Studio Céphalométrique (Étape 1), la radio radiographique était invisible — seuls les landmarks SVG étaient visibles.
+
+**Cause racine (primaire)** :
+Les fichiers radio sont servis par `@app.get("/api/static/uploads/radios/{rel_path:path}")` avec `Depends(get_current_user)` (`main.py` l.463-470). Un `<image href>` SVG ou `<img src>` natif ne peut pas joindre l'en-tête `Authorization: Bearer <jwt>` → **401 → radio invisible**, landmarks SVG en mémoire toujours visibles.
+
+**Analyse du coordinate space** : les deux moteurs d'inférence (PyTorch `vision_service.py` et ONNX YOLO11x `sota_vision_service.py`) scalent les landmarks vers les **coordonnées originales de l'image** via `scale_x = orig_w / target_size` et `scale_y = orig_h / target_size`. Le viewBox SVG (`imgDim`) doit donc correspondre aux dimensions naturelles de l'image — régler `imgDim` sur `naturalWidth × naturalHeight` du blob est correct.
+
+**Correctifs appliqués** (`frontend/src/features/ortho/CephaloWorkspace.tsx`) :
+1. **Import** : `import { API_BASE, api } from '../../services/api'` (ajoute le client Axios authentifié).
+2. **useEffect auth-aware** : sur une URL HTTP(S) protégée → `api.get(imageSrc, { responseType: 'blob' })` (joint le Bearer token) → `URL.createObjectURL` → `store.setImageSrc(blobUrl)`. Sur un blob/data URL déjà local → `new Image().onload → setImgDim(natural dims)`.
+3. **Fix de revocation** : `createdBlobUrl = null` après `store.setImageSrc(blobUrl)` pour que le cleanup n'annule pas le blob URL transféré au store (correction d'un bug race condition cleanup→revoke avant le second rendu).
+4. **Fallback** : en cas d'échec du fetch authentifié (dev sans auth, base64) → tentative de chargement direct.
+
+**Audit post-fix** :
+- `scripts/preflight_data_audit.py` rejoué → **Patients : 197 · RDV : 149 · Actes : 176 · Documents : 214 · 0 orphelin · 0 doublon** (baseline inchangé).
+- Aucune donnée patient touchée (fix frontend uniquement, zéro migration, zéro écriture DB).
+
+---
+
+#### ✅ M2 — Calculs céphalo + permission PDF + isolation CabinetConfig (DONE)
+
+**Contexte** : 5 bugs de calcul angulaire dans le Studio Céphalométrique, 1 faille de permission sur l'endpoint PDF, 1 bug d'isolation multi-tenant dans la factory de documents.
+
+##### Bugs de calcul angulaire — analyse mathématique
+
+`_get_clinical_angle(p1,p2, p3,p4)` utilise `abs(a1-a2)%180` (atan2 des directions). `computeAngle` frontend utilise le produit scalaire → [0°, 180°]. Dans les deux cas, la convention direction du premier segment détermine si l'on obtient l'angle direct ou son supplément.
+
+**Corrections backend (`backend/services/cephalo_engine.py`)**
+- **SNA** l.325 : `_get_clinical_angle(S,N, N,A)` → `_get_clinical_angle(N,S, N,A)` (direction de référence doit partir de N, pas de S)
+- **SNB** l.330 : idem pour B. Résultat : ~82° au lieu du ~98° précédent (supplément), ANB reste cohérent (sna-snb).
+
+**Corrections frontend (`frontend/src/features/ortho/cephaloUtils.ts`)**
+- **SNA/SNB** l.276-277 : `computeAngle(s,n, n,a/b)` → `computeAngle(n,s, n,a/b)` (symétrique backend)
+- **`computeInterIncisalAngle`** l.83 : `return computeAngle(u1i,u1a, l1i,l1a)` → `return 180 - computeAngle(...)` (angle inter-incisif est l'angle obtus ~131°, le produit scalaire retournait le supplément ~49°)
+- **I/Francfort** l.329 et l.394 : `computeAngle(u1i,u1a, po,or_)` → `computeAngle(u1a,u1i, po,or_)` (inverser sens I1 pour obtenir l'angle obtus ~107° au lieu de ~73°)
+- **Nasolabial** l.412 : `computeAngle(cm,sn, sn,ls)` → `computeAngle(sn,cm, sn,ls)` (ordre des arguments : la columelle part de sn → cm, pas de cm → sn)
+
+##### Faille de permission PDF (`backend/routers/patients.py` l.449)
+`POST /{patient_id}/pdf` utilisait `require_permission("patients")` — tout utilisateur avec accès patients pouvait générer un rapport céphalo sans droit `cephalo`. Corrigé → `require_permission("cephalo")`.
+
+##### Isolation CabinetConfig (`backend/services/document_factory.py` l.76-81)
+`_get_cabinet_config(user_id, db)` filtrait `CabinetConfig.owner_id == user_id`. Pour un collaborateur (non-propriétaire du cabinet), `user_id != employer_id` → la config n'était pas trouvée → erreur 500 ou `ValueError`. Corrigé : lookup du User pour obtenir `get_employer_id()`, puis filtre sur l'`employer_id` (propriétaire du cabinet). Isolation multi-tenant garantie.
+
+**Audit post-fix** :
+- `scripts/preflight_data_audit.py` rejoué → **Patients : 197 · RDV : 149 · Actes : 176 · Documents : 214 · 0 orphelin · 0 doublon** (baseline inchangé).
+- Aucune donnée touchée (fixes code uniquement, zéro migration, zéro écriture DB).
+
+#### ✅ Cross-tenant média + CephaloConsistencyValidator (DONE)
+
+##### Cross-tenant média (`backend/main.py`)
+**Problème** : les routes `/api/static/uploads/radios/`, `/api/static/uploads/panoramic/`, `/api/static/archives/`, `/api/static/documents/` vérifiaient uniquement `get_current_user` (auth anonyme bloquée) mais **pas l'appartenance au cabinet**. Un utilisateur connecté du cabinet B connaissant l'UUID d'un fichier du cabinet A pouvait y accéder.
+
+**Correctif** : helper `_assert_media_tenant(db, employer_id, model_cls, path_col, fragment)` — fait une requête jointure `model → Patient` pour retrouver le fichier par son nom dans la DB. Si trouvé et `patient.employer_id != current_user.get_employer_id()` → 403. Si fichier non référencé en DB (legacy) → laisser passer (conservatif). Toutes les dépendances `db: Session = Depends(database.get_db)` ajoutées aux 4 handlers. Imports `database, models` ajoutés au bloc P0.2.
+
+Table de correspondance :
+- Radios → `CephaloAnalysis.image_original_path LIKE '%radios/{rel_path}'`
+- Panoramic → `PanoramicAnalysis.image_path LIKE '%panoramic/{rel_path}'`
+- Archives → `DocumentArchive.file_path LIKE '%{rel_path}'`
+- Documents → `DocumentArchive.file_path LIKE '%{rel_path}'`
+
+##### CephaloConsistencyValidator (`backend/services/cephalo_consistency_validator.py`)
+**Problème** : aucun validateur n'existait. Un PDF pouvait être généré avec SNA = 120° ou ANB ≠ SNA-SNB.
+
+**Nouveau module** : `CephaloConsistencyValidator.validate(angles_data)` → `ValidationResult(fatals, warnings, is_valid)`.
+- **FATAL** (bloque PDF) : valeur hors bornes physiologiques absolues ; SNA-SNB ≠ ANB (écart > 1.5°) ; contradiction classe squelettique (ANB>4° mais SNA<SNB).
+- **WARNING** (non bloquant) : valeur hors norme clinique ; combinaisons I/F + inter-incisif incohérentes.
+- Bornes : SNA [60-105°], SNB [58-102°], ANB [-10,15°], Inter-incisif [80-180°], I/Francfort [60-155°], IMPA [60-125°], Nasolabial [50-160°].
+
+**Branchement** : appelé dans `patients.POST /{patient_id}/pdf` et `documents.POST /patients/{patient_id}/report` avant `doc_factory.create_cephalo_report`. Réponse 422 avec `{fatals, warnings}` si invalide.
+
+**Endpoint de pré-validation** : `GET /patients/{patient_id}/cephalo-validation` (permission `cephalo`) → permet au frontend d'afficher les warnings avant de déclencher le PDF.
+
+**Smoke test** : cas normal → valid=True, 0 fatal, 0 warning. Cas aberrant (SNA=120°, inter-incisif=49°) → valid=False, 3 fatals.
+
+**Audit post-fix** :
+- `scripts/preflight_data_audit.py` rejoué → **Patients : 197 · RDV : 149 · Actes : 176 · Documents : 214 · 0 orphelin · 0 doublon** (baseline inchangé).
+- Aucune donnée touchée (nouveau service + modification routes, zéro migration, zéro écriture DB).
+
+#### ✅ M1 — Plans GOLD/PREMIUM/ELITE + approbation équipe (DONE)
+
+##### Modèle (`backend/models.py`)
+- Nouveau `SubscriptionPlan` enum : `GOLD` / `PREMIUM` / `ELITE`
+- Nouveau `ApprovalStatus` enum : `pending` / `approved` / `rejected`
+- Colonnes ajoutées à `User` : `subscription_plan VARCHAR(20)`, `approval_status VARCHAR(20) NOT NULL DEFAULT 'approved'`, `approval_note TEXT`
+
+##### Migration (`scripts/migrate_m1_subscription_plans.py`)
+- Idempotente, transactionnelle, rejouable. Vérifie `count_before == count_after`.
+- Résultat : 8 propriétaires → `GOLD + approved`, 1 sous-compte existant → `approved`. 9 users, counts intacts.
+
+##### Quotas par plan
+| Plan | Dentistes max (owner inclus) | Assistantes max |
+|------|---|---|
+| GOLD | 1 | 2 |
+| PREMIUM | 2 | 6 |
+| ELITE | ∞ | ∞ |
+- Pending + approved comptent (anti-gaming).
+
+##### Backend auth (`backend/routers/auth.py`)
+- Login bloqué si `approval_status == "pending"` → 403 "en attente d'approbation" + audit log `LOGIN_PENDING`
+- Login bloqué si `approval_status == "rejected"` → 403 "demande refusée" + audit log `LOGIN_REJECTED`
+- Guard via `getattr(user, "approval_status", "approved")` → rétrocompat si colonne absente.
+
+##### Router team (`backend/routers/team.py`) — nouveaux endpoints
+- `GET /team/quota` → `QuotaOut` (plan, used/max dentistes + secretaires, pending_count, can_add_*)
+- `POST /team/` → compte en PENDING + `is_active=False` + vérification quota avant création (402 si quota atteint)
+- `POST /team/{id}/approve` → `approved + is_active=True`
+- `POST /team/{id}/reject` → `rejected + is_active=False + approval_note`
+
+##### Schémas (`backend/schemas/auth.py`)
+- `TeamMemberOut` enrichi : `approval_status`, `approval_note`
+- Nouveau `QuotaOut` : plan, dentistes_used/max, secretaires_used/max, pending_count, can_add_*
+
+**Audit post-M1** :
+- `scripts/preflight_data_audit.py` rejoué → **Patients : 197 · RDV : 149 · Actes : 176 · Documents : 214 · 0 orphelin · 0 doublon** (baseline inchangé).
+- Migration conservative : 3 colonnes ajoutées, 0 ligne créée/supprimée.
+
+#### ✅ Bot server-side — `BotPendingAction` + exécution par UUID (DONE)
+
+**Objectif** : la `pending_action` ne transite plus du client au serveur — seul un UUID de 30 min est renvoyé au frontend.
+
+##### Modèle (`backend/models.py`)
+- Nouveau `BotPendingAction` : `id UUID PK`, `session_id FK`, `user_id FK`, `employer_id`, `action_type`, `params_json JSON`, `status`, `expires_at`, `created_at`, `executed_at`
+
+##### Migration (`scripts/migrate_bot_pending_actions.py`)
+- Idempotente. Crée `bot_pending_actions` via `Base.metadata.tables[...].create()`. Counts patients/docs vérifiés avant/après.
+
+##### Backend (`backend/routers/bot.py`)
+- `_store_pending_action()` : persiste la `pending_action` en DB (TTL 30 min), retourne l'UUID.
+- `_persist_bot_message()` : stocke l'action et ajoute `pending_action_id` dans `raw_data` + message SSE.
+- `POST /bot/execute` : accepte uniquement `{ pending_action_id }` — récupère en DB, vérifie `user_id + employer_id + status + expires_at`, exécute, marque `executed`.
+- `POST /bot/execute/{action_id}/cancel` : marque `cancelled`.
+
+##### Frontend (`frontend/src/components/CrownBot/CrownBotChat.tsx`)
+- `pendingActionId?: string` ajouté au type `Message`.
+- SSE handler stocke `pending_action_id` reçu dans le message bot.
+- `handleConfirmAction(msgId, actionData, actionId?)` envoie `{ pending_action_id: actionId }` au lieu du payload complet.
+- `PendingActionCard.onConfirm` passe `msg.pendingActionId` ; `onCancel` appelle `POST /bot/execute/{id}/cancel` avant de nettoyer l'UI.
+
+**Garanties** : le client ne peut plus forger de `pending_action` — seul l'UUID (32 caractères, TTL 30 min, propriété `user_id + employer_id` vérifiée côté serveur) est exécutable. Aucune écriture DB sans confirmation utilisateur.
+
+---
+
+#### ✅ M3 — Onboarding céphalo UX : Step4 redesigné (DONE)
+
+**Objectif** : remplacer l'UI chat « Ghost Brain » (lente, linéaire) par une interface structurée en 4 sections avec validation clinique live et 3 boutons d'action clairs.
+
+**Fichier modifié** : `frontend/src/features/ortho/components/Step4Documents.tsx` (réécriture complète)
+
+##### 4 sections
+
+1. **Synthèse Céphalométrique** (col gauche) — 7 cards d'angles (SNA/SNB/ANB/I-Francfort/IMPA/Inter-incisif/Nasolabial) avec code couleur 3 niveaux (vert = norme clinique, amber = hors norme, rouge = fatal hors bornes physiologiques). Section "Détails techniques" collapsible (table de tous les angles calculés).
+
+2. **Dossier Photographique** (col gauche) — grille photos réorganisée sous la synthèse (compact 2-4 cols).
+
+3. **Checklist de validation** (col droite) — 5 critères en temps réel :
+   - Image chargée (imageSrc)
+   - Calibration effectuée (isCalibrated)
+   - Landmarks complets (N/N requis)
+   - Cohérence clinique des angles → `GET /patients/{id}/cephalo-validation` (bouton "Actualiser")
+   - Diagnostic rédigé (diag.synthese_diagnostique non vide)
+
+4. **Plan de traitement** (col droite) — formulaire remplaçant le chat : technique orthodontique, stade CVM, stratégie thérapeutique (textarea), appareil orthopédique si denture non permanente.
+
+##### 3 boutons d'action
+- **Prévisualiser** → `handlePreview()` (ouvre LivePreview modal, blob interne, 0 archivage)
+- **Brouillon PDF** → génère PDF via API (`POST /patients/{id}/pdf`), télécharge localement comme `brouillon-bilan-{nom}.pdf`, **sans** archiver dans `document_archives`
+- **Valider & Archiver** → appelle d'abord `GET /patients/{id}/cephalo-validation` ; si fatals → 🚫 bloqué avec toast ; si warnings → toast + archivage ; si clean → `handlePrint()` (archive officielle). Bouton désactivé si image manquante, landmarks incomplets, ou fatals présents.
+
+##### Banner d'erreur fatale
+Bandeau rouge pleine largeur si des erreurs fatales sont présentes (liste des erreurs du CephaloConsistencyValidator).
+
+**Vérifications** :
+- `tsc --noEmit` → 0 erreur TypeScript
+- `npx vite build` → build propre, 0 avertissement nouveau
+- Aucune migration, aucune écriture DB — composant frontend uniquement.
+
+---
+
+### 📅 Date : 17 Juin 2026 (session — Refonte logique Panoramique)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+
+#### 🦷 Refonte Panoramique — 3 demandes livrées (DONE)
+
+**1) L'IA ne nomme QUE les dents (zéro pathologie auto).**
+- `upload-panoramic` n'appelle plus le modèle 4-classes (`predict`) mais `panoramic_engine.detect_teeth_only()` (nouveau, `backend/services/panoramic_service.py`) → `detections: []`, mode `TOOTH_DETECTION_ONLY`. La grille FDI reste rendue côté client (`XRayCanvas`). `predict()` conservé pour R&D mais hors flux produit.
+
+**2) Annotation manuelle « smart » + bilan pro déterministe SANS LLM.**
+- `panoramic_report_engine.py` **entièrement réécrit** : suppression de `_generate_ai_synthesis` (appel Groq/Ollama) → synthèse 100 % déterministe (`_build_synthesis`), phrases cliniques par anomalie (`_phrase_for`), section **CONDUITE À TENIR** (CCAM déterministe), normalité conditionnelle sinus/os/ATM.
+- Store (`usePanoramicStore.ts`) : ajout `dent_absente` + `appareil` (Prothèse, multi-dents) à la taxonomie ; nouveau `GLOBAL_FINDINGS` (lyse généralisée légère/modérée/sévère, parodontite généralisée, édentements totaux, denture mixte) ; state `globalFindings` + `toggleGlobalFinding` ; **persistance localStorage** (`persist`) → plus de perte si onglet fermé ; `resetAll()` au démarrage de chaque upload (anti-contamination inter-patient).
+- `PanoramicStudio.tsx` : panneau **Constats Généraux** (sidebar diagnostics) ; envoi `global_findings` à la génération.
+- Schéma `PanoramicReportRequest.global_findings` ; persistance `manual_anomalies` + `global_findings` dans `detections_data`.
+
+**3) Prévisualiser + éditer le bilan (ligne / paragraphe).**
+- `ReportViewer.tsx` : mode **édition ligne par ligne** (titres `###` stylés, puces `-`, ajout/suppression de lignes) + bouton Enregistrer.
+- Nouvel endpoint `PUT /ia/panoramic/{id}/report` (schéma `PanoramicReportEdit`) → persiste le markdown édité ; le PDF Élite repart du `report_narrative` édité.
+
+**Vérifs** : `tsc --noEmit` propre ; import router+schemas OK ; smoke-test moteur de bilan OK (sortie pro, sans LLM).
+
+---
+
+### 📅 Date : 16 Juin 2026 (session — Audit Panoramique)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+
+#### 🦷 Audit Panoramique — Score global : 7.1/10
+
+##### Architecture globale — 7/10
+**Solide :** pipeline Upload → YOLO11x ONNX → FDI mapping → Rapport markdown → PDF WeasyPrint ; validation dentiste (reject + anomalies manuelles) ; permission gate `require_permission("panoramic")` ; audit log sur suppression ; mode simulation gracieux si modèle absent ; CMO Agent déclenché en background.
+**Problèmes :**
+- **Double engine** : `panoramic_service.PanoramicEngine` (utilisé) ET `sota_panoramic_service.SOTAPanoramicEngine` (mort) → confusion + dead code
+- **`PanoramicWorker.ts` (127 lignes) = dead code** : préprocess retourne `Float32Array` vide, postprocess retourne `[]`, jamais importé nulle part. Prévu pour inférence navigateur (ONNX Runtime Web), jamais finalisé
+- **Zustand non persisté avant validation** : anomalies manuelles vivent dans `usePanoramicStore` → si l'onglet est fermé avant `POST /ia/generate-panoramic-report`, tout est perdu silencieusement
+- `detections_data` et `report_narrative` JSON brut SQLite sans validation de schéma
+
+##### Étape 1 — Upload & Inférence IA — 7.5/10
+**Solide :** CLAHE preprocessing (clipLimit=4.5, tileGrid=12×12) avant YOLO ; letterbox resize sans déformation ; seuils adaptatifs par classe (Lésion périapicale 0.12 → très sensible, Dent incluse 0.30 → strict) ; NMS avec dédup FDI+classe à 50px.
+**Problèmes :**
+- **Seulement 4 classes IA** : Carie, Carie Profonde, Lésion Périapicale, Dent Incluse — le référentiel que le dentiste peut saisir manuellement en contient 31 (Alvéolyse, Tartre, Implant, Opacité sinusienne, etc.)
+- **FDI mapping parabole hardcodée** `y = 0.15(x-0.5)² + 0.52` — non corrigeable si courbe occlusion anormale (béance, Cl. III)
+- Pas de barre de progression visible pendant l'inférence CPU (peut durer 5-15 s)
+- Pas de validation de contenu fichier : seul le poids (10 MB) est vérifié — une photo de profil ou un PDF passerait
+
+##### Étape 2 — Canvas & Validation (XRayCanvas) — 8/10
+**Solide :** grille FDI 32 dents, bounding boxes couleur-codées, rejected = dashed+grisé, popover 6 catégories × 31 anomalies, multi-select range parodontal (`isMultiTooth=true`), magnifier ×8.
+**Problèmes :**
+- **🔴 Anomalies manuelles invisibles sur le canvas** : l'utilisateur ajoute "Carie émail dent 16" via le popover → apparaît dans la liste de droite MAIS aucun marqueur/bounding box n'est généré sur la radio. Incohérence majeure.
+- Confidence score non affiché dans la liste de détections → impossible de trier visuellement par sévérité
+- Logique `mapFdi()` dupliquée entre `XRayCanvas.tsx` (front) et `panoramic_service.py` (back) → toute correction de la courbe doit être faite dans deux endroits
+
+##### Étape 3 — Rapport Clinique (panoramic_report_engine.py) — 6/10
+**Solide :** rapport déterministe ancré sur vraies détections ; fusion IA + manuelles ; annotations libres en section dédiée ; sanitisation PII avant LLM ; dégradation gracieuse si LLM absent.
+**Problèmes :**
+- **Pas de sévérité** : "Carie" et "Carie Profonde" génèrent la même section — pas de hiérarchisation URGENT/SURVEILLANCE/RAS
+- **LLM sans timeout explicite** dans `generate_markdown()` → si Ollama lent, `/ia/generate-panoramic-report` peut bloquer 30-60 s
+- **Codes CCAM présents dans le code backend mais absents du rapport/PDF** — feature amorcée jamais terminée
+- Rapport entièrement regénéré (y compris appel LLM) à chaque validation même si seule une détection est rejetée
+
+##### Étape 4 — Comparaison Temporelle T0/T1 — 6.5/10
+**Solide :** algo `(fdi, classe)` → new/resolved/worsened(+10% conf)/stable ; dates affichées ; mode side-by-side.
+**Problèmes :**
+- Comparaison limitée aux 2 dernières analyses — pas de ligne temporelle multi-points
+- **Worsening = delta confiance ≥10% = proxy fragile** : deux prises légèrement différentes peuvent varier de 10% sans vraie progression clinique
+- **Anomalies manuelles ignorées dans le comparateur** : seules les détections IA sont comparées. "Alvéolyse dent 26" ajoutée manuellement à T0 n'apparaît pas dans le delta
+- Pas de possibilité de désigner manuellement la radio de référence (T0) — uniquement la 2ème plus récente
+
+##### Étape 5 — PDF Elite (panoramic_elite_gen.py) — 7.5/10
+**Solide :** header brandé, QR code document-spécifique, inclusion image céphalométrique optionnelle, métriques SNA/SNB/IMPA si profil dispo, WeasyPrint robuste.
+**Problèmes :**
+- Path résolution fragile : `api/static/` vs `/api/static/` → PDF sans image sans erreur levée
+- Inclure SNA/SNB/IMPA dans un rapport de radio panoramique est cliniquement incohérent (deux examens distincts) — risque de confusion pour un assureur ou spécialiste
+- Codes CCAM absents du PDF alors que le backend les calcule déjà
+
+##### Backend sécurité — 7.5/10
+**Problèmes :**
+- Aucune validation que le fichier uploadé est bien une radio (magic bytes JPEG/PNG/DICOM, dimensions minimales)
+- Fichier physique non nettoyé si l'inférence crashe après `shutil.copy`
+- `report_narrative` écrasé sans versionning à chaque validation
+
+---
+
+#### 🎯 Backlog Panoramique — Top 7 (par impact)
+
+| # | Tâche | Modèle | Effort | Impact |
+|---|---|---|---|---|
+| 1 | **Anomalies manuelles visibles sur canvas** — bounding box synthétique colorée par dent | Sonnet 4.6 | 1 jour | 🔴 UX critique |
+| 2 | **Auto-save anomalies manuelles** — `localStorage` dès l'ajout, clé `panoramic_manual_{analysisId}` | Haiku 4.5 | 0.5 jour | 🔴 Perte de données |
+| 3 | **Timeout LLM 8s** + flag `llm_used: bool` dans la réponse rapport | Haiku 4.5 | 0.5 jour | 🟠 Stabilité |
+| 4 | **Anomalies manuelles dans le comparateur T0/T1** — croiser `detections + manual_anomalies` | Sonnet 4.6 | 1 jour | 🟠 Clinique |
+| 5 | **Sévérité dans le rapport** — 3 niveaux URGENT/SURVEILLANCE/RAS en tête de rapport | Sonnet 4.6 | 1 jour | 🟠 Clinique |
+| 6 | **Supprimer dead code** — `sota_panoramic_service.py` + `PanoramicWorker.ts` | Haiku 4.5 | 0.5 jour | 🟡 Dette technique |
+| 7 | **Validation fichier upload** — magic bytes + dimensions minimales (>800×400px) | Sonnet 4.6 | 0.5 jour | 🟡 Robustesse |
+
+---
+
+### 📅 Date : 16 Juin 2026 (session — Audit Céphalométrie + Fractionnement PrescriptionAgenticStudio)
+**Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
+
+#### ✂️ Fractionnement `PrescriptionAgenticStudio.tsx` (1746 → 5 fichiers)
+Fichier trop volumineux découpé en composants autonomes :
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `PrescriptionAgenticStudio.tsx` | 958 | Orchestrateur (state + logique) |
+| `DrugRow.tsx` | 300 | Ligne médicament unique (allergy overlay, ghost brain, autocomplete) |
+| `PrescriptionGuideModal.tsx` | 288 | Guide de prescription (référentiel curé + dictionnaire national) |
+| `QuickEntryBar.tsx` | 116 | Saisie rapide avec suggestions |
+| `prescriptionTypes.tsx` | 109 | Types, constantes, helpers (FORMES, presets, fuzzyMatch) |
+
+- `DrugItem` re-exporté depuis le fichier principal → les 3 consommateurs (`DocumentHub.tsx`, `useDocumentStore.ts`, `useDocumentGenerator.ts`) fonctionnent sans changement.
+- `tsc --noEmit` : 0 erreur.
+
+---
+
+#### 🦷 Audit Céphalométrie — Score global : 7.1/10
+
+##### Architecture globale — 7.5/10
+**Solide :** séparation math (`cephaloUtils.ts`) / UI (`CephaloTracingLayer`) / state (`useOrthoStore`) ; `computeStep3Data()` 100% déterministe hors-ligne ; gestion coords SVG v4.2 via `getScreenCTM().inverse()` ; calibration mm/pixel obligatoire.
+**Problèmes :**
+- **Double repository** : `features/ortho/cephaloRepository.ts` ET `services/cephaloRepository.ts` → contrats d'API qui dérivent silencieusement. **À fusionner : garder `features/ortho/`, supprimer `services/`.**
+- `id.toLowerCase()` partout pour les landmarks → bug de case-sensitivity masqué
+- `CephaloStudio.tsx` (composant standalone) ne parle pas au store Zustand → landmarks non sauvés si ouvert hors workflow
+- `LocalState.version` incrémenté mais jamais utilisé pour la détection de conflits
+
+##### Étape 1 — Upload Radio + Placement des Points — 8/10
+**Solide :** Drag via Pointer Events + `getScreenCTM().inverse()` (fix v4.2) ; magnifier ×3 adaptatif ; wedge zones dynamiques (IMPA ±5°/±10°, I/F ±5°/±10°) ; filtres image ; auto-estimation CVM ; détection IA 40 points.
+**Problèmes :**
+- Pas de validation visible du nombre de points placés → le praticien peut valider avec 5 points manquants sans alerte
+- **VTO** (Virtual Treatment Outcome) incomplet : store + backend OK, mais l'UI n'expose les sliders que dans un menu caché → feature fantôme
+- `L1_apex` / `U1_apex` auto-générés avec 85px hardcodé → erreur silencieuse si échelle différente
+- Aucun guide de séquence de placement (40 points sans ordre anatomique suggéré)
+
+**Proposition : "Séquenceur de points"** — liste latérale cochable groupée (Squelette crânien → Maxillaire → Mandibule → Dentaire → Tissus mous). UX majeure pour un débutant.
+
+##### Étape 2 — Analyse des Moulages — 5.5/10
+**Problèmes (critiques) :**
+- Pas d'analyse de **Bolton** (ratio antérieur 91.3% ± 1.91 — donnée critique pour l'espace incisif)
+- Pas d'**asymétrie** détectée (Classe II droit ≠ Classe I gauche = subdivision, cas fréquent)
+- Pas d'encombrement numérique (mm) par arcade
+- Pas d'upload photo de moulage pour le PDF
+- DDM clinique saisie sans aide contextuelle sur comment la mesurer
+
+**À implémenter :**
+- Champ "Encombrement estimé (mm)" par arcade
+- Bolton antérieur automatique si les 12 mesures sont saisies
+- Upload photo optionnel visible dans le PDF Step 4
+
+##### Étape 3 — Diagnostic Clinique (auto via `computeStep3Data`) — 9/10
+**Solide :** calcul automatique de SNA/SNB/ANB/IMPA/FMIA/Ligne E/angle naso-labial/classe squelettique/pattern vertical ; consensus Steiner+McNamara ("Classe II (Tendance III)") ; DDM Réelle = DDM Clinique + (IMPA−90)/2.5 ; CVM Baccetti ; `generateTreatmentPlan()` déterministe.
+**Problèmes :**
+- **🔴 Auto-fill écrase les corrections manuelles** : tout déplacement de landmark réécrit les valeurs que le praticien vient de corriger à la main
+- Wits absent de `computeStep3Data` (dans les specs mais non calculé automatiquement)
+- **Typo** : `mcnmara` au lieu de `mcnamara` dans le code (logs incohérents) → à corriger
+- Recalcul T1/T2 non déclenché par l'effet auto
+
+**À implémenter : mécanisme "verrou de champ"** — icône 🔒 par valeur auto-calculée. Si verrouillé, l'auto-fill ne réécrit plus ce champ. Pattern standard des outils CAD médicaux.
+
+##### Étape 4 — Ghost Brain & Plan de Traitement — 6/10
+**Solide :** T1 (1 an) et T2 (5 ans) morphing avec vecteurs Ricketts/Tweed ; facteurs lip-follow physiologiquement corrects (Ls→U1 à 75%, Li→L1 à 80%) ; stop automatique à 18 ans.
+**Problèmes :**
+- **🔴 Vecteurs de croissance hardcodés, ignorent le CVM** : un enfant CS1 a une trajectoire radicalement différente d'un CS5. C'est le problème clinique le plus sérieux.
+- Un seul modèle de croissance (Ricketts) — pas de Björk, pas de Pancherz pour Classe II
+- `bilan_ortho_engine.generate_bilan()` : fichier backend non trouvé → dead code ou module non versionné
+- Pas de diff automatique entre deux analyses successives du même patient
+
+**Fix CVM-adaptatif (backend `cephalo_engine.py`) :**
+```python
+GROWTH_MULTIPLIERS = {
+    'CS1': 1.0,   # potentiel max
+    'CS2': 0.85,
+    'CS3': 0.70,  # pic pubertaire
+    'CS4': 0.45,
+    'CS5': 0.20,
+    'CS6': 0.05,  # croissance terminée
+}
+# vecteur_annuel × GROWTH_MULTIPLIERS[cvm_stage]
+```
+
+##### Backend (`cephalo_engine.py` / `cephalo_service.py`) — 7/10
+**Problèmes :**
+- `angles_data` et `landmarks_data` stockés en JSON brut SQLite sans validation de schéma → breaking change corrompt les analyses historiques silencieusement
+- Auto-calibration "Phase 4" : si elle échoue, `mm_per_pixel` tombe à 0.1 (défaut hardcodé) sans alerte praticien
+- Pas de versionning des analyses (historique des modifications perdu)
+
+##### UX / Performance — 7/10
+**Problèmes :**
+- `CephaloTracingLayer.tsx` = **1283 lignes** → même problème que `PrescriptionAgenticStudio` avant fractionnement
+- Pas d'indicateur de progression global (% points placés, calibration OK/KO)
+- Pas de raccourcis clavier documentés pour naviguer entre points
+
+---
+
+#### 🎯 Backlog Céphalométrie — Top 5 (par impact clinique)
+
+| # | Tâche | Modèle conseillé | Effort | Impact |
+|---|---|---|---|---|
+| 1 | **Verrou de champ Étape 3** — empêcher l'auto-fill d'écraser les corrections manuelles | Sonnet 4.6 | 1 jour | 🔴 Critique |
+| 2 | **CVM-adaptatif T1/T2** — multiplier les vecteurs croissance par le stade CVM patient | Opus 4.8 | 2 jours | 🔴 Clinique |
+| 3 | **Étape 2 : Bolton + asymétrie + encombrement mm** | Sonnet 4.6 | 2-3 jours | 🟠 Important |
+| 4 | **Fusion des deux repos frontend** — supprimer `services/cephaloRepository.ts` | Haiku 4.5 | 0.5 jour | 🟠 Dette technique |
+| 5 | **Séquenceur de points Étape 1** — checklist anatomique latérale | Sonnet 4.6 | 1 jour | 🟡 UX |
+| 6 | **Fractionnement `CephaloTracingLayer.tsx`** (1283 lignes) | Sonnet 4.6 | 1 jour | 🟡 Maintenance |
+| 7 | **Typo `mcnmara → mcnamara`** dans le code | Haiku 4.5 | 5 min | 🟡 Log hygiene |
+
+---
+
+### 📅 Date : 16 Juin 2026 (session — mobile/CORS, documents PDF, catalogue, ordonnance pédiatrique)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+
+#### 🌐 Mobile / réseau — fin des bugs d'IP DHCP
+- **CORS** (`main.py`) : `allow_origin_regex` acceptait seulement `https://` → bloquait le LAN en `http://`. Élargi à `https?://` + toute IP LAN privée sur `:5173`. Cause du toast « Serveur injoignable » sur mobile (PC passé de `.122` à `.123` via DHCP).
+- **Auto-détection partout** (`mobile.py`, `auth.py`) : `_detect_lan_ip()` partagé + `get_lan_frontend_url()` + `resolve_frontend_url()`. La redirection OAuth (`auth.py`) n'utilise plus le `FRONTEND_URL` figé (`.109`) → auto-détecté ; un vrai domaine resterait respecté. Plus aucune IP en dur côté runtime.
+
+#### 📄 Documents PDF (`base_template.py`)
+- **Titre remonté de ~0.3 cm dans TOUS les documents** : `bottom_spacing` 0.8→0.5 cm + `default_top` 4.2/4.5→3.9/4.2. Vérifié : 0.27 cm de marge sous le séparateur (pas de chevauchement).
+- **Texte du header agrandi (~+12 %)** : nombres magiques (24/14, 26/16) répétés 14× → **centralisés en 4 constantes** `HEADER_FS_FR_TITLE/SUB`, `HEADER_FS_AR_TITLE/SUB` (27/16, 29/18). Le scale utilisateur (`header_font_scale`) reste pleinement fonctionnel par-dessus.
+
+#### 🗂️ Catalogue Dynamique (réglages)
+- **Modification du tarif d'un acte préétabli** : le badge prix devient cliquable → prompt pré-rempli → `PUT /catalog/acts/{id}` (endpoint backend qui existait déjà ; ajout `updateAct` au store). Garde-fous : annulation, valeur invalide, no-op si inchangé, virgule décimale.
+
+#### 💊 Ordonnance — saisie rapide pédiatrique + validation Ghost Brain (`clinical_rules.ts`, `PrescriptionAgenticStudio.tsx`)
+- **Suggestion = dosage + posologie SELON L'ÂGE** (avant : nom seul). `getAgeAwareDosing(name, age, weight?)` : adulte → dose adulte ; enfant <15 → `pediatric_calc` (poids saisi sinon estimé `(âge×2)+8`). Branché sur autocomplete ET saisie rapide ; ne remplit que les champs vides.
+- **Champs manuels agrandis verticalement** (nom/dose `py-2.5`, posologie `textarea rows=2` + `min-h` + interligne).
+- **Validation Ghost Brain inline** (`validatePrescriptionLine`) : vérifie (1) existence du dosage (« doliprane 350 mg » → non répertorié), (2) adéquation à l'âge (dose adulte chez enfant, dépassement mg/kg/j), (3) contre-indications vs antécédents. Référentiel **fiable et extensible** : molécules dentaires + marques avec `available_strengths_mg` + `max_mg_per_kg_day`. Hors référentiel → **silencieux** (pas de fausse alerte ni de faux feu vert).
+- **Guide de Prescription** (ex-« Guide Pédiatrique » — renommé car il couvre désormais TOUS les médicaments, l'âge pilotant dose adulte/enfant) : référentiel curé passé de **6 → 12 molécules** (+ Rodogyl/Birodogyl, Clindamycine, Azithromycine, Chlorhexidine, Miconazole, Codéine⚠️) avec `category` + `notes` de sécurité. Modal amélioré : **catégories** + **poids auto-estimé depuis l'âge** + **contre-indications surlignées pour CE patient** (croisement antécédents). Doses = références standard, « à valider par le praticien ».
+- **Guide = navigateur de TOUT le dictionnaire national** : la barre de recherche du guide interroge `/medications/search` (4234 médicaments). Chaque résultat affiche nom/DCI/dosage/forme + bouton « ajouter ». Si la DCI/marque correspond à une molécule curée → badge **POSOLOGIE DISPO** avec dose pédiatrique selon l'âge + CI + surlignage patient ; sinon badge **RÉFÉRENCE** (dosage/forme nationaux, posologie « à définir » — jamais inventée). `medication_dict.search()` enrichi (dosage/unite/forme, limit 30) ; `addMolecule` accepte la forme.
+
+#### 🌍 Dictionnaire national des médicaments — INTÉGRÉ
+- **Source** : Référentiel CNOPS (data.gov.ma, Open Data **ODbL**, XLSX, ~5900 lignes) — colonnes NOM / DCI1 / DOSAGE1 / UNITE / FORME / PRESENTATION / PPV. Réserve : millésime **2014** (prix dépassés, existence des molécules/dosages valable).
+- **Conversion** : XLSX → `backend/data/medications_ma.json` (4234 entrées uniques, 472 Ko) via parser stdlib (zipfile/XML, sans nouvelle dépendance).
+- **Backend** : `medication_dict.py` (chargé en mémoire au 1er accès) + `routers/medications.py` → `GET /medications/search` (autocomplétion nationale) et `GET /medications/validate?name=&dosage=` (le dosage existe-t-il ? gère les associations comme Augmentin). Monté dans `main.py`.
+- **Front** : `runMedCheck` (debounce 350 ms) appelle `/medications/validate` sur changement de nom/dose → l'existence du dosage est désormais vérifiée pour **~4200 médicaments** (plus seulement les 6 dentaires). La validation curée (`clinical_rules`) ne garde que **âge + contre-indications** (jugements cliniques absents du fichier officiel) → séparation propre, pas de doublon de message.
+- Vérifié : « DOLIPRANE 350 » → inexistant (dispo 100/150/200/300/500mg, 1g) ; « ZINNAT 999 » → inexistant ; recherche OK. Suite : 86 passed / 0 régression.
+
+#### 🔐 Audit RBAC assistante (SECRETAIRE) — RAS
+- **Agenda** : accès par défaut (`agenda: True`), tous les endpoints `appointments` gardés par `require_permission("agenda")`.
+- **Ajouter/modifier patient** : OK (`patients: True`). **Supprimer** : bloqué (rôle DENTISTE/ADMIN requis dans `delete_patient`, + log audit). Cohérent, rien à corriger.
+
+#### 🗂️ Catalogue d'actes UNIFIÉ (agenda ↔ Réglages)
+- **Bug trouvé** : la recherche d'actes de l'agenda interrogeait `ClinicalActCatalog` (**jamais seedé → vide**) + 10 actes codés en dur, alors que le Catalogue Dynamique (Réglages) vit dans `CatalogAct`. Deux catalogues déconnectés.
+- **Fix** : `accounting_service.search_acts` + branche recherche-vide (`/actes/catalog/search`) pointent désormais sur **`CatalogAct` + Specialty** (source unique). Recherche vide → habitudes + **tout le catalogue managé**.
+- **Seed enrichi + additif + auto** : `seed_catalog()` devient idempotent (upsert par nom, sans doublon), enrichi (+PEDODONTIE, +DIAGNOSTIC & URGENCE → 11 spécialités / 62 actes), et **appelé au démarrage** (`main.py`) — plus besoin de lancer le script manuellement.
+- **Ajout d'acte depuis l'agenda** : si l'acte tapé est absent → bouton « Ajouter X aux actes » → panneau inline (**tarif + catégorie** parmi les spécialités existantes, ou DIVERS). Endpoint `POST /actes/catalog/quick-add` (get-or-create spécialité, dédup par nom). L'acte est aussitôt sélectionné et réutilisable.
+
+#### 🔮 Ghost Brain proactif — fuite de connexion DB sur la WebSocket
+- **Audit** : pipeline en 4 couches — génération (`daily_scheduler.run_daily_alerts`, Timer 24h, règles `habits_engine.check_proactive_triggers`) → stockage (`ghost_memory_service`, dédup hash SHA-256) → diffusion WS (`ai_feedback:/ws/ghost-insights`) → feedback loop (`/feedback`).
+- **Bug 🔴** : la WS injectait `Depends(get_db)` → **session DB tenue ouverte toute la durée de la connexion** (des heures) = 1 connexion du pool monopolisée par onglet → risque d'épuisement (cf. QueuePool du 9 juin). + poll `COUNT` toutes les 2 s.
+- **Fix** : suppression du `Depends(get_db)` ; **session courte** `SessionLocal()` pour l'auth puis **par tick** (libérée avant le `sleep`, connexion rendue au pool entre deux sondages) ; intervalle 2 s → 5 s.
+- ⏳ Restant (non fait, noté) : scheduler `threading.Timer` sans heure fixe/persistance ; double stockage `ProactiveAlert`+`GhostMemoryLog`.
+
+#### 📦 Fichiers volumineux (audit, non fractionnés)
+Tiers vendoré `backend/ai_models/*` (mmpose/CLdetection) à ignorer. Nôtres à découper si besoin : `PrescriptionAgenticStudio.tsx` (1746, prioritaire), `CephaloTracingLayer.tsx` (1283), `AccountingPage.tsx` (1097), `models.py` (1088), `base_template.py` (1043), `action_dispatcher.py` (1002), `Dashboard.tsx` (1000).
+
+#### ⚡ Perf — flood de requêtes à l'ouverture d'un dossier patient
+- **Cause** : `PatientScoreBadge` (rendu par ligne dans `PatientList`) appelait `GET /patients/{id}/score` **par patient** → ~270 requêtes (chacune = 3 requêtes DB assiduité/solvabilité) à chaque rendu de la liste.
+- **Fix backend** : `patient_scoring_service.calculate_scores_bulk()` calcule TOUS les scores en **3 requêtes agrégées** (group by) + endpoint **`GET /patients/scores`** (un seul appel). Route déclarée AVANT `/{patient_id}`.
+- **Fix front** : nouveau store `usePatientScoresStore` (batch unique, dédoublonnage des appels concurrents) ; `PatientScoreBadge` lit le store au lieu de fetch individuel. ~270 requêtes → **1**.
+- Vérifié : batch == calcul unitaire (même score/grade).
+
+#### ✅ Vérifs
+`tsc --noEmit` OK (toutes les modifs front), `py_compile` OK, suite **86 passed / 6 skipped / 0 régression**, seed idempotent + quick-add (dédup/catégorie) + scoring batch testés. Frontend → Vite HMR ; backend (CORS/auto-IP/catalogue/quick-add/scores batch) → **redémarrage requis**.
+
+---
+
+### 📅 Date : 16 Juin 2026 (session CrownBot — refonte du cerveau LLM)
+**Intervenant** : CTO Saninova + Claude (Opus 4.8)
+**Objectif** : Audit CrownBot (score 4.8/10) + correctifs dans l'ordre A→B→C.
+
+#### (A) 3 bugs 🔴 qui neutralisaient le LLM
+- **Fallback LLM mort** (`bot.py`) : `confidence < 0.85 AND intent == "UNKNOWN"` se réduisait à "UNKNOWN" (UNKNOWN a toujours conf 0.0) → le LLM ne corrigeait jamais un match regex faux. Remplacé par `intent == "UNKNOWN" OR confidence < LLM_CONFIDENCE_THRESHOLD` (0.80).
+- **Dates LLM jamais en ISO** (`llm_parser._normalize_entities`) : `"demain"` partait tel quel → `datetime.fromisoformat("demain")` crashait. Ajout `_normalize_date_to_iso` (dateparser), `_normalize_time` (HH:MM), durée→int. Valeur invalide écartée (clarification) au lieu de crash.
+- **Prompt LLM sans heure/durée** : RDV via LLM bouclait en clarification. Prompt étendu + approche **hybride** : `_fill_structured_gaps` complète les entités structurées (date/heure/durée/dent/id) via le parser regex déterministe appliqué au message original.
+
+#### (B) Streaming SSE
+- `llm_parser` : `complete()` (appel unifié, **dédoublonne les 3 httpx.Client**) + `stream_completion()` (SSE OpenAI, deltas).
+- `data_sanitizer.restore_stream()` : restauration token-safe au fil des chunks (retient tout `[TOKEN` incomplet → aucune fuite de token tronqué ; supprime les orphelins hallucinés).
+- `dispatcher` : greeting/unknown dédoublonnés (`build_conversational` + `_conversational_response`).
+- Nouvel endpoint **`POST /bot/chat/stream`** : events `session`/`token`/`final`. Seuls GREETING/UNKNOWN streamés depuis le LLM ; read/write émis en un bloc. UNKNOWN compte dans le quota upsell, GREETING reste gratuit.
+- Front (`CrownBotChat.tsx`) : `handleSend` consomme le flux via `fetch`+reader (EventSource ne gère pas le header Bearer). `/bot/chat` non-stream conservé (rétrocompat).
+
+#### (C) Historique par patient + CHANGE_STATUS
+- **`BotSession.patient_id`** (nullable FK) + migration `b2c3d4e5f6a7`. Le front envoie `patient_id` quand le bot est ouvert depuis `/patients/:id` ; injection auto de l'entité patient pour les intents patient-centrés (lève la clarification "quel patient ?").
+- **`CHANGE_STATUS` implémenté** (était un stub) : détection statut NL (`_STATUS_KEYWORDS`), résolution du RDV (aujourd'hui sinon prochain), `write_pending` + `_exec_change_status` qui applique en DB.
+- Fix bonus : emoji statut agenda (les clés `PLANIFIE/EN_COURS` ne matchaient plus l'enum depuis le renommage `PREVU`) + filtre `!= AppointmentStatus.ANNULE` dans `_handle_query_patient`.
+
+#### ✅ Vérifs
+- `py_compile` OK, `tsc --noEmit` OK. Tests unitaires : normalisation entités LLM, restore_stream (token coupé + orphelin), détection statut. **Suite complète : 86 passed / 6 skipped, 0 régression** (`test_crownbot_changes.py` ajouté).
+- ⚠️ Code mort repéré (non importé) : `frontend/.../CrownBot/hooks/useCrownBot.ts` + `ChatMessage.tsx` → à supprimer.
+- ⚠️ Le fetch streaming front bypasse l'auto-refresh 401 de l'intercepteur axios (le bot est secondaire ; retry manuel). À surveiller si tokens courts.
+
+---
+
 ### 📅 Date : 16 Juin 2026
 **Intervenant** : CTO Saninova + Claude (Sonnet 4.6)
 **Objectif** : Bouclage V1 commercialisation (local-first) + audit RBAC / mobile / PWA + fixes.

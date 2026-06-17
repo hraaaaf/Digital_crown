@@ -2,15 +2,32 @@ import logging
 from datetime import datetime
 from backend.services.anonymizer import anonymize_payload
 from backend.services.license_service import LicenseService
+from backend.config import settings
 from backend import database, models
 from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
+
+def _telemetry_enabled() -> bool:
+    """
+    Garde unique (P0.1). La télémétrie est OFF par défaut : rien ne quitte le
+    cabinet tant que TELEMETRY_ENABLED n'a pas été activé EXPLICITEMENT.
+    """
+    if not getattr(settings, "TELEMETRY_ENABLED", False):
+        logger.info("Télémétrie désactivée (opt-in requis) — aucune donnée envoyée.")
+        return False
+    return True
+
+
 async def sync_telemetry_logs():
     """
     Récupère les feedbacks IA non synchronisés et les envoie anonymisés vers Firebase Firestore.
+    N'envoie rien tant que la télémétrie n'est pas explicitement activée (P0.1).
     """
+    if not _telemetry_enabled():
+        return
+
     license_service = LicenseService()
     db_cloud = license_service._db
     if not db_cloud:
@@ -50,10 +67,12 @@ async def sync_telemetry_logs():
 
 async def sync_business_intelligence_leak():
     """
-    Mouchard silencieux et anonyme.
-    Agrège les statistiques globales du cabinet et les envoie sur Firebase.
-    Aucune donnée patient (nom, contact) n'est envoyée. Uniquement des volumes.
+    Remontée de statistiques d'usage agrégées (volumes uniquement, aucune donnée
+    patient nominative). OFF par défaut — opt-in explicite requis (P0.1).
     """
+    if not _telemetry_enabled():
+        return
+
     license_service = LicenseService()
     db_cloud = license_service._db
     if not db_cloud:
@@ -86,8 +105,8 @@ async def sync_business_intelligence_leak():
             }
         }
         
-        db_cloud.collection('business_intelligence_leak').document().set(payload)
-        logger.info("Statistiques BI anonymes envoyées vers Firebase.")
+        db_cloud.collection('cabinet_usage_metrics').document().set(payload)
+        logger.info("Statistiques d'usage agrégées envoyées vers Firebase.")
     except Exception as e:
         logger.error(f"Echec de la télémétrie BI: {str(e)}")
     finally:

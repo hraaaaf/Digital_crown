@@ -20,10 +20,19 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
+
+    # Télémétrie / remontée cloud (P0.1) — OFF par défaut, opt-in EXPLICITE.
+    # Tant que ce flag est False, AUCUNE statistique ne quitte le cabinet.
+    TELEMETRY_ENABLED: bool = False
     
     # IA & Models
     GEMINI_API_KEY: str = ""
     OLLAMA_URL: str = "http://localhost:11434"
+    # Sortie IA vers un fournisseur CLOUD (ex: Gemini) — OFF par défaut (S3).
+    # Capsule IA confinée : tant que ce flag est False, AUCUN contexte clinique
+    # (document, actes, habitudes) ne quitte le cabinet vers un LLM externe.
+    # L'IA reste 100% locale (Ollama). Activation = opt-in EXPLICITE du cabinet.
+    CLOUD_AI_ENABLED: bool = False
     
     # Storage
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo

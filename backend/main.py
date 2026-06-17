@@ -111,6 +111,21 @@ async def lifespan(app: FastAPI):
             "Ajoutez SECRET_KEY=<clé_aléatoire_longue> dans votre fichier .env avant de démarrer."
         )
 
+    # S9 : invariants PRODUCTION — fail-fast pour éviter d'exposer des données
+    # patients réelles avec une config non durcie. N'affecte pas le mode développement.
+    if str(_cfg.ENVIRONMENT).lower() == "production":
+        _prod_errors = []
+        if _cfg.DEBUG:
+            _prod_errors.append("DEBUG=True interdit en production (fuite de stack traces).")
+        if _cfg.DATABASE_URL.strip().lower().startswith("sqlite"):
+            _prod_errors.append("DATABASE_URL pointe sur SQLite — la production exige PostgreSQL.")
+        if "*" in _cfg.ALLOWED_ORIGINS:
+            _prod_errors.append("ALLOWED_ORIGINS contient un wildcard '*' (incompatible avec allow_credentials).")
+        if _prod_errors:
+            raise RuntimeError(
+                "SECURITE PRODUCTION : démarrage refusé. " + " ".join(_prod_errors)
+            )
+
     try:
         # 1. Initialisation DB dans %APPDATA% via AppPaths
         models.Base.metadata.create_all(bind=database.engine)
@@ -121,6 +136,10 @@ async def lifespan(app: FastAPI):
         with database.SessionLocal() as db:
             run_full_seed(db)
             seed_clinical_data(db)
+            # Catalogue Dynamique (spécialités/actes) — seed additif idempotent,
+            # source unique partagée par les Réglages ET la recherche d'actes agenda.
+            from backend.seed_catalog import seed_catalog
+            seed_catalog(db)
 
         # S'assure que l'admin par defaut existe
         seed_admin_user()
@@ -341,7 +360,10 @@ ALLOWED_ORIGINS = [o.strip() for o in _settings.ALLOWED_ORIGINS.split(",") if o.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173",
+    # http ET https : le LAN tourne en HTTP par défaut (HTTPS seulement si certs).
+    # Couvre toute IP LAN privée sur :5173 → robuste aux changements d'IP DHCP
+    # (évite de devoir mettre à jour ALLOWED_ORIGINS dans .env à chaque bail DHCP).
+    allow_origin_regex=r"https?://((192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):5173",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
@@ -351,7 +373,7 @@ from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
     intelligence, clinical_data, mobile, installments, lab_jobs,
-    bot, catalog, verification, analytics, agenda_settings
+    bot, catalog, verification, analytics, agenda_settings, medications
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
@@ -379,6 +401,7 @@ app.include_router(installments.router, prefix="/api/installments", tags=["Insta
 app.include_router(lab_jobs.router, prefix="/api/lab-jobs", tags=["Lab Jobs"])
 app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
+app.include_router(medications.router, prefix="/api/medications", tags=["Medications"])
 
 from backend.routers import superadmin
 app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Super Admin"])
@@ -409,6 +432,95 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# --- P0.2 : PROTECTION DES FICHIERS PATIENTS ---------------------------------
+# Avant ce correctif, l'imagerie patient (panoramiques, céphalo) et les
+# documents (ordonnances, notes — avec le nom du patient dans le fichier)
+# étaient servis PUBLIQUEMENT via les mounts StaticFiles ci-dessous.
+#
+# On enregistre ici des routes AUTHENTIFIÉES pour les seuls sous-chemins
+# sensibles. Starlette évalue les routes dans l'ordre d'enregistrement
+# (premier match gagnant) : ces routes étant déclarées AVANT les mounts,
+# elles interceptent les fichiers patients tandis que les mounts ne servent
+# plus que le branding/logo/polices/modèles (assets non sensibles, publics).
+#
+# Les URLs sont INCHANGÉES → aucune modification frontend : le navigateur
+# joint automatiquement le cookie `access_token` aux balises <img>.
+from fastapi import Depends
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from backend.routers.auth import get_current_user
+from backend import database, models
+
+def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
+    """Sert un fichier sous base_dir avec protection contre le path traversal."""
+    safe_root = os.path.realpath(base_dir)
+    abs_path = os.path.realpath(os.path.join(safe_root, rel_path))
+    if not abs_path.startswith(safe_root + os.sep) and abs_path != safe_root:
+        raise HTTPException(status_code=400, detail="Chemin de fichier invalide")
+    if not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+    return FileResponse(abs_path)
+
+def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str):
+    """
+    Vérifie que le fichier appartient au cabinet de l'utilisateur.
+    Stratégie : si un enregistrement DB existe pour ce chemin mais appartient à un
+    autre cabinet → 403. Si aucun enregistrement → laisser passer (fichier legacy
+    non référencé). Empêche le cross-tenant sur tous les fichiers tracés en base.
+    """
+    path_col = getattr(model_cls, path_col_name)
+    record = (
+        db.query(model_cls)
+        .filter(path_col.like(f"%{path_fragment}"))
+        .join(models.Patient, getattr(model_cls, "patient_id") == models.Patient.id)
+        .first()
+    )
+    if record is not None and record.patient.employer_id != employer_id:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+# Imagerie patient (radios) — AUTH + tenant requis.
+@app.get("/api/static/uploads/panoramic/{rel_path:path}", include_in_schema=False)
+@app.get("/static/uploads/panoramic/{rel_path:path}", include_in_schema=False)
+async def serve_panoramic(
+    rel_path: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    _assert_media_tenant(db, current_user.get_employer_id(), models.PanoramicAnalysis, "image_path", f"panoramic/{rel_path}")
+    return _serve_protected_file(os.path.join(UPLOAD_DIR, "panoramic"), rel_path)
+
+@app.get("/api/static/uploads/radios/{rel_path:path}", include_in_schema=False)
+@app.get("/static/uploads/radios/{rel_path:path}", include_in_schema=False)
+async def serve_radios(
+    rel_path: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    _assert_media_tenant(db, current_user.get_employer_id(), models.CephaloAnalysis, "image_original_path", f"radios/{rel_path}")
+    return _serve_protected_file(os.path.join(UPLOAD_DIR, "radios"), rel_path)
+
+# Documents patients archivés (ordonnances, notes…) — AUTH + tenant requis.
+@app.get("/api/static/archives/{rel_path:path}", include_in_schema=False)
+async def serve_archives(
+    rel_path: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path)
+    return _serve_protected_file(os.path.join(str(MEDIA_DIR), "archives"), rel_path)
+
+@app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)
+async def serve_documents(
+    rel_path: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path)
+    return _serve_protected_file(os.path.join(str(MEDIA_DIR), "documents"), rel_path)
+
+# --- Mounts PUBLICS (branding/logo/polices/modèles uniquement) ---------------
+# Les sous-chemins patients ci-dessus sont déjà interceptés ; ces mounts ne
+# servent donc plus que des assets non sensibles (clinics/, logo, assets, …).
 # /api/static/uploads est prioritaire pour le dossier local dev
 app.mount("/api/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="api_uploads")
 # /api/static sert le reste depuis MEDIA_DIR (logo, etc.)

@@ -76,6 +76,7 @@ from .panoramic import (
     PanoramicAnalysis,
     PanoramicVisualAnnotation,
     PanoramicReportRequest,
+    PanoramicReportEdit,
 )
 
 
@@ -167,6 +168,7 @@ from .auth import (
     TeamMemberCreate,
     TeamMemberUpdate,
     TeamMemberOut,
+    QuotaOut,
     SupabaseSyncRequest,
 )
 
@@ -195,7 +197,7 @@ __all__ = [
     # panoramic (OPG v2 — overrides v1 BoundingBox/ToothObject/Finding)
     "BoundingBox", "Finding", "ToothObject",
     "FullAnalysis", "PanoramicAnalysisBase", "PanoramicAnalysisCreate",
-    "PanoramicAnalysisOut", "PanoramicAnalysis", "PanoramicVisualAnnotation", "PanoramicReportRequest",
+    "PanoramicAnalysisOut", "PanoramicAnalysis", "PanoramicVisualAnnotation", "PanoramicReportRequest", "PanoramicReportEdit",
 
     # documents
     "MedicationItem", "OrdonnanceData", "CertificatData",
@@ -227,7 +229,7 @@ __all__ = [
     "DocumentTemplateOut", "DocumentTemplateList", "TemplatePreviewRequest",
     # auth
     "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut", "UserSignup",
-    "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut",
+    "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut", "QuotaOut",
     "SupabaseSyncRequest",
     # branding
     "BrandingPreviewPayload",

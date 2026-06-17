@@ -15,6 +15,7 @@ interface Message {
   text: string;
   actionType?: string;
   pendingAction?: any;
+  pendingActionId?: string;
   suggestions?: string[];
   showUpsell?: boolean;
 }
@@ -330,7 +331,7 @@ export function CrownBotChat({
       const res = await api.get(`/bot/sessions/${id}/messages`);
       const loaded = res.data.map((m: any) => ({
         id: m.id, sender: m.sender, text: m.text,
-        actionType: m.actionType, pendingAction: m.pendingAction, suggestions: m.suggestions,
+        actionType: m.actionType, pendingAction: m.pendingAction, pendingActionId: m.pendingActionId, suggestions: m.suggestions,
       }));
       if (loaded.length === 0) { startNewSession(); return; }
       setMessages(loaded);
@@ -359,25 +360,88 @@ export function CrownBotChat({
     setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text }]);
     setInput('');
     setIsLoading(true);
+
+    const botId = (Date.now() + 1).toString();
+    let botText = '';
+    let placeholderAdded = false;
+
+    const ensurePlaceholder = () => {
+      if (placeholderAdded) return;
+      placeholderAdded = true;
+      setIsLoading(false);
+      setMessages(prev => [...prev, { id: botId, sender: 'bot', text: '' }]);
+    };
+    const updateBot = (patch: Partial<Message>) =>
+      setMessages(prev => prev.map(m => (m.id === botId ? { ...m, ...patch } : m)));
+
+    // Contexte patient : si on est sur un dossier patient, on rattache la conversation
+    const patientMatch = location.pathname.match(/^\/patients\/(\d+)/);
+    const patientId = patientMatch ? Number(patientMatch[1]) : undefined;
+
     try {
-      const payload: any = { message: text };
-      if (currentSessionId) payload.session_id = currentSessionId;
-      const res = await api.post('/bot/chat', payload);
-      const data = res.data;
-      if (data.session_id && data.session_id !== currentSessionId) {
-        setCurrentSessionId(data.session_id);
-        fetchSessions();
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/bot/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: text,
+          ...(currentSessionId ? { session_id: currentSessionId } : {}),
+          ...(patientId ? { patient_id: patientId } : {}),
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop() || '';
+        for (const part of parts) {
+          const line = part.split('\n').find(l => l.startsWith('data:'));
+          if (!line) continue;
+          let evt: any;
+          try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+          if (evt.type === 'session') {
+            if (evt.session_id && evt.session_id !== currentSessionId) setCurrentSessionId(evt.session_id);
+          } else if (evt.type === 'token') {
+            ensurePlaceholder();
+            botText += evt.content;
+            updateBot({ text: botText });
+          } else if (evt.type === 'final') {
+            ensurePlaceholder();
+            updateBot({
+              text: evt.message ?? botText,
+              actionType: evt.action_type,
+              pendingAction: evt.pending_action,
+              pendingActionId: evt.pending_action_id,
+              suggestions: evt.suggestions,
+              showUpsell: evt.show_upsell === true,
+            });
+            if (evt.session_id && evt.session_id !== currentSessionId) setCurrentSessionId(evt.session_id);
+            fetchSessions();
+          } else if (evt.type === 'error') {
+            ensurePlaceholder();
+            botText = evt.message || "Désolé, une erreur est survenue.";
+            updateBot({ text: botText });
+          }
+        }
       }
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(), sender: 'bot', text: data.message,
-        actionType: data.action_type, pendingAction: data.pending_action,
-        suggestions: data.suggestions, showUpsell: data.show_upsell === true,
-      }]);
-    } catch {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(), sender: 'bot',
-        text: "Désolé, je n'ai pas pu traiter votre demande.",
-      }]);
+    } catch (err) {
+      console.error('Bot stream error:', err);
+      if (!placeholderAdded) {
+        setMessages(prev => [...prev, { id: botId, sender: 'bot', text: "Désolé, je n'ai pas pu traiter votre demande." }]);
+      } else {
+        updateBot({ text: botText || "Désolé, je n'ai pas pu traiter votre demande." });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -387,13 +451,17 @@ export function CrownBotChat({
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, showUpsell: false } : m));
   };
 
-  const handleConfirmAction = async (msgId: string, actionData: any) => {
+  const handleConfirmAction = async (msgId: string, _actionData: any, actionId?: string) => {
+    if (!actionId) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "Action expirée ou non retrouvée. Veuillez reformuler votre demande." }]);
+      return;
+    }
     setMessages(prev => prev.map(m =>
-      m.id === msgId ? { ...m, pendingAction: null, text: m.text + '\n\n*Action confirmée en cours...*' } : m,
+      m.id === msgId ? { ...m, pendingAction: null, pendingActionId: undefined, text: m.text + '\n\n*Action confirmée en cours...*' } : m,
     ));
     setIsLoading(true);
     try {
-      const res = await api.post('/bot/execute', { pending_action: actionData });
+      const res = await api.post('/bot/execute', { pending_action_id: actionId });
       const data = res.data;
 
       // Redirect si l'action ouvre un module (prescription, devis)
@@ -557,9 +625,12 @@ export function CrownBotChat({
                   {msg.pendingAction && (
                     <PendingActionCard
                       action={msg.pendingAction}
-                      onConfirm={() => handleConfirmAction(msg.id, msg.pendingAction)}
-                      onCancel={() => setMessages(prev => prev.map(m =>
-                        m.id === msg.id ? { ...m, pendingAction: null, text: m.text + '\n\n*Action annulée.*' } : m))}
+                      onConfirm={() => handleConfirmAction(msg.id, msg.pendingAction, msg.pendingActionId)}
+                      onCancel={() => {
+                        if (msg.pendingActionId) api.post(`/bot/execute/${msg.pendingActionId}/cancel`).catch(() => {});
+                        setMessages(prev => prev.map(m =>
+                          m.id === msg.id ? { ...m, pendingAction: null, pendingActionId: undefined, text: m.text + '\n\n*Action annulée.*' } : m));
+                      }}
                     />
                   )}
 

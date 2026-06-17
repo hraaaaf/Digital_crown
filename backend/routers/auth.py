@@ -205,6 +205,36 @@ async def login_for_access_token(
             detail="Ce compte a ete desactive par le praticien principal.",
         )
 
+    approval = getattr(user, "approval_status", "approved") or "approved"
+    if approval == "pending":
+        audit_service.log(
+            db=db,
+            user_id=user.id,
+            action="LOGIN_PENDING",
+            resource_type="User",
+            resource_id=user.email,
+            severity="WARNING",
+            details="Tentative de connexion sur un compte en attente d'approbation",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Votre compte est en attente d'approbation par votre praticien.",
+        )
+    if approval == "rejected":
+        audit_service.log(
+            db=db,
+            user_id=user.id,
+            action="LOGIN_REJECTED",
+            resource_type="User",
+            resource_id=user.email,
+            severity="WARNING",
+            details="Tentative de connexion sur un compte refuse",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Votre demande d'acces a ete refusee par votre praticien.",
+        )
+
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
 
@@ -218,13 +248,16 @@ async def login_for_access_token(
         severity="INFO",
     )
 
-    # Déclenchement de la synchronisation télémétrique asynchrone
-    try:
-        from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
-        background_tasks.add_task(sync_telemetry_logs)
-        background_tasks.add_task(sync_business_intelligence_leak)
-    except Exception as e:
-        logger.warning(f"Telemetry task registration failed: {e}")
+    # Déclenchement de la synchronisation télémétrique asynchrone.
+    # P0.1 : OFF par défaut — on n'enregistre rien tant que l'opt-in explicite
+    # (TELEMETRY_ENABLED) n'est pas activé. Aucune donnée ne quitte le cabinet.
+    if settings.TELEMETRY_ENABLED:
+        try:
+            from backend.services.telemetry import sync_telemetry_logs, sync_business_intelligence_leak
+            background_tasks.add_task(sync_telemetry_logs)
+            background_tasks.add_task(sync_business_intelligence_leak)
+        except Exception as e:
+            logger.warning(f"Telemetry task registration failed: {e}")
 
     _set_auth_cookies(response, access_token, refresh_token)
     return {
@@ -439,7 +472,9 @@ async def google_callback(
     db: Session = Depends(get_db),
 ):
     from fastapi.responses import RedirectResponse
-    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    from backend.routers.mobile import resolve_frontend_url
+    # Auto-détection LAN si FRONTEND_URL est localhost / IP LAN périmée (DHCP).
+    frontend_url = resolve_frontend_url(settings.FRONTEND_URL)
 
     if error or not code:
         return RedirectResponse(url=f"{frontend_url}/login?error=google_cancelled")

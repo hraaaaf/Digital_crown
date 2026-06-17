@@ -98,19 +98,28 @@ class AccountingService:
             } for h in habits
         ]
 
-        # 2. Chercher dans le catalogue global (si on n'a pas atteint la limite)
+        # 2. Chercher dans le Catalogue Dynamique managé (CatalogAct + Specialty),
+        #    source de vérité unique partagée avec les Réglages.
         if len(results) < limit:
-            catalog = db.query(models.ClinicalActCatalog).filter(
-                models.ClinicalActCatalog.name.ilike(f"%{query}%")
-            ).order_by(models.ClinicalActCatalog.usage_count.desc()).limit(limit - len(results)).all()
+            catalog = (
+                db.query(models.CatalogAct, models.Specialty.name)
+                .join(models.Specialty, models.CatalogAct.specialty_id == models.Specialty.id)
+                .filter(
+                    models.CatalogAct.name.ilike(f"%{query}%"),
+                    models.CatalogAct.is_active == True,
+                )
+                .order_by(models.CatalogAct.name)
+                .limit(limit - len(results))
+                .all()
+            )
 
-            for c in catalog:
+            for c, spec_name in catalog:
                 if c.name.lower() not in habit_names:
                     results.append({
                         "id": f"cat_{c.id}",
                         "name": c.name,
                         "base_price": c.base_price,
-                        "category": getattr(c, 'category', 'Général'),
+                        "category": spec_name or "Général",
                         "is_habit": False
                     })
 

@@ -13,7 +13,7 @@ import { cn } from '../../utils/cn';
 import { PanoramicHistory } from './PanoramicHistory';
 import { XRayCanvas } from './XRayCanvas';
 import { ReportViewer } from './ReportViewer';
-import { usePanoramicStore, ANOMALY_TAXONOMY } from './stores/usePanoramicStore';
+import { usePanoramicStore, ANOMALY_TAXONOMY, GLOBAL_FINDINGS } from './stores/usePanoramicStore';
 import { LivePreview } from '../admin/DocumentStudio/LivePreview';
 
 
@@ -55,7 +55,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [downloading, setDownloading] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const { toothAnomalies, resetAll, toggleAnomaly } = usePanoramicStore();
+  const { toothAnomalies, globalFindings, toggleGlobalFinding, resetAll, toggleAnomaly } = usePanoramicStore();
 
   // Fetch temporal comparison whenever patientId changes
   useEffect(() => {
@@ -100,6 +100,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Nouvel examen = nouvelle ardoise (évite toute contamination inter-patient).
+    resetAll();
     setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -137,6 +139,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       const response = await api.post('/ia/generate-panoramic-report', {
         analysis_id: result.id,
         manual_anomalies: toothAnomalies,
+        global_findings: globalFindings,
         rejected_detections: rejectedIndices,
         visual_annotations: annotations
       });
@@ -205,6 +208,20 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
 
 
 
+
+  const handleSaveReport = async (editedMarkdown: string) => {
+    if (!result?.id) return;
+    try {
+      const response = await api.put(`/ia/panoramic/${result.id}/report`, {
+        report_narrative: editedMarkdown
+      });
+      setResult((prev: any) => ({ ...prev, report_narrative: response.data.report_narrative }));
+      toast.success("Bilan mis à jour.");
+    } catch (err) {
+      console.error("Erreur sauvegarde bilan :", err);
+      toast.error("Erreur lors de la sauvegarde du bilan.");
+    }
+  };
 
   const getPathologyColor = (pathology: string) => {
     const pathologies = ['Caries', 'Deep Caries', 'Periapical Lesion', 'Impacted'];
@@ -676,6 +693,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                     onDownload={handleDownloadPDF}
                     isDownloading={downloading}
                     onPreview={handlePreview}
+                    onSaveEdit={handleSaveReport}
                   />
                 </div>
               ) : (
@@ -817,8 +835,36 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                   </div>
                 )}
                 
+                {/* CONSTATS GÉNÉRAUX (bouche entière) */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Activity size={12} className="text-amber-500" />
+                    Constats Généraux
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {GLOBAL_FINDINGS.map((gf) => {
+                      const active = globalFindings.includes(gf.id);
+                      return (
+                        <button
+                          key={gf.id}
+                          onClick={() => toggleGlobalFinding(gf.id)}
+                          className={cn(
+                            "px-3 py-2 rounded-xl text-[10px] font-bold tracking-wide border transition-all",
+                            active
+                              ? "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-100"
+                              : "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600"
+                          )}
+                          title={gf.group}
+                        >
+                          {gf.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="pt-4 mt-auto sticky bottom-0 bg-white pb-2 shrink-0">
-                  <button 
+                  <button
                     onClick={async () => {
                       await handleFinalize();
                       setSidebarTab('report'); // Switch to report tab on finalize

@@ -136,6 +136,34 @@ class DataSanitizer:
 
         return restored.strip()
 
+    def restore_stream(self, chunks, mapping: Dict[str, str]):
+        """
+        Version streaming de restore() : réinjecte les valeurs originales au fil
+        des chunks LLM. Retient en buffer tout token potentiellement incomplet
+        (un '[' sans ']' de fermeture) pour ne jamais émettre un token tronqué.
+        """
+        buffer = ""
+        for chunk in chunks:
+            buffer += chunk
+            last_open = buffer.rfind("[")
+            if last_open != -1 and "]" not in buffer[last_open:]:
+                # Token en cours de formation : on garde tout depuis le '['
+                emit, buffer = buffer[:last_open], buffer[last_open:]
+            else:
+                emit, buffer = buffer, ""
+            if emit:
+                yield self._restore_no_strip(emit, mapping)
+        if buffer:
+            yield self._restore_no_strip(buffer, mapping)
+
+    def _restore_no_strip(self, text: str, mapping: Dict[str, str]) -> str:
+        """restore() sans .strip() (préserve les espaces inter-chunks)."""
+        for token, original in mapping.items():
+            text = text.replace(token, original)
+        # Les tokens présents ici sont complets (le buffering retient les tronqués) :
+        # tout token orphelin est une hallucination LLM → on le supprime.
+        return re.sub(r"\[[A-Z]+_\d+\]", "", text)
+
     def sanitize_bot_response(self, text: str) -> str:
         """
         Sanitize une réponse du bot avant qu'elle ne soit passée comme contexte

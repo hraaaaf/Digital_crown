@@ -1,0 +1,82 @@
+name: CI
+
+# S9 — Pipeline d'intégration continue Digital Crown.
+# Gate de pré-production : durcissement config + suite de tests (sécurité,
+# contrôle d'accès, capsule IA, Crown Bot). Aucune donnée patient n'est touchée :
+# les tests tournent sur SQLite in-memory isolé (voir backend/tests/conftest.py).
+
+on:
+  push:
+    branches: [main, master, "S[0-9]*", "redressement*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests & durcissement
+    runs-on: ubuntu-latest
+    env:
+      # Secrets CI factices — JAMAIS de vraie clé ici. Suffisent à booter l'app
+      # et à satisfaire le garde SECRET_KEY (>= 32 caractères).
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Prod safety check (config hardening)
+        run: python scripts/prod_safety_check.py
+
+      - name: Test suite
+        run: python -m pytest backend/tests -q --maxfail=1
+
+  prod-gate:
+    name: Garde production (négatif)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Le garde DOIT refuser une config prod non durcie
+        # Inversion : on s'attend à un ECHEC (exit != 0). Si le check passe avec
+        # une config prod faible, c'est CE job qui échoue → la régression est visible.
+        env:
+          ENVIRONMENT: production
+          SECRET_KEY: changeme
+          DEBUG: "true"
+          DATABASE_URL: "sqlite:///./x.db"
+        run: |
+          if python scripts/prod_safety_check.py; then
+            echo "::error::Le prod safety check a accepté une config production non durcie."
+            exit 1
+          else
+            echo "OK : le garde a bien refusé la config production non durcie."
+          fi
