@@ -1,145 +1,153 @@
 # Digital Crown — SANINOVA Edition
-## *L'Intelligence Clinique au service de la Dentisterie Moderne*
+## *Plateforme de gestion dentaire & orthodontique — Local-First, Production-Ready*
 
-![Version](https://img.shields.io/badge/Version-v3.0_CrownBot-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-v4.0_hardened-blue?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi)
-![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?style=for-the-badge&logo=react)
-![Engine](https://img.shields.io/badge/PDF_Engine-ReportLab_Elite-red?style=for-the-badge)
-![Intelligence](https://img.shields.io/badge/Intelligence-Ghost_Brain_v3-purple?style=for-the-badge)
+![React](https://img.shields.io/badge/Frontend-React_19_TypeScript-61DAFB?style=for-the-badge&logo=react)
+![Database](https://img.shields.io/badge/Database-PostgreSQL_18.2-336791?style=for-the-badge&logo=postgresql)
+![AI](https://img.shields.io/badge/IA-Ollama_Local--First-orange?style=for-the-badge)
+![Security](https://img.shields.io/badge/Security-Hardened_S0--S9-red?style=for-the-badge)
 
 ---
 
-## Vision du Projet
+## Vue d'ensemble
 
-Digital Crown est une plateforme **Ghost Elite** conçue pour transformer la gestion des cabinets dentaires et orthodontiques. En fusionnant une esthétique ultra-premium avec des algorithmes d'IA de pointe et un moteur d'intelligence proactive, elle permet aux praticiens de se concentrer sur l'essentiel : le diagnostic et le soin.
+Digital Crown est une application de gestion de cabinet dentaire et orthodontique **multi-tenant**, déployée en local (réseau LAN du cabinet). Elle gère des données patients réelles (197+ patients en production), couvre le cycle clinique complet — agenda, dossiers, céphalométrie, panoramique, ordonnances, comptabilité — et expose une API REST sécurisée pour une app mobile compagnon (PWA + native).
 
----
-
-## Nouveautés — Juin 2026 (V1 Commercialisation — Local-First)
-
-### Déploiement Local-First
-- **Aucun domaine, aucun SaaS hébergé** : tout tourne en local (SQLite dans `%APPDATA%`).
-- **Seul lien en ligne = Firebase** : inscription (`pending_clients`), validation SuperAdmin, kill-switch licence (sync 6h → SQLite). Middleware licence fail-open si DB inaccessible.
-- **Onboarding client** : signup public `/register` (CGU + Politique de Confidentialité obligatoires), emails transactionnels (`email_service.py`), activation + 30j d'essai via le panneau SuperAdmin.
-- **Checklist de mise en prod** : `scripts/check-production-readiness.ps1` (10 vérifications). Reste = config (SMTP, `SUPERADMIN_EMAIL`, validation juridique CGU/Privacy).
-
-### RBAC — Accès par compte décidé par le proprio
-- Le propriétaire attribue librement les 9 permissions à chaque sous-compte (dentiste associé **ou** assistante) via `TeamManager`. Accès total réservé au proprio (`employer_id=NULL`).
-
-### Mobile + PWA — Fixes V1
-- Statuts RDV mobile alignés sur l'enum métier (couche de mapping dans `mobile.py`) — création et changement de statut depuis le téléphone ne crashent plus.
-- Icônes PWA carrées (192/512/maskable) — installation propre sur écran d'accueil iOS/Android.
-
-## Nouveautés — Juin 2026 (Sprint CrownBot)
-
-### CrownBot — Assistant Conversationnel Natif
-- **Intent Parser hybride** : regex rapide + fallback LLM (Ollama) pour les requêtes ambiguës.
-- **Action Dispatcher** : répond avec des cartes d'action (prise de RDV, consultation fiche patient, solde).
-- **Finance O(1)** : requêtes financières résolues en temps constant depuis la caisse locale.
-- **UX Confirmation Card** : carte de confirmation avant toute action irréversible.
-
-### Document Studio — Échéancier Unifié
-- Génération PDF ReportLab A5 (CheckBox : réglé ✓ / en cours ● / à venir □).
-- Flux unifié avec Devis/Honoraires : **Aperçu → Enregistrer → Imprimer** via `StudioFooter`.
-- Rappels WhatsApp intégrés par échéance (lien `wa.me` pré-formaté).
-
-### Analytiques Réelles
-- **Tendances de la Semaine** connecté à `/admin/dashboard/stats` (activité réelle 7 jours, plus de mock).
-
-### Corrections Critiques
-- **Login email/password** : corrigé (`URLSearchParams` → OAuth2PasswordRequestForm correct).
-- **Tour guidé** : persistance correcte en `localStorage` — ne se relance plus à chaque session.
-- **Radio panoramique** : numéros FDI lisibles (fond sombre + opacité 82%), directement superposés sur la radio.
+> **Base de données active** : PostgreSQL 18.2 `digitalcrown_db` (localhost)  
+> **Environnement** : `ENVIRONMENT=development` sur le poste du praticien  
+> **Pas de cloud** : toutes les données cliniques restent sur la machine du cabinet
 
 ---
 
-## Breakthroughs Techniques — Mai 2026
-
-### Ghost Hub Intelligence v2.0 — Moteur Proactif Complet
-
-**Catégorie A — Analyse Patient :**
-- **A1 Flash Summary** : Résumé IA de dossier en temps réel (antécédents, traitements actifs, solde).
-- **A4 Traitement Abandonné** : Détection des devis > 60j sans acte commencé.
-- **A5 Suivi Post-Extraction** : Alerte de suivi automatique à J+7.
-
-**Catégorie B — Prédictions Comportementales :**
-- **B1 Score No-Show** : Taux d'annulation > 40% sur 6 mois → alerte proactive.
-- **B3 Créneau Maudit** : Détection d'un slot horaire annulé 3+ fois consécutives.
-- **B4 Progression Ortho** : Estimation % d'avancement du traitement orthodontique.
-- **B5 Prédiction Fin Ortho** : Extrapolation de la date de fin via intervalles moyens inter-séances.
-
-**Catégorie C — Finance Prédictive :**
-- **C1 Forecast Semaine** : Projection du chiffre d'affaires des 7 prochains jours.
-- **C4 Taux de Conversion** : % des devis suivis d'un acte dans les 90 jours.
-- **C5 Projection Mensuelle** : Historique 3 mois + forecast 6 mois pondéré par RDV planifiés.
-
-**Catégorie D — Actions Anticipatoires :**
-- **D1 Next Best Action (NBA)** : Toast actionnable au départ de la fiche patient.
-- **D3 Protocole Auto-suggéré** : Détection du preset d'ordonnance le plus pertinent selon l'acte du jour.
-- **D4 Ordonnance Anticipée** : Si RDV dans ≤ 14j, suggestion du protocole à préparer.
-
-**Catégorie E — Scheduler & Notifications :**
-- **E1 Daily Scheduler** : Thread daemon récursif — génère les alertes à 10s de démarrage, puis toutes les 24h.
-- **E2 ProactiveAlert** : Table SQLite dédiée avec déduplication 24h et expiration 7j.
-- **E3 Hub Alertes du Jour** : Widget Dashboard avec navigation directe patient + mark-as-read.
-- **E5 Push Mobile FCM** : Notifications push Firebase vers l'app mobile compagnon.
-
----
-
-### Panoramic ELITE Hub v2.0
-- **Taxonomie Clinique** : Groupement des anomalies par spécialité (Endo, Paro, Chirurgie, Prothèse).
-- **Multi-Tooth Selection** : Prise en charge native des bridges et zones infectieuses étendues (sélection FDI).
-- **Numérotation FDI superposée** : Labels lisibles directement sur la radio, fond sombre, sélection par clic.
-- **Live PDF Engine** : Génération instantanée de bilans structurés par secteur.
-
-### Clinical Intelligence v1.5
-- **Flash Summaries** : Diagnostics structurés (Squelettique, Dentaire, Stratégie) via Ollama/Llama3.2 et Gemini 1.5 Flash.
-- **EliteAssistant** : Compagnon contextuel avec awareness du module actif, insights cliniques, D4 ordonnance anticipée.
-
-### Studio Documentaire v4.x
-- **Ordonnance Zero-Clavier** : Protocoles rapides, suggestion IA agentique, architecture galénique.
-- **Devis / Note d'Honoraires** : Odontogramme FDI interactif, archivage automatique, anti-doublon SHA-256.
-- **Échéancier** : Plan de paiement échelonné A5, CheckBox statuts, rappels WhatsApp.
-- **Certificats / Documents Libres** : Templates vectoriels ReportLab Elite.
-- **QR E-Verify** : Signature numérique injectée dans chaque ordonnance.
-
-### Ghost Elite UI
-- **Backdrop-blur** systématisé, CSS Variables synchronisées avec la BDD.
-- **Odontogramme FDI Interactif** : Rendu vectoriel SVG haute fidélité (surfaces M, O, D, MOD).
-- **Dynamic Branding v4.6** : 6 thèmes, curseurs couleur avec persistence BDD.
-
-### App Mobile ZKA
-- **Onboarding QR** : Appairage Zero-Knowledge via token éphémère.
-- **Cockpit Mobile** : Agenda, Performance, Finance, Labo, Sécurité en temps réel sur LAN.
-- **Push FCM (E5)** : Réception des alertes proactives du scheduler quotidien.
-- **Offline Queue** : Actions POST/PUT/PATCH mises en file hors connexion (Workbox Background Sync).
-
----
-
-## Architecture
-
-Voir **[ARCHITECTURE.md](./ARCHITECTURE.md)** pour l'arborescence complète commentée et les flux de données.
-
-### Vue d'ensemble
+## Architecture technique
 
 ```
-Backend  FastAPI :8005  →  SQLite (digital_crown.db)
-                        →  ReportLab (PDF génération)
-                        →  ONNX Runtime (panoramique)
-                        →  Ollama (LLM local)
-                        →  Firebase (licence + push FCM)
+Backend  FastAPI :8005     →  PostgreSQL 18.2 (digitalcrown_db)
+                            →  SQLAlchemy ORM (multi-tenant employer_id)
+                            →  ReportLab (PDF génération Elite)
+                            →  ONNX YOLO11x (analyse panoramique)
+                            →  Ollama local-first (LLM, fallback cloud opt-in)
+                            →  Firebase (push FCM mobile uniquement)
 
-Frontend React :5173   →  Zustand (état global)
-                        →  Axios (API client, refresh JWT auto)
-                        →  Framer Motion + TailwindCSS
-                        →  Vite PWA (Service Worker offline)
+Frontend React/Vite :5173  →  Zustand (état global)
+                            →  Axios (API client, refresh JWT auto)
+                            →  Framer Motion + TailwindCSS
+                            →  Vite PWA (Service Worker offline)
+
+Mobile (PWA LAN)           →  App compagnon sur réseau local
+                            →  ZKA : appairage ECDH P-256, masterKey jamais en clair
 ```
+
+### Multi-tenant
+Toutes les données cliniques sont isolées par `employer_id`. Chaque requête vérifie l'appartenance via `assert_patient_access(patient_id, user, db)`. Aucun fichier patient n'est accessible sans authentification JWT.
+
+---
+
+## Modules fonctionnels
+
+### Agenda & Patients
+- Agenda multi-praticien avec gestion des statuts RDV
+- Dossiers patients complets (anamnèse, actes, prescriptions, documents)
+- Scoring patient (prédiction no-show, B1/B3/B4/B5)
+- Ghost Hub proactif : alertes cliniques quotidiennes (traitements abandonnés, suivi post-extraction, etc.)
+
+### Studio Céphalométrique (Step 1→4)
+- **Étape 1** : Upload radio + placement landmarks (36 points requis) + calibration mm/px
+- **Étape 2** : Examen occlusal (classe molaire/canine, type d'arcade)
+- **Étape 3** : Calcul automatique SNA/SNB/ANB/IMPA/I-Francfort/Inter-incisif/Nasolabial (3 analyses : COM / Steiner / Tweed) + diagnostic textuel
+- **Étape 4 (M3)** : Interface structurée en 4 sections — synthèse angles (7 cards code couleur), checklist validation live, plan de traitement, 3 boutons (Prévisualiser / Brouillon PDF / Valider & Archiver)
+- **CephaloConsistencyValidator** : validation clinique avant PDF — erreurs fatales bloquantes (bornes physiologiques, SNA-SNB≠ANB, contradiction de classe) + warnings non-bloquants
+- **Endpoint** `GET /patients/{id}/cephalo-validation` pour pré-validation frontend
+
+### Panoramique ELITE
+- **IA** : ONNX YOLO11x — détecte les dents uniquement (0 pathologie auto-diagnostiquée)
+- **Annotation manuelle** : taxonomie clinique (Endo, Paro, Chirurgie, Prothèse, dent_absente, appareil) + constats généraux (lyse, parodontite, édentement)
+- **Bilan 100% déterministe** sans LLM : phrases cliniques, CCAM, conduite à tenir, normalité conditionnelle
+- **Preview + édition** : visualisation et modification ligne par ligne avant archivage
+
+### CrownBot — Assistant Conversationnel IA
+- Intent parser hybride (regex + Ollama fallback)
+- **Pending actions server-side** : le LLM propose → action stockée en DB avec UUID + TTL 30 min → seul l'UUID est renvoyé au client → exécution uniquement sur confirmation avec UUID
+- Action dispatcher : prise de RDV, fiche patient, solde, ouverture ordonnance/devis
+- Contexte LLM anonymisé (data_sanitizer) — aucune PII dans le prompt
+
+### Document Studio
+- **Ordonnances** : protocoles rapides, suggestion IA, architecture galénique, QR e-verify
+- **Devis / Honoraires** : odontogramme FDI SVG, archivage anti-doublon SHA-256
+- **Échéancier** : plan de paiement A5, statuts CheckBox, rappels WhatsApp
+- **Bilan orthodontique** : PDF Elite avec disclaimer praticien obligatoire
+
+### Comptabilité & Finance
+- Tableau de bord recettes/dépenses, trésorerie, projection mensuelle
+- Forecast semaine (C1), taux de conversion devis (C4)
+- Export PDF comptable
+
+### Équipe & Plans d'abonnement
+| Plan | Dentistes | Assistantes |
+|------|-----------|-------------|
+| GOLD | 1 (owner) | 2 |
+| PREMIUM | 2 | 6 |
+| ELITE | Illimité | Illimité |
+
+- Workflow d'approbation : création → `PENDING` (login bloqué) → `APPROVED/REJECTED` par le praticien propriétaire
+- `GET /team/quota` · `POST /team/{id}/approve` · `POST /team/{id}/reject`
+
+### App Mobile (ZKA)
+- Appairage QR : ECDH secp256r1 → masterKey chiffrée AES-256-GCM (jamais en clair sur le réseau)
+- Cockpit : agenda, performance, finance, labo, sécurité
+- Push FCM, offline queue (Workbox Background Sync)
+
+---
+
+## Sécurité (Sprint S0–S9)
+
+| Domaine | Mesure |
+|---------|--------|
+| **Télémétrie** | `TELEMETRY_ENABLED=False` par défaut — opt-in explicite |
+| **Fichiers patients** | Auth JWT obligatoire sur toutes les routes `/uploads/`, `/archives/`, `/documents/` |
+| **Cross-tenant** | `assert_patient_access` sur chaque endpoint patient · guard `_assert_media_tenant` sur les routes statiques |
+| **Permissions** | RBAC 9 permissions · fail-closed sur type inconnu · guards serrés sur prescriptions/actes/accounting/cephalo |
+| **Cloud IA** | `CLOUD_AI_ENABLED=False` par défaut · AI Gateway (`ai_gateway.py`) local-first avec résolution d'URL d'egress |
+| **ZKA Mobile** | ECDH P-256 + HKDF-SHA256 + AES-256-GCM · masterKey jamais en clair · `get_mobile_role` fail-closed |
+| **Bot** | Pending actions en DB (UUID + TTL) · tenant-check avant exécution · allowlist d'actions explicite |
+| **Audit** | `AuditLog` par cabinet (employer_id) · EXPORT_DB/MOBILE_PAIRING/BOT_EXECUTE tracés |
+| **Prod gate** | `prod_safety_check.py` + CI GitHub Actions · invariants fail-fast au démarrage |
+
+---
+
+## Migrations disponibles
+
+```bash
+# Table pending actions bot
+python scripts/migrate_bot_pending_actions.py
+
+# Colonnes plans / approbation équipe
+python scripts/migrate_m1_subscription_plans.py
+
+# Contrainte unique multi-tenant numero_dossier
+python scripts/migrate_p04_numero_dossier_tenant.py
+
+# Audit read-only (baseline counts)
+python scripts/preflight_data_audit.py
+
+# Vérification config production
+python scripts/prod_safety_check.py
+```
+
+Toutes les migrations sont **idempotentes** et vérifient `count_before == count_after` (patients, documents).
 
 ---
 
 ## Installation & Démarrage
 
-### Windows (Quick Launch)
+### Prérequis
+- Python 3.11+ avec `venv`
+- PostgreSQL 18.2 (base `digitalcrown_db`)
+- Node.js 20+ / npm
+- Ollama (LLM local, modèle `llama3.2` recommandé)
+
+### Démarrage rapide (Windows)
 ```powershell
 ./Start_DigitalCrown.bat
 ```
@@ -154,21 +162,54 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8005
 cd frontend && npm run dev
 ```
 
-- API Docs : `http://localhost:8005/docs`
-- App : `http://localhost:5173`
-- Mobile (LAN) : `http://<ip-locale>:5173`
+### Variables d'environnement clés (`.env`)
+```env
+DATABASE_URL=postgresql://postgres:admin@localhost/digitalcrown_db
+SECRET_KEY=<clé 32+ caractères aléatoires>
+ENVIRONMENT=development        # production active les fail-fast guards
+TELEMETRY_ENABLED=false
+CLOUD_AI_ENABLED=false         # opt-in cloud LLM
+OLLAMA_URL=http://localhost:11434
+```
+
+### Accès
+| Service | URL |
+|---------|-----|
+| Application | `http://localhost:5173` |
+| API + Swagger | `http://localhost:8005/docs` |
+| Mobile (LAN) | `http://<ip-locale>:5173` |
 
 ---
 
-## Sécurité & Éthique
-- **Zéro Data Leak** : Validation Pydantic stricte, multi-tenant isolé par `employer_id`.
-- **Archivage Immuable** : SHA-256 anti-doublon sur tous les documents cliniques.
-- **Local-First AI** : SLM local (Ollama) pour confidentialité maximale des données patient.
-- **Zero-Knowledge Architecture** : Données mobiles chiffrées AES-GCM, clé dérivée hors serveur.
-- **License System** : Coffre-fort chiffré AES-256 + anti-rollback temporel + grâce 72h offline.
+## Tests & CI
+
+```bash
+# Suite de tests backend
+pytest backend/tests/
+
+# Vérification TypeScript frontend
+cd frontend && npx tsc --noEmit
+
+# Gate de sécurité production
+python scripts/prod_safety_check.py
+```
+
+Pipeline CI (`.github/workflows/ci.yml`) : install → prod_safety_check → pytest → test négatif garde prod.
+
+---
+
+## Contraintes non-négociables (données patients)
+
+- Ne **jamais** supprimer / réinitialiser / recréer des données patients
+- Ne **jamais** dropper la table `patients` ni régénérer `numero_dossier`
+- Toute migration : `count_before == count_after` prouvé par `preflight_data_audit.py`
+- Backend = seule autorité · Frontend = non fiable · LLM = non fiable (capsule confinée)
+- Aucune sortie IA clinique sans validation praticien
+- `masterKey` jamais en clair sur le réseau
 
 ---
 
 ## Équipe & Version
-**Staff Engineering — Digital Crown SANINOVA**
-*Dernière mise à jour : 16 Juin 2026 — V1 Commercialisation Local-First (signup en ligne, RBAC, fixes mobile/PWA)*
+
+**Staff Engineering — Digital Crown SANINOVA**  
+*Dernière mise à jour : 17 Juin 2026 — v4.0 hardened (S0–S9 + M1/M2/M3/M4 cephalo + panoramique déterministe)*
