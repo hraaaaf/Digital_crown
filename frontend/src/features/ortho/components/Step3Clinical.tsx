@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Ruler, Activity, Info, Sparkles } from 'lucide-react';
+import { Ruler, Activity, Info, Sparkles, ChevronDown } from 'lucide-react';
 import type { DonneesEtape3, DiagnosticTexts } from '../cephaloTypes';
 import { fmtNum, generateTreatmentPlan, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
 import { evaluateCase, deriveDentureFromAge, deriveDivision } from '../orthoExpertSystem';
@@ -140,82 +140,80 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
           </div>
 
-          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <div className="flex items-center gap-3 mb-6">
-              <Ruler size={18} style={{ color: P.accent }} />
-              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Dentaire</h3>
+          <AccordionSection
+            title="Analyse Dentaire"
+            icon={<Ruler size={16} style={{ color: P.accent }} />}
+            defaultOpen={true}
+            P={P}
+          >
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              {currentAnalysis === 'COM' && (
+                <>
+                  <MetricInput label="Surplomb" value={data.dentaire.surplomb} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
+                  <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
+                  <MetricInput label="1 / Mandibulaire (IMPA)" value={data.dentaire.impa} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} readOnly />
+                  <MetricInput label="1 / Francfort" value={data.dentaire.i_francfort} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} readOnly />
+                  <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} readOnly />
+                </>
+              )}
+              {currentAnalysis === 'STEINER' && (
+                <>
+                  <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle || ''} onChange={(v: string) => updateDentaire('i_na_angle', v)} unit="°" normal="22° ± 2" mean={22} tol={2} P={P} />
+                  <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm || ''} onChange={(v: string) => updateDentaire('i_na_mm', v)} unit="mm" normal="4mm ± 1" mean={4} tol={1} P={P} />
+                  <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle || ''} onChange={(v: string) => updateDentaire('i_nb_angle', v)} unit="°" normal="25° ± 2" mean={25} tol={2} P={P} />
+                  <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm || ''} onChange={(v: string) => updateDentaire('i_nb_mm', v)} unit="mm" normal="4mm ± 1" mean={4} tol={1} P={P} />
+                  <MetricInput label="Inter-Incisif" value={data.dentaire.inter_incisif} onChange={(v: string) => updateDentaire('inter_incisif', v)} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} />
+                </>
+              )}
+              {currentAnalysis === 'TWEED' && (
+                <>
+                  <MetricInput label="IMPA" value={data.dentaire.impa} onChange={(v: string) => updateDentaire('impa', v)} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} />
+                  <MetricInput label="FMIA" value={data.dentaire.fmia || ''} onChange={(v: string) => updateDentaire('fmia', v)} unit="°" normal="65° ± 5" mean={65} tol={5} P={P} />
+                </>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-                {currentAnalysis === 'COM' && (
-                  <>
-                    <MetricInput label="Surplomb" value={data.dentaire.surplomb} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
-                    <MetricInput label="Recouvrement" value={data.dentaire.recouvrement} unit="mm" normal="1.5 à 3mm" mean={2.2} tol={0.8} P={P} readOnly />
-                    <MetricInput label="1 / Mandibulaire (IMPA)" value={data.dentaire.impa} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} readOnly />
-                    <MetricInput label="1 / Francfort" value={data.dentaire.i_francfort} unit="°" normal="107° ± 5" mean={107} tol={5} P={P} readOnly />
-                    <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} readOnly />
-                  </>
-                )}
-                {currentAnalysis === 'STEINER' && (
-                  <>
-                    <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle || ''} onChange={(v: string) => updateDentaire('i_na_angle', v)} unit="°" normal="22° ± 2" mean={22} tol={2} P={P} />
-                    <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm || ''} onChange={(v: string) => updateDentaire('i_na_mm', v)} unit="mm" normal="4mm ± 1" mean={4} tol={1} P={P} />
-                    <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle || ''} onChange={(v: string) => updateDentaire('i_nb_angle', v)} unit="°" normal="25° ± 2" mean={25} tol={2} P={P} />
-                    <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm || ''} onChange={(v: string) => updateDentaire('i_nb_mm', v)} unit="mm" normal="4mm ± 1" mean={4} tol={1} P={P} />
-                    <MetricInput label="Inter-Incisif" value={data.dentaire.inter_incisif} onChange={(v: string) => updateDentaire('inter_incisif', v)} unit="°" normal="131° ± 13" mean={131} tol={13} P={P} />
-                  </>
-                )}
-                {currentAnalysis === 'TWEED' && (
-                  <>
-                    <MetricInput label="IMPA" value={data.dentaire.impa} onChange={(v: string) => updateDentaire('impa', v)} unit="°" normal="90° ± 5" mean={90} tol={5} P={P} />
-                    <MetricInput label="FMIA" value={data.dentaire.fmia || ''} onChange={(v: string) => updateDentaire('fmia', v)} unit="°" normal="65° ± 5" mean={65} tol={5} P={P} />
-                  </>
-                )}
+          </AccordionSection>
+
+          <AccordionSection
+            title="Analyse Osseuse"
+            icon={<Activity size={16} style={{ color: P.accent }} />}
+            defaultOpen={false}
+            P={P}
+          >
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              {(currentAnalysis === 'COM' || currentAnalysis === 'TWEED') && (
+                <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="26° ± 4" mean={26} tol={4} P={P} highlight />
+              )}
+              {currentAnalysis === 'COM' && (
+                <>
+                  <MetricInput label="Mesure A'B'" value={data.osseuse.decalage_ab} onChange={(v: string) => updateOsseuse('decalage_ab', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+4.2 ± 3.2" : "+2.3 ± 3.1"} mean={data.age && Number(data.age) < 13 ? 4.2 : 2.3} tol={3.1} P={P} />
+                  <MetricInput label="Situation Point A" value={data.osseuse.situation_a} onChange={(v: string) => updateOsseuse('situation_a', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+2.8 ± 3.3" : "+2.3 ± 3"} mean={data.age && Number(data.age) < 13 ? 2.8 : 2.3} tol={3} P={P} />
+                  <MetricInput label="Situation Point B" value={data.osseuse.situation_b} onChange={(v: string) => updateOsseuse('situation_b', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "-1.5 ± 4.5" : "0.0 ± 4.9"} mean={data.age && Number(data.age) < 13 ? -1.5 : 0} tol={4.9} P={P} />
+                  <MetricInput label="Profondeur Faciale" value={data.osseuse.profondeur_faciale} onChange={(v: string) => updateOsseuse('profondeur_faciale', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "61.3 ± 5" : "70.3 ± 5"} mean={data.age && Number(data.age) < 13 ? 61.3 : 70.3} tol={5} P={P} />
+                </>
+              )}
+              {currentAnalysis === 'STEINER' && (
+                <>
+                  <MetricInput label="SNA" value={data.osseuse.sna} onChange={(v: string) => updateOsseuse('sna', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
+                  <MetricInput label="SNB" value={data.osseuse.snb} onChange={(v: string) => updateOsseuse('snb', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
+                  <MetricInput label="ANB" value={data.osseuse.anb} onChange={(v: string) => updateOsseuse('anb', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
+                </>
+              )}
             </div>
+          </AccordionSection>
 
-
-          </div>
-
-          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <div className="flex items-center gap-3 mb-6">
-              <Activity size={18} style={{ color: P.accent }} />
-              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Osseuse</h3>
+          <AccordionSection
+            title="Analyse Esthétique (Ricketts)"
+            icon={<Activity size={16} style={{ color: P.accentSuccess }} />}
+            defaultOpen={false}
+            P={P}
+          >
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
+              <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
+              <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-                {(currentAnalysis === 'COM' || currentAnalysis === 'TWEED') && (
-                  <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={(v: string) => updateOsseuse('angle_tweed', v)} unit="°" normal="26° ± 4" mean={26} tol={4} P={P} highlight />
-                )}
-                {currentAnalysis === 'COM' && (
-                  <>
-                    <MetricInput label="Mesure A'B'" value={data.osseuse.decalage_ab} onChange={(v: string) => updateOsseuse('decalage_ab', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+4.2 ± 3.2" : "+2.3 ± 3.1"} mean={data.age && Number(data.age) < 13 ? 4.2 : 2.3} tol={3.1} P={P} />
-                    <MetricInput label="Situation Point A" value={data.osseuse.situation_a} onChange={(v: string) => updateOsseuse('situation_a', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+2.8 ± 3.3" : "+2.3 ± 3"} mean={data.age && Number(data.age) < 13 ? 2.8 : 2.3} tol={3} P={P} />
-                    <MetricInput label="Situation Point B" value={data.osseuse.situation_b} onChange={(v: string) => updateOsseuse('situation_b', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "-1.5 ± 4.5" : "0.0 ± 4.9"} mean={data.age && Number(data.age) < 13 ? -1.5 : 0} tol={4.9} P={P} />
-                    <MetricInput label="Profondeur Faciale" value={data.osseuse.profondeur_faciale} onChange={(v: string) => updateOsseuse('profondeur_faciale', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "61.3 ± 5" : "70.3 ± 5"} mean={data.age && Number(data.age) < 13 ? 61.3 : 70.3} tol={5} P={P} />
-                  </>
-                )}
-
-                {currentAnalysis === 'STEINER' && (
-                  <>
-                    <MetricInput label="SNA" value={data.osseuse.sna} onChange={(v: string) => updateOsseuse('sna', v)} unit="°" normal="82° ± 2" mean={82} tol={2} P={P} />
-                    <MetricInput label="SNB" value={data.osseuse.snb} onChange={(v: string) => updateOsseuse('snb', v)} unit="°" normal="80° ± 2" mean={80} tol={2} P={P} />
-                    <MetricInput label="ANB" value={data.osseuse.anb} onChange={(v: string) => updateOsseuse('anb', v)} unit="°" normal="2° ± 2" mean={2} tol={2} P={P} highlight />
-                  </>
-                )}
-            </div>
-
-
-          </div>
-
-          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <div className="flex items-center gap-3 mb-6">
-              <Activity size={18} style={{ color: P.accentSuccess }} />
-              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>Analyse Esthétique (Ricketts)</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
-                <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
-                <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
-            </div>
-          </div>
+          </AccordionSection>
         </div>
 
         {/* COLONNE DROITE : SYNTHÈSE DIAGNOSTIC */}
@@ -318,91 +316,149 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
           </div>
 
-          <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>1. Analyse Dentaire et Alvéolaire</h3>
-            <textarea 
+          <AccordionSection
+            title="1. Analyse Dentaire et Alvéolaire"
+            icon={<Ruler size={14} style={{ color: P.accent }} />}
+            defaultOpen={false}
+            P={P}
+          >
+            <textarea
               value={diag.analyse_dentaire}
               onChange={(e) => handleDiagChange('analyse_dentaire', e.target.value)}
-              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2"
               style={{ borderColor: P.border, color: P.text }}
               placeholder="Description des anomalies dentaires, classe canine/molaire, etc..."
             />
-          </div>
+          </AccordionSection>
 
-          <div className="rounded-2xl p-6 mt-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>2. Analyse Squelettique</h3>
-            <textarea 
+          <AccordionSection
+            title="2. Analyse Squelettique"
+            icon={<Activity size={14} style={{ color: P.accent }} />}
+            defaultOpen={false}
+            P={P}
+          >
+            <textarea
               value={diag.diagnostic_squelettique}
               onChange={(e) => handleDiagChange('diagnostic_squelettique', e.target.value)}
-              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2"
               style={{ borderColor: P.border, color: P.text }}
               placeholder="Description des rapports osseux..."
             />
-          </div>
+          </AccordionSection>
         </div>
       </div>
 
-      {/* RAPPORTS TEXTUELS ADDITIONNELS (FULL WIDTH) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <h3 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: P.text }}>
-            <Activity size={14} style={{ color: P.accent }} />
-            3. Examen des Moulages
-          </h3>
-          <div className="mb-4 p-4 rounded-xl font-mono text-[11px] leading-relaxed relative group overflow-hidden" 
-               style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
-            <div className="absolute top-0 right-0 p-1 px-2 text-[8px] font-black uppercase tracking-widest rounded-bl-lg" 
-                 style={{ background: `${P.accent}20`, color: P.accent }}>
-              Auto Sync Step 2
+      {/* RAPPORTS TEXTUELS — ACCORDÉONS FULL WIDTH */}
+      <div className="space-y-3">
+        <AccordionSection
+          title="3. Examen des Moulages"
+          icon={<Activity size={14} style={{ color: P.accent }} />}
+          defaultOpen={false}
+          P={P}
+        >
+          <div className="space-y-4 pt-2">
+            <div className="p-4 rounded-xl font-mono text-[11px] leading-relaxed relative overflow-hidden"
+                 style={{ background: P.bgInput, border: `1px solid ${P.border}40`, color: P.text }}>
+              <div className="absolute top-0 right-0 p-1 px-2 text-[8px] font-black uppercase tracking-widest rounded-bl-lg"
+                   style={{ background: `${P.accent}20`, color: P.accent }}>
+                Auto Sync Step 2
+              </div>
+              {data.analyse_moulages_auto ? (
+                data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>)
+              ) : (
+                <span className="opacity-40 italic">En attente des données occlusales...</span>
+              )}
             </div>
-            {data.analyse_moulages_auto ? (
-              data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>)
-            ) : (
-              <span className="opacity-40 italic">En attente des données occlusales...</span>
-            )}
+            <textarea
+              value={diag.analyse_moulages}
+              onChange={(e) => handleDiagChange('analyse_moulages', e.target.value)}
+              className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all"
+              style={{ borderColor: P.border, color: P.text }}
+              placeholder="Notes complémentaires (dentaire, formes d'arcade)..."
+            />
           </div>
-          <textarea 
-            value={diag.analyse_moulages}
-            onChange={(e) => handleDiagChange('analyse_moulages', e.target.value)}
-            className="w-full h-24 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-            style={{ borderColor: P.border, color: P.text }}
-            placeholder="Notes complémentaires (dentaire, formes d'arcade)..."
-          />
-        </div>
+        </AccordionSection>
 
-
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <h3 className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: P.text }}>4. Diagnostic / Résumé Diagnostique</h3>
-          <textarea 
+        <AccordionSection
+          title="4. Diagnostic / Résumé Diagnostique"
+          icon={<Info size={14} style={{ color: P.accent }} />}
+          defaultOpen={true}
+          P={P}
+        >
+          <textarea
             value={diag.synthese_diagnostique}
             onChange={(e) => handleDiagChange('synthese_diagnostique', e.target.value)}
-            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+            className="w-full h-32 p-3 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all mt-2"
             style={{ borderColor: P.border, color: P.text }}
             placeholder="Résumé clinique et objectifs..."
           />
-        </div>
-        <div className="rounded-2xl p-6" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: P.text }}>5. Bot Expert ODF (Rapport 100% Automatique)</h3>
-            <button 
-              onClick={() => handleDiagChange('strategie_therapeutique', expertReport.rapportMarkdown)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all hover:scale-105 active:scale-95 shadow-md"
+        </AccordionSection>
+
+        <AccordionSection
+          title="5. Bot Expert ODF (Rapport Automatique)"
+          icon={<Sparkles size={14} style={{ color: P.accent }} />}
+          defaultOpen={false}
+          badge={
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDiagChange('strategie_therapeutique', expertReport.rapportMarkdown); }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all hover:scale-105 active:scale-95 shadow-md ml-2"
               style={{ background: P.accent, color: 'white' }}
             >
-              <Sparkles size={12} />
-              Générer Bilan IA
+              <Sparkles size={11} />
+              Générer
             </button>
-          </div>
-          <textarea 
+          }
+          P={P}
+        >
+          <textarea
             value={diag.strategie_therapeutique}
             onChange={(e) => handleDiagChange('strategie_therapeutique', e.target.value)}
-            className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none overflow-y-auto font-mono leading-relaxed"
+            className="w-full h-48 p-4 rounded-xl bg-white/50 border text-sm focus:ring-2 outline-none transition-all resize-none overflow-y-auto font-mono leading-relaxed mt-2"
             style={{ borderColor: P.border, color: P.text }}
-            placeholder="Cliquez sur 'Générer Bilan IA' pour obtenir la synthèse de l'Agent ODF..."
+            placeholder="Cliquez sur 'Générer' pour obtenir la synthèse de l'Agent ODF..."
           />
-        </div>
-
+        </AccordionSection>
       </div>
+    </div>
+  );
+};
+
+// ── AccordionSection ──────────────────────────────────────────────────────────
+
+const AccordionSection: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: React.ReactNode;
+  P: any;
+  children: React.ReactNode;
+}> = ({ title, icon, defaultOpen = false, badge, P, children }) => {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 transition-all hover:brightness-110"
+        style={{ background: open ? `${P.accent}08` : 'transparent' }}
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <span className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>{title}</span>
+          {badge}
+        </div>
+        <ChevronDown
+          size={16}
+          className="transition-transform duration-300"
+          style={{ color: P.textMuted, transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        />
+      </button>
+      {open && (
+        <div className="px-6 pb-6 pt-2 border-t" style={{ borderColor: P.border }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 };
