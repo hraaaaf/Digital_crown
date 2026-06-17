@@ -15,15 +15,7 @@ WEASYPRINT_AVAILABLE = importlib.util.find_spec("weasyprint") is not None
 
 logger = logging.getLogger(__name__)
 
-# Métriques céphalo exprimées en mm (toutes les autres sont en °)
-_MM_KEYWORDS = (
-    "Ligne", "Surplomb", "Recouvrement", "Decalage", "Décalage",
-    "Situation", "Profondeur", "I_NA_mm", "I_NB_mm", "Wits",
-    "Longueur", "Differentiel", "Etage",
-)
-
-def _cephalo_unit(metric_name: str) -> str:
-    return "mm" if any(k.lower() in metric_name.lower() for k in _MM_KEYWORDS) else "°"
+from backend.services.cephalo_measure_registry import cephalo_unit as _cephalo_unit
 
 class BilanOrthoPDFGenerator(BaseTemplate):
     """

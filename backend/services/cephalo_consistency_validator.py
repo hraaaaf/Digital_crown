@@ -34,14 +34,7 @@ def _val(obj: Any, *keys: str) -> Optional[float]:
         return None
 
 
-def _is_mm_name(name: str) -> bool:
-    """Vrai si le nom de la métrique implique une mesure en mm (pas en degrés)."""
-    n = name.lower()
-    return any(kw in n for kw in (
-        "ligne", "surplomb", "recouvrement", "decalage", "décalage",
-        "situation", "profondeur", "i_na_mm", "i_nb_mm", "wits",
-        "longueur", "differentiel", "etage",
-    ))
+from backend.services.cephalo_measure_registry import is_mm_metric as _is_mm_name
 
 
 # ─── Résultat ─────────────────────────────────────────────────────────────────

@@ -217,7 +217,7 @@ def get_brain_summary(db: Session = Depends(database.get_db), current_user: mode
 def create_acte(
     acte_data: dict,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
+    current_user: models.User = Depends(require_permission(["clinical", "agenda"]))
 ):
     # S1 : tenant + permission. assert_patient_access AVANT le try (sinon le 403/400
     # serait avalé par le `except Exception` qui renvoie 500).
@@ -283,7 +283,7 @@ def update_acte(
     acte_id: int,
     acte_data: dict,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
+    current_user: models.User = Depends(require_permission(["clinical", "agenda"]))
 ):
     """
     Met à jour un acte clinique existant (notes, montants, statut paiement, fichiers joints).
@@ -332,7 +332,7 @@ async def upload_acte_attachment(
     acte_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
+    current_user: models.User = Depends(require_permission(["clinical", "agenda"]))
 ):
     try:
         act = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
@@ -379,7 +379,7 @@ async def upload_acte_attachment(
 def get_patient_actes(
     patient_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission(["agenda", "accounting"]))
+    current_user: models.User = Depends(require_permission(["clinical", "agenda"]))
 ):
     """
     Récupère tous les actes d'un patient.
