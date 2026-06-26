@@ -158,8 +158,20 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     fetchValidation();
   }, [fetchValidation]);
 
-  // Angles from anglesData
+  // Angles from anglesData — data is nested under metrics.analyse_xxx.Key.valeur
   const getAngleVal = (key: string): number | undefined => {
+    const m = anglesData?.metrics;
+    if (m) {
+      for (const section of [m.analyse_osseuse, m.analyse_dentaire, m.analyse_esthetique]) {
+        if (section && section[key] !== undefined) {
+          const raw = section[key]?.valeur ?? section[key];
+          if (raw === undefined || raw === null) return undefined;
+          const n = parseFloat(raw);
+          return isNaN(n) ? undefined : n;
+        }
+      }
+    }
+    // Fallback: top-level flat key (anciens enregistrements)
     const v = anglesData?.[key];
     if (v === undefined || v === null || v === '') return undefined;
     const n = parseFloat(v);
@@ -289,16 +301,26 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                   Tous les angles calculés
                 </p>
                 <div className="space-y-1">
-                  {Object.entries(anglesData ?? {})
-                    .filter(([k]) => !k.startsWith('_') && k !== 'vision_metadata' && k !== 'ai_narrative')
-                    .map(([k, v]) => (
+                  {(() => {
+                    const m = anglesData?.metrics;
+                    if (!m) return null;
+                    const entries: [string, number | null][] = [];
+                    for (const section of [m.analyse_osseuse, m.analyse_dentaire, m.analyse_esthetique]) {
+                      if (!section) continue;
+                      for (const [k, v] of Object.entries(section as Record<string, any>)) {
+                        const val = v?.valeur ?? null;
+                        entries.push([k, typeof val === 'number' ? val : null]);
+                      }
+                    }
+                    return entries.map(([k, val]) => (
                       <div key={k} className="flex justify-between items-center py-1 border-b" style={{ borderColor: `${P.border}50` }}>
                         <span className="text-[10px] font-semibold" style={{ color: P.textMuted }}>{k}</span>
                         <span className="text-[10px] font-black" style={{ color: P.text }}>
-                          {typeof v === 'number' ? v.toFixed(1) : String(v ?? '--')}
+                          {val !== null ? val.toFixed(1) : '--'}
                         </span>
                       </div>
-                    ))}
+                    ));
+                  })()}
                 </div>
               </div>
             )}

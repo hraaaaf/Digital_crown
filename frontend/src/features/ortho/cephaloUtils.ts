@@ -436,9 +436,18 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
   const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
   const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
   const fma = data.osseuse.angle_tweed === '' ? 25 : Number(data.osseuse.angle_tweed);
-  
+
+  const denture_type = data.denture_type || '';
+  const isMixteOrPediatric = denture_type === 'MIXTE' || denture_type === 'TEMPORAIRE';
+
   let plan = '';
   const isChild = cvm && ['CS1', 'CS2', 'CS3', 'CS4'].includes(cvm);
+
+  if (isMixteOrPediatric) {
+    plan += '⚠️ **DENTURE MIXTE / PATIENT EN CROISSANCE**\n';
+    plan += 'Compte tenu de l\'âge et de la denture mixte, le plan thérapeutique doit être orienté vers une évaluation interceptive et une surveillance de croissance.\n';
+    plan += 'La prescription d\'appareillage fixe multi-attaches (type Damon, High Torque) est prématurée à ce stade et doit être différée à la denture permanente.\n\n';
+  }
   
   // 1. DÉCISION D'EXTRACTION (Logique Scientifique Moderne)
   // En méthode Damon, on extrait très rarement. Seulement si biprotrusion sévère ou IMPA critique.
@@ -461,25 +470,25 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
     plan += '\n';
   }
 
-  // 2. CHOIX TECHNOLOGIQUE (Damon vs Invisalign)
-  plan += '⚙️ **CHOIX DU DISPOSITIF & BIOMÉCANIQUE**\n';
-  
-  if (indicateExtraction) {
-    plan += '• **Option A : Méthode Classique (Ligatures actives)**\n';
-    plan += '  - Recommandée pour le contrôle rigoureux du torque radiculaire (rétraction incisive).\n';
-    plan += '  - Arcs acier forte section pour mécanique de glissement.\n';
-    plan += '• **Option B : Invisalign (Cas Complexe)**\n';
-    plan += '  - Taquets d\'ancrage maximum (G6) pour rétraction en masse.\n';
-  } else {
-    plan += '• **Option A : Méthode Damon Passive (Gold Standard)**\n';
-    plan += '  - Forces légères, auto-ligaturant passif (sans friction).\n';
-    plan += '  - Privilégie l\'expansion alvéolaire (arcs CuNiTi larges) pour corriger la DDM.\n';
-    
-    plan += '• **Option B : Aligneurs (Invisalign)**\n';
-    plan += '  - Expansion séquentielle programmée via ClinCheck.\n';
-    if (ddmSev === 'modéré') plan += '  - IPR (Stripping) localisé si nécessaire pour éviter la vestibulo-version.\n';
+  // 2. CHOIX TECHNOLOGIQUE (Damon vs Invisalign) — différé si denture mixte
+  if (!isMixteOrPediatric) {
+    plan += '⚙️ **CHOIX DU DISPOSITIF & BIOMÉCANIQUE**\n';
+    if (indicateExtraction) {
+      plan += '• **Option A : Méthode Classique (Ligatures actives)**\n';
+      plan += '  - Recommandée pour le contrôle rigoureux du torque radiculaire (rétraction incisive).\n';
+      plan += '  - Arcs acier forte section pour mécanique de glissement.\n';
+      plan += '• **Option B : Invisalign (Cas Complexe)**\n';
+      plan += '  - Taquets d\'ancrage maximum (G6) pour rétraction en masse.\n';
+    } else {
+      plan += '• **Option A : Méthode Damon Passive (Gold Standard)**\n';
+      plan += '  - Forces légères, auto-ligaturant passif (sans friction).\n';
+      plan += '  - Privilégie l\'expansion alvéolaire (arcs CuNiTi larges) pour corriger la DDM.\n';
+      plan += '• **Option B : Aligneurs (Invisalign)**\n';
+      plan += '  - Expansion séquentielle programmée via ClinCheck.\n';
+      if (ddmSev === 'modéré') plan += '  - IPR (Stripping) localisé si nécessaire pour éviter la vestibulo-version.\n';
+    }
+    plan += '\n';
   }
-  plan += '\n';
 
   // 3. GESTION SQUELETTIQUE & OCCLUSALE
   plan += '🦴 **STRATÉGIE SQUELETTIQUE (' + (isChild ? 'En Croissance' : 'Adulte') + ')**\n';

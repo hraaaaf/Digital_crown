@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { 
-  Receipt, 
-  Search, 
-  Filter, 
-  Calendar, 
-  Download, 
-  Eye, 
+import {
+  Receipt,
+  Search,
+  Filter,
+  Calendar,
+  Download,
+  Eye,
   Loader2,
   TrendingUp,
   ShieldCheck,
@@ -17,7 +17,11 @@ import {
   ChevronRight,
   BarChart2,
   Calculator,
-  Check
+  Check,
+  Mail,
+  FileSpreadsheet,
+  AlertTriangle,
+  Send
 } from 'lucide-react';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { cn } from '../utils/cn';
@@ -93,6 +97,11 @@ export const AccountingPage = () => {
   const [items, setItems] = useState<HonoraireItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [overdueData, setOverdueData] = useState<any>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: 'title' | 'amount' } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
   const [totalAmount, setTotalAmount] = useState(0);
   const [totalCollected, setTotalCollected] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -173,8 +182,12 @@ export const AccountingPage = () => {
   const fetchTreasury = useCallback(async () => {
     setLoadingTreasury(true);
     try {
-      const res = await api.get('/accounting/treasury-hub');
-      setTreasuryData(res.data);
+      const [treasuryRes, overdueRes] = await Promise.all([
+        api.get('/accounting/treasury-hub'),
+        api.get('/accounting/overdue?days=30'),
+      ]);
+      setTreasuryData(treasuryRes.data);
+      setOverdueData(overdueRes.data);
     } catch (err) {
       console.error("Erreur treasury hub:", err);
     } finally {
@@ -275,6 +288,94 @@ export const AccountingPage = () => {
     } catch (err) {
       console.error("Erreur encaissement:", err);
       toast.error("Échec de l'encaissement.");
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      let url = `/accounting/export-csv?year=${selectedYear}`;
+      if (selectedMonth !== 0) url += `&month=${selectedMonth}`;
+      if (selectedAssurance !== 'ALL') url += `&assurance=${selectedAssurance}`;
+      url += `&filter_type=${filterType}`;
+      const response = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8-sig' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `Compta_${selectedYear}_${selectedMonth || 'Annuel'}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      toast.error("Erreur lors de l'export CSV.");
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleSendEmail = async (itemId: string | number) => {
+    setSendingEmail(String(itemId));
+    try {
+      await api.post(`/accounting/send-email/${itemId}`);
+      toast.success("Note envoyée par email au patient.");
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Erreur d'envoi email.";
+      toast.error(detail);
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
+  const handleRelance = async (itemId: string) => {
+    setSendingEmail(itemId);
+    try {
+      await api.post(`/accounting/relance/${itemId}`);
+      toast.success("Relance envoyée par email.");
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Erreur d'envoi de relance.";
+      toast.error(detail);
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
+  const startEdit = (id: string | number, field: 'title' | 'amount', currentValue: string | number) => {
+    setEditingCell({ id: String(id), field });
+    setEditingValue(String(currentValue));
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
+  const commitEdit = async () => {
+    if (!editingCell) return;
+    const trimmed = editingValue.trim();
+    if (!trimmed) { cancelEdit(); return; }
+
+    const body: Record<string, string | number> = {};
+    if (editingCell.field === 'title') {
+      body.title = trimmed;
+    } else {
+      const parsed = parseFloat(trimmed.replace(',', '.'));
+      if (isNaN(parsed) || parsed < 0) { toast.error("Montant invalide"); return; }
+      body.amount = parsed;
+    }
+
+    try {
+      await api.patch(`/accounting/item/${editingCell.id}`, body);
+      setItems(prev => prev.map(item =>
+        String(item.id) === editingCell.id
+          ? { ...item, [editingCell.field === 'title' ? 'title' : 'amount']: editingCell.field === 'title' ? trimmed : parseFloat(trimmed.replace(',', '.')) }
+          : item
+      ));
+      toast.success("Modifié avec succès.");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Erreur de modification.");
+    } finally {
+      cancelEdit();
     }
   };
 
@@ -416,14 +517,22 @@ export const AccountingPage = () => {
             </div>
           </div>
 
-          <button 
+          <button
+            onClick={handleExportCsv}
+            disabled={exportingCsv || items.length === 0}
+            className="flex items-center gap-2 px-5 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase text-[11px] tracking-widest shadow-lg shadow-emerald-200 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+          >
+            {exportingCsv ? <Loader2 className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
+            CSV
+          </button>
+          <button
             onClick={handleExport}
             disabled={exporting || items.length === 0}
             className="flex items-center gap-3 px-6 py-4 text-white rounded-[1.5rem] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
             style={{ backgroundColor: 'var(--primary)' }}
           >
             {exporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-            {exporting ? "Génération..." : "Exporter Rapport"}
+            {exporting ? "Génération..." : "PDF"}
           </button>
         </div>
       </header>
@@ -723,17 +832,53 @@ export const AccountingPage = () => {
                         <td className="px-8 py-5 text-sm text-slate-500 font-medium">
                           {new Date(group.date).toLocaleDateString('fr-FR')}
                         </td>
-                        <td className="px-8 py-5">
+                        <td className="px-8 py-5" onClick={e => e.stopPropagation()}>
                           {hasMultiple ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-lg text-[10px] font-black" style={{ color: 'var(--primary)' }}>
                               {group.notes.length} notes
                             </span>
+                          ) : editingCell?.id === String(group.notes[0].id) && editingCell.field === 'title' ? (
+                            <input
+                              autoFocus
+                              className="text-sm font-bold text-slate-800 border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[200px]"
+                              value={editingValue}
+                              onChange={e => setEditingValue(e.target.value)}
+                              onBlur={commitEdit}
+                              onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                            />
                           ) : (
-                            <span className="text-sm font-bold text-slate-600 truncate max-w-[200px] block">{group.notes[0].title}</span>
+                            <span
+                              className="text-sm font-bold text-slate-600 truncate max-w-[200px] block cursor-pointer hover:text-primary hover:underline transition-colors"
+                              title="Cliquer pour modifier"
+                              onClick={() => startEdit(group.notes[0].id, 'title', group.notes[0].title)}
+                            >
+                              {group.notes[0].title}
+                            </span>
                           )}
                         </td>
-                        <td className="px-8 py-5 text-right">
-                          <span className="font-black" style={{ color: 'var(--primary)' }}>{group.total.toLocaleString('fr-FR')} MAD</span>
+                        <td className="px-8 py-5 text-right" onClick={e => e.stopPropagation()}>
+                          {!hasMultiple && editingCell?.id === String(group.notes[0].id) && editingCell.field === 'amount' ? (
+                            <input
+                              autoFocus
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="text-sm font-black border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-24 text-right"
+                              value={editingValue}
+                              onChange={e => setEditingValue(e.target.value)}
+                              onBlur={commitEdit}
+                              onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                            />
+                          ) : (
+                            <span
+                              className={`font-black transition-colors ${!hasMultiple ? 'cursor-pointer hover:text-primary/70' : ''}`}
+                              style={{ color: 'var(--primary)' }}
+                              title={!hasMultiple ? 'Cliquer pour modifier' : undefined}
+                              onClick={!hasMultiple ? () => startEdit(group.notes[0].id, 'amount', group.notes[0].amount) : undefined}
+                            >
+                              {group.total.toLocaleString('fr-FR')} MAD
+                            </span>
+                          )}
                         </td>
                         <td className="px-8 py-5 text-center">
                           {hasMultiple ? (
@@ -757,6 +902,9 @@ export const AccountingPage = () => {
                                   <Check size={16} />
                                 </button>
                               )}
+                              <button onClick={e => { e.stopPropagation(); handleSendEmail(group.notes[0].id); }} disabled={sendingEmail === String(group.notes[0].id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
+                                {sendingEmail === String(group.notes[0].id) ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                              </button>
                               <button onClick={() => handleViewDocument(group.notes[0].file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                 <Eye size={16} />
                               </button>
@@ -779,10 +927,47 @@ export const AccountingPage = () => {
                       {hasMultiple && isExpanded && group.notes.map(note => (
                         <tr key={note.id} className="bg-slate-50/60 border-b border-slate-100/60 hover:bg-primary/5 transition-colors">
                           <td className="pl-20 pr-8 py-3" colSpan={3}>
-                            <span className="text-sm font-bold text-slate-600 truncate max-w-[240px] block">{note.title}</span>
+                            {editingCell?.id === String(note.id) && editingCell.field === 'title' ? (
+                              <input
+                                autoFocus
+                                className="text-sm font-bold text-slate-800 border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[240px]"
+                                value={editingValue}
+                                onChange={e => setEditingValue(e.target.value)}
+                                onBlur={commitEdit}
+                                onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              />
+                            ) : (
+                              <span
+                                className="text-sm font-bold text-slate-600 truncate max-w-[240px] block cursor-pointer hover:text-primary hover:underline transition-colors"
+                                title="Cliquer pour modifier"
+                                onClick={() => startEdit(note.id, 'title', note.title)}
+                              >
+                                {note.title}
+                              </span>
+                            )}
                           </td>
                           <td className="px-8 py-3 text-right" colSpan={2}>
-                            <span className="text-sm font-black text-slate-700">{note.amount.toLocaleString('fr-FR')} MAD</span>
+                            {editingCell?.id === String(note.id) && editingCell.field === 'amount' ? (
+                              <input
+                                autoFocus
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                className="text-sm font-black border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-24 text-right"
+                                value={editingValue}
+                                onChange={e => setEditingValue(e.target.value)}
+                                onBlur={commitEdit}
+                                onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              />
+                            ) : (
+                              <span
+                                className="text-sm font-black text-slate-700 cursor-pointer hover:text-primary transition-colors"
+                                title="Cliquer pour modifier"
+                                onClick={() => startEdit(note.id, 'amount', note.amount)}
+                              >
+                                {note.amount.toLocaleString('fr-FR')} MAD
+                              </span>
+                            )}
                           </td>
                           <td className="px-8 py-3 text-center">
                              {getStatusBadge(note)}
@@ -794,6 +979,9 @@ export const AccountingPage = () => {
                                   <Check size={14} />
                                 </button>
                               )}
+                              <button onClick={() => handleSendEmail(note.id)} disabled={sendingEmail === String(note.id)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50" title="Envoyer par email">
+                                {sendingEmail === String(note.id) ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                              </button>
                               <button onClick={() => handleViewDocument(note.file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                 <Eye size={14} />
                               </button>
@@ -857,6 +1045,48 @@ export const AccountingPage = () => {
                  </p>
               </div>
            </div>
+
+           {/* OVERDUE ALERT BANNER */}
+           {overdueData && overdueData.total > 0 && (
+             <div className="bg-rose-50 border border-rose-200 rounded-[2rem] p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+               <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                   <AlertTriangle size={20} />
+                 </div>
+                 <div>
+                   <p className="font-black text-rose-700 text-sm uppercase tracking-widest">
+                     {overdueData.total} note{overdueData.total > 1 ? 's' : ''} en retard &gt; 30 jours
+                   </p>
+                   <p className="text-[10px] text-rose-500 font-medium mt-0.5">
+                     Total : {overdueData.total_amount?.toLocaleString('fr-FR')} MAD non recouvré
+                   </p>
+                 </div>
+               </div>
+               <div className="flex flex-wrap gap-2">
+                 {overdueData.items.slice(0, 5).map((item: any) => (
+                   <div key={item.id} className="flex items-center gap-2 bg-white border border-rose-100 rounded-xl px-3 py-2">
+                     <div>
+                       <p className="text-[10px] font-black text-slate-700">{item.patient_name}</p>
+                       <p className="text-[9px] text-rose-400 font-bold">{item.amount.toLocaleString('fr-FR')} MAD — {item.days_overdue}j</p>
+                     </div>
+                     {item.patient_email && (
+                       <button
+                         onClick={() => handleRelance(item.id)}
+                         disabled={sendingEmail === item.id}
+                         className="p-1.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all border border-rose-100 disabled:opacity-50"
+                         title="Envoyer relance email"
+                       >
+                         {sendingEmail === item.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                       </button>
+                     )}
+                   </div>
+                 ))}
+                 {overdueData.total > 5 && (
+                   <span className="flex items-center px-3 py-2 text-[9px] font-black text-rose-400">+{overdueData.total - 5} autres</span>
+                 )}
+               </div>
+             </div>
+           )}
 
            <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
               <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -938,14 +1168,22 @@ export const AccountingPage = () => {
                         </td>
                         <td className="px-8 py-5">
                           <div className="flex justify-center gap-2">
-                             <button 
+                             <button
+                                onClick={() => handleSendEmail(`doc_${item.id}`)}
+                                disabled={sendingEmail === `doc_${item.id}`}
+                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 disabled:opacity-50"
+                                title="Envoyer par email"
+                             >
+                                {sendingEmail === `doc_${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                             </button>
+                             <button
                                 onClick={() => handleViewDocument(`documents/${item.id}/download`)}
                                 className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100"
                                 title="Voir la note"
                              >
                                 <Receipt size={14} />
                              </button>
-                             <button 
+                             <button
                                 onClick={() => handleEncaisser(item.id)}
                                 className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all"
                              >

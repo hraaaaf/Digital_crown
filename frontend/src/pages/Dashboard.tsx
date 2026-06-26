@@ -533,9 +533,9 @@ export const Dashboard: React.FC = () => {
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">Efficacité</span>
+                    <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">IA / Patient</span>
                     <span className="font-black text-xs text-emerald-500 flex items-center justify-end gap-1">
-                      +{(stats?.total_analyses || 3) * 12}%
+                      {stats?.total_patients ? (stats.total_analyses / stats.total_patients).toFixed(1) : '0'} analyses
                     </span>
                   </div>
                 </div>

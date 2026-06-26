@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import { RefreshCw, Plus } from 'lucide-react';
+import { RefreshCw, Plus, Bell, BellOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import toast from 'react-hot-toast';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment, AppointmentStatus } from './DailyView';
 
@@ -16,7 +17,22 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  
+  const [sendingReminder, setSendingReminder] = useState<number | null>(null);
+
+  const handleRemind = async (e: React.MouseEvent, apptId: number) => {
+    e.stopPropagation();
+    setSendingReminder(apptId);
+    try {
+      await api.post(`/appointments/${apptId}/remind`);
+      toast.success('Rappel envoyé !');
+      setAppointments(prev => prev.map(a => a.id === apptId ? { ...a, reminder_sent: true } : a));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Erreur d\'envoi du rappel');
+    } finally {
+      setSendingReminder(null);
+    }
+  };
+
   // Configuration de la grille
   const startHour = 8;
   const endHour = 19;
@@ -197,12 +213,25 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
                       key={appt.id}
                       onClick={(e) => { e.stopPropagation(); setEditingAppointment(appt); setIsModalOpen(true); }}
                       className={cn(
-                        "appointment-item absolute left-1 right-1 p-2 rounded-lg border border-l-2 text-[10px] font-bold shadow-sm cursor-pointer z-10 break-words hover:scale-[1.02] transition-transform",
+                        "appointment-item absolute left-1 right-1 p-2 rounded-lg border border-l-2 text-[10px] font-bold shadow-sm cursor-pointer z-10 break-words hover:scale-[1.02] transition-transform group/card",
                         getStatusColor(appt.status)
                       )}
                       style={{ top: `${top}px`, height: `${height - 2}px` }}
                     >
-                      {appt.patient_name || 'Patient'}
+                      <div className="truncate">{appt.patient_name || 'Patient'}</div>
+                      {height > 40 && (
+                        <button
+                          onClick={(e) => handleRemind(e, appt.id)}
+                          disabled={sendingReminder === appt.id}
+                          className={cn(
+                            "absolute bottom-1 right-1 p-0.5 rounded opacity-0 group-hover/card:opacity-100 transition-opacity",
+                            appt.reminder_sent ? "text-emerald-600" : "text-slate-400 hover:text-blue-600"
+                          )}
+                          title={appt.reminder_sent ? "Rappel déjà envoyé" : "Envoyer rappel SMS"}
+                        >
+                          {appt.reminder_sent ? <Bell size={10} /> : <BellOff size={10} />}
+                        </button>
+                      )}
                     </div>
                   );
                 })}

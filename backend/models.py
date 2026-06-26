@@ -876,7 +876,8 @@ class ProactiveAlert(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     employer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    # nullable : les alertes cabinet (stock, agenda) n'ont pas de patient associé
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id"), index=True, nullable=True)
     alert_type: Mapped[str] = mapped_column(String(64))
     title: Mapped[str] = mapped_column(String(255))
     message: Mapped[str] = mapped_column(Text)
@@ -886,7 +887,7 @@ class ProactiveAlert(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
+    patient: Mapped[Optional["Patient"]] = relationship("Patient", foreign_keys=[patient_id])
 
 
 class DeviceToken(Base):
@@ -977,10 +978,11 @@ class GhostMemoryLog(Base):
     __tablename__ = "ghost_memory_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=False)
+    # nullable : insights cabinet (stock, agenda) n'ont pas de patient
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=True)
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    
-    insight_type: Mapped[str] = mapped_column(String(50), index=True) # URGENCE, ORTHO, PHARMACOLOGIE, TEMPOREL
+
+    insight_type: Mapped[str] = mapped_column(String(50), index=True) # URGENCE, ORTHO, PHARMACOLOGIE, TEMPOREL, STOCK
     content: Mapped[str] = mapped_column(Text, nullable=False)
     context_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # Hash de l'état clinique
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { cephaloRepository } from '../cephaloRepository';
-import { 
-  buildPayload, computeMcNamaraProjections, initializeDefaultApexes, 
-  calcDDMCephalo, computeLocalImpa 
+import { API_BASE } from '../../../services/api';
+import {
+  buildPayload, computeMcNamaraProjections, initializeDefaultApexes,
+  calcDDMCephalo, computeLocalImpa
 } from '../cephaloUtils';
 import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings, StepId } from '../cephaloShared';
 import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload } from '../cephaloTypes';
@@ -202,12 +203,26 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
   setDateConsultation: (date) => set({ dateConsultation: date }),
   setSexePatient: (sexe) => set({ sexePatient: sexe }),
   setPatientInfo: (id, name) => {
-    // Si on change de patient, on tente de restaurer les photos/metas du localStorage
+    const current = get();
+    // Réinitialiser l'imagerie quand on change de patient (évite les fuites de données entre patients)
+    if (current.patientId !== null && current.patientId !== id) {
+      set({
+        imageSrc: undefined,
+        analysisId: undefined,
+        local: { landmarks: [], version: 0 },
+        anglesData: {},
+        isCalibrated: false,
+        mmPerPixel: null,
+        completedSteps: new Set<number>(),
+        step: 1,
+      });
+    }
+
     const savedPhotos = localStorage.getItem(`digitalcrown_photos_${id}`);
     const savedMeta = localStorage.getItem(`digitalcrown_etape4_${id}`);
     const savedE2 = localStorage.getItem(`digitalcrown_etape2_${id}`);
     const savedE3 = localStorage.getItem(`digitalcrown_etape3_${id}`);
-    
+
     set({ patientId: id, patientName: name });
 
     if (savedPhotos) {
@@ -327,7 +342,25 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const data = await cephaloRepository.uploadRadio(state.patientId, file);
       if (data.analysis_id) set({ analysisId: data.analysis_id });
-      if (data.file_url) set({ imageSrc: data.file_url });
+      // Toujours ré-ancrer l'URL image sur API_BASE du navigateur pour éviter les erreurs
+      // de port quand BACKEND_URL n'est pas défini côté serveur (défaut 8000 vs port réel 8005).
+      if (data.image_path || data.file_url) {
+        const raw: string = data.image_path || data.file_url;
+        let src: string;
+        if (/^https?:\/\//i.test(raw)) {
+          // URL absolue : ré-ancrer sur API_BASE (même chemin, bon host/port)
+          try {
+            const u = new URL(raw);
+            src = `${API_BASE.replace(/\/$/, '')}${u.pathname}`;
+          } catch {
+            src = raw;
+          }
+        } else {
+          // Chemin relatif : construire avec API_BASE
+          src = `${API_BASE.replace(/\/$/, '')}/${raw.replace(/^\//, '')}`;
+        }
+        set({ imageSrc: src });
+      }
       if (data.results) {
         set({ anglesData: data.results });
         
@@ -365,8 +398,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
                 e3.osseuse.anb = String(anb);
                 // Déduction Classe Squelettique
                 e3.classe_squelettique = anb > 4 ? 'CLASSE II' : (anb < 0 ? 'CLASSE III' : 'CLASSE I');
-                // Déduction Profil
-                e3.profil = anb > 4 ? 'CONVEXE' : (anb < 0 ? 'CONCAVE' : 'DROIT');
+                // Profil is set from backend Ricketts E-line when available (see below); ANB fallback only if missing
               }
             }
             
@@ -404,6 +436,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
             strategie_therapeutique: s.diag.strategie_therapeutique || n.strategie_therapeutique || ''
           }
         }));
+        // Use backend Ricketts E-line profil (authoritative) instead of ANB-based override
+        if (n.profil_cutane) {
+          set(s => ({
+            etape3Data: { ...s.etape3Data, profil: (n.profil_cutane as string).toUpperCase() }
+          }));
+        }
       }
       set(s => ({ completedSteps: new Set([...s.completedSteps, 1]) }));
     } catch (e: any) {

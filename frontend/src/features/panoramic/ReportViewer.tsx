@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { FileText, Printer, Share2, Loader2, ShieldCheck, Download, Eye, Pencil, Check, X, Plus, Trash2 } from 'lucide-react';
+import { FileText, Printer, Loader2, ShieldCheck, Download, Eye, Pencil, Check, X, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface ReportViewerProps {
@@ -144,9 +144,6 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({
                 title="Télécharger le bilan PDF"
               >
                 {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-              </button>
-              <button className="p-2.5 hover:bg-white hover:shadow-md rounded-xl transition-all text-slate-500 hover:text-indigo-600 active:scale-90">
-                <Share2 size={18} />
               </button>
             </>
           )}

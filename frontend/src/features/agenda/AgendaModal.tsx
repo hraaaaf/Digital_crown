@@ -59,6 +59,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   const [schedulingType, setSchedulingType] = useState<SchedulingType>('EXACT_TIME');
   const [loading, setLoading] = useState(false);
   const [dateValue, setDateValue] = useState('');
+  const [conflicts, setConflicts] = useState<any[]>([]);
   const [smartIntel, setSmartIntel] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [showGhostPanel, setShowGhostPanel] = useState(false);
@@ -259,6 +260,27 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Détection de chevauchements en temps réel
+  useEffect(() => {
+    if (!isOpen || !dateValue || !time || schedulingType !== 'EXACT_TIME') { setConflicts([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const [h, m] = time.split(':').map(Number);
+        const dt = new Date(dateValue);
+        dt.setHours(h, m, 0, 0);
+        const res = await api.get('/appointments/check-conflicts', {
+          params: {
+            datetime_start: dt.toISOString(),
+            duration_minutes: duration,
+            ...(editingAppointment ? { exclude_id: editingAppointment.id } : {}),
+          }
+        });
+        setConflicts(res.data.conflicts || []);
+      } catch { setConflicts([]); }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [dateValue, time, duration, schedulingType, isOpen, editingAppointment]);
 
   if (!isOpen) return null;
 
@@ -752,21 +774,32 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 </button>
               )}
             </div>
-            <div className="flex w-full sm:w-auto gap-4">
+            <div className="flex flex-col w-full sm:w-auto gap-3">
+              {conflicts.length > 0 && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    Chevauchement avec {conflicts.length} RDV :&nbsp;
+                    {conflicts.map(c => `${c.patient_name || 'Patient'} (${new Date(c.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`).join(', ')}
+                  </span>
+                </div>
+              )}
+              <div className="flex gap-4">
                 <button type="button" onClick={onClose} className="w-1/2 sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-2xl font-black transition-all">
-                Annuler
+                  Annuler
                 </button>
-                <button 
-                type="submit" 
-                disabled={loading} 
-                className="w-1/2 sm:w-auto px-6 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#003380] to-[#0055d4] text-white rounded-2xl font-black hover:shadow-2xl hover:shadow-blue-900/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50 text-xs sm:text-base"
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-1/2 sm:w-auto px-6 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#003380] to-[#0055d4] text-white rounded-2xl font-black hover:shadow-2xl hover:shadow-blue-900/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50 text-xs sm:text-base"
                 >
-                {loading ? (
-                    <> <Clock className="animate-spin" size={20} /> Création... </>
-                ) : (
-                    <> <Check size={20} /> {editingAppointment ? "Modifier le RDV" : "Confirmer le RDV"} </>
-                )}
+                  {loading ? (
+                    <><Clock className="animate-spin" size={20} /> Création...</>
+                  ) : (
+                    <><Check size={20} /> {editingAppointment ? "Modifier le RDV" : "Confirmer le RDV"}</>
+                  )}
                 </button>
+              </div>
             </div>
           </div>
 

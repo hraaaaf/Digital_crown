@@ -16,6 +16,8 @@ export interface Appointment {
   status: AppointmentStatus;
   scheduling_type?: 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY';
   notes?: string | null;
+  reminder_sent?: boolean;
+  reminder_sent_at?: string | null;
 }
 
 interface DailyViewProps {

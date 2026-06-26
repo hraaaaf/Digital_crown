@@ -114,6 +114,18 @@ export const GhostBrainWidget = () => {
 
   const getQuickAction = (insight: any) => {
     const text = insight.content.toLowerCase();
+    // Alertes stock agenda → Voir Agenda
+    if (insight.insight_type === 'STOCK' || text.includes("stock") || text.includes("matériau") || text.includes("carpule") || text.includes("composite") || text.includes("implant") || text.includes("empreinte")) {
+      return {
+        label: "Voir Agenda",
+        icon: <Zap size={10} />,
+        onClick: () => {
+          navigate('/agenda');
+          setIsOpen(false);
+          markAsRead(insight.id);
+        }
+      };
+    }
     if (text.includes("échéance") || text.includes("impayé") || text.includes("encaissement")) {
       return {
         label: "Voir Trésorerie",
@@ -136,20 +148,17 @@ export const GhostBrainWidget = () => {
         }
       };
     }
-    
-    // Default action : Access Patient File
     if (insight.patient_id) {
-        return {
-            label: "Dossier Patient",
-            icon: <ArrowRight size={10} />,
-            onClick: () => {
-                navigate(`/patients/${insight.patient_id}`);
-                setIsOpen(false);
-                markAsRead(insight.id);
-            }
-        };
+      return {
+        label: "Dossier Patient",
+        icon: <ArrowRight size={10} />,
+        onClick: () => {
+          navigate(`/patients/${insight.patient_id}`);
+          setIsOpen(false);
+          markAsRead(insight.id);
+        }
+      };
     }
-    
     return null;
   };
 
@@ -203,21 +212,27 @@ export const GhostBrainWidget = () => {
                 return (
                   <div key={insight.id} className="p-3 bg-background border border-border-main rounded-2xl relative group hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
                       <div className="flex justify-between items-start mb-1">
-                          <Link 
+                          {insight.patient_id ? (
+                            <Link
                               to={`/patients/${insight.patient_id}`}
                               onClick={() => setIsOpen(false)}
                               className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors cursor-pointer"
                               title="Accéder au dossier patient"
-                          >
+                            >
                               {insight.insight_type}
-                          </Link>
+                            </Link>
+                          ) : (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">
+                              {insight.insight_type}
+                            </span>
+                          )}
                           <span className="text-[8px] text-text-muted font-bold">
                              {new Date(insight.created_at).toLocaleDateString()}
                           </span>
                       </div>
                       
-                      <div className="cursor-pointer" onClick={() => {
-                         if(insight.patient_id) {
+                      <div className={insight.patient_id ? "cursor-pointer" : ""} onClick={() => {
+                         if (insight.patient_id) {
                             navigate(`/patients/${insight.patient_id}`);
                             setIsOpen(false);
                          }

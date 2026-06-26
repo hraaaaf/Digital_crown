@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Ticket } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Ticket, Users } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DailyView } from './DailyView';
 import { WeeklyView } from './WeeklyView';
@@ -8,7 +8,68 @@ import { GoogleImportModal } from './GoogleImportModal';
 import { api } from '../../services/api';
 import { Ghost, Settings } from 'lucide-react';
 
-export type AgendaViewMode = 'day' | 'week' | 'month';
+export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
+
+const STATUS_COLORS: Record<string, string> = {
+  'PRÉVU': 'bg-blue-100 text-blue-700',
+  'EN_S_ATTENTE': 'bg-amber-100 text-amber-700',
+  'EN_FAUTEUIL': 'bg-emerald-100 text-emerald-700',
+  'TERMINÉ': 'bg-slate-100 text-slate-400',
+  'ANNULÉ': 'bg-rose-50 text-rose-400',
+};
+
+const MultiPractitionerView: React.FC<{ data: any; loading: boolean }> = ({ data, loading }) => {
+  if (loading) return (
+    <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Chargement…</div>
+  );
+  if (!data) return null;
+  if (data.error === 'PREMIUM') return (
+    <div className="py-20 flex flex-col items-center gap-4">
+      <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center">
+        <Users size={32} className="text-indigo-400" />
+      </div>
+      <h3 className="text-xl font-black text-slate-700">Vue multi-praticien</h3>
+      <p className="text-slate-400 font-medium text-center max-w-sm">
+        Cette vue est disponible à partir du plan <strong>PREMIUM</strong> (2 dentistes et plus).
+      </p>
+    </div>
+  );
+
+  const dentists: any[] = data.dentists || [];
+  return (
+    <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div className={cn("grid divide-x divide-slate-100")} style={{ gridTemplateColumns: `repeat(${dentists.length}, 1fr)` }}>
+        {dentists.map((dentist: any) => (
+          <div key={dentist.dentist_id} className="flex flex-col">
+            <div className="px-6 py-4 bg-indigo-50/50 border-b border-slate-100 text-center">
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Dr.</p>
+              <p className="font-black text-slate-800 text-sm truncate">{dentist.dentist_name}</p>
+              <p className="text-[9px] text-slate-400 font-bold">{dentist.appointments.length} RDV cette semaine</p>
+            </div>
+            <div className="p-3 space-y-2 min-h-[300px]">
+              {dentist.appointments.length === 0 ? (
+                <p className="text-center text-[10px] text-slate-300 font-bold pt-8">Aucun RDV</p>
+              ) : (
+                dentist.appointments.map((appt: any) => (
+                  <div key={appt.id} className={cn("p-2 rounded-xl text-[10px] font-bold border", STATUS_COLORS[appt.status] || 'bg-slate-50 text-slate-500')}>
+                    <p className="font-black truncate">{appt.patient_name || 'Patient'}</p>
+                    <p className="opacity-70 mt-0.5">
+                      {new Date(appt.datetime_start).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                      {' '}
+                      {new Date(appt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      {' · '}{appt.duration_minutes}min
+                    </p>
+                    {appt.motif && <p className="opacity-60 truncate mt-0.5 italic">{appt.motif}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const AgendaStudio: React.FC = () => {
   const [viewMode, setViewMode] = useState<AgendaViewMode>('week');
@@ -17,6 +78,8 @@ export const AgendaStudio: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [upcomingHolidays, setUpcomingHolidays] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  const [multiData, setMultiData] = useState<any>(null);
+  const [loadingMulti, setLoadingMulti] = useState(false);
 
   useEffect(() => {
     api.get('/upcoming-holidays').then(res => setUpcomingHolidays(res.data)).catch(console.error);
@@ -43,13 +106,40 @@ export const AgendaStudio: React.FC = () => {
     setSelectedDate(new Date());
   };
 
+  const fetchMulti = async () => {
+    setLoadingMulti(true);
+    try {
+      const start = new Date(selectedDate);
+      start.setDate(start.getDate() - start.getDay() + 1);
+      start.setHours(0,0,0,0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      end.setHours(23,59,59,999);
+      const res = await api.get('/appointments/multi-practitioner', {
+        params: { start_date: start.toISOString(), end_date: end.toISOString() }
+      });
+      setMultiData(res.data);
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        setMultiData({ error: 'PREMIUM' });
+      }
+    } finally {
+      setLoadingMulti(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'multi') fetchMulti();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, selectedDate]);
+
   const renderView = () => {
-    // On passe une clé pour forcer le rafraîchissement des vues enfants (Daily, Weekly, etc)
     switch (viewMode) {
       case 'day': return <DailyView key={`day-${refreshKey}`} selectedDate={selectedDate} />;
       case 'week': return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} />;
       case 'month': return <MonthlyView key={`month-${refreshKey}`} selectedDate={selectedDate} />;
-      default: return <DailyView key={`day-${refreshKey}`} selectedDate={selectedDate} />;
+      case 'multi': return <MultiPractitionerView data={multiData} loading={loadingMulti} />;
+      default: return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} />;
     }
   };
 
@@ -173,8 +263,18 @@ export const AgendaStudio: React.FC = () => {
           >
             <LayoutGrid size={18} /> Mois
           </button>
+          <button
+            onClick={() => setViewMode('multi')}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all",
+              viewMode === 'multi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600 hover:bg-white/40"
+            )}
+            title="Vue multi-praticien (PREMIUM/ELITE)"
+          >
+            <Users size={18} /> Multi
+          </button>
           <div className="w-px h-6 bg-slate-200 mx-1" />
-          <button 
+          <button
             onClick={handleToday}
             className="px-5 py-2.5 bg-white text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm"
           >

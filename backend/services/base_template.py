@@ -321,12 +321,11 @@ class BaseTemplate:
         selected_template = self._get_val(config, 'selected_template', 'swiss')
         
         # Determine defaults based on template
-        # Réduit de 0.3 cm (4.2→3.9 / 4.5→4.2) pour remonter le titre quand
-        # l'en-tête est court (sans logo) et que c'est cette marge qui domine.
+        # Réduit considérablement pour remonter le titre et le corps des documents.
         if selected_template == 'swiss' or selected_template == 'modern':
-            default_top = 3.9
+            default_top = 2.8
         else:
-            default_top = 4.2
+            default_top = 3.1
             
         default_bottom = 2.5
         
@@ -366,9 +365,8 @@ class BaseTemplate:
         
         base_padding_top = 1.5 * cm
         # Espace de respiration entre l'en-tête et le début du corps (le titre).
-        # Réduit de 0.8 → 0.5 cm pour remonter légèrement le titre dans TOUS les
-        # documents (le titre est le 1er élément du corps, ancré à m_top).
-        bottom_spacing = 0.5 * cm
+        # Réduit drastiquement pour remonter le titre et le corps du document.
+        bottom_spacing = 0.1 * cm
         
         if selected_template == 'swiss':
             min_header_height = base_padding_top + max(has_logo * logo_size, max_text_height) + bottom_spacing

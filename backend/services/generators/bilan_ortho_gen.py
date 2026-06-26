@@ -68,11 +68,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         import weasyprint
         
         flat_metrics = []
+        # Mesures linéaires calibration-dépendantes : exclues car non comparables sans confirmation étalonnage
+        LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B"}
         analysis = vm.analysis
-        for cat_name, measures in [("Dentaire", analysis.metrics.analyse_dentaire), 
+        for cat_name, measures in [("Dentaire", analysis.metrics.analyse_dentaire),
                                    ("Osseuse", analysis.metrics.analyse_osseuse),
                                    ("Esthétique", analysis.metrics.analyse_esthetique)]:
             for metric_name, data in measures:
+                if metric_name in LINEAR_MEASURES_EXCLUDED:
+                    continue
                 if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
                     flat_metrics.append({
                         "name": metric_name.replace("_", " "),
@@ -144,7 +148,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "doctor_name": vm.doctor_name,
             "qr_code_base64": qr_base64,
             "denture_type": vm.analysis.clinical_data.denture_type,
-            "preference_technique": vm.analysis.clinical_data.preference_technique
+            "preference_technique": vm.analysis.clinical_data.preference_technique,
+            "profil_cutane": getattr(vm.analysis.clinical_data, "profil", None) or getattr(vm.analysis.clinical_data, "profil_cutane", None),
         }
 
         template = self.jinja_env.get_template("bilan_ortho_elite.html")

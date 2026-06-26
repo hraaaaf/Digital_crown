@@ -1,12 +1,12 @@
 from sqlalchemy import func, or_, and_
 from typing import Optional, List, Dict
-from fastapi.responses import FileResponse
-import os
+from fastapi.responses import FileResponse, StreamingResponse
+import os, csv, io
 from backend.services.generators.report_gen import ReportGenerator
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
@@ -349,8 +349,244 @@ async def mark_as_paid(
 
 @router.get("/export-pdf")
 def export_accounting_pdf(patient_id: Optional[int] = None, assurance: Optional[str] = None, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
-    data = get_accounting_honoraires(patient_id, assurance, year, month, db, current_user)
+    data = get_accounting_honoraires(patient_id, assurance, year, month, db=db, current_user=current_user)
     report_gen = ReportGenerator()
     filepath = report_gen.generate_accounting_report(items=data["items"], total_amount=data["total_amount"], filters={"assurance": assurance, "month": month, "year": year})
     return FileResponse(path=os.path.join(os.getcwd(), filepath), filename=f"Compta_{year or 'Global'}.pdf")
+
+
+@router.patch("/item/{item_id}")
+def update_honoraire_item(
+    item_id: str,
+    updates: dict = Body(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    """Met à jour le titre et/ou le montant d'une note d'honoraires ou d'un acte."""
+    new_title: str | None = updates.get("title")
+    new_amount: float | None = updates.get("amount")
+
+    if new_title is not None and len(new_title.strip()) == 0:
+        raise HTTPException(status_code=422, detail="Le titre ne peut pas être vide")
+    if new_amount is not None and new_amount < 0:
+        raise HTTPException(status_code=422, detail="Le montant ne peut pas être négatif")
+
+    if item_id.startswith("doc_"):
+        doc_id = int(item_id.split("_")[1])
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document introuvable")
+        assert_patient_access(doc.patient_id, current_user, db)
+        if new_title is not None:
+            doc.title = new_title.strip()
+            if isinstance(doc.clinical_data, dict):
+                if "items" in doc.clinical_data and isinstance(doc.clinical_data["items"], list) and doc.clinical_data["items"]:
+                    doc.clinical_data["items"][0]["titre"] = new_title.strip()
+        if new_amount is not None:
+            if isinstance(doc.clinical_data, dict):
+                if "items" in doc.clinical_data and isinstance(doc.clinical_data["items"], list) and doc.clinical_data["items"]:
+                    doc.clinical_data["items"][0]["montant"] = new_amount
+                elif "payments" in doc.clinical_data and isinstance(doc.clinical_data["payments"], list) and doc.clinical_data["payments"]:
+                    doc.clinical_data["payments"][0]["montant"] = new_amount
+                else:
+                    doc.clinical_data["montant"] = new_amount
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(doc, "clinical_data")
+        doc.updated_at = datetime.now()
+
+    elif item_id.startswith("acte_"):
+        acte_id = int(item_id.split("_")[1])
+        acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not acte:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+        assert_patient_access(acte.patient_id, current_user, db)
+        if new_title is not None:
+            acte.libelle = new_title.strip()
+        if new_amount is not None:
+            acte.montant = new_amount
+    else:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+
+    db.commit()
+    return {"status": "success", "id": item_id, "title": new_title, "amount": new_amount}
+
+
+@router.get("/export-csv")
+def export_accounting_csv(
+    patient_id: Optional[int] = None,
+    assurance: Optional[str] = None,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    filter_type: Optional[str] = "all",
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    data = get_accounting_honoraires(patient_id, assurance, year, month, filter_type, db=db, current_user=current_user)
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Date", "Patient", "Assurance", "Acte / Note", "Montant (MAD)", "Statut", "Encaissé", "Validé par"])
+    for item in data["items"]:
+        date_str = item["date"].strftime("%d/%m/%Y") if hasattr(item["date"], "strftime") else str(item["date"])[:10]
+        writer.writerow([
+            date_str,
+            item["patient_name"],
+            item["assurance"],
+            item["title"],
+            str(item["amount"]).replace(".", ","),
+            item["payment_status"],
+            "Oui" if item.get("is_collected") else "Non",
+            item.get("validated_by") or "",
+        ])
+    writer.writerow([])
+    writer.writerow(["", "", "", "TOTAL FACTURÉ", str(data["total_amount"]).replace(".", ",")])
+    writer.writerow(["", "", "", "TOTAL ENCAISSÉ", str(data["total_collected"]).replace(".", ",")])
+
+    filename = f"Compta_{year or 'Global'}_{month or 'Annuel'}.csv"
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue().encode("utf-8-sig")]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/send-email/{item_id}")
+def send_honoraire_by_email(
+    item_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    """Envoie la note d'honoraires par email au patient."""
+    from backend.services.email_service import email_service
+
+    patient = None
+    doc_id = None
+
+    if item_id.startswith("doc_"):
+        doc_id = int(item_id.split("_")[1])
+        doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document introuvable")
+        assert_patient_access(doc.patient_id, current_user, db)
+        patient = doc.patient
+    elif item_id.startswith("acte_"):
+        acte_id = int(item_id.split("_")[1])
+        acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not acte:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+        assert_patient_access(acte.patient_id, current_user, db)
+        patient = acte.patient
+    else:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+
+    if not patient or not patient.email:
+        raise HTTPException(status_code=422, detail="Ce patient n'a pas d'adresse email renseignée")
+
+    cabinet_name = getattr(current_user, "nom_complet", None) or "votre cabinet dentaire"
+    subject = f"Note d'honoraires — {cabinet_name}"
+    text = (
+        f"Bonjour {patient.prenom} {patient.nom},\n\n"
+        f"Veuillez trouver ci-joint votre note d'honoraires émise par {cabinet_name}.\n\n"
+        "Pour toute question, n'hésitez pas à nous contacter.\n\nCordialement."
+    )
+    html = (
+        f"<p>Bonjour <strong>{patient.prenom} {patient.nom}</strong>,</p>"
+        f"<p>Veuillez trouver ci-joint votre note d'honoraires émise par <strong>{cabinet_name}</strong>.</p>"
+        "<p>Pour toute question, n'hésitez pas à nous contacter.</p>"
+        "<p>Cordialement.</p>"
+    )
+
+    sent = email_service.send_email(patient.email, subject, text, html)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Échec de l'envoi de l'email")
+    return {"status": "success", "message": f"Email envoyé à {patient.email}"}
+
+
+@router.get("/overdue")
+def get_overdue_items(
+    days: int = 30,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    """Retourne les notes d'honoraires non réglées depuis plus de `days` jours."""
+    emp_id = current_user.get_employer_id()
+    cutoff = datetime.now() - timedelta(days=days)
+
+    overdue_docs = (
+        db.query(models.DocumentArchive)
+        .join(models.Patient)
+        .filter(
+            models.Patient.employer_id == emp_id,
+            models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES,
+            models.DocumentArchive.payment_status == models.PaiementStatut.EN_ATTENTE,
+            models.DocumentArchive.created_at <= cutoff,
+        )
+        .order_by(models.DocumentArchive.created_at.asc())
+        .all()
+    )
+
+    from backend.utils.accounting_utils import extract_amount_from_clinical_data
+    items = []
+    for doc in overdue_docs:
+        days_overdue = (datetime.now() - doc.created_at).days
+        items.append({
+            "id": f"doc_{doc.id}",
+            "patient_id": doc.patient_id,
+            "patient_name": f"{doc.patient.nom} {doc.patient.prenom}",
+            "patient_email": doc.patient.email or None,
+            "date": doc.created_at,
+            "amount": extract_amount_from_clinical_data(doc.clinical_data),
+            "days_overdue": days_overdue,
+        })
+
+    return {"total": len(items), "total_amount": sum(i["amount"] for i in items), "items": items}
+
+
+@router.post("/relance/{item_id}")
+def send_relance(
+    item_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    """Envoie une relance de paiement par email au patient."""
+    from backend.services.email_service import email_service
+
+    if not item_id.startswith("doc_"):
+        raise HTTPException(status_code=400, detail="Relances disponibles uniquement pour les notes d'honoraires")
+
+    doc_id = int(item_id.split("_")[1])
+    doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+    assert_patient_access(doc.patient_id, current_user, db)
+
+    patient = doc.patient
+    if not patient or not patient.email:
+        raise HTTPException(status_code=422, detail="Ce patient n'a pas d'adresse email renseignée")
+
+    from backend.utils.accounting_utils import extract_amount_from_clinical_data
+    amount = extract_amount_from_clinical_data(doc.clinical_data)
+    date_str = doc.created_at.strftime("%d/%m/%Y")
+    cabinet_name = getattr(current_user, "nom_complet", None) or "votre cabinet dentaire"
+
+    subject = f"Rappel de paiement — {cabinet_name}"
+    text = (
+        f"Bonjour {patient.prenom} {patient.nom},\n\n"
+        f"Nous vous rappelons qu'une note d'honoraires du {date_str} d'un montant de {amount:,.2f} MAD "
+        f"reste en attente de règlement auprès de {cabinet_name}.\n\n"
+        "Merci de régulariser votre situation dans les meilleurs délais.\n\nCordialement."
+    )
+    html = (
+        f"<p>Bonjour <strong>{patient.prenom} {patient.nom}</strong>,</p>"
+        f"<p>Nous vous rappelons qu'une note d'honoraires du <strong>{date_str}</strong> "
+        f"d'un montant de <strong>{amount:,.2f} MAD</strong> reste en attente de règlement "
+        f"auprès de <strong>{cabinet_name}</strong>.</p>"
+        "<p>Merci de régulariser votre situation dans les meilleurs délais.</p>"
+        "<p>Cordialement.</p>"
+    )
+
+    sent = email_service.send_email(patient.email, subject, text, html)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Échec de l'envoi de la relance")
+    return {"status": "success", "message": f"Relance envoyée à {patient.email}"}
 

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, and_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend import models, schemas, database
 from backend.routers.auth import get_current_user, require_permission
@@ -12,6 +12,29 @@ from backend.services.notification_service import notification_service
 from backend.services.audit_service import audit_service
 
 router = APIRouter(tags=["Appointments"])
+
+
+def _find_conflicts(db: Session, employer_id: int, datetime_start: datetime, duration_minutes: int, exclude_id: int | None = None) -> list:
+    """Retourne les RDV qui se chevauchent avec le créneau donné."""
+    end = datetime_start + timedelta(minutes=duration_minutes)
+    # SQL pre-filter : fenêtre large (±4h) pour laisser le filtrage précis à Python
+    window_start = datetime_start - timedelta(hours=4)
+    q = db.query(models.Appointment).filter(
+        models.Appointment.employer_id == employer_id,
+        models.Appointment.status != models.AppointmentStatus.ANNULE,
+        models.Appointment.scheduling_type == models.SchedulingType.EXACT_TIME,
+        models.Appointment.datetime_start < end,
+        models.Appointment.datetime_start >= window_start,
+    )
+    if exclude_id:
+        q = q.filter(models.Appointment.id != exclude_id)
+    # Filtrage précis en Python (SQLAlchemy ne supporte pas datetime + timedelta en filtre SQL)
+    rows = q.all()
+    return [
+        a for a in rows
+        if a.datetime_start + timedelta(minutes=a.duration_minutes) > datetime_start
+        and a.datetime_start < end
+    ]
 
 @router.get("/", response_model=List[schemas.AppointmentOut])
 def get_appointments(
@@ -175,12 +198,119 @@ async def suggest_appointment(
 
 @router.get("/patient/{patient_id}", response_model=List[schemas.AppointmentOut])
 def get_patient_appointments(
-    patient_id: int, 
-    db: Session = Depends(database.get_db), 
+    patient_id: int,
+    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """
-    Retourne tous les rendez-vous d'un patient
-    """
     assert_patient_access(patient_id, current_user, db)
     return db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).order_by(models.Appointment.datetime_start.desc()).all()
+
+
+@router.get("/check-conflicts")
+def check_conflicts(
+    datetime_start: str = Query(...),
+    duration_minutes: int = Query(30),
+    exclude_id: Optional[int] = Query(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda"))
+):
+    """Vérifie les chevauchements de créneaux avant création/modification."""
+    try:
+        dt = datetime.fromisoformat(datetime_start.replace("Z", "+00:00")).replace(tzinfo=None)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Format datetime invalide")
+    conflicts = _find_conflicts(db, current_user.get_employer_id(), dt, duration_minutes, exclude_id)
+    return {
+        "has_conflict": len(conflicts) > 0,
+        "conflicts": [
+            {
+                "id": c.id,
+                "patient_name": c.patient_name,
+                "datetime_start": c.datetime_start.isoformat(),
+                "duration_minutes": c.duration_minutes,
+            }
+            for c in conflicts
+        ],
+    }
+
+
+@router.post("/{appointment_id}/remind")
+def send_individual_reminder(
+    appointment_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda"))
+):
+    """Envoie un rappel SMS/WhatsApp pour un rendez-vous spécifique."""
+    appt = db.query(models.Appointment).filter(
+        models.Appointment.id == appointment_id,
+        models.Appointment.employer_id == current_user.get_employer_id()
+    ).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if not appt.patient_id:
+        raise HTTPException(status_code=422, detail="Aucun patient lié à ce rendez-vous")
+
+    success = notification_service.send_appointment_reminder(db, appointment_id)
+    if not success:
+        raise HTTPException(status_code=422, detail="Rappel impossible : numéro de téléphone manquant ou erreur d'envoi")
+    return {"status": "success", "message": "Rappel envoyé", "appointment_id": appointment_id}
+
+
+@router.get("/multi-practitioner")
+def get_multi_practitioner_appointments(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("agenda"))
+):
+    """Vue multi-praticien (PREMIUM/ELITE). Retourne les RDV groupés par dentiste."""
+    from backend.routers.team import _get_plan
+    owner = db.query(models.User).filter(models.User.id == current_user.get_employer_id()).first()
+    plan = _get_plan(owner) if owner else "GOLD"
+    if plan == "GOLD":
+        raise HTTPException(status_code=403, detail="Vue multi-praticien disponible à partir de PREMIUM")
+
+    emp_id = current_user.get_employer_id()
+
+    # Récupère tous les dentistes du cabinet
+    dentists = db.query(models.User).filter(
+        models.User.employer_id == emp_id,
+        models.User.role == models.UserRole.DENTISTE,
+        models.User.approval_status == models.ApprovalStatus.APPROVED,
+    ).all()
+    # Inclut le propriétaire principal (dentiste principal)
+    owner_user = db.query(models.User).filter(models.User.id == emp_id).first()
+    all_dentists = ([owner_user] if owner_user else []) + list(dentists)
+
+    # Filtres de date
+    q_base = db.query(models.Appointment).filter(models.Appointment.employer_id == emp_id)
+    if start_date:
+        q_base = q_base.filter(models.Appointment.datetime_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00")))
+    if end_date:
+        q_base = q_base.filter(models.Appointment.datetime_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00")))
+    all_appts = q_base.order_by(models.Appointment.datetime_start.asc()).all()
+
+    # Pour l'instant tous les RDV appartiennent au cabinet; on les groupe par employer_id
+    # (structure prête pour when individual-dentist tracking is added)
+    result = []
+    for dentist in all_dentists:
+        result.append({
+            "dentist_id": dentist.id,
+            "dentist_name": dentist.nom_complet or dentist.email,
+            "appointments": [
+                {
+                    "id": a.id,
+                    "patient_name": a.patient_name,
+                    "patient_id": a.patient_id,
+                    "datetime_start": a.datetime_start.isoformat(),
+                    "duration_minutes": a.duration_minutes,
+                    "motif": a.motif,
+                    "status": a.status,
+                    "scheduling_type": a.scheduling_type,
+                    "reminder_sent": a.reminder_sent,
+                }
+                for a in all_appts
+            ] if dentist.id == emp_id else [],  # RDV du praticien principal seulement pour l'instant
+        })
+
+    return {"plan": plan, "dentists": result, "total_appointments": len(all_appts)}

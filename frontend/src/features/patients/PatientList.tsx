@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { api } from '../../services/api';
-import type { Patient } from '../../types'; 
-import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight, LayoutGrid, List } from 'lucide-react';
+import type { Patient } from '../../types';
+import { UserPlus, Search, Loader2, Edit3, Trash2, AlertTriangle, X, UserX, ArrowRight, LayoutGrid, List, UploadCloud } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -9,6 +9,7 @@ import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { usePatientStore } from '../../stores/usePatientStore';
+import { CsvImportModal } from './CsvImportModal';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -66,6 +67,8 @@ export const PatientList = () => {
       }
     };
   }, []);
+
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   // État du mode d'affichage (Table ou Grille) avec persistance localStorage
   const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
@@ -151,13 +154,21 @@ export const PatientList = () => {
           <h2 className="text-4xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Dossiers Patients</h2>
           <p className="text-text-muted mt-2 font-medium">Gestion de la base de données</p>
         </div>
-        <Link 
-          to="/patients/new" 
-          className="text-white px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-          style={{ backgroundColor: 'var(--primary)', boxShadow: '0 8px 30px -10px var(--primary)' }}
-        >
-          <UserPlus size={22} strokeWidth={2.5} /> Créer un dossier
-        </Link>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="px-5 py-4 rounded-2xl font-black flex items-center gap-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+          >
+            <UploadCloud size={20} strokeWidth={2.5} /> Import CSV
+          </button>
+          <Link
+            to="/patients/new"
+            className="text-white px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ backgroundColor: 'var(--primary)', boxShadow: '0 8px 30px -10px var(--primary)' }}
+          >
+            <UserPlus size={22} strokeWidth={2.5} /> Créer un dossier
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-col xl:flex-row gap-4 bg-card-bg/60 backdrop-blur-xl border border-border-main p-4 rounded-[2rem] shadow-elite">
@@ -505,6 +516,12 @@ export const PatientList = () => {
           triggerRect={hoveredPatient.rect}
         />
       )}
+
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={() => fetchPatients(true)}
+      />
     </div>
   );
 };

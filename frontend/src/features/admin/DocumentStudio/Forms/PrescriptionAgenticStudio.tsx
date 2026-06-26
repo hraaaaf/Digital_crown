@@ -75,6 +75,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [quickSuggestions, setQuickSuggestions] = useState<string[]>([]);
   const [quickHighlightedIdx, setQuickHighlightedIdx] = useState(-1);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
+  const [quickExpanded, setQuickExpanded] = useState(true);
 
   // --- Silent clinical assessment ---
   useEffect(() => {
@@ -193,7 +194,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   }, [getDefaultMedicationDetails, assessment]);
 
   const addDrugAtEnd = useCallback((drug: DrugItem) => {
-    setDrugs([...drugs, drug]);
+    // Replace the initial empty placeholder instead of appending behind it
+    const hasOnlyEmptyPlaceholder = drugs.length === 1 && !drugs[0].name.trim() && !drugs[0].posologie.trim();
+    setDrugs(hasOnlyEmptyPlaceholder ? [drug] : [...drugs, drug]);
+    setQuickExpanded(false);
   }, [drugs, setDrugs]);
 
   const addMolecule = useCallback((molecule: string, forcedDosage?: string, forcedPosology?: string, forme?: string) => {
@@ -516,7 +520,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             className="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-xl hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-2 shadow-sm"
           >
             <Stethoscope size={14} />
-            <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Guide Rx</span>
+            <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Médicaments</span>
           </button>
           <button
             onClick={() => { setStep('IDLE'); setAssessment(null); }}
@@ -545,20 +549,42 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       )}
 
       {/* QUICK ENTRY */}
-      <div className="space-y-4">
-        <QuickEntryBar
-          quickVal={quickVal}
-          setQuickVal={setQuickVal}
-          quickSuggestions={quickSuggestions}
-          quickHighlightedIdx={quickHighlightedIdx}
-          setQuickHighlightedIdx={setQuickHighlightedIdx}
-          onSearchChange={handleQuickSearch}
-          onAddDrug={addDrugAtEnd}
-          onSetStep={setStep}
-          hydrateMedicationDetails={hydrateMedicationDetails}
-          parseQuickEntry={parseQuickEntry}
-        />
-      </div>
+      <AnimatePresence initial={false}>
+        {quickExpanded ? (
+          <motion.div
+            key="quick-open"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <QuickEntryBar
+              quickVal={quickVal}
+              setQuickVal={setQuickVal}
+              quickSuggestions={quickSuggestions}
+              quickHighlightedIdx={quickHighlightedIdx}
+              setQuickHighlightedIdx={setQuickHighlightedIdx}
+              onSearchChange={handleQuickSearch}
+              onAddDrug={addDrugAtEnd}
+              onSetStep={setStep}
+              hydrateMedicationDetails={hydrateMedicationDetails}
+              parseQuickEntry={parseQuickEntry}
+            />
+          </motion.div>
+        ) : (
+          <motion.button
+            key="quick-closed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setQuickExpanded(true)}
+            className="w-full flex items-center gap-3 px-6 py-3 bg-primary/5 border border-dashed border-primary/20 rounded-[2rem] text-primary/60 hover:text-primary hover:border-primary/40 hover:bg-primary/10 transition-all text-[10px] font-black uppercase tracking-widest"
+          >
+            <Zap size={14} />
+            Saisie rapide…
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* PRESETS BAR */}
       <AnimatePresence>

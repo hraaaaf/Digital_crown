@@ -106,7 +106,8 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950 rounded-[2rem] shadow-inner">
       <img 
-        src={imgUrl} alt="OPG" 
+        src={imgUrl}
+        alt="OPG" 
         className="w-full h-full object-contain transition-all duration-700"
         style={{ filter: filterString }}
         onLoad={onImgLoad}

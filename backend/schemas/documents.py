@@ -249,6 +249,7 @@ class DocumentArchiveOut(DocumentArchiveBase):
     deleted_at: Optional[datetime.datetime] = None
     thumbnail_url: Optional[str] = None
     download_url: str
+    file_exists: bool = False
     all_versions: List[DocumentVersionInfo] = []
 
     class Config:

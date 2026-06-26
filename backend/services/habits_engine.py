@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy import func, desc, and_
@@ -6,6 +7,57 @@ from sqlalchemy.orm import Session
 from backend import models
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Matrice matériaux — seuils déterministes pour la détection de pression agenda
+# ---------------------------------------------------------------------------
+MATERIAL_PRESSURE_MAP: Dict[str, Dict] = {
+    "COMPOSITE": {
+        "keywords": ["composite", "résine", "restauration", "carie", "obturation", "reconstitution"],
+        "seuil": 4,
+        "label": "composites",
+        "conseil": (
+            "Vérifiez vos stocks de résines composites (seringues/capsules), "
+            "adhésifs et bagues de contention."
+        ),
+    },
+    "IMPLANT": {
+        "keywords": ["implant", "implanto", "implantaire"],
+        "seuil": 2,
+        "label": "poses d'implants",
+        "conseil": (
+            "Vérifiez la disponibilité de vos fixtures implantaires, piliers, "
+            "kits chirurgicaux et membranes de régénération."
+        ),
+    },
+    "EMPREINTE": {
+        "keywords": ["empreinte", "couronne", "bridge", "prothèse", "inlay", "onlay", "facette", "gouttière"],
+        "seuil": 3,
+        "label": "actes nécessitant empreinte",
+        "conseil": (
+            "Vérifiez votre stock de matériau d'empreinte (alginate, silicone VPS/A-silicone) "
+            "et porte-empreintes disponibles."
+        ),
+    },
+    "ANESTHESIQUE": {
+        "keywords": ["extraction", "canal", "endodontie", "pulp", "chirurgie", "curetage", "biopsie", "avulsion"],
+        "seuil": 6,
+        "label": "actes sous anesthésie locale",
+        "conseil": (
+            "Anticipez votre stock d'anesthésiques locaux (carpules articaïne/lidocaïne) "
+            "et d'aiguilles dentaires."
+        ),
+    },
+    "CIMENT": {
+        "keywords": ["couronne", "bridge", "scellement", "descellé", "inlay", "onlay", "facette"],
+        "seuil": 3,
+        "label": "scellements / collages",
+        "conseil": (
+            "Vérifiez votre stock de ciment de scellement (CVI, ciment résine, composite flow) "
+            "et de kits d'adhésion."
+        ),
+    },
+}
 
 class HabitsEngine:
     """
@@ -247,8 +299,11 @@ class HabitsEngine:
                         "action": "Contacter le Patient"
                     })
 
-        # C3: Patient Haute Valeur à Risque
-        if patient.manual_grade == "PLATINUM":
+        # C3: Patient Haute Valeur à Risque — score calculé dynamiquement
+        from backend.services.patient_scoring_service import patient_scoring_service as _pss
+        _score_data = _pss.calculate_score(db, patient_id)
+        _effective_grade = patient.manual_grade or _score_data.get("grade", "BRONZE")
+        if _effective_grade == "PLATINUM":
             _solde = db.query(func.sum(models.Acte.montant)).filter(
                 models.Acte.patient_id == patient_id,
                 models.Acte.statut_paiement == "EN_ATTENTE"
@@ -336,7 +391,6 @@ class HabitsEngine:
             models.Appointment.status == "ANNULÉ"
         ).all()
         if len(_all_cancelled) >= 3:
-            from collections import Counter
             _hour_counts = Counter(a.datetime_start.hour for a in _all_cancelled)
             _cursed_hour, _curse_count = _hour_counts.most_common(1)[0]
             if _curse_count >= 3:
@@ -405,6 +459,73 @@ class HabitsEngine:
                                 "action": "Générer Note"
                             })
 
+        # ── D1 : RDV demain sans plan de traitement documenté ──────────────────
+        _now_d1 = datetime.now()
+        _tomorrow_d1 = _now_d1 + timedelta(hours=24)
+        _rdv_demain = db.query(models.Appointment).filter(
+            models.Appointment.patient_id == patient_id,
+            models.Appointment.datetime_start >= _now_d1,
+            models.Appointment.datetime_start <= _tomorrow_d1,
+            models.Appointment.status != models.AppointmentStatus.ANNULE,
+        ).first()
+        if _rdv_demain:
+            _has_plan = db.query(models.DocumentArchive).filter(
+                models.DocumentArchive.patient_id == patient_id,
+                models.DocumentArchive.document_type.in_(["DEVIS", "PLAN_TRAITEMENT"]),
+            ).first()
+            if not _has_plan:
+                triggers.append({
+                    "type": "RDV_SANS_PLAN",
+                    "title": "RDV Demain — Dossier Non Préparé",
+                    "message": (
+                        f"RDV prévu demain à "
+                        f"{_rdv_demain.datetime_start.strftime('%Hh%M')} "
+                        f"sans plan de traitement ni devis."
+                    ),
+                    "action": f"/patients/{patient_id}",
+                })
+
         return triggers
+
+    # ── Analyse pression matériaux (niveau cabinet, pas patient) ────────────────
+    def detect_material_pressure(
+        self, db: Session, employer_id: int, horizon_days: int = 7
+    ) -> List[Dict[str, Any]]:
+        """
+        Scanne les RDV des N prochains jours pour détecter les concentrations
+        d'actes consommateurs de matériaux et avertir avant rupture de stock.
+        Retourne une liste d'alertes {material_key, count, seuil, label, conseil}.
+        """
+        horizon_start = datetime.now()
+        horizon_end = horizon_start + timedelta(days=horizon_days)
+
+        rdvs = db.query(models.Appointment).filter(
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.datetime_start >= horizon_start,
+            models.Appointment.datetime_start <= horizon_end,
+            models.Appointment.status != models.AppointmentStatus.ANNULE,
+        ).all()
+
+        # Comptage par matériau — on normalise le motif en minuscules
+        counts: Dict[str, int] = {k: 0 for k in MATERIAL_PRESSURE_MAP}
+        for rdv in rdvs:
+            raw = (rdv.motif or "").lower()
+            for mat_key, cfg in MATERIAL_PRESSURE_MAP.items():
+                if any(kw in raw for kw in cfg["keywords"]):
+                    counts[mat_key] += 1
+
+        alerts = []
+        for mat_key, cfg in MATERIAL_PRESSURE_MAP.items():
+            if counts[mat_key] >= cfg["seuil"]:
+                alerts.append({
+                    "material_key": mat_key,
+                    "count": counts[mat_key],
+                    "seuil": cfg["seuil"],
+                    "label": cfg["label"],
+                    "conseil": cfg["conseil"],
+                    "horizon_days": horizon_days,
+                })
+        return alerts
+
 
 habits_engine = HabitsEngine()

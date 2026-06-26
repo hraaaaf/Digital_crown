@@ -71,7 +71,8 @@ async def upload_radio(patient_id: int, background_tasks: BackgroundTasks, file:
     try:
         service = CephaloService(db)
         result = service.process_new_radio(patient_id, file_location, db_path)
-        result["file_url"] = f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{db_path}"
+        result["file_url"] = f"{os.getenv('BACKEND_URL', 'http://localhost:8005')}/{db_path}"
+        result["image_path"] = db_path
 
         # Ghost Brain Proactivity (background)
         def _background_tasks_radio(pid: int, user_id: int):
@@ -105,7 +106,7 @@ def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session =
     assert_patient_access(analysis.patient_id, current_user, db)
     try:
         service = CephaloService(db)
-        return service.refine_analysis(analysis_id=analysis_id, landmarks=req.landmarks, clinical_data=req.clinical_data, ai_diagnostic=req.ai_diagnostic, mm_per_pixel=req.mm_per_pixel, mcnamara_projections=req.mcnmara_projections.model_dump() if req.mcnmara_projections else None)
+        return service.refine_analysis(analysis_id=analysis_id, landmarks=req.landmarks, clinical_data=req.clinical_data, ai_diagnostic=req.ai_diagnostic, mm_per_pixel=req.mm_per_pixel, mcnamara_projections=req.mcnamara_projections.model_dump() if req.mcnamara_projections else None)
     except HTTPException as e:
         raise e
     except Exception as e: 

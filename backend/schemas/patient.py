@@ -87,7 +87,7 @@ class PatientBase(BaseModel):
 
 
 class PatientUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     numero_dossier: Optional[str] = None
     nom: Optional[str] = None
     prenom: Optional[str] = None

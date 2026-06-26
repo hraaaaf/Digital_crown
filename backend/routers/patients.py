@@ -1,5 +1,7 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+import csv
+import io
+from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
@@ -607,5 +609,114 @@ def delete_patient(
         raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- IMPORT CSV ---
+
+_CSV_DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"]
+
+def _parse_date(value: str) -> Optional[datetime]:
+    for fmt in _CSV_DATE_FORMATS:
+        try:
+            return datetime.strptime(value.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
+@router.post("/import-csv", summary="Importer des patients depuis un fichier CSV")
+async def import_patients_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """
+    Colonnes attendues (case-insensitive, ordre libre) :
+    nom, prenom, date_naissance, telephone, email, assurance
+    Seuls nom + prenom + date_naissance sont obligatoires.
+    Les doublons (même nom+prenom+date_naissance) sont ignorés (skipped).
+    """
+    employer_id = current_user.get_employer_id()
+
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+
+    # Auto-detect delimiter
+    sample = text[:2048]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;|\t")
+    except csv.Error:
+        dialect = csv.excel  # default
+
+    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+    # Normalise headers
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=422, detail="Fichier CSV vide ou sans en-têtes")
+
+    headers = {h.strip().lower(): h for h in reader.fieldnames if h}
+
+    created = 0
+    skipped_duplicates = 0
+    errors: list[dict] = []
+
+    for row_num, row in enumerate(reader, start=2):
+        nom_raw = row.get(headers.get("nom", ""), "").strip()
+        prenom_raw = row.get(headers.get("prenom", ""), "").strip()
+        dob_raw = row.get(headers.get("date_naissance", ""), "").strip()
+
+        if not nom_raw or not prenom_raw or not dob_raw:
+            errors.append({"row": row_num, "reason": "Champs obligatoires manquants (nom, prenom, date_naissance)"})
+            continue
+
+        dob = _parse_date(dob_raw)
+        if dob is None:
+            errors.append({"row": row_num, "reason": f"Format de date invalide : {dob_raw}"})
+            continue
+
+        nom = nom_raw.upper()
+        prenom = prenom_raw.capitalize()
+
+        if check_duplicate_patient(db, nom, prenom, dob):
+            skipped_duplicates += 1
+            continue
+
+        telephone = row.get(headers.get("telephone", ""), "").strip() or None
+        email = row.get(headers.get("email", ""), "").strip() or None
+        assurance = row.get(headers.get("assurance", ""), "").strip() or None
+        sexe_raw = row.get(headers.get("sexe", ""), "").strip().upper()
+        sexe = sexe_raw if sexe_raw in ("M", "F") else "M"
+
+        db_patient = models.Patient(
+            nom=nom,
+            prenom=prenom,
+            date_naissance=dob,
+            sexe=sexe,
+            telephone=telephone,
+            email=email,
+            assurance=assurance,
+            employer_id=employer_id,
+            numero_dossier=generate_next_dossier_number(db, employer_id),
+        )
+        db.add(db_patient)
+        db.flush()
+        db.add(models.DossierClinique(patient_id=db_patient.id, is_ortho_active=False))
+        created += 1
+
+    db.commit()
+
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="IMPORT",
+        resource_type="Patient",
+        resource_id="bulk",
+        details=f"Import CSV : {created} créés, {skipped_duplicates} doublons ignorés, {len(errors)} erreurs",
+    )
+
+    return {"created": created, "skipped_duplicates": skipped_duplicates, "errors": errors}
 
 

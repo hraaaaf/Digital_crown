@@ -313,7 +313,8 @@ class CephaloEngine:
             i_francfort, 107.0, 5.0, "Incisive supérieure vestibulo-versée", "Incisive supérieure palato-versée", "Inclinaison normale", comp_range=(97.0, 120.0)
         )
 
-        inter_incisif = self._get_clinical_angle(pts["U1a"], pts["U1i"], pts["L1a"], pts["L1i"], invert=True)
+        inter_incisif_raw = self._get_clinical_angle(pts["U1a"], pts["U1i"], pts["L1a"], pts["L1i"], invert=False)
+        inter_incisif = round(max(inter_incisif_raw, 180 - inter_incisif_raw), 1) if inter_incisif_raw is not None else None
         payload["metrics"]["analyse_dentaire"]["Inter_Incisif"] = self._evaluate_metric(
             inter_incisif, 131.0, 10.0, "Angle inter-incisif ouvert", "Angle inter-incisif fermé", "Relation inter-incisive normale", comp_range=(120.0, 142.0)
         )
@@ -566,15 +567,30 @@ class CephaloEngine:
         if val_tweed > 30: div = "hyperdivergent"
         elif val_tweed < 22: div = "hypodivergent"
         
-        pos_a = "normoposition"
-        if val_sit_a > norm_sit_a[0] + norm_sit_a[1]: pos_a = "prognathie maxillaire"
-        elif val_sit_a < norm_sit_a[0] - norm_sit_a[1]: pos_a = "rétrognathie maxillaire"
-        
-        pos_b = "normoposition"
-        if val_sit_b > norm_sit_b[0] + norm_sit_b[1]: pos_b = "prognathie mandibulaire"
-        elif val_sit_b < norm_sit_b[0] - norm_sit_b[1]: pos_b = "rétrognathie mandibulaire"
+        val_sna = payload["metrics"]["analyse_osseuse"].get("SNA", {}).get("valeur", 82.0)
+        val_snb = payload["metrics"]["analyse_osseuse"].get("SNB", {}).get("valeur", 80.0)
 
-        diag_squelettique = f"Structure de {class_sq} (ANB: {val_anb}°, A'B': {val_dec_ab} mm). {pos_a.capitalize()} associée à une {pos_b}. Typologie faciale : {div.capitalize()} (Angle de Tweed : {val_tweed}°)."
+        pos_a = "normoposition"
+        if val_sit_a > norm_sit_a[0] + norm_sit_a[1]:
+            pos_a = "prognathie maxillaire"
+        elif val_sit_a < norm_sit_a[0] - norm_sit_a[1]:
+            # Require angular SNA confirmation to assert rétrognathie — linear measure alone is calibration-dependent
+            if val_sna < 80.0:
+                pos_a = "rétrognathie maxillaire"
+            else:
+                pos_a = "mesure linéaire Situation A hors norme (à confirmer cliniquement)"
+
+        pos_b = "normoposition"
+        if val_sit_b > norm_sit_b[0] + norm_sit_b[1]:
+            pos_b = "prognathie mandibulaire"
+        elif val_sit_b < norm_sit_b[0] - norm_sit_b[1]:
+            # Require angular SNB confirmation to assert rétrognathie — linear measure alone is calibration-dependent
+            if val_snb < 78.0:
+                pos_b = "rétrognathie mandibulaire"
+            else:
+                pos_b = "mesure linéaire Situation B hors norme (à confirmer cliniquement)"
+
+        diag_squelettique = f"Structure de {class_sq} (ANB: {val_anb}°, A'B': {val_dec_ab} mm). {pos_a.capitalize()} associée à {pos_b}. Typologie faciale : {div.capitalize()} (Angle de Tweed : {val_tweed}°)."
 
         # 2. DIAGNOSTIC DENTAIRE
         impa_diag = "normoalvéolie"
@@ -635,13 +651,15 @@ class CephaloEngine:
         else:
             strategie_parts.append("PHASE GLOBALE : Orthodontie fixe ou aligneurs.")
             
-        # 4.2. Choix Technologique & Damon Protocol
-        if val_surplomb > 5 or val_impa > 100:
-            strategie_parts.append("MÉTHODE : Méthode Classique / Damon Active si rétraction incisive nécessaire.")
+        # 4.2. Choix Technologique — différé si patient en croissance (denture mixte)
+        if not is_child:
+            if val_surplomb > 5 or val_impa > 100:
+                strategie_parts.append("MÉTHODE : Méthode Classique / Damon Active si rétraction incisive nécessaire.")
+            else:
+                strategie_parts.append("MÉTHODE : Système Damon Passif (Gold Standard). Forces légères, auto-ligaturant sans friction pour expansion alvéolaire (Bone Adaptation).")
+            strategie_parts.append("OPTION ALTERNATIVE : Aligneurs transparents (Invisalign) avec planification ClinCheck.")
         else:
-            strategie_parts.append("MÉTHODE : Système Damon Passif (Gold Standard). Forces légères, auto-ligaturant sans friction pour expansion alvéolaire (Bone Adaptation).")
-            
-        strategie_parts.append("OPTION ALTERNATIVE : Aligneurs transparents (Invisalign) avec planification ClinCheck.")
+            strategie_parts.append("ORIENTATION : Réévaluation à la denture permanente avant toute prescription d'appareillage fixe multi-attaches. Surveillance de croissance et intervention interceptive si indiquée.")
 
         # 4.3. Spécificités Squelettiques
         if class_sq == "Classe II":
@@ -658,11 +676,18 @@ class CephaloEngine:
 
         strategie = "\n".join(strategie_parts)
 
+        # Expose the Ricketts-based profil as a separate field so the frontend can use it
+        # instead of overriding with the ANB-based formula
+        profil_cutane_short = "droit"
+        if val_e_ls > 2.0: profil_cutane_short = "convexe"
+        elif val_e_ls < -4.0: profil_cutane_short = "concave"
+
         payload["ai_narrative"] = {
             "diagnostic_squelettique": analyse_cephalo_com,
             "analyse_moulages": analyse_moulages,
             "synthese_diagnostique": synthese,
-            "strategie_therapeutique": strategie
+            "strategie_therapeutique": strategie,
+            "profil_cutane": profil_cutane_short
         }
 
         return schemas.CephaloAnalysisResult.model_validate(payload)

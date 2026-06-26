@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useAuthenticatedImage } from '../../hooks/useAuthenticatedImage';
 import { API_BASE } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -6,7 +7,7 @@ import {
   Upload, Loader2, Activity, ShieldAlert, CheckCircle2,
   History, Sun, Contrast, FlipHorizontal,
   RefreshCcw, Search, Type, SplitSquareVertical, XCircle, Trash2, Scan,
-  TrendingUp, Minus, AlertTriangle, EyeOff, RotateCcw
+  TrendingUp, Minus, AlertTriangle
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -36,6 +37,10 @@ interface ImageFilters {
   invert: boolean;
 }
 
+const URGENT_ANOMALY_IDS = new Set([
+  'carie_profonde', 'lesion_periapicale', 'perforation', 'peri_implantite', 'reste_radiculaire'
+]);
+
 export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, patientName }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -56,6 +61,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toothAnomalies, globalFindings, toggleGlobalFinding, resetAll, toggleAnomaly } = usePanoramicStore();
+
+  // Blob URLs authentifiés pour les images protégées
+  const mainImageSrc = useAuthenticatedImage(result?.file_url || '');
+  const compareImageSrc = useAuthenticatedImage(compareResult?.file_url || '');
 
   // Fetch temporal comparison whenever patientId changes
   useEffect(() => {
@@ -111,9 +120,20 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const responseData = response.data;
-      if (!responseData.file_url || responseData.file_url.includes('localhost:8000')) {
-        responseData.file_url = `${API_BASE}/${responseData.image_path || responseData.file_url.split('8000/')[1]}`;
+      // Reconstruire toujours l'URL depuis image_path (source fiable) + API_BASE.
+      // Ne pas se fier à file_url qui peut contenir un port/host incorrect selon l'env backend.
+      if (responseData.image_path) {
+        responseData.file_url = `${API_BASE}/${responseData.image_path}`;
+      } else if (responseData.file_url) {
+        // Fallback : extraire le chemin relatif depuis n'importe quelle URL backend
+        try {
+          const parsed = new URL(responseData.file_url);
+          responseData.file_url = `${API_BASE}${parsed.pathname}`;
+        } catch {
+          // URL invalide, on garde telle quelle
+        }
       }
+      console.log('[PanoramicStudio] file_url final :', responseData.file_url);
       if (responseData.vision?.is_simulation || responseData.vision?.simulation_warning) {
         toast.error(responseData.vision?.simulation_warning || "Analyse panoramique simulée : modèle IA indisponible.");
       }
@@ -157,24 +177,6 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleRejectDetection = (idx: number) => {
-    setResult((prev: any) => {
-      if (!prev?.vision?.detections_data?.detections) return prev;
-      const newDetections = [...prev.vision.detections_data.detections];
-      newDetections[idx] = { ...newDetections[idx], rejected: !newDetections[idx].rejected };
-      return {
-        ...prev,
-        vision: {
-          ...prev.vision,
-          detections_data: {
-            ...prev.vision.detections_data,
-            detections: newDetections
-          }
-        }
-      };
-    });
   };
 
   const handleDownloadPDF = async () => {
@@ -221,15 +223,6 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       console.error("Erreur sauvegarde bilan :", err);
       toast.error("Erreur lors de la sauvegarde du bilan.");
     }
-  };
-
-  const getPathologyColor = (pathology: string) => {
-    const pathologies = ['Caries', 'Deep Caries', 'Periapical Lesion', 'Impacted'];
-    const treatments = ['Implant', 'Crown', 'Endodontic', 'Restoration', 'Filling'];
-    
-    if (pathologies.includes(pathology)) return '#EF4444'; // Rouge
-    if (treatments.includes(pathology)) return '#10B981'; // Émeraude
-    return '#6366F1'; // Indigo
   };
 
   const handleImageClick = (e: React.MouseEvent) => {
@@ -413,7 +406,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                     <div className="flex-1 h-full flex flex-col gap-2">
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Archive (T0) - {new Date(compareResult.created_at).toLocaleDateString()}</div>
                       <div className="flex-1 relative rounded-xl border-2 border-slate-200 overflow-hidden bg-black">
-                        <img src={compareResult.file_url} className="w-full h-full object-contain opacity-80" />
+                      <img src={compareImageSrc || compareResult.file_url} className="w-full h-full object-contain opacity-80" />
                       </div>
                     </div>
                   )}
@@ -433,7 +426,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 text-[10px] font-black text-white bg-indigo-600 px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">Examen Actuel (T1)</div>
                     )}
                     <XRayCanvas 
-                      imgUrl={result.file_url}
+                      imgUrl={mainImageSrc || result.file_url}
                       visionData={result.vision?.detections_data || null}
                       imgSize={imgSize}
                       onImgLoad={(e) => {
@@ -513,7 +506,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                         <div 
                           className="absolute w-full h-full"
                           style={{
-                            backgroundImage: `url(${result.file_url})`,
+                            backgroundImage: `url(${mainImageSrc || result.file_url})`,
                             backgroundRepeat: 'no-repeat',
                             backgroundSize: '800%', // Zoom 8x
                             backgroundPosition: `${magnifier.x}% ${magnifier.y}%`,
@@ -698,122 +691,50 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                 </div>
               ) : (
                 <div className="p-8 space-y-8 flex-1 flex flex-col">
-                  {result.vision?.detections_data?.detections?.length > 0 && (
-                    <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                      Cartographie des Anomalies
-                    </h4>
-                    <div className="grid gap-3">
-                      {/* Group by FDI */}
-                      {Object.entries(
-                        result.vision.detections_data.detections.reduce((acc: any, det: any, idx: number) => {
-                          if (!acc[det.fdi]) acc[det.fdi] = [];
-                          acc[det.fdi].push({ ...det, originalIdx: idx, uid: `det-${idx}` });
-                          return acc;
-                        }, {})
-                      ).map(([fdiStr, dets]: [string, any]) => {
-                        const fdi = parseInt(fdiStr);
-                        // Is any detection active in this group?
-                        const isActiveGroup = dets.some((d: any) => activeDet === d.uid);
-                        // All rejected?
-                        const allRejected = dets.every((d: any) => d.rejected);
-                        
-                        return (
-                          <div 
-                            key={`group-${fdi}`}
-                            className={cn(
-                              "rounded-2xl border transition-all duration-300 overflow-hidden",
-                              isActiveGroup ? "border-indigo-400 shadow-xl shadow-indigo-100" : "border-slate-200",
-                              allRejected ? "opacity-50" : ""
-                            )}
-                          >
-                            <div className={cn(
-                              "px-4 py-2 flex items-center justify-between border-b",
-                              isActiveGroup ? "bg-indigo-600 text-white border-indigo-500" : "bg-slate-50 border-slate-100 text-slate-700"
-                            )}>
-                              <span className="font-black text-sm">Dent {fdi}</span>
-                            </div>
-                            
-                            <div className="flex flex-col">
-                              {dets.map((det: any) => {
-                                const isItemActive = activeDet === det.uid;
-                                return (
-                                  <motion.div 
-                                    key={det.uid} 
-                                    onMouseEnter={() => setActiveDet(det.uid)}
-                                    onMouseLeave={() => setActiveDet(null)}
-                                    className={cn(
-                                      "flex items-center justify-between p-3 border-b last:border-b-0 transition-all cursor-pointer group/det",
-                                      isItemActive ? "bg-indigo-50/50" : "bg-white hover:bg-slate-50",
-                                      det.rejected ? "opacity-40" : ""
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div 
-                                        className="w-2.5 h-2.5 rounded-full shadow-sm"
-                                        style={{ backgroundColor: det.rejected ? '#94a3b8' : getPathologyColor(det.label) }}
-                                      />
-                                      <span 
-                                        className={cn(
-                                          "text-xs font-bold tracking-wide",
-                                          det.rejected ? "text-slate-400 line-through" : "text-slate-700"
-                                        )}
-                                      >
-                                        {det.label.toUpperCase()}
-                                      </span>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      {det.confidence && (
-                                        <span className={cn(
-                                          "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded",
-                                          det.confidence >= 0.9 ? "bg-emerald-100 text-emerald-700" : 
-                                          det.confidence >= 0.7 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700",
-                                          det.rejected && "grayscale opacity-50"
-                                        )}>
-                                          {Math.round(det.confidence * 100)}%
-                                        </span>
-                                      )}
-                                      
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); toggleRejectDetection(det.originalIdx); }}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all opacity-0 group-hover/det:opacity-100"
-                                        title={det.rejected ? "Restaurer" : "Rejeter (Faux positif)"}
-                                      >
-                                        {det.rejected ? <RotateCcw size={14} /> : <EyeOff size={14} />}
-                                      </button>
-                                    </div>
-                                  </motion.div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
+                  {/* BANNIÈRE MODE SAISIE CLINIQUE */}
+                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 shrink-0">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                      <Type size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-indigo-900 uppercase tracking-wider">Mode Saisie Clinique</p>
+                      <p className="text-[10px] text-indigo-700/80 mt-0.5 leading-snug">
+                        Cliquez sur une dent dans la radio pour ouvrir le panneau de diagnostic. Les anomalies apparaissent ci-dessous.
+                      </p>
                     </div>
                   </div>
-                )}
 
-                {/* SECTION SÉLECTIONS MANUELLES */}
+                {/* SECTION DIAGNOSTICS MANUELS */}
                 {(annotations.length > 0 || manualAnomaliesList.length > 0) && (
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                       <Type size={12} className="text-indigo-500" />
-                      Ajustements Manuels
+                      Diagnostics ({manualAnomaliesList.length + annotations.length})
                     </h4>
                     <div className="space-y-2">
                       {manualAnomaliesList.map((item, idx) => {
                         const def = ANOMALY_TAXONOMY.find(t => t.id === item.anomaly);
                         const label = def ? def.label : item.anomaly;
+                        const isUrgent = URGENT_ANOMALY_IDS.has(item.anomaly);
                         return (
-                          <div key={`manual-${idx}`} className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl flex justify-between items-center group transition-all">
-                            <div className="flex items-center gap-3">
-                              <span className="font-black text-sm text-indigo-900">Dent {item.fdi}</span>
-                              <span className="text-xs font-bold text-slate-600">{label}</span>
+                          <div key={`manual-${idx}`} className={cn(
+                            "border p-4 rounded-2xl flex justify-between items-center group transition-all",
+                            isUrgent ? "bg-rose-50/70 border-rose-200" : "bg-indigo-50/50 border-indigo-100"
+                          )}>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className={cn("font-black text-sm shrink-0", isUrgent ? "text-rose-900" : "text-indigo-900")}>
+                                Dent {item.fdi}
+                              </span>
+                              <span className="text-xs font-bold text-slate-600 truncate">{label}</span>
+                              {isUrgent && (
+                                <span className="shrink-0 text-[8px] font-black text-rose-600 bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                  Urgent
+                                </span>
+                              )}
                             </div>
-                            <button 
+                            <button
                               onClick={() => toggleAnomaly(item.fdi, item.anomaly)}
-                              className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"
+                              className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 shrink-0"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -823,7 +744,7 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
                       {annotations.map((ann) => (
                         <div key={ann.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center group transition-all">
                           <span className="text-xs font-bold text-slate-700">{ann.text}</span>
-                          <button 
+                          <button
                             onClick={() => setAnnotations(prev => prev.filter(a => a.id !== ann.id))}
                             className="text-red-400 hover:text-red-600 transition-all p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100"
                           >

@@ -11,6 +11,7 @@ import { Dashboard } from './pages/Dashboard';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { WelcomeScreen } from './pages/WelcomeScreen';
+import { LandingPage } from './pages/LandingPage';
 import { authService } from './services/auth';
 
 // Chargés à la demande
@@ -191,7 +192,11 @@ const SmartRootRouter = () => {
   if (isMobile) {
     return <Navigate to="/mobile/dashboard" replace />;
   }
-  return <Navigate to="/login" replace />;
+  // Connecté → dashboard directement ; non-connecté → page marketing publique
+  if (authService.isAuthenticated()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to="/landing" replace />;
 };
 
 // =============================================================================
@@ -255,6 +260,9 @@ function App() {
           </MobileProtectedRoute>
         } />
         
+        {/* Page marketing publique (avant connexion) */}
+        <Route path="/landing" element={<LandingPage />} />
+
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={
           <ProtectedRoute>

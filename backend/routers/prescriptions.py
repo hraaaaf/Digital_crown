@@ -267,7 +267,14 @@ def create_acte(
         db.commit()
         db.refresh(new_act)
         audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="CREATE", resource_type="Acte", resource_id=str(new_act.id), details=f"Acte: {new_act.libelle}, Montant: {new_act.montant}")
-        
+
+        # MPL : enregistre la corrélation acte précédent → cet acte pour les suggestions futures
+        from backend.services.habits_engine import habits_engine as _he
+        try:
+            _he.record_act_sequence(db, current_user.id, patient_id)
+        except Exception:
+            pass  # non-critique, ne doit jamais bloquer la réponse
+
         return {"status": "success", "act_id": new_act.id, "labjob_created": is_prothetic}
 
     except Exception as e:

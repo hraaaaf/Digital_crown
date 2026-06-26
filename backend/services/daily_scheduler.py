@@ -90,10 +90,17 @@ def run_daily_alerts():
                 db.rollback()
                 continue
             for t in triggers:
+                # Fenêtre de déduplication adaptative — évite le bruit quotidien
+                _financial_types = {"OVERDUE_PAYMENT", "POST_CARE_FOLLOWUP", "HIGH_VALUE_RISK"}
+                _dedup_window = (
+                    timedelta(hours=24)
+                    if any(k in t["type"] for k in _financial_types)
+                    else timedelta(days=7)
+                )
                 exists = db.query(models.ProactiveAlert).filter(
                     models.ProactiveAlert.patient_id == patient_id,
                     models.ProactiveAlert.alert_type == t["type"],
-                    models.ProactiveAlert.created_at >= datetime.now() - timedelta(hours=24)
+                    models.ProactiveAlert.created_at >= datetime.now() - _dedup_window
                 ).first()
                 if not exists:
                     priority = 1 if any(k in t["type"] for k in ("CRITICAL", "RISK", "ABANDONED")) else 2
@@ -109,7 +116,7 @@ def run_daily_alerts():
                     ))
                     new_count += 1
                     new_by_employer[patient.employer_id] = new_by_employer.get(patient.employer_id, 0) + 1
-                    
+
                     # Ghost Brain V2 : Conscience temporelle
                     from backend.services.ghost_memory_service import ghost_memory
                     ghost_memory.add_memory(
@@ -120,6 +127,50 @@ def run_daily_alerts():
                         content=f"Analyse Proactive: {t['title']} - {t['message']}",
                         context_data=f"{t['type']}_{patient_id}_{datetime.now().strftime('%Y-%m')}"
                     )
+        db.commit()
+
+        # ── Analyse pression agenda par cabinet (niveau employer) ───────────────
+        from backend.services.ghost_memory_service import ghost_memory as _gm
+        all_employer_ids = {
+            row[0] for row in db.query(models.Patient.employer_id).filter(
+                models.Patient.id.in_(all_ids)
+            ).distinct().all()
+        }
+        for emp_id in all_employer_ids:
+            material_alerts = _engine.detect_material_pressure(db, emp_id, horizon_days=7)
+            for ma in material_alerts:
+                stock_type = f"STOCK_{ma['material_key']}"
+                _stock_exists = db.query(models.ProactiveAlert).filter(
+                    models.ProactiveAlert.employer_id == emp_id,
+                    models.ProactiveAlert.alert_type == stock_type,
+                    models.ProactiveAlert.created_at >= datetime.now() - timedelta(days=7),
+                ).first()
+                if not _stock_exists:
+                    db.add(models.ProactiveAlert(
+                        employer_id=emp_id,
+                        patient_id=None,
+                        alert_type=stock_type,
+                        title=f"⚠️ Stock — {ma['label'].capitalize()}",
+                        message=(
+                            f"{ma['count']} {ma['label']} prévus dans les {ma['horizon_days']} prochains jours "
+                            f"(seuil d'alerte : {ma['seuil']}). {ma['conseil']}"
+                        ),
+                        action="/settings",
+                        priority=1,
+                        expires_at=datetime.now() + timedelta(days=7),
+                    ))
+                    _gm.add_memory(
+                        db=db,
+                        patient_id=None,
+                        employer_id=emp_id,
+                        insight_type="STOCK",
+                        content=(
+                            f"Pression agenda détectée : {ma['count']} {ma['label']} "
+                            f"dans les {ma['horizon_days']}j. {ma['conseil']}"
+                        ),
+                        context_data=f"{stock_type}_{emp_id}_{datetime.now().strftime('%Y-%W')}",
+                    )
+                    new_by_employer[emp_id] = new_by_employer.get(emp_id, 0) + 1
         db.commit()
 
         logger.info("Daily alerts: %d new alerts for %d active patients", new_count, len(all_ids))

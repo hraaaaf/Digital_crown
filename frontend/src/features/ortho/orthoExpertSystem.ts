@@ -74,26 +74,31 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   }
 
   // 2. PRESCRIPTION DAMON
+  const denture_type = data.denture_type || '';
+  const isMixteOrPediatric = denture_type === 'MIXTE' || denture_type === 'TEMPORAIRE';
+
   let torqueMax: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' = 'Standard Torque (Bleu)';
   let torqueMand: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' = 'Standard Torque (Bleu)';
   let raisonTorque = "Inclinaisons initiales physiologiques, maintien des torques standard.";
 
-  // Maxillaire
-  if (extrRecommandee || classe.includes('Classe II')) {
-    torqueMax = 'High Torque (Rouge)';
-    raisonTorque = "Maxillaire: High Torque pour contrôler le torque radiculaire lors de la rétraction incisive ou éviter l'effet 'rabbiting'. ";
-  } else if (ifranc > 120 && !extrRecommandee) {
-    torqueMax = 'Low Torque (Vert)';
-    raisonTorque = "Maxillaire: Low Torque pour limiter la vestibulo-version lors de la levée d'encombrement. ";
-  }
+  if (!isMixteOrPediatric) {
+    // Maxillaire
+    if (extrRecommandee || classe.includes('Classe II')) {
+      torqueMax = 'High Torque (Rouge)';
+      raisonTorque = "Maxillaire: High Torque pour contrôler le torque radiculaire lors de la rétraction incisive ou éviter l'effet 'rabbiting'. ";
+    } else if (ifranc > 120 && !extrRecommandee) {
+      torqueMax = 'Low Torque (Vert)';
+      raisonTorque = "Maxillaire: Low Torque pour limiter la vestibulo-version lors de la levée d'encombrement. ";
+    }
 
-  // Mandibulaire
-  if (impa > 95 || (isModerateCrowding && !extrRecommandee)) {
-    torqueMand = 'Low Torque (Vert)';
-    raisonTorque += "Mandibule: Low Torque pour empêcher la vestibulo-version excessive lors de l'alignement/expansion.";
-  } else if (impa < 85) {
-    torqueMand = 'High Torque (Rouge)';
-    raisonTorque += "Mandibule: High Torque pour corriger la rétroalvéolie mandibulaire.";
+    // Mandibulaire
+    if (impa > 95 || (isModerateCrowding && !extrRecommandee)) {
+      torqueMand = 'Low Torque (Vert)';
+      raisonTorque += "Mandibule: Low Torque pour empêcher la vestibulo-version excessive lors de l'alignement/expansion.";
+    } else if (impa < 85) {
+      torqueMand = 'High Torque (Rouge)';
+      raisonTorque += "Mandibule: High Torque pour corriger la rétroalvéolie mandibulaire.";
+    }
   }
 
   // 3. MÉCANIQUE ET CHIRURGIE (Squelettique Vraie)
@@ -126,6 +131,14 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   }
 
   // 4. RÉDACTION DU RAPPORT MARKDOWN
+  const prescriptionBlock = isMixteOrPediatric
+    ? `#### 2. Orientation Thérapeutique (Denture Mixte / Patient En Croissance)
+⚠️ **Traitement multi-attaches fixe différé.** Compte tenu de l'âge et de la denture mixte, le plan thérapeutique doit être orienté vers une évaluation interceptive et une surveillance de croissance. La prescription d'appareillage fixe type Damon ou de broches haute section est prématurée à ce stade. Une réévaluation à la denture permanente est recommandée.`
+    : `#### 2. Prescription Autoligaturante (Type Damon)
+* **Maxillaire** : ${torqueMax}
+* **Mandibule** : ${torqueMand}
+* **Rationnel** : ${raisonTorque}`;
+
   const md = `
 ### Synthèse Automatique - Agent ODF
 **Profil du Patient** : ${classe}, ${pattern}, Profil ${profil}.
@@ -137,10 +150,7 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
 **Rationnel** : ${extrRaison}
 ${extrRecommandee ? `**Dents concernées** : ${extrDents}` : ''}
 
-#### 2. Prescription Autoligaturante (Type Damon)
-* **Maxillaire** : ${torqueMax}
-* **Mandibule** : ${torqueMand}
-* **Rationnel** : ${raisonTorque}
+${prescriptionBlock}
 
 #### 3. Mécanique Spécifique
 ${mec.length > 0 ? mec.map(m => `- ${m}`).join('\n') : '- Nivellement et alignement standard. Arcs CuNiTi.'}

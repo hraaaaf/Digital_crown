@@ -248,7 +248,7 @@ export function CrownBotChat({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Tab & Ghost Brain state
-  const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [activeTab, setActiveTab] = useState<Tab>('brain');
   const [insights, setInsights] = useState<GhostInsight[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -580,13 +580,6 @@ export function CrownBotChat({
         {/* Tabs */}
         <div className="flex px-4 gap-1">
           <button
-            onClick={() => setActiveTab('chat')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors',
-              activeTab === 'chat' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
-          >
-            <MessageSquare size={13} /> Chat
-          </button>
-          <button
             onClick={() => setActiveTab('brain')}
             className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors relative',
               activeTab === 'brain' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
@@ -598,89 +591,49 @@ export function CrownBotChat({
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={cn('flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-t-lg transition-colors',
+              activeTab === 'chat' ? 'bg-white/15 text-white' : 'text-white/60 hover:text-white/80')}
+          >
+            <MessageSquare size={13} /> Chat
+            <span className="ml-1.5 text-[8px] font-black bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Bientôt</span>
+          </button>
         </div>
       </div>
 
-      {/* ── TAB: CHAT ── */}
+      {/* ── TAB: CHAT — Bientôt disponible ── */}
       {activeTab === 'chat' && (
-        <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-            {messages.map(msg => (
-              <div key={msg.id} className={cn('flex gap-3', msg.sender === 'user' ? 'flex-row-reverse' : '')}>
-                <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0',
-                  msg.sender === 'user' ? 'bg-slate-200 text-slate-600' : 'bg-primary/10 text-primary')}>
-                  {msg.sender === 'user' ? <User size={14} /> : <Bot size={14} />}
-                </div>
-                <div className={cn('max-w-[80%] rounded-[16px] p-3 text-sm shadow-sm',
-                  msg.sender === 'user'
-                    ? 'bg-primary text-white rounded-tr-none'
-                    : 'bg-white border border-slate-100 text-slate-800 rounded-tl-none')}>
-                  {msg.sender === 'bot'
-                    ? <div className="prose prose-sm prose-slate max-w-none [&>p]:mb-2 [&>ul]:list-disc [&>ul]:ml-4 [&>ul]:mb-2 [&>ol]:list-decimal [&>ol]:ml-4 [&>ol]:mb-2 last:[&>*]:mb-0">
-                        <ReactMarkdown>{msg.text}</ReactMarkdown>
-                      </div>
-                    : <div className="whitespace-pre-wrap">{msg.text}</div>
-                  }
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner border border-white/60">
+              <MessageSquare size={36} className="text-primary/40" />
+            </div>
+            <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md">
+              Bientôt
+            </span>
+          </div>
 
-                  {msg.pendingAction && (
-                    <PendingActionCard
-                      action={msg.pendingAction}
-                      onConfirm={() => handleConfirmAction(msg.id, msg.pendingAction, msg.pendingActionId)}
-                      onCancel={() => {
-                        if (msg.pendingActionId) api.post(`/bot/execute/${msg.pendingActionId}/cancel`).catch(() => {});
-                        setMessages(prev => prev.map(m =>
-                          m.id === msg.id ? { ...m, pendingAction: null, pendingActionId: undefined, text: m.text + '\n\n*Action annulée.*' } : m));
-                      }}
-                    />
-                  )}
+          <div className="text-center space-y-2">
+            <h3 className="font-black text-slate-800 text-sm tracking-tight">Chat IA — Bientôt disponible</h3>
+            <p className="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">
+              Le chat conversationnel avec Crown Bot sera disponible dans la prochaine version.
+            </p>
+          </div>
 
-                  {msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {msg.suggestions.map((s, i) => (
-                        <button key={i} onClick={() => handleSend(s)}
-                          className="px-2.5 py-1 bg-primary/5 hover:bg-primary/10 border border-primary/10 text-primary text-[11px] font-semibold rounded-full transition-colors">
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {msg.showUpsell && (
-                    <PremiumUpsellCard onClose={() => dismissUpsell(msg.id)} />
-                  )}
-                </div>
+          <div className="flex flex-col gap-2 w-full max-w-[240px]">
+            {['Créer un RDV', 'Résumer un dossier', 'Générer une ordonnance'].map((item) => (
+              <div key={item} className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl opacity-40 cursor-not-allowed select-none">
+                <Sparkles size={13} className="text-primary shrink-0" />
+                <span className="text-[11px] font-semibold text-slate-600">{item}</span>
               </div>
             ))}
-
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Bot size={14} />
-                </div>
-                <div className="bg-white border border-slate-100 rounded-[16px] rounded-tl-none p-3 shadow-sm flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin text-primary" />
-                  <span className="text-xs text-slate-500">Crown Bot réfléchit...</span>
-                </div>
-              </div>
-            )}
-            <div ref={endRef} />
           </div>
 
-          <div className="p-3 bg-white border-t border-slate-100">
-            <form onSubmit={(e) => { e.preventDefault(); handleSend(input); }} className="flex items-center gap-2">
-              <input
-                type="text" value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder="Posez votre question..."
-                className="flex-1 bg-slate-100 border-none rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                disabled={isLoading}
-              />
-              <button type="submit" disabled={!input.trim() || isLoading}
-                className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:bg-primary-hover transition-colors shrink-0 shadow-md">
-                <Send size={16} className="ml-1" />
-              </button>
-            </form>
-          </div>
-        </>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+            Crown Bot V2 — En développement
+          </p>
+        </div>
       )}
 
       {/* ── TAB: GHOST BRAIN ── */}
@@ -709,10 +662,16 @@ export function CrownBotChat({
             return (
               <div key={insight.id} className="p-3 bg-white border border-slate-100 rounded-2xl group hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
                 <div className="flex justify-between items-start mb-1">
-                  <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
-                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
-                    {insight.insight_type}
-                  </Link>
+                  {insight.patient_id ? (
+                    <Link to={`/patients/${insight.patient_id}`} onClick={() => onClose?.()}
+                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase hover:bg-primary hover:text-white transition-colors">
+                      {insight.insight_type}
+                    </Link>
+                  ) : (
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                      {insight.insight_type}
+                    </span>
+                  )}
                   <span className="text-[8px] text-slate-400 font-bold">
                     {new Date(insight.created_at).toLocaleDateString()}
                   </span>

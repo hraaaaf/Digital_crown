@@ -137,7 +137,7 @@ class PanoramicEliteGenerator(BaseTemplate):
         categories = []
         # Fallback si markdown vide
         if not markdown or len(markdown) < 10:
-            return [{"name": "Observations Générales", "items": ["Examen en cours d'analyse."]}]
+            return [{"name": "Observations Générales", "findings": ["Examen en cours d'analyse."]}]
 
         # On cherche les titres de niveau 2 ou 3
         current_cat = None
@@ -146,17 +146,18 @@ class PanoramicEliteGenerator(BaseTemplate):
             line = line.strip()
             if line.startswith('## ') or line.startswith('### '):
                 name = line.replace('#', '').strip()
-                current_cat = {"name": name, "items": []}
+                # Clé "findings" (pas "items") pour éviter la collision avec le built-in dict.items() en Jinja2
+                current_cat = {"name": name, "findings": []}
                 categories.append(current_cat)
             elif (line.startswith('- ') or line.startswith('* ')) and current_cat is not None:
                 item = line[2:].replace('**', '').strip()
-                current_cat["items"].append(item)
+                current_cat["findings"].append(item)
         
         # Si aucune catégorie détectée, on met tout dans "Général"
         if not categories:
             items = [l[2:].strip() for l in lines if l.startswith('- ') or l.startswith('* ')]
             if not items: items = [markdown]
-            return [{"name": "Synthèse Clinique", "items": items}]
+            return [{"name": "Synthèse Clinique", "findings": items}]
             
         return categories
 

@@ -15,7 +15,7 @@ class GhostMemoryService:
         """Génère un hash SHA-256 déterministe pour éviter les doublons."""
         return hashlib.sha256(context_data.encode('utf-8')).hexdigest()
 
-    def add_memory(self, db: Session, patient_id: int, employer_id: int, insight_type: str, content: str, context_data: str) -> Optional[GhostMemoryLog]:
+    def add_memory(self, db: Session, patient_id: Optional[int], employer_id: int, insight_type: str, content: str, context_data: str) -> Optional[GhostMemoryLog]:
         """
         Ajoute un nouveau souvenir si le contexte est nouveau.
         Retourne le log créé, ou None si c'est un doublon récent.

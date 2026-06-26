@@ -367,6 +367,7 @@ def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.
     for d in docs:
         d_dict = {c.key: getattr(d, c.key) for c in d.__table__.columns}
         d_dict["file_exists"] = bool(d.file_path and os.path.exists(_resolve_abs(d.file_path)))
+        d_dict["download_url"] = f"/api/documents/{d.id}/download"
         docs_out.append(d_dict)
 
     return {"total": total, "page": page, "page_size": page_size, "documents": docs_out}
