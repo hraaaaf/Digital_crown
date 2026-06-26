@@ -104,14 +104,7 @@ export function MobileHeader({
           </button>
         )}
 
-        {snapshot?.role === 'SECRETAIRE' && activeTab === 'agenda' && (
-          <button 
-            onClick={() => window.location.href = '/mobile/dentists'}
-            className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-black text-xs shadow-md uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
-          >
-            Gestion des dentistes
-          </button>
-        )}
+        {/* TODO: Vue multi-dentiste secrétaire — route /mobile/dentists à implémenter */}
         
         {activeTab === 'agenda' && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">

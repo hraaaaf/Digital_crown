@@ -1,12 +1,12 @@
 {
-  "name": "Digital Crown",
-  "short_name": "Digital Crown",
+  "name": "Digital Crown Elite",
+  "short_name": "DC Elite",
   "description": "Gestion de cabinet dentaire — Compagnon Mobile",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f8fafc",
-  "theme_color": "#f8fafc",
+  "theme_color": "#003380",
   "lang": "fr",
   "icons": [
     {

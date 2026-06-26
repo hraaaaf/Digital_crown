@@ -23,68 +23,21 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      filename: 'pwa-sw.js', // Nom distinct pour ne pas écraser public/sw.js (mobile custom SW)
       includeAssets: ['logo.svg', 'logo.png'],
-      manifest: false, // On garde le manifest.json public existant (VitePWA le prendra de public/manifest.json par défaut)
+      manifest: false, // Utilise public/manifest.json
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Pas de BackgroundSync Workbox : la file offline est gérée par MobileStorage (localforage)
         runtimeCaching: [
           {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
+            urlPattern: /^https?:\/\/.*\/api\/mobile\/snapshot.*/i,
             handler: 'NetworkFirst',
             method: 'GET',
             options: {
-              cacheName: 'api-cache-get',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 jours
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkOnly',
-            method: 'POST',
-            options: {
-              backgroundSync: {
-                name: 'api-sync-post',
-                options: { maxRetentionTime: 24 * 60 }
-              }
-            }
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkOnly',
-            method: 'PUT',
-            options: {
-              backgroundSync: {
-                name: 'api-sync-put',
-                options: { maxRetentionTime: 24 * 60 }
-              }
-            }
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkOnly',
-            method: 'PATCH',
-            options: {
-              backgroundSync: {
-                name: 'api-sync-patch',
-                options: { maxRetentionTime: 24 * 60 }
-              }
-            }
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkOnly',
-            method: 'DELETE',
-            options: {
-              backgroundSync: {
-                name: 'api-sync-delete',
-                options: { maxRetentionTime: 24 * 60 }
-              }
+              cacheName: 'api-snapshot-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           }
         ]
