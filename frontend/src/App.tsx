@@ -129,6 +129,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Nouveau cabinet non configuré → forcer le wizard (sauf si déjà sur /setup)
+  if (isInitialized === false && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
+  }
+
   return <>{children}</>;
 };
 

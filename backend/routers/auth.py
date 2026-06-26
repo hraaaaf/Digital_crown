@@ -200,9 +200,15 @@ async def login_for_access_token(
             severity="WARNING",
             details="Tentative de connexion sur un compte desactive",
         )
+        # Distinguer "inscription en attente SuperAdmin" (employer_id is None, role DENTISTE)
+        # de "sous-compte désactivé par le praticien" (employer_id is set)
+        if user.employer_id is None:
+            detail_msg = "Votre demande d'accès est en attente de validation par notre équipe. Vous recevrez un email dès l'activation de votre compte."
+        else:
+            detail_msg = "Ce compte a été désactivé par le praticien principal."
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ce compte a ete desactive par le praticien principal.",
+            detail=detail_msg,
         )
 
     approval = getattr(user, "approval_status", "approved") or "approved"

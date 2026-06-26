@@ -82,10 +82,14 @@ class DuplicateCheckRequest(BaseModel):
 def check_duplicate_api(payload: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, payload.exclude_id)
     return {
-        "isDuplicate": bool(existing),
-        "patientName": f"{existing.nom} {existing.prenom}" if existing else None,
-        "dateNaissance": existing.date_naissance.strftime("%Y-%m-%d") if existing else None,
-        "existingId": existing.id if existing else None
+        "has_duplicate": bool(existing),
+        "existing_patient": {
+            "id": existing.id,
+            "nom": existing.nom,
+            "prenom": existing.prenom,
+            "date_naissance": existing.date_naissance.strftime("%Y-%m-%d"),
+            "created_at": existing.created_at.isoformat() if hasattr(existing, "created_at") and existing.created_at else None,
+        } if existing else None,
     }
 
 @router.get("/", response_model=List[schemas.PatientOut],
