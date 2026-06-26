@@ -348,7 +348,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     params.libreContent, params.libreCustomPatient, params.libreCustomDate,
     params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
     params.patientDetails, params.selectedTeethFromOdontogram, params.installments,
-    params.isAccounted, params.paymentStatus, params.isGlobalNote,
+    params.isAccounted, params.paymentStatus, params.isGlobalNote, params.showLegalAnnotations,
   ]);
 
   const handleGenerate = useCallback(async (
@@ -364,7 +364,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     if (activeTab === 'echeancier') {
       const payload = params.echeancierPayload;
       if (!payload || payload.items.length === 0) {
-        toast.error('Ajoutez au moins une échéance avant de générer');
+        if (!isPreview) toast.error('Ajoutez au moins une échéance avant de générer');
         return;
       }
       if (print && !isPreview && !force) { setShowPrintWarning(true); return; }

@@ -483,14 +483,66 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
                   <div className="relative flex-1 flex flex-col p-8 bg-slate-50/20 overflow-hidden">
                     {/* 🧠 Ghost Assistant Tooltip */}
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
-                      <div className="px-5 py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4">
-                        <Brain size={16} className="animate-pulse" />
-                        {odontogramMode === 'individual' && "Sélectionnez une dent pour lui associer un soin"}
-                        {odontogramMode === 'group' && "Cliquez sur les piliers et inters pour créer un bridge ou un stellite"}
-                        {odontogramMode === 'ortho' && "Sélectionnez un acte s'appliquant à l'ensemble de la cavité buccale"}
+                    {odontogramMode !== 'ortho' && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+                        <div className="px-5 py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-primary/20 shadow-sm animate-in slide-in-from-top-4">
+                          <Brain size={16} className="animate-pulse" />
+                          {odontogramMode === 'individual' && "Sélectionnez une dent pour lui associer un soin"}
+                          {odontogramMode === 'group' && "Cliquez sur les piliers et inters pour créer un bridge ou un stellite"}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* 🌍 Panneau Soins Généraux (Mode ortho) — sibling de l'odontogramme */}
+                    {odontogramMode === 'ortho' && (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
+                        <div className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-8 w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                          <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                              <Sparkles className="text-primary"/> Soins Généraux
+                            </h3>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actes Globaux</span>
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                            {[
+                              {name: 'Détartrage & Polissage', price: 400, category: 'PREVENTION'},
+                              {name: 'Surfaçage Radiculaire (par secteur)', price: 1500, category: 'PARO'},
+                              {name: 'Bilan Parodontal Complet', price: 600, category: 'PARO'},
+                              {name: 'Blanchiment Dentaire', price: 2500, category: 'ESTHETIQUE'},
+                              {name: 'Fluorisation', price: 300, category: 'PREVENTION'},
+                              {name: 'Gouttière de Bruxisme', price: 1500, category: 'PROTHESE'},
+                              {name: 'Semestre ODF', price: 4500, category: 'ORTHO'},
+                              {name: 'Consultation Standard', price: 300, category: 'CONSERVATRICE'},
+                              {name: 'Aéropolissage', price: 350, category: 'PREVENTION'},
+                              {name: 'Traitement Parodontal (Séance)', price: 800, category: 'PARO'},
+                            ].map(act => (
+                              <button
+                                key={act.name}
+                                type="button"
+                                onClick={() => {
+                                  const price = PriceBrain.suggestPrice(act.name) || act.price;
+                                  setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
+                                  toast.success(`Ajouté : ${act.name}`, {
+                                    style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
+                                  });
+                                }}
+                                className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
+                              >
+                                <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
+                                <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">{PriceBrain.suggestPrice(act.name) || act.price} MAD</span>
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={addEmptyRow}
+                            className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <Plus size={14} /> Acte personnalisé
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* ODONTOGRAMME (Faded in ortho mode) */}
                     <div className={cn(
@@ -498,63 +550,22 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       odontogramMode === 'ortho' ? "opacity-10 pointer-events-none scale-95 blur-sm" : "opacity-100 scale-100 blur-none"
                     )}>
                       <div className="w-full flex justify-center items-center">
-                        <OdontogramSVG 
-                          type={odontogramType} 
+                        <OdontogramSVG
+                          type={odontogramType}
                           teethSurfaces={{}}
                           selectedTooth={activeTooth}
                           selectedSurface={null}
                           onSurfaceClick={() => {}}
-                          multiSelectedTeeth={groupSelectedTeeth} 
+                          multiSelectedTeeth={groupSelectedTeeth}
                           onToothDirectClick={(n) => {
                             handleToothDirectClick(n);
                             if (odontogramMode === 'individual') setActiveTooth(n);
-                          }} 
+                          }}
                           showNumbers={false}
                           hideSurfaces={true}
                           className="w-full max-w-[480px] drop-shadow-xl"
                         />
                       </div>
-
-                        {/* 🌍 Panneau Soins Généraux (Mode ortho) */}
-                        {odontogramMode === 'ortho' && (
-                          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 pointer-events-auto">
-                             <div className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-8 w-full max-w-2xl animate-in zoom-in-95 duration-500">
-                               <div className="flex items-center justify-between mb-6">
-                                 <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                   <Sparkles className="text-primary"/> Soins Généraux
-                                 </h3>
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Actes Globaux</span>
-                               </div>
-                               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                                  {[
-                                    {name: 'Détartrage & Polissage', price: 400, category: 'PREVENTION'},
-                                    {name: 'Bilan Parodontal', price: 600, category: 'PARO'},
-                                    {name: 'Surfaçage Radiculaire (Secteur)', price: 1500, category: 'PARO'},
-                                    {name: 'Blanchiment Dentaire', price: 2500, category: 'ESTHETIQUE'},
-                                    {name: 'Semestre ODF', price: 4500, category: 'ORTHO'},
-                                    {name: 'Gouttière de Bruxisme', price: 1500, category: 'PROTHESE'},
-                                    {name: 'Fluorisation', price: 300, category: 'PREVENTION'},
-                                    {name: 'Consultation Standard', price: 300, category: 'CONSERVATRICE'}
-                                  ].map(act => (
-                                    <button 
-                                      key={act.name} 
-                                      onClick={() => {
-                                        const price = PriceBrain.suggestPrice(act.name) || act.price;
-                                        setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
-                                        toast.success(`Ajouté : ${act.name}`, {
-                                          style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
-                                        });
-                                      }} 
-                                      className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm"
-                                    >
-                                      <span className="text-xs font-bold text-slate-700 group-hover:text-primary transition-colors">{act.name}</span>
-                                      <span className="text-[10px] font-black text-slate-400 group-hover:text-primary/70">{PriceBrain.suggestPrice(act.name) || act.price} MAD</span>
-                                    </button>
-                                  ))}
-                               </div>
-                             </div>
-                          </div>
-                        )}
 
                         {/* 💎 Floating Group Action Bar */}
                         {odontogramMode === 'group' && (
@@ -784,6 +795,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all"
                           style={{ color: 'var(--primary)' }}
                           value={item.price || ''}
+                          onFocus={e => e.target.select()}
                           onChange={(e) => updateItem(item.id, 'price', e.target.value)}
                           placeholder="0.00"
                         />
@@ -981,6 +993,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           type="number" 
                           className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
                           value={inst.amount}
+                          onFocus={e => e.target.select()}
                           onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">MAD</span>

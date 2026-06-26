@@ -175,7 +175,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           <label className="block text-sm font-medium text-slate-700 mb-1">Montant Total Prévu (MAD)</label>
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input type="number" value={totalAmount} onChange={e => setTotalAmount(Number(e.target.value))} className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
+            <input type="number" value={totalAmount} onChange={e => setTotalAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
           </div>
         </div>
       </div>
@@ -185,7 +185,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Avance (MAD)</label>
-            <input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date Avance</label>
@@ -193,11 +193,11 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Nbre Mensualités</label>
-            <input type="number" min="1" value={monthsCount} onChange={e => setMonthsCount(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <input type="number" min="1" value={monthsCount} onChange={e => setMonthsCount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Montant / Mois (MAD)</label>
-            <input type="number" value={monthlyAmount} onChange={e => setMonthlyAmount(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <input type="number" value={monthlyAmount} onChange={e => setMonthlyAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           </div>
         </div>
         <button onClick={generateTable} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors w-full">
@@ -246,7 +246,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
-                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold ${item.paid ? 'text-emerald-500' : 'text-slate-900'}`} />
+                    <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} onFocus={e => e.target.select()} className={`w-full bg-transparent border-none focus:ring-0 p-0 text-sm font-bold ${item.paid ? 'text-emerald-500' : 'text-slate-900'}`} />
                     <span className="text-xs text-slate-400">MAD</span>
                   </div>
                 </td>

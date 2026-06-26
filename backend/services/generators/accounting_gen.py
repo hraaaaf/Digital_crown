@@ -284,23 +284,32 @@ class AccountingGenerator:
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
-        acte_w = 4.8*cm
+        acte_w, dent_w, pay_w, hon_w = 4.8*cm, 2.0*cm, 3.0*cm, 3.0*cm
         min_fs = base_fs
         for p in data.payments:
-            acte_nbsp = p.acte.replace(' ', '\u00A0')
-            dyn_style = self.base_template.get_adaptive_style(acte_style, acte_nbsp, acte_w - 0.2*cm, min_fs=2.0)
-            if dyn_style.fontSize < min_fs:
-                min_fs = dyn_style.fontSize
-                
+            _dent_pre = getattr(p, 'dent', '-')
+            if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
+                _dent_pre = ', '.join([str(d) for d in p.dents])
+            for _ct, _cw in [
+                (p.acte.replace(' ', ' '), acte_w - 0.2*cm),
+                (str(_dent_pre).replace(' ', ' '), dent_w - 0.1*cm),
+                (getattr(p, 'mode_reglement', 'Espèces').replace(' ', ' '), pay_w - 0.1*cm),
+                (f"{p.montant:.2f} MAD", hon_w - 0.1*cm),
+            ]:
+                _dyn = self.base_template.get_adaptive_style(text_style, _ct, _cw, min_fs=2.0)
+                if _dyn.fontSize < min_fs:
+                    min_fs = _dyn.fontSize
+
+        uniform_style = ParagraphStyle(name='UniformAll', parent=text_style, fontSize=min_fs, leading=min_fs * 1.4)
         uniform_acte_style = ParagraphStyle(name='UniformActe', parent=acte_style, fontSize=min_fs, leading=min_fs * 1.4)
 
         for p in data.payments:
-            acte_nbsp = p.acte.replace(' ', '\u00A0')
+            acte_nbsp = p.acte.replace(' ', ' ')
             acte_para = Paragraph(acte_nbsp, uniform_acte_style)
             dent_display = getattr(p, 'dent', '-')
             if hasattr(p, 'dents') and p.dents and len(p.dents) > 0:
                 dent_display = ', '.join([str(d) for d in p.dents])
-            table_data.append([acte_para, Paragraph(str(dent_display), text_style), Paragraph(getattr(p, 'mode_reglement', 'Espèces'), text_style), Paragraph(f"{p.montant:.2f}", text_style)])
+            table_data.append([acte_para, Paragraph(str(dent_display), uniform_style), Paragraph(getattr(p, 'mode_reglement', 'Espèces'), uniform_style), Paragraph(f"{p.montant:.2f}", uniform_style)])
             total += p.montant
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
@@ -323,7 +332,6 @@ class AccountingGenerator:
             ('TOPPADDING', (0,0), (-1,-1), v_pad),
             ('BOTTOMPADDING', (0,-1), (-1,-1), v_pad + 4),
             ('TOPPADDING', (0,-1), (-1,-1), v_pad + 4),
-            ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
         
@@ -407,23 +415,31 @@ class AccountingGenerator:
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
-        acte_w = 6.8*cm
+        acte_w, dent_w, prix_w = 6.8*cm, 3.0*cm, 3.0*cm
         min_fs = base_fs
         for item in data.items:
-            acte_nbsp = item.acte.replace(' ', '\u00A0')
-            dyn_style = self.base_template.get_adaptive_style(acte_style, acte_nbsp, acte_w - 0.3*cm, min_fs=2.0)
-            if dyn_style.fontSize < min_fs:
-                min_fs = dyn_style.fontSize
-                
+            _dent_pre = getattr(item, 'dent', '-')
+            if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
+                _dent_pre = ', '.join([str(d) for d in item.dents])
+            for _ct, _cw in [
+                (item.acte.replace(' ', ' '), acte_w - 0.3*cm),
+                (str(_dent_pre).replace(' ', ' '), dent_w - 0.1*cm),
+                (f"{item.prix_unitaire:.2f} MAD", prix_w - 0.1*cm),
+            ]:
+                _dyn = self.base_template.get_adaptive_style(text_style, _ct, _cw, min_fs=2.0)
+                if _dyn.fontSize < min_fs:
+                    min_fs = _dyn.fontSize
+
+        uniform_style = ParagraphStyle(name='UniformAll', parent=text_style, fontSize=min_fs, leading=min_fs * 1.4)
         uniform_acte_style = ParagraphStyle(name='UniformActe', parent=acte_style, fontSize=min_fs, leading=min_fs * 1.4)
 
         for item in data.items:
-            acte_nbsp = item.acte.replace(' ', '\u00A0')
+            acte_nbsp = item.acte.replace(' ', ' ')
             acte_para = Paragraph(acte_nbsp, uniform_acte_style)
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
                 dent_display = ', '.join([str(d) for d in item.dents])
-            table_data.append([acte_para, Paragraph(str(dent_display), text_style), Paragraph(f"{item.prix_unitaire:.2f}", text_style)])
+            table_data.append([acte_para, Paragraph(str(dent_display), uniform_style), Paragraph(f"{item.prix_unitaire:.2f}", uniform_style)])
             total += item.prix_unitaire
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
@@ -446,7 +462,6 @@ class AccountingGenerator:
             ('TOPPADDING', (0,0), (-1,-1), v_pad),
             ('BOTTOMPADDING', (0,-1), (-1,-1), v_pad + 4),
             ('TOPPADDING', (0,-1), (-1,-1), v_pad + 4),
-            ('WORDWRAP', (0,0), (-1,-1), True)
         ]))
         elements.append(t)
         
