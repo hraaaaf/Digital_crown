@@ -124,13 +124,8 @@ def generate_installment_preview(
         config=config,
         user=current_user,
     )
-    pdf_url = filepath.replace("\\", "/")
-    media_path_str = str(MEDIA_DIR).replace("\\", "/")
-    if media_path_str in pdf_url:
-        pdf_url = "static" + pdf_url.split(media_path_str)[1]
-    elif "static/" in pdf_url:
-        pdf_url = pdf_url[pdf_url.find("static/"):]
-    return {"pdf_url": pdf_url}
+    filename = os.path.basename(filepath)
+    return {"pdf_url": f"static/documents/{filename}"}
 
 
 @router.delete("/plan/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -27,6 +27,7 @@ import { AssistantProthese } from './wizards/AssistantProthese';
 import { AssistantPedo } from './wizards/AssistantPedo';
 import { AssistantOrtho } from './wizards/AssistantOrtho';
 import { AssistantGeneral } from './wizards/AssistantGeneral';
+import { AssistantExamenComplet } from './wizards/AssistantExamenComplet';
 import { AssistantATM } from './wizards/AssistantATM';
 import { AssistantPatho } from './wizards/AssistantPatho';
 import { VigilanceRadar } from '../../admin/DocumentStudio/VigilanceRadar';
@@ -39,8 +40,8 @@ interface ClinicalHubProps {
 const ASSISTANTS = [
   {
     id: 'general',
-    name: 'Assistant Général',
-    description: 'Bilan initial, anamnèse et motif de consultation',
+    name: 'Examen Clinique Complet',
+    description: 'Triage → bilan complet → diagnostic + plan de traitement',
     icon: Stethoscope,
     color: 'emerald',
     gradient: 'from-emerald-500/20 to-emerald-500/5'
@@ -414,9 +415,9 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                     onComplete={(diag, steps) => handleWizardComplete('ortho', diag, steps)}
                   />
                 ) : activeAssistant === 'general' ? (
-                  <AssistantGeneral 
+                  <AssistantExamenComplet
                     onCancel={() => setActiveAssistant(null)}
-                    onComplete={(diag, steps) => handleWizardComplete('general', diag, steps)}
+                    onComplete={(diag, steps, next) => handleWizardComplete('general', diag, steps, next)}
                   />
                 ) : activeAssistant === 'atm' ? (
                   <AssistantATM 
