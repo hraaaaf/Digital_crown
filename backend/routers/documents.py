@@ -1,5 +1,5 @@
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, and_, or_
@@ -557,11 +557,11 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
 async def upload_rvg(
     patient_id: int,
     file: UploadFile = File(...),
-    radio_type: str = "rvg",
-    tooth_number: Optional[str] = None,
-    sector: Optional[str] = None,
-    acquisition_date: Optional[date] = None,
-    note: Optional[str] = None,
+    radio_type: str = Form("rvg"),
+    tooth_number: Optional[str] = Form(None),
+    sector: Optional[str] = Form(None),
+    acquisition_date: Optional[date] = Form(None),
+    note: Optional[str] = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -570,7 +570,7 @@ async def upload_rvg(
     Stocke dans DocumentArchive avec document_type=RADIOGRAPHIE et tags=["rvg", "intra_orale"].
     """
     # Sécurité : vérifier accès patient
-    assert_patient_access(patient_id, db, current_user)
+    assert_patient_access(patient_id, current_user, db)
     employer_id = current_user.get_employer_id()
 
     # Permission check
@@ -612,20 +612,18 @@ async def upload_rvg(
     }
 
     # Archive the document using archive_service
-    archive_service = get_archive_service()
+    archive_service = get_archive_service(db)
     from uuid import uuid4
     unique_filename = f"{uuid4()}{ext}"
 
-    doc = archive_service.archive_document(
+    doc, _ = archive_service.archive_document(
         patient_id=patient_id,
         file_content=file_data,
-        original_filename=file.filename or unique_filename,
-        document_type=schemas.DocumentType.RADIOGRAPHIE,
+        filename=file.filename or unique_filename,
+        doc_type=schemas.DocumentType.RADIOGRAPHIE,
         tags=["rvg", "intra_orale"],
         clinical_data=clinical_data,
         uploaded_by_id=current_user.id,
-        employer_id=employer_id,
-        db=db,
     )
 
     # Audit log
@@ -665,19 +663,17 @@ async def list_patient_rvg(
     Filtre par document_type=RADIOGRAPHIE et tags contenant "rvg".
     """
     # Sécurité : vérifier accès patient
-    assert_patient_access(patient_id, db, current_user)
+    assert_patient_access(patient_id, current_user, db)
 
     # Permission check
     if not has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS.get("radiographie")):
         raise HTTPException(status_code=403, detail="Permission refusée.")
 
-    # Query RVG documents
-    employer_id = current_user.get_employer_id()
+    # Query RVG documents (tenant isolation already enforced by assert_patient_access above)
     documents = (
         db.query(models.DocumentArchive)
         .filter(
             models.DocumentArchive.patient_id == patient_id,
-            models.DocumentArchive.employer_id == employer_id,
             models.DocumentArchive.document_type == schemas.DocumentType.RADIOGRAPHIE,
             models.DocumentArchive.status == schemas.DocumentStatus.ACTIF,
         )

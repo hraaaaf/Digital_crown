@@ -46,7 +46,7 @@ export const rvgService = {
     if (request.note) formData.append('note', request.note);
 
     const response = await api.post<RVGDocument>(
-      `/patients/${patientId}/rvg`,
+      `/documents/patients/${patientId}/rvg`,
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -59,15 +59,15 @@ export const rvgService = {
    * List all RVG documents for a patient.
    */
   async listRVG(patientId: number): Promise<RVGDocument[]> {
-    const response = await api.get<RVGDocument[]>(`/patients/${patientId}/rvg`);
+    const response = await api.get<RVGDocument[]>(`/documents/patients/${patientId}/rvg`);
     return response.data;
   },
 
   /**
-   * Delete an RVG document (soft delete via DocumentArchive).
+   * Delete an RVG document (permanent delete via DocumentArchive).
    */
   async deleteRVG(documentId: number): Promise<void> {
-    await api.delete(`/documents/archive/${documentId}`);
+    await api.delete(`/documents/${documentId}`, { params: { confirm: true } });
   },
 
   /**

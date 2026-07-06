@@ -12,6 +12,7 @@ from .base import (
     QRCodeType,
     StyleKey,
     AppointmentStatus,
+    SchedulingType,
     DocumentType,
     DocumentStatus,
     ConflictResolution,
@@ -205,7 +206,7 @@ from .branding import (
 
 __all__ = [
     # base
-    "QRCodeType", "StyleKey", "AppointmentStatus",
+    "QRCodeType", "StyleKey", "AppointmentStatus", "SchedulingType",
     "DocumentType", "DocumentStatus", "ConflictResolution",
     # patient
     "PraticienProfileOut", "DossierOut",

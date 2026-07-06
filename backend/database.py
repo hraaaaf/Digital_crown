@@ -134,14 +134,15 @@ SessionLocal = sessionmaker(
 
 
 def migrate_appointment_columns():
-    """Ajoute les colonnes frontdesk si absentes (SQLite ALTER TABLE)."""
+    """Ajoute les colonnes frontdesk si absentes (ALTER TABLE, SQLite ou PostgreSQL)."""
     from sqlalchemy import text
+    datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
     new_columns = [
         ("source", "VARCHAR(50)"),
         ("phone", "VARCHAR(30)"),
         ("confirmed_by_id", "INTEGER"),
-        ("confirmed_at", "DATETIME"),
-        ("expires_at", "DATETIME"),
+        ("confirmed_at", datetime_type),
+        ("expires_at", datetime_type),
     ]
     try:
         with engine.connect() as conn:
@@ -152,6 +153,7 @@ def migrate_appointment_columns():
                     logger.info(f"✅ Added column {col_name} to appointments table")
                 except Exception as e:
                     # Column already exists or other error
+                    conn.rollback()
                     logger.debug(f"Column {col_name} may already exist: {e}")
     except Exception as e:
         logger.warning(f"Migration warning: {e}")

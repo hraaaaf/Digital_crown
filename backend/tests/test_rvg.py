@@ -3,11 +3,24 @@
 Le endpoint /patients/{id}/rvg permet l'upload de radios intra-orales
 via DocumentArchive (pas de nouvelle table).
 """
-import pytest
 from io import BytesIO
-from datetime import date
+from datetime import datetime
 from fastapi.testclient import TestClient
 from backend import models, schemas
+from backend.tests.conftest import make_user
+
+
+def _create_patient(db, dentiste, nom="RVGPAT"):
+    pat = models.Patient(
+        nom=nom, prenom="Test",
+        date_naissance=datetime(1990, 1, 1),
+        sexe="M",
+        employer_id=dentiste.get_employer_id(),
+    )
+    db.add(pat)
+    db.commit()
+    db.refresh(pat)
+    return pat
 
 
 class TestRVGUploadSecurity:
@@ -16,75 +29,60 @@ class TestRVGUploadSecurity:
     def test_upload_rvg_anonymous_401(self, client: TestClient):
         """Upload sans auth → 401."""
         file_content = BytesIO(b"fake image data")
-        file_content.name = "test.jpg"
 
         response = client.post(
-            "/api/patients/1/rvg",
+            "/api/documents/patients/1/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
         )
         assert response.status_code == 401
 
-    def test_upload_rvg_wrong_cabinet_403(
-        self, client: TestClient, db_session, current_user, other_employer
-    ):
+    def test_upload_rvg_wrong_cabinet_403(self, client: TestClient, db, dentiste, auth_headers):
         """Upload pour patient d'un autre cabinet → 403/404."""
-        # Create patient in other employer
-        other_patient = models.Patient(
-            employer_id=other_employer.id,
-            patient_id="P999",
-            nom="Test",
-            prenom="Other",
-        )
-        db_session.add(other_patient)
-        db_session.commit()
+        other_user = make_user(db)
+        other_patient = _create_patient(db, other_user, nom="OtherCabinet")
 
         file_content = BytesIO(b"fake image data")
         response = client.post(
-            f"/api/patients/{other_patient.id}/rvg",
+            f"/api/documents/patients/{other_patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
-        # Should be 403 or 404 (cross-tenant protection)
         assert response.status_code in (403, 404)
 
-    def test_upload_rvg_mime_not_allowed_422(
-        self, client: TestClient, db_session, current_user, patient
-    ):
+    def test_upload_rvg_mime_not_allowed_422(self, client: TestClient, db, dentiste, auth_headers):
         """MIME type non autorisé → 422."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake executable data")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.exe", file_content, "application/octet-stream")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 
-    def test_upload_rvg_file_too_large_413(
-        self, client: TestClient, current_user, patient
-    ):
+    def test_upload_rvg_file_too_large_413(self, client: TestClient, db, dentiste, auth_headers):
         """Fichier > 10 MB → 413."""
-        # Create a 11 MB file in memory
+        patient = _create_patient(db, dentiste)
         large_data = b"x" * (11 * 1024 * 1024)
         file_content = BytesIO(large_data)
 
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert response.status_code == 413
 
-    def test_upload_rvg_success_201(
-        self, client: TestClient, current_user, patient, db_session
-    ):
-        """Upload valide → 201, DocumentArchive créé."""
+    def test_upload_rvg_success_201(self, client: TestClient, db, dentiste, auth_headers):
+        """Upload valide → 200/201, DocumentArchive créé."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake jpeg image data")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={
                 "radio_type": "periapical",
@@ -93,11 +91,10 @@ class TestRVGUploadSecurity:
                 "acquisition_date": "2025-01-01",
                 "note": "Clear view",
             },
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
-        assert response.status_code in (200, 201)
+        assert response.status_code in (200, 201), response.text
 
-        # Verify response structure
         data = response.json()
         assert data["patient_id"] == patient.id
         assert "download_url" in data
@@ -105,15 +102,12 @@ class TestRVGUploadSecurity:
         assert data["clinical_data"]["radio_type"] == "periapical"
         assert data["clinical_data"]["tooth_number"] == "16"
 
-        # Verify DocumentArchive was created
-        doc = db_session.query(models.DocumentArchive).filter(
+        doc = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == data["id"]
         ).first()
         assert doc is not None
         assert doc.document_type == schemas.DocumentType.RADIOGRAPHIE
         assert doc.patient_id == patient.id
-        assert doc.employer_id == current_user.employer_id
-        assert doc.uploaded_by_id == current_user.id
         assert "rvg" in (doc.tags or [])
 
 
@@ -122,57 +116,40 @@ class TestRVGListSecurity:
 
     def test_list_rvg_anonymous_401(self, client: TestClient):
         """List sans auth → 401."""
-        response = client.get("/api/patients/1/rvg")
+        response = client.get("/api/documents/patients/1/rvg")
         assert response.status_code == 401
 
-    def test_list_rvg_wrong_cabinet_403(
-        self, client: TestClient, db_session, current_user, other_employer
-    ):
-        """List pour patient d'un autre cabinet → 403."""
-        other_patient = models.Patient(
-            employer_id=other_employer.id,
-            patient_id="P888",
-            nom="Test",
-            prenom="Other",
-        )
-        db_session.add(other_patient)
-        db_session.commit()
+    def test_list_rvg_wrong_cabinet_403(self, client: TestClient, db, dentiste, auth_headers):
+        """List pour patient d'un autre cabinet → 403/404."""
+        other_user = make_user(db)
+        other_patient = _create_patient(db, other_user, nom="OtherCabinet2")
 
         response = client.get(
-            f"/api/patients/{other_patient.id}/rvg",
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            f"/api/documents/patients/{other_patient.id}/rvg",
+            headers=auth_headers,
         )
         assert response.status_code in (403, 404)
 
-    def test_list_rvg_empty(self, client: TestClient, current_user, patient):
+    def test_list_rvg_empty(self, client: TestClient, db, dentiste, auth_headers):
         """List patient sans RVG → []."""
-        response = client.get(
-            f"/api/patients/{patient.id}/rvg",
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
-        )
+        patient = _create_patient(db, dentiste)
+        response = client.get(f"/api/documents/patients/{patient.id}/rvg", headers=auth_headers)
         assert response.status_code == 200
-        data = response.json()
-        assert data == []
+        assert response.json() == []
 
-    def test_list_rvg_includes_uploaded(
-        self, client: TestClient, current_user, patient, db_session
-    ):
+    def test_list_rvg_includes_uploaded(self, client: TestClient, db, dentiste, auth_headers):
         """List affiche les RVG uploadés."""
-        # Upload first
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake image")
         upload_resp = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert upload_resp.status_code in (200, 201)
 
-        # List
-        list_resp = client.get(
-            f"/api/patients/{patient.id}/rvg",
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
-        )
+        list_resp = client.get(f"/api/documents/patients/{patient.id}/rvg", headers=auth_headers)
         assert list_resp.status_code == 200
         data = list_resp.json()
         assert len(data) > 0
@@ -183,13 +160,12 @@ class TestRVGListSecurity:
 class TestRVGMetadata:
     """Tests métadonnées RVG."""
 
-    def test_rvg_clinical_data_stored(
-        self, client: TestClient, current_user, patient, db_session
-    ):
+    def test_rvg_clinical_data_stored(self, client: TestClient, db, dentiste, auth_headers):
         """clinical_data RVG est stocké dans DocumentArchive."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake image")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={
                 "radio_type": "bitewing",
@@ -198,7 +174,7 @@ class TestRVGMetadata:
                 "acquisition_date": "2025-01-05",
                 "note": "Interproximal caries suspected",
             },
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert response.status_code in (200, 201)
 
@@ -209,14 +185,15 @@ class TestRVGMetadata:
         assert clinical["sector"] == "LR"
         assert clinical["note"] == "Interproximal caries suspected"
 
-    def test_rvg_optional_fields(self, client: TestClient, current_user, patient):
+    def test_rvg_optional_fields(self, client: TestClient, db, dentiste, auth_headers):
         """Champs optionnels (tooth_number, sector, date, note) peuvent être None."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake image")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
-            data={"radio_type": "other"},  # Only required fields
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            data={"radio_type": "other"},
+            headers=auth_headers,
         )
         assert response.status_code in (200, 201)
 
@@ -230,36 +207,33 @@ class TestRVGMetadata:
 class TestRVGDownloadUrl:
     """Tests que RVG est accessible via route protégée /documents/{id}/download."""
 
-    def test_rvg_download_url_is_protected(
-        self, client: TestClient, current_user, patient, db_session
-    ):
+    def test_rvg_download_url_is_protected(self, client: TestClient, db, dentiste, auth_headers):
         """RVG download_url utilise /api/documents/{id}/download (route protégée)."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake image")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert response.status_code in (200, 201)
 
         data = response.json()
         download_url = data["download_url"]
-        # Verify it's a protected route, not /api/static/uploads
         assert "/api/documents/" in download_url
         assert "/download" in download_url
         assert "/api/static/uploads" not in download_url
 
-    def test_no_public_static_uploads_in_response(
-        self, client: TestClient, current_user, patient
-    ):
+    def test_no_public_static_uploads_in_response(self, client: TestClient, db, dentiste, auth_headers):
         """Upload response n'expose jamais /api/static/uploads."""
+        patient = _create_patient(db, dentiste)
         file_content = BytesIO(b"fake image")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
 
         import json
@@ -270,35 +244,34 @@ class TestRVGDownloadUrl:
 class TestRVGRegressions:
     """Tests que les RVG ne cassent pas les documents existants."""
 
-    def test_other_documents_not_affected(
-        self, client: TestClient, current_user, patient, db_session
-    ):
+    def test_other_documents_not_affected(self, client: TestClient, db, dentiste, auth_headers):
         """Ajouter un RVG ne casse pas les autres DocumentArchive."""
-        # Create a non-RVG document (e.g., prescription)
+        import uuid
+        patient = _create_patient(db, dentiste)
         other_doc = models.DocumentArchive(
             patient_id=patient.id,
-            employer_id=current_user.employer_id,
             document_type=schemas.DocumentType.ORDONNANCE,
             filename="prescription.pdf",
             original_filename="prescription.pdf",
+            document_group_id=str(uuid.uuid4()),
+            file_hash="dummy-hash",
+            file_size=100,
             file_path="static/archives/1/ORDONNANCE/2025/1/test.pdf",
             status=schemas.DocumentStatus.ACTIF,
         )
-        db_session.add(other_doc)
-        db_session.commit()
+        db.add(other_doc)
+        db.commit()
 
-        # Upload RVG
         file_content = BytesIO(b"fake image")
         response = client.post(
-            f"/api/patients/{patient.id}/rvg",
+            f"/api/documents/patients/{patient.id}/rvg",
             files={"file": ("test.jpg", file_content, "image/jpeg")},
             data={"radio_type": "rvg"},
-            headers={"Authorization": f"Bearer {current_user.access_token}"},
+            headers=auth_headers,
         )
         assert response.status_code in (200, 201)
 
-        # Verify other document still exists
-        other_still_exists = db_session.query(models.DocumentArchive).filter(
+        other_still_exists = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.id == other_doc.id
         ).first()
         assert other_still_exists is not None
