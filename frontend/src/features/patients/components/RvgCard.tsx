@@ -1,26 +1,10 @@
 /**
- * RVG Card Component
+ * RVG Card Component — Tailwind version (no MUI dependency)
  * Displays a single RVG document with metadata and action buttons.
  */
-import React from 'react';
-import {
-  Card,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Typography,
-  Button,
-  Box,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material';
-import { Delete as DeleteIcon, Download as DownloadIcon, OpenInNew as OpenIcon } from '@mui/icons-material';
-import { RVGDocument } from '../../../services/rvgService';
-import AuthImg from '../../../components/Auth/AuthImg';
-import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
+import React, { useState } from 'react';
+import { Trash2, Download, ExternalLink } from 'lucide-react';
+import type { RVGDocument } from '../../../services/rvgService';
 import rvgService from '../../../services/rvgService';
 
 interface RvgCardProps {
@@ -36,15 +20,14 @@ export const RvgCard: React.FC<RvgCardProps> = ({
   canDelete = false,
   canDownload = true,
 }) => {
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [opening, setOpening] = React.useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [opening, setOpening] = useState(false);
 
   const handleOpenFile = async () => {
     setOpening(true);
     try {
-      // Open file in new tab with auth token
       const token = localStorage.getItem('token');
-      const url = rvgService.getDownloadUrl(doc.id, token);
+      const url = rvgService.getDownloadUrl(doc.id, token ?? undefined);
       window.open(url, '_blank');
     } catch (err) {
       console.error('Error opening file:', err);
@@ -56,7 +39,7 @@ export const RvgCard: React.FC<RvgCardProps> = ({
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('token');
-      const url = rvgService.getDownloadUrl(doc.id, token);
+      const url = rvgService.getDownloadUrl(doc.id, token ?? undefined);
       const a = document.createElement('a');
       a.href = url;
       a.download = doc.original_filename || `rvg_${doc.id}`;
@@ -86,120 +69,128 @@ export const RvgCard: React.FC<RvgCardProps> = ({
     }
   };
 
-  const radioTypeLabel = {
+  const radioTypeLabels: Record<string, string> = {
     rvg: 'RVG',
     periapical: 'Périapicale',
     bitewing: 'Bitewing',
     occlusal: 'Occlusale',
     other: 'Autre',
-  }[doc.clinical_data?.radio_type] || doc.clinical_data?.radio_type || 'Radio';
+  };
+  const radioTypeLabel = (doc.clinical_data?.radio_type && radioTypeLabels[doc.clinical_data.radio_type]) || doc.clinical_data?.radio_type || 'Radio';
 
   return (
     <>
-      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white flex flex-col h-full">
         {/* Thumbnail */}
-        <Box sx={{ height: 200, backgroundColor: '#f5f5f5', overflow: 'hidden' }}>
+        <div className="h-48 bg-gray-100 overflow-hidden flex items-center justify-center">
           {doc.original_filename?.toLowerCase().endsWith('.pdf') ? (
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                color: '#999',
-              }}
-            >
-              <Typography variant="h6">📄 PDF</Typography>
-              <Typography variant="caption">{doc.original_filename}</Typography>
-            </Box>
+            <div className="flex flex-col items-center justify-center text-gray-500">
+              <span className="text-3xl mb-2">📄</span>
+              <p className="text-sm font-semibold truncate px-2">{doc.original_filename}</p>
+            </div>
           ) : (
-            <AuthImg
+            <img
               src={doc.download_url}
               alt={`${radioTypeLabel} - ${doc.original_filename}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23f3f4f6%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22system-ui%22 font-size=%2212%22 fill=%22%239ca3af%22%3EImage%3C/text%3E%3C/svg%3E';
               }}
             />
           )}
-        </Box>
+        </div>
 
         {/* Metadata */}
-        <CardContent sx={{ flexGrow: 1 }}>
-          <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip label={radioTypeLabel} size="small" variant="outlined" />
+        <div className="p-4 flex-1">
+          <div className="mb-2 flex flex-wrap gap-1">
+            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+              {radioTypeLabel}
+            </span>
             {doc.clinical_data?.tooth_number && (
-              <Chip label={`Dent ${doc.clinical_data.tooth_number}`} size="small" />
+              <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
+                Dent {doc.clinical_data.tooth_number}
+              </span>
             )}
             {doc.clinical_data?.sector && (
-              <Chip label={`Secteur ${doc.clinical_data.sector}`} size="small" />
+              <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">
+                Secteur {doc.clinical_data.sector}
+              </span>
             )}
-          </Box>
+          </div>
 
           {doc.clinical_data?.acquisition_date && (
-            <Typography variant="caption" display="block" color="textSecondary" sx={{ mb: 1 }}>
+            <p className="text-xs text-gray-500 mb-2">
               Prise le : {formatDate(doc.clinical_data.acquisition_date)}
-            </Typography>
+            </p>
           )}
 
           {doc.clinical_data?.note && (
-            <Typography variant="body2" sx={{ mb: 1 }}>
+            <p className="text-sm text-gray-700 mb-2 line-clamp-2">
               {doc.clinical_data.note}
-            </Typography>
+            </p>
           )}
 
-          <Typography variant="caption" display="block" color="textSecondary">
+          <p className="text-xs text-gray-500">
             Ajoutée le {formatDate(doc.created_at)}
-          </Typography>
-        </CardContent>
+          </p>
+        </div>
 
         {/* Actions */}
-        <CardActions sx={{ pt: 0 }}>
-          <Button
-            size="small"
-            startIcon={<OpenIcon />}
+        <div className="p-3 border-t border-gray-100 flex gap-2 bg-gray-50">
+          <button
             onClick={handleOpenFile}
             disabled={opening}
+            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
+            <ExternalLink size={14} />
             Ouvrir
-          </Button>
+          </button>
           {canDownload && (
-            <Button
-              size="small"
-              startIcon={<DownloadIcon />}
+            <button
               onClick={handleDownload}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
+              <Download size={14} />
               Télécharger
-            </Button>
+            </button>
           )}
           {canDelete && (
-            <Button
-              size="small"
-              color="error"
-              startIcon={<DeleteIcon />}
+            <button
               onClick={() => setDeleteConfirmOpen(true)}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium bg-white border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
             >
+              <Trash2 size={14} />
               Supprimer
-            </Button>
+            </button>
           )}
-        </CardActions>
-      </Card>
+        </div>
+      </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>Confirmer la suppression</DialogTitle>
-        <DialogContent>
-          Êtes-vous sûr de vouloir supprimer cette radio ?
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Annuler</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Supprimer
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h2 className="text-lg font-bold mb-4">Confirmer la suppression</h2>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir supprimer cette radio ?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

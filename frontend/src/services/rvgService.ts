@@ -2,7 +2,7 @@
  * RVG (Intra-oral X-ray) service
  * Handles upload, listing, and deletion of patient RVG documents.
  */
-import api from './api';
+import { api } from './api';
 
 export interface RVGDocument {
   id: number;
