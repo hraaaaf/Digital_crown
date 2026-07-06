@@ -37,5 +37,8 @@ def short_label(metric_name: str) -> str:
 
     Utilisé uniquement pour les noms de métriques dans les tables,
     jamais pour les valeurs cliniques (qui restent inchangées).
+    Ne retourne jamais une chaîne vide (évite une cellule d'en-tête blanche).
     """
+    if not metric_name:
+        return "Métrique"
     return METRIC_SHORT_LABELS.get(metric_name, metric_name.replace("_", " "))

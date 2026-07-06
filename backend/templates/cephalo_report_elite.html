@@ -92,6 +92,7 @@
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid var(--border-color);
+            table-layout: fixed;
         }
 
         .metrics-table th {
@@ -102,6 +103,8 @@
             font-family: 'Outfit', sans-serif;
             font-weight: 600;
             font-size: 9pt;
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
         }
 
@@ -110,6 +113,11 @@
             border-bottom: 1px solid var(--border-color);
             font-size: 9pt;
             white-space: nowrap;
+        }
+
+        .metrics-table td:first-child {
+            white-space: normal;
+            word-break: break-word;
         }
 
         .metrics-table tr:nth-child(even) {

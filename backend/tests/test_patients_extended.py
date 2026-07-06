@@ -59,7 +59,7 @@ class TestDuplicateCheck:
             headers=auth_headers,
         )
         assert r.status_code == 200
-        assert r.json()["isDuplicate"] is False
+        assert r.json()["has_duplicate"] is False
 
     def test_detects_duplicate(self, client, auth_headers):
         _create_patient(client, auth_headers, nom="Duptest", prenom="Alpha", dob="1990-06-06")
@@ -69,7 +69,7 @@ class TestDuplicateCheck:
             headers=auth_headers,
         )
         assert r.status_code == 200
-        assert r.json()["isDuplicate"] is True
+        assert r.json()["has_duplicate"] is True
 
     def test_duplicate_check_with_exclude_id(self, client, auth_headers):
         pat = _create_patient(client, auth_headers, nom="Excludetest", prenom="Beta", dob="1991-08-08")
@@ -84,7 +84,7 @@ class TestDuplicateCheck:
             headers=auth_headers,
         )
         assert r.status_code == 200
-        assert r.json()["isDuplicate"] is False
+        assert r.json()["has_duplicate"] is False
 
     def test_duplicate_check_requires_auth(self, client):
         r = client.post(

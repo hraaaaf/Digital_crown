@@ -386,8 +386,12 @@ class BaseTemplate:
             # Logo au centre, texte sur les côtés
             min_header_height = base_padding_top + max(has_logo * logo_size, max_text_height) + bottom_spacing + 0.6 * cm
         elif selected_template in ['clinical', 'modern', 'heritage']:
-            # Logo empilé au-dessus du texte
-            min_header_height = base_padding_top + (has_logo * logo_size) + (0.4 * cm if has_logo else 0) + max_text_height + bottom_spacing
+            # Logo empilé au-dessus du texte.
+            # Le séparateur horizontal de ces en-têtes est tracé 0.4-0.5cm sous le
+            # dernier bloc de texte (cf. _draw_header_clinical/_modern/_heritage) —
+            # bottom_spacing générique (0.1cm) sous-estime cet écart réel, ce qui
+            # laissait le corps du document chevaucher le trait de séparation.
+            min_header_height = base_padding_top + (has_logo * logo_size) + (0.4 * cm if has_logo else 0) + max_text_height + max(bottom_spacing, 0.55 * cm)
         else:
             min_header_height = 4.5 * cm
 
@@ -440,14 +444,16 @@ class BaseTemplate:
         # 1. Fond de page / Letterhead
         lh_path_str = self._get_val(config, 'letterhead_path')
         has_letterhead = self.has_active_letterhead(config)
-        
+        letterhead_rendered = False
+
         if has_letterhead:
             lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
             if os.path.exists(lh_path):
                 canvas.saveState()
                 self._draw_safe_image(canvas, lh_path, 0, 0, p_width, p_height)
                 canvas.restoreState()
-                
+                letterhead_rendered = True
+
                 # Si le papier existe et est utilisé, on s'arrête ici
                 canvas.saveState(); canvas.restoreState()
                 pass
@@ -478,8 +484,8 @@ class BaseTemplate:
 
         # 4. RENDU DU MASTER TEMPLATE (LE SEUL, L'UNIQUE)
         # Appelé inconditionnellement pour normaliser le rendu.
-        should_draw_header = (not has_letterhead) or (not self._get_val(config, 'hide_header', True))
-        should_draw_footer = (not has_letterhead) or (not self._get_val(config, 'hide_footer', True))
+        should_draw_header = (not letterhead_rendered) or (not self._get_val(config, 'hide_header', True))
+        should_draw_footer = (not letterhead_rendered) or (not self._get_val(config, 'hide_footer', True))
 
         if should_draw_header:
             self._draw_auto_header(canvas, config, logo_path, primary_color, secondary_color, accent_color, p_width, p_height)

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from datetime import datetime
+import os
 import pathlib
 
 from backend import models, database

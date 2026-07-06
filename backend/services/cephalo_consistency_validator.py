@@ -168,7 +168,10 @@ class CephaloConsistencyValidator:
             result.fatals.append("angles_data manquant ou format invalide.")
             return result
 
-        metrics = angles_data.get("metrics", {})
+        # angles_data correspond directement aux champs d'AnalysisMetrics
+        # (analyse_osseuse/analyse_dentaire/analyse_esthetique en premier niveau,
+        # sans wrapper "metrics" — cf. AnalysisMetrics(**last_analysis.angles_data)).
+        metrics = angles_data.get("metrics", angles_data)
         osseuse = metrics.get("analyse_osseuse", {})
         dentaire = metrics.get("analyse_dentaire", {})
         esthetique = metrics.get("analyse_esthetique", {})
