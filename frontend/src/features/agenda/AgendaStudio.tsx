@@ -5,8 +5,10 @@ import { DailyView } from './DailyView';
 import { WeeklyView } from './WeeklyView';
 import { MonthlyView } from './MonthlyView';
 import { GoogleImportModal } from './GoogleImportModal';
+import { FrontdeskModal } from './FrontdeskModal';
+import { PendingRequestCard } from './PendingRequestCard';
 import { api } from '../../services/api';
-import { Ghost, Settings } from 'lucide-react';
+import { Ghost, Settings, AlertCircle } from 'lucide-react';
 
 export type AgendaViewMode = 'day' | 'week' | 'month' | 'multi';
 
@@ -16,6 +18,12 @@ const STATUS_COLORS: Record<string, string> = {
   'EN_FAUTEUIL': 'bg-emerald-100 text-emerald-700',
   'TERMINÉ': 'bg-slate-100 text-slate-400',
   'ANNULÉ': 'bg-rose-50 text-rose-400',
+  'EN_ATTENTE_DEMANDE': 'bg-orange-100 text-orange-700',
+  'EN_ATTENTE_CONFIRM': 'bg-yellow-100 text-yellow-700',
+  'CONFIRMÉ': 'bg-blue-100 text-blue-700',
+  'REFUSÉ': 'bg-red-100 text-red-500 line-through',
+  'EXPIRÉ': 'bg-gray-100 text-gray-400',
+  'ABSENT': 'bg-rose-100 text-rose-600',
 };
 
 const MultiPractitionerView: React.FC<{ data: any; loading: boolean }> = ({ data, loading }) => {
@@ -75,15 +83,35 @@ export const AgendaStudio: React.FC = () => {
   const [viewMode, setViewMode] = useState<AgendaViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isFrontdeskModalOpen, setIsFrontdeskModalOpen] = useState(false);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [upcomingHolidays, setUpcomingHolidays] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [multiData, setMultiData] = useState<any>(null);
   const [loadingMulti, setLoadingMulti] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
+  const fetchPendingRequests = async () => {
+    try {
+      const res = await api.get('/appointments/pending');
+      setPendingRequests(res.data);
+      setPendingCount(res.data.length);
+    } catch (err) {
+      console.error('Error fetching pending requests:', err);
+    }
+  };
 
   useEffect(() => {
     api.get('/upcoming-holidays').then(res => setUpcomingHolidays(res.data)).catch(console.error);
     api.get('/agenda/settings').then(res => setSettings(res.data)).catch(console.error);
+    fetchPendingRequests();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(fetchPendingRequests, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const handlePrev = () => {
@@ -225,7 +253,17 @@ export const AgendaStudio: React.FC = () => {
             </button>
           )}
 
-          <button 
+          <button
+            onClick={() => setIsFrontdeskModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 text-orange-600 hover:bg-orange-100 font-bold text-sm rounded-xl transition-all relative"
+            title="Nouvelle demande RDV frontdesk"
+          >
+            <AlertCircle size={18} />
+            <span className="hidden xl:inline">Demande RDV</span>
+            {pendingCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{pendingCount}</span>}
+          </button>
+
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-primary hover:brightness-110 hover:bg-primary/10 font-bold text-sm rounded-xl transition-all"
             title="Importer depuis Google Agenda"
@@ -283,10 +321,50 @@ export const AgendaStudio: React.FC = () => {
         </div>
       </div>
 
+      {/* PENDING REQUESTS SECTION */}
+      {pendingCount > 0 && (
+        <div className="space-y-3 bg-orange-50 border-2 border-orange-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-orange-800 flex items-center gap-2">
+              <AlertCircle size={20} /> Demandes en attente ({pendingCount})
+            </h2>
+            <button
+              onClick={() => setShowPendingOnly(!showPendingOnly)}
+              className="text-xs px-3 py-1.5 bg-orange-200 text-orange-800 rounded-lg hover:bg-orange-300 font-bold"
+            >
+              {showPendingOnly ? 'Afficher tout' : 'Afficher seulement'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {pendingRequests.map(req => (
+              <PendingRequestCard
+                key={req.id}
+                request={req}
+                onAction={() => {
+                  fetchPendingRequests();
+                  setRefreshKey(prev => prev + 1);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* RENDER ACTIVE VIEW */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         {renderView()}
       </div>
+
+      <FrontdeskModal
+        open={isFrontdeskModalOpen}
+        onClose={() => setIsFrontdeskModalOpen(false)}
+        onSuccess={() => {
+          fetchPendingRequests();
+          setRefreshKey(prev => prev + 1);
+          setIsFrontdeskModalOpen(false);
+        }}
+        selectedDate={selectedDate}
+      />
 
       <GoogleImportModal 
         isOpen={isImportModalOpen}

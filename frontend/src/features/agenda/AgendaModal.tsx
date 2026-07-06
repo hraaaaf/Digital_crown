@@ -720,10 +720,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Statut Initial</label>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {(['PRÉVU', 'EN_S_ATTENTE', 'EN_FAUTEUIL', 'TERMINÉ', 'ANNULÉ'] as AppointmentStatus[]).map(s => {
+                {(['PRÉVU', 'EN_S_ATTENTE', 'EN_FAUTEUIL', 'TERMINÉ', 'ANNULÉ', 'EN_ATTENTE_DEMANDE', 'EN_ATTENTE_CONFIRM', 'CONFIRMÉ', 'REFUSÉ', 'EXPIRÉ', 'ABSENT'] as AppointmentStatus[]).map(s => {
                   const labels: Record<string, string> = {
                     'PRÉVU': 'Prévu', 'EN_S_ATTENTE': 'Attente', 'EN_FAUTEUIL': 'Fauteuil',
                     'TERMINÉ': 'Terminé', 'ANNULÉ': 'Annulé',
+                    'EN_ATTENTE_DEMANDE': 'Demande', 'EN_ATTENTE_CONFIRM': 'Confir?', 'CONFIRMÉ': 'Confirmé',
+                    'REFUSÉ': 'Refusé', 'EXPIRÉ': 'Expiré', 'ABSENT': 'Absent',
                   };
                   const colors: Record<string, string> = {
                     'PRÉVU': 'bg-[#003380] border-[#003380] shadow-blue-900/20',
@@ -731,6 +733,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                     'EN_FAUTEUIL': 'bg-emerald-600 border-emerald-600 shadow-emerald-600/20',
                     'TERMINÉ': 'bg-slate-500 border-slate-500 shadow-slate-500/20',
                     'ANNULÉ': 'bg-rose-500 border-rose-500 shadow-rose-500/20',
+                    'EN_ATTENTE_DEMANDE': 'bg-orange-500 border-orange-500 shadow-orange-500/20',
+                    'EN_ATTENTE_CONFIRM': 'bg-yellow-500 border-yellow-500 shadow-yellow-500/20',
+                    'CONFIRMÉ': 'bg-blue-600 border-blue-600 shadow-blue-600/20',
+                    'REFUSÉ': 'bg-red-500 border-red-500 shadow-red-500/20',
+                    'EXPIRÉ': 'bg-gray-500 border-gray-500 shadow-gray-500/20',
+                    'ABSENT': 'bg-rose-600 border-rose-600 shadow-rose-600/20',
                   };
                   return (
                     <button
