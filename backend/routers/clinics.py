@@ -5,13 +5,16 @@ import os
 import uuid
 import shutil
 from typing import Optional, List
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
 from sqlalchemy.orm import Session
+from PIL import Image
 
 from backend import models, schemas, database
+from backend.config import settings
 from backend.database import get_db
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, get_current_user_optional, is_superadmin_user
 from backend.services.card_extractor import card_extractor
 from backend.services.logo_processor import LogoProcessor
 from backend.services.license_service import LicenseService
@@ -19,10 +22,90 @@ from backend.services.license_service import LicenseService
 router = APIRouter()
 
 
+def _normalize_hex(color) -> str:
+    return "#{:02X}{:02X}{:02X}".format(*color[:3])
+
+
+def _is_neutral(color) -> bool:
+    r, g, b = color[:3]
+    spread = max(color[:3]) - min(color[:3])
+    brightness = (r + g + b) / 3
+    return spread < 18 or brightness < 28 or brightness > 240
+
+
+def _extract_brand_colors(content: bytes) -> Optional[dict]:
+    try:
+        with Image.open(BytesIO(content)) as img:
+            img = img.convert("RGB")
+            img.thumbnail((240, 240))
+            palette = img.convert("P", palette=Image.ADAPTIVE, colors=8)
+            raw_colors = palette.getcolors() or []
+            palette_values = palette.getpalette() or []
+            ranked = []
+            for count, idx in sorted(raw_colors, reverse=True):
+                base = idx * 3
+                rgb = tuple(palette_values[base:base + 3])
+                if len(rgb) != 3 or _is_neutral(rgb):
+                    continue
+                if rgb not in ranked:
+                    ranked.append(rgb)
+            if not ranked:
+                return None
+            primary = ranked[0]
+            secondary = ranked[1] if len(ranked) > 1 else primary
+            accent = ranked[2] if len(ranked) > 2 else secondary
+            return {
+                "primary_color": _normalize_hex(primary),
+                "secondary_color": _normalize_hex(secondary),
+                "accent_color": _normalize_hex(accent),
+            }
+    except Exception:
+        return None
+
+
+def _normalize_clinic_update_dict(update_dict: dict, config: Optional[models.CabinetConfig] = None) -> dict:
+    """Normalise les champs wizard/settings vers les colonnes CabinetConfig."""
+    normalized = dict(update_dict)
+
+    if "selected_font" in normalized and "font_fr" not in normalized:
+        normalized["font_fr"] = normalized.pop("selected_font")
+    elif "selected_font" in normalized:
+        normalized.pop("selected_font")
+
+    if "adresse" in normalized:
+        if "footer_address" not in normalized:
+            normalized["footer_address"] = normalized.pop("adresse")
+        else:
+            normalized.pop("adresse")
+
+    if "telephone" in normalized:
+        if "footer_phones" not in normalized:
+            normalized["footer_phones"] = normalized.pop("telephone")
+        else:
+            normalized.pop("telephone")
+
+    if "nom" in normalized:
+        nom_val = normalized.pop("nom")
+        normalized["nom_praticien"] = nom_val
+        if "nom_cabinet" not in normalized:
+            normalized["nom_cabinet"] = nom_val
+
+        dr_prefixes = ("Dr.", "Dr ", "Pr.", "Pr ", "Docteur", "Professeur")
+        display_name = nom_val if any(nom_val.startswith(p) for p in dr_prefixes) else f"Dr. {nom_val}"
+        current_headers = list(config.header_lines_fr) if config and config.header_lines_fr else []
+        if current_headers:
+            current_headers[0] = display_name
+        else:
+            current_headers = [display_name]
+        normalized["header_lines_fr"] = current_headers
+
+    return normalized
+
+
 @router.post("/recheck-license")
 async def recheck_license(request: Request, current_user: models.User = Depends(get_current_user)):
     """Re-vérifie la licence (Admin only). Débloque l'app si la licence est redevenue valide."""
-    if current_user.role != models.UserRole.ADMIN:
+    if current_user.role != models.UserRole.ADMIN and not is_superadmin_user(current_user):
         raise HTTPException(status_code=403, detail="Non autorisé.")
         
     clinic_id = os.getenv("CLINIC_ID", "default_clinic")
@@ -37,11 +120,22 @@ async def recheck_license(request: Request, current_user: models.User = Depends(
 
 
 @router.get("/init-status")
-def check_init_status(db: Session = Depends(get_db)):
+def check_init_status(
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user_optional),
+):
     """
     Vérifie si le cabinet est initialisé. 
     Règle absolue : S'il y a un Dentiste/Admin en DB, on considère le cabinet initialisé et on bypass le Wizard.
     """
+    if current_user:
+        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == current_user.get_employer_id()).first()
+        if config:
+            return {
+                "is_initialized": bool(config.is_initialized),
+                "needs_setup": not bool(config.is_initialized),
+            }
+
     admin_user = db.query(models.User).filter(
         models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE])
     ).first()
@@ -81,16 +175,13 @@ def create_clinic(
     """
     Créer la configuration d'un nouveau cabinet (Wizard étape 1).
     """
-    existing_cabinet = db.query(models.CabinetConfig).first()
-    if existing_cabinet:
-        raise HTTPException(status_code=400, detail="Un cabinet existe déjà. Contactez l'administrateur.")
-    
     admin_user = db.query(models.User).filter(
-        models.User.role == models.UserRole.ADMIN
-    ).first()
+        models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE]),
+        models.User.employer_id == None,
+    ).order_by(models.User.created_at.asc()).first()
     
     if not admin_user:
-        admin_email = os.getenv("SUPERADMIN_EMAIL", "")
+        admin_email = settings.SUPERADMIN_EMAIL
         admin_initial_pwd = os.getenv("SUPERADMIN_INITIAL_PASSWORD", "")
         if not admin_email or not admin_initial_pwd:
             raise HTTPException(
@@ -106,28 +197,29 @@ def create_clinic(
         )
         db.add(admin_user)
         db.flush()
+
+    existing_cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == admin_user.id).first()
     
-    db_config = models.CabinetConfig(
-        owner_id=admin_user.id,
-        nom_cabinet=config.nom_cabinet,
-        header_lines_fr=config.header_lines_fr,
-        header_lines_ar=config.header_lines_ar,
-        footer_address=config.footer_address,
-        footer_phones=config.footer_phones,
-        primary_color=config.primary_color,
-        font_fr=config.font_fr,
-        font_ar=config.font_ar,
-        watermark_enabled=config.watermark_enabled,
-        watermark_opacity=config.watermark_opacity,
-        selected_theme=config.selected_theme,
-        cabinet_type=models.CabinetType(config.cabinet_type),
-        is_initialized=True
-    )
-    
+    create_dict = _normalize_clinic_update_dict(config.model_dump(exclude_unset=True))
+    create_dict["owner_id"] = admin_user.id
+    create_dict["is_initialized"] = True
+    if "cabinet_type" in create_dict:
+        create_dict["cabinet_type"] = models.CabinetType(create_dict["cabinet_type"])
+
+    if existing_cabinet:
+        if existing_cabinet.is_initialized:
+            raise HTTPException(status_code=400, detail="Un cabinet existe déjà. Contactez l'administrateur.")
+        for key, value in create_dict.items():
+            if hasattr(existing_cabinet, key):
+                setattr(existing_cabinet, key, value)
+        db.commit()
+        db.refresh(existing_cabinet)
+        return existing_cabinet
+
+    db_config = models.CabinetConfig(**create_dict)
     db.add(db_config)
     db.commit()
     db.refresh(db_config)
-    
     return db_config
 
 
@@ -193,35 +285,10 @@ def update_my_clinic(
         db.add(config)
         db.flush()
     
-    update_dict = config_update.model_dump(exclude_unset=True)
-    
-    # Mapping intelligent des alias vers les colonnes physiques
-    if "adresse" in update_dict:
-        if "footer_address" not in update_dict:
-            update_dict["footer_address"] = update_dict.pop("adresse")
-        else:
-            update_dict.pop("adresse")
-            
-    if "telephone" in update_dict:
-        if "footer_phones" not in update_dict:
-            update_dict["footer_phones"] = update_dict.pop("telephone")
-        else:
-            update_dict.pop("telephone")
-            
-    if "nom" in update_dict:
-        nom_val = update_dict.pop("nom")
-        update_dict["nom_praticien"] = nom_val
-        if "nom_cabinet" not in update_dict:
-            update_dict["nom_cabinet"] = nom_val
-            
-        dr_prefixes = ("Dr.", "Dr ", "Pr.", "Pr ", "Docteur", "Professeur")
-        display_name = nom_val if any(nom_val.startswith(p) for p in dr_prefixes) else f"Dr. {nom_val}"
-        current_headers = list(config.header_lines_fr) if config.header_lines_fr else []
-        if current_headers:
-            current_headers[0] = display_name
-        else:
-            current_headers = [display_name]
-        update_dict["header_lines_fr"] = current_headers
+    update_dict = _normalize_clinic_update_dict(
+        config_update.model_dump(exclude_unset=True),
+        config=config,
+    )
         
     for key, value in update_dict.items():
         if hasattr(config, key):
@@ -319,16 +386,26 @@ async def upload_clinic_letterhead(
     
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.letterhead_path = relative_path
+    config.use_letterhead = True
     config.margin_top = margins_top
     config.margin_bottom = margins_bottom
     config.hide_header = hide_header
     config.hide_footer = hide_footer
+    detected_colors = None
+    if file.content_type != "application/pdf":
+        detected_colors = _extract_brand_colors(content)
+        if detected_colors:
+            config.primary_color = detected_colors["primary_color"]
+            config.secondary_color = detected_colors["secondary_color"]
+            config.accent_color = detected_colors["accent_color"]
     db.commit()
     
     return {
         "letterhead_url": f"/static/uploads/{relative_path}",
+        "use_letterhead": True,
         "hide_default_header": hide_header,
         "hide_default_footer": hide_footer,
+        "detected_colors": detected_colors,
         "message": "Letterhead uploadé avec succès."
     }
 

@@ -20,6 +20,7 @@ import {
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
+import { parseMotifs, findMotifById } from '../../data/motifsDictionary';
 
 import { CephaloWorkspace } from '../ortho/CephaloWorkspace';
 import { PanoramicStudio } from '../panoramic/PanoramicStudio';
@@ -278,9 +279,29 @@ export const PatientDetails = () => {
             {patient.motif_consultation && (
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-800 shadow-sm">
                 <Activity className="w-5 h-5 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-black text-sm uppercase tracking-widest mb-1">Motif de Consultation Initial</h4>
-                  <p className="text-sm font-medium whitespace-pre-wrap">{patient.motif_consultation}</p>
+                <div className="flex-1">
+                  <h4 className="font-black text-sm uppercase tracking-widest mb-2">Motif de Consultation Initial</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {parseMotifs(patient.motif_consultation).map(motifId => {
+                      const motif = findMotifById(motifId);
+                      if (!motif) return null;
+                      const isUrgent = motif.urgency === 'urgence';
+                      return (
+                        <div
+                          key={motifId}
+                          className={cn(
+                            'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider',
+                            isUrgent
+                              ? 'bg-red-100 text-red-700 border border-red-200'
+                              : 'bg-blue-100 text-blue-700 border border-blue-200'
+                          )}
+                        >
+                          {motif.label}
+                          {isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -26,15 +26,46 @@ interface Client {
   stats: ClientStats;
 }
 
+interface TrialCode {
+  id: number;
+  code: string;
+  email: string;
+  nom_complet: string | null;
+  cabinet_name: string | null;
+  trial_days: number;
+  expires_at: string;
+  consumed_at: string | null;
+  revoked_at: string | null;
+  activation_url: string;
+}
+
 export const SuperAdminDashboard: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
+  const [trialCodes, setTrialCodes] = useState<TrialCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [trialForm, setTrialForm] = useState({
+    email: '',
+    nom_complet: '',
+    cabinet_name: '',
+    trial_days: 30,
+    expires_in_days: 14,
+    notes: '',
+  });
   
   // Modals state
   const [notesModal, setNotesModal] = useState<{isOpen: boolean, clientId: number | null, notes: string}>({isOpen: false, clientId: null, notes: ''});
   const [historyModal, setHistoryModal] = useState<{isOpen: boolean, clientId: number | null, history: any[]}>({isOpen: false, clientId: null, history: []});
+
+  const fetchTrialCodes = async () => {
+    try {
+      const res = await api.get('/superadmin/trial-codes');
+      setTrialCodes(res.data);
+    } catch {
+      toast.error("Erreur lors du chargement des codes d'activation.");
+    }
+  };
 
   const fetchClients = async () => {
     setLoading(true);
@@ -54,7 +85,47 @@ export const SuperAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchClients();
+    fetchTrialCodes();
   }, []);
+
+  const handleCreateTrialCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.post('/superadmin/trial-codes', trialForm);
+      setTrialForm({
+        email: '',
+        nom_complet: '',
+        cabinet_name: '',
+        trial_days: 30,
+        expires_in_days: 14,
+        notes: '',
+      });
+      setTrialCodes((prev) => [res.data, ...prev]);
+      await navigator.clipboard.writeText(res.data.activation_url);
+      toast.success("Code créé. Lien d'activation copié.");
+    } catch {
+      toast.error("Erreur lors de la création du code.");
+    }
+  };
+
+  const handleRevokeTrialCode = async (codeId: number) => {
+    try {
+      await api.post(`/superadmin/trial-codes/${codeId}/revoke`);
+      toast.success("Code révoqué.");
+      fetchTrialCodes();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors de la révocation.");
+    }
+  };
+
+  const copyActivationLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien d'activation copié.");
+    } catch {
+      toast.error("Impossible de copier le lien.");
+    }
+  };
 
   const handleGrantLicense = async (userId: number, action: string) => {
     try {
@@ -177,6 +248,39 @@ export const SuperAdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#003380]">Après Démo</p>
+              <h2 className="mt-2 text-2xl font-black text-slate-900">Générer un code d'activation</h2>
+              <p className="mt-2 text-sm font-medium text-slate-500">Ce lien public active un essai cabinet de 30 jours puis envoie le praticien vers le setup au premier login.</p>
+            </div>
+
+            <form onSubmit={handleCreateTrialCode} className="grid gap-4 md:grid-cols-2">
+              <input value={trialForm.email} onChange={(e) => setTrialForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email professionnel" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={trialForm.nom_complet} onChange={(e) => setTrialForm(prev => ({ ...prev, nom_complet: e.target.value }))} placeholder="Nom complet" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={trialForm.cabinet_name} onChange={(e) => setTrialForm(prev => ({ ...prev, cabinet_name: e.target.value }))} placeholder="Nom du cabinet" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={trialForm.notes} onChange={(e) => setTrialForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes internes" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="number" min={1} max={90} value={trialForm.trial_days} onChange={(e) => setTrialForm(prev => ({ ...prev, trial_days: Number(e.target.value) || 30 }))} placeholder="Durée essai" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="number" min={1} max={60} value={trialForm.expires_in_days} onChange={(e) => setTrialForm(prev => ({ ...prev, expires_in_days: Number(e.target.value) || 14 }))} placeholder="Validité du code" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="submit" className="md:col-span-2 rounded-2xl bg-[#003380] px-5 py-4 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-[#003380]/20 transition-all hover:bg-blue-900">
+                Générer Et Copier Le Lien
+              </button>
+            </form>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/10">
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Distribution</p>
+            <h2 className="mt-2 text-2xl font-black">Workflow commercial</h2>
+            <ol className="mt-5 space-y-3 text-sm text-slate-200">
+              <li>1. Démo réalisée par l'équipe.</li>
+              <li>2. Génération d'un code d'activation cabinet.</li>
+              <li>3. Envoi du lien public au praticien.</li>
+              <li>4. Téléchargement Windows puis activation.</li>
+              <li>5. Premier login et setup guidé.</li>
+            </ol>
+          </div>
+        </div>
         
         {/* Filters */}
         <div className="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
@@ -203,6 +307,55 @@ export const SuperAdminDashboard: React.FC = () => {
               <option value="SUSPENDED">Suspendus</option>
               <option value="ARCHIVED">Archivés</option>
             </select>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Codes d'activation récents</h2>
+              <p className="text-sm font-medium text-slate-500">Copie rapide du lien d'activation ou révocation avant utilisation.</p>
+            </div>
+            <button onClick={fetchTrialCodes} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100">
+              Actualiser
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {trialCodes.length === 0 ? (
+              <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500">Aucun code d'activation généré pour le moment.</p>
+            ) : (
+              trialCodes.slice(0, 8).map((code) => {
+                const isUsed = Boolean(code.consumed_at);
+                const isRevoked = Boolean(code.revoked_at);
+                return (
+                  <div key={code.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-black text-slate-900">{code.code}</span>
+                          <span className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest ${isUsed ? 'bg-emerald-100 text-emerald-700' : isRevoked ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {isUsed ? 'Utilisé' : isRevoked ? 'Révoqué' : 'Actif'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-slate-600">{code.email} {code.cabinet_name ? `• ${code.cabinet_name}` : ''}</p>
+                        <p className="mt-1 text-xs text-slate-400">Expire le {formatDate(code.expires_at)} • Essai {code.trial_days} jours</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => copyActivationLink(code.activation_url)} className="rounded-xl bg-[#003380] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-blue-900">
+                          Copier Le Lien
+                        </button>
+                        {!isUsed && !isRevoked && (
+                          <button onClick={() => handleRevokeTrialCode(code.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-700 hover:bg-rose-100">
+                            Révoquer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

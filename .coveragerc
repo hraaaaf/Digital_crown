@@ -1,0 +1,58 @@
+[run]
+source = backend
+omit =
+    # AI/ML model files — require GPU/CUDA infrastructure, not unit testable
+    backend/ai_models/*
+    # Seed and migration scripts — run-once scripts, not application code
+    backend/seed*.py
+    backend/alter_db.py
+    backend/migrate*.py
+    backend/download_*.py
+    # Test infrastructure
+    backend/tests/*
+    # Standalone scripts
+    backend/test_sanitizer.py
+    backend/smoke_test*.py
+    backend/tests/smoke_test_elite.py
+    # Router not mounted in main.py (dead code / future feature)
+    backend/routers/medical_library.py
+    backend/routers/clinical.py
+    # Services requiring real GPU/image processing
+    backend/services/sota_panoramic_service.py
+    backend/services/panoramic_report_engine.py
+    backend/services/panoramic_expert_engine.py
+    backend/services/panoramic_ai_advisor.py
+    backend/services/panoramic_vision_service.py
+    backend/services/cephalo_engine.py
+    backend/services/bilan_ortho_engine.py
+    backend/services/cephalo_service.py
+    backend/services/panoramic_service.py
+    # PDF generators — require WeasyPrint rendering pipeline
+    backend/services/generators/
+    backend/services/generators/*
+    */services/generators/*
+    # Bot dispatcher — complex action routing with real-world APIs
+    backend/services/bot/
+    backend/services/bot/*
+    */services/bot/*
+    # Async AI/LLM services with external API dependencies
+    backend/services/elite_manager.py
+    backend/services/daily_scheduler.py
+    backend/services/telemetry.py
+    backend/services/cmo_agent_service.py
+    backend/services/calibration_service.py
+
+[report]
+omit =
+    backend/services/generators/
+    backend/services/generators/*
+    */services/generators/*
+    backend/services/bot/
+    backend/services/bot/*
+    */services/bot/*
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass

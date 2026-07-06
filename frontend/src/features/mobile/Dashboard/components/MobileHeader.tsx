@@ -1,4 +1,5 @@
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
 import type { Tab, SyncStatus, Snapshot } from '../types';
@@ -25,6 +26,7 @@ export function MobileHeader({
   termineCount: number;
   queuedActionsCount: number;
 }) {
+  const navigate = useNavigate();
   return (
     <div className="px-6 pt-14 pb-6 relative z-10">
       {/* Top row */}
@@ -104,7 +106,14 @@ export function MobileHeader({
           </button>
         )}
 
-        {/* TODO: Vue multi-dentiste secrétaire — route /mobile/dentists à implémenter */}
+        {snapshot?.role === 'SECRETAIRE' && (
+          <button
+            onClick={() => navigate('/mobile/dentists')}
+            className="mt-4 px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full font-black text-xs shadow-sm uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
+          >
+            <Users size={13} /> Équipe praticiens
+          </button>
+        )}
         
         {activeTab === 'agenda' && totalCount > 0 && (
           <div className="flex items-center gap-2 mt-4">

@@ -109,10 +109,19 @@ export interface CabinetConfig {
 
 export interface CabinetConfigCreate {
   nom_cabinet: string;
+  nom_praticien?: string;
+  nom_praticien_ar?: string;
   header_lines_fr: string[];
   header_lines_ar: string[];
   footer_address: string;
   footer_phones: string;
+  ice?: string;
+  if_?: string;
+  inpe?: string;
+  cabinet_type?: 'PRIVE' | 'CLINIQUE';
+  specialty_ids?: string[];
+  custom_specialty_fr?: string;
+  custom_specialty_ar?: string;
   primary_color?: string;
   secondary_color?: string;
   accent_color?: string;
@@ -121,6 +130,26 @@ export interface CabinetConfigCreate {
   watermark_enabled?: boolean;
   watermark_opacity?: number;
   selected_theme?: string;
+  selected_template?: string;
+  margin_top?: number;
+  margin_bottom?: number;
+  header_scale?: number;
+  header_font_scale?: number;
+  header_logo_scale?: number;
+  header_line_height?: number;
+  footer_font_scale?: number;
+  footer_qr_scale?: number;
+  footer_line_height?: number;
+  contacts_json?: Record<string, { enabled: boolean; value: string }>;
+  qr_code_enabled?: boolean;
+  qr_code_type?: string;
+  qr_code_value?: string;
+  qr_code_color?: string;
+  qr_code_label?: string;
+  qr_code_style?: string;
+  use_letterhead?: boolean;
+  hide_header?: boolean;
+  hide_footer?: boolean;
 }
 
 export interface CabinetInitStatus {
@@ -183,8 +212,14 @@ export interface TemplatePreviewRequest {
 }
 export interface LetterheadUploadResponse {
   letterhead_url: string;
+  use_letterhead?: boolean;
   hide_default_header: boolean;
   hide_default_footer: boolean;
+  detected_colors?: {
+    primary_color: string;
+    secondary_color: string;
+    accent_color: string;
+  } | null;
   message: string;
 }
 

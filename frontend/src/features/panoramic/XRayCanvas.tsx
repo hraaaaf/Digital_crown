@@ -40,6 +40,7 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
   const [popover, setPopover] = useState<{ screenX: number, screenY: number, fdi: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<AnomalyCategory>('Conservatrice');
   const [customInput, setCustomInput] = useState("");
+  const [showReferenceGrid, setShowReferenceGrid] = useState(false);
 
   const { 
     toothAnomalies, toggleAnomaly, 
@@ -55,13 +56,13 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
     const quadrant = is_upper ? (is_right_side ? 1 : 2) : (is_right_side ? 4 : 3);
     const dist_from_center = Math.abs(x_rel - 0.5) * 2;
     let tooth_num;
-    if (dist_from_center < 0.08) tooth_num = 1;
-    else if (dist_from_center < 0.14) tooth_num = 2;
-    else if (dist_from_center < 0.20) tooth_num = 3;
-    else if (dist_from_center < 0.28) tooth_num = 4;
-    else if (dist_from_center < 0.36) tooth_num = 5;
-    else if (dist_from_center < 0.55) tooth_num = 6;
-    else if (dist_from_center < 0.75) tooth_num = 7;
+    if (dist_from_center < 0.10) tooth_num = 1;
+    else if (dist_from_center < 0.18) tooth_num = 2;
+    else if (dist_from_center < 0.26) tooth_num = 3;
+    else if (dist_from_center < 0.345) tooth_num = 4;
+    else if (dist_from_center < 0.45) tooth_num = 5;
+    else if (dist_from_center < 0.58) tooth_num = 6;
+    else if (dist_from_center < 0.725) tooth_num = 7;
     else tooth_num = 8;
     return quadrant * 10 + tooth_num;
   };
@@ -120,12 +121,13 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
           preserveAspectRatio="xMidYMid meet"
           onClick={handleSvgClick}
         >
-          {/* Grille Dentaire (Quadrillage) */}
-          {[1,2,3,4].flatMap(quad => [1,2,3,4,5,6,7,8].map(num => quad*10 + num)).map(fdi => {
+          {/* Affichage des dents DÉTECTÉES par le moteur SOTA */}
+          {visionData?.detections && visionData.detections.map((detection) => {
+            const fdi = detection.fdi;
             const is_upper = Math.floor(fdi / 10) <= 2;
             const is_right = Math.floor(fdi / 10) === 1 || Math.floor(fdi / 10) === 4;
             const num = fdi % 10;
-            const dist_x = [0, 0.04, 0.11, 0.17, 0.24, 0.32, 0.45, 0.65, 0.85][num];
+            const dist_x = [0, 0.06, 0.14, 0.22, 0.30, 0.39, 0.51, 0.65, 0.80][num];
             const x_rel = is_right ? 0.5 - (dist_x / 2) : 0.5 + (dist_x / 2);
             const curvature = 0.15;
             const occlusal_y = curvature * Math.pow(x_rel - 0.5, 2) + 0.52;
@@ -133,17 +135,73 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
 
             const cx = x_rel * imgSize.w;
             const cy = y_rel * imgSize.h;
-            
+
             const labelY = is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06;
             const fontSize = Math.max(imgSize.w * 0.011, 10);
             const bgPad = 3;
             const bgW = fontSize * 2.2;
             const bgH = fontSize + bgPad * 2;
+            const confidence = detection.confidence || 0;
+            const isWisdomTooth = [18, 28, 38, 48].includes(fdi);
+            const isHighConfidence = isWisdomTooth ? confidence >= 0.80 : confidence >= 0.70;
+
             return (
-              <g key={`grid-${fdi}`} style={{ opacity: 0.82 }} className="pointer-events-none">
-                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
-                <rect x={cx - bgW / 2} y={labelY - bgH / 2} width={bgW} height={bgH} fill="rgba(0,0,0,0.72)" rx="4" />
-                <text x={cx} y={labelY} fill="rgba(255,255,255,0.95)" fontSize={fontSize} textAnchor="middle" alignmentBaseline="middle" fontFamily="monospace" fontWeight="bold">{fdi}</text>
+              <g key={`detected-${fdi}`} style={{ opacity: isHighConfidence ? 0.95 : 0.6 }} className="pointer-events-none">
+                <rect
+                  x={cx - imgSize.w * 0.015}
+                  y={cy - imgSize.h * 0.05}
+                  width={imgSize.w * 0.03}
+                  height={imgSize.h * 0.1}
+                  fill="transparent"
+                  stroke={isHighConfidence ? "rgba(34, 197, 94, 0.8)" : "rgba(245, 158, 11, 0.6)"}
+                  strokeWidth="2"
+                  strokeDasharray={isHighConfidence ? "none" : "4 4"}
+                  rx="4"
+                />
+                <rect
+                  x={cx - bgW / 2}
+                  y={labelY - bgH / 2}
+                  width={bgW}
+                  height={bgH}
+                  fill={isHighConfidence ? "rgba(0, 0, 0, 0.85)" : "rgba(0, 0, 0, 0.6)"}
+                  rx="4"
+                />
+                <text
+                  x={cx}
+                  y={labelY}
+                  fill={isHighConfidence ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 165, 0, 0.8)"}
+                  fontSize={fontSize}
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                >
+                  {fdi}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Grille de référence (optionnelle, transparent) */}
+          {showReferenceGrid && [1,2,3,4].flatMap(quad => [1,2,3,4,5,6,7,8].map(num => quad*10 + num)).map(fdi => {
+            const is_upper = Math.floor(fdi / 10) <= 2;
+            const is_right = Math.floor(fdi / 10) === 1 || Math.floor(fdi / 10) === 4;
+            const num = fdi % 10;
+            const dist_x = [0, 0.06, 0.14, 0.22, 0.30, 0.39, 0.51, 0.65, 0.80][num];
+            const x_rel = is_right ? 0.5 - (dist_x / 2) : 0.5 + (dist_x / 2);
+            const curvature = 0.15;
+            const occlusal_y = curvature * Math.pow(x_rel - 0.5, 2) + 0.52;
+            const y_rel = is_upper ? occlusal_y - 0.15 : occlusal_y + 0.15;
+
+            const cx = x_rel * imgSize.w;
+            const cy = y_rel * imgSize.h;
+
+            const labelY = is_upper ? cy - imgSize.h * 0.06 : cy + imgSize.h * 0.06;
+            const fontSize = Math.max(imgSize.w * 0.011, 10);
+            return (
+              <g key={`reference-${fdi}`} style={{ opacity: 0.2 }} className="pointer-events-none">
+                <rect x={cx - imgSize.w * 0.015} y={cy - imgSize.h * 0.05} width={imgSize.w * 0.03} height={imgSize.h * 0.1} fill="transparent" stroke="rgba(100, 100, 100, 0.3)" strokeWidth="1" strokeDasharray="4 4" rx="4" />
+                <text x={cx} y={labelY} fill="rgba(150, 150, 150, 0.3)" fontSize={fontSize} textAnchor="middle" alignmentBaseline="middle" fontFamily="monospace" fontWeight="normal">{fdi}</text>
               </g>
             );
           })}
@@ -237,9 +295,16 @@ export const XRayCanvas: React.FC<XRayCanvasProps> = ({
 
       {/* POPOVER MENU D'ANOMALIES CATÉGORISÉ (DESIGN ELITE) */}
       {popover && !multiSelectMode.active && (
-        <div 
+        <div
           className="absolute z-[1000] bg-[#0B0F19]/90 backdrop-blur-3xl border border-white/10 p-0 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden"
-          style={{ left: `${popover.screenX}%`, top: `${popover.screenY}%`, width: '380px', transform: 'translate(-50%, -50%)' }}
+          style={{
+            left: `${popover.screenX}%`,
+            top: `${popover.screenY}%`,
+            width: '380px',
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            transform: `translate(${popover.screenX < 25 ? '0%' : popover.screenX > 75 ? '-100%' : '-50%'}, ${popover.screenY > 55 ? '-100%' : '10%'})`
+          }}
         >
           {/* Header */}
           <div className="p-5 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 flex items-center justify-between">

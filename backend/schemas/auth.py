@@ -31,10 +31,29 @@ class UserSignup(BaseModel):
     accept_privacy: bool
 
 
+class TrialActivationRequest(BaseModel):
+    code: str = Field(min_length=6)
+    email: EmailStr
+    password: str = Field(min_length=4)
+    nom_complet: str = Field(min_length=2)
+    cabinet_name: Optional[str] = None
+    accept_terms: bool
+    accept_privacy: bool
+
+
+class TrialActivationPreview(BaseModel):
+    email: EmailStr
+    nom_complet: Optional[str] = None
+    cabinet_name: Optional[str] = None
+    trial_days: int
+    expires_at: datetime.datetime
+
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     role: str
+    is_superadmin: bool = False
     nom_complet: Optional[str] = None
     is_active: bool = True
     employer_id: Optional[int] = None

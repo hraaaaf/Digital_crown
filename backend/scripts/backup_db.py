@@ -8,11 +8,12 @@ import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from dotenv import load_dotenv
 
-# Charger .env pour obtenir CABINET_MASTER_KEY_HEX
+from backend.env_loader import load_backend_env
+
+# Charger l'env backend pour obtenir CABINET_MASTER_KEY_HEX
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
+load_backend_env(override=True)
 
 from backend.config import settings
 

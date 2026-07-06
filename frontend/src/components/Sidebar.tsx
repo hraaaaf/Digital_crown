@@ -35,6 +35,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const hasAccess = (permission: string) => {
     if (!user) return true;
     if (user.role === 'ADMIN') return true;
+    if (user.is_superadmin) return true;
     if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
 
     if (user.permissions && typeof user.permissions === 'object') {
@@ -216,7 +217,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
-          {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+          {user?.is_superadmin && (
             <div className="mt-4 pt-4 border-t border-border-main">
               <NavItem to="/super-admin" icon={<Shield size={20} className="text-amber-500" />} label="Gestion des Dentistes" />
             </div>

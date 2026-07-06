@@ -1,0 +1,146 @@
+﻿....s................................................................... [  4%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 18%]
+.........................ss............................................. [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+........................................................................ [ 72%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+.......................sss.............................................. [ 95%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+============================== warnings summary ===============================
+backend/tests/test_access_control.py::test_secretaire_can_read_patients_with_permission
+  C:\Users\lenovo\Documents\Cabinet\DigitalCrown\venv\Lib\site-packages\numpy\__init__.py:749: PendingDeprecationWarning: Importing from numpy.matlib is deprecated since 1.19.0. The matrix subclass is not the recommended way to represent matrices or deal with linear algebra (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). Please adjust your code to use regular ndarray. 
+    import numpy.matlib as matlib
+
+backend/tests/test_superadmin_router.py::TestSuperadminOperations::test_list_clients_returns_list
+  C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\routers\superadmin.py:46: SAWarning: Coercing Subquery object into a select() for use in IN(); please pass a select() construct explicitly
+    total_pano = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id.in_(patients_subquery)).count()
+
+backend/tests/test_superadmin_router.py::TestSuperadminOperations::test_list_clients_returns_list
+  C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\routers\superadmin.py:47: SAWarning: Coercing Subquery object into a select() for use in IN(); please pass a select() construct explicitly
+    total_ceph = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id.in_(patients_subquery)).count()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.0-final-0 _______________
+
+Name                                                Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------
+backend\__init__.py                                     0      0   100%
+backend\config.py                                      32      0   100%
+backend\core\paths.py                                  28      3    89%   14, 28, 45
+backend\database.py                                    79     48    39%   32-87, 98-99, 102-103, 116-121
+backend\main.py                                       338    102    70%   30, 52, 71, 73, 77, 92-95, 109, 117-125, 161-162, 174-180, 192-233, 241-242, 245-246, 310-311, 321, 354, 420-421, 427, 459-465, 474-482, 492-493, 502-503, 512-513, 521-522, 532-548, 582-585, 589-591
+backend\models.py                                     655      3    99%   1037-1039
+backend\repositories\cephalo_repository.py             36     23    36%   19, 23, 27-37, 41-52, 56-61
+backend\routers\__init__.py                             0      0   100%
+backend\routers\accounting.py                         306     69    77%   165-166, 184-208, 212-227, 242, 282-343, 346-348, 355, 384, 386-392, 429-430, 473-478, 501, 590
+backend\routers\admin.py                              202     42    79%   29-31, 178-180, 201-202, 206, 215-217, 242-250, 272-325, 342-355, 369, 391, 411
+backend\routers\agenda_settings.py                     50      0   100%
+backend\routers\ai_feedback.py                        101     47    53%   28-57, 173-216
+backend\routers\analytics.py                           34      0   100%
+backend\routers\appointments.py                       142      3    98%   61, 251, 255
+backend\routers\auth.py                               189     56    70%   77, 84-85, 89, 96, 126, 137, 141, 144, 287, 303, 377, 408-409, 420-432, 448, 453-465, 474-536
+backend\routers\bot.py                                191     79    59%   58, 87-97, 134-139, 163-174, 185-187, 211-217, 262-266, 299-302, 327, 347-392, 412, 425-465, 482-486
+backend\routers\catalog.py                             68      0   100%
+backend\routers\clinical_data.py                      102      0   100%
+backend\routers\clinics.py                            176     82    53%   25-36, 60-62, 86, 96, 203, 209, 221, 246-278, 292-328, 341-358
+backend\routers\documents.py                          332    129    61%   65, 82, 84, 86, 89-122, 165-191, 224, 231, 239-240, 252-257, 267-268, 276-280, 291-332, 346, 363, 388, 400, 404, 410-423, 429-446, 451, 456-459, 472-473, 485, 487-489, 495-496, 507, 511-513, 517-518, 525, 529-553
+backend\routers\ia.py                                 267    104    61%   49, 56-91, 110, 118-187, 216-218, 239, 253-255, 274-276, 303-308, 316, 323-326, 361-364, 367-370, 383, 419-422, 427-430
+backend\routers\installments.py                        89      9    90%   60, 82, 84, 87, 89, 93, 108, 131-132
+backend\routers\intelligence.py                       215     39    82%   94, 99, 147, 149, 154, 275, 318-325, 356-375, 407-408, 431, 436-437, 447-448, 454, 518-519, 529-534
+backend\routers\lab_jobs.py                            43      1    98%   30
+backend\routers\medications.py                         22      2    91%   16, 20
+backend\routers\mobile.py                             319    187    41%   28-35, 47, 56, 61, 87, 89-91, 96-103, 108-109, 114, 123-130, 152-154, 171-239, 261-330, 450-464, 474-487, 500-511, 554-569, 577-585, 612-622, 633-658, 665-694, 704-754
+backend\routers\patients.py                           359     74    79%   49-50, 194-219, 237-240, 270-271, 286, 302, 330-337, 350-352, 392-394, 399-401, 420, 460-462, 473-535, 554, 590, 607-609, 651-652, 657
+backend\routers\prescriptions.py                      267     97    64%   28-60, 161-162, 197-199, 273-276, 299, 307, 323-325, 337-373, 401-414, 422-427, 434-440, 447-448, 455-503
+backend\routers\public.py                              45      2    96%   26-27
+backend\routers\stats.py                               31      0   100%
+backend\routers\superadmin.py                         137     25    82%   84, 99-101, 116, 125, 127, 129, 139, 157, 170, 182, 194, 207-221
+backend\routers\team.py                               122      9    93%   58, 147, 157, 218, 228, 255, 290, 292, 294
+backend\routers\templates.py                           68      4    94%   41, 50, 64, 80
+backend\routers\verification.py                        81     10    88%   238-241, 263-264, 310-311, 368-369
+backend\schemas\__init__.py                            11      0   100%
+backend\schemas\agenda.py                              29      0   100%
+backend\schemas\appointments.py                        53      0   100%
+backend\schemas\auth.py                                69      0   100%
+backend\schemas\base.py                                49      0   100%
+backend\schemas\branding.py                            28      3    89%   30-32
+backend\schemas\cabinet.py                            166      0   100%
+backend\schemas\catalog.py                             47      0   100%
+backend\schemas\clinical.py                           144      2    99%   184, 186
+backend\schemas\documents.py                          255      0   100%
+backend\schemas\installments.py                        44      0   100%
+backend\schemas\panoramic.py                           76      5    93%   72-76
+backend\schemas\patient.py                            123     10    92%   61, 69, 73-79, 86
+backend\schemas\payments.py                            22      0   100%
+backend\schemas\superadmin.py                          34      0   100%
+backend\security.py                                   115     20    83%   79-80, 86-88, 91-92, 101, 111, 124-125, 132-134, 159-160, 165-166, 169-170
+backend\services\__init__.py                            0      0   100%
+backend\services\accounting_service.py                110     33    70%   33, 52-54, 82, 117-118, 133-171, 204, 215, 236-248, 314, 343-348
+backend\services\ai_advisor.py                        124      0   100%
+backend\services\ai_coherence.py                       61     33    46%   60-63, 80-86, 93, 95, 103-105, 113-132
+backend\services\ai_gateway.py                         27      7    74%   33-34, 36, 57, 59, 61-65
+backend\services\anonymizer.py                         18      0   100%
+backend\services\archive_service.py                   161     18    89%   171-174, 300-302, 306-310, 334-335, 363-364, 377, 379
+backend\services\audit_service.py                      24      3    88%   50-52
+backend\services\backup_service.py                     81      3    96%   46, 109-110
+backend\services\base_template.py                     728    387    47%   42-43, 47, 85-88, 124-128, 137-141, 145-148, 157-178, 187-221, 226-228, 234, 252, 256, 264, 266, 299-317, 329, 375-382, 393-394, 399-400, 424, 436-444, 451-457, 463-468, 531, 533, 535, 537, 558, 602-656, 659-716, 719-771, 774-826, 863-867, 879-884, 887-890, 893, 908, 925-931, 938-1028
+backend\services\card_extractor.py                     29     15    48%   26-74
+backend\services\cephalo_consistency_validator.py     122      7    94%   33-34, 109, 147, 220, 228, 233
+backend\services\cephalo_measure_registry.py            8      0   100%
+backend\services\clinical_coherence.py                 80     18    78%   51-57, 60, 78-87, 94-95, 103-105, 119
+backend\services\clinical_intelligence.py             129     31    76%   115, 131, 134, 142, 158-163, 182-187, 195-201, 296-306
+backend\services\clinical_rules_engine.py             184     27    85%   170, 174, 176, 182, 184, 194-198, 202, 206, 210, 214, 222, 232, 275, 283, 291, 305, 319, 327, 335, 343, 351, 407-408, 417-418
+backend\services\css_generator.py                      94     18    81%   165, 240, 514, 591-620, 634-652
+backend\services\document_factory.py                   92     49    47%   44-71, 78-83, 87-93, 108, 112, 119-120, 123, 126-157, 163-188
+backend\services\email_service.py                      60     26    57%   20-21, 31-50, 106-118
+backend\services\file_validator.py                     57     14    75%   16, 24-26, 82-99
+backend\services\firebase_sync_service.py              21     11    48%   22-37
+backend\services\fts_indexer.py                        55     41    25%   16-72, 77-92, 98-99, 108-110
+backend\services\ghost_memory_service.py               31     16    48%   23-45, 51, 59-64
+backend\services\habits_engine.py                     160     66    59%   49-51, 131-137, 153, 175-176, 200-216, 230-243, 252-257, 270-276, 293, 307-310, 320-326, 339-343, 352-366, 375-401
+backend\services\holiday_engine.py                     22      0   100%
+backend\services\license_service.py                   137     67    51%   24-29, 32-33, 51-53, 62-63, 74-110, 122-123, 131-133, 142-143, 163-178, 182-193
+backend\services\llm_cache.py                          42      1    98%   45
+backend\services\logo_processor.py                     21      1    95%   22
+backend\services\medication_dict.py                    77      4    95%   32-34, 98
+backend\services\notification_service.py               98     24    76%   74-100, 109-110, 114-115, 119-120, 124-125, 159-160, 189-191
+backend\services\patient_scoring_service.py            75      6    92%   105-109, 135
+backend\services\pii_masker.py                         10      0   100%
+backend\services\prescription_agentic_service.py       29      5    83%   31-49
+backend\services\prescription_service.py              234     49    79%   24, 47-48, 52, 64-68, 86-116, 132, 145, 148-150, 213-214, 317, 426-441, 503-506, 543-546, 575-580
+backend\services\push_service.py                       22     16    27%   11-42
+backend\services\qr_service.py                         62      1    98%   41
+backend\services\rag_context.py                        43      3    93%   90-92
+backend\services\security\__init__.py                   0      0   100%
+backend\services\security\data_sanitizer.py            88     17    81%   188-216
+backend\services\sota_vision_service.py                77     43    44%   9-10, 58-59, 68-69, 81-82, 85-152
+backend\services\state_extractor.py                    17      9    47%   15-39
+backend\services\sync_manager.py                       72     48    33%   30-37, 42-49, 53-63, 67-82, 86-120
+backend\services\template_engine.py                   275    130    53%   13, 236-237, 243-245, 266-273, 285-439, 451-568, 578-593
+backend\services\temporal_comparator.py                46      0   100%
+backend\services\treatment_plan_engine.py              51      0   100%
+backend\services\vision_service.py                    144     99    31%   24-25, 30-32, 60, 70-71, 74-75, 78-79, 98-99, 111-251
+backend\services\zka_crypto.py                         28      0   100%
+backend\services\zka_service.py                        54      0   100%
+backend\utils\access_control.py                        11      0   100%
+backend\utils\accounting_utils.py                      25      0   100%
+backend\utils\rate_limit.py                            40      1    98%   43
+---------------------------------------------------------------------------------
+TOTAL                                               10647   2636    75%
+1579 passed, 6 skipped, 3 warnings in 760.85s (0:12:40)

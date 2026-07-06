@@ -6,7 +6,15 @@ import {
   calcDDMCephalo, computeLocalImpa
 } from '../cephaloUtils';
 import type { Landmark, SyncState, ImageFilters, UIMode, VTOSettings, StepId } from '../cephaloShared';
-import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload } from '../cephaloTypes';
+import type { LocalState, DDMState, DiagnosticTexts, DonneesEtape2, DonneesEtape3, PhotoUpload, ProfilFacial } from '../cephaloTypes';
+
+const normalizeProfilFacial = (value?: string | null): ProfilFacial | '' => {
+  const normalized = (value || '').trim().toLowerCase();
+  if (normalized === 'convexe' || normalized === 'droit' || normalized === 'concave') {
+    return normalized;
+  }
+  return '';
+};
 
 interface OrthoState {
   // Global
@@ -439,7 +447,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
         // Use backend Ricketts E-line profil (authoritative) instead of ANB-based override
         if (n.profil_cutane) {
           set(s => ({
-            etape3Data: { ...s.etape3Data, profil: (n.profil_cutane as string).toUpperCase() }
+            etape3Data: { ...s.etape3Data, profil: normalizeProfilFacial(n.profil_cutane) }
           }));
         }
       }

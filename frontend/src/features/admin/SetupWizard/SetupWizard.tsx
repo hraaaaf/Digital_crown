@@ -189,6 +189,8 @@ export const SetupWizard: React.FC = () => {
       const identityData = BRAND_IDENTITIES.find(i => i.id === selectedIdentity) || BRAND_IDENTITIES[0];
       const payload = {
         nom_cabinet: identity.nomCabinet,
+        nom_praticien: identity.nomPraticien,
+        nom_praticien_ar: identity.nomPraticienAR,
         header_lines_fr: [identity.nomPraticien, 'Chirurgien Dentiste', specialtyStrings.fr],
         header_lines_ar: [identity.nomPraticienAR, 'طبيب جراح للأسنان', specialtyStrings.ar],
         footer_address: identity.adresse,
@@ -202,12 +204,15 @@ export const SetupWizard: React.FC = () => {
         custom_specialty_ar: customSpecialty.ar,
         selected_theme: selectedTheme,
         selected_template: selectedTemplate,
-        selected_font: selectedFont,
+        font_fr: selectedFont,
         primary_color: identityData.primary,
         secondary_color: identityData.secondary,
         accent_color: identityData.accent,
         watermark_enabled: headerOption === 'auto',
-        contacts_json: contacts,
+        use_letterhead: headerOption === 'letterhead',
+        hide_header: headerOption === 'letterhead',
+        hide_footer: headerOption === 'letterhead',
+        contacts_json: contacts as unknown as Record<string, { enabled: boolean; value: string }>,
         qr_code_enabled: qrConfig.enabled,
         qr_code_type: qrConfig.type,
         qr_code_value: qrConfig.value,
@@ -225,7 +230,7 @@ export const SetupWizard: React.FC = () => {
         footer_line_height: footerLineHeight,
       };
 
-      await cabinetApi.create(payload as any);
+      await cabinetApi.create(payload);
       if (logoFile) await cabinetApi.uploadLogo(logoFile);
       if (headerOption === 'letterhead' && letterheadFile) {
         await cabinetApi.uploadLetterhead(letterheadFile, sanitizedMargins.top, sanitizedMargins.bottom);
@@ -247,7 +252,7 @@ export const SetupWizard: React.FC = () => {
             <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"><Building2 className="text-white" size={20} /></div>
             <div><h1 className="font-black text-text-main tracking-tight text-lg uppercase">Digital <span className="text-primary">Crown</span></h1><p className="text-[9px] font-black text-text-muted uppercase tracking-widest leading-none mt-0.5">Setup Wizard v4.0</p></div>
           </div>
-          <button onClick={() => navigate('/welcome')} className="text-[10px] font-black text-text-muted hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
+          <button onClick={() => navigate('/landing')} className="text-[10px] font-black text-text-muted hover:text-primary transition-all uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14} /> Quitter</button>
         </div>
       </header>
 

@@ -392,7 +392,8 @@ def get_mobile_snapshot(
         .scalar() or 0
     )
 
-    _superadmin_email = os.getenv("SUPERADMIN_EMAIL", "").lower().strip()
+    from backend.config import settings as app_settings
+    _superadmin_email = app_settings.SUPERADMIN_EMAIL.lower().strip()
     user = db.query(models.User).filter(models.User.id == employer_id).first()
     is_superadmin = bool(_superadmin_email and user and user.email.lower() == _superadmin_email)
 
@@ -509,6 +510,52 @@ def export_mobile_accounting_pdf(
         filters={"month": month, "year": year}
     )
     return FileResponse(path=os.path.join(os.getcwd(), filepath), filename=f"Compta_{year}_{month}.pdf")
+
+# ── LISTE DES PRATICIENS (vue secrétaire) ──────────────────────────────────────
+
+@router.get("/dentists", summary="Liste des praticiens du cabinet — vue secrétaire mobile")
+def get_mobile_dentists(
+    employer_id: int = Depends(get_mobile_employer_id),
+    db: Session = Depends(database.get_db),
+):
+    today = date.today()
+    day_start = datetime.combine(today, dt_time.min)
+    day_end = datetime.combine(today, dt_time.max)
+
+    owner = db.query(models.User).filter(models.User.id == employer_id).first()
+    sub_dentists = (
+        db.query(models.User)
+        .filter(
+            models.User.employer_id == employer_id,
+            models.User.role == models.UserRole.DENTISTE,
+            models.User.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+    all_dentists = ([owner] if owner else []) + list(sub_dentists)
+
+    today_count = (
+        db.query(func.count(models.Appointment.id))
+        .filter(
+            models.Appointment.employer_id == employer_id,
+            models.Appointment.datetime_start >= day_start,
+            models.Appointment.datetime_start <= day_end,
+            models.Appointment.status != models.AppointmentStatus.ANNULE,
+        )
+        .scalar() or 0
+    )
+
+    result = [
+        {
+            "id": d.id,
+            "name": d.nom_complet or d.email,
+            "email": d.email,
+            "today_appointments": today_count if i == 0 else 0,
+        }
+        for i, d in enumerate(all_dentists)
+    ]
+    return {"dentists": result}
+
 
 # -- AGENDA MOBILE (CRUD) ------------------------------------------------------
 

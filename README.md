@@ -164,7 +164,7 @@ cd frontend && npm run dev
 
 ### Variables d'environnement clés (`.env`)
 ```env
-DATABASE_URL=postgresql://postgres:admin@localhost/digitalcrown_db
+DATABASE_URL=postgresql://user:password@localhost/digitalcrown_db
 SECRET_KEY=<clé 32+ caractères aléatoires>
 ENVIRONMENT=development        # production active les fail-fast guards
 TELEMETRY_ENABLED=false

@@ -12,7 +12,7 @@ import json
 import logging
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user, has_permission
+from backend.routers.auth import get_current_user, has_permission, is_superadmin_user
 from backend.utils.access_control import assert_patient_access
 from backend.services.document_factory import DocumentFactory
 from backend.services.archive_service import get_archive_service
@@ -469,7 +469,7 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
 
     # Protection des Radios (seul le dentiste / proprio peut supprimer)
     if doc.document_type in [models.DocumentType.RADIOGRAPHIE, models.DocumentType.RAPPORT_CEPHALO]:
-        if not current_user.role or current_user.role.value not in ["DENTISTE", "SUPERADMIN"]:
+        if not is_superadmin_user(current_user) and (not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]):
             raise HTTPException(
                 status_code=403, 
                 detail="Seul le dentiste est autorisé à supprimer une radiographie du dossier patient."

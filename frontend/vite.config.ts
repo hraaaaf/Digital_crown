@@ -16,6 +16,19 @@ const httpsConfig = enableHttps && fs.existsSync(certPath) && fs.existsSync(keyP
     }
   : undefined
 
+function getVendorChunk(id: string): string | undefined {
+  if (!id.includes('node_modules')) return undefined
+  if (id.includes('react-dom') || id.includes('react-router') || id.includes('/react/') || id.includes('zustand')) return 'react-vendor'
+  if (id.includes('@tanstack/react-query') || id.includes('axios')) return 'data-vendor'
+  if (id.includes('recharts') || id.includes('d3-')) return 'charts-vendor'
+  if (id.includes('html5-qrcode') || id.includes('onnxruntime-web') || id.includes('@noble/')) return 'scanner-vendor'
+  if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('date-fns') || id.includes('react-hot-toast')) return 'ui-vendor'
+  if (id.includes('react-markdown') || id.includes('remark-') || id.includes('rehype-')) return 'markdown-vendor'
+  if (id.includes('@dnd-kit/')) return 'dnd-vendor'
+  if (id.includes('localforage') || id.includes('@supabase/supabase-js')) return 'storage-vendor'
+  return undefined
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -53,5 +66,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+  },
+  build: {
+    chunkSizeWarningLimit: 550,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          return getVendorChunk(id)
+        }
+      }
+    }
   }
 })

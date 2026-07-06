@@ -4,5 +4,28 @@
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "tailwind-merge": "^3.5.0"
-  }
+  },
+  "name": "digitalcrown",
+  "version": "1.0.0",
+  "description": "![Version](https://img.shields.io/badge/Version-v4.0_hardened-blue?style=for-the-badge) ![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi) ![React](https://img.shields.io/badge/Frontend-React_19_TypeScript-61DAFB?style=for-the-badge&logo=react) ![Database](https://img.shields.io/badge/Database-PostgreSQL_18.2-336791?style=for-the-badge&logo=postgresql) ![AI](https://img.shields.io/badge/IA-Ollama_Local--First-orange?style=for-the-badge) ![Security](https://img.shields.io/badge/Security-Hardened_S0--S9-red?style=for-the-badge)",
+  "main": "ecosystem.config.js",
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lafabriquedapollon-cpu/Digital_crown.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lafabriquedapollon-cpu/Digital_crown/issues"
+  },
+  "homepage": "https://github.com/lafabriquedapollon-cpu/Digital_crown#readme"
 }

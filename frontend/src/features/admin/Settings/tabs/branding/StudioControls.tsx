@@ -15,6 +15,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
   const { uploadLetterhead } = useSettingsStore();
+  const customDesignActive = Boolean(profile.use_letterhead && profile.letterhead_path);
 
   useEffect(() => {
     const saved = localStorage.getItem('branding_advanced_open');
@@ -55,6 +56,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
     { id: 'VALIDATION', label: 'Signature', icon: <Shield size={14}/> },
     { id: 'PAYMENT', label: 'Paiement', icon: <CreditCard size={14}/> },
   ];
+  const designLockedClass = customDesignActive ? "opacity-50 pointer-events-none" : "";
 
   return (
     <div className="flex flex-col gap-5">
@@ -65,7 +67,12 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
           Palette
         </h3>
         <p className="text-[10px] text-slate-400 mb-4">Ces couleurs s'appliquent à l'application et aux documents générés.</p>
-        <div className="grid grid-cols-2 gap-3">
+        {customDesignActive && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-800">
+            Les couleurs du document suivent actuellement le design uploadé.
+          </div>
+        )}
+        <div className={cn("grid grid-cols-2 gap-3", designLockedClass)}>
           {BRAND_IDENTITIES.map(palette => {
             const isSelected = profile.primary_color === palette.primary;
             return (
@@ -129,7 +136,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase mb-5">
           Modèles d'Ordonnance
         </h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={cn("grid grid-cols-2 gap-3", designLockedClass)}>
           {[
             { id: 'swiss', name: 'Swiss Clinic', desc: 'Précision & Clarté' },
             { id: 'royal', name: 'Royal Elite', desc: 'Symétrie Absolue' },
@@ -187,7 +194,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
             </div>
             <input type="range" min="1" max="8" step="0.1" value={profile.margin_top ?? 4.8} onChange={e => updateProfile({ margin_top: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
           </div>
-          <div>
+          <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
             <div className="flex justify-between mb-2">
               <label className="text-[13px] text-[var(--text-muted)]">Taille du logo</label>
               <span className="text-[13px] font-medium text-[var(--text-main)]">{Math.round((profile.header_logo_scale ?? 1.0) * 100)}%</span>
@@ -205,7 +212,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
 
         {advancedOpen && (
           <div className="mt-5 pt-5 border-t border-[var(--border-color)] flex flex-col gap-5">
-            <div>
+            <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Police en-tête</label></div>
               <input type="range" min="0.5" max="2.0" step="0.05" value={profile.header_font_scale ?? 1.0} onChange={e => updateProfile({ header_font_scale: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
             </div>
@@ -213,15 +220,15 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Interligne en-tête</label></div>
               <input type="range" min="0.5" max="2.0" step="0.05" value={profile.header_line_height ?? 1.0} onChange={e => updateProfile({ header_line_height: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
             </div>
-            <div>
+            <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Marge inférieure</label></div>
               <input type="range" min="1" max="6" step="0.1" value={profile.margin_bottom ?? 3.2} onChange={e => updateProfile({ margin_bottom: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
             </div>
-            <div>
+            <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Police pied de page</label></div>
               <input type="range" min="0.5" max="2.0" step="0.05" value={profile.footer_font_scale ?? 1.0} onChange={e => updateProfile({ footer_font_scale: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
             </div>
-            <div>
+            <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Interligne pied de page</label></div>
               <input type="range" min="0.5" max="2.0" step="0.05" value={profile.footer_line_height ?? 1.0} onChange={e => updateProfile({ footer_line_height: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
             </div>
@@ -248,7 +255,13 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         </div>
         
         {profile.use_letterhead && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3">
+            {customDesignActive && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] text-slate-600">
+                Le design importé remplace l’en-tête, le footer et la palette du document. Les marges et le QR restent configurables.
+              </div>
+            )}
+            <div className="flex items-center gap-3">
             <input 
               type="file" 
               accept="image/*" 
@@ -267,6 +280,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
               <Upload size={16} />
               {isUploadingLocal ? "Envoi..." : "Uploader un fond (A5)"}
             </label>
+            </div>
           </div>
         )}
       </div>
@@ -335,3 +349,4 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
     </div>
   );
 };
+

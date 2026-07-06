@@ -31,6 +31,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False
 get_db = database.get_db
 
 
+def is_superadmin_user(user: models.User | None) -> bool:
+    if not user or not getattr(user, "email", None):
+        return False
+    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
+    return bool(superadmin_email and user.email.lower().strip() == superadmin_email)
+
+
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     """Pose les tokens en cookies HttpOnly — sécurisés en prod, non-Secure en dev."""
     is_prod = getattr(settings, 'ENVIRONMENT', 'development').lower() == 'production'
@@ -97,8 +104,21 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_optional(
+    request: Request,
+    token_header: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    try:
+        return await get_current_user(request=request, token_header=token_header, db=db)
+    except HTTPException:
+        return None
+
+
 def has_permission(current_user: models.User, permission_name: Union[str, List[str]]) -> bool:
     """Valide une permission en tenant compte des sous-comptes du cabinet."""
+    if is_superadmin_user(current_user):
+        return True
     role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     if role in ("ADMIN", "DENTISTE") and current_user.employer_id is None:
         return True
@@ -133,7 +153,7 @@ def require_elite_license(
     """Dépendance FastAPI pour valider que le cabinet possède une licence Elite active."""
     # Le middleware global gère déjà le read-only, mais pour l'IA, on bloque spécifiquement
     # si la licence est absente ou expirée (même pour un simple GET).
-    if current_user.role == "SUPERADMIN":
+    if is_superadmin_user(current_user):
         return current_user
         
     license_owner = current_user
@@ -359,7 +379,20 @@ async def logout(
 
 @router.get("/me", response_model=schemas.UserOut)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
-    return current_user
+    superadmin_email = settings.SUPERADMIN_EMAIL.lower().strip()
+    current_email = (current_user.email or "").lower().strip()
+    return schemas.UserOut(
+        id=current_user.id,
+        email=current_user.email,
+        role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
+        is_superadmin=bool(superadmin_email and current_email == superadmin_email),
+        nom_complet=current_user.nom_complet,
+        is_active=current_user.is_active,
+        employer_id=current_user.employer_id,
+        permissions=current_user.permissions,
+        is_licensed=current_user.is_licensed,
+        license_expires_at=current_user.license_expires_at,
+    )
 
 
 @router.post("/signup", response_model=schemas.UserOut,

@@ -3,7 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
-import { generateClientKeyPair, deriveMasterKey } from '../../../services/zka/ecdhPairing';
+import {
+  deriveMasterKey,
+  generateClientKeyPair,
+  hasPlaintextMasterKey,
+} from '../../../services/zka/ecdhPairing';
 import Logo from '../../../assets/logo.png';
 
 /**
@@ -60,8 +64,12 @@ export const OnboardingScanner = () => {
         throw new Error(err.detail ?? `Erreur ${res.status}`);
       }
 
-      const { publicId, access_token, server_public_key_hex, encrypted_master_key_hex } =
-        await res.json();
+      const payload = await res.json();
+      if (hasPlaintextMasterKey(payload)) {
+        throw new Error('Reponse d\'appairage non securisee (masterKey en clair refusee).');
+      }
+
+      const { publicId, access_token, server_public_key_hex, encrypted_master_key_hex } = payload;
 
       if (!server_public_key_hex || !encrypted_master_key_hex) {
         throw new Error('Réponse d\'appairage non sécurisée (ECDH manquant).');

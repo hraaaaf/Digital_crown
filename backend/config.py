@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.env_loader import BASE_DIR
+
 class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "Digital Crown API"
@@ -16,6 +18,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     APP_PUBLIC_URL: str = "http://localhost:5173"
     SUPPORT_EMAIL: str = "support@digitalcrown.local"
+    SUPERADMIN_EMAIL: str = "benmoussa.achraf@gmail.com"
 
     # Security
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
@@ -57,7 +60,7 @@ class Settings(BaseSettings):
 
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(BASE_DIR / ".env.local"), str(BASE_DIR / ".env")),
         env_file_encoding="utf-8",
         extra="ignore"
     )

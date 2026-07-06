@@ -6,7 +6,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 export const LicenseBanner: React.FC = () => {
   const { user } = useAuthStore();
 
-  if (!user || user.role === 'SUPERADMIN') return null;
+  if (!user || user.role === 'SUPERADMIN' || user.is_superadmin) return null;
 
   const isLicensed = user.is_licensed;
   const expiresAt = user.license_expires_at ? parseISO(user.license_expires_at) : null;

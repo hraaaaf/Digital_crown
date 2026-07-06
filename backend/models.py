@@ -168,6 +168,27 @@ class LicenseHistory(Base):
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
     admin: Mapped[Optional["User"]] = relationship("User", foreign_keys=[admin_id])
 
+
+class TrialActivationCode(Base):
+    __tablename__ = "trial_activation_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    nom_complet: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    cabinet_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    trial_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    created_by_admin_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    consumed_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    created_by_admin: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by_admin_id])
+    consumed_by_user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[consumed_by_user_id])
+
 class Patient(Base):
     __tablename__ = "patients"
 

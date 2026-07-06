@@ -66,7 +66,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
 
     def _generate_weasyprint(self, vm: schemas.CephaloViewModel, output_path: str):
         import weasyprint
-        
+        from backend.services.generators.document_typography import short_label
+
         flat_metrics = []
         # Mesures linéaires calibration-dépendantes : exclues car non comparables sans confirmation étalonnage
         LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B"}
@@ -79,7 +80,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                     continue
                 if isinstance(data, schemas.MeasureData) and data.status in ["High", "Low", "Compensated"]:
                     flat_metrics.append({
-                        "name": metric_name.replace("_", " "),
+                        "name": short_label(metric_name),
                         "valeur": data.valeur if data.valeur is not None else 'N/A',
                         "norme": f"[{data.norm_min} - {data.norm_max}]",
                         "status": data.status,

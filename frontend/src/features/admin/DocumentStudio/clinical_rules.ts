@@ -281,8 +281,8 @@ export function validatePrescriptionLine(
 
   const messages: string[] = [];
   let level: ValidationLevel = 'ok';
+  const order: ValidationLevel[] = ['ok', 'info', 'warn', 'danger'];
   const bump = (l: ValidationLevel) => {
-    const order: ValidationLevel[] = ['ok', 'info', 'warn', 'danger'];
     if (order.indexOf(l) > order.indexOf(level)) level = l;
   };
 
@@ -305,7 +305,7 @@ export function validatePrescriptionLine(
       }
     }
     const adultMg = parseDosageToMg(rule.adult_dose);
-    if (adultMg !== null && mg >= adultMg && level !== 'danger') {
+    if (adultMg !== null && mg >= adultMg && order.indexOf(level) < order.indexOf('danger')) {
       bump('warn');
       messages.push(`Dose adulte (${rule.adult_dose}) chez un enfant — adapter au poids.`);
     }

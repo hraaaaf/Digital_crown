@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Stethoscope, 
@@ -122,6 +122,12 @@ interface TreatmentStep {
   date: string;
 }
 
+interface LastDiagnosis {
+  text: string;
+  date: string;
+  wizard: string;
+}
+
 export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   const [activeAssistant, setActiveAssistant] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'ASSISTANTS' | 'ODONTOGRAM'>('ASSISTANTS');
@@ -129,7 +135,12 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     const s = localStorage.getItem(`odontogram_state_${patientId}`);
     return s ? JSON.parse(s) : null;
   });
-  
+  const [lastDiagnosis, setLastDiagnosis] = useState<LastDiagnosis | null>(() => {
+    const s = localStorage.getItem(`diag_${patientId}`);
+    return s ? JSON.parse(s) : null;
+  });
+  const wizardRef = useRef<HTMLDivElement>(null);
+
   const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>(() => {
     const saved = localStorage.getItem(`master_plan_${patientId}`);
     if (saved) {
@@ -158,6 +169,14 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
       })
       .catch((err: any) => console.error("Erreur sync master plan:", err));
   }, [patientId]);
+
+  useEffect(() => {
+    if (activeAssistant && wizardRef.current) {
+      setTimeout(() => {
+        wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [activeAssistant]);
 
   const deleteStep = (id: string) => {
     const updated = treatmentPlan.filter(step => step.id !== id);
@@ -228,7 +247,15 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     });
     
     savePlan(combined);
-    
+
+    const diagnosis: LastDiagnosis = {
+      text: diag,
+      date: new Date().toLocaleString('fr-FR'),
+      wizard: ASSISTANTS.find(a => a.id === wizardId)?.name || wizardId
+    };
+    setLastDiagnosis(diagnosis);
+    localStorage.setItem(`diag_${patientId}`, JSON.stringify(diagnosis));
+
     if (suggestedNextAssistant) {
       setActiveAssistant(suggestedNextAssistant);
       toast.success(`Diagnostic généré. Relais passé à l'Assistant ${suggestedNextAssistant.toUpperCase()}`);
@@ -236,6 +263,12 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
       setActiveAssistant(null);
       toast.success(`Diagnostic généré avec succès !`);
     }
+  };
+
+  const clearLastDiagnosis = () => {
+    setLastDiagnosis(null);
+    localStorage.removeItem(`diag_${patientId}`);
+    toast.success('Diagnostic supprimé.');
   };
 
   return (
@@ -314,6 +347,27 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
           ) : (
             <>
+              {lastDiagnosis && (
+                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="w-10 h-10 bg-indigo-500/20 text-indigo-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-black text-indigo-900">Dernier Diagnostic — {lastDiagnosis.wizard}</h4>
+                      <p className="text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>
+                      <p className="text-[10px] text-indigo-600/70 font-mono mt-2">{lastDiagnosis.date}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={clearLastDiagnosis}
+                    className="text-indigo-400 hover:text-indigo-600 transition-colors p-1 shrink-0"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+
               {progressPercent === 100 && treatmentPlan.length > 0 && (
                 <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -368,6 +422,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
           <AnimatePresence mode="wait">
             {activeAssistant && (
               <motion.div
+                ref={wizardRef}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}

@@ -2,15 +2,14 @@ import os
 import sys
 import sqlite3
 import logging
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 from backend.core.paths import AppPaths
+from backend.env_loader import load_backend_env
 
-# Charger les variables d'environnement depuis le fichier .env dans le dossier backend
-base_dir = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(base_dir, ".env"))
+# Charger les variables d'environnement backend avant l'initialisation DB
+load_backend_env(override=False)
 
 # --- PASSWORD HASHING ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

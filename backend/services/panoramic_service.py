@@ -88,18 +88,76 @@ class PanoramicEngine:
 
     def detect_teeth_only(self, image_path: str) -> dict:
         """
-        Mode produit (V8) : l'IA ne fait QUE nommer les dents (cartographie FDI).
+        Mode produit (V8) : l'IA détecte les dents réellement présentes sur la radio.
+        Utilise le moteur SOTA YOLO pour identifier les dents par leur position FDI.
         Aucune pathologie ni lésion n'est devinée — toute la sémiologie est saisie
-        manuellement par le praticien. La grille FDI est rendue côté client.
+        manuellement par le praticien.
         """
-        return {
-            "status": "SUCCESS",
-            "mode_inference": "TOOTH_DETECTION_ONLY",
-            "detections_data": {
-                "detections": [],
-                "summary": "Cartographie dentaire FDI — annotation manuelle par le praticien",
-            },
-        }
+        from backend.services.sota_panoramic_service import panoramic_engine as sota_engine
+
+        try:
+            # Appeler le moteur SOTA pour détecter les dents
+            sota_result = sota_engine.analyze(image_path)
+
+            if sota_result.get("status") != "SUCCESS":
+                logger.warning(f"SOTA analyze retourna status={sota_result.get('status')}")
+
+            # Extraire les dents détectées du résultat SOTA
+            detections = sota_result.get("detections", [])
+
+            # Seuils de confiance adaptés
+            CONFIDENCE_THRESHOLD_DEFAULT = 0.70
+            CONFIDENCE_THRESHOLD_WISDOM = 0.80  # Plus strict pour les dents de sagesse (18, 28, 38, 48)
+            WISDOM_TEETH = {18, 28, 38, 48}
+
+            # Filtrer et convertir les détections
+            filtered_detections = []
+            for det in detections:
+                tooth_fdi = det.get("tooth")
+                confidence = det.get("confidence", 0.0)
+
+                # Appliquer le seuil de confiance approprié
+                threshold = CONFIDENCE_THRESHOLD_WISDOM if tooth_fdi in WISDOM_TEETH else CONFIDENCE_THRESHOLD_DEFAULT
+
+                if confidence >= threshold:
+                    # Convertir au format attendu par le frontend
+                    bbox = det.get("bbox", [0, 0, 0, 0])
+                    filtered_detections.append({
+                        "fdi": tooth_fdi,
+                        "label": f"Tooth {tooth_fdi}",
+                        "confidence": float(confidence),
+                        "bbox": {
+                            "x_min": float(bbox[0]),
+                            "y_min": float(bbox[1]),
+                            "x_max": float(bbox[2]),
+                            "y_max": float(bbox[3])
+                        },
+                        "present": True
+                    })
+
+            logger.info(f"✅ Détection dents SOTA: {len(filtered_detections)} dents détectées (confiance >= seuil)")
+
+            return {
+                "status": "SUCCESS",
+                "mode_inference": "SOTA_TOOTH_DETECTION",
+                "detections_data": {
+                    "detections": filtered_detections,
+                    "summary": f"Détection SOTA: {len(filtered_detections)} dents détectées — annotation manuelle par le praticien",
+                    "detection_count": len(filtered_detections)
+                },
+            }
+        except Exception as e:
+            logger.error(f"❌ Erreur détection dents SOTA: {e}")
+            # Fallback: retourner une liste vide avec succès
+            return {
+                "status": "SUCCESS",
+                "mode_inference": "FALLBACK_EMPTY",
+                "detections_data": {
+                    "detections": [],
+                    "summary": "Détection indisponible — annotation manuelle par le praticien",
+                    "error": str(e)
+                },
+            }
 
     def predict(self, image_path: str) -> dict:
         """

@@ -1,86 +1,104 @@
-/**
- * ECDH ZKA Pairing (S5) — échange de clé sécurisé pour l'appairage mobile.
- *
- * La masterKey ne transite JAMAIS en clair. Le client génère une paire ECDH
- * (P-256), envoie sa clé publique au backend, qui chiffre la masterKey en
- * AES-256-GCM via un secret partagé dérivé en HKDF-SHA256. Doit rester aligné
- * avec backend/routers/mobile.py::claim_pairing_token (info = "zka_mobile_bridge",
- * salt HKDF = 32 octets nuls, nonce GCM = 12 octets préfixés au ciphertext).
- */
+import { gcm } from '@noble/ciphers/aes.js';
+import { p256 } from '@noble/curves/nist.js';
+import { bytesToHex, hexToBytes } from '@noble/curves/utils.js';
+import { hkdf } from '@noble/hashes/hkdf.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
-function bufToHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+const PAIRING_INFO = new TextEncoder().encode('zka_mobile_bridge');
+const HKDF_SALT = new Uint8Array(32);
+const NONCE_LENGTH = 12;
+const MASTER_KEY_PATTERN = /^[0-9a-fA-F]{64}$/;
 
-function hexToBytes(hex: string): Uint8Array {
-  const clean = hex.trim();
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(clean.substr(i * 2, 2), 16);
-  }
-  return out;
-}
+export const PAIRING_CRYPTO_UNAVAILABLE_MESSAGE =
+  'Appairage impossible : module cryptographique indisponible.';
 
 export interface ClientKeyPair {
-  privateKey: CryptoKey;
+  privateKey: Uint8Array;
   publicKeyHex: string;
 }
 
-/** Génère une paire ECDH P-256 ; retourne la clé publique en hex (point non compressé). */
-export async function generateClientKeyPair(): Promise<ClientKeyPair> {
-  const keyPair = await crypto.subtle.generateKey(
-    { name: 'ECDH', namedCurve: 'P-256' },
-    false, // privée non extractible
-    ['deriveBits'],
-  );
-  const raw = await crypto.subtle.exportKey('raw', keyPair.publicKey); // 0x04 || X || Y (65 octets)
-  return { privateKey: keyPair.privateKey, publicKeyHex: bufToHex(raw) };
+function cryptoUnavailable(): Error {
+  return new Error(PAIRING_CRYPTO_UNAVAILABLE_MESSAGE);
 }
 
-/**
- * Dérive la masterKey à partir de la clé publique serveur et du blob chiffré.
- * Retourne la masterKey (chaîne hex 64 caractères).
- */
+function normalizeHex(hex: string): string {
+  const clean = hex.trim();
+  if (!clean || clean.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(clean)) {
+    throw cryptoUnavailable();
+  }
+  return clean.toLowerCase();
+}
+
+function decodeUtf8(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw cryptoUnavailable();
+  }
+}
+
+function safeBytesFromHex(hex: string): Uint8Array {
+  try {
+    return hexToBytes(normalizeHex(hex));
+  } catch {
+    throw cryptoUnavailable();
+  }
+}
+
+function wrapCrypto<T>(fn: () => T): T {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof Error && error.message === PAIRING_CRYPTO_UNAVAILABLE_MESSAGE) {
+      throw error;
+    }
+    throw cryptoUnavailable();
+  }
+}
+
+export function hasPlaintextMasterKey(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  const record = payload as Record<string, unknown>;
+  return typeof record.masterKey === 'string' || typeof record.master_key === 'string';
+}
+
+export async function generateClientKeyPair(): Promise<ClientKeyPair> {
+  return wrapCrypto(() => {
+    const privateKey = p256.utils.randomSecretKey();
+    const publicKeyHex = bytesToHex(p256.getPublicKey(privateKey, false));
+    return { privateKey, publicKeyHex };
+  });
+}
+
 export async function deriveMasterKey(
-  privateKey: CryptoKey,
+  privateKey: Uint8Array,
   serverPublicKeyHex: string,
   encryptedMasterKeyHex: string,
 ): Promise<string> {
-  const serverPubKey = await crypto.subtle.importKey(
-    'raw',
-    hexToBytes(serverPublicKeyHex),
-    { name: 'ECDH', namedCurve: 'P-256' },
-    false,
-    [],
-  );
+  return wrapCrypto(() => {
+    if (!(privateKey instanceof Uint8Array) || privateKey.length !== 32) {
+      throw cryptoUnavailable();
+    }
 
-  const sharedBits = await crypto.subtle.deriveBits(
-    { name: 'ECDH', public: serverPubKey },
-    privateKey,
-    256, // 32 octets (coordonnée X) — identique au exchange() Python
-  );
+    const serverPublicKey = safeBytesFromHex(serverPublicKeyHex);
+    const encryptedBlob = safeBytesFromHex(encryptedMasterKeyHex);
+    if (serverPublicKey.length !== 65 || serverPublicKey[0] !== 0x04) {
+      throw cryptoUnavailable();
+    }
+    if (encryptedBlob.length <= NONCE_LENGTH + 16) {
+      throw cryptoUnavailable();
+    }
 
-  const hkdfKey = await crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    const sharedSecret = p256.getSharedSecret(privateKey, serverPublicKey, true).slice(1);
+    const aesKey = hkdf(sha256, sharedSecret, HKDF_SALT, PAIRING_INFO, 32);
 
-  const aesKey = await crypto.subtle.deriveKey(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: new Uint8Array(32), // salt=None côté Python ⇒ 32 octets nuls (RFC5869)
-      info: new TextEncoder().encode('zka_mobile_bridge'),
-    },
-    hkdfKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt'],
-  );
-
-  const blob = hexToBytes(encryptedMasterKeyHex);
-  const nonce = blob.slice(0, 12);
-  const ciphertext = blob.slice(12);
-
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, aesKey, ciphertext);
-  return new TextDecoder().decode(plain);
+    const nonce = encryptedBlob.slice(0, NONCE_LENGTH);
+    const ciphertextAndTag = encryptedBlob.slice(NONCE_LENGTH);
+    const plaintext = gcm(aesKey, nonce).decrypt(ciphertextAndTag);
+    const masterKey = decodeUtf8(plaintext);
+    if (!MASTER_KEY_PATTERN.test(masterKey)) {
+      throw cryptoUnavailable();
+    }
+    return masterKey;
+  });
 }

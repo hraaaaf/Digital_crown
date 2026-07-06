@@ -9,7 +9,7 @@ export interface IdentityState {
 }
 
 export type HeaderOption = 'auto' | 'letterhead';
-export type TemplateOption = 'swiss' | 'royal';
+export type TemplateOption = 'swiss' | 'royal' | 'clinical' | 'modern' | 'heritage';
 export type ContactType = 'fixe' | 'mobile' | 'whatsapp' | 'instagram';
 
 export interface ContactConfig {

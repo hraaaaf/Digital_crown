@@ -75,7 +75,7 @@ const initialState = {
   selectedTemplate: 'swiss' as TemplateOption,
   selectedTheme: (localStorage.getItem('digitalcrown_theme') as any) || 'elite',
   selectedIdentity: BRAND_IDENTITIES[0]?.id || 'dc-blue',
-  selectedFont: 'helvetica',
+  selectedFont: 'inter',
   margins: { top: 3.6, bottom: 3.2 },
   headerScale: 1.1,
   headerFontScale: 1.0,

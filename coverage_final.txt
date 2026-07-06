@@ -1,0 +1,30 @@
+﻿backend\services\holiday_engine.py                     22      0   100%
+backend\services\license_service.py                   137     67    51%   24-29, 32-33, 51-53, 62-63, 74-110, 122-123, 131-133, 142-143, 163-178, 182-193
+backend\services\llm_cache.py                          42      0   100%
+backend\services\logo_processor.py                     21      1    95%   22
+backend\services\medication_dict.py                    77      3    96%   32-34
+backend\services\notification_service.py               98     24    76%   74-100, 109-110, 114-115, 119-120, 124-125, 159-160, 189-191
+backend\services\patient_scoring_service.py            75      6    92%   105-109, 135
+backend\services\pii_masker.py                         10      0   100%
+backend\services\prescription_agentic_service.py       29      5    83%   31-49
+backend\services\prescription_service.py              234     49    79%   24, 47-48, 52, 64-68, 86-116, 132, 145, 148-150, 213-214, 317, 426-441, 503-506, 543-546, 575-580
+backend\services\push_service.py                       22     16    27%   11-42
+backend\services\qr_service.py                         62      1    98%   41
+backend\services\rag_context.py                        43      3    93%   90-92
+backend\services\security\__init__.py                   0      0   100%
+backend\services\security\data_sanitizer.py            88     17    81%   188-216
+backend\services\sota_vision_service.py                77     43    44%   9-10, 58-59, 68-69, 81-82, 85-152
+backend\services\state_extractor.py                    17      9    47%   15-39
+backend\services\sync_manager.py                       72     48    33%   30-37, 42-49, 53-63, 67-82, 86-120
+backend\services\template_engine.py                   275    130    53%   13, 236-237, 243-245, 266-273, 285-439, 451-568, 578-593
+backend\services\temporal_comparator.py                46      0   100%
+backend\services\treatment_plan_engine.py              51      0   100%
+backend\services\vision_service.py                    144     99    31%   24-25, 30-32, 60, 70-71, 74-75, 78-79, 98-99, 111-251
+backend\services\zka_crypto.py                         28      0   100%
+backend\services\zka_service.py                        54      0   100%
+backend\utils\access_control.py                        11      0   100%
+backend\utils\accounting_utils.py                      25      0   100%
+backend\utils\rate_limit.py                            40      1    98%   43
+---------------------------------------------------------------------------------
+TOTAL                                               10647   2587    76%
+1653 passed, 6 skipped, 3 warnings in 863.69s (0:14:23)

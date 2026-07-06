@@ -16,6 +16,7 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2>(1); // 1: Upload, 2: Preview
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +32,7 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
         setError('Aucun rendez-vous valide trouvé dans ce fichier.');
       } else {
         setEvents(parsed);
+        setSelectedIds(new Set(parsed.map((_, idx) => idx.toString())));
         setStep(2);
       }
     } catch (err) {
@@ -41,12 +43,13 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
   const handleImport = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
-      // Map aux champs attendus par le backend
+      const selectedEvents = events.filter((_, idx) => selectedIds.has(idx.toString()));
+
       const payload = {
-        appointments: events.map(ev => ({
-          patient_name: ev.patient_name.substring(0, 50), // Sécruité longueur
+        appointments: selectedEvents.map(ev => ({
+          patient_name: ev.patient_name.substring(0, 50),
           datetime_start: ev.datetime_start,
           duration_minutes: ev.duration_minutes,
           notes: ev.notes || 'Importé depuis Google Agenda',
@@ -57,16 +60,36 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
       await api.post('/appointments/bulk', payload);
       onSuccess();
       onClose();
-      // Reset
       setTimeout(() => {
         setStep(1);
         setEvents([]);
+        setSelectedIds(new Set());
       }, 500);
     } catch (err) {
       console.error(err);
       setError('Erreur lors de l\'importation des rendez-vous.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleEvent = (idx: string) => {
+    setSelectedIds(prev => {
+      const updated = new Set(prev);
+      if (updated.has(idx)) {
+        updated.delete(idx);
+      } else {
+        updated.add(idx);
+      }
+      return updated;
+    });
+  };
+
+  const toggleAllEvents = () => {
+    if (selectedIds.size === events.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(events.map((_, idx) => idx.toString())));
     }
   };
 
@@ -147,12 +170,12 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="text-primary" size={24} />
                     <div>
-                      <p className="font-bold text-primary">{events.length} rendez-vous trouvés</p>
-                      <p className="text-xs text-primary/80">Prêts à être importés dans votre agenda Digital Crown.</p>
+                      <p className="font-bold text-primary">{selectedIds.size}/{events.length} rendez-vous sélectionnés</p>
+                      <p className="text-xs text-primary/80">Sélectionnez les rendez-vous à importer dans votre agenda.</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => { setStep(1); setEvents([]); }}
+                  <button
+                    onClick={() => { setStep(1); setEvents([]); setSelectedIds(new Set()); }}
                     className="text-sm text-primary hover:brightness-110 font-medium"
                   >
                     Changer de fichier
@@ -163,6 +186,14 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 sticky top-0 border-b border-slate-200">
                       <tr>
+                        <th className="p-3 font-semibold text-slate-600 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === events.length && events.length > 0}
+                            onChange={toggleAllEvents}
+                            className="w-4 h-4 accent-primary rounded"
+                          />
+                        </th>
                         <th className="p-3 font-semibold text-slate-600">Patient / Titre</th>
                         <th className="p-3 font-semibold text-slate-600">Date & Heure</th>
                         <th className="p-3 font-semibold text-slate-600">Durée</th>
@@ -171,8 +202,17 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                     <tbody className="divide-y divide-slate-100">
                       {events.slice(0, 50).map((ev, idx) => {
                         const date = new Date(ev.datetime_start);
+                        const isSelected = selectedIds.has(idx.toString());
                         return (
-                          <tr key={idx} className="hover:bg-slate-50">
+                          <tr key={idx} className={isSelected ? 'bg-primary/5' : 'hover:bg-slate-50'}>
+                            <td className="p-3 w-12">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleEvent(idx.toString())}
+                                className="w-4 h-4 accent-primary rounded"
+                              />
+                            </td>
                             <td className="p-3 font-medium text-slate-800">{ev.patient_name}</td>
                             <td className="p-3 text-slate-600">
                               {date.toLocaleDateString('fr-FR')} à {date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
@@ -205,7 +245,7 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
             </button>
             <button
               onClick={handleImport}
-              disabled={step === 1 || loading}
+              disabled={step === 1 || loading || selectedIds.size === 0}
               className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading ? (

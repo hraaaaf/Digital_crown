@@ -16,6 +16,7 @@ export const LicenseGuard: React.FC<LicenseGuardProps> = ({ children }) => {
 
   // Les administrateurs ont toujours accès complet
   if (user.role === 'ADMIN') return <>{children}</>;
+  if (user.is_superadmin) return <>{children}</>;
 
   // Vérification de la licence
   if (!user.is_licensed) {

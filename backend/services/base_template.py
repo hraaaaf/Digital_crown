@@ -236,6 +236,12 @@ class BaseTemplate:
             val = getattr(obj, key, default)
         return default if val in ["", None] else val
 
+    def has_active_letterhead(self, config):
+        """Indique si un design de document uploade est actif."""
+        lh_path = self._get_val(config, 'letterhead_path')
+        use_letterhead = self._get_val(config, 'use_letterhead', False)
+        return bool(use_letterhead and lh_path and str(lh_path) not in ["null", "None", ""])
+
     @staticmethod
     def get_adaptive_font_size(text, font_name, base_fs, max_width, min_fs=6.5, max_fs=None):
         """
@@ -319,6 +325,12 @@ class BaseTemplate:
     def get_document_margins(self, config, p_width):
         from reportlab.lib.units import cm
         selected_template = self._get_val(config, 'selected_template', 'swiss')
+        if self.has_active_letterhead(config):
+            c_top = self._get_val(config, 'margin_top', 3.6)
+            c_bottom = self._get_val(config, 'margin_bottom', 3.2)
+            m_top = max(float(c_top), 0.8) * cm
+            m_bottom = max(float(c_bottom), 0.8) * cm
+            return m_top, m_bottom, 1.5 * cm, 1.5 * cm
         
         # Determine defaults based on template
         # Réduit considérablement pour remonter le titre et le corps des documents.
@@ -427,8 +439,7 @@ class BaseTemplate:
         
         # 1. Fond de page / Letterhead
         lh_path_str = self._get_val(config, 'letterhead_path')
-        use_letterhead = self._get_val(config, 'use_letterhead', False)
-        has_letterhead = use_letterhead and lh_path_str and str(lh_path_str) not in ["null", "None", ""]
+        has_letterhead = self.has_active_letterhead(config)
         
         if has_letterhead:
             lh_path = os.path.join(self.base_path, "static", "uploads", str(lh_path_str))
@@ -438,8 +449,8 @@ class BaseTemplate:
                 canvas.restoreState()
                 
                 # Si le papier existe et est utilisé, on s'arrête ici
-                canvas.restoreState()
-                return
+                canvas.saveState(); canvas.restoreState()
+                pass
         
         # Récupération de la mise en page choisie
         selected_template = self._get_val(config, 'selected_template', 'classic')
@@ -467,9 +478,14 @@ class BaseTemplate:
 
         # 4. RENDU DU MASTER TEMPLATE (LE SEUL, L'UNIQUE)
         # Appelé inconditionnellement pour normaliser le rendu.
-        self._draw_auto_header(canvas, config, logo_path, primary_color, secondary_color, accent_color, p_width, p_height)
+        should_draw_header = (not has_letterhead) or (not self._get_val(config, 'hide_header', True))
+        should_draw_footer = (not has_letterhead) or (not self._get_val(config, 'hide_footer', True))
+
+        if should_draw_header:
+            self._draw_auto_header(canvas, config, logo_path, primary_color, secondary_color, accent_color, p_width, p_height)
         self._draw_qr_code(canvas, doc, config, user, primary_color)
-        self._draw_footer(canvas, doc, config, draw_legal_ids, user)
+        if should_draw_footer:
+            self._draw_footer(canvas, doc, config, draw_legal_ids, user)
 
         canvas.restoreState()
 

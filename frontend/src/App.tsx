@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { lazy, Suspense, useEffect, useState } from 'react';
+import axios from 'axios';
 import { MainLayout } from './components/Layout/MainLayout';
 import { cabinetApi } from './services/templateApi';
+import { API_BASE } from './services/api';
 import { safeStorage } from './hooks/useLocalStorage';
 import { useAuthStore } from './stores/useAuthStore';
 
@@ -12,6 +14,8 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { WelcomeScreen } from './pages/WelcomeScreen';
 import { LandingPage } from './pages/LandingPage';
+import { DownloadPage } from './pages/DownloadPage';
+import { ActivateTrialPage } from './pages/ActivateTrialPage';
 import { authService } from './services/auth';
 
 // Chargés à la demande
@@ -35,6 +39,7 @@ const LegalPage       = lazy(() => import('./pages/LegalPage').then(m => ({ defa
 // MOBILE PWA
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
 const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDashboard').then(m => ({ default: m.MobileDashboard })));
+const DentistsView     = lazy(() => import('./features/mobile/Dashboard/views/DentistsView').then(m => ({ default: m.DentistsView })));
 
 import { MobileStorage } from './services/zka/MobileStorage';
 
@@ -63,9 +68,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const checkAuthAndInit = async () => {
       // 1. Attendre que la base de données / le backend soit complètement chargé
       const waitForBackend = async () => {
-        const { API_BASE } = await import('./services/api');
-        const axios = (await import('axios')).default;
-        
         const MAX_ATTEMPTS = 15; // 15 × 2s = 30s max
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
           try {
@@ -89,7 +91,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(authStatus);
         
         if (authStatus && location.pathname !== '/login') {
-          useAuthStore.getState().checkAuth();
+          await useAuthStore.getState().checkAuth();
           const status = await cabinetApi.checkInitStatus();
           setIsInitialized(status.is_initialized);
           
@@ -194,11 +196,40 @@ const ProtectedRoutes = () => (
 
 const SmartRootRouter = () => {
   const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'anonymous'>('checking');
+
+  useEffect(() => {
+    if (isMobile) return;
+
+    let cancelled = false;
+
+    const resolveAuth = async () => {
+      try {
+        const isAuthenticated = await authService.isAuthenticated();
+        if (!cancelled) {
+          setAuthStatus(isAuthenticated ? 'authenticated' : 'anonymous');
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthStatus('anonymous');
+        }
+      }
+    };
+
+    resolveAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isMobile]);
   if (isMobile) {
     return <Navigate to="/mobile/dashboard" replace />;
   }
   // Connecté → dashboard directement ; non-connecté → page marketing publique
-  if (authService.isAuthenticated()) {
+  if (authStatus === 'checking') {
+    return <PageLoader />;
+  }
+  if (authStatus === 'authenticated') {
     return <Navigate to="/dashboard" replace />;
   }
   return <Navigate to="/landing" replace />;
@@ -264,9 +295,17 @@ function App() {
             <Suspense fallback={<PageLoader />}><MobileDashboard /></Suspense>
           </MobileProtectedRoute>
         } />
+        <Route path="/mobile/dentists" element={
+          <MobileProtectedRoute>
+            <Suspense fallback={<PageLoader />}><DentistsView /></Suspense>
+          </MobileProtectedRoute>
+        } />
         
         {/* Page marketing publique (avant connexion) */}
         <Route path="/landing" element={<LandingPage />} />
+        <Route path="/download" element={<DownloadPage />} />
+        <Route path="/activate" element={<ActivateTrialPage />} />
+        <Route path="/welcome" element={<Navigate to="/landing" replace />} />
 
         {/* Toutes les autres routes passent par le filtre Mode/Init */}
         <Route path="/*" element={

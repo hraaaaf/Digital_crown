@@ -49,6 +49,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     margin_top: 3.6,
     margin_bottom: 3.2,
     watermark_enabled: true,
+    use_letterhead: false,
     qr_code_enabled: false,
     qr_code_type: 'VCARD',
     qr_code_value: '',
@@ -118,6 +119,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           margin_bottom: res.data.margin_bottom ?? 3.2,
           watermark_enabled: res.data.watermark_enabled ?? true,
           letterhead_path: res.data.letterhead_path || undefined,
+          use_letterhead: res.data.use_letterhead ?? false,
           selected_theme: res.data.selected_theme || (cabinet ? cabinet.theme : 'elite'),
           app_accent_color: res.data.app_accent_color || undefined,
           font_fr: res.data.font_fr || 'inter',
@@ -364,12 +366,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const res = await api.post('/clinics/me/letterhead', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      set((state) => ({ 
-        profile: { 
-          ...state.profile, 
-          letterhead_path: res.data.letterhead_url,
-          watermark_enabled: false 
-        } 
+      const normalizedLetterheadPath = typeof res.data.letterhead_url === 'string'
+        ? res.data.letterhead_url.replace(/^\/?static\/uploads\//, '')
+        : res.data.letterhead_url;
+      set((state) => ({
+        profile: {
+          ...state.profile,
+          letterhead_path: normalizedLetterheadPath,
+          use_letterhead: res.data.use_letterhead ?? true,
+          hide_header: res.data.hide_default_header ?? true,
+          hide_footer: res.data.hide_default_footer ?? true,
+          watermark_enabled: false,
+          primary_color: res.data.detected_colors?.primary_color || state.profile.primary_color,
+          secondary_color: res.data.detected_colors?.secondary_color || state.profile.secondary_color,
+          accent_color: res.data.detected_colors?.accent_color || state.profile.accent_color
+        }
       }));
       toast.success("Papier en-tête mis à jour");
     } catch (err) {

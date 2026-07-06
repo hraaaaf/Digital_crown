@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js';
  */
 export interface AppUser extends User {
   role?: string;
+  is_superadmin?: boolean;
   is_licensed?: boolean;
   license_expires_at?: string | null;
   full_name?: string;

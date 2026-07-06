@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-06-26 19:06
+- **Mis à jour :** 2026-07-06 14:08
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,10 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- ordonnance : quand je décoche Mentions légales (Radioprotection) ça se décoche pas sur l'ordonnance ça s'affiche quand meme tous les documents il faut détecter 
+- /uisage²
+- 🎯 Mission CEPHALO-PDF-SAFETY-1 — COMPLÉTÉE Résumé final 2 commits créés : - 8b9ea84 — Brancher validateur céphalo + bannières pré-bilan + interceptif - 74b7dfa
+- # ORDRE DE MISSION — DOC-LAYOUT-SAFETY-1 ## Mission Sécuriser la mise en page de tous les documents générés par Digital Crown afin qu’aucun PDF/document ne sort
 - This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation. Summary:
-- Can you push to github !?
-- Pre existing like what !? En francais
+- okay
+- <task-notification> <task-id>a828f7c3f69d4573a</task-id> <tool-use-id>toolu_01Azsjh7fFjE5XTjJ9CW53v4</tool-use-id> <output-file>C:\Users\lenovo\AppData\Local\Te
+- [Request interrupted by user for tool use]
+- ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 <!-- STATE:AUTO:END -->
 
 ## M5-A — Facturation avancée ✅ DONE

@@ -107,6 +107,8 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             text-align: justify;
             page-break-inside: avoid;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .text-block p {
@@ -165,17 +167,30 @@
             margin-bottom: 20px;
             font-size: 9pt;
             page-break-inside: avoid;
+            table-layout: fixed;
         }
-        th, td {
+        th {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background-color: var(--dc-primary);
+            color: white;
+            font-weight: bold;
+        }
+        td {
             border: 1px solid #e2e8f0;
             padding: 8px;
             text-align: left;
             white-space: nowrap;
+            overflow: visible;
         }
-        th {
-            background-color: var(--dc-primary);
-            color: white;
-            font-weight: bold;
+        td:first-child {
+            white-space: normal;
+            word-break: break-word;
+            overflow: visible;
         }
         .status-High, .status-Low { color: #dc2626; font-weight: bold; }
         .status-Normal { color: #16a34a; }
@@ -286,6 +301,12 @@
     {% if metrics %}
     <h2 class="section-title">Annexe : Données céphalométriques</h2>
     <table>
+        <colgroup>
+            <col style="width: 40%">
+            <col style="width: 18%">
+            <col style="width: 28%">
+            <col style="width: 14%">
+        </colgroup>
         <thead>
             <tr>
                 <th>Métrique</th>

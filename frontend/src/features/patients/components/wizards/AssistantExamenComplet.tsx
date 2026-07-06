@@ -158,7 +158,7 @@ function buildUrgenceDiag(ans: Record<string, string>): { diag: string; steps: a
     if (carac === 'spontanee') {
       diag = 'Pulpite Irréversible — Urgence Endodontique';
       steps.push({ title: 'Radiographie RVG de diagnostic', assistant: 'general' });
-      steps.push({ title: 'Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)', assistant: 'endo' });
+      steps.push({ title: "Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)", assistant: 'endo' });
       steps.push({ title: 'Traitement endodontique complet', assistant: 'endo' });
       next = 'endo';
     } else if (carac === 'tuméfaction') {
@@ -182,7 +182,7 @@ function buildUrgenceDiag(ans: Record<string, string>): { diag: string; steps: a
   } else if (type === 'abces_paro') {
     diag = 'Abcès Parodontal Aigu';
     steps.push({ title: 'Drainage de l\'abcès (incision)', assistant: 'paro' });
-    steps.push({ title: 'Détartrage supra et sous-gingival d'urgence', assistant: 'paro' });
+    steps.push({ title: "Détartrage supra et sous-gingival d'urgence", assistant: 'paro' });
     steps.push({ title: 'Antibiothérapie si signes systémiques', assistant: 'general' });
     next = 'paro';
   } else if (type === 'atm') {

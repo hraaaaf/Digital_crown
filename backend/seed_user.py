@@ -7,12 +7,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.database import SessionLocal
 from backend import models
+from backend.config import settings
 from backend.security import get_password_hash
 
 def seed_admin_user():
     db = SessionLocal()
     try:
-        admin_email = os.getenv("SUPERADMIN_EMAIL", "").strip().lower()
+        admin_email = settings.SUPERADMIN_EMAIL.strip().lower()
         admin_password = os.getenv("SUPERADMIN_INITIAL_PASSWORD", "")
 
         if not admin_email:

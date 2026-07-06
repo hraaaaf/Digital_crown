@@ -130,6 +130,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
   const renderDocPreview = () => {
     const fontClass = PREMIUM_FONTS.find(f => f.id === profile.font_fr)?.class || 'font-sans';
     const tpl = profile.selected_template;
+    const customDesignActive = Boolean(profile.use_letterhead && profile.letterhead_path);
     
     return (
     <div className="w-full h-full bg-[#E5E7EB] flex flex-col items-center py-10 overflow-y-auto">
@@ -155,12 +156,12 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
            </div>
         )}
 
-        {profile.use_letterhead && profile.letterhead_path && profile.letterhead_path !== 'PENDING' && (
+        {customDesignActive && profile.letterhead_path !== 'PENDING' && (
           <div className="absolute inset-0 border-4 border-dashed border-[var(--border-color)] opacity-20 pointer-events-none" />
         )}
 
         {/* Header */}
-        <div className={cn("w-full pb-4 mb-8 relative z-10", tpl === 'classic' ? "text-center border-b-2" : tpl === 'asymetric' ? "text-left bg-slate-50 p-4 rounded-xl" : "border-b-[2px] flex items-end justify-between")} style={{ borderColor: profile.primary_color || 'var(--primary)' }}>
+        {!customDesignActive && <div className={cn("w-full pb-4 mb-8 relative z-10", tpl === 'classic' ? "text-center border-b-2" : tpl === 'asymetric' ? "text-left bg-slate-50 p-4 rounded-xl" : "border-b-[2px] flex items-end justify-between")} style={{ borderColor: profile.primary_color || 'var(--primary)' }}>
           <div>
             <div className="font-medium text-[20px] text-[var(--text-main)] mb-1" style={{ transform: `scale(${profile.header_font_scale ?? 1.0})`, transformOrigin: tpl === 'classic' ? 'center bottom' : 'left bottom' }}>
               Docteur {profile.nom_complet || 'Cabinet'}
@@ -170,7 +171,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
           {tpl !== 'classic' && tpl !== 'asymetric' && (
              <div className="w-10 h-10 rounded bg-slate-100 flex items-center justify-center text-slate-300 text-[8px]">LOGO</div>
           )}
-        </div>
+        </div>}
 
         {/* Title */}
         <div className={cn("w-full mb-6 relative z-10", tpl === 'asymetric' ? "flex justify-start" : "flex justify-center")}>
@@ -199,7 +200,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
         </div>
 
         {/* Footer */}
-        <div className={cn("w-full mt-auto pt-4 flex items-center justify-between relative z-10", tpl === 'future' ? "border-t-2" : "border-t")} style={{ borderColor: 'var(--border-color)', transform: `scale(${profile.footer_font_scale ?? 1.0})`, transformOrigin: 'bottom center' }}>
+        {!customDesignActive && <div className={cn("w-full mt-auto pt-4 flex items-center justify-between relative z-10", tpl === 'future' ? "border-t-2" : "border-t")} style={{ borderColor: 'var(--border-color)', transform: `scale(${profile.footer_font_scale ?? 1.0})`, transformOrigin: 'bottom center' }}>
            <div className="flex flex-col gap-1">
              <div className="w-16 h-2 bg-[var(--text-muted)] rounded opacity-50" />
              <div className="w-20 h-2 bg-[var(--text-muted)] rounded opacity-50" />
@@ -213,7 +214,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
            <div className="w-24 h-8 border border-[var(--border-color)] rounded border-dashed flex items-center justify-center text-[9px] text-[var(--text-muted)] ">
              Signature
            </div>
-        </div>
+        </div>}
 
       </div>
 

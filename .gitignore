@@ -4,6 +4,10 @@
 .env
 .env.*
 !.env.example
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
 
 # ========================================
 # CERTIFICATS SSL (générés par mkcert)

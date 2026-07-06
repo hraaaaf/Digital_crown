@@ -5,6 +5,7 @@ import { Lock, Mail, AlertCircle, Loader2, User, RefreshCw, LogOut } from 'lucid
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/logo.png';
 import { api, resetAuthState } from '../services/api';
+import { useAuthStore } from '../stores/useAuthStore';
 
 export const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,24 +20,16 @@ export const LoginPage: React.FC = () => {
 
   const isLocked = new URLSearchParams(location.search).get('locked') === 'true';
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const checkAuthStore = useAuthStore(state => state.checkAuth);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const oauthToken = params.get('token');
-    const oauthRefresh = params.get('refresh');
     const googleError = params.get('error');
     const googleSignup = params.get('google_signup');
     const googleSuccess = params.get('google') === 'success';
 
-    if (oauthToken) {
-      localStorage.setItem('token', oauthToken);
-      if (oauthRefresh) localStorage.setItem('refresh_token', oauthRefresh);
-      navigate('/dashboard', { replace: true });
-      return;
-    }
-
     if (googleSuccess) {
-      api.get('/auth/me')
+      checkAuthStore()
         .then(() => navigate('/dashboard', { replace: true }))
         .catch(() => setError('Connexion Google valide, mais session locale introuvable.'));
       return;
@@ -50,14 +43,16 @@ export const LoginPage: React.FC = () => {
       setError('Compte créé via Google — en attente de validation par l\'administrateur.');
     }
 
-    authService.isAuthenticated().then((isAuth) => {
+    authService.isAuthenticated().then(async (isAuth) => {
       if (isAuth && !isLocked) {
+        await checkAuthStore();
+        await checkAuthStore();
         navigate('/dashboard');
       } else {
         setIsAuthenticated(isAuth);
       }
     });
-  }, [location.search]);
+  }, [location.search, checkAuthStore, navigate, isLocked]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +87,7 @@ export const LoginPage: React.FC = () => {
     setError('');
     try {
       await api.post('/clinics/recheck-license');
+      await checkAuthStore();
       navigate('/dashboard');
     } catch (err: any) {
       if (err.response?.status === 402) {

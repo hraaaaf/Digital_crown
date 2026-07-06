@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, is_superadmin_user
 from backend.security import get_password_hash
 
 router = APIRouter(tags=["Team Management"])
@@ -54,6 +54,8 @@ def sanitize_permissions(permissions: dict | None, defaults: dict) -> dict:
 
 def require_employer(current_user: models.User = Depends(get_current_user)) -> models.User:
     """Bloque l'acces aux sous-comptes (SECRETAIRE) pour les operations de gestion d'equipe."""
+    if is_superadmin_user(current_user):
+        return current_user
     if current_user.role not in [models.UserRole.ADMIN, models.UserRole.DENTISTE] or current_user.employer_id is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

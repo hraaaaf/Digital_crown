@@ -171,9 +171,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
       
       toast.success("Bilan professionnel généré et archivé.");
       resetAll();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur lors de la finalisation du bilan :", err);
-      toast.error("Erreur lors de la génération du bilan.");
+      const errorMsg = err?.response?.data?.detail || "Erreur lors de la génération du bilan.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -185,9 +186,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     try {
       const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
       window.open(response.data.pdf_url, '_blank');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur téléchargement PDF :", err);
-      toast.error("Erreur lors de la génération du PDF.");
+      const errorMsg = err?.response?.data?.detail || "Erreur lors de la génération du PDF.";
+      toast.error(errorMsg);
     } finally {
       setDownloading(false);
     }
@@ -200,9 +202,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     try {
       const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
       setPreviewPdfUrl(response.data.pdf_url);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur aperçu PDF :", err);
-      toast.error("Impossible de charger l'aperçu PDF.");
+      const errorMsg = err?.response?.data?.detail || "Impossible de charger l'aperçu PDF.";
+      toast.error(errorMsg);
     } finally {
       setIsPreviewLoading(false);
     }

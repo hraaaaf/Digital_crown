@@ -136,6 +136,7 @@ export const Dashboard: React.FC = () => {
   const hasAccess = (permission: string) => {
     if (!user) return true;
     if (user.role === 'ADMIN') return true;
+    if (user.is_superadmin) return true;
     if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
 
     if (user.permissions && typeof user.permissions === 'object') {

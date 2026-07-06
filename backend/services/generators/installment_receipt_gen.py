@@ -131,7 +131,7 @@ def generate_installment_receipt(
         Paragraph(f"Patient : <b>{patient_name}</b>", info_style),
         Paragraph(f"Le : <b>{datetime.now().strftime('%d/%m/%Y')}</b>", date_style),
     ]]
-    hdr_tbl = Table(hdr_data, colWidths=[8.5 * cm, 3.5 * cm])
+    hdr_tbl = Table(hdr_data, colWidths=[8.3 * cm, 3.5 * cm])  # 11.8cm total
     hdr_tbl.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
     elements.append(hdr_tbl)
     elements.append(Spacer(1, 0.5 * cm))
@@ -187,7 +187,7 @@ def generate_installment_receipt(
 
         table_data.append([
             CheckBox(state=state),
-            Paragraph(label, lbl_s),
+            Paragraph(label.replace(' ', ' '), lbl_s),
             Paragraph(due_fmt, dte_s),
             Paragraph(f"{amount:.2f} MAD", amt_s),
         ])
@@ -207,7 +207,7 @@ def generate_installment_receipt(
         Paragraph(f"<b>{total_paid:.2f} MAD</b>", pamt_s),
     ])
 
-    col_widths = [0.9 * cm, 5.9 * cm, 2.7 * cm, 2.7 * cm]
+    col_widths = [0.9 * cm, 5.5 * cm, 2.7 * cm, 2.7 * cm]  # 11.8cm total
     t = Table(table_data, colWidths=col_widths)
 
     tbl_styles = [

@@ -165,11 +165,23 @@ from .auth import (
     UserLogin,
     UserOut,
     UserSignup,
+    TrialActivationRequest,
+    TrialActivationPreview,
     TeamMemberCreate,
     TeamMemberUpdate,
     TeamMemberOut,
     QuotaOut,
     SupabaseSyncRequest,
+)
+
+from .superadmin import (
+    ClientBaseStats,
+    ClientOut,
+    LicenseHistoryOut,
+    UpdateClientNotes,
+    SendRenewalEmailRequest,
+    TrialActivationCodeCreate,
+    TrialActivationCodeOut,
 )
 
 from .branding import (
@@ -229,8 +241,12 @@ __all__ = [
     "DocumentTemplateOut", "DocumentTemplateList", "TemplatePreviewRequest",
     # auth
     "Token", "RefreshRequest", "TokenData", "UserLogin", "UserOut", "UserSignup",
+    "TrialActivationRequest", "TrialActivationPreview",
     "TeamMemberCreate", "TeamMemberUpdate", "TeamMemberOut", "QuotaOut",
     "SupabaseSyncRequest",
+    # superadmin
+    "ClientBaseStats", "ClientOut", "LicenseHistoryOut", "UpdateClientNotes",
+    "SendRenewalEmailRequest", "TrialActivationCodeCreate", "TrialActivationCodeOut",
     # branding
     "BrandingPreviewPayload",
 ]

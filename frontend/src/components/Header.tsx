@@ -87,7 +87,7 @@ export const Header = () => {
   const handleLogout = async () => {
     safeStorage.remove('appMode');
     await authService.logout();
-    window.location.href = '/welcome'; 
+    window.location.href = '/landing'; 
   };
 
 
@@ -96,7 +96,7 @@ export const Header = () => {
       
       {/* SETTINGS, AI, GUIDE & NOTIFS */}
       <div className="flex items-center gap-2">
-        {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+        {user?.is_superadmin && (
           <Link 
             to="/super-admin" 
             className="hidden sm:flex items-center gap-2 px-3 py-2 bg-amber-400/10 text-amber-500 hover:bg-amber-400/20 rounded-elite-sm font-black text-xs transition-elite border border-amber-400/20 mr-2"
@@ -106,7 +106,7 @@ export const Header = () => {
         )}
         
         {/* Mobile SuperAdmin Button (Icon only) */}
-        {user?.email?.toLowerCase() === 'benmoussa.achraf@gmail.com' && (
+        {user?.is_superadmin && (
           <Link 
             to="/super-admin" 
             className="flex sm:hidden p-2.5 text-amber-500 bg-amber-400/10 hover:bg-amber-400/20 rounded-elite-sm transition-elite border border-amber-400/20"

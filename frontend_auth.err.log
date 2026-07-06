@@ -1,0 +1,152 @@
+^C[2m12:25:20[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\src\features\patients\components\wizards\AssistantExamenComplet.tsx: Unexpected token, expected "," (161:41)
+
+[0m [90m 159 |[39m       diag [33m=[39m [32m'Pulpite Irréversible — Urgence Endodontique'[39m[33m;[39m
+ [90m 160 |[39m       steps[33m.[39mpush({ title[33m:[39m [32m'Radiographie RVG de diagnostic'[39m[33m,[39m assistant[33m:[39m [32m'general'[39m })[33m;[39m
+[31m[1m>[22m[39m[90m 161 |[39m       steps[33m.[39mpush({ title[33m:[39m [32m'Pulpectomie d'[39murgence (mise en forme [33m+[39m médication [33mCa[39m([33mOH[39m)₂)[32m', assistant: '[39mendo[32m' });[39m
+ [90m     |[39m                                          [31m[1m^[22m[39m
+ [90m 162 |[39m       steps[33m.[39mpush({ title[33m:[39m [32m'Traitement endodontique complet'[39m[33m,[39m assistant[33m:[39m [32m'endo'[39m })[33m;[39m
+ [90m 163 |[39m       next [33m=[39m [32m'endo'[39m[33m;[39m
+ [90m 164 |[39m     } [36melse[39m [36mif[39m (carac [33m===[39m [32m'tuméfaction'[39m) {[0m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/lenovo/Documents/Cabinet/DigitalCrown/frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx[39m:161:41
+[33m  159 |        diag = 'Pulpite Irréversible — Urgence Endodontique';
+  160 |        steps.push({ title: 'Radiographie RVG de diagnostic', assistant: 'general' });
+  161 |        steps.push({ title: 'Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)', assistant: 'endo' });
+      |                                           ^
+  162 |        steps.push({ title: 'Traitement endodontique complet', assistant: 'endo' });
+  163 |        next = 'endo';[39m
+[2m12:25:22[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\src\features\patients\components\wizards\AssistantExamenComplet.tsx: Unexpected token, expected "," (161:41)
+
+[0m [90m 159 |[31m       diag [33m=[31m [32m'Pulpite Irréversible — Urgence Endodontique'[31m[33m;[31m
+ [90m 160 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Radiographie RVG de diagnostic'[31m[33m,[31m assistant[33m:[31m [32m'general'[31m })[33m;[31m
+[31m[1m>[22m[31m[90m 161 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Pulpectomie d'[31murgence (mise en forme [33m+[31m médication [33mCa[31m([33mOH[31m)₂)[32m', assistant: '[31mendo[32m' });[31m
+ [90m     |[31m                                          [31m[1m^[22m[31m
+ [90m 162 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Traitement endodontique complet'[31m[33m,[31m assistant[33m:[31m [32m'endo'[31m })[33m;[31m
+ [90m 163 |[31m       next [33m=[31m [32m'endo'[31m[33m;[31m
+ [90m 164 |[31m     } [36melse[31m [36mif[31m (carac [33m===[31m [32m'tuméfaction'[31m) {[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/lenovo/Documents/Cabinet/DigitalCrown/frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx[39m:161:41
+[33m  159 |        diag = 'Pulpite Irréversible — Urgence Endodontique';
+  160 |        steps.push({ title: 'Radiographie RVG de diagnostic', assistant: 'general' });
+  161 |        steps.push({ title: 'Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)', assistant: 'endo' });
+      |                                           ^
+  162 |        steps.push({ title: 'Traitement endodontique complet', assistant: 'endo' });
+  163 |        next = 'endo';[39m
+      at constructor (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.unexpected (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6636:16)
+      at TypeScriptParserMixin.expect (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6916:12)
+      at TypeScriptParserMixin.parseObjectLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11839:14)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11356:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:4776:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10817:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12443:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10817:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12510:17)
+      at TypeScriptParserMixin.parseExprListItem (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12192:18)
+      at TypeScriptParserMixin.parseCallExpressionArguments (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11269:22)
+      at TypeScriptParserMixin.parseCoverCallAndAsyncArrowHead (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11203:29)
+      at TypeScriptParserMixin.parseSubscript (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11137:19)
+      at TypeScriptParserMixin.parseSubscript (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9289:18)
+      at TypeScriptParserMixin.parseSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11111:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11102:17)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12764:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13333:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13314:10)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12875:21)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementOrSloppyAnnexBFunctionDeclaration (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12774:17)
+[2m12:26:37[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\src\features\patients\components\wizards\AssistantExamenComplet.tsx: Unexpected token, expected "," (161:41)
+
+[0m [90m 159 |[31m       diag [33m=[31m [32m'Pulpite Irréversible — Urgence Endodontique'[31m[33m;[31m
+ [90m 160 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Radiographie RVG de diagnostic'[31m[33m,[31m assistant[33m:[31m [32m'general'[31m })[33m;[31m
+[31m[1m>[22m[31m[90m 161 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Pulpectomie d'[31murgence (mise en forme [33m+[31m médication [33mCa[31m([33mOH[31m)₂)[32m', assistant: '[31mendo[32m' });[31m
+ [90m     |[31m                                          [31m[1m^[22m[31m
+ [90m 162 |[31m       steps[33m.[31mpush({ title[33m:[31m [32m'Traitement endodontique complet'[31m[33m,[31m assistant[33m:[31m [32m'endo'[31m })[33m;[31m
+ [90m 163 |[31m       next [33m=[31m [32m'endo'[31m[33m;[31m
+ [90m 164 |[31m     } [36melse[31m [36mif[31m (carac [33m===[31m [32m'tuméfaction'[31m) {[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/lenovo/Documents/Cabinet/DigitalCrown/frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx[39m:161:41
+[33m  159 |        diag = 'Pulpite Irréversible — Urgence Endodontique';
+  160 |        steps.push({ title: 'Radiographie RVG de diagnostic', assistant: 'general' });
+  161 |        steps.push({ title: 'Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)', assistant: 'endo' });
+      |                                           ^
+  162 |        steps.push({ title: 'Traitement endodontique complet', assistant: 'endo' });
+  163 |        next = 'endo';[39m
+      at constructor (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.unexpected (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6636:16)
+      at TypeScriptParserMixin.expect (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:6916:12)
+      at TypeScriptParserMixin.parseObjectLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11839:14)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11356:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:4776:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10817:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12443:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10817:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12510:17)
+      at TypeScriptParserMixin.parseExprListItem (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12192:18)
+      at TypeScriptParserMixin.parseCallExpressionArguments (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11269:22)
+      at TypeScriptParserMixin.parseCoverCallAndAsyncArrowHead (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11203:29)
+      at TypeScriptParserMixin.parseSubscript (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11137:19)
+      at TypeScriptParserMixin.parseSubscript (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9289:18)
+      at TypeScriptParserMixin.parseSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11111:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11102:17)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12764:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13333:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:13314:10)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12875:21)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementOrSloppyAnnexBFunctionDeclaration (C:\Users\lenovo\Documents\Cabinet\DigitalCrown\frontend\node_modules\@babel\parser\lib\index.js:12774:17)
+^C^C

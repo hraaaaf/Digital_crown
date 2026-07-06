@@ -108,9 +108,14 @@ export const LandingPage: React.FC = () => {
             <Link to="/login" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
               Connexion
             </Link>
-            <a href="#demo" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
-              Demander une démo
-            </a>
+            <div className="flex items-center gap-3">
+              <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
+                Télécharger l'app
+              </Link>
+              <a href="#demo" className="text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
+                Démo
+              </a>
+            </div>
           </div>
         </div>
       </nav>
@@ -136,10 +141,10 @@ export const LandingPage: React.FC = () => {
             Demander une démo gratuite <ArrowRight size={18} />
           </a>
           <Link
-            to="/login"
+            to="/download"
             className="inline-flex items-center gap-2 bg-white text-slate-700 font-black px-8 py-4 rounded-2xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm text-base"
           >
-            Se connecter
+            Télécharger l'application
           </Link>
         </div>
 

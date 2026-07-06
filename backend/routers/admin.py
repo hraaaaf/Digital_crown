@@ -14,6 +14,7 @@ from backend.services.zka_service import zka_service
 from backend.services.sync_manager import sync_manager
 from backend.services.qr_service import QRService
 from backend.services.audit_service import audit_service
+from backend.env_loader import current_backend_env_path
 import qrcode
 import io
 import base64
@@ -330,9 +331,9 @@ def revoke_mobile_access(db: Session = Depends(database.get_db), current_user: m
     """Révoque l'accès mobile en changeant la clé maître et en forçant une synchro."""
     try:
         emp_id = current_user.get_employer_id()
-        env_path = os.path.join(os.getcwd(), "backend", ".env")
+        env_path = current_backend_env_path()
         
-        # 1. Rotation de la clé (Mémoire + .env)
+        # 1. Rotation de la clé (mémoire + fichier env actif)
         new_key = zka_service.rotate_master_key(env_path)
         
         # 2. Force une synchronisation immédiate avec la nouvelle clé

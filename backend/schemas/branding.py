@@ -10,6 +10,10 @@ class BrandingPreviewPayload(BaseModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     accent_color: Optional[str] = None
+    use_letterhead: Optional[bool] = None
+    letterhead_path: Optional[str] = None
+    hide_header: Optional[bool] = None
+    hide_footer: Optional[bool] = None
     margin_top: Optional[float] = None
     margin_bottom: Optional[float] = None
     header_scale: Optional[float] = None

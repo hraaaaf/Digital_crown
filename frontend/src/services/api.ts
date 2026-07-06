@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 const defaultApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:8005`
   : 'http://127.0.0.1:8005';
-export const API_BASE = (import.meta.env.VITE_API_URL ?? defaultApiUrl).replace(/\/$/, '');
+const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+export const API_BASE = (viteEnv?.VITE_API_URL ?? defaultApiUrl).replace(/\/$/, '');
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
@@ -98,29 +99,23 @@ api.interceptors.response.use(
 
       if (!_refreshing) {
         _refreshing = (async () => {
-          // 1. Essayer le refresh token local (rotation côté backend)
-          const refreshToken = localStorage.getItem('refresh_token');
-          if (refreshToken) {
-            try {
-              const res = await axios.post(`${API_BASE}/api/auth/refresh`, {
-                refresh_token: refreshToken
-              }, { withCredentials: true });
-              const { access_token, refresh_token: newRefresh } = res.data;
-              if (access_token) {
-                // Le backend pose les nouveaux cookies HttpOnly — pas de stockage local
-                // BroadcastChannel pour notifier les autres onglets (fallback)
-                storeTokens(access_token, newRefresh);
-                return true;
-              }
-            } catch {
-              localStorage.removeItem('refresh_token');
+          // 1. Essayer le refresh via token local ou cookie HttpOnly
+          const refreshToken = localStorage.getItem('refresh_token') || '';
+          try {
+            const res = await axios.post(`${API_BASE}/api/auth/refresh`, {
+              refresh_token: refreshToken
+            }, { withCredentials: true });
+            const { access_token, refresh_token: newRefresh } = res.data;
+            if (access_token) {
+              storeTokens(access_token, newRefresh);
+              return true;
             }
+          } catch {
+            localStorage.removeItem('refresh_token');
           }
 
           // 2. Fallback : redirect to login since Supabase is gone
           localStorage.removeItem('token');
-          return false;
-
           return false;
         })().finally(() => { _refreshing = null; });
       }

@@ -3,6 +3,13 @@ import { API_BASE } from './api';
 
 const API_URL = `${API_BASE}/api`;
 
+async function fetchCurrentUserFromSession() {
+  const response = await axios.get(`${API_URL}/auth/me`, {
+    withCredentials: true,
+  });
+  return response.data;
+}
+
 export const authService = {
   /**
    * Login (Local API, qui vérifiera la licence Firebase via le middleware)
@@ -33,13 +40,16 @@ export const authService = {
   async logout() {
     const token = localStorage.getItem('token');
     const refreshToken = localStorage.getItem('refresh_token');
-    if (token && refreshToken) {
-      try {
-        await axios.post(`${API_URL}/auth/logout`, { refresh_token: refreshToken }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch { /* blacklist best-effort */ }
-    }
+    try {
+      await axios.post(
+        `${API_URL}/auth/logout`,
+        { refresh_token: refreshToken || '' },
+        {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }
+      );
+    } catch { /* logout best-effort */ }
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
     window.location.href = '/login';
@@ -69,26 +79,42 @@ export const authService = {
    */
   async isAuthenticated() {
     const token = this.getToken();
-    if (!token) return false;
-    
-    if (this.isTokenExpired(token)) {
-        // Tentative de refresh
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) return false;
-        try {
-            const response = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken });
-            if (response.data.access_token) {
-                localStorage.setItem('token', response.data.access_token);
-                if (response.data.refresh_token) {
-                    localStorage.setItem('refresh_token', response.data.refresh_token);
-                }
-                return true;
-            }
-        } catch {
-            return false;
-        }
+    if (!token) {
+      try {
+        await fetchCurrentUserFromSession();
+        return true;
+      } catch {
+        return false;
+      }
     }
-    
+
+    if (this.isTokenExpired(token)) {
+      try {
+        const refreshToken = localStorage.getItem('refresh_token') || '';
+        const response = await axios.post(
+          `${API_URL}/auth/refresh`,
+          { refresh_token: refreshToken },
+          { withCredentials: true }
+        );
+        if (response.data.access_token) {
+          localStorage.setItem('token', response.data.access_token);
+          if (response.data.refresh_token) {
+            localStorage.setItem('refresh_token', response.data.refresh_token);
+          }
+          return true;
+        }
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        try {
+          await fetchCurrentUserFromSession();
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
     return true;
   },
 
@@ -97,14 +123,22 @@ export const authService = {
    */
   async getCurrentUser() {
     const token = this.getToken();
-    if (!token) return null;
     try {
+      if (!token) {
+        return await fetchCurrentUserFromSession();
+      }
+
       const response = await axios.get(`${API_URL}/auth/me`, {
+        withCredentials: true,
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
     } catch {
-      return null;
+      try {
+        return await fetchCurrentUserFromSession();
+      } catch {
+        return null;
+      }
     }
   },
 
@@ -142,5 +176,23 @@ export const authService = {
       accept_privacy: acceptPrivacy,
     });
     return response.data;
-  }
+  },
+
+  async previewTrialCode(code: string) {
+    const response = await axios.get(`${API_URL}/public/trial-code/${encodeURIComponent(code)}`);
+    return response.data;
+  },
+
+  async activateTrial(input: {
+    code: string;
+    email: string;
+    password: string;
+    nom_complet: string;
+    cabinet_name?: string;
+    accept_terms: boolean;
+    accept_privacy: boolean;
+  }) {
+    const response = await axios.post(`${API_URL}/public/activate-trial`, input);
+    return response.data;
+  },
 };

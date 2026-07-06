@@ -40,3 +40,29 @@ class UpdateClientNotes(BaseModel):
 
 class SendRenewalEmailRequest(BaseModel):
     message: Optional[str] = None
+
+
+class TrialActivationCodeCreate(BaseModel):
+    email: EmailStr
+    nom_complet: Optional[str] = None
+    cabinet_name: Optional[str] = None
+    trial_days: int = 30
+    expires_in_days: int = 14
+    notes: Optional[str] = None
+
+
+class TrialActivationCodeOut(BaseModel):
+    id: int
+    code: str
+    email: EmailStr
+    nom_complet: Optional[str] = None
+    cabinet_name: Optional[str] = None
+    trial_days: int
+    notes: Optional[str] = None
+    expires_at: datetime.datetime
+    consumed_at: Optional[datetime.datetime] = None
+    revoked_at: Optional[datetime.datetime] = None
+    created_at: datetime.datetime
+    activation_url: str
+
+    model_config = ConfigDict(from_attributes=True)
