@@ -108,6 +108,21 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             else:
                 logger.warning(f"Image radio introuvable pour le Bilan Ortho: {vm.radio_image_path}")
 
+        # Calcul interceptif (denture mixte / enfant)
+        try:
+            patient_age_int = int(vm.patient_age) if vm.patient_age and vm.patient_age != "N/A" else None
+        except (ValueError, TypeError):
+            patient_age_int = None
+
+        denture_raw = (vm.analysis.clinical_data.denture_type or "").upper() if vm.analysis.clinical_data else ""
+        is_interceptive = (patient_age_int is not None and patient_age_int <= 12) or denture_raw in ("MIXTE", "TEMPORAIRE")
+
+        # Technique : jamais "Damon" pour un patient en croissance
+        if is_interceptive:
+            technique_display = "Interceptive (croissance)"
+        else:
+            technique_display = vm.analysis.clinical_data.preference_technique or "Damon" if vm.analysis.clinical_data else "Damon"
+
         # Recuperation des 4 blocs du Bilan Ortho
         ai_diag = vm.analysis.ai_diagnostic or vm.analysis.ai_narrative or {}
         if hasattr(ai_diag, "model_dump"):
@@ -147,9 +162,12 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "strategie_therapeutique": strategie_therapeutique,
             "doctor_name": vm.doctor_name,
             "qr_code_base64": qr_base64,
-            "denture_type": vm.analysis.clinical_data.denture_type,
-            "preference_technique": vm.analysis.clinical_data.preference_technique,
-            "profil_cutane": getattr(vm.analysis.clinical_data, "profil", None) or getattr(vm.analysis.clinical_data, "profil_cutane", None),
+            "denture_type": vm.analysis.clinical_data.denture_type if vm.analysis.clinical_data else "Permanente",
+            "preference_technique": technique_display,
+            "profil_cutane": getattr(vm.analysis.clinical_data, "profil", None) or getattr(vm.analysis.clinical_data, "profil_cutane", None) if vm.analysis.clinical_data else None,
+            "is_pre_bilan": vm.is_pre_bilan,
+            "validation_warnings": vm.validation_warnings,
+            "is_interceptive": is_interceptive,
         }
 
         template = self.jinja_env.get_template("bilan_ortho_elite.html")

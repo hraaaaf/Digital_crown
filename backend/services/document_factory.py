@@ -128,9 +128,13 @@ class DocumentFactory:
             if db and user_id:
                 cabinet = self._get_cabinet_config(user_id, db)
                 user = db.query(models.User).filter(models.User.id == user_id).first()
-            
+
             results_dict = analysis.results if hasattr(analysis, 'results') else analysis.get('results', analysis)
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
+
+            # Lire les flags de pré-bilan et avertissements
+            is_pre_bilan = analysis.get("_is_pre_bilan", False) if isinstance(analysis, dict) else False
+            validation_warnings = analysis.get("_validation_warnings", []) if isinstance(analysis, dict) else []
 
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
@@ -149,7 +153,9 @@ class DocumentFactory:
                     "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
                 },
                 doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
-                radio_image_path=radio_image_path
+                radio_image_path=radio_image_path,
+                is_pre_bilan=is_pre_bilan,
+                validation_warnings=validation_warnings
             )
             return self.ceph_gen.generate(vm)
         except Exception as e:

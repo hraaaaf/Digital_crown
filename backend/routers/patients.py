@@ -11,7 +11,7 @@ import os
 logger = logging.getLogger(__name__)
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, require_permission, is_superadmin_user
 from backend.utils.access_control import assert_patient_access
 
 router = APIRouter(tags=["Patients"])
@@ -504,7 +504,9 @@ def generate_cephalo_pdf(
         "id": last_analysis.id,
         "image_path": last_analysis.image_original_path,
         "results": last_analysis.angles_data or {},
-        "landmarks": last_analysis.landmarks_data
+        "landmarks": last_analysis.landmarks_data,
+        "_is_pre_bilan": not req.archive,
+        "_validation_warnings": validation.warnings
     }
 
     if req.ai_diagnostic:
@@ -590,7 +592,7 @@ def delete_patient(
         
     assert_patient_access(patient_id, current_user, db)
     
-    if not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]:
+    if not is_superadmin_user(current_user) and (not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]):
         raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de supprimer un patient")
 
     try:

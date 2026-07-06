@@ -156,6 +156,8 @@ class CephaloViewModel(BaseModel):
     doctor_name: Optional[str] = None
     radio_image_path: Optional[str] = None
     date_generation: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%d/%m/%Y"))
+    is_pre_bilan: bool = False
+    validation_warnings: List[str] = Field(default_factory=list)
 
 
 class CephaloPDFRequest(BaseModel):

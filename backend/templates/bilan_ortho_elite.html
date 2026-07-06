@@ -185,6 +185,25 @@
 </head>
 <body>
 
+    {% if is_pre_bilan %}
+    <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:4px;padding:12px 16px;
+                margin-bottom:18px;text-align:center;page-break-inside:avoid;">
+        <strong style="color:#92400e;font-size:13pt;">⚠ PRÉ-BILAN — Document de travail non archivé</strong><br>
+        <span style="color:#92400e;font-size:8.5pt;">Ce document est un pré-bilan à valider par le praticien.
+        Il ne constitue pas un bilan orthodontique officiel archivé.</span>
+    </div>
+    {% endif %}
+
+    {% if validation_warnings %}
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;padding:12px 16px;
+                margin-bottom:16px;page-break-inside:avoid;">
+        <strong style="color:#c2410c;font-size:10pt;">Points à vérifier avant archivage :</strong>
+        <ul style="margin:6px 0 0 16px;font-size:8.5pt;color:#7c2d12;">
+            {% for w in validation_warnings %}<li>{{ w }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     <div class="header">
         <h1 class="title">Bilan Orthodontique</h1>
         <div class="subtitle">Analyse Clinique et Céphalométrique - Méthode COM</div>
@@ -248,6 +267,18 @@
     </div>
 
     <h2 class="section-title">{% if analyse_dentaire %}5{% else %}4{% endif %}. Plan de Traitement Proposé</h2>
+
+    {% if is_interceptive %}
+    <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:10px 14px;
+                margin-bottom:10px;border-radius:0 4px 4px 0;">
+        <strong style="color:#1e40af;">Contexte interceptif — denture {{ denture_type | lower }}</strong><br>
+        <span style="font-size:8.5pt;color:#1e3a8a;">Compte tenu de l'âge du patient et de la denture
+        {{ denture_type | lower }}, l'analyse doit être interprétée dans un contexte interceptif et de
+        croissance. Toute décision d'appareillage fixe ou d'aligneurs doit être validée cliniquement
+        selon le stade d'éruption, l'examen fonctionnel et les objectifs thérapeutiques.</span>
+    </div>
+    {% endif %}
+
     <div class="text-block plan-traitement">
         {{ strategie_therapeutique | replace('\n', '<br>') | safe }}
     </div>
