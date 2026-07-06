@@ -9,7 +9,7 @@ import logging
 from backend.services.security.data_sanitizer import data_sanitizer
 
 from backend.database import get_db
-from backend import models
+from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
 from backend.services.bot.intent_parser import intent_parser as regex_parser, ParsedIntent
@@ -60,15 +60,15 @@ def require_bot_permission(current_user: models.User, permission: str | None) ->
 
 # ── Helpers partagés entre /chat et /chat/stream ─────────────────────────────
 
-def _resolve_session(payload: Dict[str, Any], db: Session, current_user: models.User) -> Tuple[str, str, Optional[int]]:
+def _resolve_session(req: schemas.BotChatRequest, db: Session, current_user: models.User) -> Tuple[str, str, Optional[int]]:
     """
     Résout/crée la session, sauvegarde le message utilisateur, rattache le
     contexte patient (`patient_id` envoyé par le front depuis un dossier patient).
     Retourne (session_id, message, session_patient_id).
     """
-    message = payload.get("message", "").strip()
-    session_id = payload.get("session_id")
-    patient_id = payload.get("patient_id")
+    message = req.message.strip()
+    session_id = req.session_id
+    patient_id = req.patient_id
     if not message:
         raise HTTPException(status_code=400, detail="Message vide")
 
@@ -303,7 +303,7 @@ async def archive_session(
 
 @router.post("/chat")
 async def bot_chat(
-    payload: Dict[str, Any] = Body(...),
+    req: schemas.BotChatRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -311,7 +311,7 @@ async def bot_chat(
     Point d'entrée non-streaming de l'assistant Crown Bot (rétrocompat).
     Le frontend utilise désormais /chat/stream.
     """
-    session_id, message, session_patient_id = _resolve_session(payload, db, current_user)
+    session_id, message, session_patient_id = _resolve_session(req, db, current_user)
     context_window = _build_context(session_id, db)
     parsed_intent, llm_used = _parse_and_authorize(message, context_window, current_user, session_patient_id)
 
@@ -329,7 +329,7 @@ def _sse(obj: Dict[str, Any]) -> str:
 
 @router.post("/chat/stream")
 async def bot_chat_stream(
-    payload: Dict[str, Any] = Body(...),
+    req: schemas.BotChatRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -344,7 +344,7 @@ async def bot_chat_stream(
     """
     # Tout ce qui peut lever une HTTPException (session, permission) se fait AVANT
     # le StreamingResponse — une fois le statut 200 envoyé, on ne peut plus l'annuler.
-    session_id, message, session_patient_id = _resolve_session(payload, db, current_user)
+    session_id, message, session_patient_id = _resolve_session(req, db, current_user)
     context_window = _build_context(session_id, db)
     parsed_intent, llm_used = _parse_and_authorize(message, context_window, current_user, session_patient_id)
 
@@ -397,7 +397,7 @@ async def bot_chat_stream(
 
 @router.post("/execute")
 async def bot_execute(
-    payload: Dict[str, Any] = Body(...),
+    req: schemas.BotExecuteRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -407,9 +407,7 @@ async def bot_execute(
     Le payload complet n'est jamais accepte depuis le client — l'action
     ne peut pas etre forgee, seulement confirmee par ID.
     """
-    action_id = payload.get("pending_action_id")
-    if not action_id:
-        raise HTTPException(status_code=400, detail="pending_action_id manquant.")
+    action_id = req.pending_action_id
 
     # Recuperation + verification tenant
     employer_id = current_user.get_employer_id()
@@ -441,7 +439,31 @@ async def bot_execute(
         raise HTTPException(status_code=403, detail=f"Action non autorisee : {action_type}")
     require_bot_permission(current_user, permission)
 
-    # Audit (S8) — point d'etranglement, toute ecriture LLM est tracee ici.
+    # Reconstituer le format attendu par ActionDispatcher.execute()
+    pending_action = {"type": action_type, "params": record.params_json}
+
+    try:
+        response = dispatcher.execute(pending_action, db, current_user)
+    except Exception as e:
+        # Audit échec d'exécution
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=employer_id,
+            action="BOT_EXECUTE",
+            resource_type=str(action_type),
+            resource_id=str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None,
+            severity="ERROR",
+            details=f"Échec exécution action Crown Bot (id={action_id}) : {action_type}. Erreur : {str(e)}",
+        )
+        raise
+
+    # Marquer comme execute
+    record.status = "executed"
+    record.executed_at = datetime.utcnow()
+    db.commit()
+
+    # Audit succès d'exécution (APRÈS le commit)
     audit_service.log(
         db=db,
         user_id=current_user.id,
@@ -449,18 +471,9 @@ async def bot_execute(
         action="BOT_EXECUTE",
         resource_type=str(action_type),
         resource_id=str(record.params_json.get("patient_id")) if record.params_json.get("patient_id") else None,
-        severity="WARNING",
-        details=f"Action confirmee via Crown Bot (id={action_id}) : {action_type}",
+        severity="INFO",
+        details=f"Action Crown Bot executee avec succes (id={action_id}) : {action_type}",
     )
-
-    # Reconstituer le format attendu par ActionDispatcher.execute()
-    pending_action = {"type": action_type, "params": record.params_json}
-    response = dispatcher.execute(pending_action, db, current_user)
-
-    # Marquer comme execute
-    record.status = "executed"
-    record.executed_at = datetime.utcnow()
-    db.commit()
 
     return response.to_dict()
 

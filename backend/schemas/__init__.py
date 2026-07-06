@@ -133,6 +133,12 @@ from .documents import (
     HonoraireListResponse,
 )
 
+from .bot import (
+    BotExecuteRequest,
+    BotChatRequest,
+    BotCancelRequest,
+)
+
 from .cabinet import (
     FontConfig,
     ColorConfig,
