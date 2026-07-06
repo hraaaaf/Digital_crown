@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useAuthenticatedImage } from '../../../../hooks/useAuthenticatedImage';
 import {
   UserCircle,
   Stethoscope,
@@ -81,6 +82,8 @@ export const ProfileTab: React.FC = () => {
     }
     return `${API_BASE}/static/uploads/${cleanPath}`;
   };
+
+  const logoSrc = useAuthenticatedImage(getImageUrl(profile.logo_path));
 
   const generateHeaders = (nom: string, nomAr: string, specialtyIds: string[], customFr: string, customAr: string) => {
     const linesFr = [];
@@ -344,10 +347,10 @@ export const ProfileTab: React.FC = () => {
               >
                 {profile.logo_path ? (
                   <>
-                    <img 
-                      src={getImageUrl(profile.logo_path)} 
-                      alt="Logo" 
-                      className="w-full h-full object-contain p-4" 
+                    <img
+                      src={logoSrc}
+                      alt="Logo"
+                      className="w-full h-full object-contain p-4"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <Upload className="text-white" size={24} />

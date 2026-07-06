@@ -5,9 +5,10 @@ import asyncio
 import logging
 import contextlib
 from datetime import datetime
-from dotenv import load_dotenv
-# Charger .env explicitement avant toute lecture de os.getenv()
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
+from backend.env_loader import load_backend_env
+
+# Charger l'env backend explicitement avant toute lecture de os.getenv()
+load_backend_env(override=True)
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +25,7 @@ from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
 import webbrowser
 import sentry_sdk
+from backend.config import settings as app_settings
 
 sentry_dsn = os.getenv("SENTRY_DSN")
 if sentry_dsn:
@@ -47,7 +49,7 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 # TTL = 60s — après expiration, SQLite est re-consulté
 _license_cache: dict[str, tuple[bool, str, float]] = {}
 _CACHE_TTL = 60  # secondes
-_SUPERADMIN_EMAIL = os.getenv("SUPERADMIN_EMAIL", "").lower().strip()
+_SUPERADMIN_EMAIL = app_settings.SUPERADMIN_EMAIL.lower().strip()
 if not _SUPERADMIN_EMAIL:
     logger.warning(
         "SUPERADMIN_EMAIL non défini. Les vérifications superadmin seront désactivées. "
@@ -547,15 +549,19 @@ async def serve_acte_attachment(
 
     return _serve_protected_file(os.path.join(UPLOAD_DIR, "actes"), safe)
 
-# --- Mounts PUBLICS (branding/logo/polices/modèles uniquement) ---------------
-# Les sous-chemins patients ci-dessus sont déjà interceptés ; ces mounts ne
-# servent donc plus que des assets non sensibles (clinics/, logo, assets, …).
-# /api/static/uploads est prioritaire pour le dossier local dev
-app.mount("/api/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="api_uploads")
-# /api/static sert le reste depuis MEDIA_DIR (logo, etc.)
-app.mount("/api/static", StaticFiles(directory=str(MEDIA_DIR)), name="static")
-# Mount legacy pour compatibilité
-app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# Branding cabinet (logos, en-têtes) — AUTH requise, pas de contrôle patient.
+@app.get("/api/static/uploads/clinics/{rel_path:path}", include_in_schema=False)
+@app.get("/static/uploads/clinics/{rel_path:path}", include_in_schema=False)
+async def serve_clinic_asset(
+    rel_path: str,
+    current_user=Depends(get_current_user),
+):
+    return _serve_protected_file(os.path.join(UPLOAD_DIR, "clinics"), rel_path)
+
+# --- SECURITE P0 : mounts StaticFiles publics supprimés ----------------------
+# Tous les chemins patients (panoramic, radios, archives, documents, actes, clinics)
+# sont couverts par des routes authentifiées ci-dessus.
+# Tout chemin non couvert retourne 404 (comportement sûr par défaut).
 
 # 2. Servage du Frontend React (SPA)
 FRONTEND_DIST = AppPaths.get_static_dir()

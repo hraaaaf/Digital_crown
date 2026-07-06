@@ -6,6 +6,7 @@ import {
   PREMIUM_FONTS
 } from '../constants';
 import { API_BASE } from '../../../services/api';
+import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { useSettingsStore } from '../Settings/hooks/useSettingsStore';
 
 
@@ -35,7 +36,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
   // Directly pull state from props or fallback to profile
   const selectedTemplate = props.selectedTemplate || profile.selected_template || 'swiss';
   const selectedFont = props.selectedFont || profile.font_fr || 'inter';
-  const headerOption = props.headerOption || (profile.letterhead_path ? 'letterhead' : 'auto');
+  const headerOption = props.headerOption || ((profile.use_letterhead && profile.letterhead_path) ? 'letterhead' : 'auto');
   const headerScale = props.headerScale ?? profile.header_scale ?? 1.1;
   const logoPreview = props.logoPreview !== undefined ? props.logoPreview : (profile.logo_path || null);
   const letterheadPreview = props.letterheadPreview !== undefined ? props.letterheadPreview : (profile.letterhead_path || null);
@@ -103,8 +104,8 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
     return `${API_BASE}/static/uploads/${cleanPath}`;
   };
 
-  const resolvedLogo = getImageUrl(logoPreview);
-  const resolvedLetterhead = getImageUrl(letterheadPreview);
+  const resolvedLogo = useAuthenticatedImage(getImageUrl(logoPreview) ?? '');
+  const resolvedLetterhead = useAuthenticatedImage(getImageUrl(letterheadPreview) ?? '');
 
   return (
     <div className="w-full bg-[#F8FAFC] rounded-[3.5rem] p-12 border border-slate-200 shadow-xl flex justify-center relative overflow-hidden group">
@@ -279,12 +280,14 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                 )}
 
                 {/* Main Footer Text */}
+                {headerOption !== 'letterhead' && (
                 <div className="absolute bottom-6 left-10 right-10 flex flex-col items-center text-center gap-2">
                    <div className="w-12 h-1 rounded-full opacity-20" style={{ backgroundColor: brandColor }} />
                    <p className="text-[8px] font-bold uppercase tracking-tight" style={{ color: secondaryColor }}>{identity.adresse || 'ADRESSE DU CABINET'}</p>
                    <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: brandColor }}>{contactString || '05 XX XX XX XX'}</p>
                    <p className="text-[6px] font-black uppercase opacity-20 mt-2">Digital Crown Elite v4.5</p>
                 </div>
+                )}
             </div>
 
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
+import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { 
@@ -45,6 +46,11 @@ interface Appointment {
 
 interface PatientTrackingProps {
   patientId: number;
+}
+
+function AuthImg({ url, className }: { url: string; className?: string }) {
+  const src = useAuthenticatedImage(url);
+  return <img src={src} alt="Pièce jointe" className={className} />;
 }
 
 export const PatientTracking = ({ patientId }: PatientTrackingProps) => {
@@ -407,7 +413,7 @@ export const PatientTracking = ({ patientId }: PatientTrackingProps) => {
                       <div className="flex gap-3">
                         {acte.attachments.map((url, idx) => (
                           <div key={idx} className="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden shadow-sm">
-                            <img src={url} alt="Attachment" className="w-full h-full object-cover" />
+                            <AuthImg url={url} className="w-full h-full object-cover" />
                           </div>
                         ))}
                       </div>

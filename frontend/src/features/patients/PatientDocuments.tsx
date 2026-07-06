@@ -75,6 +75,31 @@ export const PatientDocuments = () => {
     setEditingDoc(doc);
   };
 
+  const handleView = async (url: string) => {
+    try {
+      const clean = url.startsWith('/') ? url.slice(1) : url;
+      const res = await api.get(`/${clean}`, { responseType: 'blob' });
+      window.open(URL.createObjectURL(res.data), '_blank');
+    } catch (err) {
+      console.error("Erreur lors de la visualisation:", err);
+      alert("Impossible d'ouvrir le document.");
+    }
+  };
+
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const clean = url.startsWith('/') ? url.slice(1) : url;
+      const res = await api.get(`/${clean}`, { responseType: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(res.data);
+      a.download = filename;
+      a.click();
+    } catch (err) {
+      console.error("Erreur lors du téléchargement:", err);
+      alert("Impossible de télécharger le document.");
+    }
+  };
+
   const getDocIcon = (type: string, className: string) => {
     switch (type.toUpperCase()) {
       case 'ORDONNANCE': return <Pill className={className} />;
@@ -204,21 +229,18 @@ export const PatientDocuments = () => {
                 </div>
               ) : (
                 <>
-                  <a
-                    href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => handleView(doc.url)}
                     className="flex items-center justify-center gap-2 py-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
                   >
                     <Eye size={16} /> Voir
-                  </a>
-                  <a
-                    href={`${API_BASE}/api/${doc.url.startsWith('/') ? doc.url.substring(1) : doc.url}`}
-                    download={doc.name}
+                  </button>
+                  <button
+                    onClick={() => handleDownload(doc.url, doc.name)}
                     className="flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
                   >
                     <Download size={16} /> Fichier
-                  </a>
+                  </button>
                 </>
               )}
             </div>
