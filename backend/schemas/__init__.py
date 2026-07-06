@@ -139,6 +139,14 @@ from .bot import (
     BotCancelRequest,
 )
 
+from .rvg import (
+    RVGUploadForm,
+    RVGResponse,
+    ALLOWED_RVG_TYPES,
+    ALLOWED_MIMES,
+    MAX_RVG_SIZE,
+)
+
 from .cabinet import (
     FontConfig,
     ColorConfig,

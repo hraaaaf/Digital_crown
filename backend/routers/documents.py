@@ -553,3 +553,153 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 
 
+@router.post("/patients/{patient_id}/rvg")
+async def upload_rvg(
+    patient_id: int,
+    file: UploadFile = File(...),
+    radio_type: str = "rvg",
+    tooth_number: Optional[str] = None,
+    sector: Optional[str] = None,
+    acquisition_date: Optional[date] = None,
+    note: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Upload une radio RVG/intra-orale pour un patient.
+    Stocke dans DocumentArchive avec document_type=RADIOGRAPHIE et tags=["rvg", "intra_orale"].
+    """
+    # Sécurité : vérifier accès patient
+    assert_patient_access(patient_id, db, current_user)
+    employer_id = current_user.get_employer_id()
+
+    # Permission check
+    if not has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS.get("radiographie")):
+        raise HTTPException(status_code=403, detail="Permission refusée pour ajouter une radio.")
+
+    # MIME type validation
+    if file.content_type not in schemas.ALLOWED_MIMES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Format non autorisé. Acceptés : {', '.join(schemas.ALLOWED_MIMES)}",
+        )
+
+    # File size validation
+    file_data = await file.read()
+    if len(file_data) > schemas.MAX_RVG_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Fichier trop volumineux (max {schemas.MAX_RVG_SIZE // (1024*1024)} MB).",
+        )
+
+    # Extension validation
+    _, ext = os.path.splitext(file.filename or "file")
+    if ext.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
+        raise HTTPException(status_code=422, detail="Extension non autorisée.")
+
+    # Get patient
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient non trouvé.")
+
+    # Prepare clinical data
+    clinical_data = {
+        "radio_type": radio_type,
+        "tooth_number": tooth_number,
+        "sector": sector,
+        "acquisition_date": str(acquisition_date) if acquisition_date else None,
+        "note": note,
+    }
+
+    # Archive the document using archive_service
+    archive_service = get_archive_service()
+    from uuid import uuid4
+    unique_filename = f"{uuid4()}{ext}"
+
+    doc = archive_service.archive_document(
+        patient_id=patient_id,
+        file_content=file_data,
+        original_filename=file.filename or unique_filename,
+        document_type=schemas.DocumentType.RADIOGRAPHIE,
+        tags=["rvg", "intra_orale"],
+        clinical_data=clinical_data,
+        uploaded_by_id=current_user.id,
+        employer_id=employer_id,
+        db=db,
+    )
+
+    # Audit log
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=employer_id,
+        action="RVG_UPLOAD",
+        resource_type="RADIOGRAPHIE",
+        resource_id=str(patient_id),
+        severity="INFO",
+        details=f"RVG téléchargée pour le patient {patient_id} : {file.filename}",
+    )
+
+    db.commit()
+
+    return {
+        "id": doc.id,
+        "patient_id": doc.patient_id,
+        "download_url": f"/api/documents/{doc.id}/download",
+        "document_type": doc.document_type.value,
+        "original_filename": doc.original_filename,
+        "tags": doc.tags,
+        "clinical_data": doc.clinical_data,
+        "created_at": doc.created_at.isoformat(),
+    }
+
+
+@router.get("/patients/{patient_id}/rvg")
+async def list_patient_rvg(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Liste les radios RVG d'un patient.
+    Filtre par document_type=RADIOGRAPHIE et tags contenant "rvg".
+    """
+    # Sécurité : vérifier accès patient
+    assert_patient_access(patient_id, db, current_user)
+
+    # Permission check
+    if not has_permission(current_user, DOCUMENT_TYPE_PERMISSIONS.get("radiographie")):
+        raise HTTPException(status_code=403, detail="Permission refusée.")
+
+    # Query RVG documents
+    employer_id = current_user.get_employer_id()
+    documents = (
+        db.query(models.DocumentArchive)
+        .filter(
+            models.DocumentArchive.patient_id == patient_id,
+            models.DocumentArchive.employer_id == employer_id,
+            models.DocumentArchive.document_type == schemas.DocumentType.RADIOGRAPHIE,
+            models.DocumentArchive.status == schemas.DocumentStatus.ACTIF,
+        )
+        .order_by(desc(models.DocumentArchive.created_at))
+        .all()
+    )
+
+    # Filter by tags (only RVG/intra_orale)
+    rvg_docs = [d for d in documents if d.tags and ("rvg" in d.tags or "intra_orale" in d.tags)]
+
+    return [
+        {
+            "id": d.id,
+            "patient_id": d.patient_id,
+            "document_type": d.document_type.value,
+            "original_filename": d.original_filename,
+            "download_url": f"/api/documents/{d.id}/download",
+            "tags": d.tags,
+            "clinical_data": d.clinical_data,
+            "created_at": d.created_at.isoformat(),
+            "uploaded_by_id": d.uploaded_by_id,
+        }
+        for d in rvg_docs
+    ]
+
