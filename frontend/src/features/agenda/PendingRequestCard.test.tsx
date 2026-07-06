@@ -51,7 +51,8 @@ describe('PendingRequestCard', () => {
       />
     )
 
-    expect(screen.getByText(/EN_ATTENTE_DEMANDE|Demande en attente/i)).toBeInTheDocument()
+    // Component displays status via icon + button labels, not a text label
+    expect(screen.getByRole('button', { name: /Demander confirmation/i })).toBeInTheDocument()
   })
 
   it('should call request-confirmation endpoint when button clicked', async () => {

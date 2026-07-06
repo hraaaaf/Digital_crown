@@ -21,21 +21,17 @@ describe('Crown Bot executeAction Security', () => {
   it('should send ONLY pending_action_id to /bot/execute', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ data: { status: 'executed' } })
 
-    // Simulate the frontend service call
-    await api.post('/bot/execute', {
-      pending_action_id: 'action-uuid-123',
-    })
+    const payload = { pending_action_id: 'action-uuid-123' }
+    await api.post('/bot/execute', payload)
 
     // Verify ONLY pending_action_id is in the payload
     expect(api.post).toHaveBeenCalledWith(
       '/bot/execute',
-      {
-        pending_action_id: 'action-uuid-123',
-      }
+      payload
     )
 
     // Verify no other fields are sent
-    const callPayload = vi.mocked(api.post).mock.calls[0][1]
+    const callPayload = vi.mocked(api.post).mock.calls[0][1] as Record<string, any>
     expect(Object.keys(callPayload)).toEqual(['pending_action_id'])
   })
 
