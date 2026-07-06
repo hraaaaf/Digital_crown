@@ -4,7 +4,7 @@ import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
 
-export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ';
+export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
 export interface Appointment {
   id: number;
@@ -105,6 +105,12 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
       case 'EN_FAUTEUIL': return 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200';
       case 'TERMINÉ': return 'bg-slate-100 text-slate-500 border-slate-200 opacity-60';
       case 'ANNULÉ': return 'bg-rose-50 text-rose-500 border-rose-200 line-through opacity-70';
+      case 'EN_ATTENTE_DEMANDE': return 'bg-orange-100 text-orange-700 border-orange-400 hover:bg-orange-200';
+      case 'EN_ATTENTE_CONFIRM': return 'bg-yellow-100 text-yellow-700 border-yellow-400 hover:bg-yellow-200';
+      case 'CONFIRMÉ': return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200';
+      case 'REFUSÉ': return 'bg-red-100 text-red-500 border-red-200 line-through opacity-70';
+      case 'EXPIRÉ': return 'bg-gray-100 text-gray-400 border-gray-200 opacity-50';
+      case 'ABSENT': return 'bg-rose-100 text-rose-600 border-rose-200 hover:bg-rose-200';
       default: return 'bg-primary/5 text-primary border-primary/10';
     }
   };
@@ -116,6 +122,12 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
       case 'EN_FAUTEUIL': return 'bg-emerald-500';
       case 'TERMINÉ': return 'bg-slate-400';
       case 'ANNULÉ': return 'bg-rose-500';
+      case 'EN_ATTENTE_DEMANDE': return 'bg-orange-500';
+      case 'EN_ATTENTE_CONFIRM': return 'bg-yellow-500';
+      case 'CONFIRMÉ': return 'bg-blue-500';
+      case 'REFUSÉ': return 'bg-red-500';
+      case 'EXPIRÉ': return 'bg-gray-400';
+      case 'ABSENT': return 'bg-rose-600';
       default: return 'bg-primary';
     }
   };
