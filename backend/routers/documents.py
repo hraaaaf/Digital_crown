@@ -338,7 +338,10 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
     content = await file.read()
     archive_service = get_archive_service(db)
     doc, is_new = archive_service.archive_document(patient_id=patient_id, file_content=content, filename=file.filename, doc_type=doc_type, uploaded_by_id=current_user.id, title=title, on_conflict=on_conflict)
-    return {"success": True, "message": "Archivé", "document": doc}
+    doc_dict = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
+    doc_dict["file_exists"] = bool(doc.file_path and os.path.exists(os.path.join(BASE_DIR, doc.file_path)))
+    doc_dict["download_url"] = f"/api/documents/{doc.id}/download"
+    return {"success": True, "message": "Archivé", "document": doc_dict}
 
 @router.get("/", response_model=schemas.DocumentListResponse)
 def list_documents(patient_id: Optional[int] = None, doc_type: Optional[schemas.DocumentType] = None, search: Optional[str] = None, page: int = 1, page_size: int = 20, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
