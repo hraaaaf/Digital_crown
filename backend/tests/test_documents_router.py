@@ -197,16 +197,16 @@ class TestArchiveDocumentEndpoint:
         db.commit()
         db.refresh(pat)
         fake_pdf = io.BytesIO(b"%PDF-1.4 test content for archive")
-        import pytest as _pytest
-        # Endpoint hits a response schema issue in the test env (download_url missing).
-        # We verify it passes auth and reaches the handler (not 401/403/422).
-        with _pytest.raises(Exception):
-            client.post(
-                "/api/documents/archive",
-                params={"patient_id": pat.id, "doc_type": "ORDONNANCE"},
-                files={"file": ("test.pdf", fake_pdf, "application/pdf")},
-                headers=auth_headers,
-            )
+        r = client.post(
+            "/api/documents/archive",
+            params={"patient_id": pat.id, "doc_type": "ORDONNANCE"},
+            files={"file": ("test.pdf", fake_pdf, "application/pdf")},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["success"] is True
+        assert body["document"]["download_url"] == f"/api/documents/{body['document']['id']}/download"
 
 
 class TestTrashRestoreDelete:
