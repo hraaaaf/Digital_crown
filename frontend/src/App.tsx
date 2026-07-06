@@ -147,7 +147,10 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [isPaired, setIsPaired] = useState<boolean | null>(null);
 
   useEffect(() => {
-    MobileStorage.isPaired().then(setIsPaired);
+    // Sans .catch(), un rejet (IndexedDB indisponible/bloqué) laissait isPaired
+    // bloqué à null pour toujours → spinner infini au lieu de retomber sur
+    // l'écran d'appairage (perçu par l'utilisateur comme "l'app ne reste pas connectée").
+    MobileStorage.isPaired().then(setIsPaired).catch(() => setIsPaired(false));
   }, []);
 
   if (isPaired === null) return <PageLoader />;

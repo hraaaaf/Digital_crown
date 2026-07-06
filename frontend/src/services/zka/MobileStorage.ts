@@ -18,7 +18,7 @@ const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
-  /** JWT mobile 24h pour /api/mobile/snapshot */
+  /** JWT mobile 365 jours pour /api/mobile/* (cf. backend/routers/mobile.py::_create_mobile_jwt) */
   access_token: string;
   /** URL du backend LAN (ex: http://192.168.1.50:8000) */
   api_base_url: string;
@@ -38,6 +38,13 @@ export const MobileStorage = {
     if (!/^[0-9a-fA-F]{64}$/.test(creds.masterKey)) throw new Error('Clé Maître invalide.');
     if (!creds.access_token) throw new Error('Token mobile manquant.');
     await localforage.setItem(STORE_CREDENTIALS_ID, creds);
+    // Demande un stockage "persistant" pour réduire le risque d'éviction d'IndexedDB
+    // par le navigateur/OS sous pression de stockage ou après inactivité prolongée
+    // (cause probable de perte d'appairage vue par l'utilisateur comme "déconnexion").
+    // Best-effort : ignoré si l'API n'existe pas ou si le navigateur refuse.
+    try {
+      await navigator.storage?.persist?.();
+    } catch { /* ignore */ }
   },
 
   async saveLastSnapshot(data: any): Promise<void> {
