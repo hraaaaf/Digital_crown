@@ -132,6 +132,9 @@ async def lifespan(app: FastAPI):
         # 1. Initialisation DB dans %APPDATA% via AppPaths
         models.Base.metadata.create_all(bind=database.engine)
 
+        # 2. Migration des colonnes frontdesk pour les appointments
+        database.migrate_appointment_columns()
+
         # Activation de la synchronisation Zero-Knowledge (Observer Mode)
         sync_manager.start_listening()
 
@@ -375,7 +378,7 @@ from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
     intelligence, clinical_data, mobile, installments, lab_jobs,
-    bot, catalog, verification, analytics, agenda_settings, medications
+    bot, catalog, verification, analytics, agenda_settings, medications, frontdesk
 )
 from backend.routers import ai_feedback as ai_feedback_router
 
@@ -389,6 +392,7 @@ app.include_router(stats.router, prefix="/api/stats", tags=["Statistiques"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics & Finance"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Agenda"])
+app.include_router(frontdesk.router, prefix="/api", tags=["Frontdesk"])
 app.include_router(agenda_settings.router, prefix="/api", tags=["Agenda Settings"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 app.include_router(prescriptions.prescription_router, prefix="/api/prescriptions", tags=["Prescriptions"])

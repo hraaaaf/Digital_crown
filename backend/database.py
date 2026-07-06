@@ -127,11 +127,34 @@ else:
     )
 
 SessionLocal = sessionmaker(
-    autocommit=False, 
-    autoflush=False, 
+    autocommit=False,
+    autoflush=False,
     bind=engine
 )
 
+
+def migrate_appointment_columns():
+    """Ajoute les colonnes frontdesk si absentes (SQLite ALTER TABLE)."""
+    from sqlalchemy import text
+    new_columns = [
+        ("source", "VARCHAR(50)"),
+        ("phone", "VARCHAR(30)"),
+        ("confirmed_by_id", "INTEGER"),
+        ("confirmed_at", "DATETIME"),
+        ("expires_at", "DATETIME"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for col_name, col_type in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE appointments ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                    logger.info(f"✅ Added column {col_name} to appointments table")
+                except Exception as e:
+                    # Column already exists or other error
+                    logger.debug(f"Column {col_name} may already exist: {e}")
+    except Exception as e:
+        logger.warning(f"Migration warning: {e}")
 
 
 def get_db():

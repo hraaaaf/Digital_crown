@@ -46,11 +46,19 @@ class PaymentMethod(str, enum.Enum):
     CHEQUE = "CHEQUE"
 
 class AppointmentStatus(str, enum.Enum):
+    # Legacy statuts
     PREVU = "PRÉVU"
-    EN_SALLE_ATTENTE = "EN_S_ATTENTE" 
+    EN_SALLE_ATTENTE = "EN_S_ATTENTE"
     EN_FAUTEUIL = "EN_FAUTEUIL"
     TERMINE = "TERMINÉ"
     ANNULE = "ANNULÉ"
+    # Frontdesk statuts
+    EN_ATTENTE_DEMANDE = "EN_ATTENTE_DEMANDE"
+    EN_ATTENTE_CONFIRM = "EN_ATTENTE_CONFIRM"
+    CONFIRME = "CONFIRMÉ"
+    REFUSE = "REFUSÉ"
+    EXPIRE = "EXPIRÉ"
+    ABSENT = "ABSENT"
  
 class SchedulingType(str, enum.Enum):
     EXACT_TIME = "EXACT_TIME"
@@ -265,7 +273,14 @@ class Appointment(Base):
     employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    
+
+    # Frontdesk fields (nullable, backward-compatible)
+    source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)           # "frontdesk"|"web"|"bot"|"internal"
+    phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)            # for standalone appointments
+    confirmed_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)    # for auto-expiry of pending
+
     # Relation inversée
     patient: Mapped[Optional["Patient"]] = relationship(back_populates="appointments")
 

@@ -22,11 +22,19 @@ class StyleKey(str, Enum):
 
 
 class AppointmentStatus(str, Enum):
+    # Legacy statuts
     PREVU = "PRÉVU"
     EN_SALLE_ATTENTE = "EN_S_ATTENTE"
     EN_FAUTEUIL = "EN_FAUTEUIL"
     TERMINE = "TERMINÉ"
     ANNULE = "ANNULÉ"
+    # Frontdesk statuts
+    EN_ATTENTE_DEMANDE = "EN_ATTENTE_DEMANDE"
+    EN_ATTENTE_CONFIRM = "EN_ATTENTE_CONFIRM"
+    CONFIRME = "CONFIRMÉ"
+    REFUSE = "REFUSÉ"
+    EXPIRE = "EXPIRÉ"
+    ABSENT = "ABSENT"
 
 
 class SchedulingType(str, Enum):

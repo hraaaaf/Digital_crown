@@ -38,6 +38,7 @@ from .appointments import (
     AppointmentImportItem,
     AppointmentBulkCreate,
     AppointmentSuggestionOut,
+    FrontdeskCreateRequest,
 )
 
 from .clinical import (
@@ -212,6 +213,7 @@ __all__ = [
     # appointments
     "AppointmentBase", "AppointmentCreate", "AppointmentUpdate",
     "AppointmentOut", "AppointmentImportItem", "AppointmentBulkCreate", "AppointmentSuggestionOut",
+    "FrontdeskCreateRequest",
     # clinical
     "DiagnosticSLM", "MeasureData", "DentalAnalysis", "SkeletalAnalysis",
     "EstheticAnalysis", "AnalysisMetrics", "CephaloAnalysisOut",
