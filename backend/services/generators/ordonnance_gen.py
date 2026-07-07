@@ -51,7 +51,7 @@ class OrdonnanceGenerator:
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
 
     def _create_header(self, patient, data, p_color, config=None):
-        doc_date = getattr(data, 'doc_date', date.today())
+        doc_date = getattr(data, 'doc_date', None) or date.today()
         if isinstance(doc_date, str):
             try:
                 doc_date = datetime.strptime(doc_date, '%Y-%m-%d').date()

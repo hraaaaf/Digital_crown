@@ -46,7 +46,7 @@ class LibreGenerator:
         if custom_date:
             current_date = custom_date
         else:
-            doc_date = getattr(data, 'doc_date', date.today())
+            doc_date = getattr(data, 'doc_date', None) or date.today()
             current_date = doc_date.strftime('%d/%m/%Y') if hasattr(doc_date, 'strftime') else str(doc_date)
         
         # 2. Gestion du Destinataire (PrioritÃ© Ã  custom_patient)
