@@ -341,6 +341,11 @@ async def archive_document(patient_id: int, doc_type: schemas.DocumentType, file
     doc_dict = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
     doc_dict["file_exists"] = bool(doc.file_path and os.path.exists(os.path.join(BASE_DIR, doc.file_path)))
     doc_dict["download_url"] = f"/api/documents/{doc.id}/download"
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="DOCUMENT_UPLOADED", resource_type=str(doc_type), resource_id=str(doc.id),
+        severity="INFO", details=f"Document {doc_type} archivé pour le patient {patient_id} : {file.filename}",
+    )
     return {"success": True, "message": "Archivé", "document": doc_dict}
 
 @router.get("/", response_model=schemas.DocumentListResponse)
@@ -446,6 +451,11 @@ def download_document(
             status_code=404,
             detail="Fichier introuvable sur ce serveur. Le document existe en base mais le fichier physique est manquant (migration ou réinstallation)."
         )
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="MEDIA_ACCESS_GRANTED", resource_type=str(doc.document_type), resource_id=str(doc.id),
+        severity="INFO", details=f"Téléchargement document {doc.id} (patient {doc.patient_id})",
+    )
     return FileResponse(path=abs_path, filename=doc.original_filename)
 
 @router.post("/{document_id}/trash")
@@ -539,6 +549,12 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     validation = cephalo_consistency_validator.validate(last_analysis.angles_data or {})
     if not validation.is_valid:
+        audit_service.log(
+            db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+            action="CEPHALO_PDF_BLOCKED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
+            severity="WARNING",
+            details=f"PDF céphalo refusé (patient {patient_id}) : {'; '.join(validation.fatals)}",
+        )
         raise HTTPException(
             status_code=422,
             detail={
@@ -553,6 +569,11 @@ def generate_patient_report(patient_id: int, req: schemas.CephaloPDFRequest, db:
     if req.clinical_data: analysis_data["results"]["clinical_data"] = req.clinical_data.model_dump() if hasattr(req.clinical_data, 'model_dump') else req.clinical_data
 
     pdf_path = doc_factory.create_cephalo_report(patient, analysis_data, db=db, user_id=current_user.id)
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="CEPHALO_PDF_GENERATED", resource_type="CephaloAnalysis", resource_id=str(last_analysis.id),
+        severity="INFO", details=f"PDF céphalo généré (patient {patient_id})",
+    )
     return FileResponse(path=pdf_path, filename=os.path.basename(pdf_path), media_type='application/pdf')
 
 

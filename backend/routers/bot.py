@@ -420,15 +420,26 @@ async def bot_execute(
     if not record:
         raise HTTPException(status_code=404, detail="Action introuvable ou acces refuse.")
 
+    def _log_rejected(reason: str, severity: str = "WARNING") -> None:
+        audit_service.log(
+            db=db, user_id=current_user.id, employer_id=employer_id,
+            action="CROWN_BOT_ACTION_REJECTED", resource_type=str(record.action_type),
+            resource_id=action_id, severity=severity,
+            details=f"Action Crown Bot rejetée (id={action_id}) : {reason}",
+        )
+
     if record.status == "executed":
+        _log_rejected("déjà exécutée")
         raise HTTPException(status_code=409, detail="Cette action a deja ete executee.")
 
     if record.status == "expired" or record.expires_at < datetime.utcnow():
         record.status = "expired"
         db.commit()
+        _log_rejected("expirée (> 30 min)")
         raise HTTPException(status_code=410, detail="Cette action a expire (> 30 min). Redemandez au Crown Bot.")
 
     if record.status == "cancelled":
+        _log_rejected("annulée")
         raise HTTPException(status_code=409, detail="Cette action a ete annulee.")
 
     action_type = record.action_type
@@ -436,6 +447,7 @@ async def bot_execute(
     # Fail-closed : type inconnu ou non autorise -> 403
     permission = ACTION_PERMISSIONS.get(action_type)
     if permission is None:
+        _log_rejected(f"type non autorisé : {action_type}", severity="ERROR")
         raise HTTPException(status_code=403, detail=f"Action non autorisee : {action_type}")
     require_bot_permission(current_user, permission)
 

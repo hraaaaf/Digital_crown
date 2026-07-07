@@ -426,6 +426,67 @@ async def health_check():
     except Exception as e:
         return JSONResponse(status_code=503, content={"status": "degraded", "db": str(e)})
 
+
+def _get_app_version() -> str:
+    """Retourne le hash court du commit git déployé, ou 'unknown' hors dépôt git."""
+    try:
+        import subprocess
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, stderr=subprocess.DEVNULL, timeout=2,
+        ).decode().strip()
+    except Exception:
+        return "unknown"
+
+
+_APP_VERSION = _get_app_version()
+
+
+@app.get("/api/health", include_in_schema=False)
+async def api_health_check():
+    """Health check pré-prod/prod — statut app + DB + environnement + version déployée."""
+    db_status = "ok"
+    try:
+        with database.SessionLocal() as db:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"error: {e}"
+
+    payload = {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "database": db_status,
+        "environment": str(app_settings.ENVIRONMENT),
+        "version": _APP_VERSION,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+    return JSONResponse(status_code=200 if db_status == "ok" else 503, content=payload)
+
+
+@app.get("/api/health/db", include_in_schema=False)
+async def api_health_db():
+    """Vérifie uniquement la connexion DB (SELECT 1)."""
+    try:
+        with database.SessionLocal() as db:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+
+
+@app.get("/api/health/storage", include_in_schema=False)
+async def api_health_storage():
+    """Vérifie que le dossier de stockage média est accessible en écriture."""
+    try:
+        media_dir = AppPaths.get_user_data_dir() / "media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+        probe = media_dir / ".health_probe"
+        probe.write_text("ok")
+        probe.unlink()
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "error", "detail": str(e)})
+
 # --- STATIC FILES & UI ---
 
 @app.get('/favicon.ico', include_in_schema=False)
@@ -470,7 +531,7 @@ def _serve_protected_file(base_dir: str, rel_path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     return FileResponse(abs_path)
 
-def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str):
+def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name: str, path_fragment: str, current_user=None):
     """
     Vérifie que le fichier appartient au cabinet de l'utilisateur.
     Stratégie : si un enregistrement DB existe pour ce chemin mais appartient à un
@@ -485,6 +546,13 @@ def _assert_media_tenant(db: Session, employer_id: int, model_cls, path_col_name
         .first()
     )
     if record is not None and record.patient.employer_id != employer_id:
+        if current_user is not None:
+            from backend.services.audit_service import audit_service
+            audit_service.log(
+                db=db, user_id=current_user.id, employer_id=employer_id,
+                action="MEDIA_ACCESS_DENIED", resource_type=model_cls.__name__, resource_id=path_fragment,
+                severity="WARNING", details=f"Tentative d'accès média cross-tenant : {path_fragment}",
+            )
         raise HTTPException(status_code=403, detail="Accès refusé")
 
 # Imagerie patient (radios) — AUTH + tenant requis.
@@ -495,7 +563,7 @@ async def serve_panoramic(
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.PanoramicAnalysis, "image_path", f"panoramic/{rel_path}")
+    _assert_media_tenant(db, current_user.get_employer_id(), models.PanoramicAnalysis, "image_path", f"panoramic/{rel_path}", current_user)
     return _serve_protected_file(os.path.join(UPLOAD_DIR, "panoramic"), rel_path)
 
 @app.get("/api/static/uploads/radios/{rel_path:path}", include_in_schema=False)
@@ -505,7 +573,7 @@ async def serve_radios(
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.CephaloAnalysis, "image_original_path", f"radios/{rel_path}")
+    _assert_media_tenant(db, current_user.get_employer_id(), models.CephaloAnalysis, "image_original_path", f"radios/{rel_path}", current_user)
     return _serve_protected_file(os.path.join(UPLOAD_DIR, "radios"), rel_path)
 
 # Documents patients archivés (ordonnances, notes…) — AUTH + tenant requis.
@@ -515,7 +583,7 @@ async def serve_archives(
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path)
+    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "archives"), rel_path)
 
 @app.get("/api/static/documents/{rel_path:path}", include_in_schema=False)
@@ -524,7 +592,7 @@ async def serve_documents(
     current_user=Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path)
+    _assert_media_tenant(db, current_user.get_employer_id(), models.DocumentArchive, "file_path", rel_path, current_user)
     return _serve_protected_file(os.path.join(str(MEDIA_DIR), "documents"), rel_path)
 
 # Pièces jointes d'actes — AUTH + tenant requis (stockées dans uploads/actes/).
