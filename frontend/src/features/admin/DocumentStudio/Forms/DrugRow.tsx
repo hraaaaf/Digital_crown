@@ -269,7 +269,15 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                 {suggestions.medications.map((m, i) => (
                   <button
                     key={m}
-                    onClick={() => onApplySuggestion(drug.id, 'name', m)}
+                    type="button"
+                    onMouseDown={e => {
+                      // onMouseDown (pas onClick) : le mousedown précède le blur
+                      // de l'input dans l'ordre des événements navigateur.
+                      // preventDefault empêche l'input de perdre le focus et le
+                      // dropdown de se fermer avant que la sélection ne s'applique.
+                      e.preventDefault();
+                      onApplySuggestion(drug.id, 'name', m);
+                    }}
                     className={cn(
                       'w-full px-5 py-3 text-left text-[10px] font-black text-slate-600 transition-colors flex items-center justify-between',
                       i === highlightedIdx ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 hover:text-primary',
