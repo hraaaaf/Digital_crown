@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
+from backend.services.generators.document_layout_safety import join_unbreakable
 
 class LibreGenerator:
     def __init__(self, output_dir="static/documents"):
@@ -81,7 +82,7 @@ class LibreGenerator:
         else:
             # Mode standard : Nom, Âge, Dossier
             age = self._calculate_age(patient.date_naissance)
-            left_content = Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.upper()}</b><br/>Âge : {age} ans", patient_style)
+            left_content = Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.upper()}</b><br/>Âge : {join_unbreakable(age, 'ans')}", patient_style)
 
         header_content = [
             [

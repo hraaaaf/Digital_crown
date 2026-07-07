@@ -9,6 +9,19 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
+from backend.services.generators.document_layout_safety import join_unbreakable, protect_unit_patterns
+from backend.services.generators.document_typography import (
+    PRESCRIPTION_TITLE_SIZE,
+    PRESCRIPTION_PATIENT_SIZE,
+    PRESCRIPTION_DRUG_NAME_SIZE,
+    PRESCRIPTION_META_SIZE,
+    PRESCRIPTION_DOSAGE_SIZE,
+    PRESCRIPTION_INSTRUCTION_SIZE,
+    PRESCRIPTION_COL_NAME_CM,
+    PRESCRIPTION_COL_FORME_CM,
+    PRESCRIPTION_COL_DOSE_CM,
+    MIN_READABLE_SIZE,
+)
 
 
 class OrdonnanceGenerator:
@@ -55,9 +68,9 @@ class OrdonnanceGenerator:
             name='PatientInfo',
             parent=self.styles['Normal'],
             fontName=font_bold,
-            fontSize=11,
+            fontSize=PRESCRIPTION_PATIENT_SIZE,
             textColor=p_color,
-            leading=14,
+            leading=PRESCRIPTION_PATIENT_SIZE * 1.3,
         )
         style_right = ParagraphStyle(
             'DocDate',
@@ -65,10 +78,14 @@ class OrdonnanceGenerator:
             alignment=TA_RIGHT,
             textColor=p_color,
             fontName=font_name,
-            fontSize=11,
+            fontSize=PRESCRIPTION_PATIENT_SIZE,
         )
 
-        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        # "{age} ans" doit toujours rester groupé — jamais coupé sur deux
+        # lignes même si le nom du patient est long (join_unbreakable insère
+        # une espace insécable entre le nombre et l'unité).
+        age_group = join_unbreakable(age, "ans")
+        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age_group}</b>"
         patient_w = 7.5 * cm
         adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
         
@@ -157,7 +174,7 @@ class OrdonnanceGenerator:
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
-        title_fs = max(18 * compression_factor, 12)
+        title_fs = max(PRESCRIPTION_TITLE_SIZE * compression_factor, MIN_READABLE_SIZE + 5)
         title_style = ParagraphStyle(
             name='TitleA5',
             parent=self.styles['Normal'],
@@ -186,9 +203,9 @@ class OrdonnanceGenerator:
 
             num_meds = len(data.medications)
             
-            base_med_fs = 13 * compression_factor
-            base_form_fs = 11 * compression_factor
-            base_poso_fs = 12 * compression_factor
+            base_med_fs = PRESCRIPTION_DRUG_NAME_SIZE * compression_factor
+            base_form_fs = PRESCRIPTION_META_SIZE * compression_factor
+            base_poso_fs = PRESCRIPTION_INSTRUCTION_SIZE * compression_factor
 
             # Pré-calcul global des tailles minimales pour homogénéité
             min_name_fs = base_med_fs
@@ -202,23 +219,23 @@ class OrdonnanceGenerator:
                 
                 name_text = f"{i}- <b>{nom.upper()}</b>"
                 name_text_nbsp = name_text.replace(" ", "\u00a0")
-                name_w = 7.0*cm
-                name_fs = self.base_template.get_adaptive_font_size(name_text_nbsp, med_font_bold, base_med_fs, name_w - 0.5*cm)
+                name_w = PRESCRIPTION_COL_NAME_CM * cm
+                name_fs = self.base_template.get_adaptive_font_size(name_text_nbsp, med_font_bold, base_med_fs, name_w - 0.5*cm, min_fs=MIN_READABLE_SIZE)
                 if name_fs < min_name_fs:
                     min_name_fs = name_fs
-                    
+
                 display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
                 if display_forme:
-                    form_w = 3.0*cm
+                    form_w = PRESCRIPTION_COL_FORME_CM * cm
                     display_forme_nbsp = display_forme.replace(" ", "\u00a0")
-                    form_fs = self.base_template.get_adaptive_font_size(f"<i>{display_forme_nbsp}</i>", med_font, base_form_fs, form_w - 0.2*cm)
+                    form_fs = self.base_template.get_adaptive_font_size(f"<i>{display_forme_nbsp}</i>", med_font, base_form_fs, form_w - 0.2*cm, min_fs=MIN_READABLE_SIZE)
                     if form_fs < min_form_fs:
                         min_form_fs = form_fs
-                        
+
                 if dose:
-                    dose_w = 1.8*cm
+                    dose_w = PRESCRIPTION_COL_DOSE_CM * cm
                     dose_nbsp = dose.replace(" ", "\u00a0")
-                    dose_fs = self.base_template.get_adaptive_font_size(dose_nbsp, med_font, base_form_fs, dose_w - 0.1*cm)
+                    dose_fs = self.base_template.get_adaptive_font_size(dose_nbsp, med_font, base_form_fs, dose_w - 0.1*cm, min_fs=MIN_READABLE_SIZE)
                     if dose_fs < min_dose_fs:
                         min_dose_fs = dose_fs
 
@@ -250,31 +267,33 @@ class OrdonnanceGenerator:
                 is_radio = m_type == "EXAMEN" or "RADIO" in nom.upper() or "X-RAY" in nom.upper()
                 display_forme = forme.replace('AUTRE: ', '').replace('Autre: ', '') if forme else ""
                 
-                cols = []
-                col_widths = []
+                # Largeurs de colonnes FIXES pour toutes les lignes de l'ordonnance \u2014
+                # si elles variaient selon la pr\u00e9sence de forme/dosage sur chaque
+                # ligne, les colonnes ne s'alignaient plus verticalement entre
+                # m\u00e9dicaments (cellule vide plut\u00f4t que r\u00e9allocation de largeur).
+                name_w = PRESCRIPTION_COL_NAME_CM * cm
+                form_w = PRESCRIPTION_COL_FORME_CM * cm
+                dose_w = PRESCRIPTION_COL_DOSE_CM * cm
 
                 name_text = f"{i}- <b>{nom.upper()}</b>"
                 name_text_nbsp = name_text.replace(" ", "\u00a0")
-                name_w = 7.0*cm
-                cols.append(Paragraph(name_text_nbsp, med_name_style))
-                col_widths.append(name_w)
-                
+                cols = [Paragraph(name_text_nbsp, med_name_style)]
+                col_widths = [name_w]
+
                 if not is_radio:
                     if display_forme:
-                        form_w = 3.0*cm
                         display_forme_nbsp = display_forme.replace(" ", "\u00a0")
                         cols.append(Paragraph(f"<i>{display_forme_nbsp}</i>", med_forme_style))
-                        col_widths.append(form_w)
                     else:
-                        col_widths[0] += 1.0*cm
-                        
+                        cols.append(Paragraph("", med_forme_style))
+                    col_widths.append(form_w)
+
                     if dose:
-                        dose_w = 1.8*cm
                         dose_nbsp = dose.replace(" ", "\u00a0")
                         cols.append(Paragraph(f"{dose_nbsp}", med_dose_style))
-                        col_widths.append(dose_w)
                     else:
-                        col_widths[0] += 0.8*cm
+                        cols.append(Paragraph("", med_dose_style))
+                    col_widths.append(dose_w)
 
                 total_w = sum(col_widths)
                 if total_w < 11.8*cm:
@@ -292,17 +311,22 @@ class OrdonnanceGenerator:
                 
                 elements.append(med_line_table)
                 
+                # protect_unit_patterns évite qu'une posologie longue coupe un
+                # groupe nombre+unité ("3 jours", "1 semaine") en fin de ligne,
+                # sans empêcher le wrap normal du reste du texte.
+                posologie_safe = protect_unit_patterns(posologie) if posologie else posologie
+
                 if is_radio:
                     show_legal = getattr(data, 'show_legal_annotations', True)
                     if show_legal:
                         warning_msg = "⚠️ Radioprotection : À réaliser selon les normes de sécurité en vigueur."
-                        if posologie:
-                            warning_msg += f"<br/>{posologie.replace(chr(10), '<br/>')}"
+                        if posologie_safe:
+                            warning_msg += f"<br/>{posologie_safe.replace(chr(10), '<br/>')}"
                         elements.append(Paragraph(warning_msg, warning_style))
-                    elif posologie:
-                        elements.append(Paragraph(posologie.replace("\n", "<br/>"), poso_style))
-                elif posologie:
-                    poso_html = posologie.replace("\n", "<br/>")
+                    elif posologie_safe:
+                        elements.append(Paragraph(posologie_safe.replace("\n", "<br/>"), poso_style))
+                elif posologie_safe:
+                    poso_html = posologie_safe.replace("\n", "<br/>")
                     elements.append(Paragraph(poso_html, poso_style))
                 else:
                     spacer_h = max(0.5 * compression_factor, 0.1)

@@ -9,6 +9,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
+from backend.services.generators.document_layout_safety import join_unbreakable
 
 # Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
 _DAYS_WORDS = {
@@ -91,7 +92,7 @@ class CertificatGenerator:
         )
 
         patient_line = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b>"
-        patient_line += f", {age} ans"
+        patient_line += f", {join_unbreakable(age, 'ans')}"
 
         patient_w = 7.5 * cm
         adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_line, patient_w - 0.2*cm)
@@ -207,7 +208,7 @@ class CertificatGenerator:
             date_phrase = f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>"
 
         age = self._calculate_age(patient.date_naissance)
-        age_text = f", âgé(e) de {age} ans"
+        age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
 
         if "présence" in reason_lower:
             spec = "orthodontiques" if is_ortho else "bucco-dentaires"

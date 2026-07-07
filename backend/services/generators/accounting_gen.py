@@ -11,6 +11,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import centralisé du Design System
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
+from backend.services.generators.document_layout_safety import join_unbreakable
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -189,7 +190,7 @@ class AccountingGenerator:
             fontSize=11
         )
         
-        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {age} ans</b>"
+        patient_text = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}, {join_unbreakable(age, 'ans')}</b>"
         patient_w = 7.0 * cm
         adaptive_patient_style = self.base_template.get_adaptive_style(patient_style, patient_text, patient_w - 0.2*cm)
         
