@@ -15,8 +15,14 @@ a = Analysis(
         # (cf. backend/env_loader.py), posée par la procédure d'installation.
     ],
     hiddenimports=[
-        'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk', 
+        'uvicorn', 'fastapi', 'sqlalchemy', 'sqlite3', 'pydantic', 'sentry_sdk',
         'onnxruntime', 'cv2', 'numpy', 'PIL', 'python-multipart', 'passlib', 'bcrypt', 'jose',
+        # Imports dynamiques ratés par l'analyse statique PyInstaller :
+        # - passlib charge ses handlers par nom au runtime (crash au boot sinon)
+        # - jose charge ses backends paresseusement au premier encode/decode JWT
+        #   (crash au premier login sinon)
+        'passlib.handlers', 'passlib.handlers.bcrypt',
+        'jose.backends', 'jose.backends.cryptography_backend', 'jose.backends.native',
         'backend.services.sync_manager', 'backend.seed_templates', 'backend.seed_user', 'backend.seed_clinical'
     ],
     hookspath=[],
