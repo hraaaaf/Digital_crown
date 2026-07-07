@@ -7,8 +7,16 @@ import contextlib
 from datetime import datetime
 from backend.env_loader import load_backend_env
 
-# Charger l'env backend explicitement avant toute lecture de os.getenv()
-load_backend_env(override=True)
+# Charger l'env backend explicitement avant toute lecture de os.getenv().
+# Deux passes : 1) override=False pour ne JAMAIS écraser des variables déjà
+# injectées par l'OS/l'orchestrateur (Docker/systemd/k8s secrets) en
+# préprod/prod — sinon un fichier .env.local oublié dans l'image écraserait
+# silencieusement la config réelle du déploiement. 2) en dev/local/test
+# uniquement, on recharge avec override=True pour garder le confort habituel
+# (le fichier fait toujours foi, même si le shell a des variables résiduelles).
+load_backend_env(override=False)
+if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "local", "test"):
+    load_backend_env(override=True)
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware

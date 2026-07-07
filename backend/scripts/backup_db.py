@@ -20,6 +20,28 @@ from backend.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backup")
 
+
+def find_pg_binary(name: str) -> str:
+    """Localise pg_dump/psql : PATH d'abord, sinon scan des installs Windows standards.
+
+    Sur Windows, l'installeur PostgreSQL n'ajoute pas toujours son dossier bin
+    au PATH système — pg_dump/psql existent sur le disque mais restent
+    introuvables par subprocess.run([name, ...]) sans ce fallback.
+    """
+    found = shutil.which(name)
+    if found:
+        return found
+
+    import glob
+    candidates = sorted(
+        glob.glob(f"C:/Program Files/PostgreSQL/*/bin/{name}.exe"),
+        reverse=True,  # version la plus récente en premier
+    )
+    if candidates:
+        return candidates[0]
+
+    return name  # fallback : laisser subprocess échouer avec une erreur claire
+
 def get_cipher():
     master_key_hex = os.getenv("CABINET_MASTER_KEY_HEX")
     if not master_key_hex:
@@ -81,7 +103,7 @@ def backup_db():
         
         try:
             process = subprocess.run(
-                ["pg_dump", "-U", user, "-h", host, "-d", dbname, "-F", "p", "--clean"],
+                [find_pg_binary("pg_dump"), "-U", user, "-h", host, "-d", dbname, "-F", "p", "--clean"],
                 env=env,
                 capture_output=True,
                 check=True
