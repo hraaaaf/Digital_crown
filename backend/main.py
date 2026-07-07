@@ -107,6 +107,31 @@ async def get_user_license_status(email: str) -> tuple[bool, str]:
     _license_cache[email] = (*result, now)
     return result
 
+def validate_environment_invariants(cfg) -> list[str]:
+    """Invariants de démarrage par environnement — retourne la liste des erreurs bloquantes.
+
+    - production : DEBUG interdit, SQLite interdit (PostgreSQL exigé), pas de
+      wildcard CORS.
+    - cabinet (on-premise, production-like) : mêmes invariants QUE production
+      SAUF SQLite — le mode cabinet solo repose sur SQLite/SQLCipher local
+      (chiffré AES-256, cf. database.py), qui y est donc explicitement autorisé.
+    - development/local/test : aucun invariant bloquant (la vérification
+      SECRET_KEY reste appliquée séparément, dans tous les environnements).
+    """
+    env = str(cfg.ENVIRONMENT).lower()
+    if env not in ("production", "cabinet"):
+        return []
+
+    errors = []
+    if cfg.DEBUG:
+        errors.append(f"DEBUG=True interdit en {env} (fuite de stack traces).")
+    if env == "production" and cfg.DATABASE_URL.strip().lower().startswith("sqlite"):
+        errors.append("DATABASE_URL pointe sur SQLite — la production exige PostgreSQL.")
+    if "*" in cfg.ALLOWED_ORIGINS:
+        errors.append("ALLOWED_ORIGINS contient un wildcard '*' (incompatible avec allow_credentials).")
+    return errors
+
+
 # --- LIFESPAN ---
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -121,20 +146,14 @@ async def lifespan(app: FastAPI):
             "Ajoutez SECRET_KEY=<clé_aléatoire_longue> dans votre fichier .env avant de démarrer."
         )
 
-    # S9 : invariants PRODUCTION — fail-fast pour éviter d'exposer des données
-    # patients réelles avec une config non durcie. N'affecte pas le mode développement.
-    if str(_cfg.ENVIRONMENT).lower() == "production":
-        _prod_errors = []
-        if _cfg.DEBUG:
-            _prod_errors.append("DEBUG=True interdit en production (fuite de stack traces).")
-        if _cfg.DATABASE_URL.strip().lower().startswith("sqlite"):
-            _prod_errors.append("DATABASE_URL pointe sur SQLite — la production exige PostgreSQL.")
-        if "*" in _cfg.ALLOWED_ORIGINS:
-            _prod_errors.append("ALLOWED_ORIGINS contient un wildcard '*' (incompatible avec allow_credentials).")
-        if _prod_errors:
-            raise RuntimeError(
-                "SECURITE PRODUCTION : démarrage refusé. " + " ".join(_prod_errors)
-            )
+    # S9 : invariants PRODUCTION/CABINET — fail-fast pour éviter d'exposer des
+    # données patients réelles avec une config non durcie. N'affecte pas le
+    # mode développement.
+    _prod_errors = validate_environment_invariants(_cfg)
+    if _prod_errors:
+        raise RuntimeError(
+            "SECURITE : démarrage refusé. " + " ".join(_prod_errors)
+        )
 
     try:
         # 1. Initialisation DB dans %APPDATA% via AppPaths

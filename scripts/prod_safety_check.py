@@ -38,16 +38,19 @@ def main() -> int:
     if "*" in settings.ALLOWED_ORIGINS:
         errors.append("ALLOWED_ORIGINS contient un wildcard '*' (incompatible allow_credentials).")
 
-    # --- Invariants spécifiques production ---
-    if is_prod:
+    # --- Invariants spécifiques production / cabinet (on-premise) ---
+    # cabinet = production-like, SAUF SQLite : le mode cabinet solo repose sur
+    # SQLite/SQLCipher local (chiffré), explicitement autorisé.
+    is_cabinet = env == "cabinet"
+    if is_prod or is_cabinet:
         if settings.DEBUG:
-            errors.append("DEBUG=True interdit en production.")
-        if settings.DATABASE_URL.strip().lower().startswith("sqlite"):
+            errors.append(f"DEBUG=True interdit en {env}.")
+        if is_prod and settings.DATABASE_URL.strip().lower().startswith("sqlite"):
             errors.append("DATABASE_URL sur SQLite — la production exige PostgreSQL.")
-        if any(host in settings.ALLOWED_ORIGINS for host in ("localhost", "127.0.0.1")):
+        if is_prod and any(host in settings.ALLOWED_ORIGINS for host in ("localhost", "127.0.0.1")):
             warnings.append("ALLOWED_ORIGINS contient encore localhost/127.0.0.1 en production.")
     else:
-        warnings.append(f"ENVIRONMENT='{env}' (≠ production) : invariants prod non bloquants.")
+        warnings.append(f"ENVIRONMENT='{env}' (≠ production/cabinet) : invariants prod non bloquants.")
 
     # --- Capsule IA / télémétrie : confirmer l'opt-in explicite ---
     if settings.TELEMETRY_ENABLED:
