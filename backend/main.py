@@ -230,6 +230,17 @@ async def _sync_all_licenses_from_firebase() -> None:
                 license_ok = firebase_result["active"]
                 expiry = firebase_result.get("expiration_date")
 
+                # active=None → Firebase injoignable : on CONSERVE l'état local.
+                # La grace period 72h (coffre local, validate_license) reste le
+                # mécanisme hors-ligne ; ce sync ne doit jamais écraser l'état
+                # connu quand la source de vérité n'a pas répondu.
+                if license_ok is None:
+                    logger.warning(
+                        f"Licence cabinet '{clinic_id}' (user: {owner.email}) : "
+                        "Firebase injoignable — état local conservé."
+                    )
+                    continue
+
                 # Mise à jour SQLite depuis Firebase
                 owner.is_licensed = license_ok
                 if expiry:

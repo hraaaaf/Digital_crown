@@ -159,10 +159,18 @@ class LicenseService:
     async def validate_license_with_expiry(self, clinic_id: str) -> dict:
         """
         Retourne l'état complet depuis Firebase pour synchronisation avec SQLite.
+
+        active=None signifie "Firebase injoignable/non configuré : aucune réponse
+        obtenue" — l'appelant doit alors CONSERVER l'état local plutôt que de
+        l'écraser (sinon chaque redémarrage hors-ligne désactivait brutalement
+        la licence de tous les cabinets, court-circuitant la grace period 72h
+        du coffre local gérée par validate_license()). active=False reste une
+        réponse DÉFINITIVE de Firebase (licence révoquée ou inexistante) : le
+        fail-closed s'applique normalement dans ce cas.
         """
         if not self._db:
-            return {"active": False, "expiration_date": None}
-        
+            return {"active": None, "expiration_date": None}
+
         try:
             doc_ref = self._db.collection('licenses').document(clinic_id)
             doc = doc_ref.get()
@@ -175,7 +183,7 @@ class LicenseService:
             return {"active": False, "expiration_date": None}
         except Exception as e:
             logger.error(f"Erreur lecture Firebase pour {clinic_id} : {e}")
-            return {"active": False, "expiration_date": None}
+            return {"active": None, "expiration_date": None}
 
     async def write_license(self, public_id: str, active: bool, expiration_date=None) -> bool:
         """Écrit/Met à jour l'entrée de licence dans Firestore (appelé par le dashboard SuperAdmin)."""

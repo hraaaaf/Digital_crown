@@ -88,3 +88,69 @@ async def test_offline_grace_period_expired():
     
     result = await service.validate_license("test_clinic")
     assert result is False
+
+
+# ── CABINET-ONPREM-DEPLOYMENT-1 : sync licence non-destructif hors-ligne ─────
+
+@pytest.mark.asyncio
+async def test_with_expiry_unreachable_returns_none_not_false():
+    """Firebase non configuré/injoignable → active=None (pas False).
+
+    Le sync au démarrage (main.py::_sync_all_licenses_from_firebase) doit
+    pouvoir distinguer "pas de réponse" (conserver l'état local) de
+    "licence révoquée" (fail-closed). Avant ce fix, chaque redémarrage
+    hors-ligne écrasait is_licensed=False pour tous les cabinets.
+    """
+    service = LicenseService()
+    service._db = None
+
+    result = await service.validate_license_with_expiry("test_clinic")
+    assert result["active"] is None
+
+
+@pytest.mark.asyncio
+async def test_with_expiry_firebase_exception_returns_none():
+    """Une exception de lecture Firebase → active=None (pas de réponse obtenue)."""
+
+    class _BrokenDb:
+        def collection(self, *_a, **_k):
+            raise ConnectionError("network down")
+
+    service = LicenseService()
+    service._db = _BrokenDb()
+
+    result = await service.validate_license_with_expiry("test_clinic")
+    assert result["active"] is None
+
+
+@pytest.mark.asyncio
+async def test_with_expiry_explicit_inactive_stays_false():
+    """Firebase répond ET dit inactive → active=False (fail-closed conservé)."""
+
+    class _Doc:
+        exists = True
+
+        @staticmethod
+        def to_dict():
+            return {"active": False, "expiration_date": None}
+
+    class _DocRef:
+        @staticmethod
+        def get():
+            return _Doc()
+
+    class _Collection:
+        @staticmethod
+        def document(_id):
+            return _DocRef()
+
+    class _Db:
+        @staticmethod
+        def collection(_name):
+            return _Collection()
+
+    service = LicenseService()
+    service._db = _Db()
+
+    result = await service.validate_license_with_expiry("test_clinic")
+    assert result["active"] is False
