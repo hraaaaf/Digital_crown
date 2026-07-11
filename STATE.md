@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-11 09:35
+- **Mis à jour :** 2026-07-11 09:53
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- Oui voila
-- ODM — AUTO-BACKUP-POSTGRES-DIAGNOSTIC-1 MISSION CLAUDE — AUTO-BACKUP-POSTGRES-DIAGNOSTIC-1 Objectif : Identifier pourquoi le service de sauvegarde automatique D
 - Parfait. Le point critique est confirmé : PID 7696 inchangé Compteurs DB inchangés Aucune modification du système réel Dans le bilan final, fais apparaître clai
 - Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
 - Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
 - Oui, on enchaîne sur l’activation réelle du backup PostgreSQL. Mais la Phase D Treatment Journey reste en NO-GO tant que : 1. le nouveau routage backup n’est pa
 - Verdict AUTO-BACKUP POSTGRES RÉEL : VALIDÉ ✅ Backup chiffré : VALIDÉ Restore PostgreSQL isolé : VALIDÉ Données réelles : INTACTES PatientJourney : NON ACTIVÉ Ma
 - Décision GO — SCHEDULED-TASK-BACKUP-REPLACE-1 NO-GO — Phase D Treatment Journey Le diagnostic est clair : la tâche Windows actuelle n’a jamais fonctionné et les
+- Oui. Il faut verrouiller proprement cet état dans Git avant le smoke UI et avant toute Phase D. Mais je ne ferais pas un simple commit aveugle. Il faut d’abord 
+- Bilan dans un seul bloc copiable
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)
@@ -1210,6 +1210,104 @@ Interpréteur              : venv du dépôt (dépendance résiduelle documenté
 intact, PatientJourney non activé, aucun nouveau backup réel déclenché pendant
 cette mission (l'investigation a réutilisé les artefacts déjà produits par
 `SCHEDULED-TASK-BACKUP-REPLACE-1`).
+
+## SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1 (2026-07-11)
+
+**Statut : COMPLETED.** `DigitalCrown_DailyBackup_v2` exécute désormais son code depuis
+une release immuable dédiée, jamais depuis le dépôt de travail — vérifié par deux lignes
+de défense indépendantes (PowerShell : hashes SHA-256 contre le manifeste ;
+Python : `_check_execution_provenance()`, `__file__` des modules critiques).
+
+**Écart de séquencement corrigé avant de commencer** : la mission demandait
+explicitement une release depuis le commit `bb779cc`, mais ce commit est **antérieur**
+à l'écriture de `_check_execution_provenance()` (le correctif de cette mission
+elle-même). Une release depuis `bb779cc` n'aurait pas contenu le correctif qu'elle est
+censée déployer. Le code a d'abord été committé (`0bd18fc`), puis la release a été
+construite depuis ce nouveau commit — pas depuis `bb779cc`. Une première release
+prématurée (depuis `bb779cc`, jamais pointée par `backup-current.json`) a été créée
+puis supprimée avant activation, aucune trace laissée.
+
+**Livré :**
+- `backend/scripts/scheduled_backup.py` — `_check_execution_provenance()`, appelée
+  avant même l'acquisition du verrou. `REPO_ROOT` configurable
+  (`DIGITALCROWN_REPO_ROOT`, testabilité). Nouveaux champs manifeste :
+  `provenance_status`, `provenance_violations`.
+- `backend/scripts/create_backup_release.ps1` (nouveau) — `git archive` sur un commit
+  exact vers `DigitalCrown-Runtime\backup-releases\<timestamp>-<commit_short>\`,
+  jamais une copie du dépôt courant. Manifeste `backup-release-manifest.json`
+  (`purpose=scheduled-backup`, `environment=cabinet-real`, hashes SHA-256 des 5
+  fichiers critiques).
+- `backend/scripts/run_scheduled_backup.ps1` — **réécrit et désormais versionné** dans
+  le dépôt (`backend/scripts/`), déployé (copié) vers
+  `DigitalCrown-Runtime\bin\run_scheduled_backup.ps1`. Checksum source/déployé
+  identique : `34B5EB8761CD2889E60C6B2845C16A54E373A02595C60ACCFE8051C3B56BF1EE`.
+  Lit `backup-current.json`, revalide manifeste + hashes, positionne
+  `DIGITALCROWN_ENV_FILE` (même mécanisme que `run_real_backend.ps1` — une release ne
+  contient jamais `.env.local`), `Push-Location` vers la release — jamais le dépôt.
+- `DigitalCrown-Runtime\backup-current.json` (pointeur atomique, écrit via fichier
+  temp + `os.replace()`).
+- 5 nouveaux tests (`TestExecutionProvenance`) — violation détectée quand `REPO_ROOT`
+  correspond à l'emplacement réel des modules, OK sinon, `sys.executable` jamais une
+  violation, `run()` refuse et n'acquiert jamais le verrou en cas de violation.
+
+**Fenêtre de mise à jour contrôlée exécutée (ordre exact de l'ODM) :**
+1. `DigitalCrown_DailyBackup_v2` désactivée
+2. Release backup créée depuis le commit `0bd18fc664019f44d3473a28ffdf5ea2dc26fb1c`
+   (`release_id=20260711-110744-0bd18fc66401`) — 4,6 Mo, aucun `.env` réel (seul
+   `.env.example`, placeholder), aucun `ai_models/`
+3. Lanceur versionné déployé, checksum source/déployé identique
+4. `backup-current.json` écrit atomiquement (bug JSON corrigé en cours de route : un
+   heredoc bash avait produit un JSON invalide avec des `\` non échappés — détecté
+   immédiatement par l'échec de `ConvertFrom-Json`, corrigé en régénérant le fichier
+   via `json.dump` Python)
+5. Définition de la tâche v2 inspectée — inchangée (même chemin de lanceur, seul son
+   contenu a changé)
+6. **Run manuel réel** : `provenance_status=OK`, `cwd` = release, `overall_status=SUCCESS`,
+   DB 2 432 396 octets + médias 278 943 308 octets/1815 fichiers, checksums vérifiés
+   indépendamment (identiques)
+7. **Restore PostgreSQL isolé** (`digitalcrown_scheduled_release_restore_validation`) :
+   6/6 compteurs identiques à `digitalcrown_db`, 0 paiement orphelin. **Extraction
+   médias isolée** : 1815 fichiers archive = 1815 extraits = 1815 réels. Environnements
+   temporaires supprimés après validation.
+8. Tâche v2 réactivée
+9. **Déclenchement Task Scheduler natif** (`Start-ScheduledTask`) : `LastTaskResult=0`,
+   nouveau manifeste `provenance_status=OK`, `overall_status=SUCCESS`, rétention
+   appliquée pour de vrai cette fois (0 suppression, sous le plancher)
+10. **Test d'immutabilité** : commentaire temporaire ajouté dans
+    `backend/scripts/scheduled_backup.py` **du dépôt**, lancement en `--dry-run` —
+    `provenance_status=OK` inchangé, hashes de la release inchangés (vérifiés par le
+    lanceur lui-même), aucun effet du tout. Édition annulée immédiatement,
+    `git status` confirmé propre après.
+
+**Commit local créé** : `0bd18fc664019f44d3473a28ffdf5ea2dc26fb1c` — "feat(ops):
+dedicated immutable release for the scheduled backup task" — aucun push. Contient
+`backend/scripts/scheduled_backup.py` (provenance check), `test_scheduled_backup.py`
+(5 nouveaux tests), `create_backup_release.ps1`, `run_scheduled_backup.ps1`.
+
+**Tests** : 23/23 (`test_scheduled_backup.py`, incluant les 5 nouveaux de provenance) +
+89/89 sur la suite ciblée backup/sécurité/install/médias (aucune régression) +
+39/39 frontend.
+
+**Disque** : 5,1 Go avant cette mission → **4,41 Go après** (2 runs réels supplémentaires,
+~540 Mo, + release backup 4,6 Mo). Signalé au CTO pour la troisième fois dans cette
+session — pas d'action prise sans validation explicite, mais la tendance mérite
+attention avant d'ajouter d'autres mécanismes automatiques.
+
+**Confirmations finales** : PID réel 14516 inchangé, backend non redémarré, health
+checks non re-testés dans cette mission (aucun changement au backend réel), release
+backend active (`20260711-012549-738eb5234efc`) vérifiée non modifiée (0 fichier avec
+mtime postérieur), `digitalcrown_db` non modifiée, médias réels inchangés (1815),
+superadmin intact, `clinical_vault.db` non lu, aucun appel `sqlite3` en mode
+PostgreSQL, tâche legacy toujours désactivée et conservée, PatientJourney non activé.
+
+**Risques restants** :
+- Dépendance résiduelle de l'interpréteur au venv du dépôt (documentée,
+  `RUNTIME-PYTHON-INDEPENDENCE-1`)
+- Espace disque en baisse constante (4,41 Go) — surveiller avant toute nouvelle
+  automatisation ajoutant du volume
+- `SQLCIPHER-AUTO-BACKUP-FIX-1` toujours en backlog séparé, sans impact PostgreSQL
+
+**Verdict : BACKUP PLANIFIÉ IMMUTABLE.**
 
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?

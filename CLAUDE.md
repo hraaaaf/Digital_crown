@@ -96,27 +96,47 @@ Logique dans `backend/main.py::validate_environment_invariants()`.
   (l'ancienne tâche, `python backend\scripts\backup_db.py` sans `-m`, mauvais
   interpréteur) n'a **jamais** produit un seul backup depuis sa création — ~5 semaines
   d'échec silencieux. Remplacée par `DigitalCrown_DailyBackup_v2`, qui appelle
-  `C:\Users\lenovo\DigitalCrown-Runtime\bin\run_scheduled_backup.ps1` (lanceur **hors
-  dépôt**, résout la release immuable active, épingle l'interpréteur — jamais `python`
-  du PATH) → `python -m backend.scripts.scheduled_backup` (orchestrateur DB+médias,
-  réutilise `BackupService._backup_postgres()` et
-  `backup_media._build_media_archive()`, jamais une 3e/4e implémentation de pg_dump ou
-  du chiffrement). **Doctrine verrouillée** : cette tâche exécute toujours son propre
-  backup DB+médias indépendant du scheduler in-app — un backup DB seul (ce que produit
-  le scheduler in-app) n'est jamais considéré comme un backup complet, donc aucune
-  logique de saut/coordination entre les deux n'est nécessaire ; seul un verrou fichier
-  (`scheduled\.backup.lock`, détection de péremption par PID+âge) protège contre deux
-  exécutions de la tâche Windows elle-même qui se chevauchent. Répertoires dédiés
+  `C:\Users\lenovo\DigitalCrown-Runtime\bin\run_scheduled_backup.ps1` →
+  `python -m backend.scripts.scheduled_backup` (orchestrateur DB+médias, réutilise
+  `BackupService._backup_postgres()` et `backup_media._build_media_archive()`, jamais
+  une 3e/4e implémentation de pg_dump ou du chiffrement). **Doctrine verrouillée** :
+  cette tâche exécute toujours son propre backup DB+médias indépendant du scheduler
+  in-app — un backup DB seul (ce que produit le scheduler in-app) n'est jamais
+  considéré comme un backup complet, donc aucune logique de saut/coordination entre les
+  deux n'est nécessaire ; seul un verrou fichier (`scheduled\.backup.lock`, détection de
+  péremption par PID+âge) protège contre deux exécutions de la tâche Windows elle-même
+  qui se chevauchent. Répertoires dédiés
   (`DigitalCrown-Runtime\backups\scheduled\{db,media,manifests,logs}\`) — **jamais**
   mélangés avec les backups manuels (`backend/backups/`, aucune rétention) ni ceux du
   scheduler in-app (`%APPDATA%\DigitalCrown\backups\`). Rétention configurable
   (`SCHEDULED_DB_RETENTION_DAYS`, `SCHEDULED_MEDIA_RETENTION_DAYS`,
   `SCHEDULED_MIN_BACKUPS_TO_KEEP`) mais **toujours dry-run par défaut** — seul
   `--apply-retention` (présent dans la commande de `DigitalCrown_DailyBackup_v2`) la
-  rend réelle, et jamais en dessous du plancher `MIN_BACKUPS_TO_KEEP`. **Dépendance
-  résiduelle documentée** : l'interpréteur épinglé reste celui du venv du dépôt de
-  travail (`...\DigitalCrown\venv\Scripts\python.exe`) — aucun Python n'existe encore
-  de façon indépendante dans `DigitalCrown-Runtime` ; backlog séparé
+  rend réelle, et jamais en dessous du plancher `MIN_BACKUPS_TO_KEEP`.
+- **Backup planifié = release immuable dédiée, jamais exécuté depuis le dépôt**
+  (SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1, 2026-07-11) : la première version de
+  `run_scheduled_backup.ps1` (ci-dessus) faisait `Push-Location $RepoRoot` avant
+  d'invoquer `-m backend.scripts.scheduled_backup` — le code exécuté venait donc
+  entièrement du dépôt de travail mutable, jamais d'une release, contrairement à
+  `run_real_backend.ps1`. Corrigé : `backend/scripts/create_backup_release.ps1`
+  construit une release dédiée (`DigitalCrown-Runtime\backup-releases\<id>\`) via
+  `git archive` sur un commit exact (**jamais** une copie du dépôt courant, même
+  propre) ; `DigitalCrown-Runtime\backup-current.json` est le pointeur atomique vers
+  la release active ; `run_scheduled_backup.ps1` (désormais **versionné** dans
+  `backend/scripts/`, déployé/copié vers `DigitalCrown-Runtime\bin\` avec vérification
+  de checksum) lit ce pointeur, revalide les hashes SHA-256 des 5 fichiers critiques
+  contre le manifeste (`backup-release-manifest.json`), puis `Push-Location` vers la
+  release — jamais `$RepoRoot`. **Seconde ligne de défense côté Python** :
+  `scheduled_backup.py::_check_execution_provenance()` s'exécute en tout premier dans
+  `run()`, avant même le verrou — si `__file__` d'un des 5 modules critiques
+  (`scheduled_backup`, `backup_service`, `backup_db`, `backup_media`, `database`)
+  résout sous le dépôt de travail plutôt qu'une release, le backup est refusé
+  (`overall_status=FAILED`, `error_code=EXECUTION_PROVENANCE_VIOLATION`), aucune
+  tentative de pg_dump. `sys.executable` (le venv du dépôt) reste une exception
+  explicite — seul le **code** ne doit jamais venir du dépôt, pas l'interpréteur.
+  **Dépendance résiduelle documentée** : l'interpréteur épinglé reste celui du venv du
+  dépôt de travail (`...\DigitalCrown\venv\Scripts\python.exe`) — aucun Python
+  n'existe encore de façon indépendante dans `DigitalCrown-Runtime` ; backlog séparé
   `RUNTIME-PYTHON-INDEPENDENCE-1` si une vraie indépendance est requise un jour.
 - **Vérifier en live, pas juste en unitaire** : plusieurs bugs bloquants
   (RVG cassé, `NoneType.strftime` sur génération PDF) passaient les tests
