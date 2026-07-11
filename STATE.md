@@ -1113,5 +1113,103 @@ activé).
 
 **Verdict : BACKUP OS DB + MÉDIAS ACTIF.**
 
+## SCHEDULED-BACKUP-PROVENANCE-LOCK-1 (2026-07-11)
+
+**Statut : PARTIAL — provenance du code verrouillée dans Git, mais une divergence
+architecturale réelle a été mise au jour et n'est pas cachée.**
+
+**Découverte principale (réponse aux questions 1-2 de la mission)** : la release
+active `20260711-012549-738eb5234efc` elle-même reste **intacte et non modifiée
+depuis sa création** — vérifié par deux méthodes indépendantes : (a) aucun fichier
+de la release n'a de date de modification postérieure à sa création
+(`01:26:09`) ; (b) comparaison octet-pour-octet (fins de ligne normalisées) contre
+le commit `ae43f16` (celui documenté comme correspondant lors de
+`ACTIVATED-RELEASE-PROVENANCE-LOCK-1`) — **318/318 fichiers `.py` identiques, 0
+différence réelle**, seuls 5 fichiers absents du commit (3 fichiers `scratch/*.py`
+préexistants sans rapport, plus `scheduled_backup.py` et
+`test_scheduled_backup.py` — absents parce qu'ils n'existaient pas encore au
+moment de la création de la release, pas parce que la release a été altérée).
+
+**Mais l'investigation a révélé un problème réel, non anticipé, que je ne masque
+pas** : `run_scheduled_backup.ps1` fait `Push-Location $RepoRoot` (le dépôt de
+travail) avant d'invoquer `-m backend.scripts.scheduled_backup` — **pas**
+`Push-Location $activeRelease`, contrairement à `run_real_backend.ps1`. Preuve
+empirique directe (sans lancer de nouveau backup réel, juste une introspection) :
+
+```
+sys.executable    : ...\DigitalCrown\venv\Scripts\python.exe
+os.getcwd()       : C:\Users\lenovo\Documents\Cabinet\DigitalCrown   (dépôt, PAS la release)
+scheduled_backup.__file__ : C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\scripts\scheduled_backup.py
+backup_service.__file__   : C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\services\backup_service.py
+backup_db.__file__        : C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\scripts\backup_db.py
+backup_media.__file__     : C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\scripts\backup_media.py
+database.__file__         : C:\Users\lenovo\Documents\Cabinet\DigitalCrown\backend\database.py
+```
+
+**Conséquence honnête** : `DigitalCrown_DailyBackup_v2` n'exécute **pas** le code
+de la release immuable — il exécute le code du dépôt de travail mutable. Ce n'est
+pas de la falsification de release (la release elle-même n'a jamais été touchée,
+prouvé ci-dessus), mais une divergence de doctrine : le lanceur du backup planifié
+ne respecte pas le même modèle « le runtime réel ne suit jamais le dépôt » que
+`run_real_backend.ps1`. C'est structurellement inévitable dans l'état actuel
+puisque la release `20260711-012549` a été créée **avant** que
+`scheduled_backup.py` existe — un lanceur qui aurait fait `cd` dans cette release
+aurait littéralement échoué (`ModuleNotFoundError`), donc ce choix n'était pas
+arbitraire, mais il n'a pas été assez explicitement assumé/documenté au moment de
+`SCHEDULED-TASK-BACKUP-REPLACE-1`.
+
+**Ce que ça change concrètement, aujourd'hui** : rien d'un point de vue sécurité/
+intégrité — le code exécuté (celui du dépôt) est maintenant committé (`d7a8e7a`),
+donc traçable, et les deux exécutions réelles validées (restore DB isolé + extraction
+médias isolée, tous deux réussis) l'ont été avec CE code exact. Mais **la garantie
+d'immutabilité du runtime réel ne s'étend pas au backup planifié** tant que cette
+divergence n'est pas corrigée.
+
+**Backlog créé, non traité ici (hors périmètre de cette mission de verrouillage)** :
+`SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1` — créer une nouvelle release incluant
+`scheduled_backup.py`, puis corriger `run_scheduled_backup.ps1` pour faire
+`Push-Location $activeRelease` (comme `run_real_backend.ps1`), puis revalider un
+run réel depuis la release. Pas fait maintenant : corriger le lanceur exigerait de
+re-valider tout le chemin d'exécution depuis zéro (nouvelle release, nouveau test
+réel), ce qui dépasse le périmètre « verrouiller l'état actuel », et le texte de la
+mission demande explicitement de ne pas re-modifier la release ni de relancer un
+backup réel sans nécessité démontrée.
+
+**Audit Git :**
+- `git status` initial : 4 fichiers modifiés (`CLAUDE.md`, `STATE.md`,
+  `backend/scripts/backup_media.py`, `backend/tests/test_backups.py`) + 2 nouveaux
+  (`backend/scripts/scheduled_backup.py`, `backend/tests/test_scheduled_backup.py`)
+  + `.claude/` non suivi (outillage local, laissé de côté comme lors des commits
+  précédents)
+- Scan secrets sur le diff exact : aucun (`DATABASE_URL`, mots de passe,
+  `CABINET_MASTER_KEY_HEX`, tokens — rien trouvé)
+- **Note** : `run_scheduled_backup.ps1` vit dans `DigitalCrown-Runtime\bin\`, **hors
+  de ce dépôt Git** par construction (« hors dépôt » était une exigence explicite de
+  `SCHEDULED-TASK-BACKUP-REPLACE-1`) — il n'est donc pas et ne peut pas être commité
+  ici. Sa provenance est tracée uniquement par ce document STATE.md, pas par Git.
+
+**Commit local créé** : `d7a8e7a` — "feat(ops): add scheduled PostgreSQL and media
+backups" — aucun push.
+
+**Correspondance de provenance (mise à jour)** :
+```
+Tâche Windows active      : DigitalCrown_DailyBackup_v2 (Ready, LastTaskResult=0)
+Ancienne tâche            : DigitalCrown_DailyBackup_User (Disabled, conservée)
+Code réellement exécuté   : dépôt de travail, désormais figé au commit d7a8e7a
+Release immuable active   : 20260711-012549-738eb5234efc (backend réel :8005,
+                             PID 14516) — intacte, vérifiée non modifiée, mais
+                             NE CONTIENT PAS scheduled_backup.py et n'est PAS
+                             utilisée par le backup planifié (voir découverte
+                             ci-dessus)
+Interpréteur              : venv du dépôt (dépendance résiduelle documentée,
+                             RUNTIME-PYTHON-INDEPENDENCE-1)
+```
+
+**Confirmations finales** : PID 14516 inchangé, backend réel non redémarré,
+`digitalcrown_db` non modifiée, médias réels inchangés (1815 fichiers), superadmin
+intact, PatientJourney non activé, aucun nouveau backup réel déclenché pendant
+cette mission (l'investigation a réutilisé les artefacts déjà produits par
+`SCHEDULED-TASK-BACKUP-REPLACE-1`).
+
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?
