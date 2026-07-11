@@ -18,7 +18,8 @@ import {
   Phone,
   Sparkles,
   Plus,
-  Search
+  Search,
+  AlertCircle
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -112,6 +113,11 @@ export const Dashboard: React.FC = () => {
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [projection, setProjection] = useState<ProjectionData | null>(null);
   const [latentCash, setLatentCash] = useState<LatentCashData | null>(null);
+  const [financeToday, setFinanceToday] = useState<{
+    today_revenue: number;
+    month_revenue: number;
+    total_debt: number;
+  } | null>(null);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -246,6 +252,11 @@ export const Dashboard: React.FC = () => {
     api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
     api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
     api.get('/intelligence/latent-cash').then(res => setLatentCash(res.data)).catch(err => console.warn("Erreur latent cash", err));
+    api.get('/stats/financial').then(res => setFinanceToday({
+      today_revenue: res.data.today_revenue ?? 0,
+      month_revenue: res.data.month_revenue ?? 0,
+      total_debt: res.data.total_debt ?? 0,
+    })).catch(err => console.warn("Erreur finance today", err));
   }, []);
 
   const markAlertRead = async (alertId: number) => {
@@ -739,6 +750,64 @@ export const Dashboard: React.FC = () => {
                 <span>
                   Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
                 </span>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {/* FINANCES DU CABINET — CA Jour / Mois en cours / Impayés */}
+        {financeToday && (
+          <motion.section variants={itemVariants}>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
+              Finances du Cabinet — Aujourd'hui
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 bg-emerald-500/10 rounded-elite-sm flex items-center justify-center border border-emerald-500/20">
+                    <Banknote size={18} className="text-emerald-400" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">CA du Jour</span>
+                </div>
+                <div className="text-3xl font-black font-outfit text-emerald-400">
+                  {financeToday.today_revenue.toLocaleString('fr-MA')}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">MAD encaissés aujourd'hui</div>
+              </div>
+
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 bg-blue-500/10 rounded-elite-sm flex items-center justify-center border border-blue-500/20">
+                    <TrendingUp size={18} className="text-blue-400" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Mois en Cours</span>
+                </div>
+                <div className="text-3xl font-black font-outfit text-blue-400">
+                  {financeToday.month_revenue.toLocaleString('fr-MA')}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">MAD encaissés ce mois</div>
+              </div>
+
+              <div className={cn(
+                "rounded-elite-lg border shadow-elite p-6",
+                financeToday.total_debt > 0 ? "bg-red-50 border-red-100" : "bg-card-bg border-border-main"
+              )}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={cn(
+                    "w-9 h-9 rounded-elite-sm flex items-center justify-center",
+                    financeToday.total_debt > 0 ? "bg-red-500/10 border border-red-500/20" : "bg-emerald-500/10 border border-emerald-500/20"
+                  )}>
+                    <AlertCircle size={18} className={financeToday.total_debt > 0 ? "text-red-400" : "text-emerald-400"} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Impayés Globaux</span>
+                </div>
+                <div className={cn(
+                  "text-3xl font-black font-outfit",
+                  financeToday.total_debt > 0 ? "text-red-500" : "text-emerald-400"
+                )}>
+                  {financeToday.total_debt.toLocaleString('fr-MA')}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">MAD non encaissés (total cabinet)</div>
               </div>
             </div>
           </motion.section>

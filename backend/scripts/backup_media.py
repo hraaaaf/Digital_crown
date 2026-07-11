@@ -11,24 +11,33 @@ import datetime
 import logging
 import zipfile
 import io
+import argparse
 
 from backend.env_loader import load_backend_env
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_backend_env(override=True)
 
-from backend.core.paths import AppPaths
+from backend.core.media_paths import get_media_root, get_real_media_root, is_rehearsal_environment
 from backend.scripts.backup_db import get_cipher
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backup_media")
 
 
-def backup_media():
-    """Zippe puis chiffre le dossier média (%APPDATA%/DigitalCrown/media)."""
-    media_dir = AppPaths.get_user_data_dir() / "media"
+def backup_media(*, dry_run: bool = False):
+    """Zippe puis chiffre le dossier média actif."""
+    media_dir = get_media_root()
+    real_media_dir = get_real_media_root().resolve(strict=False)
+    if is_rehearsal_environment() and media_dir.resolve(strict=False) == real_media_dir:
+        raise RuntimeError("Unsafe MEDIA_ROOT for rehearsal")
+
+    logger.info("Source media dir: %s", media_dir)
     if not media_dir.exists():
         logger.warning(f"Dossier média introuvable : {media_dir} — rien à sauvegarder.")
+        return
+    if dry_run:
+        logger.info("Dry-run: aucune archive media créée.")
         return
 
     backup_dir = os.path.join(BASE_DIR, "backups")
@@ -59,4 +68,7 @@ def backup_media():
 
 
 if __name__ == "__main__":
-    backup_media()
+    parser = argparse.ArgumentParser(description="Backup encrypted media directory.")
+    parser.add_argument("--dry-run", action="store_true", help="Validate media source without writing a backup.")
+    args = parser.parse_args()
+    backup_media(dry_run=args.dry_run)

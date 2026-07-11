@@ -14,7 +14,10 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm --prefix frontend test",
+    "build": "npm --prefix frontend run build",
+    "test:frontend": "npm --prefix frontend test",
+    "build:frontend": "npm --prefix frontend run build"
   },
   "repository": {
     "type": "git",

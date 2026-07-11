@@ -17,6 +17,13 @@ Digital Crown est une application de gestion de cabinet dentaire et orthodontiqu
 > **Base de données active** : PostgreSQL 18.2 `digitalcrown_db` (localhost)  
 > **Environnement** : `ENVIRONMENT=development` sur le poste du praticien  
 > **Pas de cloud** : toutes les données cliniques restent sur la machine du cabinet
+> **Firebase** : licence/identité uniquement — jamais patients/documents/données cliniques
+
+**🔒 Doctrine base de données :**
+- ✅ PostgreSQL 15+ obligatoire pour toute installation cabinet/client
+- ✅ SQLite réservé aux tests/développement (jamais production)
+- ✅ Firebase gère uniquement la licence et l'authentification
+- ❌ Zéro donnée patient ou clinique dans le cloud
 
 ---
 
@@ -184,11 +191,19 @@ OLLAMA_URL=http://localhost:11434
 ## Tests & CI
 
 ```bash
+# Commandes frontend officielles depuis la racine
+npm test
+npm run build
+
 # Suite de tests backend
 pytest backend/tests/
 
 # Vérification TypeScript frontend
 cd frontend && npx tsc --noEmit
+
+# Équivalents directs frontend
+npm --prefix frontend test
+npm --prefix frontend run build
 
 # Gate de sécurité production
 python scripts/prod_safety_check.py

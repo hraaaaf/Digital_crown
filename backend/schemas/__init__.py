@@ -204,6 +204,17 @@ from .branding import (
     BrandingPreviewPayload,
 )
 
+from .journey import (
+    MilestoneType,
+    NavigationTarget,
+    JourneyMilestoneCreate,
+    JourneyMilestoneOut,
+    JourneyMilestoneCreateResponse,
+    JourneyEventResponse,
+    JourneySummaryResponse,
+    PatientJourneyResponse,
+)
+
 __all__ = [
     # base
     "QRCodeType", "StyleKey", "AppointmentStatus", "SchedulingType",
@@ -266,4 +277,8 @@ __all__ = [
     "SendRenewalEmailRequest", "TrialActivationCodeCreate", "TrialActivationCodeOut",
     # branding
     "BrandingPreviewPayload",
+    # journey
+    "MilestoneType", "NavigationTarget", "JourneyMilestoneCreate", "JourneyMilestoneOut",
+    "JourneyMilestoneCreateResponse", "JourneyEventResponse", "JourneySummaryResponse",
+    "PatientJourneyResponse",
 ]

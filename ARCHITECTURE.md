@@ -10,7 +10,7 @@
 | Couche | Technologie |
 |---|---|
 | **Backend** | FastAPI (Python 3.11+), SQLAlchemy ORM, Alembic migrations, ReportLab PDF |
-| **Base de données** | SQLite (local, fichier `digital_crown.db`) |
+| **Base de données** | **PostgreSQL 15+** (obligatoire production) — SQLite réservé aux tests/dev |
 | **Frontend** | React 18 + TypeScript, Vite, TailwindCSS, Zustand, Framer Motion, Recharts |
 | **Mobile** | PWA (Progressive Web App) + Service Worker offline-first |
 | **IA / ML** | ONNX Runtime (panoramique), Ollama/LLM local (ordonnances, bot), CephMark (céphalo) |
@@ -18,6 +18,21 @@
 | **PDF** | ReportLab (backend), LibreOffice headless (fallback) |
 | **Desktop** | PyInstaller (DigitalCrown.exe) + Tauri (expérimental) |
 | **CI/Déploiement** | ecosystem.config.js (PM2), Dockerfile |
+
+---
+
+## 🗄️ Doctrine Base de Données
+
+**Pour toute installation cabinet/client :**
+- ✅ **PostgreSQL 15+** est la seule base supportée
+- ✅ Chaque cabinet dispose d'une DB PostgreSQL dédiée
+- ✅ Chaque cabinet dispose d'un utilisateur PostgreSQL dédié (jamais superuser `postgres`)
+- ❌ **SQLite n'est pas une option de production**
+- ❌ SQLite est réservé aux tests unitaires, développement local, et démo interne
+
+**Firebase (optionnel, hors-ligne supporté) :**
+- ✅ Gère : licence, identité cabinet, abonnement, grâce hors-ligne
+- ❌ Ne stocke jamais : patients, documents, radios, ordonnances, agenda, actes, données cliniques
 
 ---
 

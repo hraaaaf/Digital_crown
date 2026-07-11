@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint
+from sqlalchemy import String, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, func, Integer, UniqueConstraint, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # --- 1. ENUMÉRATIONS MÉTIER ---
@@ -1029,6 +1029,48 @@ class GhostMemoryLog(Base):
 
 
 # ==============================================================================
+# TREATMENT JOURNEY — JALONS MANUELS
+# ==============================================================================
+
+class MilestoneType(str, enum.Enum):
+    DIAGNOSTIC = "DIAGNOSTIC"
+    DEVIS_VALIDE = "DEVIS_VALIDE"
+    CONTROLE = "CONTROLE"
+    CLOTURE = "CLOTURE"
+
+
+class JourneyMilestone(Base):
+    """
+    Jalon métier manuel du parcours patient (diagnostic établi, devis validé, contrôle,
+    clôture) — n'a PAS de donnée backing ailleurs en base. Ne sert jamais à dupliquer des
+    événements déjà présents dans actes/documents/paiements/radios : ceux-ci restent dans
+    leurs tables sources et sont agrégés à la lecture par patient_journey_service.
+    """
+    __tablename__ = "journey_milestones"
+    __table_args__ = (
+        Index("ix_journey_milestones_employer_patient_date", "employer_id", "patient_id", "milestone_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=False)
+    # Pas de CASCADE : la suppression d'un compte propriétaire ne doit jamais entraîner la
+    # suppression silencieuse de jalons cliniques/administratifs.
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+
+    milestone_type: Mapped[MilestoneType] = mapped_column(SQLEnum(MilestoneType, name="milestone_type"), nullable=False, index=True)
+    milestone_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])
+
+
+# ==============================================================================
 # LAB JOBS — SUIVI DES TRAVAUX PROTHÉTIQUES
 # ==============================================================================
 
@@ -1075,6 +1117,36 @@ class LabJob(Base):
         if self.status in (LabJobStatus.READY, LabJobStatus.DELIVERED):
             return False
         return datetime.now() > self.deadline
+
+# ==============================================================================
+# STOCK — GESTION DES CONSOMMABLES ET MATÉRIAUX
+# ==============================================================================
+
+class StockCategorie(str, enum.Enum):
+    CONSOMMABLE = "CONSOMMABLE"
+    MATERIAU    = "MATERIAU"
+    MEDICAMENT  = "MEDICAMENT"
+    EQUIPEMENT  = "EQUIPEMENT"
+
+class StockItem(Base):
+    """Article de stock du cabinet (consommable, matériau, médicament, équipement)."""
+    __tablename__ = "stock_items"
+
+    id:          Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    nom:           Mapped[str]            = mapped_column(String(255), nullable=False)
+    categorie:     Mapped[StockCategorie] = mapped_column(SQLEnum(StockCategorie), nullable=False)
+    quantite:      Mapped[float]          = mapped_column(Float, nullable=False, default=0.0)
+    seuil_alerte:  Mapped[float]          = mapped_column(Float, nullable=False, default=5.0)
+    unite:         Mapped[str]            = mapped_column(String(50), nullable=False, default="unité")
+    prix_unitaire: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fournisseur:   Mapped[Optional[str]]   = mapped_column(String(255), nullable=True)
+    notes:         Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
 
 # ==============================================================================
 # --- PHASE 6 : CROWN BOT SESSIONS (CHAT HISTORY) ---

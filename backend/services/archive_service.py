@@ -17,10 +17,12 @@ from backend.models import DocumentType, DocumentStatus
 from backend.schemas import ConflictResolution
 
 # Configuration
-from backend.core.paths import AppPaths
+from backend.core.media_paths import get_media_root
 
 BASE_DIR = Path(__file__).parent.parent
-MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+# MEDIA_ROOT permet d'isoler une instance de test/rehearsal (jamais défini
+# en cabinet réel -> comportement inchangé, identique à AppPaths.get_user_data_dir()).
+MEDIA_DIR = get_media_root()
 ARCHIVE_BASE_DIR = MEDIA_DIR / "archives"
 LEGACY_DOCS_DIR = MEDIA_DIR / "documents"
 TRASH_RETENTION_DAYS = 365  # 1 an

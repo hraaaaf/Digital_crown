@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Activity, 
+  LayoutDashboard,
+  Users,
+  Activity,
   FileText,
   History,
   Calendar,
   Receipt,
   FlaskConical,
   BookOpen,
-  Shield
+  Shield,
+  Package,
+  Armchair
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { authService } from '../services/auth';
@@ -213,7 +215,9 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
+          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" />}
+          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" />}
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" />
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}

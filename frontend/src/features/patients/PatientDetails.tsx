@@ -27,7 +27,8 @@ import { PanoramicStudio } from '../panoramic/PanoramicStudio';
 import { DocumentHub } from '../admin/DocumentHub';
 import { PatientDocuments } from './PatientDocuments';
 import { ClinicalHub } from './components/ClinicalHub';
-import { PatientTracking } from './components/PatientTracking';
+import { PatientJourney } from './components/PatientJourney';
+import { PatientFinances } from './components/PatientFinances';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientScoreBadge } from './components/PatientScoreBadge';
@@ -59,7 +60,7 @@ interface Patient {
   };
 }
 
-type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives';
+type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
 
 export const PatientDetails = () => {
   const { id } = useParams();
@@ -255,6 +256,7 @@ export const PatientDetails = () => {
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
             <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
             <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
+            <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={18} />} label="Finances" />
           </div>
         </div>
       </header>
@@ -366,7 +368,7 @@ export const PatientDetails = () => {
             </div>
           )}
           
-          {activeTab === 'tracking' && <PatientTracking patientId={Number(id)} />}
+          {activeTab === 'tracking' && <PatientJourney patientId={Number(id)} />}
           
           {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
@@ -376,6 +378,10 @@ export const PatientDetails = () => {
 
           {activeTab === 'archives' && (
             <PatientDocuments />
+          )}
+
+          {activeTab === 'finances' && (
+            <PatientFinances patientId={Number(id)} />
           )}
         </div>
       </main>

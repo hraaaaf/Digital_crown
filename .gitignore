@@ -44,6 +44,7 @@ static/
 # ========================================
 venv/
 env/
+.venv312/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -53,6 +54,8 @@ __pycache__/
 # ========================================
 frontend/node_modules/
 frontend/dist/
+frontend/dist-rehearsal/
+frontend/dist-test/
 frontend/.eslintcache
 
 # ========================================
@@ -89,3 +92,10 @@ frontend/tsc_output.txt
 build/
 dist/
 *.spec
+dist_cabinet/
+
+# ========================================
+# REHEARSAL (médias/données de répétition — jamais dans Git)
+# ========================================
+install_rehearsal_media/
+treatment_journey_rehearsal_media/

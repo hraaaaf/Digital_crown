@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from datetime import datetime, timedelta
+from sqlalchemy import func, extract
+from datetime import datetime, timedelta, time as dt_time, date as date_type
 from typing import Dict, Any
 
 from backend import models, database
@@ -12,7 +12,7 @@ router = APIRouter(tags=["Statistiques"])
 @router.get("/financial")
 def get_financial_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
-    Récupère le chiffre d'affaires du mois et la trésorerie latente (Latent Cash).
+    Récupère le chiffre d'affaires du mois, la trésorerie latente, et les KPIs financiers J+0.
     """
     emp_id = current_user.get_employer_id()
     today = datetime.now()
@@ -25,9 +25,7 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
         models.Acte.statut_paiement.in_([models.PaiementStatut.PAYE, models.PaiementStatut.PARTIEL])
     ).scalar() or 0.0
 
-    # Trésorerie Latente : Total des Devis PENDING (TreatmentPlanStep.status == PENDING)
-    # Les TreatmentPlanStep n'ont pas de prix, mais si les actes ont DEVIS, on utilise ça ?
-    # Le backend "intelligence" utilise Acte.statut_paiement == EN_ATTENTE
+    # Trésorerie Latente
     latent_cash_query = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
         models.Patient.employer_id == emp_id,
         models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
@@ -37,10 +35,10 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
 
     # Liste des 5 devis en attente les plus élevés (pour le bouton "Qui relancer ?")
     top_latent = db.query(
-        models.Patient.nom, 
-        models.Patient.prenom, 
+        models.Patient.nom,
+        models.Patient.prenom,
         models.Patient.telephone,
-        models.Acte.montant, 
+        models.Acte.montant,
         models.Acte.libelle
     ).join(models.Patient).filter(
         models.Patient.employer_id == emp_id,
@@ -50,10 +48,57 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
 
     top_latent_list = [{"nom": p.nom, "prenom": p.prenom, "telephone": p.telephone, "montant": p.montant, "soin": p.libelle} for p in top_latent]
 
+    # --- KPIs J+0 ---
+    today_date = date_type.today()
+    day_start = datetime.combine(today_date, dt_time.min)
+    day_end   = datetime.combine(today_date, dt_time.max)
+
+    # CA du jour — paiements réellement encaissés aujourd'hui
+    today_revenue = float(
+        db.query(func.sum(models.Payment.amount))
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .filter(
+            models.Patient.employer_id == emp_id,
+            models.Payment.payment_date >= day_start,
+            models.Payment.payment_date <= day_end,
+        )
+        .scalar() or 0.0
+    )
+
+    # Revenu du mois courant (paiements encaissés)
+    month_revenue = float(
+        db.query(func.sum(models.Payment.amount))
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .filter(
+            models.Patient.employer_id == emp_id,
+            extract("year",  models.Payment.payment_date) == today_date.year,
+            extract("month", models.Payment.payment_date) == today_date.month,
+        )
+        .scalar() or 0.0
+    )
+
+    # Impayés globaux (total facturé - total encaissé) — 2 queries efficaces, pas de N+1
+    total_billed = float(
+        db.query(func.sum(models.Acte.montant))
+        .join(models.Patient, models.Acte.patient_id == models.Patient.id)
+        .filter(models.Patient.employer_id == emp_id)
+        .scalar() or 0.0
+    )
+    total_paid = float(
+        db.query(func.sum(models.Payment.amount))
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .filter(models.Patient.employer_id == emp_id)
+        .scalar() or 0.0
+    )
+    total_debt = max(round(total_billed - total_paid, 2), 0.0)
+
     return {
         "revenu_mois": round(revenus_mois, 2),
         "latent_cash": round(latent_cash, 2),
-        "top_relances": top_latent_list
+        "top_relances": top_latent_list,
+        "today_revenue": round(today_revenue, 2),
+        "month_revenue": round(month_revenue, 2),
+        "total_debt": total_debt,
     }
 
 @router.get("/operational")

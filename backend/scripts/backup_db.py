@@ -5,20 +5,57 @@ import datetime
 import logging
 import subprocess
 import base64
+import argparse
+from urllib.parse import urlparse
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from backend.env_loader import load_backend_env
+from backend.core.media_paths import is_rehearsal_environment
 
-# Charger l'env backend pour obtenir CABINET_MASTER_KEY_HEX
+# Charger l'env backend pour obtenir CABINET_MASTER_KEY_HEX.
+# NE PAS appeler load_backend_env(override=True) au niveau module, et NE PAS importer
+# `settings` (backend.config) au niveau module non plus : ce fichier est aussi importé
+# comme librairie par backend/services/backup_service.py, dans le process réel déjà
+# démarré (env déjà chargé correctement par main.py). Un override=True inconditionnel
+# ici écraserait silencieusement la config réelle en place (cf. CLAUDE.md : "ne JAMAIS
+# écraser des vars déjà injectées par l'OS/orchestrateur"), et un `settings` importé
+# au niveau module figerait sa lecture AVANT le load_backend_env fait sous __main__
+# pour l'usage CLI (Settings() lit os.environ en priorité sur son propre env_file —
+# l'ordre d'exécution compte). `settings` est donc importé paresseusement dans
+# backup_db(), après que l'appelant (CLI __main__, ou main.py pour le process réel)
+# ait déjà chargé l'environnement correctement.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_backend_env(override=True)
-
-from backend.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backup")
+
+
+def _mask_database_url(db_url: str) -> str:
+    if "://" in db_url and "@" in db_url:
+        prefix, rest = db_url.split("://", 1)
+        auth, suffix = rest.split("@", 1)
+        user = auth.split(":", 1)[0]
+        return f"{prefix}://{user}:***@{suffix}"
+    return db_url
+
+
+def _parse_postgres_url(db_url: str) -> tuple[str, str, str | None, str, str]:
+    parsed = urlparse(db_url)
+    if parsed.scheme != "postgresql":
+        raise ValueError(f"Unsupported scheme: {parsed.scheme}")
+    host = parsed.hostname or ""
+    port = str(parsed.port) if parsed.port else None
+    dbname = parsed.path.lstrip("/")
+    user = parsed.username or ""
+    password = parsed.password or ""
+    return user, password, host, port, dbname
+
+
+def _validate_rehearsal_database(db_url: str) -> None:
+    if is_rehearsal_environment() and "digitalcrown_db" in db_url.lower():
+        raise RuntimeError("Unsafe DATABASE_URL for rehearsal")
 
 
 def find_pg_binary(name: str) -> str:
@@ -57,12 +94,15 @@ def get_cipher():
     derived_key = base64.urlsafe_b64encode(kdf.derive(bytes.fromhex(master_key_hex)))
     return Fernet(derived_key)
 
-def backup_db():
+def backup_db(*, dry_run: bool = False):
     """
     Script de sauvegarde automatisée et CHIFFRÉE de la base de données.
     Supporte SQLite et PostgreSQL.
     """
+    from backend.config import settings
     db_url = settings.DATABASE_URL
+    _validate_rehearsal_database(db_url)
+    logger.info("Target database: %s", _mask_database_url(db_url))
     backup_dir = os.path.join(BASE_DIR, "backups")
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -71,6 +111,9 @@ def backup_db():
     
     if db_url.startswith("sqlite"):
         db_path = db_url.replace("sqlite:///", "").replace("./", f"{BASE_DIR}/")
+        if dry_run:
+            logger.info("Dry-run SQLite source: %s", db_path)
+            return
         if os.path.exists(db_path):
             backup_path = os.path.join(backup_dir, f"backup_{timestamp}.db.enc")
             logger.info(f"Début sauvegarde SQLite chiffrée de {db_path}...")
@@ -86,40 +129,56 @@ def backup_db():
     elif db_url.startswith("postgresql"):
         # PostgreSQL : pg_dump requis
         try:
-            auth_part, host_part = db_url.replace("postgresql://", "").split("@")
-            user, password = auth_part.split(":")
-            host_db = host_part.split("/")
-            host = host_db[0]
-            dbname = host_db[1].split("?")[0]
+            user, password, host, port, dbname = _parse_postgres_url(db_url)
         except Exception as e:
             logger.error(f"Erreur lors du parsing de DATABASE_URL : {e}")
             sys.exit(1)
-            
+
         backup_path = os.path.join(backup_dir, f"backup_{timestamp}.sql.enc")
         logger.info(f"Début sauvegarde PostgreSQL chiffrée de {dbname}...")
-        
+        if dry_run:
+            logger.info("Dry-run PostgreSQL target: db=%s host=%s port=%s user=%s", dbname, host, port or "default", user)
+            return
+
         env = os.environ.copy()
         env["PGPASSWORD"] = password
-        
+
+        pg_dump_cmd = [find_pg_binary("pg_dump"), "-U", user, "-h", host]
+        if port:
+            pg_dump_cmd += ["-p", port]
+        pg_dump_cmd += ["-d", dbname, "-F", "p", "--clean"]
+
         try:
             process = subprocess.run(
-                [find_pg_binary("pg_dump"), "-U", user, "-h", host, "-d", dbname, "-F", "p", "--clean"],
+                pg_dump_cmd,
                 env=env,
                 capture_output=True,
                 check=True
             )
             dump_data = process.stdout
             encrypted_data = cipher.encrypt(dump_data)
-            
+
             with open(backup_path, "wb") as f:
                 f.write(encrypted_data)
-            
+
             logger.info(f"✅ Sauvegarde PostgreSQL chiffrée effectuée avec succès : {backup_path}")
             logger.info(f"Taille finale : {len(encrypted_data) / 1024 / 1024:.2f} MB")
-            
+
         except subprocess.CalledProcessError as e:
-            logger.error(f"❌ ERREUR pg_dump: {e.stderr.decode()}")
+            # errors="replace" : le stderr de pg_dump sous Windows peut être dans
+            # l'encodage local (ex: cp1252) plutôt qu'UTF-8 -- ne jamais planter
+            # sur le decode, sinon l'erreur réelle de pg_dump est masquée.
+            logger.error(f"❌ ERREUR pg_dump: {e.stderr.decode(errors='replace')}")
             sys.exit(1)
 
 if __name__ == "__main__":
-    backup_db()
+    # Chargement explicite uniquement pour l'usage CLI direct (pas pour l'import
+    # comme librairie, cf. commentaire en tête de fichier) : get_cipher() lit
+    # CABINET_MASTER_KEY_HEX via os.getenv(), qui a besoin que load_backend_env
+    # ait effectivement peuplé os.environ (contrairement à `settings`, qui lit son
+    # propre env_file indépendamment via pydantic-settings).
+    load_backend_env(override=True)
+    parser = argparse.ArgumentParser(description="Backup encrypted database.")
+    parser.add_argument("--dry-run", action="store_true", help="Validate backup target without running pg_dump or writing files.")
+    args = parser.parse_args()
+    backup_db(dry_run=args.dry_run)

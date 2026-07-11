@@ -118,6 +118,21 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
     db.add(new_payment)
     db.commit()
     db.refresh(new_payment)
+
+    # Auto-sync statut de l'acte si le paiement est lié à un acte
+    if payment.acte_id:
+        acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
+        if acte:
+            total_paid = db.query(func.sum(models.Payment.amount)).filter(
+                models.Payment.acte_id == payment.acte_id
+            ).scalar() or 0.0
+            if total_paid >= acte.montant:
+                acte.statut_paiement = models.PaiementStatut.PAYE
+                acte.is_collected = True
+            elif total_paid > 0:
+                acte.statut_paiement = models.PaiementStatut.PARTIEL
+            db.commit()
+
     return new_payment
 
 @router.get("/payments/patient/{patient_id}", response_model=List[schemas.PaymentOut])
@@ -125,6 +140,33 @@ def get_patient_payments(patient_id: int, db: Session = Depends(database.get_db)
     """Récupère l'historique des encaissements d'un patient."""
     assert_patient_access(patient_id, current_user, db)
     return db.query(models.Payment).filter(models.Payment.patient_id == patient_id).order_by(models.Payment.payment_date.desc()).all()
+
+@router.get("/actes-billing/patient/{patient_id}")
+def get_patient_actes_billing(patient_id: int, db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))):
+    """Retourne tous les actes du patient avec leur solde encaissé par acte (sans N+1)."""
+    assert_patient_access(patient_id, current_user, db)
+    actes = (db.query(models.Acte)
+        .filter(models.Acte.patient_id == patient_id)
+        .order_by(models.Acte.date_debut.desc())
+        .all())
+    paid_rows = (db.query(models.Payment.acte_id, func.sum(models.Payment.amount))
+        .filter(models.Payment.patient_id == patient_id,
+                models.Payment.acte_id != None)
+        .group_by(models.Payment.acte_id)
+        .all())
+    paid_map = {aid: float(total) for aid, total in paid_rows}
+    return [{
+        "id":              a.id,
+        "libelle":         a.libelle,
+        "type_acte":       a.type_acte.value if a.type_acte else None,
+        "montant":         a.montant,
+        "total_paid":      paid_map.get(a.id, 0.0),
+        "remaining_due":   max(round(a.montant - paid_map.get(a.id, 0.0), 2), 0.0),
+        "statut_paiement": a.statut_paiement.value if a.statut_paiement else "EN_ATTENTE",
+        "date_debut":      a.date_debut.isoformat() if a.date_debut else None,
+        "is_accounted":    a.is_accounted,
+    } for a in actes]
 
 @router.get("/honoraires", response_model=schemas.HonoraireListResponse)
 def get_accounting_honoraires(
@@ -589,4 +631,66 @@ def send_relance(
     if not sent:
         raise HTTPException(status_code=500, detail="Échec de l'envoi de la relance")
     return {"status": "success", "message": f"Relance envoyée à {patient.email}"}
+
+
+@router.get("/patient-debts")
+def get_patient_debts(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting"))
+):
+    """Liste les patients avec solde impayé (total actes − total paiements), triés par montant décroissant."""
+    employer_id = current_user.get_employer_id()
+
+    billed_rows = (
+        db.query(models.Acte.patient_id, func.sum(models.Acte.montant).label("total"))
+        .join(models.Patient, models.Acte.patient_id == models.Patient.id)
+        .filter(models.Patient.employer_id == employer_id)
+        .group_by(models.Acte.patient_id)
+        .all()
+    )
+    paid_rows = (
+        db.query(models.Payment.patient_id, func.sum(models.Payment.amount).label("total"))
+        .join(models.Patient, models.Payment.patient_id == models.Patient.id)
+        .filter(models.Patient.employer_id == employer_id)
+        .group_by(models.Payment.patient_id)
+        .all()
+    )
+
+    billed_map = {pid: float(total) for pid, total in billed_rows}
+    paid_map   = {pid: float(total) for pid, total in paid_rows}
+
+    debtor_ids = [
+        pid for pid in billed_map
+        if billed_map[pid] - paid_map.get(pid, 0.0) > 0.01
+    ]
+
+    if not debtor_ids:
+        return {"total_patients": 0, "total_amount": 0.0, "items": []}
+
+    patients = (
+        db.query(models.Patient)
+        .filter(models.Patient.id.in_(debtor_ids), models.Patient.employer_id == employer_id)
+        .all()
+    )
+
+    items = [
+        {
+            "patient_id": p.id,
+            "nom": p.nom,
+            "prenom": p.prenom,
+            "telephone": p.telephone,
+            "assurance": getattr(p, 'assurance', None),
+            "total_billed": round(billed_map[p.id], 2),
+            "total_paid": round(paid_map.get(p.id, 0.0), 2),
+            "remaining_due": round(billed_map[p.id] - paid_map.get(p.id, 0.0), 2),
+        }
+        for p in patients
+    ]
+    items.sort(key=lambda x: x["remaining_due"], reverse=True)
+
+    return {
+        "total_patients": len(items),
+        "total_amount": round(sum(i["remaining_due"] for i in items), 2),
+        "items": items,
+    }
 

@@ -1,9 +1,20 @@
 import React, { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, PlusCircle } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, PlusCircle, Download } from 'lucide-react';
 import { DigitalCrownLoader } from '../components/DigitalCrownLoader';
 import toast from 'react-hot-toast';
+
+const downloadCSV = (rows: string[][], filename: string) => {
+  const content = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 // Code Splitting for Recharts (to avoid blocking the main thread)
 const AnalyticsCharts = lazy(() => import('../features/analytics/AnalyticsCharts').then(m => ({ default: m.AnalyticsCharts })));
@@ -42,6 +53,43 @@ export const Analytics = () => {
             Indicateurs de performance et de rentabilité en temps réel.
           </p>
         </div>
+        <button
+          onClick={() => {
+            if (!financialStats) return;
+            const date = new Date().toLocaleDateString('fr-FR');
+            const rows: string[][] = [
+              ['Rapport Analytics Digital Crown', date],
+              [],
+              ['KPIs Financiers'],
+              ['Indicateur', 'Valeur'],
+              ['Revenus ce mois (MAD)', String(financialStats.revenue_this_month ?? 0)],
+              ['Revenus mois précédent (MAD)', String(financialStats.revenue_last_month ?? 0)],
+              ['Total facturé (MAD)', String(financialStats.total_billed ?? 0)],
+              ['Total encaissé (MAD)', String(financialStats.total_paid ?? 0)],
+              ['Taux de recouvrement (%)', String(financialStats.recovery_rate ?? 0)],
+              [],
+              ['Revenus Mensuels (6 derniers mois)'],
+              ['Mois', 'Revenus (MAD)'],
+              ...(financialStats.monthly_revenue ?? []).map((m: any) => [m.name, String(m.revenue)]),
+              [],
+              ['Top 5 Actes par Revenu'],
+              ['Acte', 'Revenu Total (MAD)'],
+              ...(financialStats.top_acts_revenue ?? []).map((a: any) => [a.name, String(a.value)]),
+              [],
+              ['Top 5 Actes par Fréquence'],
+              ['Acte', 'Nombre'],
+              ...(financialStats.top_acts_frequency ?? []).map((a: any) => [a.name, String(a.value)]),
+            ];
+            downloadCSV(rows, `Analytics_${date.replace(/\//g, '-')}.csv`);
+            toast.success('Rapport CSV téléchargé');
+          }}
+          disabled={!financialStats}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--primary)' }}
+        >
+          <Download size={15} />
+          Exporter CSV
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

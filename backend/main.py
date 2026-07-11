@@ -5,6 +5,7 @@ import asyncio
 import logging
 import contextlib
 from datetime import datetime
+from pathlib import Path
 from backend.env_loader import load_backend_env
 
 # Charger l'env backend explicitement avant toute lecture de os.getenv().
@@ -29,6 +30,7 @@ from backend.seed_templates import run_full_seed
 from backend.seed_user import seed_admin_user
 from backend.seed_clinical import seed_clinical_data
 from backend.services.panoramic_service import panoramic_engine
+from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.services.license_service import LicenseService
 import webbrowser
@@ -415,7 +417,7 @@ app.add_middleware(
 from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,
     appointments, templates, prescriptions, accounting, team,
-    intelligence, clinical_data, mobile, installments, lab_jobs,
+    intelligence, clinical_data, mobile, installments, lab_jobs, stock,
     bot, catalog, verification, analytics, agenda_settings, medications, frontdesk
 )
 from backend.routers import ai_feedback as ai_feedback_router
@@ -443,6 +445,7 @@ app.include_router(mobile.router, prefix="/api/mobile", tags=["Mobile ZKA"])
 app.include_router(ai_feedback_router.router, prefix="/api/ai", tags=["Ghost Hub Feedback"])
 app.include_router(installments.router, prefix="/api/installments", tags=["Installments"])
 app.include_router(lab_jobs.router, prefix="/api/lab-jobs", tags=["Lab Jobs"])
+app.include_router(stock.router, prefix="/api/stock", tags=["Stock"])
 app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
 app.include_router(medications.router, prefix="/api/medications", tags=["Medications"])
@@ -516,7 +519,7 @@ async def api_health_db():
 async def api_health_storage():
     """Vérifie que le dossier de stockage média est accessible en écriture."""
     try:
-        media_dir = AppPaths.get_user_data_dir() / "media"
+        media_dir = get_media_root()
         media_dir.mkdir(parents=True, exist_ok=True)
         probe = media_dir / ".health_probe"
         probe.write_text("ok")
@@ -532,8 +535,9 @@ async def favicon():
     return Response(status_code=204)
 
 # 1. Dossier Static des Médias (Photos patients, etc.)
-# En prod, on utilise un dossier dans %APPDATA%
-MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+# En prod, on utilise un dossier dans %APPDATA%. MEDIA_ROOT permet d'isoler
+# une instance de test/rehearsal (jamais défini en cabinet réel -> comportement inchangé).
+MEDIA_DIR = get_media_root()
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Mount pour les uploads locaux (dev & reports)

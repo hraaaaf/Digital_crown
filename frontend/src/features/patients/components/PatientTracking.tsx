@@ -1,30 +1,23 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
-import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { 
-  Calendar, 
-  Stethoscope, 
-  Banknote, 
-  CheckCircle2, 
-  Clock, 
-  Upload, 
-  Plus, 
-  Save, 
+import {
+  Calendar,
+  Stethoscope,
+  Banknote,
+  CheckCircle2,
+  Clock,
+  Plus,
   FileText,
-  Image as ImageIcon,
-  Edit2,
-  FileSignature,
-  Receipt,
   Activity,
   Target
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { EliteGhostLoader } from '../../../components/EliteGhostLoader';
-import { usePatientStore } from '../../../stores/usePatientStore';
+import { LegacyActeNotes } from './LegacyActeNotes';
 
 interface Acte {
   id: number;
@@ -48,17 +41,7 @@ interface PatientTrackingProps {
   patientId: number;
 }
 
-function AuthImg({ url, className }: { url: string; className?: string }) {
-  const src = useAuthenticatedImage(url);
-  return <img src={src} alt="Pièce jointe" className={className} />;
-}
-
 export const PatientTracking = ({ patientId }: PatientTrackingProps) => {
-  const queryClient = useQueryClient();
-  const { setEditingDoc } = usePatientStore();
-  const [editingActeId, setEditingActeId] = useState<number | null>(null);
-  const [editNotes, setEditNotes] = useState('');
-
   // 1. Fetch Actes
   const { data: actes = [], isLoading: loadingActes } = useQuery({
     queryKey: ['actes', patientId],
@@ -113,68 +96,6 @@ export const PatientTracking = ({ patientId }: PatientTrackingProps) => {
   }, [actes]);
 
   const loading = loadingActes || loadingAppts;
-
-  const updateNotesMutation = useMutation({
-    mutationFn: async ({ acteId, notes }: { acteId: number, notes: string }) => {
-      await api.put(`/actes/${acteId}`, { notes_cliniques: notes });
-    },
-    onSuccess: () => {
-      toast.success("Notes sauvegardées avec succès.");
-      queryClient.invalidateQueries({ queryKey: ['actes', patientId] });
-      setEditingActeId(null);
-    },
-    onError: () => {
-      toast.error("Erreur de sauvegarde.");
-    }
-  });
-
-  const handleSaveNotes = (acteId: number) => {
-    updateNotesMutation.mutate({ acteId, notes: editNotes });
-  };
-
-  const startEditing = (acte: Acte) => {
-    setEditNotes(acte.notes_cliniques || '');
-    setEditingActeId(acte.id);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, acte: Acte) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    try {
-      toast.loading("Envoi de l'image en cours...", { id: `upload-${acte.id}` });
-      await api.post(`/actes/${acte.id}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['actes', patientId] });
-      toast.success("Image ajoutée avec succès.", { id: `upload-${acte.id}` });
-    } catch (err) {
-      toast.error("Échec de l'upload.", { id: `upload-${acte.id}` });
-    }
-  };
-
-  const handleGeneratePrescription = (acte: Acte) => {
-    setEditingDoc({
-      type: 'ordonnance',
-      clinical_data: { 
-        reason: acte.libelle, 
-        // L'IA complétera automatiquement
-      }
-    });
-  };
-
-  const handleGenerateInvoice = (acte: Acte) => {
-    setEditingDoc({
-      type: 'honoraires',
-      clinical_data: {
-        items: [{ acte: acte.libelle, dent: '', prix_unitaire: acte.montant }]
-      }
-    });
-  };
 
   if (loading) {
     return <EliteGhostLoader text="Chargement du suivi clinique..." />;
@@ -341,101 +262,9 @@ export const PatientTracking = ({ patientId }: PatientTrackingProps) => {
                         <span className="text-primary">{acte.montant} MAD</span>
                       </div>
                     </div>
-                    
-                    {/* Actions Rapides */}
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleGeneratePrescription(acte)}
-                        className="p-2 bg-slate-50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm border border-slate-100 transition-colors"
-                        title="Générer une ordonnance"
-                      >
-                        <FileSignature size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleGenerateInvoice(acte)}
-                        className="p-2 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm border border-slate-100 transition-colors"
-                        title="Générer une note d'honoraires"
-                      >
-                        <Receipt size={16} />
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Notes section */}
-                  <div className="bg-slate-50 rounded-2xl p-5 mb-4">
-                    {editingActeId === acte.id ? (
-                      <div className="space-y-3">
-                        <textarea
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 min-h-[100px] text-sm focus:ring-2 focus:ring-primary outline-none"
-                          placeholder="Saisissez vos notes cliniques (Ex: ttt canalaire, LT = 21mm, particularités...)"
-                          value={editNotes}
-                          onChange={(e) => setEditNotes(e.target.value)}
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => setEditingActeId(null)}
-                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg"
-                          >
-                            Annuler
-                          </button>
-                          <button 
-                            onClick={() => handleSaveNotes(acte.id)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-primary text-white hover:bg-primary/90 rounded-lg shadow-sm"
-                          >
-                            <Save size={16} /> Enregistrer
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="group/note relative min-h-[60px]">
-                        {acte.notes_cliniques ? (
-                          <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
-                            {acte.notes_cliniques}
-                          </p>
-                        ) : (
-                          <p className="text-slate-400 italic text-sm">
-                            Aucune note clinique pour cette séance.
-                          </p>
-                        )}
-                        <button
-                          onClick={() => startEditing(acte)}
-                          className="absolute top-0 right-0 p-2 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-400 hover:text-primary opacity-0 group-hover/note:opacity-100 transition-opacity"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Attachments (e.g., retro-alveolaire) */}
-                  <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100">
-                    {acte.attachments && acte.attachments.length > 0 ? (
-                      <div className="flex gap-3">
-                        {acte.attachments.map((url, idx) => (
-                          <div key={idx} className="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden shadow-sm">
-                            <AuthImg url={url} className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    
-                    <div>
-                      <input 
-                        type="file" 
-                        id={`file-${acte.id}`} 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, acte)}
-                      />
-                      <label 
-                        htmlFor={`file-${acte.id}`}
-                        className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-primary cursor-pointer transition-colors"
-                      >
-                        <ImageIcon size={14} /> Joindre Radio (Rétro)
-                      </label>
-                    </div>
-                  </div>
-
+                  <LegacyActeNotes acte={acte} patientId={patientId} />
                 </div>
               </div>
             ))

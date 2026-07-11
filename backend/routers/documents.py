@@ -26,9 +26,10 @@ router = APIRouter(tags=["Documents & Accounting"])
 
 # Configuration
 import pathlib
+from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 BASE_DIR = pathlib.Path(__file__).parent.parent
-MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+MEDIA_DIR = get_media_root()
 DOCS_DIR = str(MEDIA_DIR / "documents")
 STATIC_DIR = str(AppPaths.get_static_dir())
 

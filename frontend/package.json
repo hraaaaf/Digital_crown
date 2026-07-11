@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/build-guard.mjs safe",
+    "build:rehearsal": "node scripts/build-guard.mjs rehearsal",
+    "build:real": "node scripts/build-guard.mjs real",
+    "build:test": "node scripts/build-guard.mjs test",
+    "serve:rehearsal": "vite preview --outDir dist-rehearsal --port 5183",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

@@ -325,8 +325,8 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
         or_(models.DocumentArchive.is_latest_version == True, models.DocumentArchive.is_latest_version == None)
     ).order_by(models.DocumentArchive.created_at.desc()).all()
     
-    from backend.core.paths import AppPaths
-    MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
+    from backend.core.media_paths import get_media_root
+    MEDIA_DIR = get_media_root()
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     results = []
@@ -403,6 +403,240 @@ def get_patient_cmo_synthesis(patient_id: int, db: Session = Depends(database.ge
     assert_patient_access(patient_id, current_user, db)
     from backend.services.cmo_agent_service import cmo_agent
     return cmo_agent.generate_global_synthesis(db, patient_id, current_user.id)
+
+@router.get("/{patient_id}/financial-snapshot")
+def get_patient_financial_snapshot(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """Snapshot financier complet d'un patient : facturé, encaissé, reste dû, impayés, échéances."""
+    assert_patient_access(patient_id, current_user, db)
+
+    from datetime import date as date_type
+    today = date_type.today()
+
+    total_billed = float(
+        db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+    )
+    total_collected = float(
+        db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
+    )
+    remaining_due = max(total_billed - total_collected, 0.0)
+
+    overdue_actes = (
+        db.query(models.Acte)
+        .filter(
+            models.Acte.patient_id == patient_id,
+            models.Acte.statut_paiement.in_(["EN_ATTENTE", "A_ENCAISSER", "PARTIEL"]),
+        )
+        .order_by(models.Acte.date_debut.desc())
+        .limit(10)
+        .all()
+    )
+    overdue_total = sum(float(a.montant) for a in overdue_actes)
+    overdue_items = [
+        {
+            "id": a.id,
+            "libelle": a.libelle,
+            "montant": float(a.montant),
+            "statut_paiement": a.statut_paiement,
+            "date_debut": a.date_debut.isoformat() if a.date_debut else None,
+            "type_acte": a.type_acte,
+        }
+        for a in overdue_actes
+    ]
+
+    upcoming_installments = (
+        db.query(models.Installment)
+        .join(models.InstallmentPlan, models.Installment.plan_id == models.InstallmentPlan.id)
+        .filter(
+            models.InstallmentPlan.patient_id == patient_id,
+            models.Installment.status == "EN_ATTENTE",
+            models.Installment.due_date >= today,
+        )
+        .order_by(models.Installment.due_date)
+        .limit(5)
+        .all()
+    )
+    upcoming_total = sum(float(i.amount) for i in upcoming_installments)
+    upcoming_list = [
+        {
+            "id": i.id,
+            "label": i.label,
+            "amount": float(i.amount),
+            "due_date": i.due_date.isoformat() if i.due_date else None,
+        }
+        for i in upcoming_installments
+    ]
+
+    recent_payments = (
+        db.query(models.Payment)
+        .filter(models.Payment.patient_id == patient_id)
+        .order_by(models.Payment.payment_date.desc())
+        .limit(5)
+        .all()
+    )
+    recent_list = [
+        {
+            "id": p.id,
+            "amount": float(p.amount),
+            "payment_method": p.payment_method,
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+            "notes": p.notes,
+        }
+        for p in recent_payments
+    ]
+
+    methods_rows = (
+        db.query(
+            models.Payment.payment_method,
+            func.sum(models.Payment.amount).label("total"),
+            func.count(models.Payment.id).label("count"),
+        )
+        .filter(models.Payment.patient_id == patient_id)
+        .group_by(models.Payment.payment_method)
+        .all()
+    )
+    payment_methods = {
+        str(m.payment_method): {"total": float(m.total), "count": int(m.count)}
+        for m in methods_rows
+    }
+
+    return {
+        "total_billed": round(total_billed, 2),
+        "total_collected": round(total_collected, 2),
+        "remaining_due": round(remaining_due, 2),
+        "overdue_count": len(overdue_items),
+        "overdue_total": round(overdue_total, 2),
+        "upcoming_installments_count": len(upcoming_list),
+        "upcoming_installments_total": round(upcoming_total, 2),
+        "upcoming_installments": upcoming_list,
+        "recent_payments": recent_list,
+        "overdue_items": overdue_items,
+        "payment_methods": payment_methods,
+    }
+
+
+# --- TREATMENT JOURNEY ---
+
+_MILESTONE_PHYSICIAN_ONLY = {
+    schemas.MilestoneType.DIAGNOSTIC,
+    schemas.MilestoneType.CONTROLE,
+    schemas.MilestoneType.CLOTURE,
+}
+
+
+def _assert_milestone_authorized(milestone_type: schemas.MilestoneType, current_user: models.User):
+    """Matrice de permissions par type de jalon — DIAGNOSTIC/CONTROLE/CLOTURE réservés au
+    dentiste/admin ; DEVIS_VALIDE autorisé aussi aux sous-comptes avec la permission accounting.
+    Reprend l'idiome déjà utilisé en ligne 709 (suppression de patient)."""
+    if is_superadmin_user(current_user):
+        return
+    role_value = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    is_owner_role = bool(current_user.role) and role_value in ("DENTISTE", "ADMIN")
+
+    if milestone_type in _MILESTONE_PHYSICIAN_ONLY:
+        if not is_owner_role:
+            raise HTTPException(status_code=403, detail="Seul un dentiste/admin peut créer ou supprimer ce type de jalon.")
+        return
+
+    # DEVIS_VALIDE : dentiste/admin OU permission accounting explicite
+    if is_owner_role:
+        return
+    perms = current_user.permissions or {}
+    if not perms.get("accounting", False):
+        raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de valider un devis.")
+
+
+@router.get("/{patient_id}/journey", response_model=schemas.PatientJourneyResponse)
+def get_patient_journey(
+    patient_id: int,
+    full_history: bool = False,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    """Fil chronologique du parcours patient — agrège 9 sources en lecture seule."""
+    assert_patient_access(patient_id, current_user, db)
+    from backend.services import patient_journey_service
+    return patient_journey_service.build_journey(db, patient_id, current_user.get_employer_id(), full_history)
+
+
+@router.post("/{patient_id}/journey/milestones", response_model=schemas.JourneyMilestoneCreateResponse, status_code=status.HTTP_201_CREATED)
+def create_patient_journey_milestone(
+    patient_id: int,
+    payload: schemas.JourneyMilestoneCreate,
+    response: Response,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    _assert_milestone_authorized(payload.milestone_type, current_user)
+
+    from backend.services import patient_journey_service
+    from backend.services.audit_service import audit_service
+
+    result = patient_journey_service.check_and_create_milestone(
+        db, patient_id, current_user.get_employer_id(),
+        models.MilestoneType(payload.milestone_type.value), payload.milestone_date,
+        payload.note, payload.confirm_duplicate, current_user.id,
+    )
+
+    if result.milestone is None:
+        response.status_code = status.HTTP_200_OK
+        return result
+
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="CREATE", resource_type="JourneyMilestone", resource_id=str(result.milestone.id),
+        details=(
+            f"type={payload.milestone_type.value} date={payload.milestone_date} patient={patient_id} "
+            f"note_present={bool(payload.note)} note_length={len(payload.note) if payload.note else 0}"
+        ),
+    )
+    return result
+
+
+@router.delete("/{patient_id}/journey/milestones/{milestone_id}")
+def delete_patient_journey_milestone(
+    patient_id: int,
+    milestone_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients")),
+):
+    assert_patient_access(patient_id, current_user, db)
+
+    milestone = (
+        db.query(models.JourneyMilestone)
+        .filter(
+            models.JourneyMilestone.id == milestone_id,
+            models.JourneyMilestone.patient_id == patient_id,
+            models.JourneyMilestone.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if milestone is None:
+        raise HTTPException(status_code=404, detail="Jalon introuvable.")
+
+    _assert_milestone_authorized(schemas.MilestoneType(milestone.milestone_type.value), current_user)
+
+    snapshot_note = milestone.note
+    from backend.services import patient_journey_service
+    from backend.services.audit_service import audit_service
+
+    patient_journey_service.soft_delete_milestone(db, patient_id, milestone_id, current_user.id)
+
+    audit_service.log(
+        db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(),
+        action="DELETE", resource_type="JourneyMilestone", resource_id=str(milestone_id),
+        details=(
+            f"milestone_id={milestone_id} patient_id={patient_id} type={milestone.milestone_type.value} "
+            f"date={milestone.milestone_date} created_by={milestone.created_by} created_at={milestone.created_at} "
+            f"note_present={bool(snapshot_note)} note_length={len(snapshot_note) if snapshot_note else 0}"
+        ),
+    )
+    return {"status": "deleted", "id": milestone_id}
+
 
 @router.put("/{patient_id}", response_model=schemas.PatientOut)
 def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):

@@ -36,23 +36,41 @@ backup/restore, et le comportement licence hors-ligne.
    Téléphones assistante/dentiste        Firestore licenses/{public_id}
 ```
 
-### Choix DB : SQLite/SQLCipher vs PostgreSQL local
+### ⚠️ Base de données — PostgreSQL obligatoire
 
-| Critère | SQLite + SQLCipher (défaut) | PostgreSQL local |
-|---|---|---|
-| Installation | Zéro — automatique via `AppPaths.get_db_url()` | Installer PostgreSQL 15+ |
-| Chiffrement | AES-256 natif (SQLCipher, migration transparente) | À configurer (ou disque chiffré) |
-| Backup | Copie de fichier chiffrée (`backup_db.py`) | `pg_dump` chiffré (`backup_db.py`) |
-| Multi-postes simultanés | Limité (WAL aide, mais 1 machine) | Bon |
-| Recommandation | **Cabinet solo / 1 poste + mobiles** | Clinique multi-postes |
+**PostgreSQL 15+ est la seule base supportée pour toute installation cabinet/client.**
 
-Le code supporte les deux sans modification : la présence de `DATABASE_URL`
-(postgresql://...) bascule automatiquement en mode PostgreSQL ; son absence
-utilise SQLite chiffré dans `%APPDATA%`.
+SQLite est réservé aux tests unitaires et au développement local — jamais pour production.
+
+Chaque installation cabinet requiert :
+- Installation PostgreSQL 15+ sur le poste principal ou un serveur local
+- Une base de données dédiée au cabinet
+- Un utilisateur PostgreSQL dédié (jamais le superuser `postgres`)
 
 ---
 
 ## 2. Mode de lancement
+
+### ⚠️ Doctrine runtime réel (2026-07-10, suite incident P0-TREATMENT-JOURNEY-1)
+
+Tant que le cabinet réel tourne depuis un checkout de dépôt (pas encore l'EXE packagé pour ce
+poste) :
+- **Jamais `uvicorn --reload` sur le port 8005.** Un `--reload` recharge le process à chaque
+  édition de fichier Python dans le dépôt — y compris des fonctionnalités non terminées/non
+  validées, sans déploiement explicite.
+- **Démarrage uniquement via `backend/scripts/run_real_backend.ps1`**, qui exige une release
+  immuable créée par `backend/scripts/create_release.ps1` (snapshot copié hors du dépôt dans
+  `C:\Users\lenovo\DigitalCrown-Runtime\releases\<id>\`), une confirmation explicite
+  (`-ConfirmRealActivation "YES"`), et refuse toute config ressemblant à du rehearsal.
+- **`npm run build` (frontend) refuse d'écraser `frontend/dist`** tant que le port 8005 répond
+  (`frontend/scripts/build-guard.mjs`) — utiliser `npm run build:rehearsal` pour tester sans
+  risque, `npm run build:real` (garde-fou + confirmation) uniquement pour une activation
+  délibérée après arrêt contrôlé du runtime réel.
+- Toute activation réelle (nouvelle release en service) exige : backup DB + médias au préalable,
+  compteurs avant/après, arrêt maîtrisé de l'ancien process, démarrage du nouveau sans `--reload`.
+
+Une fois l'EXE packagé utilisé en production (section ci-dessous), ce risque disparaît
+structurellement : l'EXE n'a pas de mode `--reload` et n'est jamais lancé depuis un dépôt éditable.
 
 ### Actuel (dev/démo) : `DigitalCrown.exe`
 Le build PyInstaller (`DigitalCrown.spec` → `dist/DigitalCrown/DigitalCrown.exe`)
@@ -200,6 +218,18 @@ schtasks /create /tn "DigitalCrown Backup" ^
   sur la même machine ne protège pas d'une panne disque
 - La clé `CABINET_MASTER_KEY_HEX` doit être conservée HORS de la machine
   (coffre du cabinet) : sans elle, les backups sont indéchiffrables
+- **Utiliser impérativement `-m backend.scripts.backup_db`** (module), jamais
+  `python backend\scripts\backup_db.py` (script direct) — ce dernier échoue avec
+  `ModuleNotFoundError: No module named 'backend'` (le script a besoin d'être
+  importé comme package depuis la racine du dépôt, pas exécuté comme fichier
+  isolé). **Constat réel (AUTO-BACKUP-POSTGRES-ROUTING-FIX-1, 2026-07-10)** : la
+  tâche planifiée Windows réellement configurée sur ce cabinet
+  (`DigitalCrown_DailyBackup_User`) utilise `python backend\scripts\backup_db.py`
+  (sans `-m`, sans chemin venv explicite) et échoue silencieusement depuis un
+  temps indéterminé (`LastTaskResult=1`, code d'erreur générique). Diagnostic
+  read-only fait, correction non appliquée — backlog séparé
+  `SCHEDULED-TASK-BACKUP-FIX-1` (corriger la commande de la tâche planifiée,
+  utiliser le python du venv explicitement, vérifier `LastTaskResult=0` après).
 
 ### Scénario sinistre : machine cabinet HS → machine neuve
 
