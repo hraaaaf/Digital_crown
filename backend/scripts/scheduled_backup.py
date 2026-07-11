@@ -35,6 +35,12 @@ SCHEDULED_ROOT = RUNTIME_ROOT / "backups" / "scheduled"
 LOCK_PATH = SCHEDULED_ROOT / ".backup.lock"
 LOCK_MAX_AGE_SECONDS = 2 * 60 * 60  # 2h - durée max raisonnable d'un backup DB+médias
 
+# SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1 : le dépôt de travail mutable ne doit jamais
+# être la source du code réellement exécuté par la tâche planifiée -- seul un venv/
+# interpréteur épinglé dans ce dépôt reste temporairement toléré (backlog
+# RUNTIME-PYTHON-INDEPENDENCE-1), jamais le code backend.* lui-même.
+REPO_ROOT = Path(os.environ.get("DIGITALCROWN_REPO_ROOT", r"C:\Users\lenovo\Documents\Cabinet\DigitalCrown"))
+
 DB_RETENTION_DAYS = int(os.environ.get("SCHEDULED_DB_RETENTION_DAYS", "30"))
 MEDIA_RETENTION_DAYS = int(os.environ.get("SCHEDULED_MEDIA_RETENTION_DAYS", "7"))
 MIN_BACKUPS_TO_KEEP = int(os.environ.get("SCHEDULED_MIN_BACKUPS_TO_KEEP", "3"))
@@ -85,6 +91,54 @@ def _release_lock():
             LOCK_PATH.unlink()
     except Exception as e:
         logger.warning("Impossible de libérer le verrou (%s).", type(e).__name__)
+
+
+def _check_execution_provenance() -> dict:
+    """Refuse de continuer si un module backend.* critique a été chargé depuis le
+    dépôt de travail mutable plutôt que depuis une release. sys.executable (le venv)
+    reste une exception explicite -- seule sa dépendance résiduelle est tolérée
+    (backlog RUNTIME-PYTHON-INDEPENDENCE-1), jamais le code lui-même.
+
+    Les imports sont faits ici (pas au niveau module) pour que ce module lui-même
+    fasse partie de la vérification -- son propre __file__ est inspecté en premier.
+    """
+    import backend.scripts.scheduled_backup as _self
+    from backend.services import backup_service as _backup_service_mod
+    from backend.scripts import backup_db as _backup_db_mod
+    from backend.scripts import backup_media as _backup_media_mod
+    from backend import database as _database_mod
+
+    modules = {
+        "scheduled_backup": _self,
+        "backup_service": _backup_service_mod,
+        "backup_db": _backup_db_mod,
+        "backup_media": _backup_media_mod,
+        "database": _database_mod,
+    }
+
+    violations = {}
+    for name, mod in modules.items():
+        mod_path = Path(mod.__file__).resolve()
+        try:
+            mod_path.relative_to(REPO_ROOT.resolve())
+            violations[name] = str(mod_path)
+        except ValueError:
+            pass  # not under REPO_ROOT -- OK
+
+    result = {
+        "status": "VIOLATION" if violations else "OK",
+        "cwd": os.getcwd(),
+        "python_executable": sys.executable,
+        "repo_root_checked": str(REPO_ROOT),
+        "violations": violations,
+    }
+    if violations:
+        logger.error(
+            "Provenance d'exécution violée : %d module(s) chargé(s) depuis le dépôt "
+            "de travail (%s) au lieu d'une release : %s",
+            len(violations), REPO_ROOT, ", ".join(violations.keys()),
+        )
+    return result
 
 
 def _run_db_backup(timestamp: str) -> dict:
@@ -178,6 +232,8 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         "run_id": run_id,
         "started_at": datetime.utcnow().isoformat() + "Z",
         "completed_at": None,
+        "provenance_status": None,
+        "provenance_violations": {},
         "lock_status": None,
         "db_status": None, "db_backup_filename": None, "db_size_bytes": 0, "db_checksum": None,
         "media_status": None, "media_backup_filename": None, "media_size_bytes": 0,
@@ -187,6 +243,21 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         "retention_candidates": [],
         "error_code": None, "error_message": None,
     }
+
+    # Vérifié avant même le verrou : aucun backup ne doit être tenté si le code
+    # exécuté ne provient pas d'une release (SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1).
+    provenance = _check_execution_provenance()
+    manifest["provenance_status"] = provenance["status"]
+    manifest["provenance_violations"] = provenance["violations"]
+    if provenance["status"] != "OK":
+        manifest["overall_status"] = "FAILED"
+        manifest["error_code"] = "EXECUTION_PROVENANCE_VIOLATION"
+        manifest["error_message"] = (
+            f"{len(provenance['violations'])} module(s) chargé(s) depuis le dépôt de travail"
+        )
+        manifest["completed_at"] = datetime.utcnow().isoformat() + "Z"
+        _write_manifest(manifest)
+        return manifest
 
     acquired, reason = _acquire_lock()
     if not acquired:

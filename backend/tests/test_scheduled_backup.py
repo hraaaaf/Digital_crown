@@ -9,14 +9,25 @@ import pytest
 
 from backend.scripts import scheduled_backup as sb
 
+# Captured before the autouse fixture below patches sb._check_execution_provenance
+# for every other test -- TestExecutionProvenance tests the real implementation.
+_real_check_execution_provenance = sb._check_execution_provenance
+
 
 @pytest.fixture(autouse=True)
 def _isolated_runtime_root(tmp_path, monkeypatch):
     """Every test gets its own throwaway SCHEDULED_ROOT -- never touches the real
-    DigitalCrown-Runtime tree."""
+    DigitalCrown-Runtime tree. Also bypasses the execution-provenance check by
+    default (status OK) since the test suite itself always runs from the repo --
+    provenance detection has its own dedicated tests below."""
     root = tmp_path / "scheduled"
     monkeypatch.setattr(sb, "SCHEDULED_ROOT", root)
     monkeypatch.setattr(sb, "LOCK_PATH", root / ".backup.lock")
+    monkeypatch.setattr(
+        sb, "_check_execution_provenance",
+        lambda: {"status": "OK", "cwd": str(root), "python_executable": "x",
+                  "repo_root_checked": str(sb.REPO_ROOT), "violations": {}},
+    )
     yield root
 
 
@@ -237,3 +248,62 @@ class TestRetention:
         for call in spy.call_args_list:
             called_dir = str(call.args[0])
             assert str(sb.SCHEDULED_ROOT) in called_dir
+
+
+class TestExecutionProvenance:
+    """SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1 -- the orchestrator must refuse to
+    run if its own code (or the backup modules it depends on) was loaded from the
+    mutable working repo instead of an immutable release."""
+
+    def test_violation_detected_when_repo_root_matches_real_module_location(self, monkeypatch):
+        # In the test suite itself, every module genuinely is loaded from the repo --
+        # so pointing REPO_ROOT at the real repo must report a violation for all 5.
+        import backend.scripts.scheduled_backup as real_sb
+        real_repo_root = Path(real_sb.__file__).resolve().parents[2]
+        monkeypatch.setattr(sb, "REPO_ROOT", real_repo_root)
+
+        result = _real_check_execution_provenance()
+
+        assert result["status"] == "VIOLATION"
+        assert set(result["violations"].keys()) == {
+            "scheduled_backup", "backup_service", "backup_db", "backup_media", "database",
+        }
+
+    def test_ok_when_repo_root_does_not_match_actual_module_location(self, monkeypatch, tmp_path):
+        # Point REPO_ROOT at an unrelated path -- simulates running from a release,
+        # since none of the real module files live under tmp_path.
+        monkeypatch.setattr(sb, "REPO_ROOT", tmp_path / "not-the-repo")
+
+        result = _real_check_execution_provenance()
+
+        assert result["status"] == "OK"
+        assert result["violations"] == {}
+
+    def test_result_reports_cwd_and_python_executable_for_diagnostics(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(sb, "REPO_ROOT", tmp_path / "not-the-repo")
+        result = _real_check_execution_provenance()
+        assert "cwd" in result
+        assert "python_executable" in result
+        # sys.executable pointing at the repo's venv is never itself a violation --
+        # only backend.* module __file__ locations are checked.
+        assert "python_executable" not in result["violations"]
+
+    def test_run_refuses_and_never_acquires_lock_on_provenance_violation(self, monkeypatch):
+        monkeypatch.setattr(
+            sb, "_check_execution_provenance",
+            lambda: {"status": "VIOLATION", "cwd": "x", "python_executable": "y",
+                      "repo_root_checked": "z", "violations": {"database": "/repo/backend/database.py"}},
+        )
+        with patch.object(sb, "_acquire_lock") as mock_lock:
+            manifest = sb.run(apply_retention=False, dry_run=False)
+
+        mock_lock.assert_not_called()
+        assert manifest["overall_status"] == "FAILED"
+        assert manifest["error_code"] == "EXECUTION_PROVENANCE_VIOLATION"
+        assert manifest["provenance_status"] == "VIOLATION"
+
+    def test_run_proceeds_normally_when_provenance_ok(self):
+        # Uses the autouse fixture's default OK bypass -- dry_run keeps it cheap.
+        manifest = sb.run(apply_retention=False, dry_run=True)
+        assert manifest["provenance_status"] == "OK"
+        assert manifest["overall_status"] == "SKIPPED_DRY_RUN"
