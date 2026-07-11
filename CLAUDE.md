@@ -84,12 +84,40 @@ Logique dans `backend/main.py::validate_environment_invariants()`.
   solo-cabinet en a besoin un jour. **Une réussite de chiffrement ne suffit pas** : le
   dump source et le restore doivent être vérifiés (voir la validation rehearsal de cette
   mission dans `STATE.md`) avant de faire confiance à un backup automatique.
-- **`backend/scripts/backup_db.py` est importable comme librairie** (utilisé par
-  `backup_service.py` en plus de son usage CLI) : ne jamais réintroduire un
-  `load_backend_env(override=True)` ou un import de `settings` au niveau module dans ce
-  fichier — ça écraserait silencieusement la config réelle du process serveur qui
-  l'importe. Le chargement d'env et l'import de `settings` sont volontairement
-  paresseux (dans `backup_db()`/sous `if __name__ == "__main__":`).
+- **`backend/scripts/backup_db.py` et `backup_media.py` sont importables comme
+  librairies** (utilisés par `backup_service.py` et `scheduled_backup.py` en plus de
+  leur usage CLI) : ne jamais réintroduire un `load_backend_env(override=True)` ou un
+  import de `settings` au niveau module dans ces fichiers — ça écraserait
+  silencieusement la config réelle du process serveur qui les importe. Le chargement
+  d'env et l'import de `settings` sont volontairement paresseux (dans
+  `backup_db()`/`backup_media()`, ou sous `if __name__ == "__main__":`).
+- **Backup planifié Windows = tâche indépendante, jamais un rafistolage du scheduler
+  in-app** (SCHEDULED-TASK-BACKUP-REPLACE-1, 2026-07-11) : `DigitalCrown_DailyBackup_User`
+  (l'ancienne tâche, `python backend\scripts\backup_db.py` sans `-m`, mauvais
+  interpréteur) n'a **jamais** produit un seul backup depuis sa création — ~5 semaines
+  d'échec silencieux. Remplacée par `DigitalCrown_DailyBackup_v2`, qui appelle
+  `C:\Users\lenovo\DigitalCrown-Runtime\bin\run_scheduled_backup.ps1` (lanceur **hors
+  dépôt**, résout la release immuable active, épingle l'interpréteur — jamais `python`
+  du PATH) → `python -m backend.scripts.scheduled_backup` (orchestrateur DB+médias,
+  réutilise `BackupService._backup_postgres()` et
+  `backup_media._build_media_archive()`, jamais une 3e/4e implémentation de pg_dump ou
+  du chiffrement). **Doctrine verrouillée** : cette tâche exécute toujours son propre
+  backup DB+médias indépendant du scheduler in-app — un backup DB seul (ce que produit
+  le scheduler in-app) n'est jamais considéré comme un backup complet, donc aucune
+  logique de saut/coordination entre les deux n'est nécessaire ; seul un verrou fichier
+  (`scheduled\.backup.lock`, détection de péremption par PID+âge) protège contre deux
+  exécutions de la tâche Windows elle-même qui se chevauchent. Répertoires dédiés
+  (`DigitalCrown-Runtime\backups\scheduled\{db,media,manifests,logs}\`) — **jamais**
+  mélangés avec les backups manuels (`backend/backups/`, aucune rétention) ni ceux du
+  scheduler in-app (`%APPDATA%\DigitalCrown\backups\`). Rétention configurable
+  (`SCHEDULED_DB_RETENTION_DAYS`, `SCHEDULED_MEDIA_RETENTION_DAYS`,
+  `SCHEDULED_MIN_BACKUPS_TO_KEEP`) mais **toujours dry-run par défaut** — seul
+  `--apply-retention` (présent dans la commande de `DigitalCrown_DailyBackup_v2`) la
+  rend réelle, et jamais en dessous du plancher `MIN_BACKUPS_TO_KEEP`. **Dépendance
+  résiduelle documentée** : l'interpréteur épinglé reste celui du venv du dépôt de
+  travail (`...\DigitalCrown\venv\Scripts\python.exe`) — aucun Python n'existe encore
+  de façon indépendante dans `DigitalCrown-Runtime` ; backlog séparé
+  `RUNTIME-PYTHON-INDEPENDENCE-1` si une vraie indépendance est requise un jour.
 - **Vérifier en live, pas juste en unitaire** : plusieurs bugs bloquants
   (RVG cassé, `NoneType.strftime` sur génération PDF) passaient les tests
   unitaires (mocks/objets en mémoire) mais crashaient sur le vrai chemin

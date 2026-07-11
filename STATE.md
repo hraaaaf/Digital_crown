@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-11 00:35
+- **Mis à jour :** 2026-07-11 09:35
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- Switch to french
-- Je te fais confiance
 - Oui voila
 - ODM — AUTO-BACKUP-POSTGRES-DIAGNOSTIC-1 MISSION CLAUDE — AUTO-BACKUP-POSTGRES-DIAGNOSTIC-1 Objectif : Identifier pourquoi le service de sauvegarde automatique D
 - Parfait. Le point critique est confirmé : PID 7696 inchangé Compteurs DB inchangés Aucune modification du système réel Dans le bilan final, fais apparaître clai
 - Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
 - Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
 - Oui, on enchaîne sur l’activation réelle du backup PostgreSQL. Mais la Phase D Treatment Journey reste en NO-GO tant que : 1. le nouveau routage backup n’est pa
+- Verdict AUTO-BACKUP POSTGRES RÉEL : VALIDÉ ✅ Backup chiffré : VALIDÉ Restore PostgreSQL isolé : VALIDÉ Données réelles : INTACTES PatientJourney : NON ACTIVÉ Ma
+- Décision GO — SCHEDULED-TASK-BACKUP-REPLACE-1 NO-GO — Phase D Treatment Journey Le diagnostic est clair : la tâche Windows actuelle n’a jamais fonctionné et les
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)
@@ -931,6 +931,187 @@ pas un secret de production. Conservé tel quel, signalé ici pour transparence.
 **Confirmations** : PID 14516 inchangé, runtime non redémarré, `digitalcrown_db` non
 modifiée, aucun nouveau backup réel déclenché, release active non modifiée,
 PatientJourney non activé, aucun push.
+
+## SCHEDULED-TASK-BACKUP-DISPOSITION-1 (2026-07-11, diagnostic read-only)
+
+**Statut : COMPLETED (diagnostic uniquement — tâche non modifiée, runtime non touché).**
+
+**Réponses aux 12 questions obligatoires :**
+
+1. **Nom exact** : `DigitalCrown_DailyBackup_User`
+2. **Commande** : `python backend\scripts\backup_db.py` (WorkingDirectory =
+   `C:\Users\lenovo\Documents\Cabinet\DigitalCrown`), principal `lenovo`,
+   LogonType Interactive, RunLevel Limited
+3. **Script/répertoire** : `backup_db.py` invoqué comme script direct (PAS en module `-m`),
+   depuis la racine du dépôt de travail (pas la release immuable)
+4. **Variables d'environnement** : environnement utilisateur standard du Task Scheduler —
+   pas de `DIGITALCROWN_ENV_FILE`, donc le script (usage CLI) charge `backend/.env.local`
+   → vraie `digitalcrown_db`. `python` du PATH résout vers `C:\Python314\python.exe`
+   (Python global 3.14, PAS le venv du projet)
+5. **Cible** : PostgreSQL `digitalcrown_db` uniquement (via pg_dump). **Pas de médias** —
+   la commande n'inclut pas `backup_media.py`, contrairement à l'exemple documenté dans
+   `CABINET_ONPREM_GUIDE.md` §6
+6. **Fréquence** : quotidienne 03:00 (CalendarTrigger, DaysInterval=1, StartBoundary
+   2026-06-05). `StartWhenAvailable` non défini (= false : exécution sautée si machine
+   éteinte à 03:00) ; `DisallowStartIfOnBatteries=true` (= sautée si portable sur
+   batterie !) ; `MultipleInstancesPolicy=IgnoreNew` (pas d'auto-chevauchement)
+7. **Fonctionne backend arrêté** : oui par conception (process indépendant, pg_dump parle
+   directement au service PostgreSQL) — c'est sa vraie valeur ajoutée vs le scheduler in-app
+8. **Double emploi avec `run_daily_backup()`** : partiel. Les deux font un pg_dump
+   quotidien chiffré de la même DB, mais : tâche Windows → `backend/backups/` (dépôt,
+   **aucune rétention**, déjà 1.3 G), heure fixe 03:00, indépendante du backend ;
+   in-app → `%APPDATA%\DigitalCrown\backups\`, rétention 7, heure = boot+10s puis +24h
+   (imprévisible), vit et meurt avec le process backend
+9. **Deux backups simultanés possibles ?** Théoriquement oui (si le cycle 24h in-app tombe
+   ~03:00). Conséquence réelle : bénigne — deux pg_dump concurrents sont cohérents en
+   lecture, fichiers de sortie distincts dans des dossiers distincts. Risque résiduel :
+   IO/CPU simultanés uniquement. Pas de corruption possible.
+10. **Nécessaire après redémarrage Windows ?** Partiellement : les données ne changent que
+    via le backend, et l'in-app fait un backup 10 s après chaque boot du backend — la
+    couverture des données est donc raisonnable sans la tâche. Ce que la tâche apporte en
+    plus : horaire fixe hors activité (03:00, cabinet fermé = snapshots cohérents),
+    indépendance vis-à-vis d'un backend crashé en cours de journée, et backup même si
+    personne ne relance le backend.
+11. **Dernière réussite réelle : JAMAIS.** Aucun fichier créé à 03:00 dans
+    `backend/backups` depuis la création de la tâche (05/06/2026). ~5 semaines d'échec
+    silencieux quotidien (`LastTaskResult=1` à chaque exécution).
+12. **Cause exacte de la panne — reproduite fidèlement** :
+    `python backend\scripts\backup_db.py` depuis la racine du dépôt →
+    `ModuleNotFoundError: No module named 'backend'` → exit 1. Double bug :
+    (a) invocation script direct au lieu de `-m backend.scripts.backup_db` (le script
+    s'importe comme package) ; (b) `python` du PATH = Python 3.14 global, pas le venv
+    projet (même classe de bug que celui corrigé dans `run_real_backend.ps1` pendant
+    RRIG-1). La tâche n'a donc jamais pu fonctionner telle que créée.
+
+**Constat annexe important** : **aucun des deux mécanismes ne sauvegarde les médias
+automatiquement** (in-app = DB seule ; tâche = DB seule). Les 266 MB de médias patients ne
+sont couverts que par des backups manuels. À intégrer dans la mission corrective.
+
+**Décision : B — REPLACE.**
+Le rôle (filet de sécurité OS, heure fixe, indépendant du process backend) est réellement
+utile, mais l'architecture de la tâche existante est défectueuse au-delà d'un simple
+paramètre : mauvais interpréteur, mauvaise forme d'invocation, pas de médias, sortie vers
+le dépôt sans rétention (1.3 G déjà), sautée sur batterie, sautée si machine éteinte à
+03:00 (pas de rattrapage). La remplacer par une tâche propre plutôt que de la rafistoler.
+La nouvelle tâche remplira aussi l'intention du choix D (fallback OS complémentaire du
+scheduler in-app).
+
+**Mission corrective recommandée : `SCHEDULED-TASK-BACKUP-REPLACE-1`**
+- Créer une nouvelle tâche (ex. `DigitalCrown_NightlyBackup`) :
+  `C:\...\DigitalCrown\venv\Scripts\python.exe -m backend.scripts.backup_db` puis
+  `-m backend.scripts.backup_media` (médias inclus, éventuellement hebdo pour limiter le
+  volume), WorkingDirectory = racine du dépôt
+- `StartWhenAvailable=true` (rattrapage si machine éteinte à 03:00),
+  `DisallowStartIfOnBatteries=false` (portable), `MultipleInstancesPolicy=IgnoreNew`
+- Politique de rétention sur `backend/backups/` (le dossier pèse déjà 1.3 G sans nettoyage)
+- Décalage horaire assumé vs le cycle in-app (03:00 fixe vs boot+24h) — pas de verrou
+  nécessaire (concurrence pg_dump bénigne), mais le documenter
+- Désactiver (pas supprimer) l'ancienne `DigitalCrown_DailyBackup_User` après validation
+  de la nouvelle
+- Validation : forcer une exécution (`Start-ScheduledTask`), vérifier `LastTaskResult=0`
+  ET l'apparition réelle du fichier `.enc` non vide
+
+**Confirmations** : tâche non modifiée, runtime réel non redémarré (PID 14516),
+`digitalcrown_db` non modifiée, médias intacts, PatientJourney non activé.
+
+## Nettoyage disque pré-requis (2026-07-11, avant SCHEDULED-TASK-BACKUP-REPLACE-1)
+
+Espace libre C: tombé à **0,46 Go** avant toute automatisation média — bloquant, signalé
+au CTO avant de continuer. Décision : purger `backend/backups` (rétention manuelle) +
+confirmer et supprimer `dist_cabinet/`.
+
+- Supprimé `dist_cabinet/` (4,2 Go) — build PyInstaller stale (07/07/2026), déjà
+  gitignore, non référencé par le runtime actif
+- Purge `backend/backups/` (rétention manuelle, gardé les 3 backups les plus récents
+  07-09/07-10/07-11, supprimé 07-07 (x2 lots) et 07-08, ~1,1 Go libérés)
+- **Espace libre après : 5,35 Go** (contre 0,46 Go avant)
+- Aucun backup conservé n'était le dernier valide ; les backups PostgreSQL manuels de
+  RRIG-1 et PROD-ACTIVATION-1 (07-10, 07-11) sont intacts
+
+## SCHEDULED-TASK-BACKUP-REPLACE-1 (2026-07-11)
+
+**Statut : COMPLETED.** `DigitalCrown_DailyBackup_v2` créée, validée réellement (deux
+exécutions complètes réussies : une manuelle directe, une via déclenchement natif Task
+Scheduler), activée. L'ancienne `DigitalCrown_DailyBackup_User` désactivée (jamais
+supprimée), conservée comme trace historique.
+
+**Pré-requis disque** (voir section dédiée plus haut) : nettoyage effectué avec accord
+du CTO avant cette mission (0,46 Go → 5,35 Go libres). Après les deux runs de
+validation de cette mission : **5,13 Go libres**.
+
+**Architecture livrée :**
+- `backend/scripts/backup_media.py` — même correctif que `backup_db.py`
+  (chargement d'env/`settings` paresseux) + extraction de
+  `_build_media_archive(dest_dir, timestamp) -> dict` (checksum SHA-256, écriture
+  atomique temp scopé + `os.replace()`, statut structuré). `backup_media(dry_run=)`
+  (CLI historique) devient un fin wrapper, comportement inchangé.
+- `backend/scripts/scheduled_backup.py` (nouveau) — orchestrateur unique : verrou
+  fichier périssable → détection moteur → `BackupService._backup_postgres()` (réutilisé
+  tel quel, aucune 3e implémentation pg_dump) → `_build_media_archive()` (réutilisé) →
+  manifeste global + logs → rétention (dry-run par défaut). `overall_status` = SUCCESS
+  uniquement si DB **et** médias réussissent ; PARTIAL si un seul des deux ; FAILED sinon
+  ou si verrou déjà tenu.
+- `C:\Users\lenovo\DigitalCrown-Runtime\bin\run_scheduled_backup.ps1` (nouveau, **hors
+  dépôt**) — résout la release immuable active (la plus récente par `activated_at` parmi
+  tous les `runtime-activation.json`), vérifie son manifeste
+  (`environment=cabinet-real`), épingle l'interpréteur (jamais `python` du PATH), exécute
+  `-m backend.scripts.scheduled_backup`, propage le code de sortie. N'affiche/n'écrit
+  jamais de secret.
+- `backend/tests/test_scheduled_backup.py` (nouveau, 18 tests) + 6 nouveaux tests dans
+  `backend/tests/test_backups.py` pour `_build_media_archive` — verrou (acquisition,
+  péremption, refus), routage SUCCESS/PARTIAL/FAILED sur toutes les combinaisons,
+  rétention dry-run/réelle/plancher/scoping, aucun secret, dry-run n'appelle jamais les
+  vrais backups.
+
+**Point de conception documenté (pas un oubli)** : l'interpréteur reste celui du venv du
+dépôt de travail — aucun Python indépendant n'existe dans `DigitalCrown-Runtime`. Une
+vraie indépendance nécessiterait de recopier/réinstaller ~40+ paquets (dont des
+dépendances lourdes comme opencv/onnx/grpc), jugé hors périmètre de cette mission
+(risque de venv incomplet supérieur au bénéfice immédiat). Clause d'échappement de
+l'ODM appliquée explicitement. Backlog séparé : `RUNTIME-PYTHON-INDEPENDENCE-1`.
+
+**Validation réelle (cabinet ouvert mais aucune activité clinique concurrente
+constatée) — deux exécutions complètes :**
+
+1. **Manuelle directe** (`run_scheduled_backup.ps1`, sans `-ApplyRetention`) :
+   `overall_status=SUCCESS`, DB 2 432 396 octets (checksum vérifié indépendamment,
+   identique), médias 278 943 308 octets / 1815 fichiers (checksum vérifié
+   indépendamment, identique). Rétention en dry-run (0 candidat, normal — premiers
+   fichiers du dossier `scheduled/`).
+2. **Restore DB isolé** : `digitalcrown_scheduled_backup_restore_validation` (jamais
+   `digitalcrown_db`), déchiffré avec la vraie clé (mémoire uniquement), `psql -f` rc=0,
+   **les 6 compteurs correspondent exactement** à `digitalcrown_db`
+   (220/12/136/262/176/0). DB de validation supprimée après comparaison.
+3. **Extraction médias isolée** : archive déchiffrée puis extraite dans un dossier temp
+   (jamais le dossier média réel), **1815 fichiers extraits = 1815 dans l'archive =
+   1815 dans le dossier média réel actuel**. Dossier temp supprimé après comparaison.
+4. **Activation** : `DigitalCrown_DailyBackup_v2` activée, `DigitalCrown_DailyBackup_User`
+   désactivée (`Disable-ScheduledTask`, pas supprimée).
+5. **Déclenchement Task Scheduler natif** (`Start-ScheduledTask`, pas un appel direct) :
+   `LastTaskResult=0` confirmé. Nouveau manifeste `overall_status=SUCCESS` (DB
+   2 432 396 octets, médias 278 943 308 octets/1815 fichiers), rétention appliquée
+   pour de vrai cette fois (`retention_dry_run=false`) — **0 suppression** (seulement 2
+   backups dans chaque dossier, largement sous le plancher `MIN_BACKUPS_TO_KEEP=3` et
+   les fenêtres de rétention).
+
+**Tout du long** : PID réel 14516 inchangé, port 8005 non redémarré, `digitalcrown_db`
+jamais écrite hors `pg_dump`/restore isolé, `clinical_vault.db` jamais lu (mtime
+28/05/2026 inchangé), médias réels jamais modifiés (1815 fichiers avant/après),
+superadmin intact, frontend = build sûr (`index-BO2OChwV.js`, PatientJourney non
+activé).
+
+**Tests** : 18/18 (`test_scheduled_backup.py`) + 6/6 nouveaux (`test_backups.py`,
+28/28 au total sur ce fichier) + 168/168 sur la suite ciblée backup/sécurité/install
+(aucune régression) + 39/39 frontend.
+
+**Risques restants** :
+- Dépendance résiduelle de l'interpréteur au dépôt de travail (documentée,
+  `RUNTIME-PYTHON-INDEPENDENCE-1` en backlog)
+- Espace disque toujours limité (5,13 Go) — la croissance des médias patients au fil du
+  temps rapprochera la rétention média (7 jours) de sa vraie utilité ; à surveiller
+- `SQLCIPHER-AUTO-BACKUP-FIX-1` toujours en backlog séparé (sans impact PostgreSQL)
+
+**Verdict : BACKUP OS DB + MÉDIAS ACTIF.**
 
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?

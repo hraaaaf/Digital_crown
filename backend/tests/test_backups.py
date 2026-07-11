@@ -331,3 +331,112 @@ class TestPostgresBackup:
         log_text = caplog.text
         assert "SuperSecretPass123" not in log_text
         assert secret_url not in log_text
+
+
+class TestBuildMediaArchive:
+    """_build_media_archive — extracted from backup_media.py for
+    SCHEDULED-TASK-BACKUP-REPLACE-1 so it's reusable with a parametrized
+    destination and returns a structured status like _backup_postgres."""
+
+    def _patch_media_root(self, media_dir):
+        from backend.scripts import backup_media
+        return patch("backend.core.media_paths.get_media_root", return_value=media_dir), \
+            patch("backend.core.media_paths.is_rehearsal_environment", return_value=False)
+
+    def test_success_produces_nonempty_file_with_checksum(self, tmp_path):
+        from backend.scripts.backup_media import _build_media_archive
+
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "radio1.jpg").write_bytes(b"fake-image-data")
+        (media_dir / "sub").mkdir()
+        (media_dir / "sub" / "doc.pdf").write_bytes(b"fake-pdf-data")
+
+        dest_dir = tmp_path / "dest"
+        cipher = Fernet(Fernet.generate_key())
+        p1, p2 = self._patch_media_root(media_dir)
+        with p1, p2, patch("backend.scripts.backup_db.get_cipher", return_value=cipher):
+            result = _build_media_archive(dest_dir, "20260101_000000")
+
+        assert result["status"] == "SUCCESS"
+        assert result["file_count"] == 2
+        final_file = dest_dir / result["backup_filename"]
+        assert final_file.exists()
+        assert final_file.stat().st_size > 0
+        assert result["checksum"] is not None
+        assert list(dest_dir.glob(".tmp_*")) == []
+
+    def test_missing_source_dir_fails_cleanly(self, tmp_path):
+        from backend.scripts.backup_media import _build_media_archive
+
+        missing_dir = tmp_path / "does_not_exist"
+        p1, p2 = self._patch_media_root(missing_dir)
+        with p1, p2:
+            result = _build_media_archive(tmp_path / "dest", "20260101_000000")
+
+        assert result["status"] == "FAILED"
+        assert result["error_code"] == "SOURCE_NOT_FOUND"
+
+    def test_missing_master_key_fails_cleanly_not_sys_exit(self, tmp_path):
+        from backend.scripts.backup_media import _build_media_archive
+
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "a.jpg").write_bytes(b"x")
+
+        def _raise_system_exit():
+            raise SystemExit(1)
+
+        p1, p2 = self._patch_media_root(media_dir)
+        with p1, p2, patch("backend.scripts.backup_db.get_cipher", side_effect=_raise_system_exit):
+            result = _build_media_archive(tmp_path / "dest", "20260101_000000")  # must not raise
+
+        assert result["status"] == "FAILED"
+        assert result["error_code"] == "MISSING_MASTER_KEY"
+
+    def test_encryption_failure_cleans_up_scoped_temp_only(self, tmp_path):
+        from backend.scripts.backup_media import _build_media_archive
+
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "a.jpg").write_bytes(b"x")
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+        unrelated = dest_dir / ".tmp_unrelated_leftover.zip.enc"
+        unrelated.write_bytes(b"do-not-touch")
+
+        p1, p2 = self._patch_media_root(media_dir)
+        with p1, p2, patch("backend.scripts.backup_db.get_cipher", side_effect=RuntimeError("bad key")):
+            result = _build_media_archive(dest_dir, "20260101_000000")
+
+        assert result["status"] == "FAILED"
+        assert result["error_code"] == "ENCRYPTION_FAILED"
+        assert unrelated.exists()
+        assert list(dest_dir.glob(".tmp_*media_backup*")) == []
+
+    def test_rehearsal_guard_refuses_real_media_root(self, tmp_path):
+        from backend.scripts.backup_media import _build_media_archive
+        from backend.core.media_paths import get_real_media_root
+
+        real_dir = get_real_media_root()
+        with patch("backend.core.media_paths.get_media_root", return_value=real_dir), \
+             patch("backend.core.media_paths.is_rehearsal_environment", return_value=True):
+            result = _build_media_archive(tmp_path / "dest", "20260101_000000")
+
+        assert result["status"] == "FAILED"
+        assert result["error_code"] == "UNSAFE_REHEARSAL_MEDIA_ROOT"
+
+    def test_backup_media_cli_wrapper_unchanged_behavior(self, tmp_path):
+        """backup_media(dry_run=) — the historical CLI entrypoint — still behaves
+        identically after the extraction."""
+        from backend.scripts.backup_media import backup_media
+
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "a.jpg").write_bytes(b"x")
+
+        p1, p2 = self._patch_media_root(media_dir)
+        with p1, p2:
+            backup_media(dry_run=True)  # must not raise, must not write anything
+
+        assert list(tmp_path.glob("**/*.enc")) == []
