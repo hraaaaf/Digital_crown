@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-11 09:53
+- **Mis à jour :** 2026-07-11 12:46
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,14 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- Parfait. Le point critique est confirmé : PID 7696 inchangé Compteurs DB inchangés Aucune modification du système réel Dans le bilan final, fais apparaître clai
-- Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
-- Le diagnostic confirme un vrai P0 opérationnel : Digital Crown utilise bien PostgreSQL, mais le scheduler automatique n’a jamais sauvegardé digitalcrown_db. Il 
-- Oui, on enchaîne sur l’activation réelle du backup PostgreSQL. Mais la Phase D Treatment Journey reste en NO-GO tant que : 1. le nouveau routage backup n’est pa
-- Verdict AUTO-BACKUP POSTGRES RÉEL : VALIDÉ ✅ Backup chiffré : VALIDÉ Restore PostgreSQL isolé : VALIDÉ Données réelles : INTACTES PatientJourney : NON ACTIVÉ Ma
-- Décision GO — SCHEDULED-TASK-BACKUP-REPLACE-1 NO-GO — Phase D Treatment Journey Le diagnostic est clair : la tâche Windows actuelle n’a jamais fonctionné et les
-- Oui. Il faut verrouiller proprement cet état dans Git avant le smoke UI et avant toute Phase D. Mais je ne ferais pas un simple commit aveugle. Il faut d’abord 
-- Bilan dans un seul bloc copiable
+- ODM — REPO-LARGE-FILES-SAFE-AUDIT-1 MISSION — REPO-LARGE-FILES-SAFE-AUDIT-1 Objectif : Auditer le dépôt Digital Crown afin d’identifier les fichiers et dossiers
+- Ok go
+- Du coup ou sont stockés les pdfs des patients !?
+- Regarde dans archives ou d’autres dossiers
+- Français
+- Oui il faut les récupérer !
+- Du coup on fait quoi m’t !?
+- Audit general et global de l’app ce qui est bien fait ce qui ne l’ai pas ce qui devrait être amélioré pour déplacer toute concurrence ce qui devrait être ajouté
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)
@@ -1308,6 +1308,56 @@ PostgreSQL, tâche legacy toujours désactivée et conservée, PatientJourney no
 - `SQLCIPHER-AUTO-BACKUP-FIX-1` toujours en backlog séparé, sans impact PostgreSQL
 
 **Verdict : BACKUP PLANIFIÉ IMMUTABLE.**
+
+## RECOVER-LEGACY-DOCUMENT-ARCHIVES-1 (2026-07-11)
+
+**Statut : COMPLETED. 31/31 documents patients réels récupérés avec succès.**
+
+**Contexte** : `BACKEND-STATIC-COVERAGE-AUDIT-1` a révélé (après correction d'une
+erreur de construction de chemin dans ma propre vérification initiale) que 31 des 261
+`document_archives` réels n'existaient physiquement que sous `backend/static/archives/`
+(dépôt de travail, jamais sauvegardé, probablement injoignable via l'app réelle) — les
+230 autres étaient déjà correctement en place sous `%APPDATA%\DigitalCrown\media\`.
+
+**Méthode** : les 31 enregistrements suivaient déjà la structure moderne
+`archives/<patient_id>/<doc_type>/<année>/<mois>/<fichier>` — simple copie avec la
+même structure relative, aucune reconstruction de chemin nécessaire.
+
+**Sécurité appliquée** :
+1. Backup frais de `digitalcrown_db` (`backup_20260711_131715.sql.enc`, 2.32 MB) et des
+   médias réels (`media_backup_20260711_131735.zip.enc`, 266.02 MB, 1815 fichiers)
+   avant toute opération
+2. Pour chacun des 31 : hash SHA-256 du fichier source comparé au `file_hash` déjà
+   enregistré en base (intégrité de la source confirmée) → copie via fichier temporaire
+   scopé + `os.replace()` atomique → hash du fichier copié revérifié depuis sa
+   destination finale
+3. **31/31 RECOVERED, 0 échec** (aucun `HASH_MISMATCH_SOURCE`, aucun
+   `HASH_MISMATCH_AFTER_COPY`, aucun `SOURCE_MISSING`)
+4. Originaux dans `backend/static/archives/` **jamais supprimés** (188 fichiers
+   toujours présents — filet de sécurité conservé)
+5. **Aucune écriture en base** — `file_path` pointait déjà vers le bon chemin logique
+
+**Vérifications finales** :
+- `%APPDATA%\DigitalCrown\media\` : 1815 → **1846 fichiers** (exactement +31)
+- **261/261** enregistrements `document_archives` référençant `static/...` sont
+  désormais correctement présents sous `%APPDATA%\DigitalCrown\media\` (0 restant
+  uniquement dans le dépôt)
+- `digitalcrown_db` inchangée (mêmes compteurs : 220/12/136/262/176/0)
+- PID réel 14516 inchangé, backend non redémarré (opération purement filesystem — le
+  backend lit le disque à la demande, aucun redémarrage nécessaire pour que les
+  fichiers deviennent servables)
+- Médias sources (les 1815 déjà présents) non modifiés
+
+**Conséquence pratique** : ces 31 documents deviennent automatiquement couverts par
+tout futur backup (manuel ou `DigitalCrown_DailyBackup_v2`) puisqu'ils sont maintenant
+dans le dossier standard. Un cycle de backup complet (déjà fait avant l'opération, à
+refaire après pour capturer les 31 nouveaux fichiers) est recommandé.
+
+**Reste ouvert** : le reste de `backend/static/` (documents non liés à
+`document_archives`, `static/models/`, `static/uploads/`, `static/patients/`,
+`static/reports/` — 439 Mo au total avant cette opération, ~438 Mo restants après
+extraction des 31 fichiers d'archives) n'a pas été traité — hors périmètre de cette
+mission ciblée, reste dans `docs/REPO_LARGE_FILES_SAFE_AUDIT.md`.
 
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?
