@@ -891,5 +891,46 @@ reste intacte comme cible de rollback.
 `SCHEDULED-TASK-BACKUP-FIX-1` → validation d'au moins une exécution planifiée réussie →
 GO/NO-GO Phase D Treatment Journey. La Phase D reste NO-GO.
 
+## ACTIVATED-RELEASE-PROVENANCE-LOCK-1 (2026-07-11)
+
+**Statut : COMPLETED — PROVENANCE VERROUILLÉE.**
+
+**Correspondance officielle release ↔ Git :**
+
+```
+Release active   : 20260711-012549-738eb5234efc
+Runtime          : PID 14516, port 8005, sans --reload (non redémarré par cette mission)
+Manifeste        : mentionne commit 738eb5234efc (état du HEAD au moment de la création,
+                   arbre alors dirty)
+Contenu fonctionnel = commit local 6de00db1164d01ad911d38fd3fa443220daf4103
+                   "fix(ops): route automatic backups to PostgreSQL and harden immutable releases"
+Créée AVANT le commit de provenance (le manifeste n'est pas modifié — release immuable)
+```
+
+**Preuve de correspondance** : les 321 fichiers `.py` du backend de la release comparés un à
+un au commit — 321 identiques en contenu, 0 différent, 0 absent. Les 10 fichiers critiques
+(backup_service, backup_db, daily_scheduler, main, models, patients, admin,
+patient_journey_service, create_release.ps1, run_real_backend.ps1) vérifiés explicitement.
+Seule différence : fins de ligne (CRLF dans la copie robocopy vs LF dans Git) — cosmétique,
+aucun effet fonctionnel. Frontend de la release = build sûr `index-BO2OChwV.js`,
+volontairement antérieur (PatientJourney non activé) — différence intentionnelle et
+documentée, pas une anomalie.
+
+**Commit créé** : local uniquement, aucun push (master local est en avance sur origin —
+push à la discrétion du CTO). 52 fichiers : correctif backup PostgreSQL, guards
+release/lanceur/build, Treatment Journey (code présent, non activé), documentation.
+Exclusions respectées : `.claude/` laissé non suivi (outillage local),
+`dist_cabinet/` + `install_rehearsal_media/` + `treatment_journey_rehearsal_media/`
+ajoutés au `.gitignore` (générés/rehearsal), backups/médias/`.env*` déjà ignorés —
+vérification explicite : aucun fichier sensible dans le staging.
+
+**Note secret** : `bootstrap_new_cabinet.py` contient un mot de passe **rehearsal-only**
+en dur (`E2E_Test_Pass_Rehearsal_2026`, étiqueté comme tel) — credential de test E2E,
+pas un secret de production. Conservé tel quel, signalé ici pour transparence.
+
+**Confirmations** : PID 14516 inchangé, runtime non redémarré, `digitalcrown_db` non
+modifiée, aucun nouveau backup réel déclenché, release active non modifiée,
+PatientJourney non activé, aucun push.
+
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?
