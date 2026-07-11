@@ -274,10 +274,17 @@ def _build_summary(db: Session, patient_id: int) -> schemas.JourneySummaryRespon
 
     # Reste dû : même calcul que get_patient_financial_snapshot (patients.py) pour rester
     # cohérent avec le reste de l'app — la fiabilité de cette donnée est un problème connu et
-    # séparé (backlog UNIFY-ACT-PERSISTENCE-1), pas réintroduit ici.
-    total_billed = float(
-        db.query(func.sum(models.Acte.montant)).filter(models.Acte.patient_id == patient_id).scalar() or 0.0
+    # séparé (backlog UNIFY-ACT-PERSISTENCE-1), pas réintroduit ici. `has_billing_data` est un
+    # correctif transitoire d'honnêteté (pas la vraie unification) : sans ligne Acte, remaining_due
+    # vaut toujours 0 quel que soit le paiement réel — le frontend doit afficher un état neutre
+    # plutôt qu'un "0 MAD" vert qui affirmerait à tort "aucun impayé".
+    acte_total, acte_count = (
+        db.query(func.sum(models.Acte.montant), func.count(models.Acte.id))
+        .filter(models.Acte.patient_id == patient_id)
+        .one()
     )
+    total_billed = float(acte_total or 0.0)
+    has_billing_data = (acte_count or 0) > 0
     total_collected = float(
         db.query(func.sum(models.Payment.amount)).filter(models.Payment.patient_id == patient_id).scalar() or 0.0
     )
@@ -309,6 +316,7 @@ def _build_summary(db: Session, patient_id: int) -> schemas.JourneySummaryRespon
         active_plan_steps=int(active_plan_steps),
         total_plan_steps=int(total_plan_steps),
         remaining_due=round(remaining_due, 2),
+        has_billing_data=has_billing_data,
         next_appointment=next_appt.datetime_start if next_appt else None,
         last_document_date=last_doc,
     )

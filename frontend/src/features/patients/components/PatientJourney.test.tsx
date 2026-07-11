@@ -19,17 +19,18 @@ const summary = {
   active_plan_steps: 1,
   total_plan_steps: 2,
   remaining_due: 0,
+  has_billing_data: true,
   next_appointment: null,
   last_document_date: null,
 }
 
-function makeJourneyResponse(events: any[]) {
+function makeJourneyResponse(events: any[], summaryOverride?: Partial<typeof summary>) {
   return {
     patient_id: 1,
     window_months: 12,
     truncated: false,
     total_events_available: events.length,
-    summary,
+    summary: { ...summary, ...summaryOverride },
     events,
   }
 }
@@ -86,11 +87,11 @@ const EVENT_MILESTONE = {
   related_event_key: null,
 }
 
-function mockApiGet(overrides: { events?: any[]; actes?: any[]; documents?: any[]; journeyError?: boolean } = {}) {
+function mockApiGet(overrides: { events?: any[]; actes?: any[]; documents?: any[]; journeyError?: boolean; summary?: Partial<typeof summary> } = {}) {
   vi.mocked(api.api.get).mockImplementation(async (url: string) => {
     if (url.includes('/journey')) {
       if (overrides.journeyError) throw new Error('network error')
-      return { data: makeJourneyResponse(overrides.events ?? []) }
+      return { data: makeJourneyResponse(overrides.events ?? [], overrides.summary) }
     }
     if (url.includes('/actes/patient/')) {
       return { data: overrides.actes ?? [] }
@@ -245,5 +246,30 @@ describe('PatientJourney', () => {
       expect(screen.getByText("Aucun événement pour l'instant.")).toBeInTheDocument()
     })
     expect(screen.queryByText(/Actes historiques/)).not.toBeInTheDocument()
+  })
+})
+
+describe('PatientJourney summary card', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows "Solde indéterminé" when the patient has no billing data', async () => {
+    mockApiGet({ events: [], summary: { has_billing_data: false, remaining_due: 0 } })
+    renderJourney()
+
+    await waitFor(() => {
+      expect(screen.getByText('Solde indéterminé')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/0 MAD/)).not.toBeInTheDocument()
+  })
+
+  it('shows the MAD amount in red when billing data exists and balance is due', async () => {
+    mockApiGet({ events: [], summary: { has_billing_data: true, remaining_due: 250 } })
+    renderJourney()
+
+    await waitFor(() => {
+      expect(screen.getByText(/250.*MAD/)).toBeInTheDocument()
+    })
   })
 })

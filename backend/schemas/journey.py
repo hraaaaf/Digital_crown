@@ -62,6 +62,7 @@ class JourneySummaryResponse(BaseModel):
     active_plan_steps: int
     total_plan_steps: int
     remaining_due: float
+    has_billing_data: bool  # False si le patient n'a aucune ligne Acte — remaining_due n'est alors pas fiable
     next_appointment: Optional[datetime.datetime] = None
     last_document_date: Optional[datetime.datetime] = None
 

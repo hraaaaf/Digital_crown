@@ -301,6 +301,37 @@ class TestPatientJourneyAggregation:
         result = patient_journey_service.build_journey(db, pat.id, dentiste.id)
         assert not any(e.source == "acte" for e in result.events)
 
+    def test_no_acte_rows_reports_indeterminate_billing(self, db, dentiste):
+        from backend import models
+        from backend.services import patient_journey_service
+
+        pat = _make_patient(db, dentiste.id, "NOBILL")
+        db.add(models.Payment(patient_id=pat.id, amount=100.0, payment_method=models.PaymentMethod.ESPECES))
+        db.commit()
+
+        result = patient_journey_service.build_journey(db, pat.id, dentiste.id)
+        assert result.summary.has_billing_data is False
+        assert result.summary.remaining_due == 0.0
+
+    def test_acte_rows_present_reports_billing_data_available(self, db, dentiste):
+        from backend import models
+        from backend.services import patient_journey_service
+        from datetime import datetime as _dt
+
+        pat = _make_patient(db, dentiste.id, "HASBILL")
+        db.add(models.Acte(
+            patient_id=pat.id, praticien_id=dentiste.id,
+            type_acte=models.ActeType.SOIN, libelle="Detartrage",
+            montant=100.0, statut_paiement=models.PaiementStatut.PAYE,
+            date_debut=_dt.now(),
+        ))
+        db.add(models.Payment(patient_id=pat.id, amount=40.0, payment_method=models.PaymentMethod.ESPECES))
+        db.commit()
+
+        result = patient_journey_service.build_journey(db, pat.id, dentiste.id)
+        assert result.summary.has_billing_data is True
+        assert result.summary.remaining_due == 60.0
+
     def test_query_count_stays_constant_regardless_of_event_volume(self, db, dentiste):
         from backend import database
         from backend.services import patient_journey_service

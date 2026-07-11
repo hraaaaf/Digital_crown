@@ -44,6 +44,7 @@ interface JourneySummary {
   active_plan_steps: number;
   total_plan_steps: number;
   remaining_due: number;
+  has_billing_data: boolean;
   next_appointment: string | null;
   last_document_date: string | null;
 }
@@ -301,11 +302,20 @@ export const PatientJourney = ({ patientId }: PatientJourneyProps) => {
           </div>
           <div className="text-xs text-text-muted font-bold mt-1">étapes en cours</div>
         </div>
-        <div className={cn('p-6 rounded-[2rem] border shadow-sm', data.summary.remaining_due > 0 ? 'bg-red-50 border-red-100' : 'bg-card-bg border-border-main')}>
+        <div className={cn(
+          'p-6 rounded-[2rem] border shadow-sm',
+          !data.summary.has_billing_data
+            ? 'bg-slate-50 border-slate-200'
+            : data.summary.remaining_due > 0 ? 'bg-red-50 border-red-100' : 'bg-card-bg border-border-main'
+        )}>
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Reste dû</p>
-          <div className={cn('text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
-            {data.summary.remaining_due.toLocaleString('fr-MA')} MAD
-          </div>
+          {!data.summary.has_billing_data ? (
+            <div className="text-3xl font-black text-slate-400">Solde indéterminé</div>
+          ) : (
+            <div className={cn('text-3xl font-black', data.summary.remaining_due > 0 ? 'text-red-600' : 'text-emerald-600')}>
+              {data.summary.remaining_due.toLocaleString('fr-MA')} MAD
+            </div>
+          )}
         </div>
         <div className="bg-card-bg p-6 rounded-[2rem] border border-border-main shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Prochain RDV</p>
