@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
@@ -15,7 +15,8 @@ import {
   Stethoscope,
   Mail,
   MapPin,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCcw
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -36,6 +37,7 @@ import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
+import { AssuranceBadge } from '../../components/AssuranceBadge';
 import { Banknote } from 'lucide-react';
 
 interface Patient {
@@ -79,6 +81,7 @@ export const PatientDetails = () => {
   const cachedPatient = patientsCache.find(p => String(p.id) === id);
   const [patient, setPatient] = useState<Patient | null>(cachedPatient ? { ...cachedPatient, assurance: cachedPatient.assurance } : null);
   const [loading, setLoading] = useState(!cachedPatient);
+  const [fetchError, setFetchError] = useState(false);
   const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';
   const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('radioTab', v); return p; });
@@ -103,21 +106,24 @@ export const PatientDetails = () => {
     return () => window.removeEventListener('perio-create-prescription', handlePrescription);
   }, [setSearchParams]);
 
-  useEffect(() => {
-    const fetchPatient = async () => {
-      if (!id) return;
-      try {
-        if (!cachedPatient) setLoading(true);
-        const response = await api.get(`/patients/${id}`);
-        setPatient(response.data);
-      } catch (error) {
-        console.error("❌ Erreur chargement patient:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPatient();
+  const fetchPatient = useCallback(async () => {
+    if (!id) return;
+    try {
+      setFetchError(false);
+      if (!cachedPatient) setLoading(true);
+      const response = await api.get(`/patients/${id}`);
+      setPatient(response.data);
+    } catch (error) {
+      console.error("❌ Erreur chargement patient:", error);
+      setFetchError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [id, cachedPatient]);
+
+  useEffect(() => {
+    fetchPatient();
+  }, [fetchPatient]);
 
   useEffect(() => {
     if (!id) return;
@@ -161,6 +167,28 @@ export const PatientDetails = () => {
     return <EliteGhostLoader text="Ouverture du dossier clinique..." size="medium" />;
   }
 
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 text-center space-y-6">
+          <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle size={40} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 mb-2">Impossible de charger le dossier</h1>
+            <p className="text-slate-500 font-medium text-sm">Erreur réseau ou patient introuvable. Vérifiez votre connexion et réessayez.</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => navigate('/patients')} className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">Retour</button>
+            <button onClick={() => fetchPatient()} className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-lg transition-all flex items-center justify-center gap-2">
+              <RefreshCcw size={16} /> Réessayer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!patient) return null;
 
   const fullName = `${patient.nom.toUpperCase()} ${patient.prenom}`;
@@ -177,12 +205,13 @@ export const PatientDetails = () => {
           
           <div className={cn("flex items-center justify-between transition-all duration-500", isCompact ? "mb-2" : "mb-6")}>
             <div className="flex items-center gap-5">
-              <button 
+              <button
                 onClick={() => navigate('/patients')}
                 className={cn("bg-card-bg border border-border-main text-text-muted hover:border-primary flex items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
                   isCompact ? "w-8 h-8" : "w-12 h-12"
                 )}
                 style={{ color: 'var(--primary)' }}
+                aria-label="Retourner à la liste des patients"
               >
                 <ArrowLeft size={isCompact ? 18 : 24} strokeWidth={2.5} />
               </button>
@@ -193,17 +222,7 @@ export const PatientDetails = () => {
                     {fullName}
                   </h1>
                   {show_patient_badges && <PatientScoreBadge patientId={Number(id)} />}
-                  {patient.assurance && patient.assurance !== 'AUCUNE' && (
-                    <span className={cn(
-                      "px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border shadow-sm",
-                      patient.assurance === 'CNOPS' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                      patient.assurance === 'CNSS' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                      patient.assurance === 'MUTUELLE_FAR' ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                      "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                    )}>
-                      {patient.assurance === 'MUTUELLE_FAR' ? 'FAR' : patient.assurance}
-                    </span>
-                  )}
+                  <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {!isCompact && (
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-lg uppercase tracking-widest border border-primary/10 shadow-sm" style={{ color: 'var(--primary)' }}>

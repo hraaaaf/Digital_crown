@@ -10,6 +10,7 @@ export type SchedulingType = 'EXACT_TIME' | 'MORNING' | 'AFTERNOON' | 'FULL_DAY'
 import { useClinicalRef } from '../clinical-ref/useClinicalRef';
 import { ClinicalRefSidebar } from '../clinical-ref/ClinicalRefSidebar';
 import { useEliteStore } from '../../stores/useEliteStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface Patient {
   id: number;
@@ -76,6 +77,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   useEffect(() => {
     if (!isOpen) setShowGhostPanel(false);
   }, [isOpen]);
+
+  useEscapeKey(isOpen, onClose);
 
   useEffect(() => {
     if (protocol) {
@@ -355,9 +358,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-4 animate-in fade-in duration-300">
+    <div role="dialog" aria-modal="true" aria-label={editingAppointment ? "Modifier le Rendez-vous" : "Nouveau Rendez-vous"} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-4 animate-in fade-in duration-300">
       <div className="bg-white/90 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white flex flex-col max-h-[95vh]">
-        
+
         <div className="flex justify-between items-center p-4 sm:p-8 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -370,7 +373,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               <p className="text-slate-500 text-sm font-bold">Planification clinique</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-white text-slate-400 hover:text-rose-500 rounded-full shadow-sm border border-slate-100 transition-all hover:rotate-90">
+          <button onClick={onClose} className="p-3 bg-white text-slate-400 hover:text-rose-500 rounded-full shadow-sm border border-slate-100 transition-all hover:rotate-90" aria-label="Fermer">
             <X size={20} />
           </button>
         </div>

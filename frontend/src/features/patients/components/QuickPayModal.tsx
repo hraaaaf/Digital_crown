@@ -5,6 +5,7 @@ import { paymentApi } from '../../../services/paymentApi';
 import toast from 'react-hot-toast';
 import { cn } from '../../../utils/cn';
 import { useAccountingStore } from '../../admin/store/useAccountingStore';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
   const [method, setMethod] = useState<'ESPECES' | 'CARTE' | 'VIREMENT' | 'CHEQUE'>('ESPECES');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEscapeKey(isOpen, onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,15 +56,15 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-          <motion.div 
+        <div role="dialog" aria-modal="true" aria-label="Saisir un Paiement" className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
-          
+
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -70,7 +73,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
           >
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Saisir un Paiement</h2>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors" aria-label="Fermer">
                 <X size={20} />
               </button>
             </div>

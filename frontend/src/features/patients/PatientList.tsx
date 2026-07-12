@@ -10,6 +10,8 @@ import { PatientSummaryHoverCard } from './components/PatientSummaryHoverCard';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { CsvImportModal } from './CsvImportModal';
+import { AssuranceBadge } from '../../components/AssuranceBadge';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 export const PatientList = () => {
   const navigate = useNavigate();
@@ -129,6 +131,8 @@ export const PatientList = () => {
     }
   };
 
+  useEscapeKey(deleteModal.open, () => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); });
+
   const filtered = patients.filter(p => {
     const term = searchTerm.toLowerCase();
     const matchSearch = p.nom.toLowerCase().includes(term) ||
@@ -214,6 +218,7 @@ export const PatientList = () => {
               )}
               style={viewMode === 'table' ? { backgroundColor: 'var(--primary)' } : {}}
               title="Vue Table"
+              aria-label="Vue Table"
             >
               <List size={20} />
             </button>
@@ -227,6 +232,7 @@ export const PatientList = () => {
               )}
               style={viewMode === 'grid' ? { backgroundColor: 'var(--primary)' } : {}}
               title="Vue Grille"
+              aria-label="Vue Grille"
             >
               <LayoutGrid size={20} />
             </button>
@@ -302,12 +308,15 @@ export const PatientList = () => {
                 const rowKey = p.id ?? `patient-${index}`;
 
                 return (
-                  <tr 
-                    key={rowKey} 
+                  <tr
+                    key={rowKey}
                     onClick={() => p.id && navigate(`/patients/${p.id}`)}
                     onMouseEnter={(e) => p.id && handleMouseEnter(e, p.id, p.nom, p.prenom, p.numero_dossier)}
                     onMouseLeave={handleMouseLeave}
-                    className="hover:bg-primary/5 transition-all duration-300 cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary hover:scale-[1.002]"
+                    tabIndex={0}
+                    role="button"
+                    onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && p.id) { e.preventDefault(); navigate(`/patients/${p.id}`); } }}
+                    className="hover:bg-primary/5 transition-all duration-300 cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary hover:scale-[1.002] focus:outline-2 focus:outline-primary focus:outline-offset-2"
                   >
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-5">
@@ -333,43 +342,33 @@ export const PatientList = () => {
                       </div>
                     </td>
                     <td className="px-6 py-6">
-                      {p.assurance && p.assurance !== 'AUCUNE' ? (
-                        <span className={cn(
-                          "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm",
-                          p.assurance === 'CNOPS' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                          p.assurance === 'CNSS' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                          p.assurance === 'MUTUELLE_FAR' ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                          "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                        )}>
-                          {p.assurance === 'MUTUELLE_FAR' ? 'FAR' : p.assurance}
-                        </span>
-                      ) : (
-                        <span className="text-text-muted text-[10px] font-bold uppercase">Privé</span>
-                      )}
+                      <AssuranceBadge assurance={p.assurance} size="full" />
                     </td>
                     <td className="px-6 py-6 font-mono text-text-muted font-bold text-center">
                       {p.telephone || "—"}
                     </td>
                     <td className="px-10 py-6 text-right">
-                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if(p.id) navigate(`/patients/${p.id}/edit`); 
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if(p.id) navigate(`/patients/${p.id}/edit`);
                           }}
                           className="p-3 text-text-muted hover:text-primary hover:bg-card-bg border border-transparent hover:border-border-main rounded-2xl transition-all shadow-sm"
                           title="Modifier les infos"
+                          aria-label="Modifier les infos"
                         >
                           <Edit3 size={20} />
                         </button>
-                        
-                        <button 
+
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             if(p.id) setDeleteModal({ open: true, id: p.id, name: `${p.prenom} ${p.nom}` });
                           }}
                           className="p-3 text-text-muted hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-2xl transition-all shadow-sm"
                           title="Supprimer définitivement"
+                          aria-label="Supprimer définitivement"
                         >
                           <Trash2 size={20} />
                         </button>
@@ -391,7 +390,10 @@ export const PatientList = () => {
                   onClick={() => p.id && navigate(`/patients/${p.id}`)}
                   onMouseEnter={(e) => p.id && handleMouseEnter(e, p.id, p.nom, p.prenom, p.numero_dossier)}
                   onMouseLeave={handleMouseLeave}
-                  className="bg-card-bg/60 backdrop-blur-xl border border-border-main/60 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 hover:border-primary/30 hover:bg-card-bg/90 transition-all duration-300 cursor-pointer group relative flex flex-col justify-between min-h-[220px]"
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && p.id) { e.preventDefault(); navigate(`/patients/${p.id}`); } }}
+                  className="bg-card-bg/60 backdrop-blur-xl border border-border-main/60 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 hover:border-primary/30 hover:bg-card-bg/90 transition-all duration-300 cursor-pointer group relative flex flex-col justify-between min-h-[220px] focus:outline-2 focus:outline-primary focus:outline-offset-2"
                 >
                   <div>
                     {/* Ligne du haut: Bulle Patient et Actions rapides */}
@@ -400,24 +402,26 @@ export const PatientList = () => {
                         {(p.prenom?.charAt(0) || '')}{(p.nom?.charAt(0) || '')}
                       </div>
 
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if(p.id) navigate(`/patients/${p.id}/edit`); 
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if(p.id) navigate(`/patients/${p.id}/edit`);
                           }}
                           className="p-2.5 text-text-muted hover:text-primary hover:bg-card-bg border border-border-main/50 rounded-xl transition-all shadow-sm"
                           title="Modifier"
+                          aria-label="Modifier"
                         >
                           <Edit3 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             if(p.id) setDeleteModal({ open: true, id: p.id, name: `${p.prenom} ${p.nom}` });
                           }}
                           className="p-2.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-xl transition-all shadow-sm"
                           title="Supprimer"
+                          aria-label="Supprimer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -445,19 +449,7 @@ export const PatientList = () => {
                   {/* Ligne du bas : Badges CRM, Assurances et téléphone */}
                   <div className="mt-6 pt-4 border-t border-border-main/40 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {p.assurance && p.assurance !== 'AUCUNE' ? (
-                        <span className={cn(
-                          "px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border shadow-sm",
-                          p.assurance === 'CNOPS' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                          p.assurance === 'CNSS' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                          p.assurance === 'MUTUELLE_FAR' ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                          "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                        )}>
-                          {p.assurance === 'MUTUELLE_FAR' ? 'MUT_FAR' : p.assurance}
-                        </span>
-                      ) : (
-                        <span className="text-text-muted text-[8px] font-black uppercase tracking-widest border border-border-main/40 px-2 py-0.5 rounded-md">Privé</span>
-                      )}
+                      <AssuranceBadge assurance={p.assurance} size="compact" />
 
                       {show_patient_badges && p.id && (
                         <div onClick={(e) => e.stopPropagation()} className="scale-90 origin-left">
@@ -479,10 +471,10 @@ export const PatientList = () => {
 
       {/* MODALE DE SUPPRESSION PREMIUM */}
       {deleteModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 h-screen w-screen">
+        <div role="dialog" aria-modal="true" aria-label="Supprimer le dossier" className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 h-screen w-screen">
           <div className="bg-card-bg rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-border-main relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6">
-               <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className="text-text-muted hover:text-main transition-colors">
+               <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className="text-text-muted hover:text-main transition-colors" aria-label="Fermer">
                  <X size={24} />
                </button>
             </div>
