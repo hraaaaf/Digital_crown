@@ -95,6 +95,7 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     
     # Calcul de l'activité sur les 7 derniers jours
     weekly_activity = []
+    weekly_patient_counts = []
     from datetime import timedelta
     for i in range(6, -1, -1):
         day = datetime.now().date() - timedelta(days=i)
@@ -102,9 +103,12 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
             models.Patient.employer_id == emp_id,
             func.date(models.Patient.created_at) == day
         ).count()
-        # On normalise en pourcentage pour le mini-graphique (max 100%)
-        # Si on a 0 patient, on met 5% pour le style "Ghost"
-        weekly_activity.append(max(5, min(100, count * 10))) 
+        # weekly_activity : pourcentage normalisé pour le mini-graphique (max 100%, plancher
+        # 5% de style visuel). weekly_patient_counts : le compte brut, pour ne jamais avoir
+        # à ré-inverser la normalisation côté frontend (audit fonctionnel 2026-07-12 —
+        # l'ancienne formule inverse (val-5)/10 fabriquait un chiffre faux dès count >= 10).
+        weekly_activity.append(max(5, min(100, count * 10)))
+        weekly_patient_counts.append(count)
 
     recent_list = []
     for p in db_recent:
@@ -155,6 +159,7 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
         "total_analyses": total_a,
         "recent_patients": recent_list,
         "weekly_activity": weekly_activity,
+        "weekly_patient_counts": weekly_patient_counts,
         "in_waiting": in_waiting,
         "weekly_patients": weekly_p,
         "pending_team_requests": pending_team,

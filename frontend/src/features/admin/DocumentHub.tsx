@@ -252,18 +252,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       }, ...prev]);
     }
 
-    // 3. Profil Patient Premium (Analyse sans redondance)
-    if (patientDetails && !insights.find(ins => ins.id === 'ins-platinum')) {
-       setInsights(prev => [{
-         id: 'ins-platinum',
-         type: 'habit',
-         title: 'Standard de Soins Elite',
-         content: `${patientDetails.prenom} bénéficie du programme Platinum. Un compte-rendu détaillé est recommandé après cette séance.`,
-         actionLabel: 'Préparer CR',
-         onAction: () => { setActiveTab('libre'); }
-       }, ...prev]);
-    }
-
     // 4. GHOST COMPLICATIONS (Bouclier de Sécurité Médicolégal)
     if (patientDetails?.antecedents_medicaux) {
       const ant = patientDetails.antecedents_medicaux.toLowerCase();
@@ -325,10 +313,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             type: 'habit',
             title: '💡 Ghost Mutuelle : Optimisation',
             content: `Le plafond prothétique de la ${patientDetails.assurance} se renouvelle bientôt. Séparer ce devis de ${totalAmount} MAD (Décembre / Janvier) maximisera le remboursement du patient !`,
-            actionLabel: 'Scinder le Devis',
-            onAction: () => {
-              window.dispatchEvent(new CustomEvent('toast-alert', { detail: { type: 'success', message: "Ghost Mutuelle a scindé le devis en deux phases annuelles." }}));
-            }
           }, ...prev]);
         }
       }
@@ -362,23 +346,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, drugs, patientDetails, insights, patientId]);
-
-  useEffect(() => {
-    // Calcul du Score d'Intelligence "Réel"
-    let score = 72;
-    score += items.length * 2;
-    if (isSurgical) score += 10;
-    if (hasDrugs) score += 5;
-    
-    // Malus si oublis ou alertes (pour pousser la rigueur)
-    if (isSurgical && !hasDrugs) score -= 15;
-    
-    const finalScore = Math.min(99, Math.max(40, score));
-
-    window.dispatchEvent(new CustomEvent('elite-insights-update', { 
-      detail: { insights, score: finalScore } 
-    }));
-  }, [insights, items.length, isSurgical, hasDrugs]);
 
   const generator = useDocumentGenerator(generatorParams);
 

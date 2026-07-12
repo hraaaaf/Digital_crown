@@ -64,6 +64,7 @@ interface DashboardStats {
   in_waiting: number;
   recent_patients: RecentPatient[];
   weekly_activity: number[];
+  weekly_patient_counts?: number[];
   weekly_patients?: number;
 }
 
@@ -225,6 +226,7 @@ export const Dashboard: React.FC = () => {
           total_analyses: 0,
           in_waiting: 0,
           weekly_activity: [0, 0, 0, 0, 0, 0, 0],
+          weekly_patient_counts: [0, 0, 0, 0, 0, 0, 0],
           recent_patients: []
         });
       } finally {
@@ -419,7 +421,7 @@ export const Dashboard: React.FC = () => {
               <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Elite Cloud Connecté</span>
+                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Système local actif</span>
               </div>
             </div>
           </div>
@@ -577,17 +579,20 @@ export const Dashboard: React.FC = () => {
 
                   const labels = getPast7DaysLabels();
                   const label = labels[idx] ? labels[idx].charAt(0).toUpperCase() + labels[idx].slice(1) : '';
-                  // The actual count of patients can be derived
-                  const pCount = Math.max(0, Math.round((val - 5) / 10));
+                  // Compte réel exposé par le backend (weekly_patient_counts) — jamais
+                  // ré-inféré depuis val (pourcentage normalisé pour la hauteur de la barre).
+                  const pCount = stats?.weekly_patient_counts?.[idx];
 
                   return (
                     <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar relative z-10 h-full justify-end">
-                      
+
                       {/* Hover tooltip card */}
-                      <div className="absolute bottom-[calc(100%-10px)] left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none bg-slate-900/95 dark:bg-black/90 border border-border-main text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black shadow-xl whitespace-nowrap mb-2 z-[20]">
-                        <div className="text-[7px] text-white/70 uppercase tracking-widest">Nouveaux dossiers</div>
-                        <div className="text-sm font-black text-accent mt-0.5">{pCount} Patient{pCount > 1 ? 's' : ''}</div>
-                      </div>
+                      {pCount !== undefined && (
+                        <div className="absolute bottom-[calc(100%-10px)] left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none bg-slate-900/95 dark:bg-black/90 border border-border-main text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black shadow-xl whitespace-nowrap mb-2 z-[20]">
+                          <div className="text-[7px] text-white/70 uppercase tracking-widest">Nouveaux dossiers</div>
+                          <div className="text-sm font-black text-accent mt-0.5">{pCount} Patient{pCount > 1 ? 's' : ''}</div>
+                        </div>
+                      )}
 
                       {/* Bar container */}
                       <div className="w-full relative rounded-t-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-transparent group-hover/bar:border-primary/20 transition-all h-full flex items-end">
@@ -616,9 +621,9 @@ export const Dashboard: React.FC = () => {
               {/* Bottom summary note */}
               <div className="relative z-10 border-t border-border-main pt-4 flex items-center justify-between text-[9px] font-bold text-text-muted uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Apprentissage Machine Actif
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Nouveaux dossiers / 7 jours
                 </span>
-                <span>Mise à jour : Temps Réel</span>
+                <span>Mise à jour à chaque chargement</span>
               </div>
 
             </div>

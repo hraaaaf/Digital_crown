@@ -127,6 +127,7 @@ class TestDashboardStats:
         assert "total_analyses" in body
         assert "recent_patients" in body
         assert "weekly_activity" in body
+        assert "weekly_patient_counts" in body
         assert "in_waiting" in body
         assert "weekly_patients" in body
 
@@ -139,6 +140,11 @@ class TestDashboardStats:
         r = client.get("/api/admin/dashboard/stats", headers=auth_headers)
         assert r.status_code == 200
         assert len(r.json()["weekly_activity"]) == 7
+
+    def test_weekly_patient_counts_has_7_days(self, client, auth_headers):
+        r = client.get("/api/admin/dashboard/stats", headers=auth_headers)
+        assert r.status_code == 200
+        assert len(r.json()["weekly_patient_counts"]) == 7
 
     def test_with_patients_counted(self, client, db, auth_headers, dentiste):
         from backend import models
@@ -156,7 +162,11 @@ class TestDashboardStats:
 
         r = client.get("/api/admin/dashboard/stats", headers=auth_headers)
         assert r.status_code == 200
-        assert r.json()["total_patients"] >= 1
+        body = r.json()
+        assert body["total_patients"] >= 1
+        # Patient créé aujourd'hui -> dernier jour de la fenêtre (index 6) doit le compter
+        # brut, sans passer par la normalisation en pourcentage de weekly_activity.
+        assert body["weekly_patient_counts"][6] >= 1
 
 
 # ── cabinet profile ───────────────────────────────────────────────────────────

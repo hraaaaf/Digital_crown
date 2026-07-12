@@ -72,7 +72,7 @@ export function SecuriteView({
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         <div>
           <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Status Système</p>
-          <p className="text-sm font-black text-text-main">Elite Cloud Connecté</p>
+          <p className="text-sm font-black text-text-main">Serveur local opérationnel</p>
         </div>
         <FileText size={16} className="ml-auto text-text-muted" />
       </div>

@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, PlusCircle, Download } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, Download } from 'lucide-react';
 import { DigitalCrownLoader } from '../components/DigitalCrownLoader';
 import toast from 'react-hot-toast';
 
@@ -203,24 +203,6 @@ export const Analytics = () => {
               <p className="text-3xl font-black text-rose-700 dark:text-rose-300">
                 {operationalStats?.no_show_rate}%
               </p>
-              <div className="mt-3">
-                 {/* Bouton d'action (Sofia) */}
-                 <button 
-                   onClick={() => {
-                     toast.promise(
-                       new Promise(resolve => setTimeout(resolve, 2000)),
-                       {
-                         loading: 'Ghost Brain analyse la liste d\'attente...',
-                         success: '3 patients trouvés pour combler les annulations !',
-                         error: 'Erreur',
-                       }
-                     );
-                   }}
-                   className="text-xs font-bold px-3 py-1.5 bg-white dark:bg-slate-800 text-rose-600 border border-rose-200 dark:border-rose-800 rounded-lg w-full flex items-center justify-center gap-1 hover:bg-rose-50 dark:hover:bg-rose-900/40 transition-colors"
-                 >
-                   <PlusCircle size={14} /> Combler les trous
-                 </button>
-              </div>
             </div>
 
             <div className="p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col justify-between">
