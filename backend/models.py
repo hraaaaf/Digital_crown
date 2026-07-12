@@ -334,10 +334,18 @@ class Acte(Base):
     is_accounted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    
+
+    # UNIFY-ACT-PERSISTENCE-1 : lien optionnel vers la note d'honoraires qui a généré
+    # cette ligne automatiquement (documents.py::generate_document). NULL pour tout Acte
+    # créé manuellement (POST /clinical/actes) ou legacy — jamais backfillé.
+    document_archive_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("document_archives.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    document_archive: Mapped[Optional["DocumentArchive"]] = relationship()
+
     notes_cliniques: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     attachments: Mapped[Optional[list]] = mapped_column(JSON, default=list, nullable=True)
-    
+
     patient: Mapped["Patient"] = relationship(back_populates="actes")
     praticien: Mapped["User"] = relationship(back_populates="actes_realises")
 

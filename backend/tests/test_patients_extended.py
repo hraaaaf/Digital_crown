@@ -385,3 +385,55 @@ class TestMultiTenantPatients:
     def test_unauthenticated_patient_request_returns_401(self, client):
         r = client.get("/api/patients/12345")
         assert r.status_code == 401
+
+
+# ── UNIFY-ACT-PERSISTENCE-1 : financial-snapshot / journey reflètent enfin un ──
+# ── vrai reste dû pour un patient sans historique Acte legacy ──────────────────
+
+class TestFinancialSnapshotAndJourneyReflectNewBilling:
+    def test_financial_snapshot_reflects_new_document_billing(self, client, auth_headers, db):
+        pat = _create_patient(client, auth_headers, nom="Snapshotpat", prenom="Test", dob="1990-01-01")
+        req_data = {
+            "type": "note",
+            "patient_id": pat["id"],
+            "is_accounted": True,
+            "payment_status": "PARTIEL",
+            "data": {
+                "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 1000.0, "mode_reglement": "ESPECES"}],
+                "doc_date": "2026-05-18",
+                "teeth_data": [],
+            },
+        }
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+
+        r = client.get(f"/api/patients/{pat['id']}/financial-snapshot", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        # Avant cette mission, total_billed aurait été 0 (aucune ligne Acte jamais créée
+        # par ce flux) — désormais reflète le vrai montant facturé.
+        assert body["total_billed"] == 1000.0
+        assert body["total_collected"] == 500.0  # Payment lump-sum existant : total/2.0
+        assert body["remaining_due"] == 500.0
+
+    def test_journey_summary_has_billing_data_true_after_note(self, client, auth_headers, db):
+        pat = _create_patient(client, auth_headers, nom="Journeypat", prenom="Test", dob="1990-01-01")
+        req_data = {
+            "type": "note",
+            "patient_id": pat["id"],
+            "is_accounted": True,
+            "payment_status": "PAYE",
+            "data": {
+                "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 400.0, "mode_reglement": "ESPECES"}],
+                "doc_date": "2026-05-18",
+                "teeth_data": [],
+            },
+        }
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+
+        r = client.get(f"/api/patients/{pat['id']}/journey", headers=auth_headers)
+        assert r.status_code == 200
+        summary = r.json()["summary"]
+        assert summary["has_billing_data"] is True
+        assert summary["remaining_due"] == 0.0

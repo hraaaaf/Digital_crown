@@ -19,6 +19,35 @@ def _make_patient(db, dentiste, nom="ACCTPAT"):
     return pat
 
 
+def _seed_legacy_doc_archive(db, patient_id, employer_id, amount=500.0):
+    """Simule un DocumentArchive historique pré-UNIFY-ACT-PERSISTENCE-1 : jamais de
+    ligne Acte liée (created directement en DB, sans passer par /documents/generate)."""
+    import uuid as _uuid
+    from backend import models
+    doc = models.DocumentArchive(
+        patient_id=patient_id,
+        uploaded_by_id=employer_id,
+        document_type=models.DocumentType.NOTE_HONORAIRES,
+        filename=f"note_{_uuid.uuid4().hex[:8]}.pdf",
+        original_filename="note.pdf",
+        document_group_id=str(_uuid.uuid4()),
+        version_number=1,
+        is_latest_version=True,
+        file_hash=_uuid.uuid4().hex,
+        file_size=1024,
+        file_path="/tmp/note.pdf",
+        title="Consultation",
+        is_accounted=True,
+        payment_status=models.PaiementStatut.EN_ATTENTE,
+        is_collected=False,
+        clinical_data={"payments": [{"acte": "Consultation", "montant": amount}]},
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
 def _plan_payload(patient_id):
     return {
         "patient_id": patient_id,
@@ -226,6 +255,75 @@ class TestHonoraires:
         r = client.get(f"/api/accounting/honoraires?patient_id={pat.id}", headers=auth_headers)
         assert r.status_code == 200
 
+    def test_new_document_not_double_counted(self, client, db, auth_headers, dentiste):
+        # UNIFY-ACT-PERSISTENCE-1 : un document généré via /documents/generate a
+        # désormais des Acte liés — /accounting/honoraires ne doit pas sommer aussi
+        # son clinical_data JSON en plus, sinon le montant est compté deux fois.
+        pat = _make_patient(db, dentiste, "DEDUPPAT")
+        req_data = {
+            "type": "note",
+            "patient_id": pat.id,
+            "is_accounted": True,
+            "payment_status": "PAYE",
+            "data": {
+                "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 1000.0, "mode_reglement": "ESPECES"}],
+                "doc_date": "2026-05-18",
+                "teeth_data": [],
+            },
+        }
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+
+        r = client.get(f"/api/accounting/honoraires?patient_id={pat.id}", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total_amount"] == 1000.0  # pas 2000.0
+        assert len(body["items"]) == 1
+        assert body["items"][0]["id"].startswith("acte_")
+
+    def test_legacy_document_without_acte_still_extracted_from_json(self, client, db, auth_headers, dentiste):
+        # Non-régression : les documents historiques (jamais liés à un Acte, pas de
+        # backfill) doivent continuer à être comptés via l'extraction JSON existante.
+        pat = _make_patient(db, dentiste, "LEGACYDOCPAT")
+        _seed_legacy_doc_archive(db, pat.id, dentiste.id, amount=500.0)
+
+        r = client.get(f"/api/accounting/honoraires?patient_id={pat.id}", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total_amount"] == 500.0
+        assert len(body["items"]) == 1
+        assert body["items"][0]["id"].startswith("doc_")
+
+    def test_insured_notes_only_still_shows_new_document_via_json(self, client, db, auth_headers, dentiste):
+        # Mode filtré : acte_query est mise à `filter(False)` (exclut tous les Acte
+        # simples) — la garde de dédoublonnage doit rester désactivée dans ce mode,
+        # sinon un nouveau document avec Acte liés disparaîtrait complètement de la vue.
+        from backend import models
+        pat = _make_patient(db, dentiste, "INSUREDPAT")
+        pat.assurance = "CNOPS"
+        db.commit()
+
+        req_data = {
+            "type": "note",
+            "patient_id": pat.id,
+            "is_accounted": True,
+            "payment_status": "PAYE",
+            "data": {
+                "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 800.0, "mode_reglement": "ESPECES"}],
+                "doc_date": "2026-05-18",
+                "teeth_data": [],
+            },
+        }
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+
+        r = client.get(f"/api/accounting/honoraires?filter_type=insured_notes_only&patient_id={pat.id}", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total_amount"] == 800.0
+        assert len(body["items"]) == 1
+        assert body["items"][0]["id"].startswith("doc_")
+
 
 # ── treasury hub ──────────────────────────────────────────────────────────────
 
@@ -239,6 +337,34 @@ class TestTreasuryHub:
     def test_treasury_hub_with_date_filter(self, client, auth_headers):
         r = client.get("/api/accounting/treasury-hub?period=month", headers=auth_headers)
         assert r.status_code == 200
+
+    def test_treasury_hub_new_document_not_double_counted(self, client, db, auth_headers, dentiste):
+        from backend import models
+        pat = _make_patient(db, dentiste, "TREASDEDUPPAT")
+        req_data = {
+            "type": "note",
+            "patient_id": pat.id,
+            "is_accounted": True,
+            "payment_status": "EN_ATTENTE",
+            "data": {
+                "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 600.0, "mode_reglement": "ESPECES"}],
+                "doc_date": "2026-05-18",
+                "teeth_data": [],
+            },
+        }
+        resp_gen = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
+        assert resp_gen.status_code == 200, resp_gen.text
+
+        r = client.get("/api/accounting/treasury-hub", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        matching_items = [
+            it for it in body.get("items", [])
+            if it.get("patient_id") == pat.id
+        ]
+        # Un seul item pour ce patient (via son Acte, pas aussi via le doc JSON)
+        assert len(matching_items) == 1
+        assert matching_items[0]["id"].startswith("acte_")
 
 
 # ── frequent acts ─────────────────────────────────────────────────────────────

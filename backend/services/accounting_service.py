@@ -185,6 +185,16 @@ class AccountingService:
             models.Patient.employer_id == user_employer_id
         ).all()
 
+        # UNIFY-ACT-PERSISTENCE-1 : ne pas compter un document deux fois (une fois via
+        # son clinical_data JSON, une fois via ses Acte liés générés automatiquement par
+        # documents.py::generate_document). Pas de garde filter_type ici — ce paramètre
+        # n'existe pas sur cet endpoint.
+        doc_ids_with_actes = {
+            row[0] for row in db.query(models.Acte.document_archive_id)
+            .filter(models.Acte.document_archive_id.isnot(None)).distinct().all()
+        }
+        docs = [d for d in docs if d.id not in doc_ids_with_actes]
+
         # 2. Actes non encore encaissés (is_collected != True)
         actes = db.query(models.Acte).join(models.Patient).filter(
             models.Acte.is_accounted == True,

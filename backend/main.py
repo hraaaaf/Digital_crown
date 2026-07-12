@@ -163,6 +163,7 @@ async def lifespan(app: FastAPI):
 
         # 2. Migration des colonnes frontdesk pour les appointments
         database.migrate_appointment_columns()
+        database.migrate_actes_columns()
 
         # Activation de la synchronisation Zero-Knowledge (Observer Mode)
         sync_manager.start_listening()

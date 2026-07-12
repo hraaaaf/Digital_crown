@@ -160,7 +160,29 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 installments_data = req.data.get('installments', [])
                 is_global = req.data.get('is_global_note', False)
                 total_amount = sum(float(p.get('montant', 0)) for p in req.data.get('payments', []))
-                
+
+                # --- UNIFY-ACT-PERSISTENCE-1 : un Acte par ligne facturée -------------
+                # La table Acte ne couvrait que ~13,6% des patients réels (jamais peuplée
+                # par ce flux). Commun aux deux branches ci-dessous : la granularité par
+                # ligne ne doit pas dépendre du mode de règlement (échéancier ou non).
+                from backend.services.acte_classification import classify_acte_type
+                acte_default_statut = (
+                    models.PaiementStatut.EN_ATTENTE if (is_global and installments_data) else p_status
+                )
+                for item in req.data.get('payments', []):
+                    libelle = item.get('acte') or 'Acte'
+                    montant_item = float(item.get('montant', 0))
+                    db.add(models.Acte(
+                        patient_id=patient.id, praticien_id=user_id,
+                        type_acte=classify_acte_type(libelle), libelle=libelle, montant=montant_item,
+                        date_debut=doc.created_at, statut_paiement=acte_default_statut,
+                        is_accounted=req.is_accounted,
+                        is_collected=(acte_default_statut == models.PaiementStatut.PAYE),
+                        document_archive_id=doc.id,
+                    ))
+                db.commit()
+                # --- fin bloc Acte -----------------------------------------------------
+
                 if is_global and installments_data:
                     # Création d'un plan de paiement
                     plan = models.InstallmentPlan(

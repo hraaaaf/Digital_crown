@@ -216,13 +216,28 @@ def get_accounting_honoraires(
 
     docs = doc_query.all()
     actes = acte_query.all()
-    
+
     items = []
     total_amount = 0
     summary_by_title = {}
-    
+
+    # UNIFY-ACT-PERSISTENCE-1 : un DocumentArchive dont les lignes Acte ont déjà été
+    # générées (documents.py::generate_document) ne doit plus être compté via
+    # l'extraction JSON de clinical_data, sinon le même travail est compté deux fois
+    # (une fois ici, une fois dans la boucle acte_query ci-dessous). Garde conditionnelle
+    # : en mode "insured_notes_only", acte_query est déjà filtrée à vide (ligne ci-dessus),
+    # donc sauter ces documents les ferait disparaître complètement de cette vue.
+    doc_ids_with_actes = set()
+    if filter_type != "insured_notes_only":
+        doc_ids_with_actes = {
+            row[0] for row in db.query(models.Acte.document_archive_id)
+            .filter(models.Acte.document_archive_id.isnot(None)).distinct().all()
+        }
+
     # Traitement des documents
     for doc in docs:
+        if doc.id in doc_ids_with_actes:
+            continue  # déjà compté via ses Acte liés (boucle acte_query ci-dessous)
         amount = extract_amount_from_clinical_data(doc.clinical_data)
         
         # Extraction du vrai nom d'acte s'il existe dans payments ou items

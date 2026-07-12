@@ -159,6 +159,27 @@ def migrate_appointment_columns():
         logger.warning(f"Migration warning: {e}")
 
 
+def migrate_actes_columns():
+    """Ajoute Acte.document_archive_id si absent (ALTER TABLE, SQLite ou PostgreSQL).
+    Colonne additive nullable — support UNIFY-ACT-PERSISTENCE-1 (dédoublonnage
+    Acte / DocumentArchive dans /accounting/honoraires)."""
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE actes ADD COLUMN document_archive_id INTEGER "
+                    "REFERENCES document_archives(id)"
+                ))
+                conn.commit()
+                logger.info("✅ Added column document_archive_id to actes table")
+            except Exception as e:
+                conn.rollback()
+                logger.debug(f"Column document_archive_id may already exist: {e}")
+    except Exception as e:
+        logger.warning(f"Migration warning (actes): {e}")
+
+
 def get_db():
     db = SessionLocal()
     try:
