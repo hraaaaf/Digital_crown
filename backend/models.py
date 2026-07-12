@@ -240,7 +240,14 @@ class Patient(Base):
     grade_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    
+
+    # Soft-delete (P1, périmètre minimal — même pattern que JourneyMilestone) :
+    # jamais de hard-delete d'un patient, uniquement masqué des points d'entrée
+    # normaux (liste, doublon, GET détail). Les ~50 autres requêtes Patient du
+    # backend ne filtrent pas deleted_at dans ce périmètre — dette documentée.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     dossier: Mapped["DossierClinique"] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
     master_plan: Mapped[Optional["TreatmentMasterPlan"]] = relationship(back_populates="patient", uselist=False, cascade="all, delete-orphan")
     actes: Mapped[List["Acte"]] = relationship(back_populates="patient", cascade="all, delete-orphan")

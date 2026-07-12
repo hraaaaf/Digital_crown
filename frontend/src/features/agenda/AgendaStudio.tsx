@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Ticket, Users } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { DailyView } from './DailyView';
@@ -6,6 +7,7 @@ import { WeeklyView } from './WeeklyView';
 import { MonthlyView } from './MonthlyView';
 import { GoogleImportModal } from './GoogleImportModal';
 import { FrontdeskModal } from './FrontdeskModal';
+import { AgendaModal } from './AgendaModal';
 import { PendingRequestCard } from './PendingRequestCard';
 import { api } from '../../services/api';
 import { Ghost, Settings, AlertCircle } from 'lucide-react';
@@ -80,6 +82,7 @@ const MultiPractitionerView: React.FC<{ data: any; loading: boolean }> = ({ data
 };
 
 export const AgendaStudio: React.FC = () => {
+  const location = useLocation();
   const [viewMode, setViewMode] = useState<AgendaViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -92,6 +95,22 @@ export const AgendaStudio: React.FC = () => {
   const [multiData, setMultiData] = useState<any>(null);
   const [loadingMulti, setLoadingMulti] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
+  // Préremplissage patient (CTA "Prendre RDV" depuis le dossier patient) — modale
+  // dédiée, indépendante de celles montées dans DailyView/WeeklyView/MonthlyView.
+  const [prefillOpen, setPrefillOpen] = useState(false);
+  const [prefillPatient, setPrefillPatient] = useState<{ id: number; nom: string; prenom: string } | null>(null);
+
+  useEffect(() => {
+    const state = location.state as { prefillPatientId?: number; prefillPatientNom?: string; prefillPatientPrenom?: string } | null;
+    if (state?.prefillPatientId) {
+      setPrefillPatient({ id: state.prefillPatientId, nom: state.prefillPatientNom || '', prenom: state.prefillPatientPrenom || '' });
+      setPrefillOpen(true);
+      // Nettoie le state de navigation pour qu'un retour arrière ne rouvre pas la modale.
+      window.history.replaceState({}, '', location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchPendingRequests = async () => {
     try {
@@ -366,7 +385,7 @@ export const AgendaStudio: React.FC = () => {
         selectedDate={selectedDate}
       />
 
-      <GoogleImportModal 
+      <GoogleImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {
@@ -374,6 +393,22 @@ export const AgendaStudio: React.FC = () => {
           setRefreshKey(prev => prev + 1);
         }}
       />
+
+      {prefillPatient && (
+        <AgendaModal
+          isOpen={prefillOpen}
+          onClose={() => { setPrefillOpen(false); setPrefillPatient(null); }}
+          onSaved={() => {
+            setRefreshKey(prev => prev + 1);
+            setPrefillOpen(false);
+            setPrefillPatient(null);
+          }}
+          selectedDate={selectedDate}
+          initialPatientId={prefillPatient.id}
+          initialPatientNom={prefillPatient.nom}
+          initialPatientPrenom={prefillPatient.prenom}
+        />
+      )}
 
     </div>
   );

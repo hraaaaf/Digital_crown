@@ -22,7 +22,8 @@ def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: 
     query = db.query(models.Patient).filter(
         func.lower(models.Patient.nom) == nom.lower().strip(),
         func.lower(models.Patient.prenom) == prenom.lower().strip(),
-        models.Patient.date_naissance == date_naissance
+        models.Patient.date_naissance == date_naissance,
+        models.Patient.deleted_at.is_(None),
     )
     if exclude_id:
         query = query.filter(models.Patient.id != exclude_id)
@@ -104,7 +105,10 @@ def read_patients(
     current_user: models.User = Depends(require_permission("patients"))
 ):
     user_employer_id = current_user.get_employer_id()
-    base_query = db.query(models.Patient).filter(models.Patient.employer_id == user_employer_id)
+    base_query = db.query(models.Patient).filter(
+        models.Patient.employer_id == user_employer_id,
+        models.Patient.deleted_at.is_(None),
+    )
     if search:
         search_term = f"%{search.strip()}%"
         base_query = base_query.filter(
@@ -255,6 +259,8 @@ def get_patients_scores(db: Session = Depends(database.get_db), current_user: mo
 def read_patient(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     assert_patient_access(patient_id, current_user, db)
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if not patient or patient.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
     return patient
 
 @router.get("/{patient_id}/score")
@@ -817,20 +823,22 @@ def delete_patient(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
-    """Supprime un patient et ses donnees associees (Seul Dentiste/Proprio ou Admin)"""
+    """Archive un patient (soft-delete — jamais de perte de vraie donnée patient).
+    Seul Dentiste/Proprio ou Admin. Masqué des points d'entrée normaux (liste,
+    doublon, GET détail) ; les données restent conservées en base."""
     from backend.services.audit_service import audit_service
-    
+
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Patient introuvable")
-        
+
     assert_patient_access(patient_id, current_user, db)
-    
+
     if not is_superadmin_user(current_user) and (not current_user.role or current_user.role.value not in ["DENTISTE", "ADMIN"]):
         raise HTTPException(status_code=403, detail="Vous n'avez pas l'autorisation de supprimer un patient")
 
     try:
-        # Audit log before deletion
+        # Audit log before archiving
         audit_service.log(
             db=db,
             user_id=current_user.id,
@@ -838,16 +846,16 @@ def delete_patient(
             action="DELETE",
             resource_type="Patient",
             resource_id=str(patient_id),
-            details=f"Suppression du patient {patient.nom} {patient.prenom}"
+            details=f"Archivage (soft-delete) du patient {patient.nom} {patient.prenom}"
         )
-        
-        # Supprimer le patient. SQL Alchemy cascade ou la BDD s'occupe du reste
-        db.delete(patient)
+
+        patient.deleted_at = datetime.now()
+        patient.deleted_by = current_user.id
         db.commit()
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression: {str(e)}")
-    
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

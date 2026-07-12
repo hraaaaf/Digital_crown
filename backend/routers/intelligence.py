@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
@@ -214,15 +214,18 @@ def get_alerts_today(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_permission("patients"))
 ):
-    """E3 — Alertes proactives du jour générées par le scheduler."""
+    """E3 — Alertes proactives non lues (patient ou cabinet), tant qu'elles ne sont
+    pas expirées. Ne filtre plus sur "créées aujourd'hui" : une alerte non lue créée
+    hier ne doit pas disparaître silencieusement avant même d'avoir été vue (bug
+    "alertes fantômes", audit fonctionnel 2026-07-12)."""
     employer_id = current_user.get_employer_id()
-    today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    now = datetime.now()
     alerts = db.query(models.ProactiveAlert).options(
         joinedload(models.ProactiveAlert.patient)
     ).filter(
         models.ProactiveAlert.employer_id == employer_id,
-        models.ProactiveAlert.created_at >= today_start,
-        models.ProactiveAlert.is_read == False
+        models.ProactiveAlert.is_read == False,
+        or_(models.ProactiveAlert.expires_at.is_(None), models.ProactiveAlert.expires_at > now),
     ).order_by(
         models.ProactiveAlert.priority,
         models.ProactiveAlert.created_at.desc()
@@ -233,9 +236,10 @@ def get_alerts_today(
         "alerts": [
             {
                 "id": a.id,
+                # Alertes cabinet (ex. stock) : patient_id/nom/prenom None par design.
                 "patient_id": a.patient_id,
-                "nom": a.patient.nom,
-                "prenom": a.patient.prenom,
+                "nom": a.patient.nom if a.patient else None,
+                "prenom": a.patient.prenom if a.patient else None,
                 "type": a.alert_type,
                 "title": a.title,
                 "message": a.message,

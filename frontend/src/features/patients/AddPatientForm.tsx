@@ -218,8 +218,8 @@ export const AddPatientForm = () => {
     try {
       // Si isForced est true, on ajoute le paramètre force_create
       const url = isForced ? '/patients/?force_create=true' : '/patients/';
-      await api.post(url, payload);
-      navigate('/patients');
+      const { data } = await api.post(url, payload);
+      navigate(`/patients/${data.id}`);
     } catch (err: any) {
       console.error("❌ ERREUR API:", err);
       

@@ -237,6 +237,16 @@ export const PatientDetails = () => {
             
             <div className="flex items-center gap-3">
               <button
+                onClick={() => navigate('/agenda', {
+                  state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom }
+                })}
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
+              >
+                <Calendar size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
+                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Prendre RDV</span>}
+              </button>
+
+              <button
                 onClick={() => setIsPayModalOpen(true)}
                 className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
               >

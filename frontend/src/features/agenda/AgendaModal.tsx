@@ -31,9 +31,15 @@ interface AgendaModalProps {
   selectedDate: Date | null;
   initialTime?: string;
   editingAppointment?: any;
+  // Préremplissage du patient à l'ouverture (ex. CTA "Prendre RDV" depuis le
+  // dossier patient) — 3 props distinctes plutôt qu'une chaîne concaténée, pour
+  // ne jamais avoir à re-splitter un nom composé.
+  initialPatientId?: number;
+  initialPatientNom?: string;
+  initialPatientPrenom?: string;
 }
 
-export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, editingAppointment }) => {
+export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSaved, selectedDate, initialTime, editingAppointment, initialPatientId, initialPatientNom, initialPatientPrenom }) => {
   const navigate = useNavigate();
   const { fetchPatientIntelligence, fetchSuggestedAppointment, suggestedAppointment, isLoading: isLoadingSuggested } = useEliteStore();
   const [patientSearch, setPatientSearch] = useState('');
@@ -99,12 +105,18 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
         setDuration(30);
         setMotif('');
         setActSearch('');
-        setSelectedPatient(null);
         setStatus('PRÉVU');
         setSchedulingType('EXACT_TIME');
+        if (initialPatientId) {
+          setSelectedPatient({ id: initialPatientId, nom: initialPatientNom || '', prenom: initialPatientPrenom || '' });
+          setPatientSearch(`${initialPatientPrenom || ''} ${initialPatientNom || ''}`.trim());
+        } else {
+          setSelectedPatient(null);
+          setPatientSearch('');
+        }
       }
     }
-  }, [isOpen, editingAppointment, initialTime, selectedDate]);
+  }, [isOpen, editingAppointment, initialTime, selectedDate, initialPatientId, initialPatientNom, initialPatientPrenom]);
 
 
   const patientRef = useRef<HTMLDivElement>(null);

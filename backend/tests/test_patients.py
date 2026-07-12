@@ -92,6 +92,85 @@ class TestUpdatePatient:
         assert resp.status_code == 401
 
 
+class TestSoftDeletePatient:
+    """P1 — suppression = archivage (soft-delete), jamais de perte de vraie donnée patient."""
+
+    def _create(self, client, auth_headers, nom="Softdel"):
+        r = client.post("/api/patients/", json={**VALID_PATIENT, "nom": nom}, headers=auth_headers)
+        assert r.status_code in (200, 201), r.text
+        return r.json()["id"]
+
+    def test_delete_sets_deleted_at_not_hard_delete(self, client, db, auth_headers, dentiste):
+        from backend import models
+        pid = self._create(client, auth_headers, "SoftA")
+        resp = client.delete(f"/api/patients/{pid}", headers=auth_headers)
+        assert resp.status_code == 204
+
+        patient = db.query(models.Patient).filter(models.Patient.id == pid).first()
+        assert patient is not None  # toujours en base — pas de hard delete
+        assert patient.deleted_at is not None
+        assert patient.deleted_by == dentiste.id
+
+    def test_deleted_patient_not_in_list(self, client, auth_headers):
+        pid = self._create(client, auth_headers, "SoftB")
+        client.delete(f"/api/patients/{pid}", headers=auth_headers)
+
+        resp = client.get("/api/patients/", headers=auth_headers)
+        assert resp.status_code == 200
+        ids = [p["id"] for p in resp.json()]
+        assert pid not in ids
+
+    def test_deleted_patient_get_returns_404(self, client, auth_headers):
+        pid = self._create(client, auth_headers, "SoftC")
+        client.delete(f"/api/patients/{pid}", headers=auth_headers)
+
+        resp = client.get(f"/api/patients/{pid}", headers=auth_headers)
+        assert resp.status_code == 404
+
+    def test_deleted_patient_excluded_from_duplicate_check(self, client, auth_headers):
+        payload = {**VALID_PATIENT, "nom": "SoftDup", "prenom": "Karim", "date_naissance": "1975-02-02"}
+        r1 = client.post("/api/patients/", json=payload, headers=auth_headers)
+        assert r1.status_code in (200, 201)
+        pid = r1.json()["id"]
+        client.delete(f"/api/patients/{pid}", headers=auth_headers)
+
+        # Recréer avec exactement le même nom/prénom/date de naissance ne doit
+        # plus déclencher de 409 doublon — le patient archivé est exclu du check.
+        r2 = client.post("/api/patients/", json=payload, headers=auth_headers)
+        assert r2.status_code in (200, 201), r2.text
+        assert r2.json()["id"] != pid
+
+    def test_delete_already_deleted_returns_404(self, client, auth_headers):
+        pid = self._create(client, auth_headers, "SoftE")
+        first = client.delete(f"/api/patients/{pid}", headers=auth_headers)
+        assert first.status_code == 204
+
+        second = client.delete(f"/api/patients/{pid}", headers=auth_headers)
+        assert second.status_code == 404
+
+    def test_cascade_relations_preserved(self, client, db, auth_headers, dentiste):
+        from backend import models
+        from datetime import datetime as _dt
+        pid = self._create(client, auth_headers, "SoftCascade")
+
+        acte = models.Acte(
+            patient_id=pid, praticien_id=dentiste.id,
+            type_acte=models.ActeType.SOIN, libelle="Détartrage",
+            montant=100.0, statut_paiement=models.PaiementStatut.PAYE,
+            date_debut=_dt.now(),
+        )
+        db.add(acte)
+        db.commit()
+        acte_id = acte.id
+
+        resp = client.delete(f"/api/patients/{pid}", headers=auth_headers)
+        assert resp.status_code == 204
+
+        # Pas de CASCADE DELETE déclenché par un soft-delete — contrairement à
+        # l'ancien comportement hard-delete, l'Acte doit toujours exister.
+        assert db.query(models.Acte).filter(models.Acte.id == acte_id).first() is not None
+
+
 class TestMultiTenantIsolation:
     """Un médecin ne doit pas voir les patients d'un autre."""
 

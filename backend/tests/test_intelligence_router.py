@@ -372,6 +372,56 @@ class TestAlertsToday:
         alert_ids = [a["patient_id"] for a in body["alerts"]]
         assert pat.id in alert_ids
 
+    def test_alert_with_null_patient_does_not_crash(self, client, db, auth_headers, dentiste):
+        # Alertes cabinet (ex. stock) : daily_scheduler.py crée patient_id=None —
+        # la route ne doit jamais planter dessus (bug audit fonctionnel 2026-07-12).
+        alert = models.ProactiveAlert(
+            employer_id=dentiste.id,
+            patient_id=None,
+            alert_type="STOCK_COMPOSITE",
+            title="⚠️ Stock — composites",
+            message="4 composites prévus cette semaine.",
+            action="/settings",
+            priority=1,
+            is_read=False,
+            created_at=datetime.now(),
+        )
+        db.add(alert)
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        matching = [a for a in body["alerts"] if a["id"] == alert.id]
+        assert len(matching) == 1
+        assert matching[0]["patient_id"] is None
+        assert matching[0]["nom"] is None
+        assert matching[0]["prenom"] is None
+        assert matching[0]["title"] == "⚠️ Stock — composites"
+
+    def test_old_unread_alert_still_visible(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "OLDUNREAD")
+        alert = self._make_alert(db, dentiste, pat.id, read=False)
+        alert.created_at = datetime.now() - timedelta(days=2)
+        alert.expires_at = datetime.now() + timedelta(days=5)
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        alert_ids = [a["id"] for a in r.json()["alerts"]]
+        assert alert.id in alert_ids
+
+    def test_expired_alert_not_included(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "EXPIRED")
+        alert = self._make_alert(db, dentiste, pat.id, read=False)
+        alert.expires_at = datetime.now() - timedelta(hours=1)
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        alert_ids = [a["id"] for a in r.json()["alerts"]]
+        assert alert.id not in alert_ids
+
     def test_read_alert_not_included(self, client, db, auth_headers, dentiste):
         pat = _make_patient(db, dentiste, "ALERTREAD")
         self._make_alert(db, dentiste, pat.id, read=True)

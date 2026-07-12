@@ -180,6 +180,28 @@ def migrate_actes_columns():
         logger.warning(f"Migration warning (actes): {e}")
 
 
+def migrate_patient_columns():
+    """Ajoute Patient.deleted_at/deleted_by si absents (soft-delete P1)."""
+    from sqlalchemy import text
+    datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
+    new_columns = [
+        ("deleted_at", datetime_type),
+        ("deleted_by", "INTEGER"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for col_name, col_type in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                    logger.info(f"✅ Added column {col_name} to patients table")
+                except Exception as e:
+                    conn.rollback()
+                    logger.debug(f"Column {col_name} may already exist: {e}")
+    except Exception as e:
+        logger.warning(f"Migration warning (patients): {e}")
+
+
 def get_db():
     db = SessionLocal()
     try:

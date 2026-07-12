@@ -76,6 +76,7 @@ export const PatientList = () => {
   });
 
   // NOUVEAU : État de la modale de suppression
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; name: string }>({
     open: false,
     id: null,
@@ -111,15 +112,18 @@ export const PatientList = () => {
     localStorage.setItem('patient_list_view_mode', viewMode);
   }, [viewMode]);
 
-  // Logique de suppression liée à la modale
+  // Logique de suppression liée à la modale — confirmation forte : le nom exact
+  // du patient doit être saisi (garde en profondeur, en plus du bouton disabled).
   const confirmDelete = async () => {
     if (!deleteModal.id) return;
+    if (deleteConfirmText.trim() !== deleteModal.name.trim()) return;
     try {
       await api.delete(`/patients/${deleteModal.id}`);
       const nextPatients = patients.filter(p => p.id !== deleteModal.id);
       setPatients(nextPatients);
       setPatientsCache(nextPatients);
       setDeleteModal({ open: false, id: null, name: "" });
+      setDeleteConfirmText('');
     } catch (err) {
       alert("Erreur lors de la suppression.");
     }
@@ -478,7 +482,7 @@ export const PatientList = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 h-screen w-screen">
           <div className="bg-card-bg rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-border-main relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6">
-               <button onClick={() => setDeleteModal({ ...deleteModal, open: false })} className="text-text-muted hover:text-main transition-colors">
+               <button onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }} className="text-text-muted hover:text-main transition-colors">
                  <X size={24} />
                </button>
             </div>
@@ -487,18 +491,29 @@ export const PatientList = () => {
             </div>
             <h3 className="text-2xl font-black text-main leading-tight tracking-tight" style={{ color: 'var(--text-main)' }}>Supprimer le dossier ?</h3>
             <p className="text-text-muted mt-3 font-medium leading-relaxed">
-              Vous allez supprimer définitivement le dossier de <span className="font-bold text-main" style={{ color: 'var(--text-main)' }}>{deleteModal.name}</span>. Cette action effacera également ses documents générés.
+              Cette action masque le dossier de <span className="font-bold text-main" style={{ color: 'var(--text-main)' }}>{deleteModal.name}</span> de la liste. Les données restent conservées.
             </p>
+            <p className="text-text-muted mt-4 text-xs font-bold uppercase tracking-widest">
+              Tapez "{deleteModal.name}" pour confirmer
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={deleteModal.name}
+              className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
+            />
             <div className="flex gap-4 mt-10">
-              <button 
-                onClick={() => setDeleteModal({ ...deleteModal, open: false })} 
+              <button
+                onClick={() => { setDeleteModal({ ...deleteModal, open: false }); setDeleteConfirmText(''); }}
                 className="flex-1 py-4 bg-primary/5 hover:bg-primary/10 text-text-muted rounded-2xl font-bold transition-all active:scale-95"
               >
                 Annuler
               </button>
-              <button 
-                onClick={confirmDelete} 
-                className="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95"
+              <button
+                onClick={confirmDelete}
+                disabled={deleteConfirmText.trim() !== deleteModal.name.trim()}
+                className="flex-1 py-4 bg-red-500 hover:bg-red-600 disabled:bg-red-500/30 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-lg shadow-red-500/20 transition-all active:scale-95"
               >
                 Supprimer
               </button>
