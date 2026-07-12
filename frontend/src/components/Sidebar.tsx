@@ -217,7 +217,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" />}
           {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" />
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}

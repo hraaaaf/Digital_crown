@@ -86,6 +86,10 @@ export const LabJobsBoard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full w-full relative">
+      <div className="mx-4 mt-4 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
+        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
+        Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.
+      </div>
       <div className="flex justify-between items-center mb-4 px-4 pt-4">
         <h1 className="text-xl font-black text-slate-800 tracking-tight">Travaux Prothétiques</h1>
         <button 
