@@ -274,6 +274,15 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const snoozeAlert = async (alertId: number) => {
+    try {
+      await api.patch(`/intelligence/alerts/${alertId}/snooze`);
+      setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
+    } catch (err) {
+      console.warn("Erreur lors du report de l'alerte", err);
+    }
+  };
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (!value.trim()) { setSearchResults([]); return; }
@@ -906,9 +915,18 @@ export const Dashboard: React.FC = () => {
                         <p className="text-[10px] text-text-muted font-medium truncate">{alert.action}</p>
                       </div>
                       <button
+                        onClick={() => snoozeAlert(alert.id)}
+                        className="p-1 rounded text-text-muted hover:text-amber-500"
+                        title="Reporter 24h"
+                        aria-label="Reporter cette alerte de 24h"
+                      >
+                        <Clock size={14} />
+                      </button>
+                      <button
                         onClick={() => markAlertRead(alert.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-text-muted hover:text-emerald-400"
+                        className="p-1 rounded text-text-muted hover:text-emerald-400"
                         title="Marquer comme lu"
+                        aria-label="Marquer cette alerte comme lue"
                       >
                         <CheckCheck size={14} />
                       </button>

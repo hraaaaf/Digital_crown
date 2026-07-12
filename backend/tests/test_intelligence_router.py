@@ -444,6 +444,39 @@ class TestAlertsToday:
         for field in ("id", "patient_id", "nom", "prenom", "type", "title", "message", "priority"):
             assert field in found
 
+    def test_alert_for_soft_deleted_patient_excluded(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "SOFTDELPAT")
+        self._make_alert(db, dentiste, pat.id, read=False)
+        pat.deleted_at = datetime.now()
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        pids = [a["patient_id"] for a in r.json()["alerts"]]
+        assert pat.id not in pids
+
+    def test_snoozed_alert_excluded_until_expiry(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "SNOOZEDPAT")
+        alert = self._make_alert(db, dentiste, pat.id, read=False)
+        alert.snoozed_until = datetime.now() + timedelta(hours=1)
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        alert_ids = [a["id"] for a in r.json()["alerts"]]
+        assert alert.id not in alert_ids
+
+    def test_past_snooze_alert_included(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "PASTSNOOZEPAT")
+        alert = self._make_alert(db, dentiste, pat.id, read=False)
+        alert.snoozed_until = datetime.now() - timedelta(hours=1)
+        db.commit()
+
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        assert r.status_code == 200
+        alert_ids = [a["id"] for a in r.json()["alerts"]]
+        assert alert.id in alert_ids
+
 
 # ── mark alert read ──────────────────────────────────────────────────────────
 
@@ -488,6 +521,67 @@ class TestMarkAlertRead:
         r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
         pids = [a["patient_id"] for a in r.json()["alerts"]]
         assert pat.id not in pids
+
+
+# ── snooze alert ──────────────────────────────────────────────────────────────
+
+class TestSnoozeAlert:
+    def _make_alert(self, db, dentiste, patient_id, expires_at=None):
+        from backend import models
+        alert = models.ProactiveAlert(
+            employer_id=dentiste.id,
+            patient_id=patient_id,
+            alert_type="RAPPEL",
+            title="Test",
+            message="Message",
+            is_read=False,
+            created_at=datetime.now(),
+            expires_at=expires_at,
+        )
+        db.add(alert)
+        db.commit()
+        db.refresh(alert)
+        return alert
+
+    def test_requires_auth(self, client):
+        r = client.patch("/api/intelligence/alerts/1/snooze")
+        assert r.status_code == 401
+
+    def test_snooze_nonexistent_returns_404(self, client, auth_headers):
+        r = client.patch("/api/intelligence/alerts/999999/snooze", headers=auth_headers)
+        assert r.status_code == 404
+
+    def test_snooze_alert_returns_ok_and_sets_snoozed_until(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "SNOOZEOK")
+        alert = self._make_alert(db, dentiste, pat.id)
+
+        r = client.patch(f"/api/intelligence/alerts/{alert.id}/snooze", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "ok"
+        assert "snoozed_until" in body
+        db.refresh(alert)
+        assert alert.snoozed_until is not None
+        assert alert.snoozed_until > datetime.now() + timedelta(hours=23)
+
+    def test_snoozed_alert_not_in_today_after_snooze(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "SNOOZEAFTER")
+        alert = self._make_alert(db, dentiste, pat.id)
+
+        client.patch(f"/api/intelligence/alerts/{alert.id}/snooze", headers=auth_headers)
+        r = client.get("/api/intelligence/alerts/today", headers=auth_headers)
+        alert_ids = [a["id"] for a in r.json()["alerts"]]
+        assert alert.id not in alert_ids
+
+    def test_snooze_extends_expiry_if_needed(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "SNOOZEEXPIRY")
+        near_expiry = datetime.now() + timedelta(hours=2)
+        alert = self._make_alert(db, dentiste, pat.id, expires_at=near_expiry)
+
+        r = client.patch(f"/api/intelligence/alerts/{alert.id}/snooze", headers=auth_headers)
+        assert r.status_code == 200
+        db.refresh(alert)
+        assert alert.expires_at > alert.snoozed_until
 
 
 # ── patient NBA ───────────────────────────────────────────────────────────────

@@ -202,6 +202,23 @@ def migrate_patient_columns():
         logger.warning(f"Migration warning (patients): {e}")
 
 
+def migrate_proactive_alert_columns():
+    """Ajoute ProactiveAlert.snoozed_until si absent (report/snooze persistant)."""
+    from sqlalchemy import text
+    datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
+    try:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(f"ALTER TABLE proactive_alerts ADD COLUMN snoozed_until {datetime_type}"))
+                conn.commit()
+                logger.info("✅ Added column snoozed_until to proactive_alerts table")
+            except Exception as e:
+                conn.rollback()
+                logger.debug(f"Column snoozed_until may already exist: {e}")
+    except Exception as e:
+        logger.warning(f"Migration warning (proactive_alerts): {e}")
+
+
 def get_db():
     db = SessionLocal()
     try:

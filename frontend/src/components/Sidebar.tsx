@@ -15,6 +15,7 @@ import {
   Armchair
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { api } from '../services/api';
 import { authService } from '../services/auth';
 import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
 import { clinicalTips } from '../data/clinical_tips';
@@ -62,6 +63,19 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
     }
     return true;
   };
+
+  const [alertCount, setAlertCount] = useState(0);
+  useEffect(() => {
+    if (!hasAccess('patients')) return;
+    const fetchCount = () => api.get('/intelligence/alerts/today')
+      .then(res => setAlertCount(res.data.total || 0))
+      .catch(() => {});
+    fetchCount();
+    const interval = setInterval(fetchCount, 120000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const [isAiActive, setIsAiActive] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
   const [showTip, setShowTip] = useState(false);
@@ -210,7 +224,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         <nav className="flex-1 p-5 space-y-1.5 overflow-y-auto custom-scrollbar">
           <div className="text-[10px] font-black text-text-muted uppercase tracking-widest px-4 mb-3 mt-2">Intelligence & Gestion</div>
           
-          <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" />
+          <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Tableau de bord" badge={alertCount > 0 ? String(alertCount) : undefined} />
           <NavItem to="/analytics" icon={<Activity size={20} />} label="Analytics" />
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import func, or_
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -217,15 +217,20 @@ def get_alerts_today(
     """E3 — Alertes proactives non lues (patient ou cabinet), tant qu'elles ne sont
     pas expirées. Ne filtre plus sur "créées aujourd'hui" : une alerte non lue créée
     hier ne doit pas disparaître silencieusement avant même d'avoir été vue (bug
-    "alertes fantômes", audit fonctionnel 2026-07-12)."""
+    "alertes fantômes", audit fonctionnel 2026-07-12). Exclut aussi les alertes
+    pointant vers un patient soft-supprimé et celles actuellement reportées (snooze)."""
     employer_id = current_user.get_employer_id()
     now = datetime.now()
-    alerts = db.query(models.ProactiveAlert).options(
-        joinedload(models.ProactiveAlert.patient)
+    alerts = db.query(models.ProactiveAlert).outerjoin(
+        models.Patient, models.ProactiveAlert.patient_id == models.Patient.id
+    ).options(
+        contains_eager(models.ProactiveAlert.patient)
     ).filter(
         models.ProactiveAlert.employer_id == employer_id,
         models.ProactiveAlert.is_read == False,
         or_(models.ProactiveAlert.expires_at.is_(None), models.ProactiveAlert.expires_at > now),
+        or_(models.ProactiveAlert.patient_id.is_(None), models.Patient.deleted_at.is_(None)),
+        or_(models.ProactiveAlert.snoozed_until.is_(None), models.ProactiveAlert.snoozed_until <= now),
     ).order_by(
         models.ProactiveAlert.priority,
         models.ProactiveAlert.created_at.desc()
@@ -264,6 +269,26 @@ def mark_alert_read(
     alert.is_read = True
     db.commit()
     return {"status": "ok"}
+
+
+@router.patch("/alerts/{alert_id}/snooze")
+def snooze_alert(
+    alert_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("patients"))
+):
+    """Reporte une alerte de 24h sans la marquer comme lue définitivement."""
+    alert = db.query(models.ProactiveAlert).filter(models.ProactiveAlert.id == alert_id).first()
+    if not alert or alert.employer_id != current_user.get_employer_id():
+        raise HTTPException(status_code=404, detail="Alert not found")
+    now = datetime.now()
+    alert.snoozed_until = now + timedelta(hours=24)
+    # Ne jamais laisser expires_at purger une alerte encore snoozée (nettoyage
+    # quotidien dans daily_scheduler.py).
+    if not alert.expires_at or alert.expires_at < alert.snoozed_until + timedelta(days=1):
+        alert.expires_at = alert.snoozed_until + timedelta(days=1)
+    db.commit()
+    return {"status": "ok", "snoozed_until": alert.snoozed_until.isoformat()}
 
 
 @router.get("/patient/{patient_id}/nba")

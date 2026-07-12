@@ -937,6 +937,7 @@ class ProactiveAlert(Base):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", foreign_keys=[patient_id])
 
