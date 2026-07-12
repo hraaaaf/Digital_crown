@@ -18,7 +18,7 @@ class PatientScoringService:
         honores = 0
         no_shows = 0
         annules = 0
-        
+
         for appt in appointments:
             if appt.status == models.AppointmentStatus.TERMINE:
                 honores += 1
@@ -27,24 +27,31 @@ class PatientScoringService:
                 annules += 1
                 appt_score -= 10 # Malus annulation
             # Si on avait un statut NO_SHOW, on appliquerait -30. On suppose ANNULE regroupe pour l'instant.
-        
-        # Clamp entre 0 et 100
-        appt_score = max(0.0, min(100.0, appt_score))
-        
+
+        if honores == 0 and annules == 0:
+            # Neutre : aucun historique de RDV honoré/annulé — ni confiance (100) ni
+            # défiance, juste absence de données (audit fonctionnel 2026-07-12 : un
+            # patient tout neuf ne doit pas hériter d'un grade PLATINUM par défaut).
+            appt_score = 50.0
+        else:
+            # Clamp entre 0 et 100
+            appt_score = max(0.0, min(100.0, appt_score))
+
         # --- 2. INDICE DE SOLVABILITÉ (40%) ---
         # Total facturé
         actes = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).all()
         total_facture = sum(acte.montant for acte in actes)
-        
+
         # Total encaissé
         payments = db.query(models.Payment).filter(models.Payment.patient_id == patient_id).all()
         total_encaisse = sum(payment.amount for payment in payments)
-        
-        solv_score = 100.0
+
         if total_facture > 0:
             ratio = (total_encaisse / total_facture) * 100
             solv_score = max(0.0, min(100.0, ratio))
-            
+        else:
+            solv_score = 50.0  # neutre : aucune donnée de facturation
+
         # --- 3. CALCUL FINAL ET GRADE ---
         final_score = math.floor((appt_score * 0.6) + (solv_score * 0.4))
         
@@ -126,13 +133,17 @@ class PatientScoringService:
         for pid in patient_ids:
             h = honores.get(pid, 0)
             a = annules.get(pid, 0)
-            appt_score = max(0.0, min(100.0, 100.0 + 5 * h - 10 * a))
+            if h == 0 and a == 0:
+                appt_score = 50.0  # neutre — même règle que calculate_score()
+            else:
+                appt_score = max(0.0, min(100.0, 100.0 + 5 * h - 10 * a))
 
             total_facture = factures.get(pid, 0.0)
             total_encaisse = encaisses.get(pid, 0.0)
-            solv_score = 100.0
             if total_facture > 0:
                 solv_score = max(0.0, min(100.0, (total_encaisse / total_facture) * 100))
+            else:
+                solv_score = 50.0  # neutre — même règle que calculate_score()
 
             final_score = math.floor((appt_score * 0.6) + (solv_score * 0.4))
             result[pid] = {

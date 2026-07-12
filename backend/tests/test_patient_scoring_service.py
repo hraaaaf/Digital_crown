@@ -64,11 +64,27 @@ class TestPatientScoringService:
     def setup_method(self):
         self.service = PatientScoringService()
 
-    def test_new_patient_perfect_score(self, db, dentiste):
+    def test_new_patient_neutral_score(self, db, dentiste):
+        # Aucun historique (ni RDV ni facturation) -> neutre, pas PLATINUM par défaut.
         pat = _make_patient(db, dentiste, "NEWSCORE")
         result = self.service.calculate_score(db, pat.id)
-        assert result["score"] == 100
-        assert result["grade"] == "PLATINUM"
+        assert result["score"] == 50
+        assert result["grade"] == "SILVER"
+
+    def test_appointments_no_billing_gets_neutral_solvabilite(self, db, dentiste):
+        pat = _make_patient(db, dentiste, "APPTNOBILL")
+        _add_appointment(db, pat.id, models.AppointmentStatus.TERMINE, dentiste.id)
+        result = self.service.calculate_score(db, pat.id)
+        assert result["details"]["assiduite_score"] == 100
+        assert result["details"]["solvabilite_score"] == 50
+
+    def test_billing_no_appointments_gets_neutral_assiduite(self, db, dentiste):
+        pat = _make_patient(db, dentiste, "BILLNOAPPT")
+        _add_acte(db, pat.id, dentiste.id, 500.0)
+        _add_payment(db, pat.id, 500.0)
+        result = self.service.calculate_score(db, pat.id)
+        assert result["details"]["assiduite_score"] == 50
+        assert result["details"]["solvabilite_score"] == 100
 
     def test_returns_required_keys(self, db, dentiste):
         pat = _make_patient(db, dentiste, "KEYS")
@@ -99,7 +115,7 @@ class TestPatientScoringService:
         _add_appointment(db, pat.id, models.AppointmentStatus.TERMINE, dentiste.id)
         result = self.service.calculate_score(db, pat.id)
         assert result["details"]["rdv_honores"] == 1
-        assert result["details"]["assiduite_score"] > 100 or result["score"] >= 100
+        assert result["details"]["assiduite_score"] == 100  # +5 bonus, clampé à 100
 
     def test_partial_payment_lowers_solvabilite(self, db, dentiste):
         pat = _make_patient(db, dentiste, "PARTIAL")
@@ -118,7 +134,13 @@ class TestPatientScoringService:
         assert result["details"]["solvabilite_score"] == 100
 
     def test_grade_platinum(self, db, dentiste):
+        # PLATINUM doit rester atteignable, mais seulement avec un vrai historique
+        # méritant — plus par défaut pour un patient sans données (cf. test_new_patient_neutral_score).
         pat = _make_patient(db, dentiste, "PLAT")
+        for _ in range(3):
+            _add_appointment(db, pat.id, models.AppointmentStatus.TERMINE, dentiste.id)
+        _add_acte(db, pat.id, dentiste.id, 1000.0)
+        _add_payment(db, pat.id, 1000.0)
         result = self.service.calculate_score(db, pat.id)
         assert result["grade"] == "PLATINUM"
 
@@ -190,3 +212,9 @@ class TestPatientScoringBulk:
         assert "score" in entry
         assert "grade" in entry
         assert "details" in entry
+
+    def test_bulk_new_patient_neutral_score(self, db, dentiste):
+        pat = _make_patient(db, dentiste, "BULKNEW")
+        result = self.service.calculate_scores_bulk(db, dentiste.id)
+        assert result[pat.id]["score"] == 50
+        assert result[pat.id]["grade"] == "SILVER"
