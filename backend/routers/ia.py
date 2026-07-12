@@ -97,7 +97,17 @@ def get_analysis(analysis_id: int, db: Session = Depends(database.get_db), curre
     if not analysis:
         raise HTTPException(status_code=404, detail="Analyse introuvable")
     assert_patient_access(analysis.patient_id, current_user, db)
-    return analysis
+
+    out = schemas.CephaloAnalysisOut.model_validate(analysis)
+    # Analyses legacy créées avant l'introduction de calibration_status : dérivé de
+    # is_calibrated à la lecture, sans migration ni écriture (copie, jamais de mutation
+    # de l'ORM/JSON persisté).
+    if isinstance(out.angles_data, dict) and "calibration_status" not in out.angles_data:
+        out.angles_data = {
+            **out.angles_data,
+            "calibration_status": "verified" if analysis.is_calibrated else "unverified",
+        }
+    return out
 
 @router.put("/analyses/{analysis_id}")
 def update_analysis(analysis_id: int, req: schemas.AnalysisUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):

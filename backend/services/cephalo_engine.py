@@ -29,8 +29,11 @@ class CephaloEngine:
             "L1a": ["L1a", "L1_apex", "41_apex", "LIa"],
             "Prn": ["Prn", "Pronasale", "Nose_Tip"],
             "Pog_soft": ["Pog_soft", "Soft_Pogonion", "stPog", "stpog", "Soft_Pog"],
-            "Ls": ["Ls", "Labrale_Superius", "UL", "ul", "Upper_Lip"],
-            "Li": ["Li", "Labrale_Inferius", "LL", "ll", "Lower_Lip"],
+            # Alias *_soft : nomenclature émise par le modèle SOTA (sota_vision_service).
+            # Sans eux, Ligne E et angle nasolabial ne se calculent jamais avec les points SOTA.
+            "Sn": ["Sn", "Sn_soft", "Subnasale"],
+            "Ls": ["Ls", "Ls_soft", "Labrale_Superius", "UL", "ul", "Upper_Lip"],
+            "Li": ["Li", "Li_soft", "Labrale_Inferius", "LL", "ll", "Lower_Lip"],
             "Co": ["Co", "Condylion", "Condyle"],
             "Gn": ["Gn", "Gnathion"],
             "ANS": ["ANS", "ENA", "Anterior_Nasal_Spine"],
@@ -533,14 +536,11 @@ class CephaloEngine:
         val_surplomb = val_surplomb if val_surplomb is not None else 2.25
         val_recouvrement = val_recouvrement if val_recouvrement is not None else 2.25
         
-        # Extraction Esthétique
-        val_e_ls = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Ls", {}).get("valeur", 0.0)
-        val_e_li = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Li", {}).get("valeur", 0.0)
-        val_nla = payload["metrics"].get("analyse_esthetique", {}).get("Angle_Nasolabial", {}).get("valeur", 102.0)
-        
-        val_e_ls = val_e_ls if val_e_ls is not None else 0.0
-        val_e_li = val_e_li if val_e_li is not None else 0.0
-        val_nla = val_nla if val_nla is not None else 102.0
+        # Extraction Esthétique — None si la mesure n'a pas pu être faite (points cutanés
+        # absents) : la narration doit dire "non évaluable", jamais coalescer vers une
+        # valeur par défaut présentée comme mesurée (0.0 / 102°).
+        val_e_ls = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Ls", {}).get("valeur")
+        val_nla = payload["metrics"].get("analyse_esthetique", {}).get("Angle_Nasolabial", {}).get("valeur")
 
         # --- LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
         mean_ab, dev_ab = norm_dec_ab
@@ -611,16 +611,25 @@ class CephaloEngine:
 
         diag_dentaire = f"Secteur incisif : {impa_diag} (IMPA : {val_impa}°) et {if_diag} (I/F : {val_if}°). Angle inter-incisif à {val_inter}°. Surplomb {overjet} ({val_surplomb} mm) et {overbite} ({val_recouvrement} mm)."
 
-        # 3. DIAGNOSTIC ESTHÉTIQUE
-        profil_cutane = "droit"
-        if val_e_ls > 2.0: profil_cutane = "convexe (Lèvre supérieure protrusive)"
-        elif val_e_ls < -4.0: profil_cutane = "concave (Lèvre supérieure en retrait)"
-        
-        nla_diag = "normal"
-        if val_nla > 110: nla_diag = "ouvert (Nez relevé)"
-        elif val_nla < 90: nla_diag = "fermé (Nez tombant)"
-        
-        diag_esthetique = f"Profil {profil_cutane} selon la ligne E de Ricketts. Angle nasolabial {nla_diag} ({val_nla}°)."
+        # 3. DIAGNOSTIC ESTHÉTIQUE — chaque segment n'est affirmé que si la mesure existe.
+        if val_e_ls is None:
+            profil_cutane = None
+            segment_profil = "Profil cutané non évaluable (points cutanés non détectés)"
+        else:
+            profil_cutane = "droit"
+            if val_e_ls > 2.0: profil_cutane = "convexe (Lèvre supérieure protrusive)"
+            elif val_e_ls < -4.0: profil_cutane = "concave (Lèvre supérieure en retrait)"
+            segment_profil = f"Profil {profil_cutane} selon la ligne E de Ricketts"
+
+        if val_nla is None:
+            segment_nla = "Angle nasolabial non évaluable (points cutanés non détectés)"
+        else:
+            nla_diag = "normal"
+            if val_nla > 110: nla_diag = "ouvert (Nez relevé)"
+            elif val_nla < 90: nla_diag = "fermé (Nez tombant)"
+            segment_nla = f"Angle nasolabial {nla_diag} ({val_nla}°)"
+
+        diag_esthetique = f"{segment_profil}. {segment_nla}."
 
         # --- SYNTHÈSE GHOST ELITE (4 SECTIONS) ---
         
@@ -677,18 +686,20 @@ class CephaloEngine:
         strategie = "\n".join(strategie_parts)
 
         # Expose the Ricketts-based profil as a separate field so the frontend can use it
-        # instead of overriding with the ANB-based formula
-        profil_cutane_short = "droit"
-        if val_e_ls > 2.0: profil_cutane_short = "convexe"
-        elif val_e_ls < -4.0: profil_cutane_short = "concave"
-
+        # instead of overriding with the ANB-based formula. Omis quand la Ligne E n'a pas
+        # été mesurée : le frontend (useOrthoStore, `if (n.profil_cutane)`) skippe alors
+        # proprement — un texte "non évaluable" casserait normalizeProfilFacial.
         payload["ai_narrative"] = {
             "diagnostic_squelettique": analyse_cephalo_com,
             "analyse_moulages": analyse_moulages,
             "synthese_diagnostique": synthese,
             "strategie_therapeutique": strategie,
-            "profil_cutane": profil_cutane_short
         }
+        if val_e_ls is not None:
+            profil_cutane_short = "droit"
+            if val_e_ls > 2.0: profil_cutane_short = "convexe"
+            elif val_e_ls < -4.0: profil_cutane_short = "concave"
+            payload["ai_narrative"]["profil_cutane"] = profil_cutane_short
 
         return schemas.CephaloAnalysisResult.model_validate(payload)
 

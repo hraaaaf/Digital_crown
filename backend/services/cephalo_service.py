@@ -40,9 +40,15 @@ class CephaloService:
         from backend.services.calibration_service import calibration_service
         logger.info("Tentative de calibration automatique...")
         auto_ratio = calibration_service.detect_mm_per_pixel(file_path)
-        mm_ratio = auto_ratio if auto_ratio else 0.1 
+        if auto_ratio is None:
+            logger.warning(
+                "Auto-calibration échouée — ratio par défaut 0.1 mm/px utilisé. "
+                "Les mesures en millimètres de cette analyse ne sont pas fiables "
+                "tant qu'une calibration manuelle n'est pas effectuée."
+            )
+        mm_ratio = auto_ratio if auto_ratio else 0.1
         logger.info(f"Ratio retenu : {mm_ratio} mm/px (Auto: {auto_ratio is not None})")
-        
+
         # 3. Calcul des métriques Géométriques -> CephaloAnalysisResult
         logger.info("Calcul des métriques géométriques...")
         try:
@@ -50,13 +56,18 @@ class CephaloService:
         except Exception as ce_err:
             logger.error(f"Échec du moteur géométrique: {ce_err}")
             raise ValueError(f"Erreur lors du calcul des angles : {ce_err}")
-        
+
         final_data_dict = result.model_dump()
         final_data_dict["vision_metadata"] = {
             "mode_inference": vision_result["mode_inference"],
             "warning": vision_result.get("warning"),
             "processing_time_ms": vision_result["processing_time_ms"]
         }
+        # Correctif transitoire d'honnêteté (audit fonctionnel 2026-07-12) : les mesures
+        # mm calculées avec le ratio par défaut ne doivent jamais être présentées comme
+        # fiables. Consommé par le validateur (cephalo_consistency_validator) et par
+        # Step4Documents côté frontend.
+        final_data_dict["calibration_status"] = "verified" if auto_ratio else "unverified"
 
         # 4. Persistance via Repository
         analysis = self.repo.create(patient_id, db_path, pts, final_data_dict, mm_per_pixel=mm_ratio)
@@ -109,9 +120,16 @@ class CephaloService:
             # Génération Local First (sans LLM) avec intégration complète Céphalométrie + Moulages
             final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(result, clinical_data if clinical_data else schemas.ClinicalData())
 
-        # 4. Mise à jour via Repository
+        # 4. Mise à jour via Repository — réinjecte calibration_status depuis is_calibrated
+        # persisté : sans ça, le statut disparaîtrait au premier auto-save (silentSave
+        # sauve en continu), y compris juste après une calibration manuelle réussie.
+        existing = self.repo.get_by_id(analysis_id)
+        if not existing:
+            raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")
+        final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
+
         analysis = self.repo.update(analysis_id, pts_list, final_data_dict, mm_per_pixel)
-        
+
         if not analysis:
             raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")
 

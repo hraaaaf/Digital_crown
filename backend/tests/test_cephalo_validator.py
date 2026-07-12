@@ -158,3 +158,27 @@ class TestUnitContradictions:
         r = cephalo_consistency_validator.validate(None)
         assert r.fatals
         assert not r.is_valid
+
+
+# ── Calibration status warning ──────────────────────────────────────────────
+
+class TestCalibrationStatusWarning:
+    v = cephalo_consistency_validator
+
+    def test_unverified_calibration_produces_warning(self):
+        data = _make_data(analyse_osseuse={"SNA": _angle(82)})
+        data["calibration_status"] = "unverified"
+        r = self.v.validate(data)
+        assert any("Calibration non v" in w for w in r.warnings)
+        assert r.is_valid  # WARNING jamais FATAL — les angles restent valides
+
+    def test_verified_calibration_no_warning(self):
+        data = _make_data(analyse_osseuse={"SNA": _angle(82)})
+        data["calibration_status"] = "verified"
+        r = self.v.validate(data)
+        assert not any("Calibration non v" in w for w in r.warnings)
+
+    def test_missing_calibration_status_no_warning(self):
+        data = _make_data(analyse_osseuse={"SNA": _angle(82)})
+        r = self.v.validate(data)
+        assert not any("Calibration non v" in w for w in r.warnings)

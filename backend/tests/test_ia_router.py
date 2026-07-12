@@ -122,6 +122,33 @@ class TestCephaloAnalyses:
         assert r.status_code == 200
         assert r.json()["id"] == analysis.id
 
+    def test_legacy_analysis_calibrated_derives_verified_status(self, client, db, auth_headers, dentiste):
+        # _make_cephalo_analysis crée un angles_data sans calibration_status (legacy) avec
+        # is_calibrated=True — le GET doit dériver "verified" sans migration ni écriture.
+        pat = _make_patient(db, dentiste, "LEGVERIF")
+        analysis = _make_cephalo_analysis(db, pat.id)
+        r = client.get(f"/api/ia/analyses/{analysis.id}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["angles_data"]["calibration_status"] == "verified"
+
+    def test_legacy_analysis_uncalibrated_derives_unverified_status(self, client, db, auth_headers, dentiste):
+        from backend import models
+        pat = _make_patient(db, dentiste, "LEGUNVER")
+        analysis = models.CephaloAnalysis(
+            patient_id=pat.id,
+            image_original_path="api/static/uploads/radios/test.jpg",
+            angles_data={"analyse_osseuse": {}, "analyse_dentaire": {}, "analyse_esthetique": {}},
+            mm_per_pixel=0.1,
+            is_calibrated=False,
+        )
+        db.add(analysis)
+        db.commit()
+        db.refresh(analysis)
+
+        r = client.get(f"/api/ia/analyses/{analysis.id}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["angles_data"]["calibration_status"] == "unverified"
+
     def test_get_nonexistent_analysis_returns_404(self, client, auth_headers):
         r = client.get("/api/ia/analyses/999999", headers=auth_headers)
         assert r.status_code == 404

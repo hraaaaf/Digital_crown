@@ -24,6 +24,14 @@ const ANGLE_CARDS = [
   { key: 'Angle_Nasolabial', label: 'Nasolabial', unit: '°', lo: 92, hi: 112, flo: 50, fhi: 160 },
 ] as const;
 
+// Miroir de MM_KEYWORDS (backend/services/cephalo_measure_registry.py) — source unique
+// de vérité pour distinguer les métriques en mm (non fiables sans calibration) des angles.
+const MM_KEYWORDS = ['ligne', 'surplomb', 'recouvrement', 'decalage', 'décalage', 'situation', 'profondeur', 'i_na_mm', 'i_nb_mm', 'wits', 'longueur', 'differentiel', 'etage'];
+function isMmMetric(name: string): boolean {
+  const n = name.toLowerCase();
+  return MM_KEYWORDS.some(kw => n.includes(kw));
+}
+
 type AngleStatus = 'ok' | 'warning' | 'fatal' | 'missing';
 
 function getAngleStatus(val: number | undefined, card: typeof ANGLE_CARDS[number]): AngleStatus {
@@ -300,10 +308,16 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                 <p className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: P.textMuted }}>
                   Tous les angles calculés
                 </p>
+                {anglesData?.calibration_status === 'unverified' && (
+                  <p className="text-[9px] font-black uppercase tracking-wider mb-2 px-2 py-1 rounded-lg" style={{ color: '#d97706', background: '#fffbeb' }}>
+                    ⚠ Calibration non vérifiée — les mesures en mm ci-dessous ne sont pas fiables
+                  </p>
+                )}
                 <div className="space-y-1">
                   {(() => {
                     const m = anglesData?.metrics;
                     if (!m) return null;
+                    const uncalibrated = anglesData?.calibration_status === 'unverified';
                     const entries: [string, number | null][] = [];
                     for (const section of [m.analyse_osseuse, m.analyse_dentaire, m.analyse_esthetique]) {
                       if (!section) continue;
@@ -312,14 +326,19 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                         entries.push([k, typeof val === 'number' ? val : null]);
                       }
                     }
-                    return entries.map(([k, val]) => (
-                      <div key={k} className="flex justify-between items-center py-1 border-b" style={{ borderColor: `${P.border}50` }}>
-                        <span className="text-[10px] font-semibold" style={{ color: P.textMuted }}>{k}</span>
-                        <span className="text-[10px] font-black" style={{ color: P.text }}>
-                          {val !== null ? val.toFixed(1) : '--'}
-                        </span>
-                      </div>
-                    ));
+                    return entries.map(([k, val]) => {
+                      const flagged = uncalibrated && val !== null && isMmMetric(k);
+                      return (
+                        <div key={k} className="flex justify-between items-center py-1 border-b" style={{ borderColor: `${P.border}50` }}>
+                          <span className="text-[10px] font-semibold" style={{ color: P.textMuted }}>
+                            {k}{flagged && ' ⚠'}
+                          </span>
+                          <span className="text-[10px] font-black" style={{ color: flagged ? '#d97706' : P.text }}>
+                            {val !== null ? val.toFixed(1) : '--'}
+                          </span>
+                        </div>
+                      );
+                    });
                   })()}
                 </div>
               </div>

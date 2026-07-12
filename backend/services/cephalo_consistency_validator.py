@@ -255,6 +255,17 @@ class CephaloConsistencyValidator:
         self._check_unit_contradictions(metrics, result)
         self._check_mm_bounds(metrics, result)
 
+        # 7. Calibration non vérifiée — WARNING (jamais FATAL, les angles restent valides
+        # indépendamment du ratio mm/px). C'est le garde-fou effectivement branché avant
+        # PDF ; le badge frontend prévu pour ce même signal (CephaloStatsTable) n'est pas
+        # monté dans l'app (composant orphelin, audit 2026-07-12).
+        if angles_data.get("calibration_status") == "unverified":
+            result.warnings.append(
+                "Calibration non vérifiée : les mesures en millimètres (surplomb, "
+                "recouvrement, Wits, ligne E…) sont calculées avec un ratio par défaut "
+                "et ne sont pas fiables. Calibrez manuellement avant d'imprimer."
+            )
+
         return result
 
 
