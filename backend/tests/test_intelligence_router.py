@@ -649,6 +649,68 @@ class TestTauxConversion:
         assert "converted_count" in body
         assert "taux" in body
 
+    def test_devis_converted_by_acte_counts_as_converted(self, client, db, auth_headers, dentiste):
+        from backend import models
+        import uuid
+        pat = _make_patient(db, dentiste, "DEVISCONVERTED")
+        devis_date = datetime.now() - timedelta(days=30)
+        doc = models.DocumentArchive(
+            patient_id=pat.id,
+            document_type=models.DocumentType.DEVIS,
+            filename="devis.pdf",
+            original_filename="devis.pdf",
+            document_group_id=str(uuid.uuid4()),
+            file_hash="conv123",
+            file_size=100,
+            file_path="/tmp/devis.pdf",
+            created_at=devis_date,
+        )
+        db.add(doc)
+        acte = models.Acte(
+            patient_id=pat.id,
+            praticien_id=dentiste.id,
+            libelle="Couronne",
+            montant=1200.0,
+            type_acte=models.ActeType.SOIN,
+            date_debut=devis_date + timedelta(days=10),
+        )
+        db.add(acte)
+        db.commit()
+
+        r = client.get("/api/intelligence/taux-conversion", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["devis_count"] == 1
+        assert body["converted_count"] == 1
+        assert body["taux"] == 100.0
+        assert body["avg_days"] == 10.0
+
+    def test_devis_without_followup_not_converted(self, client, db, auth_headers, dentiste):
+        from backend import models
+        import uuid
+        pat = _make_patient(db, dentiste, "DEVISLONE")
+        doc = models.DocumentArchive(
+            patient_id=pat.id,
+            document_type=models.DocumentType.DEVIS,
+            filename="devis.pdf",
+            original_filename="devis.pdf",
+            document_group_id=str(uuid.uuid4()),
+            file_hash="lone123",
+            file_size=100,
+            file_path="/tmp/devis.pdf",
+            created_at=datetime.now() - timedelta(days=30),
+        )
+        db.add(doc)
+        db.commit()
+
+        r = client.get("/api/intelligence/taux-conversion", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["devis_count"] == 1
+        assert body["converted_count"] == 0
+        assert body["taux"] == 0.0
+        assert body["avg_days"] is None
+
 
 # ── latent cash ───────────────────────────────────────────────────────────────
 
@@ -664,3 +726,65 @@ class TestLatentCash:
         assert "total_opportunites" in body
         assert "valeur_totale_latente" in body
         assert isinstance(body["opportunites"], list)
+
+    def test_dormant_devis_with_items_appears_in_opportunites(self, client, db, auth_headers, dentiste):
+        from backend import models
+        import uuid
+        pat = _make_patient(db, dentiste, "DORMANTDEVIS")
+        doc = models.DocumentArchive(
+            patient_id=pat.id,
+            document_type=models.DocumentType.DEVIS,
+            filename="devis.pdf",
+            original_filename="devis.pdf",
+            document_group_id=str(uuid.uuid4()),
+            file_hash="dormant123",
+            file_size=100,
+            file_path="/tmp/devis.pdf",
+            created_at=datetime.now() - timedelta(days=20),
+            clinical_data={"items": [{"montant": 1500}]},
+        )
+        db.add(doc)
+        db.commit()
+
+        r = client.get("/api/intelligence/latent-cash", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total_opportunites"] == 1
+        assert body["valeur_totale_latente"] == 1500
+        assert body["opportunites"][0]["patient_id"] == pat.id
+        assert body["opportunites"][0]["montant"] == 1500
+
+    def test_devis_with_acte_after_not_dormant(self, client, db, auth_headers, dentiste):
+        from backend import models
+        import uuid
+        pat = _make_patient(db, dentiste, "NOTDORMANT")
+        devis_date = datetime.now() - timedelta(days=20)
+        doc = models.DocumentArchive(
+            patient_id=pat.id,
+            document_type=models.DocumentType.DEVIS,
+            filename="devis.pdf",
+            original_filename="devis.pdf",
+            document_group_id=str(uuid.uuid4()),
+            file_hash="notdormant123",
+            file_size=100,
+            file_path="/tmp/devis.pdf",
+            created_at=devis_date,
+            clinical_data={"items": [{"montant": 800}]},
+        )
+        db.add(doc)
+        acte = models.Acte(
+            patient_id=pat.id,
+            praticien_id=dentiste.id,
+            libelle="Detartrage",
+            montant=800.0,
+            type_acte=models.ActeType.SOIN,
+            date_debut=devis_date + timedelta(days=2),
+        )
+        db.add(acte)
+        db.commit()
+
+        r = client.get("/api/intelligence/latent-cash", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        pids = [o["patient_id"] for o in body["opportunites"]]
+        assert pat.id not in pids

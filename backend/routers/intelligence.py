@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload, contains_eager
 from sqlalchemy import func, or_
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+from collections import defaultdict
 import logging
 
 from backend import database, models
@@ -327,21 +328,41 @@ def get_taux_conversion(
     if not devis_list:
         return {"devis_count": 0, "converted_count": 0, "taux": 0.0, "avg_days": None}
 
+    # Précharge en 2 requêtes (au lieu de 2 par devis) tous les Actes/notes
+    # d'honoraires pertinents, puis matching en mémoire — évite le N+1.
+    patient_ids = {d.patient_id for d in devis_list}
+    window_start = min(d.created_at for d in devis_list)
+    window_end = max(d.created_at for d in devis_list) + timedelta(days=90)
+
+    all_actes = db.query(models.Acte).filter(
+        models.Acte.patient_id.in_(patient_ids),
+        models.Acte.date_debut > window_start,
+        models.Acte.date_debut <= window_end,
+    ).order_by(models.Acte.date_debut).all()
+    all_notes = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id.in_(patient_ids),
+        models.DocumentArchive.document_type == "NOTE_HONORAIRES",
+        models.DocumentArchive.created_at > window_start,
+        models.DocumentArchive.created_at <= window_end,
+    ).order_by(models.DocumentArchive.created_at).all()
+
+    actes_by_patient = defaultdict(list)
+    for a in all_actes:
+        actes_by_patient[a.patient_id].append(a)
+    notes_by_patient = defaultdict(list)
+    for n in all_notes:
+        notes_by_patient[n.patient_id].append(n)
+
     converted = 0
     total_days = []
     for d in devis_list:
-        first_acte = db.query(models.Acte).filter(
-            models.Acte.patient_id == d.patient_id,
-            models.Acte.date_debut > d.created_at,
-            models.Acte.date_debut <= d.created_at + timedelta(days=90)
-        ).order_by(models.Acte.date_debut).first()
-        
-        first_note = db.query(models.DocumentArchive).filter(
-            models.DocumentArchive.patient_id == d.patient_id,
-            models.DocumentArchive.document_type == "NOTE_HONORAIRES",
-            models.DocumentArchive.created_at > d.created_at,
-            models.DocumentArchive.created_at <= d.created_at + timedelta(days=90)
-        ).order_by(models.DocumentArchive.created_at).first()
+        d_window_end = d.created_at + timedelta(days=90)
+        first_acte = next(
+            (a for a in actes_by_patient[d.patient_id]
+             if a.date_debut > d.created_at and a.date_debut <= d_window_end), None)
+        first_note = next(
+            (n for n in notes_by_patient[d.patient_id]
+             if n.created_at > d.created_at and n.created_at <= d_window_end), None)
 
         if first_acte or first_note:
             converted += 1
@@ -379,30 +400,38 @@ def get_latent_cash(
     
     dormant_devis = []
     total_dormant_amount = 0.0
-    
+
+    # Précharge en une requête les dates d'Actes de tous les patients concernés
+    # (au lieu d'un COUNT par devis) — évite le N+1.
+    patient_ids = {d.patient_id for d in devis_list}
+    all_actes_dates = db.query(models.Acte.patient_id, models.Acte.date_debut).filter(
+        models.Acte.patient_id.in_(patient_ids)
+    ).all() if patient_ids else []
+    actes_dates_by_patient = defaultdict(list)
+    for pid, dt in all_actes_dates:
+        actes_dates_by_patient[pid].append(dt)
+
     for d in devis_list:
         # Check si aucun acte n'a été fait après le devis
-        acts_after = db.query(models.Acte).filter(
-            models.Acte.patient_id == d.patient_id,
-            models.Acte.date_debut >= d.created_at
-        ).count()
+        acts_after = sum(1 for dt in actes_dates_by_patient[d.patient_id] if dt >= d.created_at)
         if acts_after == 0:
-            import json
-            try:
-                data = json.loads(d.document_data)
-                total = sum([item.get("montant", 0) for item in data.get("items", [])])
-                if total > 0:
-                    dormant_devis.append({
-                        "patient_id": d.patient_id,
-                        "patient_name": f"{d.patient.prenom} {d.patient.nom}",
-                        "telephone": d.patient.telephone,
-                        "date_devis": d.created_at.strftime("%d/%m/%Y"),
-                        "montant": total,
-                        "type": "Devis En Attente"
-                    })
-                    total_dormant_amount += total
-            except:
-                pass
+            # Bug historique corrigé : `d.document_data` n'existait pas sur
+            # DocumentArchive (AttributeError toujours avalée par un except:pass
+            # — dormant_devis restait toujours vide). Le vrai champ, déjà utilisé
+            # ailleurs pour la même donnée, est `clinical_data` (voir
+            # backend/routers/accounting.py, alimenté par documents.py).
+            data = d.clinical_data or {}
+            total = sum(item.get("montant", 0) for item in data.get("items", []))
+            if total > 0:
+                dormant_devis.append({
+                    "patient_id": d.patient_id,
+                    "patient_name": f"{d.patient.prenom} {d.patient.nom}",
+                    "telephone": d.patient.telephone,
+                    "date_devis": d.created_at.strftime("%d/%m/%Y"),
+                    "montant": total,
+                    "type": "Devis En Attente"
+                })
+                total_dormant_amount += total
 
     return {
         "total_opportunites": len(dormant_devis),

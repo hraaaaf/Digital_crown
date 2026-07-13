@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, Download } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, Users, MessageCircle, Clock, Download, RefreshCcw } from 'lucide-react';
 import { DigitalCrownLoader } from '../components/DigitalCrownLoader';
 import toast from 'react-hot-toast';
 
@@ -23,14 +23,14 @@ export const Analytics = () => {
   const [showWaModal, setShowWaModal] = React.useState(false);
 
   // Récupération des données Financières
-  const { data: financialStats, isLoading: isFinLoading } = useQuery({
+  const { data: financialStats, isLoading: isFinLoading, isError: isFinError, refetch: refetchFin } = useQuery({
     queryKey: ['stats', 'financial'],
     queryFn: () => api.get('/stats/financial').then(res => res.data),
     staleTime: 5 * 60 * 1000, // Cache 5 minutes
   });
 
   // Récupération des données Opérationnelles
-  const { data: operationalStats, isLoading: isOpLoading } = useQuery({
+  const { data: operationalStats, isLoading: isOpLoading, isError: isOpError, refetch: refetchOp } = useQuery({
     queryKey: ['stats', 'operational'],
     queryFn: () => api.get('/stats/operational').then(res => res.data),
     staleTime: 5 * 60 * 1000,
@@ -38,6 +38,29 @@ export const Analytics = () => {
 
   if (isFinLoading || isOpLoading) {
     return <DigitalCrownLoader minHeight="min-h-[60vh]" />;
+  }
+
+  if (isFinError || isOpError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8 text-center space-y-6">
+          <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle size={40} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Impossible de charger les analytics</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Erreur réseau. Vérifiez votre connexion et réessayez.</p>
+          </div>
+          <button
+            onClick={() => { refetchFin(); refetchOp(); }}
+            className="w-full px-4 py-2.5 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-lg transition-all flex items-center justify-center gap-2"
+            style={{ backgroundColor: 'var(--primary)' }}
+          >
+            <RefreshCcw size={16} /> Réessayer
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -62,23 +85,15 @@ export const Analytics = () => {
               [],
               ['KPIs Financiers'],
               ['Indicateur', 'Valeur'],
-              ['Revenus ce mois (MAD)', String(financialStats.revenue_this_month ?? 0)],
-              ['Revenus mois précédent (MAD)', String(financialStats.revenue_last_month ?? 0)],
-              ['Total facturé (MAD)', String(financialStats.total_billed ?? 0)],
-              ['Total encaissé (MAD)', String(financialStats.total_paid ?? 0)],
-              ['Taux de recouvrement (%)', String(financialStats.recovery_rate ?? 0)],
+              ['Revenus du mois (MAD)', String(financialStats.revenu_mois ?? 0)],
+              ['Trésorerie latente (MAD)', String(financialStats.latent_cash ?? 0)],
+              ['CA du jour (MAD)', String(financialStats.today_revenue ?? 0)],
+              ['Revenu du mois encaissé (MAD)', String(financialStats.month_revenue ?? 0)],
+              ['Impayés globaux (MAD)', String(financialStats.total_debt ?? 0)],
               [],
-              ['Revenus Mensuels (6 derniers mois)'],
-              ['Mois', 'Revenus (MAD)'],
-              ...(financialStats.monthly_revenue ?? []).map((m: any) => [m.name, String(m.revenue)]),
-              [],
-              ['Top 5 Actes par Revenu'],
-              ['Acte', 'Revenu Total (MAD)'],
-              ...(financialStats.top_acts_revenue ?? []).map((a: any) => [a.name, String(a.value)]),
-              [],
-              ['Top 5 Actes par Fréquence'],
-              ['Acte', 'Nombre'],
-              ...(financialStats.top_acts_frequency ?? []).map((a: any) => [a.name, String(a.value)]),
+              ['Top 5 Relances (devis en attente)'],
+              ['Patient', 'Soin', 'Montant (MAD)'],
+              ...(financialStats.top_relances ?? []).map((p: any) => [`${p.nom} ${p.prenom}`, p.soin, String(p.montant)]),
             ];
             downloadCSV(rows, `Analytics_${date.replace(/\//g, '-')}.csv`);
             toast.success('Rapport CSV téléchargé');

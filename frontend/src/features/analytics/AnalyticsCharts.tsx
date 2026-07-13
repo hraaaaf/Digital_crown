@@ -23,7 +23,7 @@ export const AnalyticsCharts = () => {
           setChartData(rotated);
         }
       })
-      .catch(() => {}); // keep fallback silently
+      .catch(() => console.warn("Erreur chargement tendance hebdomadaire")); // fallback visuel conservé
   }, []);
 
   return (
@@ -34,8 +34,8 @@ export const AnalyticsCharts = () => {
           <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorActivite" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
@@ -45,7 +45,7 @@ export const AnalyticsCharts = () => {
               contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               formatter={(value) => [`${Number(value ?? 0)}%`, 'Activite']}
             />
-            <Area type="monotone" dataKey="activite" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorActivite)" />
+            <Area type="monotone" dataKey="activite" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorActivite)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
