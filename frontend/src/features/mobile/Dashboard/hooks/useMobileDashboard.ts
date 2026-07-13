@@ -91,9 +91,18 @@ export function useMobileDashboard() {
       setSyncStatus('success');
     } catch (err) {
       console.error('[MobileDashboard] fetchSnapshot failed:', err);
+      const notPaired = err instanceof Error && err.message === 'Non appairé';
       const cached = await MobileStorage.getLastSnapshot();
-      if (cached) { setSnapshot(cached); setSyncStatus('error'); setError('Hors réseau — données en cache'); }
-      else { setError('Impossible de joindre le cabinet'); setSyncStatus('error'); }
+      if (cached) {
+        setSnapshot(cached);
+        setSyncStatus('error');
+        setError(notPaired
+          ? 'Non ré-appairé — dernières données locales (scannez le QR pour synchroniser)'
+          : 'Hors réseau — données en cache');
+      } else {
+        setError('Impossible de joindre le cabinet');
+        setSyncStatus('error');
+      }
     }
   }, [selectedDate]);
 

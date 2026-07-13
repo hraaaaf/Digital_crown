@@ -70,6 +70,10 @@ export const MobileStorage = {
     return !!(creds?.publicId && creds?.masterKey && creds?.access_token);
   },
 
+  async hasCachedSnapshot(): Promise<boolean> {
+    return (await this.getLastSnapshot()) !== null;
+  },
+
   // --- M3: OFFLINE ACTION QUEUE ---
   async enqueueAction(url: string, method: string, body?: any): Promise<void> {
     const queue = await this.getActionQueue();

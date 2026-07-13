@@ -145,17 +145,28 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 // ==============================================================================
 
 const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [isPaired, setIsPaired] = useState<boolean | null>(null);
+  const [gate, setGate] = useState<'loading' | 'allow' | 'redirect'>('loading');
 
   useEffect(() => {
-    // Sans .catch(), un rejet (IndexedDB indisponible/bloqué) laissait isPaired
-    // bloqué à null pour toujours → spinner infini au lieu de retomber sur
+    // Sans .catch(), un rejet (IndexedDB indisponible/bloqué) laissait le gate
+    // bloqué en 'loading' pour toujours → spinner infini au lieu de retomber sur
     // l'écran d'appairage (perçu par l'utilisateur comme "l'app ne reste pas connectée").
-    MobileStorage.isPaired().then(setIsPaired).catch(() => setIsPaired(false));
+    MobileStorage.isPaired()
+      .then(async (paired) => {
+        if (paired) { setGate('allow'); return; }
+        // Pas (ou plus) appairé -- mais si un snapshot a déjà été chargé avec succès,
+        // on laisse quand même passer plutôt que de renvoyer sèchement vers le QR :
+        // MobileDashboard sait déjà retomber sur ce cache (useMobileDashboard::fetchSnapshot).
+        // C'est précisément le cas "loin du cabinet / IndexedDB des identifiants évincée
+        // par le navigateur" qui faisait perdre l'accès aux dernières données scannées.
+        const hasCache = await MobileStorage.hasCachedSnapshot().catch(() => false);
+        setGate(hasCache ? 'allow' : 'redirect');
+      })
+      .catch(() => setGate('redirect'));
   }, []);
 
-  if (isPaired === null) return <PageLoader />;
-  if (!isPaired) return <Navigate to="/mobile/onboarding" replace />;
+  if (gate === 'loading') return <PageLoader />;
+  if (gate === 'redirect') return <Navigate to="/mobile/onboarding" replace />;
 
   return <>{children}</>;
 };
