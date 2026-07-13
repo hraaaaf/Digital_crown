@@ -45,6 +45,14 @@ DB_RETENTION_DAYS = int(os.environ.get("SCHEDULED_DB_RETENTION_DAYS", "30"))
 MEDIA_RETENTION_DAYS = int(os.environ.get("SCHEDULED_MEDIA_RETENTION_DAYS", "7"))
 MIN_BACKUPS_TO_KEEP = int(os.environ.get("SCHEDULED_MIN_BACKUPS_TO_KEEP", "3"))
 
+# Copie hors machine (best-effort, jamais bloquante -- voir _run_offsite_copy).
+# Vide/absente = fonctionnalité désactivée (offsite_status: NOT_CONFIGURED), pas une
+# erreur. Rétention hors-site séparée de la rétention locale : un NAS n'a pas la même
+# contrainte de capacité qu'un disque local.
+OFFSITE_DIR = os.environ.get("SCHEDULED_OFFSITE_BACKUP_DIR", "").strip()
+OFFSITE_DB_RETENTION_DAYS = int(os.environ.get("SCHEDULED_OFFSITE_DB_RETENTION_DAYS", str(DB_RETENTION_DAYS)))
+OFFSITE_MEDIA_RETENTION_DAYS = int(os.environ.get("SCHEDULED_OFFSITE_MEDIA_RETENTION_DAYS", str(MEDIA_RETENTION_DAYS)))
+
 logger = logging.getLogger("scheduled_backup")
 
 
@@ -106,6 +114,7 @@ def _check_execution_provenance() -> dict:
     from backend.services import backup_service as _backup_service_mod
     from backend.scripts import backup_db as _backup_db_mod
     from backend.scripts import backup_media as _backup_media_mod
+    from backend.scripts import backup_offsite as _backup_offsite_mod
     from backend import database as _database_mod
 
     modules = {
@@ -113,6 +122,7 @@ def _check_execution_provenance() -> dict:
         "backup_service": _backup_service_mod,
         "backup_db": _backup_db_mod,
         "backup_media": _backup_media_mod,
+        "backup_offsite": _backup_offsite_mod,
         "database": _database_mod,
     }
 
@@ -161,10 +171,17 @@ def _run_media_backup(timestamp: str) -> dict:
     return _build_media_archive(media_dir, timestamp)
 
 
-def _apply_retention(target_dir: Path, prefix: str, suffix: str, retention_days: int, dry_run: bool) -> dict:
-    """Ne supprime que dans target_dir (toujours un sous-dossier de scheduled/),
-    protège toujours les MIN_BACKUPS_TO_KEEP fichiers les plus récents quel que soit
-    leur âge, journalise chaque candidat avant toute suppression réelle."""
+def _apply_retention(
+    target_dir: Path, prefix: str, suffix: str, retention_days: int, dry_run: bool,
+    min_to_keep: int | None = None,
+) -> dict:
+    """Ne supprime que dans target_dir (toujours un sous-dossier de scheduled/ ou de
+    la destination hors-site), protège toujours les min_to_keep fichiers les plus
+    récents quel que soit leur âge (défaut : MIN_BACKUPS_TO_KEEP, le même plancher
+    que pour les dossiers locaux), journalise chaque candidat avant toute suppression
+    réelle."""
+    if min_to_keep is None:
+        min_to_keep = MIN_BACKUPS_TO_KEEP
     report = {"dir": str(target_dir), "dry_run": dry_run, "candidates": [], "deleted": []}
     if not target_dir.exists():
         return report
@@ -173,7 +190,7 @@ def _apply_retention(target_dir: Path, prefix: str, suffix: str, retention_days:
         [f for f in target_dir.glob(f"{prefix}*{suffix}") if f.is_file()],
         key=lambda p: p.stat().st_mtime, reverse=True,
     )
-    protected = {f.name for f in files[:MIN_BACKUPS_TO_KEEP]}
+    protected = {f.name for f in files[:min_to_keep]}
     cutoff = time.time() - retention_days * 86400
 
     for f in files:
@@ -198,6 +215,59 @@ def _apply_retention_all(dry_run: bool) -> list:
     ]
 
 
+def _apply_retention_all_offsite(offsite_dir_str: str, dry_run: bool) -> list:
+    """Rétention hors-site, symétrique à _apply_retention_all mais sur la
+    destination réseau -- jamais mélangée aux dossiers locaux. Ne lève jamais (appelé
+    depuis run() dans son propre try/except, un incident réseau ici ne doit jamais
+    empêcher l'écriture du manifeste d'un run par ailleurs réussi)."""
+    offsite_root = Path(offsite_dir_str)
+    return [
+        _apply_retention(
+            offsite_root / "db", "db_backup_", ".sql.enc", OFFSITE_DB_RETENTION_DAYS, dry_run,
+        ),
+        _apply_retention(
+            offsite_root / "media", "media_backup_", ".zip.enc", OFFSITE_MEDIA_RETENTION_DAYS, dry_run,
+        ),
+    ]
+
+
+def _run_offsite_copy(manifest: dict) -> dict:
+    """Copie best-effort vers SCHEDULED_OFFSITE_BACKUP_DIR si configuré. Ne lève
+    jamais -- double filet de sécurité (try/except interne à copy_to_offsite() ET
+    ici) puisque cette étape ne doit JAMAIS affecter le succès du backup principal."""
+    empty = {
+        "status": "NOT_CONFIGURED", "db_copied": False, "media_copied": False,
+        "error_code": None, "error_message": None, "duration_seconds": 0.0,
+    }
+    if not OFFSITE_DIR:
+        return empty
+    try:
+        from backend.scripts.backup_offsite import copy_to_offsite
+        db_source = (
+            SCHEDULED_ROOT / "db" / manifest["db_backup_filename"]
+            if manifest.get("db_backup_filename") else None
+        )
+        media_source = (
+            SCHEDULED_ROOT / "media" / manifest["media_backup_filename"]
+            if manifest.get("media_backup_filename") else None
+        )
+        return copy_to_offsite(
+            db_source, manifest.get("db_checksum"),
+            media_source, manifest.get("media_checksum"),
+            Path(OFFSITE_DIR),
+        )
+    except Exception as e:
+        logger.warning(
+            "Backup hors-site : exception inattendue, traitée comme un échec "
+            "best-effort sans impact sur le backup principal (%s).", type(e).__name__,
+        )
+        return {
+            "status": "FAILED", "db_copied": False, "media_copied": False,
+            "error_code": "UNEXPECTED_EXCEPTION", "error_message": str(type(e).__name__),
+            "duration_seconds": 0.0,
+        }
+
+
 def _write_manifest(manifest: dict):
     manifests_dir = SCHEDULED_ROOT / "manifests"
     logs_dir = SCHEDULED_ROOT / "logs"
@@ -218,6 +288,8 @@ def _write_manifest(manifest: dict):
         f"db_status={manifest['db_status']} file={manifest['db_backup_filename']} size={manifest['db_size_bytes']}\n"
         f"media_status={manifest['media_status']} file={manifest['media_backup_filename']} "
         f"size={manifest['media_size_bytes']} count={manifest['media_file_count']}\n"
+        f"offsite_status={manifest['offsite_status']} db_copied={manifest['offsite_db_copied']} "
+        f"media_copied={manifest['offsite_media_copied']}\n"
         f"overall_status={manifest['overall_status']}\n"
         f"error_code={manifest['error_code']}\n"
         f"error_message={manifest['error_message']}\n",
@@ -239,6 +311,9 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         "media_status": None, "media_backup_filename": None, "media_size_bytes": 0,
         "media_file_count": 0, "media_checksum": None,
         "overall_status": None,
+        "offsite_status": "NOT_CONFIGURED", "offsite_db_copied": False, "offsite_media_copied": False,
+        "offsite_error_code": None, "offsite_error_message": None, "offsite_duration_seconds": 0.0,
+        "offsite_retention_candidates": [],
         "retention_dry_run": not apply_retention,
         "retention_candidates": [],
         "error_code": None, "error_message": None,
@@ -274,6 +349,7 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         if dry_run:
             manifest["db_status"] = "SKIPPED_DRY_RUN"
             manifest["media_status"] = "SKIPPED_DRY_RUN"
+            manifest["offsite_status"] = "SKIPPED_DRY_RUN"
             manifest["overall_status"] = "SKIPPED_DRY_RUN"
         else:
             db_result = _run_db_backup(timestamp)
@@ -304,7 +380,31 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
             else:
                 manifest["overall_status"] = "FAILED"
 
+            # Copie hors-site best-effort -- ne touche jamais overall_status ci-dessus,
+            # calculé uniquement depuis db_status/media_status. Tentée même si le run
+            # local est PARTIAL (copie ce qui a réussi) ; sautée seulement si ni DB ni
+            # médias n'ont produit de fichier local.
+            if db_ok or media_ok:
+                offsite_result = _run_offsite_copy(manifest)
+                manifest["offsite_status"] = offsite_result["status"]
+                manifest["offsite_db_copied"] = offsite_result["db_copied"]
+                manifest["offsite_media_copied"] = offsite_result["media_copied"]
+                manifest["offsite_error_code"] = offsite_result["error_code"]
+                manifest["offsite_error_message"] = offsite_result["error_message"]
+                manifest["offsite_duration_seconds"] = offsite_result["duration_seconds"]
+
         manifest["retention_candidates"] = _apply_retention_all(dry_run=not apply_retention)
+
+        if OFFSITE_DIR:
+            try:
+                manifest["offsite_retention_candidates"] = _apply_retention_all_offsite(
+                    OFFSITE_DIR, dry_run=not apply_retention,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Rétention hors-site : échec, sans impact sur le backup principal (%s).",
+                    type(e).__name__,
+                )
     finally:
         _release_lock()
 

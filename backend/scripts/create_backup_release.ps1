@@ -62,6 +62,7 @@ try {
         "backend\scripts\scheduled_backup.py",
         "backend\scripts\backup_db.py",
         "backend\scripts\backup_media.py",
+        "backend\scripts\backup_offsite.py",
         "backend\services\backup_service.py",
         "backend\database.py"
     )

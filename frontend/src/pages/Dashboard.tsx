@@ -19,7 +19,11 @@ import {
   Sparkles,
   Plus,
   Search,
-  AlertCircle
+  AlertCircle,
+  Database,
+  HardDrive,
+  Archive,
+  CloudOff
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -99,6 +103,14 @@ interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'fo
 interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
 interface LatentCashData { total_opportunites: number; valeur_totale_latente: number; opportunites: any[]; }
 
+interface CabinetHealth {
+  database: { status: 'ok' | 'error'; detail: string | null };
+  disk: { status: 'ok' | 'warning' | 'critical' | 'unknown'; free_gb: number | null; total_gb: number | null };
+  backup_local: { status: 'ok' | 'warning' | 'critical' | 'none'; overall_status: string | null; age_hours: number | null; run_id: string | null };
+  offsite: { status: 'NOT_CONFIGURED' | 'ok' | 'warning'; offsite_status: string | null; db_copied: boolean | null; media_copied: boolean | null };
+  overall_severity: 'ok' | 'warning' | 'critical';
+}
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -120,6 +132,7 @@ export const Dashboard: React.FC = () => {
     month_revenue: number;
     total_debt: number;
   } | null>(null);
+  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -264,6 +277,18 @@ export const Dashboard: React.FC = () => {
       total_debt: res.data.total_debt ?? 0,
     })).catch(err => console.warn("Erreur finance today", err));
   }, []);
+
+  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern
+  // que le badge d'alertes non lues de Sidebar.tsx).
+  useEffect(() => {
+    if (!hasAccess('admin')) return;
+    const fetchHealth = () => api.get('/admin/cabinet-health')
+      .then(res => setCabinetHealth(res.data))
+      .catch(() => {});
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 120000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const markAlertRead = async (alertId: number) => {
     try {
@@ -433,8 +458,17 @@ export const Dashboard: React.FC = () => {
             <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
               <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>Système local actif</span>
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  !cabinetHealth ? "bg-slate-400" :
+                  cabinetHealth.overall_severity === "ok" ? "bg-emerald-500 animate-pulse" :
+                  cabinetHealth.overall_severity === "warning" ? "bg-amber-500" : "bg-red-500"
+                )} />
+                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
+                  {!cabinetHealth ? "Système local actif" :
+                    cabinetHealth.overall_severity === "ok" ? "Système local actif" :
+                    cabinetHealth.overall_severity === "warning" ? "Vigilance requise" : "Problème détecté"}
+                </span>
               </div>
             </div>
           </div>
@@ -847,6 +881,111 @@ export const Dashboard: React.FC = () => {
                   {financeToday.total_debt.toLocaleString('fr-MA')}
                 </div>
                 <div className="text-[10px] font-bold text-text-muted mt-1">MAD non encaissés (total cabinet)</div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {/* Widget santé cabinet — propriétaire/admin uniquement */}
+        {hasAccess('admin') && cabinetHealth && (
+          <motion.section variants={itemVariants}>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
+              Santé du Cabinet
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={cn(
+                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
+                    cabinetHealth.database.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                  )}>
+                    <Database size={18} className={cabinetHealth.database.status === "ok" ? "text-emerald-400" : "text-red-400"} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Base de Données</span>
+                </div>
+                <div className={cn(
+                  "text-2xl font-black font-outfit",
+                  cabinetHealth.database.status === "ok" ? "text-emerald-400" : "text-red-500"
+                )}>
+                  {cabinetHealth.database.status === "ok" ? "Connectée" : "Erreur"}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">Connexion à la base réelle</div>
+              </div>
+
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={cn(
+                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
+                    cabinetHealth.disk.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
+                    cabinetHealth.disk.status === "warning" ? "bg-amber-500/10 border-amber-500/20" :
+                    cabinetHealth.disk.status === "critical" ? "bg-red-500/10 border-red-500/20" : "bg-slate-500/10 border-slate-500/20"
+                  )}>
+                    <HardDrive size={18} className={
+                      cabinetHealth.disk.status === "ok" ? "text-emerald-400" :
+                      cabinetHealth.disk.status === "warning" ? "text-amber-400" :
+                      cabinetHealth.disk.status === "critical" ? "text-red-400" : "text-slate-400"
+                    } />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Espace Disque</span>
+                </div>
+                <div className={cn(
+                  "text-2xl font-black font-outfit",
+                  cabinetHealth.disk.status === "ok" ? "text-emerald-400" :
+                  cabinetHealth.disk.status === "warning" ? "text-amber-400" :
+                  cabinetHealth.disk.status === "critical" ? "text-red-500" : "text-slate-400"
+                )}>
+                  {cabinetHealth.disk.free_gb !== null ? `${cabinetHealth.disk.free_gb.toLocaleString('fr-FR')} Go` : "Inconnu"}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">Espace libre disponible</div>
+              </div>
+
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={cn(
+                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
+                    cabinetHealth.backup_local.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
+                    cabinetHealth.backup_local.status === "warning" ? "bg-amber-500/10 border-amber-500/20" : "bg-red-500/10 border-red-500/20"
+                  )}>
+                    <Archive size={18} className={
+                      cabinetHealth.backup_local.status === "ok" ? "text-emerald-400" :
+                      cabinetHealth.backup_local.status === "warning" ? "text-amber-400" : "text-red-400"
+                    } />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Sauvegarde Locale</span>
+                </div>
+                <div className={cn(
+                  "text-2xl font-black font-outfit",
+                  cabinetHealth.backup_local.status === "ok" ? "text-emerald-400" :
+                  cabinetHealth.backup_local.status === "warning" ? "text-amber-400" : "text-red-500"
+                )}>
+                  {cabinetHealth.backup_local.age_hours !== null ? `Il y a ${Math.round(cabinetHealth.backup_local.age_hours)}h` : "Aucune"}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">Dernière sauvegarde DB + médias</div>
+              </div>
+
+              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={cn(
+                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
+                    cabinetHealth.offsite.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
+                    cabinetHealth.offsite.status === "warning" ? "bg-amber-500/10 border-amber-500/20" : "bg-slate-500/10 border-slate-500/20"
+                  )}>
+                    <CloudOff size={18} className={
+                      cabinetHealth.offsite.status === "ok" ? "text-emerald-400" :
+                      cabinetHealth.offsite.status === "warning" ? "text-amber-400" : "text-slate-400"
+                    } />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Sauvegarde Hors-Site</span>
+                </div>
+                <div className={cn(
+                  "text-2xl font-black font-outfit",
+                  cabinetHealth.offsite.status === "ok" ? "text-emerald-400" :
+                  cabinetHealth.offsite.status === "warning" ? "text-amber-400" : "text-slate-400"
+                )}>
+                  {cabinetHealth.offsite.status === "NOT_CONFIGURED" ? "Non configurée" :
+                    cabinetHealth.offsite.status === "ok" ? "À jour" : "À vérifier"}
+                </div>
+                <div className="text-[10px] font-bold text-text-muted mt-1">Copie réseau hors machine</div>
               </div>
             </div>
           </motion.section>

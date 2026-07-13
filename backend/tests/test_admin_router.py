@@ -231,6 +231,99 @@ class TestBackups:
         assert r.status_code in (200, 500)
 
 
+# ── cabinet health widget ───────────────────────────────────────────────────────
+
+class TestCabinetHealth:
+    def _write_manifest(self, tmp_path, **overrides):
+        import json
+        from datetime import datetime
+
+        manifests_dir = tmp_path / "backups" / "scheduled" / "manifests"
+        manifests_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "run_id": "abc123",
+            "completed_at": datetime.utcnow().isoformat() + "Z",
+            "overall_status": "SUCCESS",
+            "offsite_status": "NOT_CONFIGURED",
+            "offsite_db_copied": False,
+            "offsite_media_copied": False,
+        }
+        manifest.update(overrides)
+        (manifests_dir / "latest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest
+
+    def test_requires_auth(self, client):
+        r = client.get("/api/admin/cabinet-health")
+        assert r.status_code == 401
+
+    def test_returns_ok_shape_with_no_manifest(self, client, auth_headers, tmp_path, monkeypatch):
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["backup_local"]["status"] == "none"
+        assert body["offsite"]["status"] == "NOT_CONFIGURED"
+
+    def test_disk_and_db_present_even_without_manifest(self, client, auth_headers, tmp_path, monkeypatch):
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        body = r.json()
+        assert body["database"]["status"] in ("ok", "error")
+        assert body["disk"]["status"] in ("ok", "warning", "critical", "unknown")
+        assert "overall_severity" in body
+
+    def test_reflects_real_manifest_overall_status_and_age(self, client, auth_headers, tmp_path, monkeypatch):
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        self._write_manifest(tmp_path, overall_status="SUCCESS")
+
+        r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        body = r.json()
+        assert body["backup_local"]["overall_status"] == "SUCCESS"
+        assert body["backup_local"]["run_id"] == "abc123"
+        assert body["backup_local"]["age_hours"] is not None
+        assert body["backup_local"]["age_hours"] < 1  # manifest was just written
+
+    def test_stale_backup_reported_as_critical(self, client, auth_headers, tmp_path, monkeypatch):
+        import json
+        from datetime import datetime, timedelta
+
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        old = (datetime.utcnow() - timedelta(hours=72)).isoformat() + "Z"
+        self._write_manifest(tmp_path, overall_status="SUCCESS", completed_at=old)
+
+        r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        body = r.json()
+        assert body["backup_local"]["status"] == "critical"
+
+    def test_offsite_not_configured_never_elevates_severity_to_critical(self, client, auth_headers, tmp_path, monkeypatch):
+        import shutil as _shutil
+        from unittest.mock import patch
+
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        self._write_manifest(tmp_path, overall_status="SUCCESS", offsite_status="NOT_CONFIGURED")
+
+        fake_usage = _shutil.disk_usage(str(tmp_path))._replace(free=100 * 1024 ** 3)
+        with patch.object(_shutil, "disk_usage", return_value=fake_usage):
+            r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        body = r.json()
+        assert body["overall_severity"] != "critical"
+
+    def test_offsite_failure_never_elevates_overall_severity(self, client, auth_headers, tmp_path, monkeypatch):
+        """Offsite is intentionally excluded from overall_severity -- a broken NAS
+        must never look as alarming as an actual DB/local-backup problem."""
+        import shutil as _shutil
+        from unittest.mock import patch
+
+        monkeypatch.setenv("DIGITALCROWN_RUNTIME_ROOT", str(tmp_path))
+        self._write_manifest(tmp_path, overall_status="SUCCESS", offsite_status="FAILED")
+
+        with patch.object(_shutil, "disk_usage", return_value=_shutil.disk_usage(str(tmp_path))._replace(free=100 * 1024 ** 3)):
+            r = client.get("/api/admin/cabinet-health", headers=auth_headers)
+        body = r.json()
+        assert body["offsite"]["status"] == "warning"
+        assert body["overall_severity"] != "critical"
+
+
 # ── zka key qr ───────────────────────────────────────────────────────────────
 
 class TestZkaKeyQr:

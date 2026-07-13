@@ -1,4 +1,5 @@
 """Tests for the SCHEDULED-TASK-BACKUP-REPLACE-1 orchestrator."""
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -250,6 +251,93 @@ class TestRetention:
             assert str(sb.SCHEDULED_ROOT) in called_dir
 
 
+class TestOffsiteCopy:
+    """SCHEDULED-OFFSITE-BACKUP-1 -- the offsite copy step must never affect the
+    success/failure of the main local backup (product doctrine, locked)."""
+
+    def _run_with(self, db_result, media_result):
+        with patch("backend.services.backup_service.BackupService._detect_engine", return_value=("postgresql", "psycopg2")), \
+             patch("backend.services.backup_service.BackupService._backup_postgres", return_value=db_result), \
+             patch("backend.scripts.backup_media._build_media_archive", return_value=media_result):
+            return sb.run(apply_retention=False, dry_run=False)
+
+    def test_not_configured_when_env_var_unset(self, monkeypatch):
+        monkeypatch.setattr(sb, "OFFSITE_DIR", "")
+        db = {"status": "SUCCESS", "backup_filename": "db.enc", "size_bytes": 10, "checksum": "a"}
+        media = {"status": "SUCCESS", "backup_filename": "media.enc", "size_bytes": 20, "file_count": 3, "checksum": "b"}
+        manifest = self._run_with(db, media)
+        assert manifest["offsite_status"] == "NOT_CONFIGURED"
+        assert manifest["offsite_db_copied"] is False
+        assert manifest["offsite_media_copied"] is False
+
+    def test_success_end_to_end_copies_real_files_to_fake_nas(self, monkeypatch):
+        db_dir = sb.SCHEDULED_ROOT / "db"
+        media_dir = sb.SCHEDULED_ROOT / "media"
+        db_dir.mkdir(parents=True, exist_ok=True)
+        media_dir.mkdir(parents=True, exist_ok=True)
+
+        db_bytes = b"fake-encrypted-db-backup"
+        media_bytes = b"fake-encrypted-media-backup"
+        (db_dir / "db_backup_x.sql.enc").write_bytes(db_bytes)
+        (media_dir / "media_backup_x.zip.enc").write_bytes(media_bytes)
+
+        db = {"status": "SUCCESS", "backup_filename": "db_backup_x.sql.enc", "size_bytes": len(db_bytes),
+              "checksum": hashlib.sha256(db_bytes).hexdigest()}
+        media = {"status": "SUCCESS", "backup_filename": "media_backup_x.zip.enc", "size_bytes": len(media_bytes),
+                  "file_count": 1, "checksum": hashlib.sha256(media_bytes).hexdigest()}
+
+        fake_nas = sb.SCHEDULED_ROOT.parent / "fake_nas"
+        monkeypatch.setattr(sb, "OFFSITE_DIR", str(fake_nas))
+
+        manifest = self._run_with(db, media)
+
+        assert manifest["overall_status"] == "SUCCESS"
+        assert manifest["offsite_status"] == "SUCCESS"
+        assert manifest["offsite_db_copied"] is True
+        assert manifest["offsite_media_copied"] is True
+        assert (fake_nas / "db" / "db_backup_x.sql.enc").read_bytes() == db_bytes
+        assert (fake_nas / "media" / "media_backup_x.zip.enc").read_bytes() == media_bytes
+
+    def test_unreachable_destination_never_blocks_or_fails_main_backup(self, monkeypatch, tmp_path):
+        # A path whose parent segment is a regular file can never be mkdir'd into --
+        # simulates an unreachable/disconnected network share.
+        blocker = tmp_path / "not_a_directory"
+        blocker.write_bytes(b"x")
+        monkeypatch.setattr(sb, "OFFSITE_DIR", str(blocker / "nas"))
+
+        db = {"status": "SUCCESS", "backup_filename": "db.enc", "size_bytes": 10, "checksum": "a"}
+        media = {"status": "SUCCESS", "backup_filename": "media.enc", "size_bytes": 20, "file_count": 3, "checksum": "b"}
+        manifest = self._run_with(db, media)
+
+        # Critical regression guard: the whole point of this feature is that a dead
+        # offsite destination must never look like a failed backup to the cabinet.
+        assert manifest["overall_status"] == "SUCCESS"
+        assert manifest["offsite_status"] == "UNREACHABLE"
+
+    def test_offsite_failure_never_flips_overall_status(self, monkeypatch):
+        monkeypatch.setattr(sb, "OFFSITE_DIR", "\\\\unreachable-nas\\share")
+        with patch("backend.scripts.backup_offsite.copy_to_offsite", return_value={
+            "status": "FAILED", "db_copied": False, "media_copied": False,
+            "error_code": "COPY_FAILED", "error_message": "x", "duration_seconds": 0.1,
+        }):
+            db = {"status": "SUCCESS", "backup_filename": "db.enc", "size_bytes": 10, "checksum": "a"}
+            media = {"status": "SUCCESS", "backup_filename": "media.enc", "size_bytes": 20, "file_count": 3, "checksum": "b"}
+            manifest = self._run_with(db, media)
+
+        assert manifest["overall_status"] == "SUCCESS"
+        assert manifest["offsite_status"] == "FAILED"
+
+    def test_offsite_skipped_when_neither_db_nor_media_produced_a_file(self, monkeypatch):
+        monkeypatch.setattr(sb, "OFFSITE_DIR", str(sb.SCHEDULED_ROOT.parent / "fake_nas"))
+        db = {"status": "FAILED", "backup_filename": None, "size_bytes": 0, "checksum": None,
+              "error_code": "PG_DUMP_FAILED", "error_message": "x"}
+        media = {"status": "FAILED", "backup_filename": None, "size_bytes": 0, "file_count": 0,
+                  "checksum": None, "error_code": "SOURCE_NOT_FOUND", "error_message": "y"}
+        manifest = self._run_with(db, media)
+        assert manifest["overall_status"] == "FAILED"
+        assert manifest["offsite_status"] == "NOT_CONFIGURED"
+
+
 class TestExecutionProvenance:
     """SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1 -- the orchestrator must refuse to
     run if its own code (or the backup modules it depends on) was loaded from the
@@ -266,7 +354,8 @@ class TestExecutionProvenance:
 
         assert result["status"] == "VIOLATION"
         assert set(result["violations"].keys()) == {
-            "scheduled_backup", "backup_service", "backup_db", "backup_media", "database",
+            "scheduled_backup", "backup_service", "backup_db", "backup_media",
+            "backup_offsite", "database",
         }
 
     def test_ok_when_repo_root_does_not_match_actual_module_location(self, monkeypatch, tmp_path):

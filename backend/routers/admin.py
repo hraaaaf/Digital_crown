@@ -413,5 +413,117 @@ def download_backup(filename: str, current_user: models.User = Depends(require_p
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Fichier introuvable.")
-        
+
     return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")
+
+
+_HEALTH_SEVERITY_RANK = {"ok": 0, "warning": 1, "unknown": 1, "none": 2, "critical": 2}
+
+
+@router.get("/cabinet-health")
+def get_cabinet_health(current_user: models.User = Depends(require_permission("admin"))):
+    """Widget santé cabinet — DB, espace disque, backup local, backup hors-site.
+
+    Lit le manifeste du backup planifié réel (tâche Windows programmée), jamais le
+    dossier des backups manuels (/backups ci-dessus, DB seule) — seul le backup
+    planifié (DB+médias ensemble) est un backup complet au sens de la doctrine
+    (voir CLAUDE.md, SCHEDULED-TASK-BACKUP-REPLACE-1).
+    """
+    import json
+    import shutil
+    from pathlib import Path
+
+    # --- Base de données ---
+    database_section = {"status": "ok", "detail": None}
+    try:
+        with database.SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+    except Exception as e:
+        database_section = {"status": "error", "detail": str(e)}
+
+    # --- Espace disque (même résolution de RUNTIME_ROOT que scheduled_backup.py,
+    # dupliquée volontairement plutôt qu'importée -- voir plan) ---
+    runtime_root = Path(os.environ.get("DIGITALCROWN_RUNTIME_ROOT", r"C:\Users\lenovo\DigitalCrown-Runtime"))
+    disk_warning_gb = float(os.environ.get("HEALTH_DISK_WARNING_GB", "20"))
+    disk_critical_gb = float(os.environ.get("HEALTH_DISK_CRITICAL_GB", "5"))
+    disk_section = {"status": "unknown", "free_gb": None, "total_gb": None}
+    try:
+        probe_path = runtime_root if runtime_root.exists() else Path(runtime_root.anchor or "C:\\")
+        usage = shutil.disk_usage(probe_path)
+        free_gb = usage.free / (1024 ** 3)
+        total_gb = usage.total / (1024 ** 3)
+        if free_gb < disk_critical_gb:
+            disk_status = "critical"
+        elif free_gb < disk_warning_gb:
+            disk_status = "warning"
+        else:
+            disk_status = "ok"
+        disk_section = {"status": disk_status, "free_gb": round(free_gb, 1), "total_gb": round(total_gb, 1)}
+    except Exception as e:
+        logger.warning(f"Cabinet health : échec lecture espace disque ({type(e).__name__}).")
+
+    # --- Backup local + hors-site (manifeste du backup planifié) ---
+    backup_warning_hours = float(os.environ.get("HEALTH_BACKUP_WARNING_HOURS", "30"))
+    backup_critical_hours = float(os.environ.get("HEALTH_BACKUP_CRITICAL_HOURS", "48"))
+    backup_local_section = {"status": "none", "overall_status": None, "age_hours": None, "run_id": None}
+    offsite_section = {"status": "NOT_CONFIGURED", "offsite_status": None, "db_copied": None, "media_copied": None}
+    manifest_path = runtime_root / "backups" / "scheduled" / "manifests" / "latest.json"
+    try:
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            age_hours = None
+            completed_at = manifest.get("completed_at")
+            if completed_at:
+                completed_dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                now = datetime.now(completed_dt.tzinfo) if completed_dt.tzinfo else datetime.utcnow()
+                age_hours = (now - completed_dt).total_seconds() / 3600
+
+            overall = manifest.get("overall_status")
+            if overall not in ("SUCCESS", "PARTIAL") or age_hours is None:
+                backup_status = "critical"
+            elif age_hours > backup_critical_hours:
+                backup_status = "critical"
+            elif age_hours > backup_warning_hours or overall == "PARTIAL":
+                backup_status = "warning"
+            else:
+                backup_status = "ok"
+
+            backup_local_section = {
+                "status": backup_status,
+                "overall_status": overall,
+                "age_hours": round(age_hours, 1) if age_hours is not None else None,
+                "run_id": manifest.get("run_id"),
+            }
+
+            # Doctrine verrouillée : un souci hors-site n'a jamais l'air aussi grave
+            # qu'un vrai problème DB/backup local pour un propriétaire non technique.
+            offsite_status_raw = manifest.get("offsite_status")
+            if offsite_status_raw in (None, "NOT_CONFIGURED"):
+                offsite_widget_status = "NOT_CONFIGURED"
+            elif offsite_status_raw == "SUCCESS":
+                offsite_widget_status = "ok"
+            else:
+                offsite_widget_status = "warning"
+            offsite_section = {
+                "status": offsite_widget_status,
+                "offsite_status": offsite_status_raw,
+                "db_copied": manifest.get("offsite_db_copied"),
+                "media_copied": manifest.get("offsite_media_copied"),
+            }
+    except Exception as e:
+        logger.warning(f"Cabinet health : échec lecture manifeste backup ({type(e).__name__}).")
+
+    overall_rank = max(
+        _HEALTH_SEVERITY_RANK["critical" if database_section["status"] == "error" else "ok"],
+        _HEALTH_SEVERITY_RANK[disk_section["status"]],
+        _HEALTH_SEVERITY_RANK[backup_local_section["status"]],
+    )
+    overall_severity = {0: "ok", 1: "warning", 2: "critical"}[overall_rank]
+
+    return {
+        "database": database_section,
+        "disk": disk_section,
+        "backup_local": backup_local_section,
+        "offsite": offsite_section,
+        "overall_severity": overall_severity,
+    }
