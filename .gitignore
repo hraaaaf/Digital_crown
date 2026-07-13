@@ -99,3 +99,9 @@ dist_cabinet/
 # ========================================
 install_rehearsal_media/
 treatment_journey_rehearsal_media/
+
+# ========================================
+# CLAUDE CODE (local à la session/machine — settings.json partagé reste versionné)
+# ========================================
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

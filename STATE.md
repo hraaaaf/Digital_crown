@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-11 12:46
+- **Mis à jour :** 2026-07-13 13:21
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,7 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- ODM — REPO-LARGE-FILES-SAFE-AUDIT-1 MISSION — REPO-LARGE-FILES-SAFE-AUDIT-1 Objectif : Auditer le dépôt Digital Crown afin d’identifier les fichiers et dossiers
-- Ok go
-- Du coup ou sont stockés les pdfs des patients !?
-- Regarde dans archives ou d’autres dossiers
-- Français
-- Oui il faut les récupérer !
-- Du coup on fait quoi m’t !?
-- Audit general et global de l’app ce qui est bien fait ce qui ne l’ai pas ce qui devrait être amélioré pour déplacer toute concurrence ce qui devrait être ajouté
+- dernières modifications apportées ? est ce que tout est commité ?
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)
@@ -1358,6 +1351,63 @@ refaire après pour capturer les 31 nouveaux fichiers) est recommandé.
 `static/reports/` — 439 Mo au total avant cette opération, ~438 Mo restants après
 extraction des 31 fichiers d'archives) n'a pas été traité — hors périmètre de cette
 mission ciblée, reste dans `docs/REPO_LARGE_FILES_SAFE_AUDIT.md`.
+
+## PHASE-D-TREATMENT-JOURNEY-ACTIVATION-1 (2026-07-11, ~15h50-16h25)
+
+**Statut : COMPLETED — le Treatment Journey est ACTIF sur le cabinet réel.**
+
+Séquencement respecté intégralement (verrouillé par le CTO depuis le 10/07) :
+RRIG-1 ✅ → backups automatiques ✅ → provenance ✅ → tâche Windows v2 ✅ →
+exécution release-based ✅ → smoke humain ✅ (validé par le CTO le 11/07 ~12h48,
+vérifications techniques croisées : PID inchangé pendant le parcours, compteurs
+identiques, build sûr servi) → **GO Phase D explicite du CTO** → activation contrôlée.
+
+**Fenêtre d'activation :**
+1. Backup DB frais : `backup_20260711_155129.sql.enc` (2.32 MB) — le backup médias de
+   13h21 (1846 fichiers) restait valide, aucun changement depuis
+2. Commit de provenance `a495c93` (STATE.md + 2 audits) avant build
+3. Vérification d'activité clinique : aucune connexion active hors la mienne
+4. Arrêt contrôlé de l'ancien runtime (PID 14516, release `20260711-012549`)
+5. Build frontend réel avec PatientJourney actif : `CONFIRM_REAL_BUILD=yes npm --prefix
+   frontend run build:real` — garde satisfaite (port 8005 libre + confirmation).
+   Nouveau bundle : `index-BAoTMSGe.js` (vs `index-BO2OChwV.js` sûr précédent),
+   PatientJourney vérifié présent dans le bundle
+6. Nouvelle release immuable : **`20260711-161943-a495c93c7629`** — première release avec
+   `frontend_manifest` renseigné (traçabilité build complète : commit, mode=real, date).
+   Note : une première tentative de release a échoué (robocopy, échec transitoire pendant
+   une activité disque concurrente — l'espace libre est passé de 3,2 à 15,1 Go pendant
+   l'opération, nettoyage externe indépendant, toutes les cibles critiques vérifiées
+   intactes : releases, venv, backups). Release partielle supprimée, seconde tentative
+   propre.
+7. Démarrage via `run_real_backend.ps1` en fenêtre détachée — nouveau PID **18844**,
+   `0.0.0.0:8005`, sans `--reload`, cwd = release
+
+**Validations post-activation (toutes PASSED) :**
+- `/api/health`, `/db`, `/storage` → 200
+- Frontend servi = `index-BAoTMSGe.js` (build Journey) — confirmé via HTTP réel
+- `GET /api/patients/1/journey` → **401** (la route existe et est correctement protégée
+  par auth — plus un 404)
+- Login endpoint → 401 propre sur mot de passe volontairement erroné (passlib
+  fonctionnel dans le nouveau process)
+- Compteurs identiques avant/après (220/12/136/262/176/0) — `journey_milestones`
+  reste à 0, aucune écriture pendant l'activation
+- Superadmin actif, 1846 médias inchangés
+- Release précédente `20260711-012549-738eb5234efc` conservée intacte comme cible de
+  rollback (rollback = redémarrer cette release via `run_real_backend.ps1`)
+
+**Reste à faire par le CTO (usage normal, pas une étape technique)** : ouvrir un dossier
+patient réel → onglet suivi → constater le Journey en conditions réelles. La création du
+premier jalon réel se fait par un praticien dans l'usage normal, conformément au plan
+(jamais comme étape de vérification technique).
+
+**P0-TREATMENT-JOURNEY-1 : TERMINÉ DE BOUT EN BOUT** (design 09-10/07 → plan v4 →
+implémentation Phase A → validation rehearsal Phase B → bilan Phase C → activation
+réelle Phase D). Le dernier trou P0 du roadmap V2 est fermé.
+
+**Prochaines priorités (cf. `docs/GLOBAL_APP_AUDIT_2026-07-11.md` §5)** :
+`UNIFY-ACT-PERSISTENCE-1` (fiabilité des impayés — le CTO l'avait séquencé après le
+rollout Journey), widget santé cabinet + copie backup hors machine,
+`ENVIRONMENT=cabinet` + versionnage `/api/health`.
 
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?
