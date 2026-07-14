@@ -31,7 +31,8 @@ interface SettingsState {
   
   // Media Actions
   uploadLogo: (file: File) => Promise<void>;
-  uploadLetterhead: (file: File) => Promise<void>;
+  uploadLetterhead: (file: File, options?: { stripBody?: boolean; headerPct?: number; footerPct?: number }) => Promise<void>;
+  deleteLetterhead: () => Promise<void>;
   deleteLogo: () => Promise<void>;
   applyTheme: () => void;
   // Multi-Cabinet Support
@@ -353,7 +354,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  uploadLetterhead: async (file: File) => {
+  uploadLetterhead: async (file: File, options?: { stripBody?: boolean; headerPct?: number; footerPct?: number }) => {
     set({ saving: true });
     const formData = new FormData();
     formData.append('file', file);
@@ -362,6 +363,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     formData.append('margins_bottom', (profile.margin_bottom || 3.2).toString());
     formData.append('hide_header', String(profile.hide_header ?? true));
     formData.append('hide_footer', String(profile.hide_footer ?? true));
+    formData.append('strip_body', String(options?.stripBody ?? false));
+    formData.append('header_pct', String(options?.headerPct ?? 25));
+    formData.append('footer_pct', String(options?.footerPct ?? 18));
     try {
       const res = await api.post('/clinics/me/letterhead', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -387,6 +391,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       toast.error("Erreur upload en-tête");
     } finally {
       set({ saving: false });
+    }
+  },
+
+  deleteLetterhead: async () => {
+    try {
+      await api.put('/clinics/me', { letterhead_path: null, use_letterhead: false });
+      set((state) => ({ profile: { ...state.profile, letterhead_path: '', use_letterhead: false } }));
+      toast.success("Fond de page supprimé");
+    } catch (err) {
+      toast.error("Erreur suppression du fond de page");
     }
   },
 

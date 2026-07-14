@@ -7,7 +7,7 @@ import shutil
 from typing import Optional, List
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Request, Form
 from sqlalchemy.orm import Session
 from PIL import Image
 
@@ -345,45 +345,108 @@ async def upload_clinic_logo(
     return {"logo_url": f"/static/uploads/{relative_path}"}
 
 
+def _process_letterhead_file(content: bytes, content_type: str,
+                             strip_body: bool, header_pct: float, footer_pct: float) -> tuple[bytes, bool]:
+    """Prépare le fichier letterhead : PDF -> PNG (1re page), et si strip_body,
+    blanchit la bande centrale pour ne garder que l'en-tête et le pied de page
+    (cas : le cabinet uploade un document déjà rempli comme modèle).
+
+    Retourne (octets finaux, was_processed). was_processed=True => sortie PNG.
+    Lève HTTPException(400) sur PDF illisible/vide — jamais d'exception brute.
+    """
+    was_processed = False
+
+    if content_type == "application/pdf":
+        try:
+            import fitz  # PyMuPDF
+            pdf = fitz.open(stream=content, filetype="pdf")
+            if pdf.page_count == 0:
+                pdf.close()
+                raise HTTPException(status_code=400, detail="PDF vide — aucune page à utiliser comme modèle")
+            pix = pdf[0].get_pixmap(dpi=150)
+            content = pix.tobytes("png")
+            pdf.close()
+            was_processed = True
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="PDF illisible — impossible de le convertir en image")
+
+    if strip_body:
+        try:
+            import io as _io
+            from PIL import Image, ImageDraw
+            img = Image.open(_io.BytesIO(content)).convert("RGB")
+            w, h = img.size
+            # Bornes de sécurité : chaque bande entre 5% et 45% de la hauteur,
+            # pour qu'il reste toujours une bande centrale à blanchir.
+            header_px = int(h * max(5.0, min(header_pct, 45.0)) / 100.0)
+            footer_px = int(h * max(5.0, min(footer_pct, 45.0)) / 100.0)
+            draw = ImageDraw.Draw(img)
+            draw.rectangle([0, header_px, w, h - footer_px], fill="white")
+            buf = _io.BytesIO()
+            img.save(buf, format="PNG")
+            content = buf.getvalue()
+            was_processed = True
+        except Exception:
+            raise HTTPException(status_code=400, detail="Image illisible — impossible de nettoyer le corps du document")
+
+    return content, was_processed
+
+
 @router.post("/me/letterhead")
 async def upload_clinic_letterhead(
     file: UploadFile = File(...),
-    hide_header: bool = True,
-    hide_footer: bool = True,
-    margins_top: float = 3.6,
-    margins_bottom: float = 3.2,
+    hide_header: bool = Form(True),
+    hide_footer: bool = Form(True),
+    margins_top: float = Form(3.6),
+    margins_bottom: float = Form(3.2),
+    strip_body: bool = Form(False),
+    header_pct: float = Form(25.0),
+    footer_pct: float = Form(18.0),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Uploader le papier en-tête (Letterhead) du cabinet."""
+    """Uploader le papier en-tête (Letterhead) du cabinet.
+
+    - PDF : la première page est convertie en PNG (PyMuPDF) — un PDF brut ne peut
+      pas être dessiné comme fond par ReportLab.
+    - strip_body : blanchit la bande centrale (garde ~header_pct% en haut et
+      ~footer_pct% en bas) pour utiliser un document déjà rempli comme modèle.
+    - Les paramètres sont des champs Form (multipart) — sans Form(), FastAPI les
+      lisait en query params et ignorait silencieusement ce que le frontend envoyait.
+    """
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou PDF")
-    
-    # Check size
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5Mo)")
-    
+
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    
+
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
-    
+
+    content, was_processed = _process_letterhead_file(
+        content, file.content_type, strip_body, header_pct, footer_pct,
+    )
+
     static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
-    
-    file_ext = file.filename.split(".")[-1]
-    if file_ext.lower() == "pdf":
-        file_ext = "png"
+
+    # Toute sortie traitée (PDF converti ou corps blanchi) est un vrai PNG ;
+    # sinon on conserve l'extension d'origine de l'image.
+    file_ext = "png" if was_processed else file.filename.split(".")[-1].lower()
     unique_name = f"letterhead_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
-    
+
     with open(file_path, "wb") as buffer:
         buffer.write(content)
-    
+
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.letterhead_path = relative_path
     config.use_letterhead = True
@@ -391,22 +454,22 @@ async def upload_clinic_letterhead(
     config.margin_bottom = margins_bottom
     config.hide_header = hide_header
     config.hide_footer = hide_footer
-    detected_colors = None
-    if file.content_type != "application/pdf":
-        detected_colors = _extract_brand_colors(content)
-        if detected_colors:
-            config.primary_color = detected_colors["primary_color"]
-            config.secondary_color = detected_colors["secondary_color"]
-            config.accent_color = detected_colors["accent_color"]
+    # Extraction de couleurs sur les octets finaux : fonctionne désormais aussi
+    # pour un PDF (converti en PNG ci-dessus).
+    detected_colors = _extract_brand_colors(content)
+    if detected_colors:
+        config.primary_color = detected_colors["primary_color"]
+        config.secondary_color = detected_colors["secondary_color"]
+        config.accent_color = detected_colors["accent_color"]
     db.commit()
-    
+
     return {
         "letterhead_url": f"/static/uploads/{relative_path}",
         "use_letterhead": True,
         "hide_default_header": hide_header,
         "hide_default_footer": hide_footer,
         "detected_colors": detected_colors,
-        "message": "Letterhead uploadé avec succès."
+        "message": "Letterhead uploadé avec succès.",
     }
 
 @router.post("/extract-card")

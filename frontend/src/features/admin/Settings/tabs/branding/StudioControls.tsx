@@ -3,8 +3,10 @@ import { cn } from '../../../../../utils/cn';
 import { BRAND_IDENTITIES, PREMIUM_FONTS } from '../../../constants';
 import { DENSITY_DEFAULTS } from './presets';
 import type { Density } from './types';
-import { Upload, Check, QrCode, UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
+import { Upload, Check, QrCode, UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, ChevronDown, ChevronUp, Trash2, FileText } from 'lucide-react';
 import { useSettingsStore } from '../../hooks/useSettingsStore';
+import { API_BASE } from '../../../../../services/api';
+import { useAuthenticatedImage } from '../../../../../hooks/useAuthenticatedImage';
 
 interface StudioControlsProps {
   profile: any;
@@ -14,8 +16,21 @@ interface StudioControlsProps {
 export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
-  const { uploadLetterhead } = useSettingsStore();
+  const [stripBody, setStripBody] = useState(false);
+  const [headerPct, setHeaderPct] = useState(25);
+  const [footerPct, setFooterPct] = useState(18);
+
+  const { uploadLetterhead, deleteLetterhead } = useSettingsStore();
   const customDesignActive = Boolean(profile.use_letterhead && profile.letterhead_path);
+
+  const getLetterheadUrl = (path: string | null | undefined) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.replace(/^\/+/, '');
+    if (cleanPath.startsWith('static/uploads/')) return `${API_BASE}/${cleanPath}`;
+    return `${API_BASE}/static/uploads/${cleanPath}`;
+  };
+  const letterheadSrc = useAuthenticatedImage(getLetterheadUrl(profile.letterhead_path));
 
   useEffect(() => {
     const saved = localStorage.getItem('branding_advanced_open');
@@ -40,7 +55,8 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
     if (e.target.files && e.target.files[0]) {
       setIsUploadingLocal(true);
       try {
-        await uploadLetterhead(e.target.files[0]);
+        await uploadLetterhead(e.target.files[0], { stripBody, headerPct, footerPct });
+        e.target.value = '';
       } finally {
         setIsUploadingLocal(false);
       }
@@ -246,14 +262,14 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
           <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase">
             Fond de Page (Template Image)
           </h3>
-          <button 
-            onClick={() => updateProfile({ use_letterhead: !profile.use_letterhead })} 
+          <button
+            onClick={() => updateProfile({ use_letterhead: !profile.use_letterhead })}
             className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors", profile.use_letterhead ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
           >
             <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", profile.use_letterhead ? "translate-x-5" : "translate-x-0")} />
           </button>
         </div>
-        
+
         {profile.use_letterhead && (
           <div className="flex flex-col gap-3">
             {customDesignActive && (
@@ -261,16 +277,72 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
                 Le design importé remplace l’en-tête, le footer et la palette du document. Les marges et le QR restent configurables.
               </div>
             )}
+
+            {/* Aperçu + suppression du modèle actuellement actif */}
+            {customDesignActive && letterheadSrc && (
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-medical-pearl)]">
+                <img
+                  src={letterheadSrc}
+                  alt="Modèle de document du cabinet"
+                  className="w-16 h-24 object-cover rounded-md border border-[var(--border-color)] bg-white"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-semibold text-[var(--text-main)]">Modèle actif</p>
+                  <p className="text-[10px] text-[var(--text-muted)] truncate">Appliqué comme fond sur tous les documents générés</p>
+                </div>
+                <button
+                  onClick={() => deleteLetterhead()}
+                  aria-label="Supprimer le modèle de document"
+                  className="p-2 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* Option : document déjà rempli -> ne garder que l’en-tête et le footer */}
+            <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-color)]">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={14} className="text-[var(--text-muted)] shrink-0" />
+                <span className="text-[12px] text-[var(--text-main)]">Document déjà rempli — ne garder que l’en-tête et le pied de page</span>
+              </div>
+              <button
+                onClick={() => setStripBody(!stripBody)}
+                aria-label="Nettoyer le corps du document uploadé"
+                className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors shrink-0", stripBody ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
+              >
+                <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", stripBody ? "translate-x-5" : "translate-x-0")} />
+              </button>
+            </div>
+
+            {stripBody && (
+              <div className="flex flex-col gap-3 px-1">
+                <label className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
+                  Hauteur de l’en-tête conservée : {headerPct}%
+                  <input type="range" min={5} max={45} value={headerPct}
+                         onChange={(e) => setHeaderPct(Number(e.target.value))} />
+                </label>
+                <label className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
+                  Hauteur du pied de page conservée : {footerPct}%
+                  <input type="range" min={5} max={45} value={footerPct}
+                         onChange={(e) => setFooterPct(Number(e.target.value))} />
+                </label>
+                <p className="text-[10px] text-[var(--text-muted)]">
+                  La zone centrale sera blanchie à l’upload. Vérifiez le résultat avec « Voir le rendu PDF réel » dans l’aperçu.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
-            <input 
-              type="file" 
-              accept="image/*" 
-              id="letterhead-upload" 
-              className="hidden" 
-              onChange={handleFileUpload} 
+            <input
+              type="file"
+              accept="image/png,image/jpeg,application/pdf"
+              id="letterhead-upload"
+              className="hidden"
+              onChange={handleFileUpload}
               disabled={isUploadingLocal}
             />
-            <label 
+            <label
               htmlFor="letterhead-upload"
               className={cn(
                 "flex items-center justify-center gap-2 flex-1 p-3 rounded-xl border border-dashed text-[13px] font-medium transition-all cursor-pointer",
@@ -278,7 +350,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
               )}
             >
               <Upload size={16} />
-              {isUploadingLocal ? "Envoi..." : "Uploader un fond (A5)"}
+              {isUploadingLocal ? "Envoi..." : "Uploader un modèle (image ou PDF)"}
             </label>
             </div>
           </div>
