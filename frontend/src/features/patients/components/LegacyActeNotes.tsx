@@ -13,11 +13,11 @@ import {
 import toast from 'react-hot-toast';
 import { usePatientStore } from '../../../stores/usePatientStore';
 
-// Extrait de PatientTracking.tsx (P0-TREATMENT-JOURNEY-1) — l'éditeur de notes cliniques et
-// l'upload de pièce jointe restent ancrés à `Acte.notes_cliniques`/`Acte.attachments`, qui n'ont
-// pas d'équivalent dans le nouveau flux Journey (Acte écarté comme source, voir
-// docs/TREATMENT_JOURNEY_DESIGN.md). Composant partagé entre PatientTracking et PatientJourney
-// (section "Actes historiques") pour ne rien dupliquer.
+// Extrait de l'ancien PatientTracking.tsx (P0-TREATMENT-JOURNEY-1, supprimé lors de
+// CLEANUP-PATIENT-TRACKING-1) — l'éditeur de notes cliniques et l'upload de pièce jointe
+// restent ancrés à `Acte.notes_cliniques`/`Acte.attachments`, qui n'ont pas d'équivalent
+// dans le flux Journey (Acte écarté comme source, voir docs/TREATMENT_JOURNEY_DESIGN.md).
+// Utilisé par PatientJourney.tsx (section "Actes historiques").
 
 export interface LegacyActe {
   id: number;

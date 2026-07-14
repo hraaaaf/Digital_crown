@@ -80,4 +80,28 @@ describe('DrugRow — autocomplete médicament', () => {
     renderDrugRow({ suggestions: { medications: [], dosages: [], posologies: [] } })
     expect(screen.queryByText('PARACETAMOL')).not.toBeInTheDocument()
   })
+
+  it("élève la ligne au-dessus de l'overlay plein écran (z-40) du parent quand son dropdown nom est ouvert, sinon la laisse au niveau normal", () => {
+    const { container, rerender } = render(<DrugRow
+      drug={baseDrug} idx={0} drugsCount={1} assessment={null} validationErrors={[]}
+      forcedDrugs={[]} activeSearchId={{ id: 1, field: 'name' }}
+      suggestions={{ medications: ['PARACETAMOL'], dosages: [], posologies: [] }}
+      highlightedIdx={-1} medChecks={{}} onUpdateDrug={noop} onRemoveDrug={noop} onMove={noop}
+      onSearch={noop} onKeyDown={noop} onApplySuggestion={noop} onFormeOpen={noop}
+      onForceAllergy={noop} onToggleType={noop}
+    />)
+    // Le dropdown est ouvert pour cette ligne -> doit dépasser le z-40 de l'overlay
+    expect(container.firstElementChild).toHaveClass('z-50')
+
+    rerender(<DrugRow
+      drug={baseDrug} idx={0} drugsCount={1} assessment={null} validationErrors={[]}
+      forcedDrugs={[]} activeSearchId={null}
+      suggestions={{ medications: [], dosages: [], posologies: [] }}
+      highlightedIdx={-1} medChecks={{}} onUpdateDrug={noop} onRemoveDrug={noop} onMove={noop}
+      onSearch={noop} onKeyDown={noop} onApplySuggestion={noop} onFormeOpen={noop}
+      onForceAllergy={noop} onToggleType={noop}
+    />)
+    // Dropdown fermé -> pas besoin de dépasser l'overlay
+    expect(container.firstElementChild).not.toHaveClass('z-50')
+  })
 })

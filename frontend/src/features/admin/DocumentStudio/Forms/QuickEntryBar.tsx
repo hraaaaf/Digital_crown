@@ -85,7 +85,13 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
             {quickSuggestions.map((s, i) => (
               <button
                 key={s}
-                onClick={async () => {
+                type="button"
+                onMouseDown={async e => {
+                  // onMouseDown (pas onClick) : le mousedown précède le blur de
+                  // l'input dans l'ordre des événements navigateur. preventDefault
+                  // empêche l'input de perdre le focus avant que la sélection ne
+                  // s'applique — même correctif que DrugRow.tsx pour ce bug.
+                  e.preventDefault();
                   const parts = quickVal.split(' ');
                   parts[0] = s;
                   await submitDrug(parts.join(' '));

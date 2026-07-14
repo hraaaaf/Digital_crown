@@ -62,6 +62,17 @@ export const DrugRow: React.FC<DrugRowProps> = ({
   if (nationalMsg) ghostMessages.push(nationalMsg);
   const ghostDanger = dosageCheck?.level === 'danger';
 
+  // Le parent (PrescriptionAgenticStudio) affiche un overlay plein écran en
+  // `fixed z-40` pour fermer les suggestions au clic extérieur. Cette ligne a
+  // `position: relative` sans z-index propre, donc son dropdown à z-[100] reste
+  // scopé au stacking context local de la ligne (créé par le `transform` de
+  // framer-motion) : il perd face au z-40 de l'overlay, qui capte alors le clic
+  // à la place du bouton de suggestion (invisible car l'overlay est transparent
+  // — d'où "je clique sur une suggestion et rien ne se passe"). On élève
+  // uniquement la ligne dont le dropdown nom est ouvert au-dessus de l'overlay.
+  const isNameSuggestOpen =
+    activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0;
+
   return (
     <motion.div
       key={drug.id}
@@ -72,6 +83,7 @@ export const DrugRow: React.FC<DrugRowProps> = ({
         fieldError ? 'border-red-200 bg-red-50/10' : 'border-white/80 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20',
         isRadio && 'border-amber-100 bg-amber-50/5',
         isBlockedByAllergy && 'border-red-500 bg-red-50 overflow-hidden',
+        isNameSuggestOpen && 'z-50',
       )}
     >
       {isBlockedByAllergy && (
