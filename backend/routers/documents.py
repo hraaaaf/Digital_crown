@@ -483,11 +483,29 @@ def download_document(
 
 @router.post("/{document_id}/trash")
 def move_to_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if document_id.startswith("legacy:"):
+        if not has_permission(current_user, "patients"):
+            raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
+        raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
+
+    if document_id.startswith("acte_"):
+        if not has_permission(current_user, ["patients", "accounting"]):
+            raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients ou accounting.")
+        try:
+            acte_id = int(document_id.split("_", 1)[1])
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="Identifiant d'acte invalide.")
+        acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not acte:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+        assert_patient_access(acte.patient_id, current_user, db)
+        acte.deleted_at = datetime.now()
+        db.commit()
+        return {"message": "Mis à la corbeille", "id": document_id}
+
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
-    if document_id.startswith("legacy:"):
-        raise HTTPException(status_code=400, detail="Les documents legacy ne peuvent pas être mis à la corbeille via cette interface.")
-    
+
     if document_id.startswith("doc_"):
         doc_id_int = int(document_id.replace("doc_", ""))
         doc = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == doc_id_int).first()
@@ -517,6 +535,21 @@ def move_to_trash(document_id: str, db: Session = Depends(database.get_db), curr
 
 @router.post("/{document_id}/restore")
 def restore_from_trash(document_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if document_id.startswith("acte_"):
+        if not has_permission(current_user, ["patients", "accounting"]):
+            raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients ou accounting.")
+        try:
+            acte_id = int(document_id.split("_", 1)[1])
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="Identifiant d'acte invalide.")
+        acte = db.query(models.Acte).filter(models.Acte.id == acte_id).first()
+        if not acte or acte.deleted_at is None:
+            raise HTTPException(status_code=404, detail="Acte introuvable dans la corbeille")
+        assert_patient_access(acte.patient_id, current_user, db)
+        acte.deleted_at = None
+        db.commit()
+        return {"message": "Restauré", "id": document_id}
+
     if not has_permission(current_user, "patients"):
         raise HTTPException(status_code=403, detail="Accès refusé. Permission requise : patients.")
     if document_id.startswith("doc_"):

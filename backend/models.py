@@ -342,6 +342,12 @@ class Acte(Base):
     is_collected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     validated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Corbeille comptabilité : masque l'acte des vues de facturation/trésorerie
+    # (honoraires, trésorerie latente, dettes patient) sans jamais effacer l'acte
+    # clinique lui-même — l'historique de soin (habits_engine, RAG, scoring...)
+    # continue de voir l'acte normalement. NULL = actif. Additive, jamais backfillé.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
     # UNIFY-ACT-PERSISTENCE-1 : lien optionnel vers la note d'honoraires qui a généré
     # cette ligne automatiquement (documents.py::generate_document). NULL pour tout Acte
     # créé manuellement (POST /clinical/actes) ou legacy — jamais backfillé.

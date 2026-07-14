@@ -291,7 +291,8 @@ export const AccountingPage = () => {
       await api.post(`/documents/${confirmDeleteId}/trash`);
       setItems(prev => prev.filter(item => item.id !== confirmDeleteId));
       fetchHonoraires();
-      toast.success("Note déplacée dans la corbeille.");
+      const isActe = String(confirmDeleteId).startsWith('acte_');
+      toast.success(isActe ? "Acte déplacé dans la corbeille." : "Note déplacée dans la corbeille.");
     } catch (err) {
       console.error("Erreur suppression honoraire:", err);
       toast.error("Erreur lors de la suppression.");

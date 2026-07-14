@@ -160,10 +160,15 @@ def migrate_appointment_columns():
 
 
 def migrate_actes_columns():
-    """Ajoute Acte.document_archive_id si absent (ALTER TABLE, SQLite ou PostgreSQL).
-    Colonne additive nullable — support UNIFY-ACT-PERSISTENCE-1 (dédoublonnage
-    Acte / DocumentArchive dans /accounting/honoraires)."""
+    """Ajoute les colonnes additives de la table actes si absentes (ALTER TABLE,
+    SQLite ou PostgreSQL) :
+    - document_archive_id : dédoublonnage Acte / DocumentArchive dans
+      /accounting/honoraires (UNIFY-ACT-PERSISTENCE-1).
+    - deleted_at : corbeille comptabilité, masque l'acte des vues de facturation
+      sans jamais le supprimer réellement (soft-delete, symétrique à
+      Patient.deleted_at / DocumentArchive.deleted_at)."""
     from sqlalchemy import text
+    datetime_type = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
     try:
         with engine.connect() as conn:
             try:
@@ -176,6 +181,13 @@ def migrate_actes_columns():
             except Exception as e:
                 conn.rollback()
                 logger.debug(f"Column document_archive_id may already exist: {e}")
+            try:
+                conn.execute(text(f"ALTER TABLE actes ADD COLUMN deleted_at {datetime_type}"))
+                conn.commit()
+                logger.info("✅ Added column deleted_at to actes table")
+            except Exception as e:
+                conn.rollback()
+                logger.debug(f"Column deleted_at may already exist: {e}")
     except Exception as e:
         logger.warning(f"Migration warning (actes): {e}")
 

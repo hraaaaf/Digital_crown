@@ -118,6 +118,44 @@ class TestFinancialStats:
         assert "nom" in relances[0]
         assert "montant" in relances[0]
 
+    def test_trashed_acte_excluded_from_latent_cash(self, client, db, auth_headers, dentiste):
+        """Un acte supprimé (corbeille Comptabilité, deleted_at) ne doit jamais
+        réapparaître dans la Trésorerie Latente — sinon 'supprimer' ferait
+        réapparaître l'acte ailleurs comme 'à relancer', l'inverse du but."""
+        from backend import models
+
+        pat = models.Patient(
+            nom="LATENTTRASHED", prenom="Cash",
+            date_naissance=datetime(1990, 1, 1),
+            sexe="M",
+            employer_id=dentiste.id,
+        )
+        db.add(pat)
+        db.flush()
+        db.add(models.DossierClinique(patient_id=pat.id, is_ortho_active=False))
+        db.commit()
+        db.refresh(pat)
+
+        acte = models.Acte(
+            patient_id=pat.id,
+            praticien_id=dentiste.id,
+            type_acte=models.ActeType.PROTHESE,
+            libelle="Devis Annulé",
+            montant=9999.0,
+            statut_paiement=models.PaiementStatut.EN_ATTENTE,
+            date_debut=datetime.now(),
+            is_accounted=False,
+            deleted_at=datetime.now(),
+        )
+        db.add(acte)
+        db.commit()
+
+        r = client.get("/api/stats/financial", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["latent_cash"] < 9999.0
+        assert not any(rel["montant"] == 9999.0 for rel in body["top_relances"])
+
 
 class TestOperationalStats:
     def test_requires_auth(self, client):

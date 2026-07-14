@@ -198,6 +198,7 @@ class AccountingService:
         # 2. Actes non encore encaissés (is_collected != True)
         actes = db.query(models.Acte).join(models.Patient).filter(
             models.Acte.is_accounted == True,
+            models.Acte.deleted_at.is_(None),
             or_(models.Acte.is_collected == False, models.Acte.is_collected == None),
             models.Patient.employer_id == user_employer_id
         ).all()

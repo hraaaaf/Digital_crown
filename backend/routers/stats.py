@@ -29,7 +29,8 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
     latent_cash_query = db.query(func.sum(models.Acte.montant)).join(models.Patient).filter(
         models.Patient.employer_id == emp_id,
         models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
-        models.Acte.is_accounted == False
+        models.Acte.is_accounted == False,
+        models.Acte.deleted_at.is_(None)
     )
     latent_cash = latent_cash_query.scalar() or 0.0
 
@@ -43,7 +44,8 @@ def get_financial_stats(db: Session = Depends(database.get_db), current_user: mo
     ).join(models.Patient).filter(
         models.Patient.employer_id == emp_id,
         models.Acte.statut_paiement == models.PaiementStatut.EN_ATTENTE,
-        models.Acte.is_accounted == False
+        models.Acte.is_accounted == False,
+        models.Acte.deleted_at.is_(None)
     ).order_by(models.Acte.montant.desc()).limit(5).all()
 
     top_latent_list = [{"nom": p.nom, "prenom": p.prenom, "telephone": p.telephone, "montant": p.montant, "soin": p.libelle} for p in top_latent]

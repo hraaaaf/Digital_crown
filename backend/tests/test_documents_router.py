@@ -279,6 +279,96 @@ class TestTrashRestoreDelete:
         assert r.status_code == 401
 
 
+class TestTrashRestoreActe:
+    """L'endpoint générique /documents/{id}/trash doit aussi gérer les IDs
+    'acte_<id>' (billing line venant de la Comptabilité, pas un DocumentArchive) —
+    régression du bug 400 Bad Request rapporté sur la suppression d'un acte."""
+
+    def _make_patient(self, db, dentiste, nom="ACTETRASH"):
+        from backend import models
+        pat = models.Patient(
+            nom=nom, prenom="Test",
+            date_naissance=datetime(1988, 8, 8),
+            sexe="M",
+            employer_id=dentiste.id,
+        )
+        db.add(pat)
+        db.flush()
+        db.add(models.DossierClinique(patient_id=pat.id, is_ortho_active=False))
+        db.commit()
+        db.refresh(pat)
+        return pat
+
+    def _make_acte(self, db, patient_id, praticien_id):
+        from backend import models
+        acte = models.Acte(
+            patient_id=patient_id,
+            praticien_id=praticien_id,
+            type_acte=models.ActeType.SOIN,
+            libelle="Détartrage",
+            montant=350.0,
+            is_accounted=True,
+        )
+        db.add(acte)
+        db.commit()
+        db.refresh(acte)
+        return acte
+
+    def test_trash_acte_requires_auth(self, client):
+        r = client.post("/api/documents/acte_1/trash")
+        assert r.status_code == 401
+
+    def test_trash_acte_nonexistent_returns_404(self, client, auth_headers):
+        r = client.post("/api/documents/acte_999999/trash", headers=auth_headers)
+        assert r.status_code == 404
+
+    def test_trash_acte_invalid_id_returns_400(self, client, auth_headers):
+        r = client.post("/api/documents/acte_notanumber/trash", headers=auth_headers)
+        assert r.status_code == 400
+
+    def test_trash_acte_succeeds_and_disappears_from_honoraires(self, client, db, auth_headers, dentiste):
+        pat = self._make_patient(db, dentiste)
+        acte = self._make_acte(db, pat.id, dentiste.id)
+
+        # Visible avant suppression
+        r0 = client.get("/api/accounting/honoraires", headers=auth_headers)
+        assert r0.status_code == 200
+        assert any(it["id"] == f"acte_{acte.id}" for it in r0.json()["items"])
+
+        # Suppression via l'endpoint générique documents/trash (ce que le frontend appelle)
+        r = client.post(f"/api/documents/acte_{acte.id}/trash", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["id"] == f"acte_{acte.id}"
+
+        db.refresh(acte)
+        assert acte.deleted_at is not None
+
+        # N'apparaît plus dans la Comptabilité
+        r2 = client.get("/api/accounting/honoraires", headers=auth_headers)
+        assert r2.status_code == 200
+        assert not any(it["id"] == f"acte_{acte.id}" for it in r2.json()["items"])
+
+    def test_trash_then_restore_acte(self, client, db, auth_headers, dentiste):
+        pat = self._make_patient(db, dentiste, "ACTERESTORE")
+        acte = self._make_acte(db, pat.id, dentiste.id)
+
+        r = client.post(f"/api/documents/acte_{acte.id}/trash", headers=auth_headers)
+        assert r.status_code == 200
+
+        r2 = client.post(f"/api/documents/acte_{acte.id}/restore", headers=auth_headers)
+        assert r2.status_code == 200
+        assert r2.json()["id"] == f"acte_{acte.id}"
+
+        db.refresh(acte)
+        assert acte.deleted_at is None
+
+    def test_restore_acte_not_trashed_returns_404(self, client, db, auth_headers, dentiste):
+        pat = self._make_patient(db, dentiste, "ACTENOTRASH")
+        acte = self._make_acte(db, pat.id, dentiste.id)
+        r = client.post(f"/api/documents/acte_{acte.id}/restore", headers=auth_headers)
+        assert r.status_code == 404
+
+
 class TestDocumentsGenerate:
     def test_generate_requires_auth(self, client):
         r = client.post("/api/documents/generate", json={"type": "ordonnance", "patient_id": 1, "data": {}})

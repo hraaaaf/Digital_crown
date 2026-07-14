@@ -193,6 +193,7 @@ def get_accounting_honoraires(
     # 2. Requête pour les actes marqués pour la compta
     acte_query = db.query(models.Acte).join(models.Patient).filter(
         models.Acte.is_accounted == True,
+        models.Acte.deleted_at.is_(None),
         models.Patient.employer_id == user_employer_id
     )
 
@@ -659,7 +660,7 @@ def get_patient_debts(
     billed_rows = (
         db.query(models.Acte.patient_id, func.sum(models.Acte.montant).label("total"))
         .join(models.Patient, models.Acte.patient_id == models.Patient.id)
-        .filter(models.Patient.employer_id == employer_id)
+        .filter(models.Patient.employer_id == employer_id, models.Acte.deleted_at.is_(None))
         .group_by(models.Acte.patient_id)
         .all()
     )
