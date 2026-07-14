@@ -137,6 +137,23 @@ def generate_installment_receipt(
     elements.append(Spacer(1, 0.5 * cm))
 
     # --- Tableau des échéances ---
+    col_widths = [0.9 * cm, 5.5 * cm, 2.7 * cm, 2.7 * cm]  # 11.8cm total
+    amt_col_w  = col_widths[3] - 2 * 4  # moins LEFTPADDING/RIGHTPADDING (4pt chacun)
+
+    total_paid = sum(it.get('amount', 0) for it in items if it.get('paid'))
+
+    # Taille de police uniforme pour la colonne Montant, calculée pour que
+    # "<montant> MAD" (espace insécable) tienne toujours sur une seule ligne
+    # — évite que ReportLab ne coupe le dernier caractère de "MAD" isolé.
+    amt_base_fs = 9.5
+    amt_fs = amt_base_fs
+    for _amt_probe in [it.get('amount', 0) for it in items] + [total_paid]:
+        _dyn_fs = base.get_adaptive_font_size(
+            f"{_amt_probe:.2f} MAD", font_bold, amt_base_fs, amt_col_w, min_fs=6.5
+        )
+        if _dyn_fs < amt_fs:
+            amt_fs = _dyn_fs
+
     # Colonne 0 : case à cocher (CheckBox Flowable)
     table_data = [[
         Paragraph("", th_style),
@@ -181,33 +198,31 @@ def generate_installment_receipt(
         label  = item.get('label', '')
 
         lbl_s = ps(f'lbl{i}', textColor=lbl_color, alignment=TA_LEFT)
-        amt_s = ps(f'amt{i}', textColor=amt_color, alignment=TA_CENTER,
+        amt_s = ps(f'amt{i}', textColor=amt_color, alignment=TA_CENTER, fontSize=amt_fs,
                    fontName=font_bold if (paid or is_current) else font_main)
         dte_s = ps(f'dte{i}', textColor=dte_color, alignment=TA_CENTER)
 
         table_data.append([
             CheckBox(state=state),
-            Paragraph(label.replace(' ', ' '), lbl_s),
+            Paragraph(label.replace(' ', '\xa0'), lbl_s),
             Paragraph(due_fmt, dte_s),
-            Paragraph(f"{amount:.2f} MAD", amt_s),
+            Paragraph(f"{amount:.2f}\u00A0MAD", amt_s),
         ])
 
     # Ligne total réglé
-    total_paid      = sum(it.get('amount', 0) for it in items if it.get('paid'))
     total_remaining = (total_amount - total_paid) if total_amount > 0 else \
                       sum(it.get('amount', 0) for it in items if not it.get('paid'))
 
     ttl_s  = ps('ttl',  fontName=font_bold, textColor=p_color,    alignment=TA_RIGHT)
-    pamt_s = ps('pamt', fontName=font_bold, textColor=COLOR_PAID,  alignment=TA_CENTER)
+    pamt_s = ps('pamt', fontName=font_bold, textColor=COLOR_PAID,  alignment=TA_CENTER, fontSize=amt_fs)
 
     table_data.append([
         Paragraph("", ctr_style),
         Paragraph("<b>TOTAL RÉGLÉ</b>", ttl_s),
         Paragraph("", ctr_style),
-        Paragraph(f"<b>{total_paid:.2f} MAD</b>", pamt_s),
+        Paragraph(f"<b>{total_paid:.2f}\u00A0MAD</b>", pamt_s),
     ])
 
-    col_widths = [0.9 * cm, 5.5 * cm, 2.7 * cm, 2.7 * cm]  # 11.8cm total
     t = Table(table_data, colWidths=col_widths)
 
     tbl_styles = [

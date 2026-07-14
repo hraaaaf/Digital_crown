@@ -231,9 +231,15 @@ class AccountingGenerator:
         
         summary_style = ParagraphStyle(name='InstSummary', fontName=font_bold, fontSize=10, textColor=p_color, alignment=TA_RIGHT)
         reste_style = ParagraphStyle(name='ResteStyle', fontName=font_bold, fontSize=10, textColor=colors.HexColor("#B45309"), alignment=TA_CENTER) # Amber-700
-        
-        table_data.append([Paragraph("TOTAL VERSÉ", summary_style), "", Paragraph(f"<b>{total_verse:.2f} MAD</b>", text_style)])
-        table_data.append([Paragraph("RESTE À PAYER", summary_style), "", Paragraph(f"<b>{reste:.2f} MAD</b>", reste_style)])
+
+        amt_col_w = 3.2*cm - 2*3  # moins LEFTPADDING/RIGHTPADDING (3pt chacun)
+        verse_text = f"<b>{total_verse:.2f}\u00A0MAD</b>"
+        reste_text = f"<b>{reste:.2f}\u00A0MAD</b>"
+        verse_amount_style = self.base_template.get_adaptive_style(text_style, verse_text, amt_col_w, min_fs=6.5)
+        reste_amount_style = self.base_template.get_adaptive_style(reste_style, reste_text, amt_col_w, min_fs=6.5)
+
+        table_data.append([Paragraph("TOTAL VERSÉ", summary_style), "", Paragraph(verse_text, verse_amount_style)])
+        table_data.append([Paragraph("RESTE À PAYER", summary_style), "", Paragraph(reste_text, reste_amount_style)])
         
         t = Table(table_data, colWidths=[5.3*cm, 3.3*cm, 3.2*cm])  # 11.8cm total
         t.setStyle(TableStyle([
@@ -319,8 +325,10 @@ class AccountingGenerator:
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
         total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
-        
-        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(f"<b>{total:.2f}\u00A0MAD</b>", total_amount_style)])
+        total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
+        total_amount_style = self.base_template.get_adaptive_style(total_amount_style, total_amount_text, hon_w - 0.22*cm, min_fs=6.5)
+
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", "", Paragraph(total_amount_text, total_amount_style)])
         
         t = Table(table_data, colWidths=[4.5*cm, 1.8*cm, 2.75*cm, 2.75*cm])  # 11.8cm total
         # Ajustement du padding pour gagner de l'espace si num_acts est élevé
@@ -452,8 +460,10 @@ class AccountingGenerator:
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
         total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
-        
-        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(f"<b>{total:.2f}\u00A0MAD</b>", total_amount_style)])
+        total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
+        total_amount_style = self.base_template.get_adaptive_style(total_amount_style, total_amount_text, prix_w - 0.22*cm, min_fs=6.5)
+
+        table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(total_amount_text, total_amount_style)])
         
         t = Table(table_data, colWidths=[6.5*cm, 2.65*cm, 2.65*cm])  # 11.8cm total
         # Ajustement du padding pour gagner de l'espace si num_items est élevé
