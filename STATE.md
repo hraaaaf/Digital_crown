@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-14 16:18
+- **Mis à jour :** 2026-07-16 10:38
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,14 +14,10 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- quand j'essaie de supprimer un acte de la comptabilité on m'affiche ça INFO: 127.0.0.1:53127 - "POST /api/documents/acte_334/trash HTTP/1.1" 400 Bad Request imp
-- Oui
-- dans l'ordonnance, lorsque j'essaie de saisir manuellement un nom d'un médicament, il y a, il y a, ça me propose des, des, des noms. Sauf que quand j'appuie sur
-- # Claude in Chrome browser automation You have access to browser automation tools (mcp__claude-in-chrome__*) for interacting with web pages in Chrome. Follow th
-- Il reste quoi a faire
-- Rt regarde state.md y avait quoi de prevu
-- Du coup on fait quoi
-- Allez cleanup patient tracking -1 ! Le labo on laisse pour la V2 ! Regarde statut.md !
+- This session is being continued from another machine. Application state may have changed. The updated working directory is C:\Users\lenovo
+- there ?
+- okay je t'envoie l'ordre de mission tu as presque fini regarde ce qu'il te reste à faire ! d'accord ?
+- concentre toi sur state.md on suit son état d'avancement on en est ou ? !
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)
@@ -1415,6 +1411,95 @@ réelle Phase D). Le dernier trou P0 du roadmap V2 est fermé.
 `UNIFY-ACT-PERSISTENCE-1` (fiabilité des impayés — le CTO l'avait séquencé après le
 rollout Journey), widget santé cabinet + copie backup hors machine,
 `ENVIRONMENT=cabinet` + versionnage `/api/health`.
+
+## INSTALL-AUTOMATION-1 (2026-07-14) — installeur un clic pour nouveau cabinet
+
+**Statut : Phases 1-3 TERMINÉES.** Plan complet :
+`C:\Users\lenovo\.claude\plans\cryptic-noodling-volcano.md`.
+
+**Demande initiale** : le CTO voulait qu'un dentiste puisse cliquer un lien,
+tout s'installe automatiquement (dépendances, DB, service), sans jamais voir
+de terminal, en n'ayant qu'à entrer login/mdp puis attendre validation.
+
+**Phase 1 — pas de code nécessaire.** Recherche initiale (3 agents Explore)
+visait à câbler un bouton "Approuver" manquant dans `SuperAdminDashboard.tsx`
+(`POST /superadmin/clients/{id}/validate` existait déjà côté backend, jamais
+appelé côté UI). En ouvrant le fichier, découverte d'un **second système déjà
+complet** : génération de code d'activation
+(`POST /superadmin/trial-codes`) → `/activate?code=XXX`
+(`ActivateTrialPage.tsx`) → `POST /api/public/activate-trial` crée
+compte+cabinet actifs en un appel → `/login`. Le CTO a choisi de garder ce
+flux plutôt que construire le second chemin parallèle. Seul manque réel :
+`/download` (`DownloadPage.tsx`) affichait déjà un bouton "Télécharger
+l'installateur Windows" attendant une valeur pour `VITE_WINDOWS_INSTALLER_URL`
+— exactement l'objet des Phases 2/3.
+
+**Phase 2 — bootstrap zéro-touche, terminée.** `run.py::_first_boot_bootstrap()`
+génère `%APPDATA%/DigitalCrown/.env` (`ENVIRONMENT=cabinet`, `SECRET_KEY`,
+`CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` avec IP LAN auto-détectée) au
+tout premier lancement de l'EXE packagé (`sys.frozen`), **avant**
+`from backend.main import app` (qui appelle `load_backend_env()` dès son
+import — l'ordre est critique, sinon trop tard). No-op complet hors EXE
+packagé. Vérifié en isolation (APPDATA factice, jamais le vrai) : secrets
+valides (64 car. hex, distincts), idempotent (2e lancement ne touche jamais
+un `.env` existant — mtime et contenu identiques).
+
+**Phase 3 — installeur Windows silencieux, terminée.**
+- `DigitalCrown.spec` : `console=False` (bootloader `runw.exe` confirmé) +
+  `run.py::_setup_frozen_logging()` (fichier + `sys.excepthook`, sinon toute
+  exception non interceptée disparaît sans trace en mode packagé).
+- Découverte en cours de route : `backend/ai_models/` pesait 4,9 Go,
+  bloquant la compilation Inno Setup (limite de longueur de chemin Windows
+  sur `CLdetection2023-master/`). Audité fichier par fichier avant
+  d'exclure quoi que ce soit (jamais une simple supposition — le CTO a
+  explicitement demandé une preuve après une première proposition trop
+  rapide) : `CLdetection2023-master/`, `dentex_repo/`, `CL-Detection2023/`,
+  `cephalometric-master/`, `cephmark/` — zéro référence code réelle, zéro
+  poids `.onnx/.pt/.pth` à l'intérieur (sauf un `.pt` orphelin dans
+  CL-Detection2023, taille/date incompatibles avec le vrai modèle) ; et
+  `cephld_cca/model/` (774 Mo de checkpoints d'entraînement intermédiaires,
+  jamais chargés — seul `cephld_cca/ceph_weights.pth` à la racine l'est,
+  vérifié ligne par ligne dans `vision_service.py`). Résultat : 4,9 Go → 3,2
+  Go, rien supprimé du dépôt Git, uniquement exclu du packaging EXE
+  (`DigitalCrown.spec::_collect_ai_models_datas()`).
+- `installer/DigitalCrown.iss` (nouveau, Inno Setup) : installation par
+  utilisateur courant (pas d'admin), tâche planifiée au logon (pas de
+  service SYSTEM), raccourcis, lancement immédiat post-install,
+  désinstalleur qui ne touche jamais `%APPDATA%/DigitalCrown/`.
+- Inno Setup installé (`winget install JRSoftware.InnoSetup`). Compilation
+  `lzma2` (réglage recommandé pour la distribution finale) tuée à répétition
+  en arrière-plan dans cette session (4 tentatives, progressant à chaque
+  réduction de taille du dossier packagé mais jamais jusqu'au bout —
+  contrainte d'exécution de session, pas un bug du script, confirmé par un
+  test sans compression qui a traversé tout le script sans erreur de
+  logique). **Compilé avec succès en `Compression=zip`** (~4,8 min au lieu
+  des 15+ min qui échouaient) : `dist_installer/DigitalCrownSetup.exe`,
+  1,70 Go. `Compression=zip` reste dans le script committé, commentaire
+  expliquant comment repasser en `lzma2`/`SolidCompression=yes` pour une
+  distribution plus compacte si le temps de compilation n'est plus contraint.
+
+**Jamais exécuté** : le `.exe` résultant n'a jamais été lancé sur cette
+machine (poste de travail réel du CTO, hébergeant déjà le vrai cabinet sur
+le port 8005) — l'exécuter créerait une vraie tâche planifiée + un vrai
+processus en arrière-plan. **Test d'installation réel à faire sur une
+VM/poste isolé avant tout usage avec un vrai dentiste** : installation
+silencieuse → aucune fenêtre visible → `/activate` avec code de test →
+connexion → SetupWizard → appairage PWA sur un vrai téléphone → génération
+d'un document test.
+
+**Docs mis à jour dans la foulée** (même session, sur demande explicite du
+CTO) : `CLAUDE.md` (2 nouveaux pièges : bloat `ai_models/`, logging
+`console=False`), `docs/CABINET_ONPREM_GUIDE.md` (section installeur +
+limites historiques marquées corrigées), `docs/NEW_CABINET_INSTALL_PATH.md`
+(bandeau pointant vers l'installeur un clic pour le cas solo, doctrine DB
+clarifiée), `ARCHITECTURE.md` (corrections ciblées : branche `master`,
+liste `ai_models/` à jour, `PatientTracking.tsx` retiré — **le reste de
+l'arborescence de ce fichier date du 2026-06-12 et reste à régénérer si
+besoin, non fait ici, hors périmètre**).
+
+**Reste ouvert** : test d'installation VM réel (ci-dessus), décision sur
+`Compression=lzma2` pour la distribution finale, régénération complète de
+l'arborescence `ARCHITECTURE.md` si le CTO la veut à jour.
 
 ## Questions ouvertes
 - M5-C ✅ DONE — passer à M5-D (tests > 80%, E2E Playwright, Sentry) ?

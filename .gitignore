@@ -93,6 +93,7 @@ build/
 dist/
 *.spec
 dist_cabinet/
+dist_installer/
 
 # ========================================
 # REHEARSAL (médias/données de répétition — jamais dans Git)

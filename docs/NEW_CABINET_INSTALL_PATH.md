@@ -1,5 +1,16 @@
 # Digital Crown — Guide d'installation pour nouveau cabinet
 
+## ⚡ Cabinet solo : utiliser l'installeur un clic
+
+Pour un cabinet à un seul poste, tout ce guide manuel est désormais remplacé
+par `DigitalCrownSetup.exe` (compilé depuis `installer/DigitalCrown.iss`,
+voir `docs/CABINET_ONPREM_GUIDE.md` section installeur) : aucun terminal,
+aucune commande, secrets générés automatiquement au premier lancement,
+SQLite/SQLCipher chiffré (`ENVIRONMENT=cabinet`, mode solo officiellement
+supporté — voir doctrine ci-dessous). Le reste de ce document décrit la
+procédure manuelle, toujours valable pour un cabinet multi-postes
+(PostgreSQL) ou pour comprendre ce que l'installeur fait pour vous.
+
 ## Vue d'ensemble
 
 Digital Crown est une application **on-premise**, tournant localement dans le cabinet dentaire (pas de serveur distant). Chaque installation est isolée, avec sa propre base de données et ses médias.
@@ -7,18 +18,23 @@ Digital Crown est une application **on-premise**, tournant localement dans le ca
 **Architecture :**
 - Backend : FastAPI + SQLAlchemy
 - Frontend : React 19 + Vite 7
-- Base de données : **PostgreSQL 15+ (obligatoire pour installation client)**
+- Base de données : PostgreSQL 15+ (cabinet multi-postes) ou SQLite/SQLCipher
+  chiffré (cabinet solo, `ENVIRONMENT=cabinet`)
 - Médias : stockés localement, servis par routes authentifiées
 - Identité/Licence : Firebase (optionnel, hors-ligne supporté)
 
-**⚠️ IMPORTANT : PostgreSQL est le standard obligatoire**
+**Doctrine base de données (mise à jour — voir aussi `CLAUDE.md`)**
 
-SQLite n'est accepté que pour :
-- ✓ Développement local
-- ✓ Tests unitaires
-- ✓ Démo / Formation
+| Mode | `ENVIRONMENT` | Base | Cas d'usage |
+|---|---|---|---|
+| Solo | `cabinet` | SQLite/SQLCipher chiffré AES-256 | Un seul poste — installeur un clic |
+| Multi-postes | `cabinet` ou `production` | PostgreSQL 15+ | Plusieurs postes / serveur dédié |
+| Dev/test/démo | `development`/`local`/`test` | SQLite (non chiffré) | Jamais en cabinet réel |
 
-Pour toute installation cabinet client, **PostgreSQL est obligatoire**.
+`ENVIRONMENT=production` refuse SQLite (PostgreSQL obligatoire).
+`ENVIRONMENT=cabinet` autorise les deux — c'est le mode solo qui décide,
+pas une règle bloquante du garde de démarrage
+(`validate_environment_invariants()`, `backend/main.py`).
 
 ---
 

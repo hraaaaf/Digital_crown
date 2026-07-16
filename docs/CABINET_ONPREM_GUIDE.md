@@ -72,30 +72,63 @@ poste) :
 Une fois l'EXE packagé utilisé en production (section ci-dessous), ce risque disparaît
 structurellement : l'EXE n'a pas de mode `--reload` et n'est jamais lancé depuis un dépôt éditable.
 
-### Actuel (dev/démo) : `DigitalCrown.exe`
+### Installeur un clic (recommandé) : `installer/DigitalCrown.iss`
+
+Depuis la mission d'automatisation d'installation (voir STATE.md), il existe
+un installeur Windows complet qui remplace toute la procédure manuelle
+ci-dessous pour un cabinet solo : `DigitalCrownSetup.exe` (compilé via
+Inno Setup à partir de `installer/DigitalCrown.iss`). Il fait tout, sans
+terminal visible et sans droits admin :
+- Installe par utilisateur courant (`%LOCALAPPDATA%\Programs\DigitalCrown`)
+- `run.py::_first_boot_bootstrap()` génère `%APPDATA%/DigitalCrown/.env` au
+  tout premier lancement (`ENVIRONMENT=cabinet`, `SECRET_KEY`,
+  `CABINET_MASTER_KEY_HEX`, `ALLOWED_ORIGINS` avec IP LAN auto-détectée) —
+  aucun secret à générer/coller à la main
+- Enregistre une tâche planifiée au logon (pas de service SYSTEM)
+- Lance l'app et ouvre le navigateur automatiquement en fin d'installation
+- Désinstalleur qui ne touche jamais `%APPDATA%/DigitalCrown/` (données patients)
+
+Pour compiler : `ISCC.exe installer\DigitalCrown.iss` (Inno Setup 6). Le
+script committé utilise `Compression=zip` (rapide à compiler) — repasser en
+`Compression=lzma2` + `SolidCompression=yes` pour une distribution finale
+plus compacte si le temps de compilation n'est pas contraint.
+
+**Ne jamais exécuter le `.exe` résultant sur une machine où un vrai cabinet
+tourne déjà** (crée une vraie tâche planifiée + un vrai processus) — toujours
+tester sur une VM/poste isolé.
+
+Cet installeur couvre le cas solo (SQLite/SQLCipher, `ENVIRONMENT=cabinet`).
+Pour un cabinet multi-postes (PostgreSQL, plusieurs machines), suivre la
+procédure manuelle ci-dessous.
+
+### Build manuel : `DigitalCrown.exe`
 Le build PyInstaller (`DigitalCrown.spec` → `dist/DigitalCrown/DigitalCrown.exe`)
-lance uvicorn sur `127.0.0.1:8005` et ouvre le navigateur.
+lance uvicorn et ouvre le navigateur. `console=False` (aucune fenêtre
+terminal visible) — les logs vont dans `%APPDATA%/DigitalCrown/logs/`.
 
-### ⚠️ Deux limites du build actuel à corriger avant un vrai pilote
+### État des anciennes limites (corrigées)
 
-1. **Bind `127.0.0.1` uniquement** (`run.py`) : la PWA mobile ne peut PAS
-   joindre le backend depuis un téléphone du LAN. Pour l'usage cabinet réel
-   (appairage QR mobile), le backend doit écouter sur `0.0.0.0` ou l'IP LAN.
-   → changement d'une ligne dans `run.py` (`host="0.0.0.0"`), à faire au
-   moment du packaging pilote, avec le pare-feu Windows configuré pour
-   n'autoriser que le sous-réseau du cabinet.
-2. **`backend/.env` embarqué dans l'EXE** (`DigitalCrown.spec`, ligne datas) :
-   le fichier versionnable (placeholders) est empaqueté. S'assurer que le
-   build n'embarque JAMAIS `backend/.env.local` (secrets réels) et que le
-   `.env` embarqué ne contient que des placeholders — la config réelle du
-   cabinet doit vivre dans `%APPDATA%` ou en variables d'environnement du
-   service (cf. `DIGITALCROWN_ENV_FILE` supporté par `env_loader.py`).
+1. **Bind LAN** : ✅ corrigé — `run.py::_resolve_host_port()` bind sur
+   `0.0.0.0` automatiquement dès que `ENVIRONMENT=cabinet` (nécessaire pour
+   la PWA mobile / appairage QR). Restreindre l'accès au sous-réseau du
+   cabinet reste à faire via le pare-feu Windows.
+2. **`backend/.env` embarqué dans l'EXE** : ✅ non applicable — l'EXE
+   n'embarque plus aucun `.env` du tout (`DigitalCrown.spec`, section
+   `datas`) ; la config réelle vit exclusivement dans `%APPDATA%`, générée
+   automatiquement au premier lancement (voir installeur ci-dessus) ou posée
+   manuellement via `DIGITALCROWN_ENV_FILE` (`env_loader.py`).
+3. **Taille du build** : `backend/ai_models/` contenait 4,9 Go, dont ~1,7 Go
+   de dépôts de recherche/checkpoints d'entraînement jamais chargés au
+   runtime (vérifiés un par un, voir commentaire en tête de
+   `DigitalCrown.spec`) — exclus du packaging EXE, dossier réduit à 3,2 Go.
+   Rien n'a été supprimé du dépôt Git, uniquement du binaire distribué.
 
-### Recommandé pour le pilote : service Windows auto-start
+### Service Windows auto-start (build manuel uniquement)
 
+Pour un déploiement multi-postes/PostgreSQL sans l'installeur un clic,
 Windows ne gère pas les services Python nativement — deux options éprouvées :
 
-**Option A — NSSM (recommandée, la plus simple) :**
+**Option A — NSSM :**
 ```powershell
 # https://nssm.cc — wrapper service pour n'importe quel exe
 nssm install DigitalCrown "C:\DigitalCrown\DigitalCrown.exe"
@@ -106,14 +139,17 @@ nssm set DigitalCrown Start SERVICE_AUTO_START
 nssm start DigitalCrown
 ```
 
-**Option B — Tâche planifiée au démarrage (zéro dépendance) :**
+**Option B — Tâche planifiée au démarrage (zéro dépendance, celle utilisée
+par l'installeur un clic ci-dessus, mais au logon utilisateur plutôt qu'au
+démarrage système) :**
 ```powershell
 schtasks /create /tn "DigitalCrown" /tr "C:\DigitalCrown\DigitalCrown.exe" ^
   /sc onstart /ru SYSTEM /rl HIGHEST
 ```
 
-Logs locaux : rediriger stdout/stderr vers `C:\DigitalCrown\logs\` (NSSM le
-fait nativement, avec rotation via `AppRotateFiles`).
+Logs locaux : `%APPDATA%/DigitalCrown/logs/digitalcrown.log` (rotation
+automatique, 5 Mo × 5 fichiers) — géré par `run.py`, pas besoin de
+redirection NSSM.
 
 Ports : backend+frontend = **8005** (un seul port, le backend sert le
 frontend buildé). Pas de port frontend séparé en mode cabinet.
@@ -285,13 +321,20 @@ par le recheck manuel.
 
 ---
 
-## 8. Ce qui reste à faire avant le premier pilote (hors scope de cette mission)
+## 8. Ce qui reste à faire avant le premier pilote
 
-1. **Bind LAN** dans `run.py` (1 ligne) + règle pare-feu — nécessaire pour la PWA mobile
-2. **Trancher le mode `ENVIRONMENT`** pour cabinet SQLite (le garde prod
-   refuse SQLite ; soit ajouter un mode `cabinet`, soit imposer PostgreSQL
-   local, soit assouplir le garde pour SQLCipher)
-3. **Rebuild PyInstaller** avec le code à jour (le `dist/` actuel date d'un
-   commit antérieur) et vérifier qu'aucun secret réel n'est embarqué
-4. **Script d'installation** (PowerShell) automatisant la section 4
-5. **Grace period licence UI** (bannières progressives) — post-pilote
+1. ✅ **Bind LAN** — `ENVIRONMENT=cabinet` bind sur `0.0.0.0` automatiquement
+   (`run.py`). Règle pare-feu Windows (restreindre au sous-réseau cabinet)
+   toujours à faire manuellement à l'installation.
+2. ✅ **Mode `ENVIRONMENT=cabinet`** — existe et tranché : production-like
+   (DEBUG interdit, pas de CORS wildcard) mais autorise SQLite/SQLCipher
+   (`validate_environment_invariants()`, `backend/main.py`).
+3. ✅ **Rebuild PyInstaller** — fait, `console=False`, `ai_models/` audité et
+   réduit de 4,9 Go à 3,2 Go (voir section installeur ci-dessus).
+4. ✅ **Installeur** — `installer/DigitalCrown.iss` (Inno Setup), remplace le
+   script PowerShell initialement envisagé par une expérience un clic
+   complète (voir section installeur ci-dessus). Compilé et vérifié
+   (`DigitalCrownSetup.exe`), **jamais exécuté sur une machine réelle** —
+   test d'installation sur VM/poste isolé toujours à faire avant un vrai pilote.
+5. **Grace period licence UI** (bannières progressives) — toujours en attente,
+   post-pilote.

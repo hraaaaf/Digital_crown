@@ -1,10 +1,114 @@
+import sys
+import os
+
+
+def _first_boot_bootstrap() -> None:
+    """Génère %APPDATA%/DigitalCrown/.env au tout premier démarrage de l'EXE
+    packagé, s'il n'existe pas encore — secrets aléatoires, jamais écrasé.
+
+    Doit s'exécuter AVANT `from backend.main import app` : `backend/main.py`
+    appelle `load_backend_env()` dès son import (niveau module), qui lit ce
+    fichier s'il existe déjà. Sans ce bootstrap, un EXE fraîchement installé
+    n'a aucun `.env` et `SECRET_KEY` retombe sur un placeholder faible — le
+    lifespan de `backend/main.py` refuse alors de démarrer (garde-fou
+    sécurité volontaire, cf. `validate_environment_invariants`).
+
+    Ne s'exécute JAMAIS hors du build PyInstaller (`sys.frozen`) : lancer
+    `python run.py` en dev garde le comportement actuel (`backend/.env` ou
+    `.env.local`, `ENVIRONMENT=development` par défaut) — aucun changement
+    pour les postes de développement.
+
+    N'importe volontairement que `backend.env_loader` (aucune dépendance sur
+    `backend.config`/`backend.database`) pour ne jamais déclencher la lecture
+    des settings avant que ce fichier n'existe.
+    """
+    if not getattr(sys, "frozen", False):
+        return
+
+    from backend.env_loader import _appdata_env_path
+
+    env_path = _appdata_env_path()
+    if env_path is None or env_path.exists():
+        return  # installation déjà configurée — ne jamais écraser un .env existant
+
+    import secrets
+    import socket
+
+    def _detect_lan_ip() -> str | None:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                return s.getsockname()[0]
+        except Exception:
+            return None
+
+    origins = "http://127.0.0.1:8005"
+    lan_ip = _detect_lan_ip()
+    if lan_ip:
+        origins += f",http://{lan_ip}:8005"
+
+    env_content = (
+        "# Généré automatiquement au premier démarrage — ne pas modifier à la main,\n"
+        "# ne jamais partager ce fichier (contient des secrets uniques à ce poste).\n"
+        "ENVIRONMENT=cabinet\n"
+        f"SECRET_KEY={secrets.token_hex(32)}\n"
+        f"CABINET_MASTER_KEY_HEX={secrets.token_hex(32)}\n"
+        f"ALLOWED_ORIGINS={origins}\n"
+    )
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text(env_content, encoding="utf-8")
+
+
+def _setup_frozen_logging() -> None:
+    """Redirige les logs applicatifs vers un fichier quand l'EXE est packagé
+    sans console (`console=False` dans `DigitalCrown.spec`).
+
+    Sans ça, tout `logging`/`print` part dans le vide dès que la console
+    disparaît — un problème de démarrage devient impossible à diagnostiquer
+    sans terminal. Configure le root logger AVANT `from backend.main import
+    app` : `backend/main.py` appelle `logging.basicConfig(level=logging.INFO)`
+    à son import, qui ne fait rien si le root logger a déjà un handler — donc
+    tous les logs applicatifs (y compris ceux de `backend.main` et ses
+    routers) atterrissent dans ce fichier, sans dupliquer la config.
+
+    No-op hors build PyInstaller (comportement console actuel inchangé en dev).
+    """
+    if not getattr(sys, "frozen", False):
+        return
+
+    import logging
+    from logging.handlers import RotatingFileHandler
+    from backend.core.paths import AppPaths
+
+    log_dir = AppPaths.get_user_data_dir() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(
+        log_dir / "digitalcrown.log", maxBytes=5_000_000, backupCount=5, encoding="utf-8"
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+    def _log_uncaught_exception(exc_type, exc_value, exc_tb):
+        # Sans console, une exception non interceptée disparaît silencieusement
+        # (l'EXE se ferme sans aucune trace). On la journalise avant de laisser
+        # le comportement par défaut s'appliquer.
+        logging.getLogger("uncaught").critical(
+            "Exception non interceptée — arrêt de l'application",
+            exc_info=(exc_type, exc_value, exc_tb),
+        )
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = _log_uncaught_exception
+
+
+_first_boot_bootstrap()
+_setup_frozen_logging()
+
 import uvicorn
 import multiprocessing
 import threading
 import time
 import webbrowser
-import sys
-import os
 from backend.main import app
 
 

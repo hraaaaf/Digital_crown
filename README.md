@@ -148,6 +148,12 @@ Toutes les migrations sont **idempotentes** et vérifient `count_before == count
 
 ## Installation & Démarrage
 
+> Ce qui suit est le setup **développeur** (dépôt source, PostgreSQL, Ollama).
+> Pour installer Digital Crown chez un cabinet client, voir
+> `docs/CABINET_ONPREM_GUIDE.md` — un installeur Windows un clic existe
+> désormais (`installer/DigitalCrown.iss` → `DigitalCrownSetup.exe`),
+> aucune commande, secrets générés automatiquement.
+
 ### Prérequis
 - Python 3.11+ avec `venv`
 - PostgreSQL 18.2 (base `digitalcrown_db`)

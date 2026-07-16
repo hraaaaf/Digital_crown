@@ -14,8 +14,11 @@ patients.
   cabinet uniquement
 - **IA** : ONNX local (panoramique, céphalométrie) + Ollama pour le LLM —
   aucune IA cloud par défaut (`CLOUD_AI_ENABLED=false`)
-- **Packaging** : PyInstaller → `DigitalCrown.exe` (voir
-  `docs/CABINET_ONPREM_GUIDE.md`)
+- **Packaging** : PyInstaller → `DigitalCrown.exe` (`console=False`, aucun
+  terminal visible), puis `installer/DigitalCrown.iss` (Inno Setup) →
+  `DigitalCrownSetup.exe`, installeur un clic pour cabinet solo (secrets
+  auto-générés au 1er lancement, tâche planifiée au logon, pas de droits
+  admin) — voir `docs/CABINET_ONPREM_GUIDE.md`
 
 ## Environnements (`ENVIRONMENT`)
 
@@ -144,6 +147,54 @@ Logique dans `backend/main.py::validate_environment_invariants()`.
   API. Après une modif sur `backend/routers/*.py` ou
   `backend/services/generators/*.py`, booter et taper l'API réellement
   avant de déclarer "terminé".
+- **`backend/ai_models/` contient des dépôts de recherche vendored, pas
+  seulement des poids** (INSTALL-AUTOMATION-1, 2026-07-14) : plusieurs
+  sous-dossiers (`CLdetection2023-master/`, `dentex_repo/`,
+  `CL-Detection2023/`, `cephalometric-master/`, `cephmark/`,
+  `cephld_cca/model/`) sont des vestiges de compétitions/entraînement
+  (~1,7 Go) **jamais chargés au runtime** — vérifié au cas par cas (grep sur
+  `backend/services`/`backend/routers`, comparaison taille/date avec les
+  vrais poids chargés). `CLdetection2023-master/` a une arborescence assez
+  profonde pour faire échouer la compilation Inno Setup (limite de longueur
+  de chemin Windows). `DigitalCrown.spec` les exclut du packaging EXE via
+  `_collect_ai_models_datas()` (jamais supprimés du dépôt Git). **Avant
+  d'ajouter un nouveau modèle dans `ai_models/`, ne pas vendorer tout un
+  dépôt de recherche si seul un fichier de poids est nécessaire** — sinon la
+  taille du build explose silencieusement (4,9 Go avant nettoyage, 3,2 Go
+  après) et un futur nettoyage devra refaire cette vérification.
+- **PyInstaller `console=False` = plus de stdout du tout** : `run.py`
+  configure un `RotatingFileHandler` (`%APPDATA%/DigitalCrown/logs/`) et un
+  `sys.excepthook` avant d'importer `backend.main`, sinon toute exception
+  non interceptée en mode packagé disparaît silencieusement (l'app se ferme
+  sans aucune trace, impossible à diagnostiquer sans terminal). Ne jamais
+  retirer cette config si `console=False` reste actif dans `DigitalCrown.spec`.
+- **`run.py::_first_boot_bootstrap()` doit s'exécuter avant `from backend.main
+  import app`** : `backend/main.py` appelle `load_backend_env()` dès son
+  import (niveau module), qui lit `%APPDATA%/DigitalCrown/.env` s'il existe
+  déjà. Le bootstrap génère ce fichier (secrets aléatoires, `ENVIRONMENT=cabinet`)
+  au tout premier lancement de l'EXE packagé — s'il s'exécutait après cet
+  import, il serait trop tard pour que `load_backend_env()` le voie. N'importe
+  volontairement que `backend.env_loader`/`backend.core.paths` (jamais
+  `backend.config`/`backend.database`) pour ne jamais déclencher la lecture
+  des settings avant que le fichier n'existe. No-op complet hors `sys.frozen`
+  (aucun changement pour les postes de dev).
+- **Exporter `DATABASE_URL` dans le shell NE SUFFIT PAS à isoler un test d'une
+  DB réelle** (QR-LOGO-POSITION-ENV-LEAK-1, 2026-07-15) : `load_backend_env()`
+  fait un premier passage `override=False` (n'écrase rien), puis un second
+  passage `override=True` dès que `ENVIRONMENT` résout à
+  `development`/`local`/`test` — ce second passage recharge `backend/.env.local`
+  et **écrase silencieusement** toute variable déjà exportée manuellement dans
+  le shell, y compris `DATABASE_URL`. Un test lancé avec `DATABASE_URL=<db_test>
+  uvicorn ...` peut donc quand même finir connecté à `digitalcrown_db` (la vraie
+  base du cabinet) si `backend/.env.local` pointe dessus. Incident réel : un
+  smoke-test PDF isolé a fini par exécuter une migration additive (colonnes
+  nullable, `ALTER TABLE ADD COLUMN`, aucune perte de donnée) directement sur
+  `digitalcrown_db`, en dehors de tout déploiement officiel — même famille que
+  P0-TREATMENT-JOURNEY-1. **Pour tout test qui doit toucher une DB isolée,
+  utiliser `DIGITALCROWN_ENV_FILE` pointant vers un fichier `.env` dédié**
+  (jamais de simples variables shell), et vérifier explicitement après coup
+  (`load_backend_env()` doit rapporter le bon fichier, `DATABASE_URL` doit
+  rester celui attendu) avant de lancer quoi que ce soit qui écrit.
 
 ## Documents PDF (`backend/services/generators/`)
 
