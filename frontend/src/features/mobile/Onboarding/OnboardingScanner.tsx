@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
+import { usePWAInstall } from '../../../hooks/usePWAInstall';
 import {
   deriveMasterKey,
   generateClientKeyPair,
@@ -32,6 +33,8 @@ export const OnboardingScanner = () => {
   const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'cert-setup' | 'error' | 'denied'>('welcome');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [manualToken, setManualToken] = useState('');
+  const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
+  const { isIOS, isInstalled } = usePWAInstall();
 
   // Si un token arrive en query param (lien direct depuis QR), on l'échange immédiatement
   useEffect(() => {
@@ -187,7 +190,44 @@ export const OnboardingScanner = () => {
             <span className="text-primary font-black">Sécurité Mobile</span> de votre PC.
           </p>
 
-          <div className="w-full mt-8 p-5 rounded-3xl flex gap-4 mb-10 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>
+          {isIOS && !isInstalled && (
+            <div className="w-full mt-6 p-5 rounded-3xl shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>
+              <div className="flex gap-3">
+                <Smartphone size={20} className="text-primary shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Étape 1 — Installez d'abord l'app</p>
+                  <p className="text-[11px] text-text-muted leading-relaxed font-bold mb-3">
+                    Sur iPhone, scannez le QR depuis l'app installée sur votre écran d'accueil, pas depuis Safari — sinon la connexion ne sera pas conservée quand vous rouvrirez l'icône.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowIOSInstallHint(!showIOSInstallHint)}
+                    className="text-[11px] font-black text-primary underline underline-offset-2"
+                  >
+                    Comment installer sur iPhone ?
+                  </button>
+                  {showIOSInstallHint && (
+                    <div className="mt-3 space-y-2">
+                      <p className="flex items-center gap-2 text-[11px] font-bold text-text-muted">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0">1</span>
+                        Appuyez sur <Share size={14} className="text-primary" /> dans la barre Safari
+                      </p>
+                      <p className="flex items-center gap-2 text-[11px] font-bold text-text-muted">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0">2</span>
+                        Choisissez « Sur l'écran d'accueil » <Plus size={14} className="text-primary" />
+                      </p>
+                      <p className="flex items-center gap-2 text-[11px] font-bold text-text-muted">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0">3</span>
+                        Ouvrez l'icône installée puis scannez le QR ci-dessous
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="w-full mt-6 p-5 rounded-3xl flex gap-4 mb-10 shadow-elite" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--glass-border)', borderWidth: '1px' }}>
             <Lock size={20} className="text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Zero-Knowledge</p>
