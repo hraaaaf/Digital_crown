@@ -161,33 +161,41 @@ export const WaitingRoomPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Salle d'attente</h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">
-            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
+      <div className="space-y-3">
+        {/* Bientôt disponible */}
+        <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
+          Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.
         </div>
-        <div className="flex items-center gap-4">
-          {/* KPIs rapides */}
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl text-center">
-              <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-0.5">En attente</p>
-              <p className="text-xl font-black text-amber-700">{waiting.length}</p>
-            </div>
-            <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">En fauteuil</p>
-              <p className="text-xl font-black text-emerald-700">{inChair.length}</p>
-            </div>
-            <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Total jour</p>
-              <p className="text-xl font-black text-slate-700">{total}</p>
-            </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Salle d'attente</h1>
+            <p className="text-sm text-slate-500 font-medium mt-0.5">
+              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-            <RefreshCw size={12} className={isFetching ? 'animate-spin text-primary' : ''} />
-            Auto 30s
+          <div className="flex items-center gap-4">
+            {/* KPIs rapides */}
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-0.5">En attente</p>
+                <p className="text-xl font-black text-amber-700">{waiting.length}</p>
+              </div>
+              <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">En fauteuil</p>
+                <p className="text-xl font-black text-emerald-700">{inChair.length}</p>
+              </div>
+              <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Total jour</p>
+                <p className="text-xl font-black text-slate-700">{total}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+              <RefreshCw size={12} className={isFetching ? 'animate-spin text-primary' : ''} />
+              Auto 30s
+            </div>
           </div>
         </div>
       </div>

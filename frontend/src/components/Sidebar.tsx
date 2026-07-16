@@ -12,7 +12,8 @@ import {
   BookOpen,
   Shield,
   Package,
-  Armchair
+  Armchair,
+  Construction
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
@@ -229,10 +230,14 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('agenda') && <NavItem to="/agenda" icon={<Calendar size={20} />} label="Studio Agenda" />}
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
-          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" />}
-          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" />}
-          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
+
+          <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
+            <Construction size={12} /> Bientôt disponible
+          </div>
+          {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
+          {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
+          <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
 
           {/* SUPER ADMIN (Hidden for non-admin users) */}
           {user?.is_superadmin && (

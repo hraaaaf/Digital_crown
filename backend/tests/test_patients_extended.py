@@ -437,3 +437,14 @@ class TestFinancialSnapshotAndJourneyReflectNewBilling:
         summary = r.json()["summary"]
         assert summary["has_billing_data"] is True
         assert summary["remaining_due"] == 0.0
+
+
+class TestSearchByDossier:
+    def test_search_by_numero_dossier(self, client, auth_headers):
+        pat = _create_patient(client, auth_headers, nom="DossierSearchTest", prenom="Zed", dob="1985-06-06")
+        numero = pat.get("numero_dossier")
+        assert numero, "patient should have an auto-generated numero_dossier"
+        r = client.get(f"/api/patients/?search={numero}", headers=auth_headers)
+        assert r.status_code == 200
+        results = r.json()
+        assert any(p["id"] == pat["id"] for p in results), f"expected patient {pat['id']} in results for search={numero}, got {results}"

@@ -364,7 +364,7 @@ export const Dashboard: React.FC = () => {
                   <input
                     type="text"
                     autoFocus
-                    placeholder="Chercher un patient..."
+                    placeholder="Nom, prénom ou n° de dossier..."
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     onBlur={() => { if (!searchQuery) handleSearchClose(); }}

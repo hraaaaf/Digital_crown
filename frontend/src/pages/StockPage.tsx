@@ -230,26 +230,34 @@ export const StockPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary)/10', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
-            <Package size={20} style={{ color: 'var(--primary)' }} />
-          </div>
-          <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-800">Gestion du Stock</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              {items.length} article{items.length !== 1 ? 's' : ''} · {alertsData?.count ?? 0} alerte{(alertsData?.count ?? 0) !== 1 ? 's' : ''}
-            </p>
-          </div>
+      <div className="space-y-3">
+        {/* Bientôt disponible */}
+        <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">Bientôt</span>
+          Module en cours de finalisation — bientôt disponible dans sa version complète. Vous pouvez déjà l'utiliser normalement.
         </div>
-        <button
-          onClick={() => setModalItem({})}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
-          style={{ background: 'var(--primary)' }}
-        >
-          <Plus size={14} /> Ajouter un article
-        </button>
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary)/10', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
+              <Package size={20} style={{ color: 'var(--primary)' }} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-slate-800">Gestion du Stock</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {items.length} article{items.length !== 1 ? 's' : ''} · {alertsData?.count ?? 0} alerte{(alertsData?.count ?? 0) !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setModalItem({})}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
+            style={{ background: 'var(--primary)' }}
+          >
+            <Plus size={14} /> Ajouter un article
+          </button>
+        </div>
       </div>
 
       {/* Alert banner */}
