@@ -23,7 +23,7 @@ export function PWAInstallPrompt() {
             Installer l'App
           </h3>
           <p className="text-slate-300 text-sm mt-1">
-            Installez Digital Crown Elite sur votre écran d'accueil pour un accès rapide et hors-ligne.
+            Installez Digital Crown sur votre écran d'accueil pour un accès rapide et hors-ligne.
           </p>
         </div>
       </div>
