@@ -6,7 +6,7 @@
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-16 10:38
+- **Mis à jour :** 2026-07-16 13:36
 - **Branche :** `master`
 - **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
 
@@ -14,10 +14,7 @@
 - _(aucun fichier modifié détecté)_
 
 ### Dernières demandes
-- This session is being continued from another machine. Application state may have changed. The updated working directory is C:\Users\lenovo
-- there ?
-- okay je t'envoie l'ordre de mission tu as presque fini regarde ce qu'il te reste à faire ! d'accord ?
-- concentre toi sur state.md on suit son état d'avancement on en est ou ? !
+- _(rien à extraire)_
 <!-- STATE:AUTO:END -->
 
 ## ROADMAP V2 — Statut réel (refresh 2026-07-10)

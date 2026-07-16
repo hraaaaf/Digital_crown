@@ -41,6 +41,7 @@ const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ def
 const OnboardingScanner = lazy(() => import('./features/mobile/Onboarding/OnboardingScanner').then(m => ({ default: m.OnboardingScanner })));
 const MobileDashboard  = lazy(() => import('./features/mobile/Dashboard/MobileDashboard').then(m => ({ default: m.MobileDashboard })));
 const DentistsView     = lazy(() => import('./features/mobile/Dashboard/views/DentistsView').then(m => ({ default: m.DentistsView })));
+const MobileSuperAdminView = lazy(() => import('./features/mobile/Dashboard/views/MobileSuperAdminView').then(m => ({ default: m.MobileSuperAdminView })));
 
 import { MobileStorage } from './services/zka/MobileStorage';
 
@@ -315,7 +316,12 @@ function App() {
             <Suspense fallback={<PageLoader />}><DentistsView /></Suspense>
           </MobileProtectedRoute>
         } />
-        
+        <Route path="/mobile/superadmin" element={
+          <MobileProtectedRoute>
+            <Suspense fallback={<PageLoader />}><MobileSuperAdminView /></Suspense>
+          </MobileProtectedRoute>
+        } />
+
         {/* Page marketing publique (avant connexion) */}
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/download" element={<DownloadPage />} />

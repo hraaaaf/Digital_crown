@@ -1,4 +1,4 @@
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, Users } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Shield, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
@@ -98,11 +98,11 @@ export function MobileHeader({
         </h1>
 
         {snapshot?.is_superadmin && (
-          <button 
-            onClick={() => window.location.href = '/super-admin'}
+          <button
+            onClick={() => navigate('/mobile/superadmin')}
             className="mt-4 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-full font-black text-xs shadow-md uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
           >
-            <ArrowLeft size={14} /> Quitter le mode Mobile
+            <Shield size={14} /> SuperAdmin
           </button>
         )}
 
