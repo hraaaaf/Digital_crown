@@ -19,11 +19,13 @@ import {
   Sparkles,
   Plus,
   Search,
+  ShoppingCart,
   AlertCircle,
   Database,
   HardDrive,
   Archive,
-  CloudOff
+  CloudOff,
+  Store
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -508,6 +510,48 @@ export const Dashboard: React.FC = () => {
             <p className="text-text-muted mt-1 font-medium italic">Suivi des rendez-vous</p>
           </Link>
         </motion.div>
+      </motion.section>
+
+      <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
+        <Link
+          to="/approvisionnement"
+          className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(15,118,110,0.10), rgba(245,158,11,0.10), rgba(255,255,255,0.92))' }}
+        >
+          <div className="p-8 md:p-9 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+                <Store size={13} />
+                Nouveau canal partenaire
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight font-outfit">Marketplace fournisseur</h2>
+                <p className="text-slate-600 font-medium mt-2 max-w-2xl">
+                  Une entree marketplace a ete integree dans l univers approvisionnement pour proposer un vrai parcours catalogue, fiche produit et commande partenaire dans le style DigitalCrown.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-[1.5rem] bg-white/80 border border-white/60 shadow-lg flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform">
+                <ShoppingCart size={28} />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">Positionnement</p>
+                <p className="text-sm font-black text-slate-900">Approvisionnement</p>
+                <p className="text-sm font-medium text-slate-500">V1 non invasive</p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
+          <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
+          <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
+            <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
+            <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
+            <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
+          </div>
+        </div>
       </motion.section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -1261,3 +1305,4 @@ export const Dashboard: React.FC = () => {
     </motion.div>
   );
 };
+

@@ -12,6 +12,7 @@ import {
   BookOpen,
   Shield,
   Package,
+  Store,
   Armchair,
   Construction
 } from 'lucide-react';
@@ -235,6 +236,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
             <Construction size={12} /> Bientôt disponible
           </div>
+          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace fournisseur" badge="Nouveau" />}
           {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
           {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
           <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
@@ -342,3 +344,4 @@ const NavItem = ({ to, icon, label, forceActive, badge }: { to: string, icon: Re
     }}
   </NavLink>
 );
+

@@ -146,6 +146,15 @@ def require_permission(permission_name: Union[str, List[str]]):
         return current_user
     return dependency
 
+def require_superadmin(current_user: models.User = Depends(get_current_user)):
+    if is_superadmin_user(current_user):
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Acces refuse. Superadmin requis.",
+    )
+
+
 def require_elite_license(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
