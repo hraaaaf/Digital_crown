@@ -655,7 +655,12 @@ class CabinetConfig(Base):
     footer_font_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     footer_qr_scale: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     footer_line_height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
-    
+    # Décalage manette (cm) appliqué par-dessus la position calculée par le
+    # template d'en-tête actif — colonnes ajoutées via migrate_cabinet_config_columns()
+    # (nullable pour les lignes existantes, _get_val() retombe sur 0.0).
+    header_logo_offset_x: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
+    header_logo_offset_y: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
+
     # Gestion des contacts granulaires (Sprint 59)
     contacts_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
     
@@ -666,6 +671,9 @@ class CabinetConfig(Base):
     qr_code_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     qr_code_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Ex: "Suivez-nous sur Instagram"
     qr_code_style: Mapped[str] = mapped_column(String(20), default="dots", nullable=False) # classic, dots, rounded, elite
+    # Décalage manette (cm) appliqué par-dessus la position ancrée bas-droite du QR
+    qr_code_offset_x: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
+    qr_code_offset_y: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
     
     # Templates de clôture personnalisables (Accounting)
     cloture_note_template: Mapped[str] = mapped_column(Text, nullable=False, default="Arrêtée la présente note à la somme de : {total_words}.")

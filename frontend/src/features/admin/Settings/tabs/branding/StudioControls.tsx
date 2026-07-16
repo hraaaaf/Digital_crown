@@ -3,7 +3,7 @@ import { cn } from '../../../../../utils/cn';
 import { BRAND_IDENTITIES, PREMIUM_FONTS } from '../../../constants';
 import { DENSITY_DEFAULTS } from './presets';
 import type { Density } from './types';
-import { Upload, Check, QrCode, UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, ChevronDown, ChevronUp, Trash2, FileText } from 'lucide-react';
+import { Upload, Check, QrCode, UserCircle, Link, Instagram, MessageCircle, MapPin, Shield, CreditCard, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Trash2, FileText, RotateCcw } from 'lucide-react';
 import { useSettingsStore } from '../../hooks/useSettingsStore';
 import { API_BASE } from '../../../../../services/api';
 import { useAuthenticatedImage } from '../../../../../hooks/useAuthenticatedImage';
@@ -13,12 +13,45 @@ interface StudioControlsProps {
   updateProfile: (data: any) => void;
 }
 
+// Manette de positionnement (D-pad) : nudge x/y en cm, appliqué en superposition
+// de la position calculée par le template (jamais en remplacement).
+const POSITION_PAD_RANGE = 3;
+const POSITION_PAD_STEP = 0.1;
+
+const PositionPad = ({ x, y, onChange }: { x: number; y: number; onChange: (x: number, y: number) => void }) => {
+  const clamp = (v: number) => Math.max(-POSITION_PAD_RANGE, Math.min(POSITION_PAD_RANGE, v));
+  // Axe Y ReportLab : positif = vers le haut de la page (cohérent avec la flèche ▲).
+  const nudge = (dx: number, dy: number) => onChange(clamp(x + dx), clamp(y + dy));
+  const padBtn = "flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] active:scale-90 transition-all";
+  return (
+    <div className="flex items-center gap-4">
+      <div className="grid grid-cols-3 grid-rows-3 gap-1 w-[108px]">
+        <div />
+        <button type="button" onClick={() => nudge(0, POSITION_PAD_STEP)} className={padBtn} aria-label="Monter"><ChevronUp size={16} /></button>
+        <div />
+        <button type="button" onClick={() => nudge(-POSITION_PAD_STEP, 0)} className={padBtn} aria-label="Déplacer à gauche"><ChevronLeft size={16} /></button>
+        <button type="button" onClick={() => onChange(0, 0)} className={cn(padBtn, "text-[var(--text-muted)]")} aria-label="Réinitialiser la position"><RotateCcw size={13} /></button>
+        <button type="button" onClick={() => nudge(POSITION_PAD_STEP, 0)} className={padBtn} aria-label="Déplacer à droite"><ChevronRight size={16} /></button>
+        <div />
+        <button type="button" onClick={() => nudge(0, -POSITION_PAD_STEP)} className={padBtn} aria-label="Descendre"><ChevronDown size={16} /></button>
+        <div />
+      </div>
+      <div className="text-[11px] text-[var(--text-muted)] font-mono leading-relaxed">
+        X : {x.toFixed(1)}cm<br />
+        Y : {y.toFixed(1)}cm
+      </div>
+    </div>
+  );
+};
+
 export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateProfile }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
   const [stripBody, setStripBody] = useState(false);
   const [headerPct, setHeaderPct] = useState(25);
   const [footerPct, setFooterPct] = useState(18);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
 
   const { uploadLetterhead, deleteLetterhead } = useSettingsStore();
   const customDesignActive = Boolean(profile.use_letterhead && profile.letterhead_path);
@@ -52,16 +85,51 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
     (profile.margin_top === DENSITY_DEFAULTS.etendu.margin_top) ? 'etendu' : 'confort';
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setIsUploadingLocal(true);
-      try {
-        await uploadLetterhead(e.target.files[0], { stripBody, headerPct, footerPct });
-        e.target.value = '';
-      } finally {
-        setIsUploadingLocal(false);
-      }
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Nettoyage du corps demandé sur une image : on affiche un aperçu local
+    // avec la zone qui sera effacée avant d'envoyer quoi que ce soit, pour
+    // éviter d'uploader un fichier mal découpé (le contenu original blanchi
+    // n'est pas récupérable ensuite sans ré-uploader le fichier source).
+    if (stripBody && file.type.startsWith('image/')) {
+      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+      setPendingFile(file);
+      setPendingPreviewUrl(URL.createObjectURL(file));
+      e.target.value = '';
+      return;
+    }
+
+    setIsUploadingLocal(true);
+    try {
+      await uploadLetterhead(file, { stripBody, headerPct, footerPct });
+      e.target.value = '';
+    } finally {
+      setIsUploadingLocal(false);
     }
   };
+
+  const cancelPendingUpload = () => {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    setPendingFile(null);
+    setPendingPreviewUrl(null);
+  };
+
+  const confirmPendingUpload = async () => {
+    if (!pendingFile) return;
+    setIsUploadingLocal(true);
+    try {
+      await uploadLetterhead(pendingFile, { stripBody, headerPct, footerPct });
+      cancelPendingUpload();
+    } finally {
+      setIsUploadingLocal(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => { if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const QR_TYPES = [
     { id: 'VCARD', label: 'Contact', icon: <UserCircle size={14}/> },
@@ -217,6 +285,14 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
             </div>
             <input type="range" min="0.5" max="2.0" step="0.05" value={profile.header_logo_scale ?? 1.0} onChange={e => updateProfile({ header_logo_scale: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
           </div>
+          <div className={cn(customDesignActive && "opacity-50 pointer-events-none")}>
+            <label className="text-[13px] text-[var(--text-muted)] mb-2 block">Position du logo</label>
+            <PositionPad
+              x={profile.header_logo_offset_x ?? 0}
+              y={profile.header_logo_offset_y ?? 0}
+              onChange={(x, y) => updateProfile({ header_logo_offset_x: x, header_logo_offset_y: y })}
+            />
+          </div>
         </div>
 
         <button 
@@ -251,6 +327,14 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
             <div>
               <div className="flex justify-between mb-2"><label className="text-[13px] text-[var(--text-muted)]">Taille QR Code</label></div>
               <input type="range" min="0.5" max="2.0" step="0.05" value={profile.footer_qr_scale ?? 1.0} onChange={e => updateProfile({ footer_qr_scale: parseFloat(e.target.value) })} className="w-full h-1.5 bg-[var(--border-color)] rounded-full appearance-none outline-none accent-[var(--text-main)]" />
+            </div>
+            <div>
+              <label className="text-[13px] text-[var(--text-muted)] mb-2 block">Position du QR Code</label>
+              <PositionPad
+                x={profile.qr_code_offset_x ?? 0}
+                y={profile.qr_code_offset_y ?? 0}
+                onChange={(x, y) => updateProfile({ qr_code_offset_x: x, qr_code_offset_y: y })}
+              />
             </div>
           </div>
         )}
@@ -327,32 +411,81 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
                   <input type="range" min={5} max={45} value={footerPct}
                          onChange={(e) => setFooterPct(Number(e.target.value))} />
                 </label>
-                <p className="text-[10px] text-[var(--text-muted)]">
-                  La zone centrale sera blanchie à l’upload. Vérifiez le résultat avec « Voir le rendu PDF réel » dans l’aperçu.
-                </p>
+                {!pendingFile && (
+                  <p className="text-[10px] text-[var(--text-muted)]">
+                    Sélectionnez une image ci-dessous pour prévisualiser la zone qui sera effacée avant de l’envoyer.
+                  </p>
+                )}
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/png,image/jpeg,application/pdf"
-              id="letterhead-upload"
-              className="hidden"
-              onChange={handleFileUpload}
-              disabled={isUploadingLocal}
-            />
-            <label
-              htmlFor="letterhead-upload"
-              className={cn(
-                "flex items-center justify-center gap-2 flex-1 p-3 rounded-xl border border-dashed text-[13px] font-medium transition-all cursor-pointer",
-                isUploadingLocal ? "opacity-50 cursor-not-allowed" : "hover:border-[var(--primary)] hover:text-[var(--primary)] text-[var(--text-muted)]"
-              )}
-            >
-              <Upload size={16} />
-              {isUploadingLocal ? "Envoi..." : "Uploader un modèle (image ou PDF)"}
-            </label>
-            </div>
+            {/* Aperçu local avant envoi : montre précisément où passe la découpe
+                sur l'image réelle, pour éviter d'uploader un document mal calé
+                (le blanchiment n'est pas réversible sans ré-uploader l'original). */}
+            {pendingFile && pendingPreviewUrl && (
+              <div className="flex flex-col gap-3">
+                <div className="relative rounded-xl overflow-hidden border border-[var(--border-color)]">
+                  <img src={pendingPreviewUrl} alt="Aperçu du document avant découpe" className="w-full h-auto block" />
+                  {/* Bande centrale qui sera blanchie */}
+                  <div
+                    className="absolute left-0 right-0 bg-red-500/25 border-y-2 border-red-500/70 flex items-center justify-center"
+                    style={{ top: `${headerPct}%`, bottom: `${footerPct}%` }}
+                  >
+                    <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-widest shadow">
+                      Sera effacé
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={confirmPendingUpload}
+                    disabled={isUploadingLocal}
+                    className={cn(
+                      "flex-1 p-2.5 rounded-xl text-[12px] font-bold text-white transition-all",
+                      isUploadingLocal ? "opacity-50 cursor-not-allowed bg-[var(--primary)]" : "bg-[var(--primary)] hover:opacity-90"
+                    )}
+                  >
+                    {isUploadingLocal ? "Envoi..." : "Confirmer et envoyer"}
+                  </button>
+                  <button
+                    onClick={cancelPendingUpload}
+                    disabled={isUploadingLocal}
+                    className="p-2.5 rounded-xl text-[12px] font-bold text-[var(--text-muted)] border border-[var(--border-color)] hover:text-red-500 hover:border-red-200 transition-all disabled:opacity-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!pendingFile && (
+              <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,application/pdf"
+                id="letterhead-upload"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={isUploadingLocal}
+              />
+              <label
+                htmlFor="letterhead-upload"
+                className={cn(
+                  "flex items-center justify-center gap-2 flex-1 p-3 rounded-xl border border-dashed text-[13px] font-medium transition-all cursor-pointer",
+                  isUploadingLocal ? "opacity-50 cursor-not-allowed" : "hover:border-[var(--primary)] hover:text-[var(--primary)] text-[var(--text-muted)]"
+                )}
+              >
+                <Upload size={16} />
+                {isUploadingLocal ? "Envoi..." : "Uploader un modèle (image ou PDF)"}
+              </label>
+              </div>
+            )}
+
+            {stripBody && (
+              <p className="text-[10px] text-[var(--text-muted)] px-1">
+                Les PDF sont convertis côté serveur sans aperçu local — vérifiez le rendu généré après l’envoi.
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -166,6 +166,7 @@ async def lifespan(app: FastAPI):
         database.migrate_actes_columns()
         database.migrate_patient_columns()
         database.migrate_proactive_alert_columns()
+        database.migrate_cabinet_config_columns()
 
         # Activation de la synchronisation Zero-Knowledge (Observer Mode)
         sync_manager.start_listening()

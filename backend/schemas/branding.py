@@ -19,6 +19,8 @@ class BrandingPreviewPayload(BaseModel):
     header_scale: Optional[float] = None
     header_font_scale: Optional[float] = None
     header_logo_scale: Optional[float] = None
+    header_logo_offset_x: Optional[float] = None
+    header_logo_offset_y: Optional[float] = None
     header_line_height: Optional[float] = None
     footer_font_scale: Optional[float] = None
     footer_qr_scale: Optional[float] = None
@@ -28,6 +30,8 @@ class BrandingPreviewPayload(BaseModel):
     qr_code_style: Optional[str] = None
     qr_code_value: Optional[str] = None
     qr_code_label: Optional[str] = None
+    qr_code_offset_x: Optional[float] = None
+    qr_code_offset_y: Optional[float] = None
 
     @field_validator('*', mode='before')
     def empty_str_to_none(cls, v: Any) -> Any:

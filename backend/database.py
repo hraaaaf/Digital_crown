@@ -231,6 +231,31 @@ def migrate_proactive_alert_columns():
         logger.warning(f"Migration warning (proactive_alerts): {e}")
 
 
+def migrate_cabinet_config_columns():
+    """Ajoute les colonnes de décalage manette (logo/QR) si absentes (ALTER TABLE,
+    SQLite ou PostgreSQL) : offset en cm appliqué par-dessus la position calculée
+    par le template d'en-tête actif / l'ancrage bas-droite du QR footer."""
+    from sqlalchemy import text
+    new_columns = [
+        ("header_logo_offset_x", "FLOAT"),
+        ("header_logo_offset_y", "FLOAT"),
+        ("qr_code_offset_x", "FLOAT"),
+        ("qr_code_offset_y", "FLOAT"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for col_name, col_type in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE cabinet_configs ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                    logger.info(f"✅ Added column {col_name} to cabinet_configs table")
+                except Exception as e:
+                    conn.rollback()
+                    logger.debug(f"Column {col_name} may already exist: {e}")
+    except Exception as e:
+        logger.warning(f"Migration warning (cabinet_configs): {e}")
+
+
 def get_db():
     db = SessionLocal()
     try:

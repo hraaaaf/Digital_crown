@@ -227,6 +227,15 @@ class BaseTemplate:
             import logging
             logging.getLogger(__name__).error(f"Failed to draw image {img_path}: {e}")
 
+    def _draw_header_logo(self, canvas, config, logo_path, x, y, size):
+        """Dessine le logo d'en-tête à la position calculée par le template actif,
+        décalée par la manette de positionnement (cm, réglages avancés). Séparé de
+        _draw_safe_image pour ne jamais toucher le watermark central ni le letterhead,
+        qui ont leurs propres règles de placement."""
+        offset_x = self._get_val(config, 'header_logo_offset_x', 0.0)
+        offset_y = self._get_val(config, 'header_logo_offset_y', 0.0)
+        self._draw_safe_image(canvas, logo_path, x + offset_x * cm, y + offset_y * cm, size, size)
+
     def _get_val(self, obj, key, default=None):
         """Récupère une valeur que l'objet soit un dict ou un modèle SQLAlchemy."""
         if obj is None: return default
@@ -572,7 +581,7 @@ class BaseTemplate:
         logo_size = 2.2*cm * hl_scale
         
         if logo_path:
-            self._draw_safe_image(canvas, logo_path, margin, y_top - logo_size + 0.3*cm, logo_size, logo_size)
+            self._draw_header_logo(canvas, config, logo_path, margin, y_top - logo_size + 0.3*cm, logo_size)
             text_x = margin + logo_size + 0.8*cm
         else:
             text_x = margin
@@ -633,7 +642,7 @@ class BaseTemplate:
         logo_y = y_top
         if logo_path:
             logo_y = y_top - logo_size + 0.4 * cm
-            self._draw_safe_image(canvas, logo_path, (p_width - logo_size) / 2, logo_y, logo_size, logo_size)
+            self._draw_header_logo(canvas, config, logo_path, (p_width - logo_size) / 2, logo_y, logo_size)
             
         column_w = (p_width - 2 * margin - logo_size - 1 * cm) / 2.0
         global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'royal')
@@ -685,10 +694,10 @@ class BaseTemplate:
         y_top = p_height - 1.5 * cm
         logo_size = 2.4 * cm * hl_scale
         center_x = p_width / 2.0
-        
+
         if logo_path:
             logo_y = y_top - logo_size + 0.2 * cm
-            self._draw_safe_image(canvas, logo_path, margin, logo_y, logo_size, logo_size)
+            self._draw_header_logo(canvas, config, logo_path, margin, logo_y, logo_size)
             y_start = logo_y - 0.4 * cm
         else:
             y_start = y_top
@@ -747,7 +756,7 @@ class BaseTemplate:
         
         if logo_path:
             logo_y = y_top - logo_size + 0.2 * cm
-            self._draw_safe_image(canvas, logo_path, margin, logo_y, logo_size, logo_size)
+            self._draw_header_logo(canvas, config, logo_path, margin, logo_y, logo_size)
             y_start = logo_y - 0.4 * cm
         else:
             y_start = y_top
@@ -805,7 +814,7 @@ class BaseTemplate:
         y_start = y_top
         if logo_path:
             logo_y = y_top - logo_size
-            self._draw_safe_image(canvas, logo_path, (p_width - logo_size) / 2, logo_y, logo_size, logo_size)
+            self._draw_header_logo(canvas, config, logo_path, (p_width - logo_size) / 2, logo_y, logo_size)
             y_start = logo_y - 0.4 * cm
 
         # [C1] Centrage vertical + [C2] Nom à 24pt comme les autres
@@ -1025,13 +1034,19 @@ class BaseTemplate:
             qr_style = self._get_val(config, 'qr_code_style', 'dots')
             qr_bytes = QRService.generate_qr_bytes(qr_data, color=qr_color_hex, box_size=5, add_logo=True, logo_path=actual_logo_path, qr_style=qr_style)
             if qr_bytes:
-                p_width, _ = doc.pagesize
+                p_width, p_height = doc.pagesize
                 f_qr_scale = self._get_val(config, 'footer_qr_scale', 1.0)
                 qr_size = 1.6 * cm * f_qr_scale
-                
-                # Colonne Droite (Action/Interaction) : Ancré en bas à droite
-                x_pos = p_width - 1.5 * cm - qr_size
-                y_pos = 0.8 * cm
+
+                # Colonne Droite (Action/Interaction) : Ancré en bas à droite,
+                # puis décalé par la manette de positionnement (cm, réglages avancés).
+                qr_offset_x = self._get_val(config, 'qr_code_offset_x', 0.0)
+                qr_offset_y = self._get_val(config, 'qr_code_offset_y', 0.0)
+                x_pos = p_width - 1.5 * cm - qr_size + qr_offset_x * cm
+                y_pos = 0.8 * cm + qr_offset_y * cm
+                # Clamp : la manette ne doit jamais pousser le QR hors de la page
+                x_pos = max(0.2 * cm, min(x_pos, p_width - qr_size - 0.2 * cm))
+                y_pos = max(0.2 * cm, min(y_pos, p_height - qr_size - 0.2 * cm))
 
                 # ImageReader est obligatoire pour que ReportLab accepte un BytesIO
                 canvas.drawImage(ImageReader(qr_bytes), x_pos, y_pos, width=qr_size, height=qr_size, mask='auto')

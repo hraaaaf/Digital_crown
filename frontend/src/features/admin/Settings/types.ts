@@ -53,8 +53,12 @@ export interface CabinetProfile {
   header_lines_ar?: string[];
   header_customized?: boolean;
   qr_code_style?: string;
+  qr_code_offset_x?: number;
+  qr_code_offset_y?: number;
   header_font_scale?: number;
   header_logo_scale?: number;
+  header_logo_offset_x?: number;
+  header_logo_offset_y?: number;
   header_line_height?: number;
   footer_font_scale?: number;
   footer_qr_scale?: number;
