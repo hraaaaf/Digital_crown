@@ -147,6 +147,9 @@ async def activate_trial_code(
     if user and user.is_active:
         raise HTTPException(status_code=400, detail="Un compte actif existe déjà pour cet email.")
 
+    # Tout essai via code d'activation démarre en GOLD (pas ELITE) — le
+    # SuperAdmin change le pack au cas par cas après l'essai via
+    # PATCH /superadmin/clients/{id}/plan si le client veut PREMIUM/ELITE.
     if user:
         user.hashed_password = get_password_hash(payload.password)
         user.nom_complet = payload.nom_complet
@@ -154,7 +157,7 @@ async def activate_trial_code(
         user.is_active = True
         user.is_licensed = True
         user.license_expires_at = expiry
-        user.subscription_plan = models.SubscriptionPlan.ELITE.value
+        user.subscription_plan = models.SubscriptionPlan.GOLD.value
         user.approval_status = models.ApprovalStatus.APPROVED.value
     else:
         user = models.User(
@@ -165,7 +168,7 @@ async def activate_trial_code(
             is_active=True,
             is_licensed=True,
             license_expires_at=expiry,
-            subscription_plan=models.SubscriptionPlan.ELITE.value,
+            subscription_plan=models.SubscriptionPlan.GOLD.value,
             approval_status=models.ApprovalStatus.APPROVED.value,
         )
         db.add(user)

@@ -286,6 +286,35 @@ def suspend_client(user_id: int, db: Session = Depends(database.get_db), admin: 
     return {"status": "success", "is_suspended": user.is_suspended}
 
 
+@router.patch("/clients/{user_id}/plan")
+def set_client_plan(
+    user_id: int,
+    plan: str = Query(...),
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(verify_superadmin),
+):
+    """Change le pack d'abonnement (GOLD/PREMIUM/ELITE) d'un client.
+
+    Séparé de grant-license (qui gère uniquement la durée) — les essais via
+    code d'activation démarrent tous en GOLD (voir activate_trial_code), le
+    SuperAdmin change ici le pack au cas par cas quand un client en discute
+    après son essai.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    valid_plans = {p.value for p in models.SubscriptionPlan}
+    if plan not in valid_plans:
+        raise HTTPException(status_code=400, detail=f"Pack invalide. Valeurs autorisées : {sorted(valid_plans)}")
+
+    user.subscription_plan = plan
+    add_license_history(db, user_id, admin.id, f"SET_PLAN_{plan}")
+    db.commit()
+    invalidate_license_cache(user.email)
+    return {"status": "success", "subscription_plan": user.subscription_plan}
+
+
 @router.patch("/clients/{user_id}/notes")
 def update_client_notes(user_id: int, data: UpdateClientNotes, db: Session = Depends(database.get_db), admin: models.User = Depends(verify_superadmin)):
     user = db.query(models.User).filter(models.User.id == user_id).first()

@@ -20,7 +20,8 @@ class ClientOut(BaseModel):
     internal_notes: Optional[str] = None
     last_login_at: Optional[datetime.datetime] = None
     created_at: Optional[datetime.datetime] = None
-    
+    subscription_plan: Optional[str] = None
+
     stats: Optional[ClientBaseStats] = None
 
     model_config = ConfigDict(from_attributes=True)

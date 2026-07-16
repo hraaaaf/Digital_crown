@@ -54,6 +54,9 @@ def test_activate_trial_code_creates_active_user_and_uninitialized_cabinet(clien
     assert user is not None
     assert user.is_active is True
     assert user.is_licensed is True
+    # Tout essai démarre en GOLD, jamais ELITE — le SuperAdmin change le pack
+    # au cas par cas ensuite via PATCH /superadmin/clients/{id}/plan.
+    assert user.subscription_plan == "GOLD"
 
     cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == user.id).first()
     assert cabinet is not None

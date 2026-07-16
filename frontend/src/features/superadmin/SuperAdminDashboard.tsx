@@ -23,8 +23,11 @@ interface Client {
   is_suspended: boolean;
   internal_notes: string | null;
   last_login_at: string | null;
+  subscription_plan: string | null;
   stats: ClientStats;
 }
+
+const PLAN_OPTIONS = ['GOLD', 'PREMIUM', 'ELITE'] as const;
 
 interface TrialCode {
   id: number;
@@ -134,6 +137,16 @@ export const SuperAdminDashboard: React.FC = () => {
       fetchClients();
     } catch (err) {
       toast.error("Erreur lors de la mise à jour de la licence.");
+    }
+  };
+
+  const handleSetPlan = async (userId: number, plan: string) => {
+    try {
+      await api.patch(`/superadmin/clients/${userId}/plan`, null, { params: { plan } });
+      toast.success(`Pack ${plan} attribué.`);
+      fetchClients();
+    } catch (err) {
+      toast.error("Erreur lors du changement de pack.");
     }
   };
 
@@ -443,6 +456,19 @@ export const SuperAdminDashboard: React.FC = () => {
 
                   {/* Actions Rapides */}
                   <div className="flex flex-col gap-2 min-w-[200px] border-l border-slate-100 pl-0 sm:pl-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">Pack</span>
+                      <select
+                        value={client.subscription_plan || 'GOLD'}
+                        onChange={(e) => handleSetPlan(client.id, e.target.value)}
+                        disabled={client.is_archived}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {PLAN_OPTIONS.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button onClick={() => handleGrantLicense(client.id, '1m')} disabled={client.is_archived} className="px-3 py-2 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded-xl text-[10px] font-black transition-all border border-blue-100 disabled:opacity-50">
                         + 1 MOIS

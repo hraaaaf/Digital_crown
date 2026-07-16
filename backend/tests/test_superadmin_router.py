@@ -52,6 +52,10 @@ class TestSuperadminGuard:
         r = client.patch("/api/superadmin/clients/1/suspend", headers=auth_headers)
         assert r.status_code == 403
 
+    def test_set_plan_regular_user_403(self, client, auth_headers):
+        r = client.patch("/api/superadmin/clients/1/plan?plan=GOLD", headers=auth_headers)
+        assert r.status_code == 403
+
     def test_notes_regular_user_403(self, client, auth_headers):
         r = client.patch(
             "/api/superadmin/clients/1/notes",
@@ -213,6 +217,83 @@ class TestSuperadminOperations:
             headers=superadmin_headers,
         )
         assert r.status_code == 200
+
+    def test_set_plan_success(
+        self, client, db, superadmin_headers, with_superadmin_env
+    ):
+        from backend import models
+        new_user = models.User(
+            email="plan_sa@cabinet.ma",
+            nom_complet="Plan Test",
+            hashed_password="$2b$12$dummy",
+            role=models.UserRole.DENTISTE,
+            is_active=True,
+            subscription_plan="GOLD",
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        r = client.patch(
+            f"/api/superadmin/clients/{new_user.id}/plan?plan=ELITE",
+            headers=superadmin_headers,
+        )
+        assert r.status_code == 200
+        assert r.json()["subscription_plan"] == "ELITE"
+
+        db.refresh(new_user)
+        assert new_user.subscription_plan == "ELITE"
+
+    def test_set_plan_invalid_value_returns_400(
+        self, client, db, superadmin_headers, with_superadmin_env
+    ):
+        from backend import models
+        new_user = models.User(
+            email="planbad_sa@cabinet.ma",
+            nom_complet="Plan Bad Test",
+            hashed_password="$2b$12$dummy",
+            role=models.UserRole.DENTISTE,
+            is_active=True,
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        r = client.patch(
+            f"/api/superadmin/clients/{new_user.id}/plan?plan=PLATINUM",
+            headers=superadmin_headers,
+        )
+        assert r.status_code == 400
+
+    def test_set_plan_404_on_unknown(
+        self, client, superadmin_headers, with_superadmin_env
+    ):
+        r = client.patch(
+            "/api/superadmin/clients/999999/plan?plan=GOLD",
+            headers=superadmin_headers,
+        )
+        assert r.status_code == 404
+
+    def test_list_clients_includes_subscription_plan(
+        self, client, db, superadmin_headers, with_superadmin_env
+    ):
+        from backend import models
+        new_user = models.User(
+            email="planlist_sa@cabinet.ma",
+            nom_complet="Plan List Test",
+            hashed_password="$2b$12$dummy",
+            role=models.UserRole.DENTISTE,
+            is_active=True,
+            subscription_plan="PREMIUM",
+        )
+        db.add(new_user)
+        db.commit()
+
+        r = client.get("/api/superadmin/clients", headers=superadmin_headers)
+        assert r.status_code == 200
+        found = next((c for c in r.json() if c["email"] == "planlist_sa@cabinet.ma"), None)
+        assert found is not None
+        assert found["subscription_plan"] == "PREMIUM"
 
     def test_update_notes(
         self, client, db, superadmin_headers, with_superadmin_env
