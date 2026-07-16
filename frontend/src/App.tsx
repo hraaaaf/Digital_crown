@@ -34,6 +34,10 @@ const EliteScienceHub = lazy(() => import('./features/clinical-ref/EliteScienceH
 const SuperAdminDashboard = lazy(() => import('./features/superadmin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 const LabJobsBoard    = lazy(() => import('./components/LabJobsBoard').then(m => ({ default: m.LabJobsBoard })));
 const StockPage        = lazy(() => import('./pages/StockPage').then(m => ({ default: m.StockPage })));
+const PartnerMarketplacePage = lazy(() => import('./pages/PartnerMarketplacePage').then(m => ({ default: m.PartnerMarketplacePage })));
+const PartnerCatalogAdminPage = lazy(() => import('./pages/PartnerCatalogAdminPage').then(m => ({ default: m.PartnerCatalogAdminPage })));
+const PartnerSupplierPage = lazy(() => import('./pages/PartnerSupplierPage').then(m => ({ default: m.PartnerSupplierPage })));
+const PartnerProductPage = lazy(() => import('./pages/PartnerProductPage').then(m => ({ default: m.PartnerProductPage })));
 const WaitingRoomPage  = lazy(() => import('./pages/WaitingRoomPage').then(m => ({ default: m.WaitingRoomPage })));
 const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
@@ -178,33 +182,44 @@ const MobileProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // ROUTES PROTÉGÉES (avec layout)
 // =============================================================================
 
-const ProtectedRoutes = () => (
-  <MainLayout>
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/agenda" element={<AgendaPage />} />
-        <Route path="/accounting" element={<AccountingPage />} />
-        <Route path="/patients" element={<PatientList />} />
-        <Route path="/patients/new" element={<AddPatientForm />} />
-        <Route path="/patients/:id" element={<PatientDetails />} />
-        <Route path="/patients/:id/archives" element={<PatientDocuments />} />
-        <Route path="/patients/:id/edit" element={<EditPatientForm />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/labo" element={<LabJobsBoard />} />
-        <Route path="/stock" element={<StockPage />} />
-        <Route path="/salle-attente" element={<WaitingRoomPage />} />
-        <Route path="/bibliotheque" element={<EliteLibrary />} />
-        <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
-        <Route path="/science-hub" element={<EliteScienceHub />} />
-        <Route path="/super-admin" element={<SuperAdminDashboard />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Suspense>
-  </MainLayout>
-);
+const ProtectedRoutes = () => {
+  const user = useAuthStore((state) => state.user);
+
+  return (
+    <MainLayout>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/agenda" element={<AgendaPage />} />
+          <Route path="/accounting" element={<AccountingPage />} />
+          <Route path="/patients" element={<PatientList />} />
+          <Route path="/patients/new" element={<AddPatientForm />} />
+          <Route path="/patients/:id" element={<PatientDetails />} />
+          <Route path="/patients/:id/archives" element={<PatientDocuments />} />
+          <Route path="/patients/:id/edit" element={<EditPatientForm />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/labo" element={<LabJobsBoard />} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/approvisionnement" element={<PartnerMarketplacePage />} />
+          <Route
+            path="/approvisionnement/admin"
+            element={user?.is_superadmin ? <PartnerCatalogAdminPage /> : <Navigate to="/approvisionnement" replace />}
+          />
+          <Route path="/approvisionnement/partenaire/:partnerId" element={<PartnerSupplierPage />} />
+          <Route path="/approvisionnement/produits/:productId" element={<PartnerProductPage />} />
+          <Route path="/salle-attente" element={<WaitingRoomPage />} />
+          <Route path="/bibliotheque" element={<EliteLibrary />} />
+          <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
+          <Route path="/science-hub" element={<EliteScienceHub />} />
+          <Route path="/super-admin" element={<SuperAdminDashboard />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </MainLayout>
+  );
+};
 
 // =============================================================================
 // ROUTAGE INTELLIGENT PWA (Mobile vs Desktop)
