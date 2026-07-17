@@ -15,23 +15,23 @@ router = APIRouter()
 STRATEGY_PRESETS = [
     {
         "key": "sent_commission_10",
-        "label": "Commission sur commande envoyee",
+        "label": "Commission sur commande envoyée",
         "settlementBasis": "SENT_TO_PARTNER",
         "revenueModel": "COMMISSION_PERCENT",
         "commissionRate": 10.0,
         "discountRate": 0.0,
         "fixedFeeAmount": 0.0,
-        "description": "Vous etes remunere des que la commande est envoyee au fournisseur."
+        "description": "Vous êtes rémunéré dès que la commande est envoyée au fournisseur."
     },
     {
         "key": "confirmed_commission_10",
-        "label": "Commission sur commande confirmee",
+        "label": "Commission sur commande confirmée",
         "settlementBasis": "CONFIRMED",
         "revenueModel": "COMMISSION_PERCENT",
         "commissionRate": 10.0,
         "discountRate": 0.0,
         "fixedFeeAmount": 0.0,
-        "description": "Le revenu n est reconnu qu a confirmation fournisseur."
+        "description": "Le revenu n'est reconnu qu'à confirmation fournisseur."
     },
     {
         "key": "resale_discount_30",
@@ -41,7 +41,7 @@ STRATEGY_PRESETS = [
         "commissionRate": 0.0,
         "discountRate": 30.0,
         "fixedFeeAmount": 0.0,
-        "description": "Le fournisseur vous accorde une remise, vous revendez ensuite a votre prix."
+        "description": "Le fournisseur vous accorde une remise, vous revendez ensuite à votre prix."
     },
     {
         "key": "fixed_fee_per_order",

@@ -22,14 +22,14 @@ PARTNER_CATEGORIES = [
 ]
 
 PARTNER_SPECIALTIES = [
-    "General Dentistry",
-    "Orthodontics",
-    "Periodontics",
-    "Oral Surgery",
-    "Prosthodontics",
-    "Endodontics",
-    "Pediatric Dentistry",
-    "Implantology",
+    "Omnipratique",
+    "Orthodontie",
+    "Parodontie",
+    "Chirurgie orale",
+    "Prothèse",
+    "Endodontie",
+    "Dentisterie pédiatrique",
+    "Implantologie",
 ]
 
 

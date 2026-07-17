@@ -200,8 +200,12 @@ const ProtectedRoutes = () => {
           <Route path="/patients/:id/edit" element={<EditPatientForm />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/analytics" element={<Analytics />} />
-          <Route path="/labo" element={<LabJobsBoard />} />
-          <Route path="/stock" element={<StockPage />} />
+          <Route
+            path="/labo"
+            element={<ComingSoon title="Module Labo" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
+          <Route
+            path="/stock"
+            element={<ComingSoon title="Gestion du stock" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
           <Route path="/approvisionnement" element={<PartnerMarketplacePage />} />
           <Route
             path="/approvisionnement/admin"
@@ -209,7 +213,9 @@ const ProtectedRoutes = () => {
           />
           <Route path="/approvisionnement/partenaire/:partnerId" element={<PartnerSupplierPage />} />
           <Route path="/approvisionnement/produits/:productId" element={<PartnerProductPage />} />
-          <Route path="/salle-attente" element={<WaitingRoomPage />} />
+          <Route
+            path="/salle-attente"
+            element={<ComingSoon title="Salle d'attente" description="Ce module est en construction et sera bientôt disponible dans une prochaine mise à jour." />} />
           <Route path="/bibliotheque" element={<EliteLibrary />} />
           <Route path="/bibliotheque/:code" element={<EliteLibrary />} />
           <Route path="/science-hub" element={<EliteScienceHub />} />
