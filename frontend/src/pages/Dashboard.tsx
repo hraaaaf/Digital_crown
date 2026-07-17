@@ -516,31 +516,37 @@ export const Dashboard: React.FC = () => {
         <Link
           to="/approvisionnement"
           className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, rgba(15,118,110,0.10), rgba(245,158,11,0.10), rgba(255,255,255,0.92))' }}
+          style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
         >
-          <div className="p-8 md:p-9 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
-                <Store size={13} />
-                Nouveau canal partenaire
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight font-outfit">Marketplace fournisseur</h2>
-                <p className="text-slate-600 font-medium mt-2 max-w-2xl">
-                  Une entree marketplace a ete integree dans l univers approvisionnement pour proposer un vrai parcours catalogue, fiche produit et commande partenaire dans le style DigitalCrown.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-[1.5rem] bg-white/80 border border-white/60 shadow-lg flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform">
+          <div className="p-8 md:p-9 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4 min-w-0">
+              <div
+                className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
+                  color: 'var(--primary, #0f766e)',
+                }}
+              >
                 <ShoppingCart size={28} />
               </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">Positionnement</p>
-                <p className="text-sm font-black text-slate-900">Approvisionnement</p>
-                <p className="text-sm font-medium text-slate-500">V1 non invasive</p>
+              <div className="min-w-0">
+                <p
+                  className="text-[10px] uppercase tracking-widest font-black mb-2"
+                  style={{ color: 'var(--text-muted, #64748b)' }}
+                >
+                  Approvisionnement
+                </p>
+                <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
+                  Marketplace
+                </h2>
               </div>
             </div>
+            <Store
+              size={18}
+              className="shrink-0 transition-transform group-hover:translate-x-1"
+              style={{ color: 'var(--primary, #0f766e)' }}
+            />
           </div>
         </Link>
 

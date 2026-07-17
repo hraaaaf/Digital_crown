@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Box, CheckCircle2, PackageOpen, RefreshCw, Store, Tags, Truck, Sparkles } from 'lucide-react';
+import { ArrowLeft, Box, CheckCircle2, PackageOpen, RefreshCw, Store, Tags, Truck, Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -18,6 +18,10 @@ import {
   readStoredCart,
   writeMarketplaceCache,
 } from '../features/partnerMarketplace/data';
+
+const heroSurfaceStyle: React.CSSProperties = {
+  background: 'radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), linear-gradient(135deg, var(--primary) 0%, var(--secondary) 55%, var(--accent) 100%)',
+};
 
 export const PartnerSupplierPage: React.FC = () => {
   const { partnerId } = useParams();
@@ -88,7 +92,7 @@ export const PartnerSupplierPage: React.FC = () => {
   }, [partnerId, user?.employer_id, user?.id]);
 
   const partnerProfile = useMemo(() => buildPartnerProfile(supplier), [supplier]);
-
+  const featuredProduct = products[0] || null;
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchCategory = activeCategory === 'Toutes' || product.category === activeCategory;
@@ -99,90 +103,86 @@ export const PartnerSupplierPage: React.FC = () => {
 
   const categoryOptions = ['Toutes', ...(meta?.categories?.length ? meta.categories : partnerCategories.slice(1))];
   const specialtyOptions = ['Toutes', ...(meta?.specialties || [])];
-
   const showNoCatalogState = !loading && !loadError && products.length === 0;
   const showNoResultsState = !loading && !loadError && products.length > 0 && filteredProducts.length === 0;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between gap-4">
-        <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <Link to="/approvisionnement" className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field w-fit">
           <ArrowLeft size={16} />
           Retour marketplace
         </Link>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={loadSupplierView} className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={loadSupplierView} className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field">
             <RefreshCw size={16} />
             Recharger
           </button>
-          <div className="inline-flex items-center gap-2 px-4 py-3 rounded-elite bg-slate-900 text-white text-sm font-black">
+          <div className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white" style={{ backgroundColor: 'var(--primary)' }}>
             <Box size={16} />
             {cartUnits} unité(s) dans le panier
           </div>
         </div>
       </div>
 
-      <section className="relative overflow-hidden bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.10),transparent_28%)] pointer-events-none" />
-        <div className="relative grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-6">
-          <div className="space-y-5">
-            {partnerProfile.heroImageUrl && (
-              <div className="overflow-hidden rounded-elite-lg border border-border-main bg-slate-950 shadow-elite">
-                <img src={partnerProfile.heroImageUrl} alt={partnerProfile.name} className="h-64 w-full object-cover" />
-              </div>
-            )}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/10 text-[10px] font-black uppercase tracking-widest">
-              <Sparkles size={13} />
+      <section className="rounded-elite-lg border border-border-main overflow-hidden shadow-elite" style={heroSurfaceStyle}>
+        <div className="grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6 p-8 lg:p-10 text-white">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em]">
+              <Sparkles size={14} />
               {partnerProfile.badge}
             </div>
-            <div>
-              <h1 className="font-outfit text-3xl font-black tracking-tight text-slate-900">{partnerProfile.name}</h1>
-              <p className="text-slate-600 font-medium mt-2 max-w-3xl leading-relaxed">{partnerProfile.description}</p>
+            <div className="space-y-4 max-w-3xl">
+              <h1 className="font-outfit text-4xl md:text-5xl font-black leading-[0.95]">{partnerProfile.name}</h1>
+              <p className="text-base md:text-lg text-white/82 leading-relaxed">{partnerProfile.description}</p>
             </div>
-            {partnerProfile.promise && (
-              <div className="rounded-elite border border-emerald-200 bg-emerald-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">Promesse fournisseur</p>
-                <p className="text-sm font-semibold text-emerald-900 leading-relaxed">{partnerProfile.promise}</p>
-              </div>
-            )}
+            <div className="rounded-elite border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/60 mb-2">Promesse fournisseur</p>
+              <p className="text-sm leading-relaxed text-white/84 font-semibold">{partnerProfile.promise}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {partnerProfile.metrics.map((metric) => (
+                <div key={metric.label} className="rounded-elite border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-md">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/60">{metric.label}</p>
+                  <p className="mt-2 font-outfit text-2xl font-black text-white">{metric.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="bg-slate-950 text-white rounded-elite-lg p-6 space-y-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-2">Couverture</p>
-              <div className="space-y-2">
-                {partnerProfile.coverage.length > 0 ? (
-                  partnerProfile.coverage.map((item) => (
-                    <div key={item} className="flex items-start gap-2 text-sm text-slate-200">
-                      <CheckCircle2 size={15} className="shrink-0 mt-0.5 text-emerald-400" />
-                      <span>{item}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-400">Aucune information de couverture disponible.</p>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-2">Logistique</p>
-              <div className="space-y-2">
-                {partnerProfile.logistics.length > 0 ? (
-                  partnerProfile.logistics.map((item) => (
-                    <div key={item} className="flex items-start gap-2 text-sm text-slate-200">
-                      <Truck size={15} className="shrink-0 mt-0.5 text-amber-400" />
-                      <span>{item}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-400">Aucune information logistique disponible.</p>
-                )}
-              </div>
+          <div className="space-y-4">
+            <SupplierStage
+              name={partnerProfile.name}
+              subtitle={featuredProduct?.name || 'Catalogue dentaire piloté'}
+              caption={featuredProduct?.description || 'Une vitrine fournisseur prête à accueillir demain des photos réelles et des données synchronisées.'}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SupplierInfoCard title="Couverture" items={partnerProfile.coverage} />
+              <SupplierInfoCard title="Logistique" items={partnerProfile.logistics} icon={<Truck size={15} />} />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6 space-y-5">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {partnerProfile.sections.map((section) => (
+          <article key={section.title} className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite">
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted">{section.eyebrow}</p>
+            <h2 className="mt-3 font-outfit text-2xl font-black text-text-main">{section.title}</h2>
+            <p className="mt-3 text-sm leading-relaxed text-text-muted">{section.description}</p>
+            <div className="mt-4 space-y-3">
+              {section.bullets.map((item) => (
+                <div key={item} className="flex items-start gap-3 text-sm text-text-main">
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite space-y-5">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-start">
           <div className="flex flex-wrap gap-2">
             {categoryOptions.map((category) => (
@@ -191,11 +191,12 @@ export const PartnerSupplierPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveCategory(category)}
                 className={cn(
-                  'px-4 py-3 rounded-elite text-[11px] font-black uppercase tracking-widest border transition-all',
+                  'rounded-full border px-4 py-3 text-[11px] font-black uppercase tracking-[0.22em] transition-all',
                   activeCategory === category
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg'
-                    : 'bg-slate-50 text-text-muted border-border-main hover:border-slate-300'
+                    ? 'text-white shadow-lg'
+                    : 'bg-card-bg text-text-muted border-border-main hover:border-border-hover'
                 )}
+                style={activeCategory === category ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : undefined}
               >
                 {category}
               </button>
@@ -208,11 +209,12 @@ export const PartnerSupplierPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveSpecialty(specialty)}
                 className={cn(
-                  'px-4 py-3 rounded-elite text-[11px] font-black uppercase tracking-widest border transition-all',
+                  'rounded-full border px-4 py-3 text-[11px] font-black uppercase tracking-[0.22em] transition-all',
                   activeSpecialty === specialty
-                    ? 'bg-primary text-white border-primary shadow-lg'
-                    : 'bg-slate-50 text-text-muted border-border-main hover:border-slate-300'
+                    ? 'text-white shadow-lg'
+                    : 'bg-card-bg text-text-muted border-border-main hover:border-border-hover'
                 )}
+                style={activeSpecialty === specialty ? { backgroundColor: 'var(--secondary)', borderColor: 'var(--secondary)' } : undefined}
               >
                 <span className="inline-flex items-center gap-2">
                   <Tags size={12} />
@@ -223,74 +225,118 @@ export const PartnerSupplierPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {loading ? (
-            <p className="col-span-full text-sm text-text-muted">Chargement du catalogue fournisseur...</p>
-          ) : loadError ? (
-            <div className="col-span-full flex flex-col items-center text-center gap-3 rounded-elite-lg border border-dashed border-border-main bg-slate-50 px-6 py-12">
-              <p className="font-black text-slate-900">Impossible de charger le catalogue de ce fournisseur</p>
-              <p className="text-sm text-text-muted max-w-sm mx-auto">Le service catalogue n'est pas joignable pour le moment.</p>
-              <button type="button" onClick={loadSupplierView} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-elite bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black transition-colors">
-                <RefreshCw size={13} />
-                Réessayer
-              </button>
-            </div>
-          ) : showNoCatalogState ? (
-            <div className="col-span-full flex flex-col items-center text-center gap-3 rounded-elite-lg border border-dashed border-border-main bg-slate-50 px-6 py-12">
-              <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary flex items-center justify-center">
-                <PackageOpen size={20} />
-              </div>
-              <p className="font-black text-slate-900">Ce fournisseur n'a pas encore de produits publiés</p>
-              <p className="text-sm text-text-muted max-w-sm mx-auto">Revenez bientôt ou contactez votre administrateur pour compléter ce catalogue.</p>
-            </div>
-          ) : showNoResultsState ? (
-            <div className="col-span-full flex flex-col items-center text-center gap-2 rounded-elite-lg border border-dashed border-border-main bg-slate-50 px-6 py-12">
-              <p className="font-black text-slate-900">Aucun produit ne correspond à cette combinaison catégorie / spécialité</p>
-              <button
-                type="button"
-                onClick={() => { setActiveCategory('Toutes'); setActiveSpecialty('Toutes'); }}
-                className="mt-1 inline-flex items-center gap-2 px-4 py-2.5 rounded-elite border border-border-main text-slate-700 text-xs font-black uppercase tracking-widest hover:bg-white transition-colors"
-              >
-                Réinitialiser les filtres
-              </button>
-            </div>
-          ) : (
-            filteredProducts.map((product) => (
+        {loading ? (
+          <StatePanel title="Chargement du catalogue fournisseur..." description="Nous synchronisons les produits et les données du partenaire." />
+        ) : loadError ? (
+          <StatePanel title="Impossible de charger le catalogue de ce fournisseur" description="Le service catalogue n'est pas joignable pour le moment." actionLabel="Réessayer" onAction={loadSupplierView} />
+        ) : showNoCatalogState ? (
+          <StatePanel title="Ce fournisseur n'a pas encore de produits publiés" description="Revenez bientôt ou contactez votre administrateur pour compléter ce catalogue." />
+        ) : showNoResultsState ? (
+          <StatePanel
+            title="Aucun produit ne correspond à cette combinaison catégorie / spécialité"
+            description="Réinitialisez les filtres ou explorez une autre spécialité."
+            actionLabel="Réinitialiser les filtres"
+            onAction={() => {
+              setActiveCategory('Toutes');
+              setActiveSpecialty('Toutes');
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredProducts.map((product) => (
               <Link
                 key={product.id}
                 to={`/approvisionnement/produits/${product.id}`}
-                className="block border border-border-main rounded-elite p-5 bg-slate-50 hover:bg-card-bg hover:shadow-elite-hover hover:-translate-y-1 transition-all"
+                className="block rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover"
               >
-                {product.imageUrl && (
-                  <div className="mb-4 overflow-hidden rounded-elite border border-border-main bg-white">
-                    <img src={product.imageUrl} alt={product.name} className="h-44 w-full object-cover transition-transform duration-300 hover:scale-[1.02]" />
-                  </div>
-                )}
-                <div className="flex items-start justify-between gap-3">
+                <SupplierStage name={product.name} subtitle={product.category} caption={product.description} compact />
+                <div className="mt-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">{product.category} | {product.specialty || 'Omnipratique'}</p>
-                    <h3 className="font-outfit text-lg font-black text-slate-900 leading-tight">{product.name}</h3>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-text-muted mb-2">{product.category} | {product.specialty || 'Omnipratique'}</p>
+                    <h3 className="font-outfit text-xl font-black text-text-main leading-tight">{product.name}</h3>
                   </div>
-                  <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
+                  <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.24em] border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
                     {product.availability}
                   </span>
                 </div>
-                <p className="text-sm text-text-muted mt-3 min-h-[42px] leading-relaxed">{product.description}</p>
-                <div className="rounded-elite bg-card-bg p-3 border border-border-main mt-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Cible clinique</p>
-                  <p className="text-sm font-semibold text-slate-700">{product.audience || product.specialty || 'Cabinet dentaire'}</p>
+                <p className="mt-3 min-h-[42px] text-sm leading-relaxed text-text-muted">{product.description}</p>
+                <div className="mt-4 rounded-elite border border-border-main bg-input-field p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-text-muted mb-1">Cible clinique</p>
+                  <p className="text-sm font-semibold text-text-main">{product.audience || product.specialty || 'Cabinet dentaire'}</p>
                 </div>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="font-black text-slate-900 text-xl">{formatMoney(product.price)}</span>
-                  <span className="text-xs font-black uppercase tracking-widest text-primary">Voir le détail</span>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-xl font-black text-text-main">{formatMoney(product.price)}</span>
+                  <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'var(--primary)' }}>
+                    Voir le détail
+                    <ArrowRight size={14} />
+                  </span>
                 </div>
               </Link>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
 };
+
+const SupplierStage: React.FC<{ name: string; subtitle: string; caption: string; compact?: boolean }> = ({ name, subtitle, caption, compact = false }) => (
+  <div className={cn('relative overflow-hidden rounded-elite-lg border border-white/15 text-white', compact ? 'min-h-[210px] p-5' : 'min-h-[290px] p-6')} style={heroSurfaceStyle}>
+    <div className="absolute inset-0 opacity-35" style={{ background: 'radial-gradient(circle at bottom left, rgba(255,255,255,0.18), transparent 30%)' }} />
+    <div className="relative flex h-full flex-col justify-between gap-4">
+      <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em]">
+        <Store size={12} />
+        {subtitle}
+      </div>
+      <div className="space-y-3">
+        <h3 className={cn('font-outfit font-black leading-[0.95] text-white', compact ? 'text-3xl' : 'text-4xl')}>{name}</h3>
+        <p className={cn('max-w-xl leading-relaxed text-white/80', compact ? 'text-sm' : 'text-base')}>{caption}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StageChip label="Expérience" value="Catalogue" />
+        <StageChip label="Commande" value="Partenaire" />
+        <StageChip label="Design" value="Token-driven" />
+      </div>
+    </div>
+  </div>
+);
+
+const StageChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-elite border border-white/15 bg-white/10 px-3 py-3">
+    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">{label}</p>
+    <p className="mt-1 text-sm font-black text-white">{value}</p>
+  </div>
+);
+
+const SupplierInfoCard: React.FC<{ title: string; items: string[]; icon?: React.ReactNode }> = ({ title, items, icon }) => (
+  <div className="rounded-elite-lg border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+    <p className="text-[10px] uppercase tracking-[0.28em] font-black text-white/60 mb-3">{title}</p>
+    <div className="space-y-3">
+      {(items.length ? items : ['Aucune information disponible pour le moment.']).map((item) => (
+        <div key={item} className="flex items-start gap-3 text-sm text-white/84">
+          <div className="mt-0.5 shrink-0">{icon || <CheckCircle2 size={15} />}</div>
+          <span>{item}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const StatePanel: React.FC<{ title: string; description: string; actionLabel?: string; onAction?: () => void }> = ({ title, description, actionLabel, onAction }) => (
+  <div className="rounded-elite-lg border border-dashed border-border-main bg-input-field px-6 py-12 text-center space-y-4">
+    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-elite text-white" style={{ backgroundColor: 'var(--primary)' }}>
+      <PackageOpen size={22} />
+    </div>
+    <div>
+      <p className="font-outfit text-2xl font-black text-text-main">{title}</p>
+      <p className="mt-2 max-w-xl mx-auto text-sm leading-relaxed text-text-muted">{description}</p>
+    </div>
+    {actionLabel && onAction && (
+      <button type="button" onClick={onAction} className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
+        {actionLabel}
+      </button>
+    )}
+  </div>
+);
 
 export default PartnerSupplierPage;

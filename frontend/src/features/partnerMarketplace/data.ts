@@ -2,6 +2,32 @@ import type { AppUser } from '../../types';
 
 export type PartnerProductCategory = string;
 
+export type PartnerTemplateMetric = {
+  label: string;
+  value: string;
+  tone?: 'dark' | 'light' | 'emerald' | 'amber' | 'blue';
+};
+
+export type PartnerTemplateBlock = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  bullets: string[];
+};
+
+export type PartnerProductSpec = {
+  label: string;
+  value: string;
+};
+
+export type PartnerProductPageTemplate = {
+  summary: string;
+  clinicalApplications: string[];
+  whatsIncluded: string[];
+  technicalSpecs: PartnerProductSpec[];
+  assurances: string[];
+};
+
 export type PartnerProduct = {
   id: string;
   supplierId?: string;
@@ -32,6 +58,8 @@ export type PartnerProfile = {
   logistics: string[];
   support: string[];
   heroImageUrl?: string;
+  metrics: PartnerTemplateMetric[];
+  sections: PartnerTemplateBlock[];
 };
 
 export type PartnerCatalogSupplier = {
@@ -97,6 +125,12 @@ export type PartnerMarketplaceCache = {
   products: PartnerProduct[];
 };
 
+const emptyMetrics: PartnerTemplateMetric[] = [
+  { label: 'Références', value: '0', tone: 'dark' },
+  { label: 'Spécialités', value: '0', tone: 'light' },
+  { label: 'Mode', value: 'Préparation', tone: 'amber' },
+];
+
 const noActiveSupplierProfile: PartnerProfile = {
   id: 'aucun-fournisseur',
   name: 'Aucun fournisseur actif',
@@ -106,111 +140,18 @@ const noActiveSupplierProfile: PartnerProfile = {
   coverage: [],
   logistics: [],
   support: [],
+  metrics: emptyMetrics,
+  sections: [
+    {
+      eyebrow: 'Mise en route',
+      title: 'Préparer le premier catalogue',
+      description: 'Activez un fournisseur, ajoutez ses produits, puis laissez DigitalCrown exposer une expérience catalogue prête pour la commande.',
+      bullets: ['Créer la fiche fournisseur', 'Classer les produits par catégorie', 'Renseigner les prix et les références'],
+    },
+  ],
 };
 
 export const partnerCategories = ['Toutes', 'Consommables', 'Restauration', 'Endodontie', 'Instrumentation'] as const;
-
-const buildSvgDataUri = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-
-const getCategoryPalette = (category: string) => {
-  const normalized = category.toLowerCase();
-  if (normalized.includes('endo')) {
-    return { primary: '#0f766e', secondary: '#99f6e4', accent: '#134e4a', text: '#ecfeff' };
-  }
-  if (normalized.includes('restauration')) {
-    return { primary: '#1d4ed8', secondary: '#bfdbfe', accent: '#1e3a8a', text: '#eff6ff' };
-  }
-  if (normalized.includes('instrument')) {
-    return { primary: '#7c3aed', secondary: '#ddd6fe', accent: '#4c1d95', text: '#f5f3ff' };
-  }
-  return { primary: '#ea580c', secondary: '#fed7aa', accent: '#9a3412', text: '#fff7ed' };
-};
-
-const buildProductImage = (
-  product: Pick<PartnerProduct, 'name' | 'category' | 'sku'>,
-  variant: 'hero' | 'detail' | 'card' = 'card'
-) => {
-  const palette = getCategoryPalette(product.category);
-  const aspectHeight = variant === 'hero' ? 760 : variant === 'detail' ? 640 : 420;
-  const badgeLabel = product.category.slice(0, 22);
-  const title = product.name.slice(0, 34);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${aspectHeight}" viewBox="0 0 1200 ${aspectHeight}">
-      <defs>
-        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="${palette.primary}" />
-          <stop offset="100%" stop-color="${palette.accent}" />
-        </linearGradient>
-        <linearGradient id="panel" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.14)" />
-          <stop offset="100%" stop-color="rgba(255,255,255,0.04)" />
-        </linearGradient>
-      </defs>
-      <rect width="1200" height="${aspectHeight}" fill="url(#bg)" rx="42" />
-      <circle cx="1010" cy="132" r="180" fill="rgba(255,255,255,0.12)" />
-      <circle cx="155" cy="${aspectHeight - 120}" r="146" fill="rgba(255,255,255,0.08)" />
-      <rect x="74" y="72" width="1052" height="${aspectHeight - 144}" rx="34" fill="url(#panel)" stroke="rgba(255,255,255,0.18)" />
-      <rect x="118" y="118" width="210" height="52" rx="26" fill="${palette.secondary}" fill-opacity="0.92" />
-      <text x="223" y="151" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="${palette.accent}">${badgeLabel}</text>
-      <text x="118" y="${variant === 'card' ? 254 : 286}" font-family="Arial, sans-serif" font-size="${variant === 'card' ? 54 : 66}" font-weight="800" fill="${palette.text}">${title}</text>
-      <text x="118" y="${variant === 'card' ? 308 : 352}" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="rgba(255,255,255,0.84)">Ref. ${product.sku}</text>
-      <g transform="translate(812, ${variant === 'card' ? 122 : 138})">
-        <rect x="0" y="0" width="220" height="220" rx="48" fill="rgba(255,255,255,0.18)" />
-        <rect x="28" y="28" width="164" height="164" rx="34" fill="rgba(255,255,255,0.18)" />
-        <path d="M108 54c31 0 56 25 56 56v48c0 31-25 56-56 56s-56-25-56-56v-48c0-31 25-56 56-56Z" fill="${palette.secondary}" fill-opacity="0.92" />
-        <path d="M108 72c17 0 30 13 30 30v18c0 17-13 30-30 30s-30-13-30-30v-18c0-17 13-30 30-30Z" fill="${palette.accent}" fill-opacity="0.28" />
-      </g>
-      <g transform="translate(118, ${aspectHeight - 166})">
-        <rect x="0" y="0" width="278" height="78" rx="28" fill="rgba(255,255,255,0.14)" />
-        <text x="36" y="34" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="rgba(255,255,255,0.78)">Catalogue DigitalCrown</text>
-        <text x="36" y="60" font-family="Arial, sans-serif" font-size="26" font-weight="800" fill="${palette.text}">Marketplace dentaire</text>
-      </g>
-    </svg>
-  `;
-
-  return buildSvgDataUri(svg);
-};
-
-const buildSupplierHeroImage = (supplierName: string) => {
-  const safeName = supplierName.slice(0, 30);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860">
-      <defs>
-        <linearGradient id="heroBg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0f172a" />
-          <stop offset="52%" stop-color="#1d4ed8" />
-          <stop offset="100%" stop-color="#14b8a6" />
-        </linearGradient>
-      </defs>
-      <rect width="1600" height="860" rx="44" fill="url(#heroBg)" />
-      <circle cx="1220" cy="180" r="210" fill="rgba(255,255,255,0.10)" />
-      <circle cx="1410" cy="650" r="250" fill="rgba(255,255,255,0.08)" />
-      <circle cx="230" cy="720" r="180" fill="rgba(255,255,255,0.10)" />
-      <rect x="94" y="90" width="1412" height="680" rx="38" fill="rgba(15,23,42,0.12)" stroke="rgba(255,255,255,0.16)" />
-      <text x="126" y="188" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="rgba(255,255,255,0.76)">Partenaire fournisseur</text>
-      <text x="126" y="280" font-family="Arial, sans-serif" font-size="78" font-weight="800" fill="#f8fafc">${safeName}</text>
-      <text x="126" y="350" font-family="Arial, sans-serif" font-size="28" font-weight="600" fill="rgba(255,255,255,0.82)">Catalogue dentaire, commandes tracees et experience integree dans DigitalCrown.</text>
-      <g transform="translate(126, 450)">
-        <rect x="0" y="0" width="236" height="120" rx="28" fill="rgba(255,255,255,0.12)" />
-        <text x="34" y="46" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="rgba(255,255,255,0.72)">Categories</text>
-        <text x="34" y="88" font-family="Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff">Dentaire</text>
-      </g>
-      <g transform="translate(392, 450)">
-        <rect x="0" y="0" width="286" height="120" rx="28" fill="rgba(255,255,255,0.12)" />
-        <text x="34" y="46" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="rgba(255,255,255,0.72)">Mode de vente</text>
-        <text x="34" y="88" font-family="Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff">Commande partenaire</text>
-      </g>
-      <g transform="translate(1134, 228)">
-        <rect x="0" y="0" width="252" height="252" rx="54" fill="rgba(255,255,255,0.16)" />
-        <rect x="28" y="28" width="196" height="196" rx="40" fill="rgba(255,255,255,0.18)" />
-        <path d="M98 74h56c24 0 44 20 44 44v70c0 24-20 44-44 44H98c-24 0-44-20-44-44v-70c0-24 20-44 44-44Z" fill="#e0f2fe" />
-        <path d="M126 104c26 0 48 22 48 48s-22 48-48 48s-48-22-48-48s22-48 48-48Z" fill="#2563eb" fill-opacity="0.22" />
-      </g>
-    </svg>
-  `;
-
-  return buildSvgDataUri(svg);
-};
 
 export const availabilityLabel = (availability: string): PartnerProduct['availability'] => {
   if (availability === 'AVAILABLE') return 'Disponible';
@@ -239,12 +180,8 @@ export const normalizePartnerProduct = (product: PartnerCatalogProduct): Partner
   longDescription: product.longDescription || product.shortDescription || 'Produit catalogue partenaire.',
   benefits: product.benefits?.length ? product.benefits : ['Produit catalogue partenaire', 'Importable depuis API fournisseur'],
   audience: product.dentalSpecialty || 'Cabinet dentaire',
-  imageUrl: buildProductImage({ name: product.name, category: product.dentalCategory, sku: product.sku }, 'card'),
-  gallery: [
-    buildProductImage({ name: product.name, category: product.dentalCategory, sku: product.sku }, 'hero'),
-    buildProductImage({ name: product.name, category: product.dentalCategory, sku: product.sku }, 'detail'),
-    buildProductImage({ name: product.name, category: product.dentalCategory, sku: product.sku }, 'card'),
-  ],
+  imageUrl: undefined,
+  gallery: [],
 });
 
 export const buildPartnerProfile = (supplier?: PartnerCatalogSupplier | null): PartnerProfile => {
@@ -252,12 +189,14 @@ export const buildPartnerProfile = (supplier?: PartnerCatalogSupplier | null): P
     return noActiveSupplierProfile;
   }
 
+  const supplierMode = supplier.syncMode || 'Manuelle + API prête';
+
   return {
     id: String(supplier.id),
     name: supplier.name,
     badge: supplier.badge || 'Partenaire actif',
-    description: supplier.description || 'Fournisseur partenaire connectable à DigitalCrown via catalogue et import API.',
-    promise: supplier.promise || 'DigitalCrown capte la commande puis la transmet au fournisseur pour traitement.',
+    description: supplier.description || 'Fournisseur partenaire connectable à DigitalCrown via catalogue, commandes envoyées et futur import API.',
+    promise: supplier.promise || 'DigitalCrown capte la commande, la structure et l’envoie ensuite au fournisseur pour exécution logistique.',
     coverage: [
       'Catalogue classé par catégorie dentaire',
       'Produits filtrés par spécialité clinique',
@@ -266,16 +205,66 @@ export const buildPartnerProfile = (supplier?: PartnerCatalogSupplier | null): P
     logistics: [
       'Commande enregistrée puis envoyée au partenaire',
       'Référence partenaire conservée pour suivi commercial',
-      "Réconciliation possible si la commande change ou s'annule",
+      'Réconciliation possible si la commande change ou s’annule',
     ],
     support: [
       'Commission sur commande envoyée ou confirmée selon accord',
       'Mode remise fournisseur ou revente déjà préparé',
       'Architecture extensible à plusieurs partenaires',
     ],
-    heroImageUrl: buildSupplierHeroImage(supplier.name),
+    heroImageUrl: supplier.apiBaseUrl || undefined,
+    metrics: [
+      { label: 'Références prêtes', value: String(Math.max(0, supplier.productCount)), tone: 'dark' },
+      { label: 'Intégration', value: supplierMode, tone: 'emerald' },
+      { label: 'Statut', value: supplier.isActive ? 'Actif' : 'Préparation', tone: supplier.isActive ? 'blue' : 'amber' },
+    ],
+    sections: [
+      {
+        eyebrow: 'Approvisionnement',
+        title: 'Un catalogue pensé pour le fauteuil, pas pour un simple tableur',
+        description: 'La navigation met en avant les familles de soins, les références critiques et un tunnel de commande piloté depuis DigitalCrown.',
+        bullets: ['Catégories visibles dès l’arrivée', 'Spécialités filtrables rapidement', 'Références et prix lisibles sur chaque carte'],
+      },
+      {
+        eyebrow: 'Pilotage',
+        title: 'Une base propre pour les futurs imports fournisseur',
+        description: 'Les champs métier, les blocs éditoriaux et les surfaces catalogue servent de gabarit pour brancher ensuite un flux API sans refaire l’interface.',
+        bullets: ['Fiche fournisseur enrichie', 'Fiche produit modulaire', 'Cache local-first pour consultation fluide'],
+      },
+      {
+        eyebrow: 'Monétisation',
+        title: 'Le suivi commercial reste compatible avec plusieurs accords',
+        description: 'Que vous soyez rémunéré sur la commande envoyée, confirmée ou sur un modèle de remise, la structure de l’expérience est déjà prête.',
+        bullets: ['Commande transmise et historisée', 'Cas d’annulation prévus', 'Évolution multi-partenaires déjà cadrée'],
+      },
+    ],
   };
 };
+
+export const buildPartnerProductTemplate = (product: PartnerProduct): PartnerProductPageTemplate => ({
+  summary: `${product.name} est présenté comme une référence premium du catalogue ${product.category.toLowerCase()}, avec une lecture rapide du bénéfice clinique, des usages et des éléments de commande.`,
+  clinicalApplications: [
+    `Usage principal en ${product.specialty || 'omnipratique'}`,
+    `Référence adaptée à un parcours d’achat rapide pour ${product.audience || 'le cabinet dentaire'}`,
+    'Supporte une présentation catalogue avec prix, arguments et commande partenaire',
+  ],
+  whatsIncluded: [
+    `Conditionnement : ${product.unit}`,
+    `Référence fournisseur : ${product.sku}`,
+    'Fiche exploitable pour import ou synchronisation API future',
+  ],
+  technicalSpecs: [
+    { label: 'Catégorie', value: product.category },
+    { label: 'Spécialité', value: product.specialty || 'Omnipratique' },
+    { label: 'Conditionnement', value: product.unit },
+    { label: 'Disponibilité', value: product.availability },
+  ],
+  assurances: [
+    'Commande préparée dans DigitalCrown avant envoi au partenaire',
+    'Ajustement possible en cas de changement fournisseur',
+    'Base de fiche prête pour photos réelles et données enrichies',
+  ],
+});
 
 export const getPartnerProductFromList = (products: PartnerProduct[], productId: string) =>
   products.find((product) => product.id === productId) ?? null;

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
-import { Shield, Clock, CalendarRange, UserPlus, Zap, CheckCircle2, XCircle, Mail, Archive, AlertTriangle, MessageSquare, History, Ban, MoreVertical, Search, Filter } from 'lucide-react';
+import { Shield, Clock, CalendarRange, UserPlus, Zap, CheckCircle2, XCircle, Mail, Archive, AlertTriangle, MessageSquare, History, Ban, MoreVertical, Search, Filter, Store } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
 
@@ -245,7 +246,14 @@ export const SuperAdminDashboard: React.FC = () => {
               <p className="text-blue-200 font-medium mt-1">Gestion Globale des Licences & Clients</p>
             </div>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <Link
+              to="/approvisionnement/admin"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/60 bg-amber-400 px-5 py-3 text-sm font-black text-amber-950 shadow-lg shadow-amber-950/10 transition hover:-translate-y-0.5 hover:bg-amber-300"
+            >
+              <Store size={16} />
+              Fournisseurs
+            </Link>
             <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 flex flex-col items-center">
               <span className="text-3xl font-black text-amber-400">{clients.length}</span>
               <span className="text-[10px] uppercase tracking-widest font-bold text-blue-200">Total Clients</span>

@@ -10,6 +10,7 @@ import {
   type PartnerCatalogSupplier,
   type PartnerProduct,
   availabilityBadgeClass,
+  buildPartnerProductTemplate,
   buildPartnerProfile,
   formatMoney,
   normalizePartnerProduct,
@@ -17,6 +18,10 @@ import {
   readStoredCart,
   writeStoredCart,
 } from '../features/partnerMarketplace/data';
+
+const heroSurfaceStyle: React.CSSProperties = {
+  background: 'radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 30%), linear-gradient(135deg, var(--primary) 0%, var(--secondary) 55%, var(--accent) 100%)',
+};
 
 export const PartnerProductPage: React.FC = () => {
   const { productId } = useParams();
@@ -27,7 +32,6 @@ export const PartnerProductPage: React.FC = () => {
   const [cart, setCart] = useState<CartState>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [selectedImage, setSelectedImage] = useState('');
 
   useEffect(() => {
     setCart(readStoredCart());
@@ -70,12 +74,10 @@ export const PartnerProductPage: React.FC = () => {
           setSupplier(supplierRes.data as PartnerCatalogSupplier);
         }
       } catch {
-        if (active) {
-          if (!hadCache) {
-            setProduct(null);
-            setSupplier(null);
-            setNotFound(true);
-          }
+        if (active && !hadCache) {
+          setProduct(null);
+          setSupplier(null);
+          setNotFound(true);
         }
       } finally {
         if (active) {
@@ -93,16 +95,11 @@ export const PartnerProductPage: React.FC = () => {
 
   const partnerProfile = useMemo(() => buildPartnerProfile(supplier), [supplier]);
 
-  useEffect(() => {
-    if (!product) return;
-    setSelectedImage(product.gallery?.[0] || product.imageUrl || '');
-  }, [product]);
-
   if (loading && !product) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-card-bg rounded-elite-lg border border-border-main p-8 shadow-elite">
-          <p className="text-lg font-black text-slate-900">Chargement de la fiche produit...</p>
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="rounded-elite-lg border border-border-main bg-card-bg p-8 shadow-elite">
+          <p className="text-lg font-black text-text-main">Chargement de la fiche produit...</p>
         </div>
       </div>
     );
@@ -110,11 +107,11 @@ export const PartnerProductPage: React.FC = () => {
 
   if (!product || notFound) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-card-bg rounded-elite-lg border border-border-main p-8 shadow-elite space-y-2">
-          <p className="text-lg font-black text-slate-900">Produit introuvable.</p>
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="rounded-elite-lg border border-border-main bg-card-bg p-8 shadow-elite space-y-3">
+          <p className="text-lg font-black text-text-main">Produit introuvable.</p>
           <p className="text-sm text-text-muted">Ce produit n'existe plus dans le catalogue partenaire ou le service catalogue est indisponible.</p>
-          <button onClick={() => navigate('/approvisionnement')} className="mt-2 px-4 py-3 rounded-elite bg-slate-900 text-white font-black">
+          <button onClick={() => navigate('/approvisionnement')} className="mt-2 rounded-elite px-4 py-3 font-black text-white" style={{ backgroundColor: 'var(--primary)' }}>
             Revenir au catalogue
           </button>
         </div>
@@ -122,6 +119,7 @@ export const PartnerProductPage: React.FC = () => {
     );
   }
 
+  const template = buildPartnerProductTemplate(product);
   const isDiscontinued = product.availability === 'Discontinué';
   const quantity = cart[product.id] ?? 0;
 
@@ -139,151 +137,116 @@ export const PartnerProductPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/approvisionnement" className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field">
             <ArrowLeft size={16} />
             Retour catalogue
           </Link>
-          <Link to={`/approvisionnement/partenaire/${supplier ? supplier.id : partnerProfile.id}`} className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+          <Link to={`/approvisionnement/partenaire/${supplier ? supplier.id : partnerProfile.id}`} className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field">
             <Store size={16} />
             Voir fournisseur
           </Link>
         </div>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-2 px-4 py-3 rounded-elite border border-border-main text-sm font-black text-slate-700 hover:bg-slate-50">
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-elite border border-border-main px-4 py-3 text-sm font-black text-text-main hover:bg-input-field">
             <RefreshCw size={16} />
             Recharger
           </button>
-          <Link to="/approvisionnement" className="inline-flex items-center gap-2 px-4 py-3 rounded-elite bg-slate-900 text-white text-sm font-black">
+          <Link to="/approvisionnement" className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white" style={{ backgroundColor: 'var(--primary)' }}>
             <ShoppingCart size={16} />
             {quantity} dans le panier
           </Link>
         </div>
       </div>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6">
-        <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-8 space-y-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] pointer-events-none" />
-          <div className="relative space-y-6">
-            {(selectedImage || product.imageUrl) && (
-              <div className="space-y-3">
-                <div className="overflow-hidden rounded-elite-lg border border-border-main bg-slate-100 shadow-elite">
-                  <img
-                    src={selectedImage || product.imageUrl}
-                    alt={product.name}
-                    className="h-[320px] md:h-[420px] w-full object-cover"
-                  />
-                </div>
-                {product.gallery && product.gallery.length > 1 && (
-                  <div className="grid grid-cols-3 gap-3">
-                    {product.gallery.map((image, index) => (
-                      <button
-                        key={`${product.id}-gallery-${index}`}
-                        type="button"
-                        onClick={() => setSelectedImage(image)}
-                        className={cn(
-                          'overflow-hidden rounded-elite border bg-white transition-all',
-                          (selectedImage || product.imageUrl) === image
-                            ? 'border-primary ring-2 ring-primary/20'
-                            : 'border-border-main hover:border-slate-300'
-                        )}
-                      >
-                        <img src={image} alt={`${product.name} visuel ${index + 1}`} className="h-24 w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+      <section className="grid grid-cols-1 xl:grid-cols-[1.12fr_0.88fr] gap-6">
+        <div className="space-y-6">
+          <div className="rounded-elite-lg border border-border-main p-6 shadow-elite text-white" style={heroSurfaceStyle}>
+            <ThemedProductStage product={product} />
+          </div>
+
+          <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite space-y-5">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">{product.category} | {product.specialty || 'Omnipratique'} | {product.sku}</p>
-              <h1 className="font-outfit text-3xl font-black tracking-tight text-slate-900">{product.name}</h1>
-              <p className="text-slate-600 font-medium mt-3 leading-relaxed">{product.longDescription}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted mb-2">
+                {product.category} | {product.specialty || 'Omnipratique'} | {product.sku}
+              </p>
+              <h1 className="font-outfit text-4xl font-black tracking-tight text-text-main">{product.name}</h1>
+              <p className="mt-4 text-base leading-relaxed text-text-muted">{product.longDescription}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {product.benefits.map((benefit) => (
-                <div key={benefit} className="rounded-elite-sm border border-border-main bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700">
+                <div key={benefit} className="rounded-elite border border-border-main bg-input-field px-4 py-4 text-sm font-semibold text-text-main">
                   {benefit}
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-elite border border-emerald-200 bg-emerald-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">Pourquoi ce produit est pertinent</p>
-                <p className="text-sm font-semibold text-emerald-900 leading-relaxed">
-                  Cette fiche produit valide un parcours fournisseur - catalogue - fiche produit - commande sans sortir de DigitalCrown.
-                </p>
-              </div>
-              <div className="rounded-elite border border-blue-200 bg-blue-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 mb-2">Cible clinique</p>
-                <p className="text-sm font-semibold text-blue-900 leading-relaxed">{product.audience || product.specialty || 'Cabinet dentaire'}</p>
-              </div>
+              <ContentPanel eyebrow="Lecture produit" title="Pourquoi cette fiche est premium" description={template.summary} />
+              <ContentPanel eyebrow="Cible clinique" title={product.audience || product.specialty || 'Cabinet dentaire'} description="Le produit est présenté avec un angle métier clair pour aider le praticien à décider vite et commander sans friction." />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ListPanel title="Applications cliniques" items={template.clinicalApplications} />
+            <ListPanel title="Ce que la fiche prépare" items={template.whatsIncluded} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-4">
+            <SpecsPanel specs={template.technicalSpecs} />
+            <ListPanel title="Garanties du parcours" items={template.assurances} iconTone="primary" />
           </div>
         </div>
 
-        <aside className="space-y-5">
-          <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-8 space-y-5">
+        <aside className="space-y-5 xl:sticky xl:top-6">
+          <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite space-y-5">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Prix indicatif</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted mb-2">Prix indicatif</p>
               <div className="flex items-end gap-3">
-                <h2 className="text-3xl font-black text-slate-900">{formatMoney(product.price)}</h2>
+                <h2 className="text-4xl font-black text-text-main">{formatMoney(product.price)}</h2>
               </div>
-              <p className="text-sm text-text-muted mt-2">Unité : {product.unit}</p>
+              <p className="mt-2 text-sm text-text-muted">Conditionnement : {product.unit}</p>
             </div>
 
-            <div className={cn(
-              'px-4 py-3 rounded-elite border text-sm font-black uppercase tracking-widest w-fit',
-              availabilityBadgeClass(product.availability)
-            )}>
+            <div className={cn('w-fit rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] border', availabilityBadgeClass(product.availability))}>
               {product.availability}
             </div>
 
-            <div className="rounded-elite border border-border-main bg-card-bg p-5 space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Ajout au panier</p>
+            <div className="rounded-elite border border-border-main p-5" style={{ background: 'linear-gradient(180deg, var(--glass-bg), var(--card-bg))' }}>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted">Ajout au panier</p>
               {isDiscontinued ? (
-                <p className="text-sm text-text-muted">Ce produit est retiré du catalogue et ne peut plus être commandé.</p>
+                <p className="mt-3 text-sm text-text-muted">Ce produit est retiré du catalogue et ne peut plus être commandé.</p>
               ) : (
                 <>
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => adjustQty(-1)} className="w-11 h-11 rounded-elite border border-border-main text-slate-600 flex items-center justify-center hover:bg-slate-50">
+                  <div className="mt-4 flex items-center gap-3">
+                    <button type="button" onClick={() => adjustQty(-1)} className="w-11 h-11 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field">
                       <Minus size={16} />
                     </button>
-                    <div className="w-14 text-center font-black text-xl text-slate-900">{quantity}</div>
-                    <button type="button" onClick={() => adjustQty(1)} className="w-11 h-11 rounded-elite bg-primary text-white flex items-center justify-center hover:brightness-110">
+                    <div className="w-14 text-center text-2xl font-black text-text-main">{quantity}</div>
+                    <button type="button" onClick={() => adjustQty(1)} className="w-11 h-11 rounded-elite text-white flex items-center justify-center hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
                       <Plus size={16} />
                     </button>
                   </div>
-                  <Link to="/approvisionnement" className="block w-full py-3 rounded-elite bg-slate-900 text-white text-center font-black uppercase tracking-widest text-xs hover:bg-black">
+                  <Link to="/approvisionnement" className="mt-4 block w-full rounded-elite px-4 py-3 text-center text-xs font-black uppercase tracking-[0.28em] text-white hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
                     Retourner à la commande partenaire
                   </Link>
                 </>
               )}
             </div>
 
-            <div className="rounded-elite border border-border-main bg-slate-50 p-5 space-y-4">
+            <div className="rounded-elite border border-border-main bg-input-field p-5 space-y-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Fournisseur associé</p>
-                <p className="font-black text-slate-900">{supplier?.name || partnerProfile.name}</p>
-                <p className="text-sm text-text-muted mt-2">{partnerProfile.promise}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted mb-2">Fournisseur associé</p>
+                <p className="font-black text-text-main">{supplier?.name || partnerProfile.name}</p>
+                <p className="mt-2 text-sm text-text-muted leading-relaxed">{partnerProfile.promise}</p>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 text-sm text-slate-700">
-                  <ShieldCheck size={15} className="shrink-0 mt-0.5 text-emerald-500" />
-                  <span>Commande tracée et transmise depuis DigitalCrown.</span>
-                </div>
-                <div className="flex items-start gap-2 text-sm text-slate-700">
-                  <Truck size={15} className="shrink-0 mt-0.5 text-amber-500" />
-                  <span>Possibilité de recalcul si le fournisseur modifie ou annule.</span>
-                </div>
-                <div className="flex items-start gap-2 text-sm text-slate-700">
-                  <CheckCircle2 size={15} className="shrink-0 mt-0.5 text-primary" />
-                  <span>Fiche prête pour un futur enrichissement via API fournisseur.</span>
-                </div>
+              <div className="space-y-3">
+                <StatusLine icon={<ShieldCheck size={15} />} text="Commande tracée et transmise depuis DigitalCrown." />
+                <StatusLine icon={<Truck size={15} />} text="Recalcul possible si le fournisseur modifie ou annule la commande." />
+                <StatusLine icon={<CheckCircle2 size={15} />} text="Fiche prête pour accueillir de vraies photos et des données API enrichies." />
               </div>
             </div>
           </div>
@@ -292,5 +255,81 @@ export const PartnerProductPage: React.FC = () => {
     </div>
   );
 };
+
+const ThemedProductStage: React.FC<{ product: PartnerProduct }> = ({ product }) => (
+  <div className="relative overflow-hidden rounded-elite-lg border border-white/15 p-6 min-h-[360px]">
+    <div className="absolute inset-0 opacity-35" style={{ background: 'radial-gradient(circle at bottom left, rgba(255,255,255,0.18), transparent 30%)' }} />
+    <div className="relative flex h-full flex-col justify-between gap-6">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em]">
+          {product.category}
+        </span>
+        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em]">
+          {product.sku}
+        </span>
+      </div>
+      <div className="space-y-4">
+        <p className="text-sm font-black uppercase tracking-[0.28em] text-white/70">{product.specialty || 'Omnipratique'}</p>
+        <h2 className="font-outfit text-5xl font-black leading-[0.95] text-white">{product.name}</h2>
+        <p className="max-w-xl text-sm leading-relaxed text-white/80">{product.description}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StageChip label="Lecture" value="Premium" />
+        <StageChip label="Commande" value="Directe" />
+        <StageChip label="Base" value="API-ready" />
+      </div>
+    </div>
+  </div>
+);
+
+const StageChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-elite border border-white/15 bg-white/10 px-3 py-3">
+    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">{label}</p>
+    <p className="mt-1 text-sm font-black text-white">{value}</p>
+  </div>
+);
+
+const ContentPanel: React.FC<{ eyebrow: string; title: string; description: string }> = ({ eyebrow, title, description }) => (
+  <div className="rounded-elite border border-border-main bg-input-field p-5">
+    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-text-muted mb-2">{eyebrow}</p>
+    <h3 className="font-outfit text-2xl font-black text-text-main">{title}</h3>
+    <p className="mt-3 text-sm leading-relaxed text-text-muted">{description}</p>
+  </div>
+);
+
+const ListPanel: React.FC<{ title: string; items: string[]; iconTone?: 'default' | 'primary' }> = ({ title, items, iconTone = 'default' }) => (
+  <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite">
+    <h3 className="font-outfit text-2xl font-black text-text-main">{title}</h3>
+    <div className="mt-4 space-y-3">
+      {items.map((item) => (
+        <div key={item} className="flex items-start gap-3 text-sm leading-relaxed text-text-main">
+          <CheckCircle2 size={16} className="mt-0.5 shrink-0" style={iconTone === 'primary' ? { color: 'var(--primary)' } : undefined} />
+          <span>{item}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const SpecsPanel: React.FC<{ specs: Array<{ label: string; value: string }> }> = ({ specs }) => (
+  <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite">
+    <h3 className="font-outfit text-2xl font-black text-text-main">Spécifications visibles</h3>
+    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {specs.map((spec) => (
+        <div key={spec.label} className="rounded-elite border border-border-main bg-input-field px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-text-muted">{spec.label}</p>
+          <p className="mt-2 text-sm font-semibold text-text-main">{spec.value}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const StatusLine: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
+  <div className="flex items-start gap-3 text-sm text-text-main">
+    <div className="mt-0.5 shrink-0" style={{ color: 'var(--primary)' }}>{icon}</div>
+    <span>{text}</span>
+  </div>
+);
 
 export default PartnerProductPage;

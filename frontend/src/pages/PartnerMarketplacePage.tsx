@@ -10,8 +10,6 @@ import {
   Plus,
   Minus,
   CheckCircle2,
-  ClipboardList,
-  Calculator,
   RefreshCw,
   Settings2,
   Sparkles,
@@ -43,6 +41,10 @@ import {
 
 type MetaPayload = {
   strategyPresets: PartnerMarketplaceStrategyPreset[];
+};
+
+const heroSurfaceStyle: React.CSSProperties = {
+  background: 'radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), linear-gradient(135deg, var(--primary) 0%, var(--secondary) 55%, var(--accent) 100%)',
 };
 
 const buildStrategyPreview = (preset: PartnerMarketplaceStrategyPreset, amount: number) => {
@@ -78,7 +80,7 @@ export const PartnerMarketplacePage: React.FC = () => {
     phone: '',
     email: '',
     city: '',
-    note: ''
+    note: '',
   });
 
   useEffect(() => {
@@ -120,9 +122,9 @@ export const PartnerMarketplacePage: React.FC = () => {
         setSelectedStrategyKey((current) => current || strategyPresets[0].key);
       }
       const nextCatalogMeta = (metaRes.data || null) as PartnerMarketplaceCatalogMeta | null;
-      setCatalogMeta(nextCatalogMeta);
       const nextSuppliers = (suppliersRes.data || []) as PartnerCatalogSupplier[];
       const nextProducts = ((productsRes.data || []) as PartnerCatalogProduct[]).map(normalizePartnerProduct);
+      setCatalogMeta(nextCatalogMeta);
       setSuppliers(nextSuppliers);
       setCatalogProducts(nextProducts);
       writeMarketplaceCache(user, {
@@ -158,10 +160,7 @@ export const PartnerMarketplacePage: React.FC = () => {
     };
   }, [user?.employer_id, user?.id]);
 
-  const activeSupplier = useMemo(() => {
-    return suppliers.find((supplier) => supplier.isActive) || suppliers[0] || null;
-  }, [suppliers]);
-
+  const activeSupplier = useMemo(() => suppliers.find((supplier) => supplier.isActive) || suppliers[0] || null, [suppliers]);
   const partnerProfile = useMemo(() => buildPartnerProfile(activeSupplier), [activeSupplier]);
 
   const categoryOptions = useMemo(() => {
@@ -173,12 +172,10 @@ export const PartnerMarketplacePage: React.FC = () => {
     const liveSpecialties = catalogMeta?.specialties?.length
       ? catalogMeta.specialties
       : Array.from(new Set(catalogProducts.map((product) => product.specialty).filter(Boolean) as string[]));
-    return liveSpecialties.slice(0, 4);
+    return liveSpecialties.slice(0, 5);
   }, [catalogMeta, catalogProducts]);
 
-  const featuredProducts = useMemo(() => {
-    return [...catalogProducts].sort((a, b) => b.price - a.price).slice(0, 3);
-  }, [catalogProducts]);
+  const featuredProducts = useMemo(() => [...catalogProducts].sort((a, b) => b.price - a.price).slice(0, 4), [catalogProducts]);
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -199,7 +196,7 @@ export const PartnerMarketplacePage: React.FC = () => {
         return {
           ...product,
           quantity,
-          lineTotal: product.price * quantity
+          lineTotal: product.price * quantity,
         };
       })
       .filter(Boolean) as Array<PartnerProduct & { quantity: number; lineTotal: number }>;
@@ -209,6 +206,12 @@ export const PartnerMarketplacePage: React.FC = () => {
   const totalUnits = cartLines.reduce((sum, line) => sum + line.quantity, 0);
   const selectedStrategy = meta?.strategyPresets.find((preset) => preset.key === selectedStrategyKey) ?? null;
   const previewRevenue = selectedStrategy ? buildStrategyPreview(selectedStrategy, estimatedTotal) : 0;
+  const categoryCounts = useMemo(() => {
+    return categoryOptions.slice(1, 5).map((item) => ({
+      label: item,
+      count: catalogProducts.filter((product) => product.category === item).length,
+    }));
+  }, [categoryOptions, catalogProducts]);
 
   const adjustQty = (productId: string, delta: number) => {
     setSuccessMessage('');
@@ -234,7 +237,7 @@ export const PartnerMarketplacePage: React.FC = () => {
       return;
     }
     if (!selectedStrategy) {
-      setErrorMessage("Choisissez une stratégie de rémunération avant d'enregistrer la commande.");
+      setErrorMessage('Choisissez une stratégie de rémunération avant d’enregistrer la commande.');
       return;
     }
 
@@ -256,7 +259,7 @@ export const PartnerMarketplacePage: React.FC = () => {
           sku: line.sku,
           quantity: line.quantity,
           unitPrice: line.price,
-          lineTotal: line.lineTotal
+          lineTotal: line.lineTotal,
         })),
         estimatedTotal,
       };
@@ -271,7 +274,7 @@ export const PartnerMarketplacePage: React.FC = () => {
       setCustomer({ fullName: '', clinic: '', phone: '', email: '', city: '', note: '' });
       setSuccessMessage(`Commande ${order.orderNumber} enregistrée avec la stratégie "${order.strategyLabel}".`);
     } catch (error: any) {
-      setErrorMessage(error?.response?.data?.detail || error?.message || "Impossible d'enregistrer la commande partenaire.");
+      setErrorMessage(error?.response?.data?.detail || error?.message || 'Impossible d’enregistrer la commande partenaire.');
     } finally {
       setSubmitting(false);
     }
@@ -280,87 +283,122 @@ export const PartnerMarketplacePage: React.FC = () => {
   const hasSupplier = Boolean(activeSupplier);
   const showNoCatalogState = !catalogLoading && !catalogError && catalogProducts.length === 0;
   const showNoResultsState = !catalogLoading && !catalogError && catalogProducts.length > 0 && filteredProducts.length === 0;
+  const heroProduct = featuredProducts[0] || filteredProducts[0] || null;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <section className="relative overflow-hidden rounded-elite-lg border border-border-main bg-card-bg shadow-elite">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_36%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))]" />
-        <div className="relative p-8 lg:p-10 grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <section className="rounded-elite-lg border border-border-main overflow-hidden shadow-elite" style={heroSurfaceStyle}>
+        <div className="p-8 lg:p-10 xl:p-12 grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-8 text-white">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/10 text-[10px] font-black uppercase tracking-widest">
-              <Sparkles size={13} />
-              Marketplace fournisseur intégrée
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em]">
+              <Sparkles size={14} />
+              Marketplace clinique premium
             </div>
-            <div className="space-y-3 max-w-3xl">
-              <h1 className="font-outfit text-3xl md:text-4xl font-black tracking-tight text-slate-900">Un espace catalogue haut de gamme, sans sortir de DigitalCrown.</h1>
-              <p className="text-slate-600 font-medium leading-relaxed">
-                Cette vitrine garde les repères de l'application, mais adopte une lecture plus catalogue : catégories, spécialités dentaires, fiches produit, panier et commande partenaire.
+            <div className="space-y-4 max-w-3xl">
+              <h1 className="font-outfit text-4xl md:text-5xl xl:text-6xl font-black tracking-tight leading-[0.95]">
+                Une vraie vitrine d’achat dentaire, intégrée au thème vivant de DigitalCrown.
+              </h1>
+              <p className="max-w-2xl text-white/82 text-base md:text-lg font-medium leading-relaxed">
+                Inspirée des grands catalogues du secteur, cette landing met en avant les familles de soins, les produits stars,
+                le parcours fournisseur et un tunnel de commande propre, sans quitter l’application.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <InfoTile icon={<ShieldCheck size={14} />} tone="emerald" title="Intégration sûre" text="Le module reste isolé du cœur patient, agenda et comptabilité." />
-              <InfoTile icon={<Package size={14} />} tone="blue" title="Catalogue extensible" text="Ajout manuel aujourd'hui, import API fournisseur demain." />
-              <InfoTile icon={<Truck size={14} />} tone="amber" title="Suivi commercial" text="Les commandes envoyées sont réconciliées côté administration pour le calcul de revenu." />
-            </div>
-            {specialtyOptions.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {specialtyOptions.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-border-main bg-card-bg/85 text-xs font-black text-slate-600 uppercase tracking-widest shadow-sm">
-                    <Tags size={12} className="text-primary" />
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <aside className="rounded-elite-lg border border-slate-800 bg-slate-950 text-white p-6 lg:p-7 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-elite bg-white/10 flex items-center justify-center">
-                <ClipboardList size={22} />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-widest font-black text-slate-400">{partnerProfile.badge}</p>
-                <h2 className="font-outfit text-xl font-black">{partnerProfile.name}</h2>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <MetricCard label="Références" value={String(catalogProducts.length)} />
-              <MetricCard label="Catégories" value={String(Math.max(0, categoryOptions.length - 1))} />
-              <MetricCard label="Panier" value={String(totalUnits)} />
-            </div>
-            {selectedStrategy && (
-              <div className="rounded-elite bg-white/5 border border-white/10 p-4">
-                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-2">Stratégie active</p>
-                <p className="font-black">{selectedStrategy.label}</p>
-                <p className="text-sm text-slate-300 mt-2 leading-relaxed">{selectedStrategy.description}</p>
-              </div>
-            )}
-            <div className={cn('grid gap-3', user?.is_superadmin ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2')}>
-              <Link to={`/approvisionnement/partenaire/${partnerProfile.id}`} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-elite border border-white/10 bg-white/5 text-sm font-black hover:bg-white/10 transition-colors">
-                <Store size={15} />
-                Fournisseur
+            <div className="flex flex-wrap gap-3">
+              <Link to={`/approvisionnement/partenaire/${partnerProfile.id}`} className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white/10 px-5 py-3 text-sm font-black hover:bg-white/15 transition-colors">
+                <Store size={16} />
+                Explorer le fournisseur
               </Link>
               {user?.is_superadmin && (
-                <Link to="/approvisionnement/admin" className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-elite border border-white/10 bg-white/5 text-sm font-black hover:bg-white/10 transition-colors">
-                  <Settings2 size={15} />
-                  Administration
+                <Link to="/approvisionnement/admin" className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white/10 px-5 py-3 text-sm font-black hover:bg-white/15 transition-colors">
+                  <Settings2 size={16} />
+                  Gérer le catalogue
                 </Link>
               )}
-              <button type="button" onClick={loadCatalog} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-elite border border-white/10 bg-white/5 text-sm font-black hover:bg-white/10 transition-colors">
-                <RefreshCw size={15} />
+              <button type="button" onClick={loadCatalog} className="inline-flex items-center gap-2 rounded-elite border border-white/15 bg-white px-5 py-3 text-sm font-black hover:brightness-95 transition-all" style={{ color: 'var(--primary)' }}>
+                <RefreshCw size={16} />
                 Actualiser la vue
               </button>
             </div>
-          </aside>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <HeroMetric label="Références" value={String(catalogProducts.length)} />
+              <HeroMetric label="Catégories" value={String(Math.max(0, categoryOptions.length - 1))} />
+              <HeroMetric label="Spécialités" value={String(specialtyOptions.length)} />
+              <HeroMetric label="Panier" value={String(totalUnits)} />
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] items-stretch">
+            <div className="rounded-elite-lg border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+              <MarketplaceArtwork
+                eyebrow={partnerProfile.badge}
+                title={heroProduct?.name || partnerProfile.name}
+                subtitle={heroProduct?.category || 'Catalogue partenaire'}
+                caption={heroProduct?.description || partnerProfile.promise}
+                badge={heroProduct?.sku || 'Sélection active'}
+                compact={false}
+              />
+            </div>
+            <div className="space-y-4">
+              <GlassCard title="Pourquoi cette vitrine marche">
+                <InfoRow icon={<ShieldCheck size={16} />} text="Les surfaces suivent les tokens du thème, sans casser l’identité de l’application." />
+                <InfoRow icon={<Package size={16} />} text="Le modèle prépare déjà la future alimentation automatique par API fournisseur." />
+                <InfoRow icon={<Truck size={16} />} text="La commande reste pilotée côté DigitalCrown, avec suivi commercial conservé." />
+              </GlassCard>
+              {selectedStrategy && (
+                <GlassCard title="Stratégie active">
+                  <p className="font-outfit text-2xl font-black leading-tight">{selectedStrategy.label}</p>
+                  <p className="text-sm text-white/78 mt-2 leading-relaxed">{selectedStrategy.description}</p>
+                </GlassCard>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.45fr_0.7fr] gap-6">
-        <aside className="space-y-5">
-          <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-5 space-y-4 sticky top-6">
+      <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {categoryCounts.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => setCategory(item.label)}
+            className="rounded-elite-lg border border-border-main bg-card-bg p-5 text-left shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover"
+          >
+            <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">Collection</p>
+            <h3 className="font-outfit text-2xl font-black text-text-main mt-2">{item.label}</h3>
+            <p className="text-sm text-text-muted mt-2">{item.count} référence(s) disponibles dans ce rayon clinique.</p>
+            <div className="mt-4 inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
+              Ouvrir ce rayon
+              <ArrowRight size={15} />
+            </div>
+          </button>
+        ))}
+      </section>
+
+      {!catalogLoading && !catalogError && featuredProducts.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Recherche produit</p>
+              <p className="text-[10px] uppercase tracking-[0.32em] font-black text-text-muted">Sélection éditoriale</p>
+              <h2 className="font-outfit text-3xl font-black text-text-main mt-2">Des produits mis en avant comme sur une vraie marketplace</h2>
+            </div>
+            <p className="text-sm text-text-muted max-w-md lg:text-right">Grandes cartes, hiérarchie visuelle claire et lecture immédiate du produit, du bénéfice et du prix.</p>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-4">
+            <FeatureProductCard product={featuredProducts[0]} large onAdd={adjustQty} quantity={cart[featuredProducts[0].id] ?? 0} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {featuredProducts.slice(1, 4).map((product) => (
+                <FeatureProductCard key={product.id} product={product} onAdd={adjustQty} quantity={cart[product.id] ?? 0} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.45fr_0.8fr] gap-6 items-start">
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          <div className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite space-y-5">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-2">Recherche catalogue</p>
               <div className="relative">
                 <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
@@ -368,12 +406,12 @@ export const PartnerMarketplacePage: React.FC = () => {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Référence, catégorie, spécialité"
-                  className="w-full pl-11 pr-4 py-3 border border-border-main rounded-elite text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10 bg-card-bg"
+                  className="w-full rounded-elite border border-border-main bg-input-field pl-11 pr-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10"
                 />
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Catégories</p>
+              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-3">Rayons</p>
               <div className="flex flex-wrap gap-2">
                 {categoryOptions.map((item) => (
                   <button
@@ -381,226 +419,163 @@ export const PartnerMarketplacePage: React.FC = () => {
                     type="button"
                     onClick={() => setCategory(item)}
                     className={cn(
-                      'px-3 py-2 rounded-full text-[11px] font-black uppercase tracking-widest border transition-all',
+                      'rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] transition-all',
                       category === item
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-lg'
-                        : 'bg-card-bg text-text-muted border-border-main hover:border-slate-300'
+                        ? 'text-white shadow-lg'
+                        : 'bg-card-bg text-text-muted border-border-main hover:border-border-hover'
                     )}
+                    style={category === item ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : undefined}
                   >
                     {item}
                   </button>
                 ))}
               </div>
             </div>
-            {partnerProfile.promise && (
-              <div className="rounded-elite border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Promesse fournisseur</p>
-                <p className="text-sm font-semibold text-emerald-900 leading-relaxed">{partnerProfile.promise}</p>
-                {partnerProfile.coverage.length > 0 && (
-                  <div className="space-y-2">
-                    {partnerProfile.coverage.slice(0, 3).map((item) => (
-                      <div key={item} className="text-sm text-emerald-900/85 font-medium flex items-start gap-2">
-                        <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {specialtyOptions.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-3">Spécialités visibles</p>
+                <div className="space-y-2">
+                  {specialtyOptions.map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-elite border border-border-main bg-[var(--glass-bg)] px-4 py-3 text-sm font-semibold text-text-main">
+                      <Tags size={15} style={{ color: 'var(--primary)' }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+            <div className="rounded-elite border border-border-main p-4" style={{ background: 'linear-gradient(180deg, var(--glass-bg), var(--card-bg))' }}>
+              <p className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted mb-2">Promesse fournisseur</p>
+              <p className="text-sm font-semibold text-text-main leading-relaxed">{partnerProfile.promise}</p>
+            </div>
           </div>
         </aside>
 
-        <section className="space-y-5">
-          {!catalogLoading && !catalogError && featuredProducts.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {featuredProducts.map((product, index) => (
-                <Link key={product.id} to={`/approvisionnement/produits/${product.id}`} className={cn(
-                  'relative overflow-hidden rounded-elite-lg border shadow-elite p-5 transition-all hover:-translate-y-1 hover:shadow-elite-hover',
-                  index === 0 ? 'bg-slate-950 text-white border-slate-900' : 'bg-card-bg border-border-main'
-                )}>
-                  <div className={cn('absolute inset-0 opacity-70 pointer-events-none', index === 0 ? 'bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.28),transparent_30%)]' : 'bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_28%)]')} />
-                  <div className="relative space-y-3">
-                    {product.imageUrl && (
-                      <div className="overflow-hidden rounded-elite border border-white/10 bg-white/5">
-                        <img src={product.imageUrl} alt={product.name} className="h-44 w-full object-cover" />
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between gap-3">
-                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border', index === 0 ? 'border-white/10 bg-white/10 text-white' : 'border-border-main bg-slate-50 text-text-muted')}>
-                        {index === 0 ? 'Sélection premium' : 'Top ventes'}
-                      </span>
-                      <ArrowRight size={16} className={index === 0 ? 'text-white/70' : 'text-text-muted'} />
-                    </div>
-                    <div>
-                      <p className={cn('text-[10px] font-black uppercase tracking-widest mb-2', index === 0 ? 'text-slate-300' : 'text-text-muted')}>
-                        {product.category} | {product.specialty || 'Omnipratique'}
-                      </p>
-                      <h3 className={cn('font-outfit text-lg font-black leading-tight', index === 0 ? 'text-white' : 'text-slate-900')}>{product.name}</h3>
-                      <p className={cn('text-sm mt-2 leading-relaxed min-h-[42px]', index === 0 ? 'text-slate-300' : 'text-text-muted')}>{product.description}</p>
-                    </div>
-                    <div className="flex items-end justify-between gap-3">
-                      <div>
-                        <p className={cn('text-2xl font-black', index === 0 ? 'text-white' : 'text-slate-900')}>{formatMoney(product.price)}</p>
-                      </div>
-                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
-                        {product.availability}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.32em] font-black text-text-muted">Catalogue</p>
+              <h2 className="font-outfit text-3xl font-black text-text-main mt-2">Une grille produit plus éditoriale et plus dense</h2>
             </div>
-          )}
+            <div className="text-left lg:text-right">
+              <p className="text-sm text-text-muted">{filteredProducts.length} produit(s) affiché(s)</p>
+              <p className="text-sm text-text-muted">{hasSupplier ? partnerProfile.name : 'Fournisseur à configurer'}</p>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {catalogLoading ? (
-              <p className="col-span-full text-sm text-text-muted">Chargement du catalogue partenaire...</p>
-            ) : catalogError ? (
-              <div className="col-span-full flex flex-col items-center text-center gap-3 rounded-elite-lg border border-dashed border-border-main bg-card-bg px-6 py-12">
-                <div className="w-12 h-12 rounded-elite-sm bg-rose-50 text-rose-600 flex items-center justify-center">
-                  <RefreshCw size={20} />
-                </div>
-                <div>
-                  <p className="font-black text-slate-900">Impossible de charger le catalogue</p>
-                  <p className="text-sm text-text-muted mt-1 max-w-sm mx-auto">Le service catalogue fournisseur n'est pas joignable pour le moment. Réessayez dans un instant.</p>
-                </div>
-                <button type="button" onClick={loadCatalog} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-elite bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black transition-colors">
-                  <RefreshCw size={13} />
-                  Réessayer
-                </button>
-              </div>
-            ) : showNoCatalogState ? (
-              <div className="col-span-full flex flex-col items-center text-center gap-3 rounded-elite-lg border border-dashed border-border-main bg-card-bg px-6 py-12">
-                <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary flex items-center justify-center">
-                  <PackageOpen size={20} />
-                </div>
-                <div>
-                  <p className="font-black text-slate-900">
-                    {hasSupplier ? 'Catalogue en cours de mise en place' : 'Aucun fournisseur configuré'}
-                  </p>
-                  <p className="text-sm text-text-muted mt-1 max-w-sm mx-auto">
-                    {hasSupplier
-                      ? `${partnerProfile.name} n'a pas encore de produits publiés dans DigitalCrown.`
-                      : "Aucun fournisseur partenaire n'est encore actif pour ce cabinet."}
-                  </p>
-                </div>
-                {user?.is_superadmin ? (
-                  <Link to="/approvisionnement/admin" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-elite bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black transition-colors">
-                    <Settings2 size={13} />
-                    {hasSupplier ? 'Ajouter des produits' : 'Configurer un fournisseur'}
-                  </Link>
-                ) : (
-                  <p className="text-xs font-black uppercase tracking-widest text-text-muted">Contactez votre administrateur pour l'activer.</p>
-                )}
-              </div>
-            ) : showNoResultsState ? (
-              <div className="col-span-full flex flex-col items-center text-center gap-3 rounded-elite-lg border border-dashed border-border-main bg-card-bg px-6 py-12">
-                <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary flex items-center justify-center">
-                  <Search size={20} />
-                </div>
-                <div>
-                  <p className="font-black text-slate-900">Aucun produit ne correspond à ces filtres</p>
-                  <p className="text-sm text-text-muted mt-1 max-w-sm mx-auto">Essayez une autre catégorie ou modifiez votre recherche.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setSearch(''); setCategory('Toutes'); }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-elite border border-border-main text-slate-700 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-colors"
-                >
-                  Réinitialiser les filtres
-                </button>
-              </div>
-            ) : (
-              filteredProducts.map((product) => {
+          {catalogLoading ? (
+            <StateCard title="Chargement du catalogue partenaire..." description="Nous récupérons les produits du fournisseur et le cache local-first." />
+          ) : catalogError ? (
+            <StateCard title="Impossible de charger le catalogue" description="Le service catalogue n'est pas joignable pour le moment. Réessayez dans un instant." actionLabel="Réessayer" onAction={loadCatalog} />
+          ) : showNoCatalogState ? (
+            <StateCard
+              title={hasSupplier ? 'Catalogue en cours de mise en place' : 'Aucun fournisseur configuré'}
+              description={hasSupplier ? `${partnerProfile.name} n'a pas encore de produits publiés dans DigitalCrown.` : "Aucun fournisseur partenaire n'est encore actif pour ce cabinet."}
+              actionLabel={user?.is_superadmin ? (hasSupplier ? 'Ajouter des produits' : 'Configurer un fournisseur') : undefined}
+              actionHref={user?.is_superadmin ? '/approvisionnement/admin' : undefined}
+            />
+          ) : showNoResultsState ? (
+            <StateCard
+              title="Aucun produit ne correspond à ces filtres"
+              description="Essayez une autre catégorie ou modifiez votre recherche pour élargir la sélection."
+              actionLabel="Réinitialiser les filtres"
+              onAction={() => {
+                setSearch('');
+                setCategory('Toutes');
+              }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredProducts.map((product) => {
                 const isDiscontinued = product.availability === 'Discontinué';
                 return (
-                  <article key={product.id} className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6 space-y-4 transition-all hover:-translate-y-1 hover:shadow-elite-hover">
-                    {product.imageUrl && (
-                      <Link to={`/approvisionnement/produits/${product.id}`} className="block overflow-hidden rounded-elite border border-border-main bg-slate-100">
-                        <img src={product.imageUrl} alt={product.name} className="h-48 w-full object-cover transition-transform duration-300 hover:scale-[1.02]" />
-                      </Link>
-                    )}
-                    <div className="flex items-start justify-between gap-4">
+                  <article key={product.id} className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover">
+                    <MarketplaceArtwork
+                      eyebrow={product.category}
+                      title={product.name}
+                      subtitle={product.specialty || 'Omnipratique'}
+                      caption={product.description}
+                      badge={product.sku}
+                      compact
+                    />
+                    <div className="mt-4 flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">
-                          {product.category} | {product.specialty || 'Omnipratique'}
-                        </p>
-                        <Link to={`/approvisionnement/produits/${product.id}`} className="font-outfit text-lg font-black text-slate-900 leading-tight hover:text-primary transition-colors">
+                        <Link to={`/approvisionnement/produits/${product.id}`} className="font-outfit text-xl font-black text-text-main hover:opacity-80 transition-opacity">
                           {product.name}
                         </Link>
-                        <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-2">{product.sku}</p>
+                        <p className="mt-2 text-xs font-black uppercase tracking-[0.24em] text-text-muted">{product.sku}</p>
                       </div>
-                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
+                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.24em] border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
                         {product.availability}
                       </span>
                     </div>
-                    <p className="text-sm text-text-muted leading-relaxed min-h-[42px]">{product.description}</p>
-                    <div className="rounded-elite bg-slate-50 border border-border-main p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Pour qui</p>
-                      <p className="text-sm font-semibold text-slate-700">{product.audience || product.specialty || 'Cabinet dentaire'}</p>
+                    <p className="mt-4 text-sm text-text-muted leading-relaxed min-h-[44px]">{product.longDescription}</p>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <SpecChip label="Pour" value={product.audience || product.specialty || 'Cabinet dentaire'} />
+                      <SpecChip label="Conditionnement" value={product.unit} />
                     </div>
-                    <div className="flex items-end justify-between gap-4">
+                    <div className="mt-5 flex items-end justify-between gap-4">
                       <div>
-                        <p className="text-2xl font-black text-slate-900">{formatMoney(product.price)}</p>
-                        <p className="text-xs font-bold text-text-muted uppercase tracking-widest mt-1">Prix indicatif | unité {product.unit}</p>
+                        <p className="text-2xl font-black text-text-main">{formatMoney(product.price)}</p>
+                        <p className="mt-1 text-xs font-black uppercase tracking-[0.24em] text-text-muted">Prix indicatif</p>
                       </div>
                       {isDiscontinued ? (
-                        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Retiré du catalogue</p>
+                        <p className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Retiré du catalogue</p>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => adjustQty(product.id, -1)} className="w-9 h-9 rounded-elite border border-border-main text-slate-600 flex items-center justify-center hover:bg-slate-50 transition-colors">
+                          <button type="button" onClick={() => adjustQty(product.id, -1)} className="w-9 h-9 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field transition-colors">
                             <Minus size={14} />
                           </button>
-                          <div className="w-10 text-center font-black text-slate-900">{cart[product.id] ?? 0}</div>
-                          <button type="button" onClick={() => adjustQty(product.id, 1)} className="w-9 h-9 rounded-elite bg-primary text-white flex items-center justify-center hover:brightness-110 transition-all">
+                          <div className="w-10 text-center font-black text-text-main">{cart[product.id] ?? 0}</div>
+                          <button type="button" onClick={() => adjustQty(product.id, 1)} className="w-9 h-9 rounded-elite text-white flex items-center justify-center transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
                             <Plus size={14} />
                           </button>
                         </div>
                       )}
                     </div>
-                    <Link to={`/approvisionnement/produits/${product.id}`} className="inline-flex items-center text-sm font-black text-primary hover:underline">
+                    <Link to={`/approvisionnement/produits/${product.id}`} className="mt-4 inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
                       Voir la fiche produit
+                      <ArrowRight size={15} />
                     </Link>
                   </article>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </section>
 
-        <aside className="space-y-5">
-          <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-elite bg-primary/10 text-primary flex items-center justify-center">
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          <div className="rounded-elite-lg border border-border-main bg-card-bg p-6 shadow-elite">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-11 h-11 rounded-elite flex items-center justify-center text-white" style={{ backgroundColor: 'var(--primary)' }}>
                 <ShoppingCart size={20} />
               </div>
               <div>
-                <h2 className="font-outfit text-lg font-black text-slate-900">Commande partenaire</h2>
-                <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Panier, contact et stratégie</p>
+                <h2 className="font-outfit text-xl font-black text-text-main">Commande partenaire</h2>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Panier, contact, stratégie</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-elite border border-amber-200 bg-amber-50 text-amber-800 text-sm font-medium leading-relaxed mb-4">
-              La commande est d'abord créée en brouillon, puis suivie et réconciliée par l'administrateur du cabinet.
+            <div className="rounded-elite border border-border-main p-4 mb-5" style={{ background: 'linear-gradient(180deg, var(--glass-bg), var(--card-bg))' }}>
+              <p className="text-sm font-semibold text-text-main leading-relaxed">La commande est préparée dans DigitalCrown, puis envoyée au partenaire selon la stratégie active.</p>
             </div>
 
             <div className="space-y-3 mb-5">
               {cartLines.length === 0 ? (
-                <div className="text-sm text-text-muted bg-slate-50 border border-border-main rounded-elite p-4">
+                <div className="rounded-elite border border-border-main bg-input-field p-4 text-sm text-text-muted">
                   Aucun produit sélectionné pour le moment.
                 </div>
               ) : (
                 cartLines.map((line) => (
-                  <div key={line.id} className="border border-border-main rounded-elite p-4">
+                  <div key={line.id} className="rounded-elite border border-border-main p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-black text-slate-900">{line.name}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mt-1">{line.sku}</p>
+                        <p className="font-black text-text-main">{line.name}</p>
+                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-text-muted">{line.sku}</p>
                       </div>
-                      <p className="font-black text-slate-900">{formatMoney(line.lineTotal)}</p>
+                      <p className="font-black text-text-main">{formatMoney(line.lineTotal)}</p>
                     </div>
-                    <div className="flex items-center justify-between mt-3 text-sm text-text-muted">
+                    <div className="mt-3 flex items-center justify-between text-sm text-text-muted">
                       <span>{line.quantity} x {formatMoney(line.price)}</span>
                       <span>{line.unit}</span>
                     </div>
@@ -609,88 +584,46 @@ export const PartnerMarketplacePage: React.FC = () => {
               )}
             </div>
 
-            <div className="space-y-2 pb-5 border-b border-border-main">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Lignes</span>
-                <span className="font-black text-slate-900">{cartLines.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">Unités</span>
-                <span className="font-black text-slate-900">{totalUnits}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-muted">Total estimé</span>
-                <span className="text-xl font-black text-slate-900">{formatMoney(estimatedTotal)}</span>
-              </div>
+            <div className="space-y-2 border-b border-border-main pb-5">
+              <SummaryRow label="Lignes" value={String(cartLines.length)} />
+              <SummaryRow label="Unités" value={String(totalUnits)} />
+              <SummaryRow label="Total estimé" value={formatMoney(estimatedTotal)} strong />
+              {selectedStrategy && <SummaryRow label="Revenu simulé" value={formatMoney(previewRevenue)} />}
             </div>
 
-            <form onSubmit={submitOrder} className="space-y-3 pt-5">
+            <form onSubmit={submitOrder} className="mt-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Stratégie partenaire</label>
-                <select
-                  value={selectedStrategyKey}
-                  onChange={(event) => setSelectedStrategyKey(event.target.value)}
-                  className="w-full px-4 py-3 border border-border-main rounded-elite text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10 bg-card-bg"
-                >
-                  {(meta?.strategyPresets || []).map((preset) => (
-                    <option key={preset.key} value={preset.key}>{preset.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedStrategy && (
-                <div className="rounded-elite border border-border-main bg-slate-50 p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-slate-700 text-xs font-black uppercase tracking-widest">
-                    <Calculator size={14} />
-                    Simulation de revenu
-                  </div>
-                  <p className="text-sm text-text-muted">{selectedStrategy.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-text-muted">Base choisie</span>
-                    <span className="font-black text-slate-900">{selectedStrategy.settlementBasis}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-text-muted">Revenu théorique</span>
-                    <span className="font-black text-slate-900">{formatMoney(previewRevenue)}</span>
-                  </div>
+                <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">Stratégie active</label>
+                <div className="mt-2 rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-semibold text-text-main">
+                  {selectedStrategy?.label || 'Aucune stratégie disponible'}
                 </div>
-              )}
+              </div>
 
-              <InputField label="Nom complet" value={customer.fullName} onChange={(value) => setCustomer((prev) => ({ ...prev, fullName: value }))} required />
-              <InputField label="Cabinet" value={customer.clinic} onChange={(value) => setCustomer((prev) => ({ ...prev, clinic: value }))} required />
-              <div className="grid grid-cols-2 gap-3">
-                <InputField label="Téléphone" value={customer.phone} onChange={(value) => setCustomer((prev) => ({ ...prev, phone: value }))} required />
-                <InputField label="Ville" value={customer.city} onChange={(value) => setCustomer((prev) => ({ ...prev, city: value }))} required />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <OrderField label="Nom complet" value={customer.fullName} onChange={(value) => setCustomer((current) => ({ ...current, fullName: value }))} required />
+                <OrderField label="Cabinet" value={customer.clinic} onChange={(value) => setCustomer((current) => ({ ...current, clinic: value }))} />
+                <OrderField label="Téléphone" value={customer.phone} onChange={(value) => setCustomer((current) => ({ ...current, phone: value }))} required />
+                <OrderField label="Email" type="email" value={customer.email} onChange={(value) => setCustomer((current) => ({ ...current, email: value }))} />
               </div>
-              <InputField label="Email" type="email" value={customer.email} onChange={(value) => setCustomer((prev) => ({ ...prev, email: value }))} required />
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Note</label>
-                <textarea
-                  value={customer.note}
-                  onChange={(event) => setCustomer((prev) => ({ ...prev, note: event.target.value }))}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-border-main rounded-elite text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10 bg-card-bg resize-none"
-                  placeholder="Instruction de commande ou précision utile"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 rounded-elite bg-slate-900 text-white font-black uppercase tracking-widest text-xs hover:bg-black transition-colors disabled:opacity-60"
-              >
-                {submitting ? 'Enregistrement...' : 'Enregistrer la commande partenaire'}
-              </button>
+
+              <OrderField label="Ville" value={customer.city} onChange={(value) => setCustomer((current) => ({ ...current, city: value }))} />
+              <OrderTextArea label="Note de commande" value={customer.note} onChange={(value) => setCustomer((current) => ({ ...current, note: value }))} />
+
               {successMessage && (
-                <div className="rounded-elite border border-emerald-200 bg-emerald-50 text-emerald-800 p-4 text-sm font-medium leading-relaxed flex gap-3">
-                  <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
-                  <span>{successMessage}</span>
-                </div>
+                <div className="rounded-elite border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{successMessage}</div>
               )}
               {errorMessage && (
-                <div className="rounded-elite border border-rose-200 bg-rose-50 text-rose-800 p-4 text-sm font-medium leading-relaxed">
-                  {errorMessage}
-                </div>
+                <div className="rounded-elite border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{errorMessage}</div>
               )}
+
+              <button
+                type="submit"
+                disabled={submitting || !selectedStrategy}
+                className="w-full rounded-elite px-5 py-4 text-sm font-black uppercase tracking-[0.28em] text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 hover:brightness-110"
+                style={{ backgroundColor: 'var(--primary)' }}
+              >
+                {submitting ? 'Envoi en cours...' : 'Envoyer la commande au partenaire'}
+              </button>
             </form>
           </div>
         </aside>
@@ -699,62 +632,188 @@ export const PartnerMarketplacePage: React.FC = () => {
   );
 };
 
-const MetricCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-elite bg-white/5 border border-white/10 px-4 py-4">
-    <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">{label}</p>
-    <p className="text-2xl font-black mt-2">{value}</p>
+const HeroMetric: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-elite border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-md">
+    <p className="text-[10px] uppercase tracking-[0.26em] font-black text-white/60">{label}</p>
+    <p className="mt-2 font-outfit text-3xl font-black text-white">{value}</p>
   </div>
 );
 
-const InfoTile = ({
-  icon,
-  tone,
-  title,
-  text
-}: {
-  icon: React.ReactNode;
-  tone: 'emerald' | 'blue' | 'amber';
+const GlassCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="rounded-elite-lg border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+    <p className="text-[10px] uppercase tracking-[0.3em] font-black text-white/60 mb-3">{title}</p>
+    <div className="space-y-3 text-white">{children}</div>
+  </div>
+);
+
+const MarketplaceArtwork: React.FC<{
+  eyebrow: string;
   title: string;
-  text: string;
-}) => {
-  const tones = {
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    blue: 'border-blue-200 bg-blue-50 text-blue-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700'
-  };
+  subtitle: string;
+  caption: string;
+  badge: string;
+  compact?: boolean;
+}> = ({ eyebrow, title, subtitle, caption, badge, compact = false }) => (
+  <div
+    className={cn('relative overflow-hidden rounded-elite-lg border border-white/10 text-white', compact ? 'p-5 min-h-[220px]' : 'p-6 min-h-[360px]')}
+    style={heroSurfaceStyle}
+  >
+    <div className="absolute inset-0 opacity-35" style={{ background: 'radial-gradient(circle at bottom left, rgba(255,255,255,0.16), transparent 32%)' }} />
+    <div className="relative flex h-full flex-col justify-between gap-6">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
+          {eyebrow}
+        </span>
+        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
+          {badge}
+        </span>
+      </div>
+      <div className="space-y-3">
+        <p className="text-sm font-black uppercase tracking-[0.28em] text-white/70">{subtitle}</p>
+        <h3 className={cn('font-outfit font-black leading-[0.95]', compact ? 'text-3xl' : 'text-4xl md:text-5xl')}>{title}</h3>
+        <p className={cn('max-w-xl text-white/80 leading-relaxed', compact ? 'text-sm' : 'text-base')}>{caption}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <VisualChip label="Catalogue" value="Premium" />
+        <VisualChip label="Commande" value="Directe" />
+        <VisualChip label="Base" value="API-ready" />
+      </div>
+    </div>
+  </div>
+);
+
+const VisualChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-elite border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-md">
+    <p className="text-[10px] uppercase tracking-[0.24em] font-black text-white/60">{label}</p>
+    <p className="mt-1 text-sm font-black text-white">{value}</p>
+  </div>
+);
+
+const InfoRow: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
+  <div className="flex items-start gap-3 text-sm leading-relaxed text-white/82">
+    <div className="mt-0.5 shrink-0">{icon}</div>
+    <span>{text}</span>
+  </div>
+);
+
+const FeatureProductCard: React.FC<{
+  product: PartnerProduct;
+  quantity: number;
+  onAdd: (productId: string, delta: number) => void;
+  large?: boolean;
+}> = ({ product, quantity, onAdd, large = false }) => {
+  const isDiscontinued = product.availability === 'Discontinué';
 
   return (
-    <div className={cn('rounded-elite px-4 py-4 border', tones[tone])}>
-      <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">
-        {icon}
-        {title}
+    <article className="rounded-elite-lg border border-border-main bg-card-bg p-5 shadow-elite transition-all hover:-translate-y-1 hover:shadow-elite-hover">
+      <MarketplaceArtwork
+        eyebrow={large ? 'Produit star' : product.category}
+        title={product.name}
+        subtitle={product.specialty || 'Omnipratique'}
+        caption={product.description}
+        badge={product.sku}
+        compact={!large}
+      />
+      <div className="mt-5 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-text-muted">{product.category}</p>
+          <p className="mt-2 text-2xl font-black text-text-main">{formatMoney(product.price)}</p>
+        </div>
+        <span className={cn('px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.24em] border whitespace-nowrap', availabilityBadgeClass(product.availability))}>
+          {product.availability}
+        </span>
       </div>
-      <p className="text-sm font-semibold text-slate-900 mt-2">{text}</p>
-    </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <Link to={`/approvisionnement/produits/${product.id}`} className="inline-flex items-center gap-2 text-sm font-black" style={{ color: 'var(--primary)' }}>
+          Voir la fiche
+          <ArrowRight size={15} />
+        </Link>
+        {isDiscontinued ? (
+          <span className="text-xs font-black uppercase tracking-[0.24em] text-text-muted">Indisponible</span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => onAdd(product.id, -1)} className="w-9 h-9 rounded-elite border border-border-main text-text-main flex items-center justify-center hover:bg-input-field transition-colors">
+              <Minus size={14} />
+            </button>
+            <div className="w-10 text-center font-black text-text-main">{quantity}</div>
+            <button type="button" onClick={() => onAdd(product.id, 1)} className="w-9 h-9 rounded-elite text-white flex items-center justify-center hover:brightness-110 transition-all" style={{ backgroundColor: 'var(--primary)' }}>
+              <Plus size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
   );
 };
 
-const InputField = ({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  required = false
-}: {
+const SpecChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-elite border border-border-main bg-input-field px-4 py-3">
+    <p className="text-[10px] uppercase tracking-[0.24em] font-black text-text-muted">{label}</p>
+    <p className="mt-1 text-sm font-semibold text-text-main leading-relaxed">{value}</p>
+  </div>
+);
+
+const StateCard: React.FC<{
+  title: string;
+  description: string;
+  actionLabel?: string;
+  actionHref?: string;
+  onAction?: () => void;
+}> = ({ title, description, actionLabel, actionHref, onAction }) => (
+  <div className="rounded-elite-lg border border-dashed border-border-main bg-card-bg px-6 py-12 text-center shadow-elite space-y-4">
+    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-elite text-white" style={{ backgroundColor: 'var(--primary)' }}>
+      <PackageOpen size={22} />
+    </div>
+    <div>
+      <p className="font-outfit text-2xl font-black text-text-main">{title}</p>
+      <p className="mt-2 max-w-xl mx-auto text-sm leading-relaxed text-text-muted">{description}</p>
+    </div>
+    {actionLabel && actionHref ? (
+      <Link to={actionHref} className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
+        {actionLabel}
+      </Link>
+    ) : actionLabel && onAction ? (
+      <button type="button" onClick={onAction} className="inline-flex items-center gap-2 rounded-elite px-4 py-3 text-sm font-black text-white transition-all hover:brightness-110" style={{ backgroundColor: 'var(--primary)' }}>
+        {actionLabel}
+      </button>
+    ) : null}
+  </div>
+);
+
+const SummaryRow: React.FC<{ label: string; value: string; strong?: boolean }> = ({ label, value, strong = false }) => (
+  <div className="flex items-center justify-between text-sm">
+    <span className="text-text-muted">{label}</span>
+    <span className={cn('text-text-main', strong ? 'font-black text-base' : 'font-semibold')}>{value}</span>
+  </div>
+);
+
+const OrderField: React.FC<{
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: string;
   required?: boolean;
-}) => (
+  type?: string;
+}> = ({ label, value, onChange, required = false, type = 'text' }) => (
   <div>
-    <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">{label}</label>
+    <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">{label}</label>
     <input
       type={type}
+      required={required}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      required={required}
-      className="w-full px-4 py-3 border border-border-main rounded-elite text-sm font-medium outline-none focus:ring-2 focus:ring-primary/10 bg-card-bg"
+      className="mt-2 w-full rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/10"
+    />
+  </div>
+);
+
+const OrderTextArea: React.FC<{ label: string; value: string; onChange: (value: string) => void }> = ({ label, value, onChange }) => (
+  <div>
+    <label className="text-[10px] uppercase tracking-[0.28em] font-black text-text-muted">{label}</label>
+    <textarea
+      rows={4}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="mt-2 w-full rounded-elite border border-border-main bg-input-field px-4 py-3 text-sm font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/10"
     />
   </div>
 );

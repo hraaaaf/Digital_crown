@@ -232,11 +232,11 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {hasAccess('accounting') && <NavItem to="/accounting" icon={<Receipt size={20} />} label="Comptabilité" />}
           {hasAccess('patients') && <NavItem to="/patients" icon={<Users size={20} />} label="Dossiers Patients" />}
           <NavItem to="/bibliotheque" icon={<BookOpen size={20} />} label="Bibliothèque Elite" />
+          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace" />}
 
           <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest px-4 mb-3 mt-6 flex items-center gap-1.5">
             <Construction size={12} /> Bientôt disponible
           </div>
-          {hasAccess('patients') && <NavItem to="/approvisionnement" icon={<Store size={20} />} label="Marketplace fournisseur" badge="Nouveau" />}
           {hasAccess('patients') && <NavItem to="/stock" icon={<Package size={20} />} label="Gestion Stock" badge="Bientôt" />}
           {hasAccess('agenda') && <NavItem to="/salle-attente" icon={<Armchair size={20} />} label="Salle d'attente" badge="Bientôt" />}
           <NavItem to="/labo" icon={<FlaskConical size={20} />} label="Module Labo" badge="Bientôt" />
@@ -245,6 +245,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           {user?.is_superadmin && (
             <div className="mt-4 pt-4 border-t border-border-main">
               <NavItem to="/super-admin" icon={<Shield size={20} className="text-amber-500" />} label="Gestion des Dentistes" />
+              <NavItem to="/approvisionnement/admin" icon={<Store size={20} className="text-amber-500" />} label="Fournisseurs" />
             </div>
           )}
 
