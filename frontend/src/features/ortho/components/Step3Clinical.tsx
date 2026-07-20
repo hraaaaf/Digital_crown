@@ -58,8 +58,8 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
 
   const expertReport = React.useMemo(() => {
     const { ddm, local, anglesData } = store;
-    const impa = computeLocalImpa(local.landmarks) ?? 90;
-    const iFrancfort = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
+    const impa = computeLocalImpa(local.landmarks);
+    const iFrancfort = data.dentaire.i_francfort === '' ? null : Number(data.dentaire.i_francfort);
     const ddmMaxReelle = calcDDMReelle(ddm.maxillaire, iFrancfort, 107);
     const ddmMandReelle = calcDDMReelle(ddm.mandibulaire, impa, 90);
     const ddmTot = (ddmMaxReelle !== null && ddmMandReelle !== null) ? ddmMaxReelle + ddmMandReelle : null;

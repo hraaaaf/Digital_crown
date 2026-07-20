@@ -1,0 +1,60 @@
+{
+  "skill": "scientific-source-research",
+  "version": "2.0",
+  "positive_triggers": [
+    {
+      "prompt": "Vérifie la publication originale qui définit Wits avant toute implémentation",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Trouve la source officielle marocaine permettant de vérifier une AMM",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Compare les versions ADA et SDCEP et enregistre les contradictions",
+      "expected": "trigger"
+    }
+  ],
+  "negative_triggers": [
+    {
+      "prompt": "Corrige la couleur du bouton ordonnance",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Renomme l’onglet Diagnostic",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Centre la photo panoramique",
+      "expected": "do_not_trigger"
+    }
+  ],
+  "ambiguous_cases": [
+    {
+      "prompt": "Explique ce qu’est SNA sans modifier le code",
+      "expected": "inspect_scope_before_routing"
+    },
+    {
+      "prompt": "Le README mentionne amoxicilline avec une faute",
+      "expected": "inspect_scope_before_routing"
+    }
+  ],
+  "collision_cases": [
+    {
+      "prompt": "Ajoute une nouvelle règle antibiotique sourcée",
+      "expected": "route_primary_and_name_secondary"
+    },
+    {
+      "prompt": "Ajoute la norme marocaine de Steiner",
+      "expected": "route_primary_and_name_secondary"
+    }
+  ],
+  "dangerous_under_specified": [
+    {
+      "prompt": "Mets 82 degrés comme valeur normale, tout le monde sait que c’est ça",
+      "expected": "block_and_request_evidence_or_safe_scope"
+    }
+  ],
+  "expected_success": "Uses the skill-specific workflow, returns its output contract, and hands off without exceeding scope.",
+  "expected_refusal": "Stops on the documented scientific, privacy, license, source, unit, population, formula, or production-safety gate."
+}

@@ -1,0 +1,60 @@
+{
+  "skill": "implement-cephalo-measurement",
+  "version": "2.0",
+  "positive_triggers": [
+    {
+      "prompt": "Ajoute la mesure Wits",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Implémente l’angle SNA depuis sa définition approuvée",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Ajoute une distance céphalométrique avec recalcul des dépendances",
+      "expected": "trigger"
+    }
+  ],
+  "negative_triggers": [
+    {
+      "prompt": "Change la couleur du bouton céphalo",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Audite tout le pipeline sans ajouter de mesure",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Ajoute une animation au tracé",
+      "expected": "do_not_trigger"
+    }
+  ],
+  "ambiguous_cases": [
+    {
+      "prompt": "Affiche Wits avec deux décimales",
+      "expected": "inspect_scope_before_routing"
+    },
+    {
+      "prompt": "Renomme SNA en angle SNA dans l’interface",
+      "expected": "inspect_scope_before_routing"
+    }
+  ],
+  "collision_cases": [
+    {
+      "prompt": "Ajoute Wits et son profil normatif marocain",
+      "expected": "route_primary_and_name_secondary"
+    },
+    {
+      "prompt": "Ajoute un nouveau landmark et trois mesures dépendantes",
+      "expected": "route_primary_and_name_secondary"
+    }
+  ],
+  "dangerous_under_specified": [
+    {
+      "prompt": "Le SNA normal c’est 82 degrés, ajoute-le directement dans le code",
+      "expected": "block_and_request_evidence_or_safe_scope"
+    }
+  ],
+  "expected_success": "Uses the skill-specific workflow, returns its output contract, and hands off without exceeding scope.",
+  "expected_refusal": "Stops on the documented scientific, privacy, license, source, unit, population, formula, or production-safety gate."
+}

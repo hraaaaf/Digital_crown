@@ -1,0 +1,102 @@
+schema_version: "2.0"
+title: Medication rule
+type: object
+required: [rule_id, version, status, substance, jurisdiction, population, indication, route, dose, required_patient_data, missing_data_behavior, source_ids, conflicting_sources, review_status, tests]
+properties:
+  rule_id: {type: string}
+  version: {type: string}
+  status: {type: string, enum: [draft, candidate, needs_review, conflicting_sources, insufficient_evidence, approved-by-clinician, active, superseded, withdrawn]}
+  substance:
+    type: object
+    required: [inn, identifiers]
+    properties:
+      inn: {type: string}
+      identifiers: {type: array, uniqueItems: true, items: {type: string}}
+    additionalProperties: false
+  combination:
+    type: array
+    items:
+      type: object
+      required: [substance_id, strength]
+      properties:
+        substance_id: {type: string}
+        strength: {$ref: "#/definitions/quantityOrUnknown"}
+      additionalProperties: false
+  jurisdiction: {type: string}
+  population:
+    type: object
+    required: [description]
+    properties:
+      description: {type: string}
+      age: {$ref: "#/definitions/rangeOrUnknown"}
+      weight: {$ref: "#/definitions/rangeOrUnknown"}
+      pregnancy: {type: string}
+      breastfeeding: {type: string}
+    additionalProperties: false
+  indication:
+    type: object
+    required: [id, certainty_required]
+    properties:
+      id: {type: string}
+      certainty_required: {type: string}
+      exclusion_criteria: {type: array, items: {type: string}}
+    additionalProperties: false
+  clinical_context: {type: object}
+  route: {type: string}
+  form: {type: string}
+  strength: {$ref: "#/definitions/quantityOrUnknown"}
+  dose:
+    type: object
+    required: [basis, amount, semantics]
+    properties:
+      basis: {type: string, enum: [fixed, weight_based, body_surface_area, not_applicable, unknown]}
+      amount: {$ref: "#/definitions/quantityOrUnknown"}
+      semantics: {type: string, enum: [per_administration, per_day, loading, prophylaxis, not_applicable, unknown]}
+      formula: {type: string}
+    additionalProperties: false
+  dose_unit: {type: string}
+  dose_basis: {type: string}
+  frequency: {type: object}
+  duration: {type: object}
+  maximum_per_dose: {$ref: "#/definitions/quantityOrUnknown"}
+  maximum_per_day: {$ref: "#/definitions/quantityOrUnknown"}
+  renal_adjustment: {type: object}
+  hepatic_adjustment: {type: object}
+  pregnancy: {type: object}
+  breastfeeding: {type: object}
+  contraindications: {type: array, items: {type: object}}
+  interactions: {type: array, items: {type: object}}
+  allergy_rules: {type: array, items: {type: object}}
+  required_patient_data: {type: array, uniqueItems: true, items: {type: string}}
+  missing_data_behavior:
+    type: object
+    required: [action, message_code]
+    properties:
+      action: {type: string, enum: [block, not_applicable]}
+      message_code: {type: string}
+    additionalProperties: false
+  source_ids: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+  conflicting_sources: {type: array, items: {type: string}}
+  review_status: {type: string}
+  approved_by: {type: [string, "null"]}
+  approved_at: {type: [string, "null"]}
+  limitations: {type: array, items: {type: string}}
+  tests: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+definitions:
+  quantityOrUnknown:
+    type: object
+    required: [value, unit]
+    properties:
+      value: {type: [number, string]}
+      unit: {type: string}
+    additionalProperties: false
+  rangeOrUnknown:
+    type: object
+    required: [minimum, maximum, unit]
+    properties:
+      minimum: {type: [number, string, "null"]}
+      maximum: {type: [number, string, "null"]}
+      unit: {type: string}
+    additionalProperties: false
+additionalProperties: false
+

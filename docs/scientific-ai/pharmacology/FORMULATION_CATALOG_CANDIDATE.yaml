@@ -1,0 +1,80 @@
+schema_version: "1.0"
+status: candidate
+warning: "Product records below support identity review only and do not establish Moroccan authorization, commercialization, prescribing suitability, or clinical approval."
+substances:
+  - substance_id: substance-amoxicillin-clavulanate-candidate
+    inn: "amoxicillin + clavulanic acid"
+    combination_components: [amoxicillin, clavulanic-acid]
+    candidate_products:
+      - country: Morocco
+        brand: AUGMENTIN
+        strength: not_verified
+        strength_unit: not_verified
+        pharmaceutical_form: not_verified
+        route: not_verified
+        concentration: not_verified
+        presentation: not_verified
+        source_id: ammps-medication-list-2026
+        market_status: not_verified
+        status: needs_review
+  - substance_id: substance-spiramycin-metronidazole-candidate
+    inn: "spiramycin + metronidazole"
+    combination_components: [spiramycin, metronidazole]
+    candidate_products:
+      - country: France
+        brand: BIRODOGYL
+        strength: "spiramycin 1.5 MUI + metronidazole 250 mg"
+        strength_unit: per-tablet
+        pharmaceutical_form: tablet
+        route: oral
+        concentration: not_applicable
+        presentation: not_verified
+        source_id: fr-public-medicine-birodogyl
+        market_status: "French product record; Morocco not_verified"
+        status: candidate
+  - substance_id: substance-hexetidine-candidate
+    inn: hexetidine
+    combination_components: []
+    candidate_products:
+      - country: France
+        brand: HEXTRIL
+        strength: "0.1"
+        strength_unit: percent
+        pharmaceutical_form: mouth-rinse
+        route: oromucosal
+        concentration: "0.1%"
+        presentation: not_verified
+        source_id: fr-public-medicine-hextril
+        market_status: "French product record; Morocco not_verified"
+        status: candidate
+  - substance_id: substance-flurbiprofen-candidate
+    inn: flurbiprofen
+    combination_components: []
+    candidate_products:
+      - country: France
+        brand: ANTADYS
+        strength: "100"
+        strength_unit: mg
+        pharmaceutical_form: coated-tablet
+        route: oral
+        concentration: not_applicable
+        presentation: not_verified
+        source_id: fr-public-medicine-antadys
+        market_status: "French product record; Morocco not_verified"
+        status: candidate
+  - substance_id: substance-chlorhexidine-candidate
+    inn: chlorhexidine
+    combination_components: []
+    candidate_products:
+      - country: Morocco
+        brand: not_verified
+        strength: not_verified
+        strength_unit: not_verified
+        pharmaceutical_form: mouth-rinse
+        route: oromucosal
+        concentration: not_verified
+        presentation: not_verified
+        source_id: ammps-medication-list-2026
+        market_status: not_verified
+        status: needs_review
+

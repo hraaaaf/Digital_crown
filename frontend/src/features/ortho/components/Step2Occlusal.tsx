@@ -24,8 +24,8 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P }) => {
     return null;
   }, [anglesData]);
 
-  const impa = serverImpa ?? localImpa ?? 90;
-  const iFrancfort = etape3Data.dentaire.i_francfort === '' ? 107 : Number(etape3Data.dentaire.i_francfort);
+  const impa = serverImpa ?? localImpa;
+  const iFrancfort = etape3Data.dentaire.i_francfort === '' ? null : Number(etape3Data.dentaire.i_francfort);
   const updateOcclusal = (key: string, val: ClasseAngle) => {
     onChange({ ...data, occlusal: { ...data.occlusal, [key]: val } });
   };

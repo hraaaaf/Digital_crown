@@ -25,8 +25,8 @@ export interface OrthoExpertReport {
     dents?: string;
   };
   damon: {
-    maxillaire: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)';
-    mandibulaire: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)';
+    maxillaire: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' | 'A déterminer';
+    mandibulaire: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' | 'A déterminer';
     raison: string;
   };
   mecanique: string[];
@@ -34,36 +34,40 @@ export interface OrthoExpertReport {
 }
 
 export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): OrthoExpertReport {
-  const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
-  const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
+  const optionalNumber = (value: number | ''): number | null => {
+    if (value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const impa = optionalNumber(data.dentaire.impa);
+  const ifranc = optionalNumber(data.dentaire.i_francfort);
   const pattern = data.pattern_vertical || 'normodivergent';
   const classe = data.classe_squelettique || 'Classe I';
   const profil = data.profil || 'droit';
-  const surplomb = data.dentaire.surplomb === '' ? 2.2 : Number(data.dentaire.surplomb);
-  const recouv = data.dentaire.recouvrement === '' ? 2.2 : Number(data.dentaire.recouvrement);
+  const surplomb = optionalNumber(data.dentaire.surplomb);
+  const recouv = optionalNumber(data.dentaire.recouvrement);
   
   // 1. DÉCISION EXTRACTION (INTÉGRATION PANORAMIQUE & WITS)
   let extrRecommandee = false;
-  let extrRaison = "Profil plat et DDM légère/modérée permettant une résolution sans extraction.";
+  let extrRaison = "Données insuffisantes pour une orientation extractionnelle.";
   let extrDents = "";
 
-  const ddmDeficit = ddmTotale !== null ? ddmTotale : 0; // Negative means deficit
-  const isSevereCrowding = ddmDeficit < -7;
-  const isModerateCrowding = ddmDeficit >= -7 && ddmDeficit <= -4;
+  const ddmDeficit = ddmTotale;
+  const isSevereCrowding = ddmDeficit !== null && ddmDeficit < -7;
+  const isModerateCrowding = ddmDeficit !== null && ddmDeficit >= -7 && ddmDeficit <= -4;
 
   const ddsIncluses = data.panoramique?.dds_incluses ?? false;
   const perteOsseuse = data.panoramique?.perte_osseuse ?? false;
-  const wits = typeof data.wits_mcnamara?.wits_appraisal === 'number' ? data.wits_mcnamara.wits_appraisal : 0;
 
-  if (isSevereCrowding && impa >= 95 && profil !== 'concave') {
+  if (isSevereCrowding && impa !== null && impa >= 95 && profil !== 'concave') {
     extrRecommandee = true;
     extrRaison = `DDM Sévère (${Math.abs(ddmDeficit).toFixed(1)}mm) couplée à une biprotrusion (IMPA ${impa}°) et un profil ${profil}.`;
-    extrDents = classe.includes('Classe II') || wits > 2 ? "14, 24, 35, 45 (Ou 14, 24, 34, 44 selon le type de mécanique)" : "14, 24, 34, 44";
-  } else if (impa >= 100 && ifranc >= 120) {
+    extrDents = classe.includes('Classe II') ? "14, 24, 35, 45 (Ou 14, 24, 34, 44 selon le type de mécanique)" : "14, 24, 34, 44";
+  } else if (impa !== null && ifranc !== null && impa >= 100 && ifranc >= 120) {
     extrRecommandee = true;
     extrRaison = `Biprotrusion alvéolo-dentaire critique (IMPA ${impa}°, I/F ${ifranc}°). Nécessité de recul labial.`;
     extrDents = "14, 24, 34, 44";
-  } else if ((isModerateCrowding && impa > 95 && pattern === 'hyperdivergent') || (perteOsseuse && isModerateCrowding)) {
+  } else if ((isModerateCrowding && impa !== null && impa > 95 && pattern === 'hyperdivergent') || (perteOsseuse && isModerateCrowding)) {
     extrRecommandee = true;
     extrRaison = perteOsseuse 
       ? `Parodonte affaibli (perte osseuse). Expansion transversale et vestibulo-version proscrites.`
@@ -77,25 +81,25 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   const denture_type = data.denture_type || '';
   const isMixteOrPediatric = denture_type === 'MIXTE' || denture_type === 'TEMPORAIRE';
 
-  let torqueMax: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' = 'Standard Torque (Bleu)';
-  let torqueMand: 'Low Torque (Vert)' | 'Standard Torque (Bleu)' | 'High Torque (Rouge)' = 'Standard Torque (Bleu)';
-  let raisonTorque = "Inclinaisons initiales physiologiques, maintien des torques standard.";
+  let torqueMax: OrthoExpertReport['damon']['maxillaire'] = 'A déterminer';
+  let torqueMand: OrthoExpertReport['damon']['mandibulaire'] = 'A déterminer';
+  let raisonTorque = "Mesures incisives insuffisantes pour déterminer les torques.";
 
   if (!isMixteOrPediatric) {
     // Maxillaire
-    if (extrRecommandee || classe.includes('Classe II')) {
+    if (extrRecommandee || (ifranc !== null && classe.includes('Classe II'))) {
       torqueMax = 'High Torque (Rouge)';
       raisonTorque = "Maxillaire: High Torque pour contrôler le torque radiculaire lors de la rétraction incisive ou éviter l'effet 'rabbiting'. ";
-    } else if (ifranc > 120 && !extrRecommandee) {
+    } else if (ifranc !== null && ifranc > 120 && !extrRecommandee) {
       torqueMax = 'Low Torque (Vert)';
       raisonTorque = "Maxillaire: Low Torque pour limiter la vestibulo-version lors de la levée d'encombrement. ";
     }
 
     // Mandibulaire
-    if (impa > 95 || (isModerateCrowding && !extrRecommandee)) {
+    if ((impa !== null && impa > 95) || (isModerateCrowding && impa !== null && !extrRecommandee)) {
       torqueMand = 'Low Torque (Vert)';
       raisonTorque += "Mandibule: Low Torque pour empêcher la vestibulo-version excessive lors de l'alignement/expansion.";
-    } else if (impa < 85) {
+    } else if (impa !== null && impa < 85) {
       torqueMand = 'High Torque (Rouge)';
       raisonTorque += "Mandibule: High Torque pour corriger la rétroalvéolie mandibulaire.";
     }
@@ -103,11 +107,7 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
 
   // 3. MÉCANIQUE ET CHIRURGIE (Squelettique Vraie)
   const mec: string[] = [];
-  
-  if (wits > 6 || wits < -5) {
-    mec.push("⚠️ DÉCALAGE SQUELETTIQUE SÉVÈRE (Wits hors normes) : Préparation Orthodontique pour Chirurgie Orthognathique fortement recommandée chez l'adulte.");
-  }
-  
+
   if (data.panoramique?.resorption_radiculaire) {
     mec.push("⚠️ RÉSORPTION RADICULAIRE DÉTECTÉE : Utilisation impérative de forces très légères (Aligners avec changements lents ou arcs thermiques ultra-souples).");
   }
@@ -116,13 +116,13 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
     mec.push("⚠️ ASYMÉTRIE CONDYLIENNE : Investigation articulaire (CBCT/IRM) requise avant tout traitement de camouflage.");
   }
 
-  if (recouv > 3.5) {
+  if (recouv !== null && recouv > 3.5) {
     mec.push("Supraclusie: Mécanique de nivellement courbe de Spee (arcs inverses de Spee ou bite turbos antérieurs).");
-  } else if (recouv < 1.0) {
+  } else if (recouv !== null && recouv < 1.0) {
     mec.push("Infraclusie/Béance: Bite blocks postérieurs, éviter les mécaniques extrusives postérieures.");
   }
   
-  if (surplomb > 4 && !extrRecommandee) {
+  if (surplomb !== null && surplomb > 4 && !extrRecommandee) {
     mec.push("Proalvéolie: Contrôle sagittal strict. Utilisation d'élastiques de Classe II ou Distalisation (si DDS avulsées).");
   }
 
@@ -142,11 +142,11 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   const md = `
 ### Synthèse Automatique - Agent ODF
 **Profil du Patient** : ${classe}, ${pattern}, Profil ${profil}.
-**Incisives** : Surplomb ${surplomb}mm, Recouvrement ${recouv}mm (IMPA: ${impa}°, I/F: ${ifranc}°).
-**Analyse d'Espace** : DDM Globale de ${ddmTotale ? ddmTotale.toFixed(1) : '0'}mm.
+**Incisives** : Surplomb ${surplomb === null ? 'non disponible' : `${surplomb}mm`}, Recouvrement ${recouv === null ? 'non disponible' : `${recouv}mm`} (IMPA: ${impa === null ? 'non disponible' : `${impa}°`}, I/F: ${ifranc === null ? 'non disponible' : `${ifranc}°`}).
+**Analyse d'Espace** : DDM Globale ${ddmTotale === null ? 'non disponible' : `${ddmTotale.toFixed(1)}mm`}.
 
 #### 1. Décision Biomécanique
-**Protocole** : ${extrRecommandee ? 'EXTRACTIONNEL' : 'SANS EXTRACTION (BONE ADAPTATION)'}
+**Protocole** : ${ddmDeficit === null ? 'À ÉVALUER (DDM indisponible)' : extrRecommandee ? 'EXTRACTIONNEL' : 'SANS EXTRACTION (BONE ADAPTATION)'}
 **Rationnel** : ${extrRaison}
 ${extrRecommandee ? `**Dents concernées** : ${extrDents}` : ''}
 

@@ -61,12 +61,11 @@ class TestHonorairesArchive:
         assert resp_forced.status_code == 200, resp_forced.text
         assert "pdf_url" in resp_forced.json()
         
-        # 7. Vérifier que nous avons maintenant 2 versions du document archivé
+        # 7. Une modification forcée remplace la note existante, sans seconde version.
         docs = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.patient_id == patient_id,
             models.DocumentArchive.document_type == models.DocumentType.NOTE_HONORAIRES
         ).all()
-        assert len(docs) == 2
-        # La plus récente doit être marquée is_latest_version=True, l'ancienne False
-        versions = {d.version_number: d.is_latest_version for d in docs}
-        assert versions == {1: False, 2: True}
+        assert len(docs) == 1
+        assert docs[0].version_number == 1
+        assert docs[0].is_latest_version is True

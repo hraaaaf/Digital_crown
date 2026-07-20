@@ -1,0 +1,116 @@
+schema_version: "1.0"
+status: specification_only
+prohibitions: [no_real_patient_data, no_unsourced_expected_dose, no_llm_calculation]
+cases:
+  - id: pharma-adult-uncomplicated
+    inputs: {population: adult, indication: synthetic_reviewed_candidate, context_complete: true, formulation: explicit}
+    expected_blockers: [approved_rule_missing]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_generate_dose]
+    source_dependencies: [approved-rule-required]
+  - id: pharma-pediatric-weight-based
+    inputs: {population: pediatric, measured_weight: "synthetic valid kg", formulation_concentration: explicit}
+    expected_blockers: [approved_rule_missing]
+    expected_warnings: []
+    expected_calculations: [calculate_only_after_rule_approval, preserve_raw_capped_converted_rounded_steps]
+    expected_non_actions: [do_not_estimate_weight, do_not_use_llm]
+    source_dependencies: [aapd-useful-medications-2025, exact-product-rcp]
+  - id: pharma-missing-weight
+    inputs: {population: pediatric, measured_weight: missing, rule_basis: weight_based}
+    expected_blockers: [missing_measured_weight]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_estimate_weight, do_not_generate_dose]
+    source_dependencies: [approved-weight-based-rule]
+  - id: pharma-unknown-allergy
+    inputs: {allergy_status: unknown}
+    expected_blockers: [allergy_status_unresolved]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_assume_no_allergy, do_not_substitute]
+    source_dependencies: [nice-drug-allergy-cg183]
+  - id: pharma-confirmed-beta-lactam-allergy
+    inputs: {allergy: beta_lactam_confirmed, candidate_substance: beta_lactam}
+    expected_blockers: [allergy_rule_block]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_choose_arbitrary_alternative]
+    source_dependencies: [approved-allergy-rule, approved-alternative-rule]
+  - id: pharma-renal-impairment
+    inputs: {renal_status: synthetic_impairment, candidate_rule: renal_context_required}
+    expected_blockers: [approved_renal_adjustment_missing]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_infer_adjustment]
+    source_dependencies: [exact-product-rcp]
+  - id: pharma-hepatic-impairment
+    inputs: {hepatic_status: synthetic_impairment, candidate_rule: hepatic_context_required}
+    expected_blockers: [approved_hepatic_adjustment_missing]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_infer_adjustment]
+    source_dependencies: [exact-product-rcp]
+  - id: pharma-pregnancy
+    inputs: {pregnancy_status: known, trimester: synthetic, candidate_rule: pregnancy_review_required}
+    expected_blockers: [approved_pregnancy_rule_missing]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_assume_class_safety]
+    source_dependencies: [exact-product-rcp]
+  - id: pharma-anticoagulant-interaction
+    inputs: {current_medication_class: anticoagulant, candidate_medication_class: nsaid}
+    expected_blockers: [interaction_clearance_required]
+    expected_warnings: [interaction_candidate]
+    expected_calculations: []
+    expected_non_actions: [do_not_auto_add_tranexamic_acid]
+    source_dependencies: [licensed-interaction-source-required]
+  - id: pharma-duplicate-active-ingredient
+    inputs: {products: [synthetic_paracetamol_product_a, synthetic_combination_with_paracetamol]}
+    expected_blockers: [aggregate_exposure_validation_required]
+    expected_warnings: [duplicate_active_ingredient]
+    expected_calculations: [sum_each_component_in_canonical_units_after_approval]
+    expected_non_actions: [do_not_compare_brand_strings_only]
+    source_dependencies: [approved-component-identities, approved-rule-required]
+  - id: pharma-mg-per-ml-conversion
+    inputs: {dose: "synthetic mg", concentration: "synthetic mg/mL"}
+    expected_blockers: [approved_rule_missing]
+    expected_warnings: []
+    expected_calculations: [dose_mg_divided_by_concentration_mg_per_mL_after_approval]
+    expected_non_actions: [do_not_infer_concentration, do_not_round_without_rule]
+    source_dependencies: [exact-product-rcp, approved-rounding-rule]
+  - id: pharma-maximum-exceeded
+    inputs: {raw_dose: "synthetic above approved cap"}
+    expected_blockers: [dose_exceeds_approved_maximum]
+    expected_warnings: []
+    expected_calculations: [record_raw_and_cap_comparison]
+    expected_non_actions: [do_not_silently_clamp_without_rule]
+    source_dependencies: [approved-rule-required]
+  - id: pharma-unknown-formulation
+    inputs: {substance: known_candidate, formulation: unknown}
+    expected_blockers: [exact_formulation_required]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_infer_strength_from_brand]
+    source_dependencies: [ammps-medication-list-2026]
+  - id: pharma-unknown-medication
+    inputs: {raw_name: synthetic_unresolved_name}
+    expected_blockers: [substance_identity_unresolved]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_fuzzy_match_to_prescription]
+    source_dependencies: [who-inn-programme, ammps-medication-list-2026]
+  - id: pharma-no-antibiotic-indication
+    inputs: {indication: synthetic_no_indication_case}
+    expected_blockers: [antibiotic_not_indicated]
+    expected_warnings: [definitive_treatment_path_required]
+    expected_calculations: []
+    expected_non_actions: [do_not_generate_antibiotic]
+    source_dependencies: [ada-antibiotics-2019, sdcep-drug-prescribing]
+  - id: pharma-prophylaxis-treatment-confusion
+    inputs: {intent: ambiguous, candidate_rule_families: [prophylaxis, treatment]}
+    expected_blockers: [prescribing_intent_unresolved]
+    expected_warnings: []
+    expected_calculations: []
+    expected_non_actions: [do_not_reuse_treatment_regimen_for_prophylaxis]
+    source_dependencies: [aha-ie-2021, approved-treatment-rule-required]

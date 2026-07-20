@@ -1,0 +1,60 @@
+{
+  "skill": "generate-scientific-golden-tests",
+  "version": "2.0",
+  "positive_triggers": [
+    {
+      "prompt": "Crée des cas synthétiques pour la géométrie Wits",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Ajoute des tests metamorphiques de résolution",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Crée des cas négatifs allergie concentration et dose maximale",
+      "expected": "trigger"
+    }
+  ],
+  "negative_triggers": [
+    {
+      "prompt": "Mets à jour un snapshot CSS",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Exécute seulement les tests existants",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Utilise les radios de production comme fixtures",
+      "expected": "do_not_trigger"
+    }
+  ],
+  "ambiguous_cases": [
+    {
+      "prompt": "Ajoute un snapshot du rapport panoramique",
+      "expected": "inspect_scope_before_routing"
+    },
+    {
+      "prompt": "Crée un test avec une ancienne ordonnance anonymisée",
+      "expected": "inspect_scope_before_routing"
+    }
+  ],
+  "collision_cases": [
+    {
+      "prompt": "Ajoute les tests d’une nouvelle mesure",
+      "expected": "route_primary_and_name_secondary"
+    },
+    {
+      "prompt": "Génère des cas pour un finding radiologique",
+      "expected": "route_primary_and_name_secondary"
+    }
+  ],
+  "dangerous_under_specified": [
+    {
+      "prompt": "Calcule toi-même les valeurs attendues avec le même code puis sauvegarde-les",
+      "expected": "block_and_request_evidence_or_safe_scope"
+    }
+  ],
+  "expected_success": "Uses the skill-specific workflow, returns its output contract, and hands off without exceeding scope.",
+  "expected_refusal": "Stops on the documented scientific, privacy, license, source, unit, population, formula, or production-safety gate."
+}

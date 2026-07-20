@@ -26,34 +26,39 @@ class BilanOrthoEngine:
         }
 
     def _generate_resume_cephalo(self, cephalo: schemas.CephaloAnalysisResult) -> str:
-        # Reprise du diagnostic squelettique et dentaire déterministe
         narrative = cephalo.ai_narrative or {}
         diag_sq = narrative.get("diagnostic_squelettique", "")
         diag_dent = narrative.get("analyse_dentaire", "")
-        
-        # S'il manque, on le reconstruit avec la logique de consensus
+
         if not diag_sq or len(diag_sq) < 20:
-            ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 2.3
-            anb = cephalo.metrics.analyse_osseuse.ANB.valeur or 2.0
-            
-            # Logic de consensus
-            cl = "I"
-            if anb > 4.5 or ab > 5.4: cl = "II"
-            elif anb < 0 or ab < -0.8: cl = "III"
-            
-            tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur or 26
-            div = "normodivergente"
-            if tweed > 30: div = "hyperdivergente"
-            elif tweed < 22: div = "hypodivergente"
-            
-            diag_sq = f"Base squelettique de Classe {cl}. Typologie faciale {div} (Tweed = {tweed}°)."
+            ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
+            anb = cephalo.metrics.analyse_osseuse.ANB.valeur
+            tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur
+            parts = []
+            cl = None
+            if (anb is not None and anb > 4.5) or (ab is not None and ab > 5.4):
+                cl = "II"
+            elif (anb is not None and anb < 0) or (ab is not None and ab < -0.8):
+                cl = "III"
+            elif anb is not None or ab is not None:
+                cl = "I"
+            if cl is not None:
+                parts.append(f"Base squelettique de Classe {cl}.")
+            if tweed is not None:
+                div = "normodivergente"
+                if tweed > 30:
+                    div = "hyperdivergente"
+                elif tweed < 22:
+                    div = "hypodivergente"
+                parts.append(f"Typologie faciale {div} (Tweed = {tweed}\u00b0).")
+            diag_sq = " ".join(parts)
 
         if not diag_dent:
-            impa = cephalo.metrics.analyse_dentaire.IMPA.valeur or 90
-            diag_dent = f"Position incisive mandibulaire : IMPA = {impa}°."
+            impa = cephalo.metrics.analyse_dentaire.IMPA.valeur
+            if impa is not None:
+                diag_dent = f"Position incisive mandibulaire : IMPA = {impa}\u00b0."
 
         return f"{diag_sq} {diag_dent}".strip()
-
     def _generate_resume_moulages(self, clinique: schemas.ClinicalData) -> str:
         parts = []
         
@@ -92,35 +97,28 @@ class BilanOrthoEngine:
         return " ".join(parts)
 
     def _generate_synthese_diagnostique(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> str:
-        # Croisement intelligent Radio / Clinique
-        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 2.3
-        anb = cephalo.metrics.analyse_osseuse.ANB.valeur or 2.0
-        ddm = clinique.ddm_reelle or 0
-        impa = cephalo.metrics.analyse_dentaire.IMPA.valeur or 90
-        
+        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
+        anb = cephalo.metrics.analyse_osseuse.ANB.valeur
+        ddm = clinique.ddm_reelle
+        impa = cephalo.metrics.analyse_dentaire.IMPA.valeur
         synthese = []
-        
-        # Consensus Classe
-        is_cl2 = anb > 4.5 or ab > 5.4
-        is_cl3 = anb < 0 or ab < -0.8
-
+        is_cl2 = (anb is not None and anb > 4.5) or (ab is not None and ab > 5.4)
+        is_cl3 = (anb is not None and anb < 0) or (ab is not None and ab < -0.8)
         if is_cl2:
-            synthese.append("La Classe II squelettique est le problème sagittal majeur.")
-            if ddm < -4:
-                synthese.append("Elle est aggravée par un encombrement dentaire limitant les compensations.")
-            if impa > 95:
-                synthese.append("Notez une forte proalvéolie mandibulaire (compensation physiologique à gérer).")
+            synthese.append("La Classe II squelettique est le probl\u00e8me sagittal majeur.")
+            if ddm is not None and ddm < -4:
+                synthese.append("Elle est aggrav\u00e9e par un encombrement dentaire limitant les compensations.")
+            if impa is not None and impa > 95:
+                synthese.append("Notez une forte proalv\u00e9olie mandibulaire (compensation physiologique \u00e0 g\u00e9rer).")
         elif is_cl3:
-            synthese.append("Problématique de Classe III squelettique identifiée.")
-            if impa < 85:
-                synthese.append("L'incisive inférieure est linguoversée en tentative de compensation naturelle.")
-        else:
-            synthese.append("Bases osseuses équilibrées sagittalement (Classe I).")
-            if ddm < -5:
-                synthese.append("L'encombrement dentaire (DDM) constitue le défi thérapeutique principal.")
-                
+            synthese.append("Probl\u00e9matique de Classe III squelettique identifi\u00e9e.")
+            if impa is not None and impa < 85:
+                synthese.append("L'incisive inf\u00e9rieure est linguovers\u00e9e en tentative de compensation naturelle.")
+        elif anb is not None or ab is not None:
+            synthese.append("Bases osseuses \u00e9quilibr\u00e9es sagittalement (Classe I).")
+            if ddm is not None and ddm < -5:
+                synthese.append("L'encombrement dentaire (DDM) constitue le d\u00e9fi th\u00e9rapeutique principal.")
         return " ".join(synthese)
-
     def _generate_plan_traitement(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> str:
         """
         Arbre Décisionnel Expert (Elite v5.0).
@@ -131,9 +129,9 @@ class BilanOrthoEngine:
             return clinique.plan_traitement
             
         cvm = clinique.cvm or "CS3"
-        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur or 4.0
-        tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur or 26
-        ddm = clinique.ddm_reelle or 0
+        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
+        tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur
+        ddm = clinique.ddm_reelle
         denture = clinique.denture_type or "PERMANENTE"
         tech = clinique.preference_technique or "DAMON"
         
@@ -149,12 +147,12 @@ class BilanOrthoEngine:
             plan.append(f"Patient en denture permanente. Objectif : Alignement, nivellement et coordination occlusale.")
 
         # --- 2. PHASE SQUELETTIQUE (Orthopédie / Chirurgie) ---
-        if ab > 7: # Classe II marquée
+        if ab is not None and ab > 7: # Classe II marquée
             if is_interceptive:
                 plan.append("- **Orthopédie** : Correction fonctionnelle de la Classe II (Twin Block ou Activateur) pour stimuler la croissance mandibulaire.")
             else:
                 plan.append("- **Orthodontie** : Camouflage par recul en masse (mini-vis) ou chirurgie orthognathique (BSSO) si le décalage est trop sévère.")
-        elif ab < 1: # Classe III
+        elif ab is not None and ab < 1: # Classe III
             if cvm in ["CS1", "CS2"]:
                 plan.append("- **Orthopédie** : Traction maxillaire précoce via Masque de Delaire et disjonction palatine.")
             else:
@@ -162,8 +160,11 @@ class BilanOrthoEngine:
 
         # --- 3. GESTION DE L'ESPACE & TECHNIQUE ---
         if tech == "DAMON":
-            plan.append(f"- **Mécanique Passive (Système Damon)** : Expansion physiologique privilégiée. Utilisation de forces légères pour limiter les extractions malgré une DDM de {ddm} mm.")
-            if ddm < -7:
+            mechanical_text = "- **M\u00e9canique Passive (Syst\u00e8me Damon)** : Expansion physiologique privil\u00e9gi\u00e9e. Utilisation de forces l\u00e9g\u00e8res pour limiter les extractions."
+            if ddm is not None:
+                mechanical_text = f"- **M\u00e9canique Passive (Syst\u00e8me Damon)** : Expansion physiologique privil\u00e9gi\u00e9e. Utilisation de forces l\u00e9g\u00e8res pour limiter les extractions malgr\u00e9 une DDM de {ddm} mm."
+            plan.append(mechanical_text)
+            if ddm is not None and ddm < -7:
                 plan.append("  *Note : Surveillance étroite de l'ancrage. Extractions à réévaluer après alignement.*")
         elif tech == "ALIGNEURS":
             plan.append("- **Système d'Aligneurs (Invisalign)** : Séquençage précis des mouvements. Prévoir stripping (IPR) pour résoudre l'encombrement.")

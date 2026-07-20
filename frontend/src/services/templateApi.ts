@@ -12,7 +12,6 @@ import type {
   DocumentTemplateUpdate,
   TemplatePreviewRequest,
   LetterheadUploadResponse,
-  CardExtractionResult,
 } from '../types/template';
 
 // --- Cabinet API ---
@@ -82,17 +81,6 @@ export const cabinetApi = {
     return data;
   },
 
-  /**
-   * Extraire les infos d'une carte de visite (JPEG/PDF) via IA
-   */
-  extractCard: async (file: File): Promise<CardExtractionResult> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const { data } = await api.post('/clinics/extract-card', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return data;
-  },
 };
 
 // --- Templates API ---

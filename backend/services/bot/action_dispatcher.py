@@ -957,40 +957,10 @@ class ActionDispatcher:
             ],
         )
 
-    def build_conversational(self, kind: str, raw_message: str):
-        """
-        Construit (messages_llm, mapping) pour une réponse conversationnelle
-        (GREETING/UNKNOWN). Le message est anonymisé avant passage au LLM.
-        Utilisé par le chemin non-stream ET le streaming SSE.
-        """
-        from backend.services.security.data_sanitizer import data_sanitizer
-        sanitized_message, mapping = data_sanitizer.sanitize(raw_message)
-        if kind == "GREETING":
-            prompt = (
-                f"L'utilisateur vient de te saluer ou de te dire : '{sanitized_message}'. "
-                "Réponds brièvement, de manière très naturelle et chaleureuse (1-2 phrases max) en tant que Crown Bot (assistant IA d'un logiciel de gestion dentaire). "
-                "Propose ton aide (ex: chercher un patient, afficher l'agenda, etc.). "
-                "Réponds en texte brut, n'utilise pas de JSON ni de markdown complexe."
-            )
-        else:
-            prompt = (
-                f"L'utilisateur t'a dit ceci : '{sanitized_message}'. "
-                "Cependant, tu n'as pas réussi à comprendre l'intention exacte car cela sort de tes capacités principales (agenda, finances, recherche patient, devis). "
-                "Réponds poliment en tant que Crown Bot (assistant de cabinet dentaire), indique avec tact que tu n'as pas compris, et invite l'utilisateur à taper 'aide'. "
-                "Réponds en texte brut (1-2 phrases max), sois concis et professionnel."
-            )
-        return [{"role": "user", "content": prompt}], mapping
-
     def _conversational_response(self, kind: str, parsed: ParsedIntent) -> BotResponse:
-        """Réponse conversationnelle non-streaming (GREETING/UNKNOWN)."""
-        from backend.services.bot.llm_parser import llm_parser
-        from backend.services.security.data_sanitizer import data_sanitizer
-
-        messages, mapping = self.build_conversational(kind, parsed.raw_message)
-        raw = llm_parser.complete(messages, temperature=0.5, timeout=4.0)
-        text = data_sanitizer.restore(raw, mapping) if raw else CONVERSATIONAL_FALLBACK[kind]
+        """Réponse déterministe pour GREETING/UNKNOWN."""
         return BotResponse(
-            message=text or CONVERSATIONAL_FALLBACK[kind],
+            message=CONVERSATIONAL_FALLBACK[kind],
             action_type="info",
             suggestions=CONVERSATIONAL_SUGGESTIONS[kind],
         )

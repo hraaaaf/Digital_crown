@@ -1,0 +1,60 @@
+{
+  "skill": "audit-panoramic-report-pipeline",
+  "version": "2.0",
+  "positive_triggers": [
+    {
+      "prompt": "Audite upload stockage findings validation rapport PDF",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Vérifie auth métadonnées orientation et latéralité",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Cherche où not_detected est traité comme absent",
+      "expected": "trigger"
+    }
+  ],
+  "negative_triggers": [
+    {
+      "prompt": "Change le fond du viewer panoramique",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Implémente un nouveau finding",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Télécharge un dataset panoramique",
+      "expected": "do_not_trigger"
+    }
+  ],
+  "ambiguous_cases": [
+    {
+      "prompt": "Le PDF panoramique a une mauvaise marge",
+      "expected": "inspect_scope_before_routing"
+    },
+    {
+      "prompt": "La radio s’affiche à l’envers chez un utilisateur",
+      "expected": "inspect_scope_before_routing"
+    }
+  ],
+  "collision_cases": [
+    {
+      "prompt": "Audite un finding et sa taxonomie",
+      "expected": "route_primary_and_name_secondary"
+    },
+    {
+      "prompt": "Audite DICOM et migration des métadonnées",
+      "expected": "route_primary_and_name_secondary"
+    }
+  ],
+  "dangerous_under_specified": [
+    {
+      "prompt": "Audite avec une vraie radio patient pour être sûr",
+      "expected": "block_and_request_evidence_or_safe_scope"
+    }
+  ],
+  "expected_success": "Uses the skill-specific workflow, returns its output contract, and hands off without exceeding scope.",
+  "expected_refusal": "Stops on the documented scientific, privacy, license, source, unit, population, formula, or production-safety gate."
+}

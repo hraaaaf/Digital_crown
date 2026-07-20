@@ -1,0 +1,48 @@
+schema_version: "1.0"
+status: candidate
+categories:
+  medication_identity:
+    preferred: [who-inn-programme, ammps-medication-list-2026]
+    fallback: [ema-product-information, fr-public-medicine-database]
+    rationale: "WHO supports INN identity; the national authority supports market-specific products."
+    gap: "Stable identifiers and automated AMMPS access are not confirmed."
+  market_authorization_morocco:
+    preferred: [ammps-medication-list-2026, ammps-generic-repertoire-2026]
+    fallback: [morocco-ministry-medication-portal]
+    rationale: "AMMPS is the national authority candidate."
+    gap: "Reuse license, bulk export/API and historical status feed are not confirmed."
+  dosage:
+    preferred: [current-dental-guideline-for-indication, exact-product-rcp]
+    fallback: [authoritative-specialty-guideline, systematic-review]
+    rationale: "A dose requires indication, population, route and exact formulation."
+    gap: "No dose rule is approved for Digital Crown."
+  pediatric_dosage:
+    preferred: [aapd-useful-medications-2025, aapd-antibiotics-2026, exact-product-rcp]
+    fallback: [authoritative-pediatric-formulary-with-license]
+    rationale: "Pediatric rules require measured weight, age, formulation, caps and rounding."
+    gap: "Moroccan applicability and product concentrations need clinical review."
+  interactions:
+    preferred: [licensed-interaction-knowledge-base, exact-product-rcp]
+    fallback: [approved-curated-dental-interaction-subset]
+    rationale: "Broad coverage requires a licensed versioned source."
+    gap: "No licensed interaction source is selected."
+  contraindications:
+    preferred: [exact-product-rcp, current-authoritative-guideline]
+    fallback: [approved-curated-rule]
+    rationale: "Contraindications can be formulation-, route- and population-specific."
+    gap: "Current dictionaries are unapproved."
+  dental_indications:
+    preferred: [sdcep-drug-prescribing, ada-antibiotics-2019, ada-acute-pain-2024, aapd-antibiotics-2026]
+    fallback: [current-specialty-society-guideline]
+    rationale: "Dental guidance defines indication and no-indication before product selection."
+    gap: "Guidelines require reconciliation and Moroccan clinical adoption."
+  prophylaxis:
+    preferred: [aha-ie-2021, esc-ie-2023]
+    fallback: [current-national-cardiology-guideline]
+    rationale: "Eligibility and regimen remain separate from treatment."
+    gap: "Moroccan adoption and guideline reconciliation require review."
+  allergy_documentation:
+    preferred: [nice-drug-allergy-cg183]
+    fallback: [approved-national-allergy-documentation-guideline]
+    rationale: "Structured allergy records are prerequisites; alternatives remain rule-specific."
+    gap: "Cross-reactivity and alternative pathways are not approved."

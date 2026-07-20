@@ -1,12 +1,10 @@
 import React from 'react';
-import { Camera, Check, Sparkles, Plus, X, Type } from 'lucide-react';
+import { Check, Plus, X, Type } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import { SPECIALTIES_DICT } from '../../constants';
 import type { ContactType } from '../../types';
 
 interface Props {
-  handleCardImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  isExtracting: boolean;
   selectedSpecialties: string[];
   setSelectedSpecialties: React.Dispatch<React.SetStateAction<string[]>>;
   customSpecialty: { fr: string; ar: string };
@@ -21,7 +19,6 @@ interface Props {
 void (null as unknown as ContactType);
 
 export const Step2Specialties: React.FC<Props> = ({
-  handleCardImport, isExtracting,
   selectedSpecialties, setSelectedSpecialties,
   customSpecialty, setCustomSpecialty,
   showCustomModal, setShowCustomModal,
@@ -34,34 +31,6 @@ export const Step2Specialties: React.FC<Props> = ({
     </div>
 
     <div className="flex flex-col gap-4">
-      <div className="relative group">
-        <input
-          type="file"
-          id="card-upload"
-          className="hidden"
-          accept="image/*,application/pdf"
-          onChange={handleCardImport}
-        />
-        <label
-          htmlFor="card-upload"
-          className={cn(
-            "flex items-center justify-center gap-3 p-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 cursor-pointer transition-all hover:bg-primary/10 hover:border-primary group-hover:scale-[1.02]",
-            isExtracting && "opacity-50 pointer-events-none animate-pulse"
-          )}
-        >
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-            <Camera size={20} />
-          </div>
-          <div className="text-left">
-            <span className="block font-black text-xs text-primary uppercase tracking-tighter">
-              {isExtracting ? "Extraction IA en cours..." : "Importer depuis une Carte de Visite"}
-            </span>
-            <span className="text-[10px] text-slate-500">Remplissage automatique intelligent</span>
-          </div>
-          <Sparkles className="ml-auto text-primary/40" size={16} />
-        </label>
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         {SPECIALTIES_DICT.map((spec) => (
           <button

@@ -57,7 +57,6 @@ export const SetupWizard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCustomModal, setShowCustomModal] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
   const [showArKeyboard, setShowArKeyboard] = useState<{ show: boolean; target: 'identity' | 'custom_spec' }>({ show: false, target: 'identity' });
 
   // Files and UI state (not persisted)
@@ -66,9 +65,6 @@ export const SetupWizard: React.FC = () => {
   const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
-
-  // Confirmation modal for card-import overwrite
-  const [confirmOverwriteFile, setConfirmOverwriteFile] = useState<File | null>(null);
 
   useEffect(() => {
     const brandIdentity = BRAND_IDENTITIES.find(i => i.id === selectedIdentity) || BRAND_IDENTITIES[0];
@@ -79,43 +75,6 @@ export const SetupWizard: React.FC = () => {
     root.style.setProperty('--secondary', brandIdentity.secondary);
     root.style.setProperty('--accent', brandIdentity.accent);
   }, [selectedTheme, selectedIdentity]);
-
-  const doExtraction = async (file: File) => {
-    setIsExtracting(true);
-    try {
-      const data = await cabinetApi.extractCard(file);
-      if (data && !data.error) {
-        setIdentity((prev: IdentityState) => ({
-          ...prev,
-          nomCabinet: data.nom_cabinet || prev.nomCabinet,
-          nomPraticien: data.nom_praticien || prev.nomPraticien,
-          nomPraticienAR: data.nom_praticien_ar || prev.nomPraticienAR,
-          adresse: data.adresse || prev.adresse,
-        }));
-        if (data.specialites && Array.isArray(data.specialites)) {
-          const matched = SPECIALTIES_DICT.filter(s =>
-            data.specialites?.some((ext: string) => ext.toLowerCase().includes(s.fr.toLowerCase()))
-          ).map(s => s.id);
-          if (matched.length > 0) setSelectedSpecialties(prev => Array.from(new Set([...prev, ...matched])));
-        }
-      }
-    } catch {
-      toast.error("Erreur lors de l'extraction de la carte.");
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
-  const handleCardImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const hasExistingData = identity.nomCabinet || identity.nomPraticien;
-    if (hasExistingData) {
-      setConfirmOverwriteFile(file);
-    } else {
-      doExtraction(file);
-    }
-  };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -276,7 +235,7 @@ export const SetupWizard: React.FC = () => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[4rem] pointer-events-none" />
 
             {currentStep === 1 && <Step1Identity cabinetType={cabinetType} setCabinetType={setCabinetType} identity={identity} setIdentity={setIdentity} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
-            {currentStep === 2 && <Step2Specialties handleCardImport={handleCardImport} isExtracting={isExtracting} selectedSpecialties={selectedSpecialties} setSelectedSpecialties={setSelectedSpecialties} customSpecialty={customSpecialty} setCustomSpecialty={setCustomSpecialty} showCustomModal={showCustomModal} setShowCustomModal={setShowCustomModal} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
+            {currentStep === 2 && <Step2Specialties selectedSpecialties={selectedSpecialties} setSelectedSpecialties={setSelectedSpecialties} customSpecialty={customSpecialty} setCustomSpecialty={setCustomSpecialty} showCustomModal={showCustomModal} setShowCustomModal={setShowCustomModal} errors={errors} setShowArKeyboard={setShowArKeyboard} />}
             {currentStep === 3 && <Step3Contacts contacts={contacts} setContacts={setContacts} identity={identity} setIdentity={setIdentity} errors={errors} />}
             {currentStep === 4 && <StepQR qrConfig={qrConfig} setQrConfig={setQrConfig} />}
             {currentStep === 5 && <Step5Design headerOption={headerOption} setHeaderOption={setHeaderOption} selectedIdentity={selectedIdentity} setSelectedIdentity={setSelectedIdentity} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate} logoPreview={logoPreview} letterheadPreview={letterheadPreview} logoInputRef={logoInputRef} letterheadInputRef={letterheadInputRef} handleLogoChange={handleLogoChange} handleLetterheadChange={handleLetterheadChange} margins={margins} setMargins={setMargins} headerScale={headerScale} setHeaderScale={setHeaderScale} advanced={{ headerFontScale, setHeaderFontScale, headerLogoScale, setHeaderLogoScale, headerLineHeight, setHeaderLineHeight, footerFontScale, setFooterFontScale, footerQrScale, setFooterQrScale, footerLineHeight, setFooterLineHeight }} />}
@@ -372,28 +331,7 @@ export const SetupWizard: React.FC = () => {
         }}
         onClose={() => setShowArKeyboard(prev => ({ ...prev, show: false }))}
       />
-
-      {/* Overwrite confirmation modal for card import */}
-      {confirmOverwriteFile && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[2rem] shadow-2xl p-8 max-w-sm w-full space-y-6 border border-white/20">
-            <div>
-              <h3 className="text-lg font-black text-slate-900 mb-2">Données existantes détectées</h3>
-              <p className="text-sm text-slate-500">Des informations d'identité ont déjà été saisies. Voulez-vous les remplacer par l'extraction IA ?</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmOverwriteFile(null)} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-50 transition-all">Annuler</button>
-              <button
-                onClick={() => { const f = confirmOverwriteFile; setConfirmOverwriteFile(null); doExtraction(f); }}
-                className="flex-1 py-3 rounded-xl bg-primary text-white text-xs font-black shadow-lg shadow-primary/20 hover:opacity-90 transition-all"
-              >
-                Remplacer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 };
 

@@ -52,7 +52,7 @@ class EliteManager:
             # 1b. Enrichissement RAG — contexte historique patient
             rag_ctx = build_patient_rag_context(patient_id, db)
 
-            # 2. Audit de cohérence (Déterministe + IA Sémantique)
+            # 2. Audit de cohérence déterministe.
             warnings = []
             if doc_data:
                 warnings = await coherence_service.analyze_coherence(

@@ -42,11 +42,9 @@ class CephaloService:
         auto_ratio = calibration_service.detect_mm_per_pixel(file_path)
         if auto_ratio is None:
             logger.warning(
-                "Auto-calibration échouée — ratio par défaut 0.1 mm/px utilisé. "
-                "Les mesures en millimètres de cette analyse ne sont pas fiables "
-                "tant qu'une calibration manuelle n'est pas effectuée."
+                "Auto-calibration unavailable; linear millimeter metrics will not be calculated."
             )
-        mm_ratio = auto_ratio if auto_ratio else 0.1
+        mm_ratio = auto_ratio
         logger.info(f"Ratio retenu : {mm_ratio} mm/px (Auto: {auto_ratio is not None})")
 
         # 3. Calcul des métriques Géométriques -> CephaloAnalysisResult
@@ -63,10 +61,6 @@ class CephaloService:
             "warning": vision_result.get("warning"),
             "processing_time_ms": vision_result["processing_time_ms"]
         }
-        # Correctif transitoire d'honnêteté (audit fonctionnel 2026-07-12) : les mesures
-        # mm calculées avec le ratio par défaut ne doivent jamais être présentées comme
-        # fiables. Consommé par le validateur (cephalo_consistency_validator) et par
-        # Step4Documents côté frontend.
         final_data_dict["calibration_status"] = "verified" if auto_ratio else "unverified"
 
         # 4. Persistance via Repository
@@ -101,10 +95,20 @@ class CephaloService:
         pts_list = [p.model_dump() if hasattr(p, 'model_dump') else p for p in landmarks]
         points_dict = {p['id']: (p['x'], p['y']) for p in pts_list}
         
+        existing = self.repo.get_by_id(analysis_id)
+        if not existing:
+            raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")
+
+        # Preserve the established calibration when an autosave omits the ratio.
+        # An explicit request value always takes precedence.
+        effective_mm_per_pixel = (
+            mm_per_pixel if mm_per_pixel is not None else existing.mm_per_pixel
+        )
+
         # 1. Recalcul Géométrique -> CephaloAnalysisResult
         result = cephalo_engine.calculate_metrics(
             points_dict, 
-            custom_mm_ratio=mm_per_pixel, 
+            custom_mm_ratio=effective_mm_per_pixel,
             mcnamara_projections=mcnamara_projections
         )
 
@@ -123,12 +127,14 @@ class CephaloService:
         # 4. Mise à jour via Repository — réinjecte calibration_status depuis is_calibrated
         # persisté : sans ça, le statut disparaîtrait au premier auto-save (silentSave
         # sauve en continu), y compris juste après une calibration manuelle réussie.
-        existing = self.repo.get_by_id(analysis_id)
-        if not existing:
-            raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")
         final_data_dict["calibration_status"] = "verified" if existing.is_calibrated else "unverified"
 
-        analysis = self.repo.update(analysis_id, pts_list, final_data_dict, mm_per_pixel)
+        analysis = self.repo.update(
+            analysis_id,
+            pts_list,
+            final_data_dict,
+            effective_mm_per_pixel,
+        )
 
         if not analysis:
             raise ValueError(f"Analyse {analysis_id} introuvable lors du raffinement.")

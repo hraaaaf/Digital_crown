@@ -169,11 +169,38 @@ class ArchiveService:
                 raise ValueError(conflict["message"])
             
             elif on_conflict == ConflictResolution.OVERWRITE:
-                # Supprimer l'ancien (soft delete)
+                # Remplacer le document existant en place. Cette option est
+                # utilisée par les notes d'honoraires modifiées afin de ne pas
+                # conserver une seconde version visible dans l'archive.
                 old_doc = conflict["existing_document"]
-                old_doc.status = DocumentStatus.SUPPRIME
-                old_doc.deleted_at = datetime.now()
-                old_doc.permanent_delete_at = datetime.now() + timedelta(days=TRASH_RETENTION_DAYS)
+                if old_doc:
+                    if old_doc.file_path.startswith("static/archives/"):
+                        storage_path = MEDIA_DIR / old_doc.file_path.replace("static/", "", 1)
+                    else:
+                        storage_path = BASE_DIR / old_doc.file_path
+                    storage_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(storage_path, "wb") as f:
+                        f.write(file_content)
+
+                    old_doc.file_hash = file_hash
+                    old_doc.file_size = file_size
+                    old_doc.original_filename = filename
+                    old_doc.title = title or filename
+                    old_doc.description = description
+                    old_doc.tags = tags
+                    old_doc.clinical_data = clinical_data
+                    old_doc.analysis_id = analysis_id
+                    old_doc.is_accounted = is_accounted
+                    old_doc.is_collected = is_collected
+                    old_doc.payment_status = payment_status
+                    old_doc.status = DocumentStatus.ACTIF
+                    old_doc.deleted_at = None
+                    old_doc.permanent_delete_at = None
+                    old_doc.is_latest_version = True
+                    old_doc.updated_at = datetime.now()
+                    self.db.commit()
+                    self.db.refresh(old_doc)
+                    return old_doc, False
                 
             elif on_conflict == ConflictResolution.CREATE_VERSION:
                 # Créer une nouvelle version du groupe existant

@@ -1,0 +1,31 @@
+schema_version: "2.0"
+title: Clinical diagnosis rule
+type: object
+required: [id, version, status, source_ids, terminology, required_evidence, output_state, certainty, tooth_scope, missing_data_behavior, contradiction_behavior, limitations, test_references, approval]
+properties:
+  id: {type: string}
+  version: {type: string}
+  status: {type: string}
+  source_ids: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+  terminology: {type: object, required: [canonical_label, code_system, code, version]}
+  required_evidence:
+    type: array
+    items:
+      type: object
+      required: [kind, field, required]
+      properties:
+        kind: {type: string, enum: [symptom, sign, test-result, imaging-observation, finding, history]}
+        field: {type: string}
+        required: {type: boolean}
+  output_state: {type: string, enum: [observation, finding, hypothesis, differential-diagnosis, provisional-diagnosis, confirmed-diagnosis]}
+  certainty: {type: string, enum: [unknown, suspected, probable, confirmed, excluded]}
+  confirmation:
+    type: object
+    required: [requires_clinician, reviewer_id_field, reviewed_at_field]
+  tooth_scope: {type: object, required: [numbering_system, dentition, required]}
+  missing_data_behavior: {type: string}
+  contradiction_behavior: {type: string, enum: [block, require-clinician-review, return-uncertain]}
+  limitations: {type: array, items: {type: string}}
+  test_references: {type: array, items: {type: string}}
+  approval: {type: object}
+additionalProperties: false

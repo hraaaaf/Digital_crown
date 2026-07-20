@@ -222,15 +222,3 @@ export interface LetterheadUploadResponse {
   } | null;
   message: string;
 }
-
-export interface CardExtractionResult {
-  nom_cabinet: string | null;
-  nom_praticien: string | null;
-  nom_praticien_ar: string | null;
-  adresse: string | null;
-  specialites: string[] | null;
-  telephone_fixe: string | null;
-  telephone_mobile: string | null;
-  email: string | null;
-  error?: string;
-}

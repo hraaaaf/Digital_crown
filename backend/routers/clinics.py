@@ -15,7 +15,6 @@ from backend import models, schemas, database
 from backend.config import settings
 from backend.database import get_db
 from backend.routers.auth import get_current_user, get_current_user_optional, is_superadmin_user
-from backend.services.card_extractor import card_extractor
 from backend.services.logo_processor import LogoProcessor
 from backend.services.license_service import LicenseService
 
@@ -471,28 +470,3 @@ async def upload_clinic_letterhead(
         "detected_colors": detected_colors,
         "message": "Letterhead uploadé avec succès.",
     }
-
-@router.post("/extract-card")
-async def extract_business_card(
-    file: UploadFile = File(...),
-    current_user: models.User = Depends(get_current_user)
-):
-    """Extraction IA d'une carte de visite pour remplissage auto."""
-    allowed_types = {"image/jpeg", "image/jpg", "image/png"}
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez JPEG ou PNG uniquement.")
-
-    content = await file.read()
-    if len(content) > 2 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 2 Mo).")
-
-    import tempfile
-    fd, temp_path = tempfile.mkstemp(suffix=".jpg")
-    try:
-        with os.fdopen(fd, "wb") as tmp:
-            tmp.write(content)
-        data = await card_extractor.extract(temp_path)
-        return data
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)

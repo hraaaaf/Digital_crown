@@ -1,0 +1,278 @@
+schema_version: "1.0"
+generated_at: "2026-07-18"
+scope: "Medication and substance labels found in active code, presets, seeds, or clinical examples; excludes expansion of all 4,234 catalog rows."
+catalog_summary:
+  path: backend/data/medications_ma.json
+  records: 4234
+  unique_display_names: 2839
+  unique_dci_strings: 1134
+  unique_form_strings: 182
+  provenance: not_verified
+  reuse_license: not_verified
+  status: needs_review
+entries:
+  - raw_name: "AMOXICILLINE / CLAMOXYL / AMOPEN / BRISTAMOX"
+    normalized_candidate_name: amoxicillin
+    possible_inn: amoxicillin
+    possible_brand: [CLAMOXYL, AMOPEN, BRISTAMOX]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx]
+    current_dose_text: "Multiple fixed adult and mg/kg/day values"
+    current_form: "tablet, capsule, suspension"
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Identity and every formulation require source-specific verification."
+  - raw_name: "AUGMENTIN / ACLAV / AMOCLAN / CLAVUMOX"
+    normalized_candidate_name: amoxicillin-clavulanate
+    possible_inn: "amoxicillin + clavulanic acid"
+    possible_brand: [AUGMENTIN, ACLAV, AMOCLAN, CLAVUMOX]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx]
+    current_dose_text: "Ambiguous 1 g labels and fixed schedules"
+    current_form: "tablet, suspension"
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "The component strengths must never be inferred from a brand plus total mass."
+  - raw_name: "METRONIDAZOLE / FLAGYL"
+    normalized_candidate_name: metronidazole
+    possible_inn: metronidazole
+    possible_brand: [FLAGYL]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx]
+    current_dose_text: "Fixed schedules"
+    current_form: "tablet"
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Indication and combination use are not source-gated."
+  - raw_name: "RODOGYL / BIRODOGYL / BISPIRAZOLE"
+    normalized_candidate_name: spiramycin-metronidazole
+    possible_inn: "spiramycin + metronidazole"
+    possible_brand: [RODOGYL, BIRODOGYL, BISPIRAZOLE]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.tsx]
+    current_dose_text: "Fixed schedules; also used as an automatic allergy substitution"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Automatic substitution is unsafe; exact component strengths vary by product."
+  - raw_name: "PARACETAMOL / DOLIPRANE / EFFERALGAN / DAFALGAN"
+    normalized_candidate_name: paracetamol
+    possible_inn: paracetamol
+    possible_brand: [DOLIPRANE, EFFERALGAN, DAFALGAN]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx]
+    current_dose_text: "Fixed adult and mg/kg/day values"
+    current_form: "tablet, sachet, suspension, suppository"
+    current_route: "oral or not explicit"
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Duplicate ingredient detection is required for combinations."
+  - raw_name: "PARACETAMOL-CODEINE / CODEINE"
+    normalized_candidate_name: paracetamol-codeine
+    possible_inn: "paracetamol + codeine"
+    possible_brand: []
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "Fixed combination examples"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Age, jurisdiction, pharmacogenetic and duplicate-ingredient constraints are unresolved."
+  - raw_name: "IBUPROFENE / ADVIL / NUROFEN / BRUFEN"
+    normalized_candidate_name: ibuprofen
+    possible_inn: ibuprofen
+    possible_brand: [ADVIL, NUROFEN, BRUFEN]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx]
+    current_dose_text: "Fixed adult and mg/kg/day values"
+    current_form: "tablet, suspension"
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "GI, renal, pregnancy, asthma and interaction context is incomplete."
+  - raw_name: "KETOPROFENE / PROFENID"
+    normalized_candidate_name: ketoprofen
+    possible_inn: ketoprofen
+    possible_brand: [PROFENID]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx]
+    current_dose_text: "Fixed adult schedules"
+    current_form: capsule
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Product availability and safety rules require Moroccan verification."
+  - raw_name: "ANTADYS / FLURBIPROFENE"
+    normalized_candidate_name: flurbiprofen
+    possible_inn: flurbiprofen
+    possible_brand: [ANTADYS]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionAgenticStudio.tsx]
+    current_dose_text: "100 mg preset; silently replaced in pediatric preset flow"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "French identity candidate exists; Moroccan market status not established."
+  - raw_name: "SURGAM / ACIGAM"
+    normalized_candidate_name: tiaprofenic-acid
+    possible_inn: tiaprofenic-acid
+    possible_brand: [SURGAM, ACIGAM]
+    found_in_files: [backend/seed.py]
+    current_dose_text: "Fixed protocol schedules"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Candidate identity only."
+  - raw_name: "DICLOFENAC / VOLTARENE / NAPROXEN / APRANAX"
+    normalized_candidate_name: nsaid-candidates
+    possible_inn: "diclofenac or naproxen"
+    possible_brand: [VOLTARENE, APRANAX]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "Fixed examples"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Separate substances and products before use."
+  - raw_name: "CHLORHEXIDINE / ELUDRIL / PAROEX / KIN"
+    normalized_candidate_name: chlorhexidine
+    possible_inn: chlorhexidine
+    possible_brand: [ELUDRIL, PAROEX, KIN]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/PrescriptionForm.tsx]
+    current_dose_text: "0.12% or 0.2% rinse examples"
+    current_form: mouth-rinse
+    current_route: oromucosal
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Brand formulations cannot be assumed equivalent."
+  - raw_name: HEXTRIL
+    normalized_candidate_name: hexetidine
+    possible_inn: hexetidine
+    possible_brand: [HEXTRIL]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx]
+    current_dose_text: "Mouth-rinse preset"
+    current_form: mouth-rinse
+    current_route: oromucosal
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Current frontend maps HEXTRIL to chlorhexidine; French official product data identifies hexetidine. Moroccan product identity remains unverified."
+  - raw_name: "PREDNISOLONE / SOLUPRED / CORTANCYL"
+    normalized_candidate_name: prednisolone-candidate
+    possible_inn: prednisolone
+    possible_brand: [SOLUPRED, CORTANCYL]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts, frontend/src/features/admin/DocumentStudio/Forms/prescriptionTypes.tsx]
+    current_dose_text: "Fixed short-course presets"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Brand-to-substance mapping and indication require product-specific verification."
+  - raw_name: "BETAMETHASONE / CELESTENE"
+    normalized_candidate_name: betamethasone
+    possible_inn: betamethasone
+    possible_brand: [CELESTENE]
+    found_in_files: [backend/seed.py]
+    current_dose_text: "Fixed example"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Candidate identity only."
+  - raw_name: "CLINDAMYCINE / DALACINE"
+    normalized_candidate_name: clindamycin
+    possible_inn: clindamycin
+    possible_brand: [DALACINE]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "Treatment and infective-endocarditis prophylaxis examples"
+    current_form: capsule
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Current AHA prophylaxis guidance no longer recommends clindamycin as an alternative."
+  - raw_name: "AZITHROMYCINE / ZITHROMAX"
+    normalized_candidate_name: azithromycin
+    possible_inn: azithromycin
+    possible_brand: [ZITHROMAX]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "Fixed example"
+    current_form: tablet
+    current_route: oral
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Candidate identity only; indications and interactions unresolved."
+  - raw_name: "MICONAZOLE / DAKTARIN"
+    normalized_candidate_name: miconazole
+    possible_inn: miconazole
+    possible_brand: [DAKTARIN]
+    found_in_files: [backend/seed.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "Topical oral example"
+    current_form: oral-gel
+    current_route: oromucosal
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Interaction strategy is required before activation."
+  - raw_name: "ACIDE TRANEQUAMIQUE / EXACYL"
+    normalized_candidate_name: tranexamic-acid
+    possible_inn: tranexamic-acid
+    possible_brand: [EXACYL]
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/seed.py]
+    current_dose_text: "Automatically proposed around extraction/anticoagulant context"
+    current_form: "tablet or solution not explicit"
+    current_route: unknown
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Automatic addition is an active architecture blocker."
+  - raw_name: "ARTICAINE / LIDOCAINE / MEPIVACAINE / ADRENALINE"
+    normalized_candidate_name: local-anesthetic-candidates
+    possible_inn: "articaine, lidocaine, mepivacaine, epinephrine"
+    possible_brand: []
+    found_in_files: [backend/seed.py, backend/services/clinical_rules_engine.py]
+    current_dose_text: "Concentration and maximum-like examples"
+    current_form: injection
+    current_route: local-injection
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Each substance, vasoconstrictor combination, cartridge volume and patient cap must be separate."
+  - raw_name: "HYPOCHLORITE DE SODIUM / HYDROXYDE DE CALCIUM"
+    normalized_candidate_name: endodontic-local-agents
+    possible_inn: "sodium hypochlorite or calcium hydroxide"
+    possible_brand: []
+    found_in_files: [backend/seed.py]
+    current_dose_text: "Concentration/procedure examples"
+    current_form: dental-local-use
+    current_route: local
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Not systemic prescription rules; requires a distinct local-product model."
+  - raw_name: "ASPIRINE / TETRACYCLINES / CEPHALOSPORINES"
+    normalized_candidate_name: safety-class-references
+    possible_inn: unknown
+    possible_brand: []
+    found_in_files: [backend/services/clinical_rules_engine.py, backend/services/prescription_service.py, frontend/src/features/admin/DocumentStudio/clinical_rules.ts]
+    current_dose_text: "None or class-level warning"
+    current_form: unknown
+    current_route: unknown
+    source_in_code: hardcoded
+    scientific_source_known: false
+    status: needs_review
+    notes: "Class and substance-level allergy/interaction concepts must not be interchanged."
+

@@ -89,6 +89,11 @@ class CephaloConsistencyValidator:
     # Métriques linéaires (mm) : (hard_lo, hard_hi, soft_lo, soft_hi)
     _MM_METRICS: dict[str, tuple[float, float, float, float]] = {
         "Wits":         (-15.0, 15.0,  -2.0,  4.0),
+        # Nom réellement émis par cephalo_engine.py (metrics.wits_mcnamara.Wits_Appraisal) —
+        # "Wits" seul ne matchait jamais cette clé (lookup exact), laissant les bornes
+        # physiologiques inactives sur la donnée de production. Mêmes bornes, pas de
+        # renommage : "Wits" reste pour d'éventuelles données historiques.
+        "Wits_Appraisal": (-15.0, 15.0, -2.0,  4.0),
         "I_NA_mm":      (-5.0,  15.0,   2.0,  6.0),
         "I_NB_mm":      (-5.0,  15.0,   2.0,  6.0),
         "Surplomb":     (-10.0, 12.0,   1.0,  4.0),

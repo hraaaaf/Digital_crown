@@ -12,6 +12,8 @@ from backend.services.cephalo_engine import cephalo_engine
 # Ls_soft à gauche, Li_soft à droite — suffisant pour calculer les deux distances et
 # l'angle nasolabial sans dépendre du reste du squelette (guardé par des `if pts[...]`).
 SOTA_SOFT_TISSUE_POINTS = {
+    "Po": (40.0, 40.0),
+    "Or": (80.0, 40.0),
     "Prn": (100.0, 40.0),
     "Pog_soft": (100.0, 200.0),
     "Ls_soft": (92.0, 100.0),
@@ -20,6 +22,8 @@ SOTA_SOFT_TISSUE_POINTS = {
 }
 
 LEGACY_SOFT_TISSUE_POINTS = {
+    "Po": (40.0, 40.0),
+    "Or": (80.0, 40.0),
     "Prn": (100.0, 40.0),
     "Pog_soft": (100.0, 200.0),
     "Ls": (92.0, 100.0),

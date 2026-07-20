@@ -44,7 +44,7 @@ class TestClinicalNorms:
     def test_adult_norms_returned(self):
         norms = ClinicalNorms.get(is_child=False)
         assert norms["ab_mean"] == 2.3
-        assert norms["tweed_default"] == 26
+        assert "tweed_default" not in norms
 
     def test_child_norms_returned(self):
         norms = ClinicalNorms.get(is_child=True)
@@ -174,6 +174,10 @@ class TestDentalDiagnostic:
         out = self.advisor.generate_diagnostic(_make_result(recouv=5.0))
         assert "deep bite" in out["analyse_dentaire"]
 
+    def test_negative_recouvrement_does_not_report_deep_bite(self):
+        out = self.advisor.generate_diagnostic(_make_result(recouv=-2.0))
+        assert "deep bite" not in out["analyse_dentaire"]
+
     def test_impa_compensated_mention(self):
         result = _make_result(impa_status="Compensated")
         # Add plage_compensation
@@ -238,11 +242,12 @@ class TestTherapeuticStrategy:
         out = self.advisor.generate_diagnostic(_make_result(cohort="Adulte"))
         assert "Multi-attaches" in out["strategie_therapeutique"]
 
-    def test_none_values_use_defaults(self):
+    def test_none_values_are_not_reported_as_normals(self):
         result = _make_result()
         result.metrics.analyse_osseuse.Decalage_A_B.valeur = None
         result.metrics.analyse_osseuse.Angle_de_Tweed.valeur = None
         result.metrics.analyse_dentaire.IMPA.valeur = None
         out = self.advisor.generate_diagnostic(result)
-        # Should not raise, should use defaults from norms
-        assert "diagnostic_squelettique" in out
+        assert "A-B = 2.3 mm" not in out["diagnostic_squelettique"]
+        assert "Tweed = 26" not in out["diagnostic_squelettique"]
+        assert "IMPA = 90" not in out["analyse_dentaire"]

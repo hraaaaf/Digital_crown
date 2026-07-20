@@ -1,0 +1,23 @@
+schema_version: "2.0"
+title: Radiology observation and finding
+type: object
+required: [id, canonical_name, version, status, source_ids, record_kind, modalities, anatomical_scope, localization, image_quality_prerequisites, evaluability, confidence, review_state, reporting_rules, limitations, test_references, approval]
+properties:
+  id: {type: string}
+  canonical_name: {type: string}
+  version: {type: string}
+  status: {type: string}
+  source_ids: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+  record_kind: {type: string, enum: [image-observation, candidate-finding, validated-finding, differential-diagnosis-link]}
+  modalities: {type: array, items: {type: string}}
+  anatomical_scope: {type: array, items: {type: string}}
+  localization: {type: object, required: [required, tooth_system, laterality_required]}
+  image_quality_prerequisites: {type: array, items: {type: string}}
+  evaluability: {type: string, enum: [evaluable, partially-evaluable, non-evaluable]}
+  confidence: {type: object, required: [required, meaning, source_model_version]}
+  review_state: {type: string, enum: [machine-candidate, clinician-pending, clinician-validated, clinician-rejected]}
+  reporting_rules: {type: object}
+  limitations: {type: array, items: {type: string}}
+  test_references: {type: array, items: {type: string}}
+  approval: {type: object}
+additionalProperties: false

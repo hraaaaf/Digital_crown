@@ -67,6 +67,9 @@ class TestCalibrationStatusOnNewRadio:
         assert result["results"]["calibration_status"] == "unverified"
         assert result["is_calibrated"] is False
         assert result["results"]["metrics"]["analyse_osseuse"]["SNA"]["valeur"] is not None
+        assert result["mm_per_pixel"] is None
+        assert result["results"]["analysis_metadata"]["pixel_ratio"] is None
+        assert result["results"]["metrics"]["analyse_dentaire"]["Surplomb"]["valeur"] is None
 
     def test_verified_when_auto_calibration_succeeds(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste)
@@ -87,7 +90,7 @@ class TestCalibrationStatusOnNewRadio:
 
 
 class TestCalibrationStatusPersistedOnRefine:
-    def test_refine_preserves_verified_status(self, db, dentiste, monkeypatch):
+    def test_calibrated_refine_without_ratio_reuses_stored_ratio(self, db, dentiste, monkeypatch):
         pat = _make_patient(db, dentiste)
         monkeypatch.setattr(
             cephalo_service_module.vision_engine, "predict_landmarks",
@@ -95,17 +98,60 @@ class TestCalibrationStatusPersistedOnRefine:
         )
         monkeypatch.setattr(
             calibration_service_module.calibration_service, "detect_mm_per_pixel",
-            lambda file_path: 0.11,
+            lambda file_path: 0.237,
         )
         service = CephaloService(db)
         created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
-        analysis_id = created["analysis_id"]
 
-        # Auto-save (refine_analysis) sans repasser par la calibration — le statut doit
-        # être réinjecté depuis is_calibrated persisté, pas retomber à "unverified".
-        landmarks = [
-            {"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS
-        ]
-        refined = service.refine_analysis(analysis_id, landmarks, mm_per_pixel=0.11)
+        refined = service.refine_analysis(
+            created["analysis_id"],
+            [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+        )
 
         assert refined["results"]["calibration_status"] == "verified"
+        assert refined["is_calibrated"] is True
+        assert refined["mm_per_pixel"] == 0.237
+        assert refined["results"]["analysis_metadata"]["pixel_ratio"] == 0.237
+
+    def test_explicit_refine_ratio_overrides_stored_ratio(self, db, dentiste, monkeypatch):
+        pat = _make_patient(db, dentiste, nom="CEPHCAL_EXPLICIT")
+        monkeypatch.setattr(
+            cephalo_service_module.vision_engine, "predict_landmarks",
+            lambda file_path: _fake_vision_result(),
+        )
+        monkeypatch.setattr(
+            calibration_service_module.calibration_service, "detect_mm_per_pixel",
+            lambda file_path: 0.237,
+        )
+        service = CephaloService(db)
+        created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
+
+        refined = service.refine_analysis(
+            created["analysis_id"],
+            [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+            mm_per_pixel=0.250,
+        )
+
+        assert refined["mm_per_pixel"] == 0.250
+        assert refined["results"]["analysis_metadata"]["pixel_ratio"] == 0.250
+
+    def test_uncalibrated_refine_does_not_become_verified(self, db, dentiste, monkeypatch):
+        pat = _make_patient(db, dentiste, nom="CEPHCAL_UNVERIFIED")
+        monkeypatch.setattr(
+            cephalo_service_module.vision_engine, "predict_landmarks",
+            lambda file_path: _fake_vision_result(),
+        )
+        monkeypatch.setattr(
+            calibration_service_module.calibration_service, "detect_mm_per_pixel",
+            lambda file_path: None,
+        )
+        service = CephaloService(db)
+        created = service.process_new_radio(pat.id, "fake_path.jpg", "fake_db_path")
+
+        refined = service.refine_analysis(
+            created["analysis_id"],
+            [{"id": lm["id"], "x": lm["x"], "y": lm["y"]} for lm in _FAKE_LANDMARKS],
+        )
+
+        assert refined["is_calibrated"] is False
+        assert refined["results"]["calibration_status"] == "unverified"

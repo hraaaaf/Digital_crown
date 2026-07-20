@@ -151,7 +151,12 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 is_accounted=req.is_accounted, 
                 payment_status=p_status,
                 is_collected=p_collected,
-                on_conflict=schemas.ConflictResolution.CREATE_VERSION if force else schemas.ConflictResolution.CANCEL
+                on_conflict=(
+                    schemas.ConflictResolution.OVERWRITE
+                    if force and req.type in ["honoraires", "note"]
+                    else schemas.ConflictResolution.CREATE_VERSION if force
+                    else schemas.ConflictResolution.CANCEL
+                )
             )
             pdf_path = doc.file_path
 
@@ -239,7 +244,7 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                         db.add(payment_obj)
                         db.commit()
 
-        # Analyse de cohérence (Phase 1 & 2)
+        # Analyse de cohérence déterministe.
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
 
         # Nettoyage du chemin pour le frontend

@@ -1,0 +1,60 @@
+{
+  "skill": "validate-cephalo-pipeline",
+  "version": "2.0",
+  "positive_triggers": [
+    {
+      "prompt": "Valide import calibration landmarks mesures et PDF",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Teste le recalcul après déplacement d’un landmark",
+      "expected": "trigger"
+    },
+    {
+      "prompt": "Vérifie invariance à la résolution et convention de signe",
+      "expected": "trigger"
+    }
+  ],
+  "negative_triggers": [
+    {
+      "prompt": "Ajoute la mesure Wits",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Change l’épaisseur des traits céphalo",
+      "expected": "do_not_trigger"
+    },
+    {
+      "prompt": "Modifie le texte du bouton calibration",
+      "expected": "do_not_trigger"
+    }
+  ],
+  "ambiguous_cases": [
+    {
+      "prompt": "Les valeurs céphalo semblent différentes dans le PDF",
+      "expected": "inspect_scope_before_routing"
+    },
+    {
+      "prompt": "Le zoom du canvas est cassé",
+      "expected": "inspect_scope_before_routing"
+    }
+  ],
+  "collision_cases": [
+    {
+      "prompt": "Valide Wits après son implémentation",
+      "expected": "route_primary_and_name_secondary"
+    },
+    {
+      "prompt": "Audite un nouveau profil normatif",
+      "expected": "route_primary_and_name_secondary"
+    }
+  ],
+  "dangerous_under_specified": [
+    {
+      "prompt": "Valide le pipeline en acceptant les snapshots actuels comme vérité",
+      "expected": "block_and_request_evidence_or_safe_scope"
+    }
+  ],
+  "expected_success": "Uses the skill-specific workflow, returns its output contract, and hands off without exceeding scope.",
+  "expected_refusal": "Stops on the documented scientific, privacy, license, source, unit, population, formula, or production-safety gate."
+}

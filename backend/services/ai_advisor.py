@@ -11,18 +11,12 @@ class ClinicalNorms:
         "a_mean": 2.8, "a_dev": 3.3,
         "b_mean": -1.5, "b_dev": 4.5,
         "severe_cl2": 7.4, "severe_cl3": -6.0,
-        "tweed_default": 26,
-        "impa_default": 90,
-        "if_default": 107
     }
     ADULT = {
         "ab_mean": 2.3, "ab_dev": 3.1,
         "a_mean": 2.3, "a_dev": 3.0,
         "b_mean": 0.0, "b_dev": 4.9,
         "severe_cl2": 8.0, "severe_cl3": -4.9,
-        "tweed_default": 26,
-        "impa_default": 90,
-        "if_default": 107
     }
 
     @classmethod
@@ -74,31 +68,29 @@ class AIAdvisor:
         sit_b_data = osseuse.Situation_B
         
         ab_status = ab_data.status
-        ab_value = ab_data.valeur if ab_data.valeur is not None else NORM_AB_MEAN
+        ab_value = ab_data.valeur
         tweed_status = tweed_data.status
-        tweed_value = tweed_data.valeur if tweed_data.valeur is not None else norms["tweed_default"]
-        sit_a_value = sit_a_data.valeur if sit_a_data.valeur is not None else NORM_A_MEAN
-        sit_b_value = sit_b_data.valeur if sit_b_data.valeur is not None else NORM_B_MEAN
+        tweed_value = tweed_data.valeur
+        sit_a_value = sit_a_data.valeur
+        sit_b_value = sit_b_data.valeur
         
         # --- SYNTHESE SQUELETTIQUE ---
         diag_os_parts = ["L'analyse céphalométrique révèle"]
         
-        if ab_status == "High":
+        if ab_value is not None and ab_status == "High":
             severe_cl2 = NORM_AB_MEAN + 2 * NORM_AB_DEV
-            if ab_value and ab_value > severe_cl2:
+            if ab_value > severe_cl2:
                 diag_os_parts.append(f"une structure de Classe II sévère (A-B = {ab_value} mm).")
             else:
                 diag_os_parts.append(f"une structure de Classe II modérée (A-B = {ab_value} mm).")
-        elif ab_status == "Low":
+        elif ab_value is not None and ab_status == "Low":
             severe_cl3 = NORM_AB_MEAN - 2 * NORM_AB_DEV
-            if ab_value and ab_value < severe_cl3:
+            if ab_value < severe_cl3:
                 diag_os_parts.append(f"une structure de Classe III sévère (A-B = {ab_value} mm).")
             else:
                 diag_os_parts.append(f"une structure de Classe III modérée (A-B = {ab_value} mm).")
-        else:
+        elif ab_value is not None:
             diag_os_parts.append(f"une structure de Classe I normosquelettique (A-B = {ab_value} mm).")
-            
-        diag_os_parts.append("Ce décalage est principalement dû à")
         
         sit_a_seuil_sup = NORM_A_MEAN + NORM_A_DEV
         sit_a_seuil_inf = NORM_A_MEAN - NORM_A_DEV
@@ -106,23 +98,24 @@ class AIAdvisor:
         sit_b_seuil_inf = NORM_B_MEAN - NORM_B_DEV
         
         causes = []
-        if sit_a_value > sit_a_seuil_sup: causes.append(f"un maxillaire prognathique (+{sit_a_value} mm)")
-        elif sit_a_value < sit_a_seuil_inf: causes.append(f"un maxillaire rétrognathique ({sit_a_value} mm)")
+        if sit_a_value is not None:
+            if sit_a_value > sit_a_seuil_sup: causes.append(f"un maxillaire prognathique (+{sit_a_value} mm)")
+            elif sit_a_value < sit_a_seuil_inf: causes.append(f"un maxillaire rétrognathique ({sit_a_value} mm)")
         
-        if sit_b_value > sit_b_seuil_sup: causes.append(f"une mandibule prognathique (+{sit_b_value} mm)")
-        elif sit_b_value < sit_b_seuil_inf: causes.append(f"une mandibule rétrognathique ({sit_b_value} mm)")
+        if sit_b_value is not None:
+            if sit_b_value > sit_b_seuil_sup: causes.append(f"une mandibule prognathique (+{sit_b_value} mm)")
+            elif sit_b_value < sit_b_seuil_inf: causes.append(f"une mandibule rétrognathique ({sit_b_value} mm)")
         
         if causes:
-            diag_os_parts.append(" et ".join(causes) + ".")
-        else:
+            diag_os_parts.append("Ce décalage est principalement dû à " + " et ".join(causes) + ".")
+        elif sit_a_value is not None or sit_b_value is not None:
             diag_os_parts.append("des bases osseuses bien positionnées par rapport à la base du crâne.")
             
-        diag_os_parts.append("Sur le plan vertical, on observe")
-        if tweed_status == "High":
+        if tweed_value is not None and tweed_status == "High":
             diag_os_parts.append(f"une typologie hyperdivergente (Tweed = {tweed_value}°), caractérisant une face longue avec un risque d'ouverture de l'occlusion.")
-        elif tweed_status == "Low":
+        elif tweed_value is not None and tweed_status == "Low":
             diag_os_parts.append(f"une typologie hypodivergente (Tweed = {tweed_value}°), caractérisant une face courte avec un risque de surplomb.")
-        else:
+        elif tweed_value is not None:
             diag_os_parts.append(f"un équilibre normodivergent favorable (Tweed = {tweed_value}°).")
             
         diag_os = " ".join(diag_os_parts)
@@ -134,30 +127,30 @@ class AIAdvisor:
         recouv_data = dentaire.Recouvrement
         
         impa_status = impa_data.status
-        impa_value = impa_data.valeur if impa_data.valeur is not None else norms["impa_default"]
+        impa_value = impa_data.valeur
         if_status = if_data.status
-        if_value = if_data.valeur if if_data.valeur is not None else norms["if_default"]
+        if_value = if_data.valeur
         
         diag_dent_parts = ["Au niveau dento-alvéolaire,"]
         
-        if impa_status == "High":
+        if impa_value is not None and impa_status == "High":
             diag_dent_parts.append(f"l'incisive inférieure est vestibuloversée (IMPA = {impa_value}°).")
-        elif impa_status == "Low":
+        elif impa_value is not None and impa_status == "Low":
             diag_dent_parts.append(f"l'incisive inférieure est linguoversée (IMPA = {impa_value}°).")
-        else:
+        elif impa_value is not None:
             diag_dent_parts.append(f"les incisives inférieures sont bien positionnées sur leur base (IMPA = {impa_value}°).")
             
-        if if_status == "High":
+        if if_value is not None and if_status == "High":
             diag_dent_parts.append(f"On note également une proalvéolie maxillaire (I/F = {if_value}°).")
-        elif if_status == "Low":
+        elif if_value is not None and if_status == "Low":
             diag_dent_parts.append(f"On note également une rétroalvéolie maxillaire (I/F = {if_value}°).")
             
-        if impa_data.plage_compensation and impa_status == "Compensated":
+        if impa_value is not None and impa_data.plage_compensation and impa_status == "Compensated":
             diag_dent_parts.append("Ces inclinaisons correspondent à une compensation dento-alvéolaire physiologique du décalage squelettique.")
             
-        if surplomb_data.valeur and surplomb_data.valeur > 3:
+        if surplomb_data.valeur is not None and surplomb_data.valeur > 3:
             diag_dent_parts.append("Cliniquement, cela se traduit par un surplomb (overjet) augmenté.")
-        if recouv_data.valeur and recouv_data.valeur > 3:
+        if recouv_data.valeur is not None and recouv_data.valeur > 3:
             diag_dent_parts.append("Il y a aussi une supraclusion incisive (deep bite).")
             
         diag_dent = " ".join(diag_dent_parts)
@@ -173,24 +166,24 @@ class AIAdvisor:
         else:
             strat_parts.append("Patient adulte : L'objectif est la compensation orthodontique ou la chirurgie.")
             
-        if ab_status == "High":
+        if ab_value is not None and ab_status == "High":
             if is_child:
                 strat_parts.append("- Correction de la Classe II par propulsion mandibulaire (élastiques, Herbst).")
             else:
-                if ab_value and ab_value > SEVERE_CL2_THRESHOLD:
+                if ab_value > SEVERE_CL2_THRESHOLD:
                     strat_parts.append("- Approche ortho-chirurgicale recommandée (avancée mandibulaire BSSO).")
                 else:
                     strat_parts.append("- Compensation avec extractions (14/24 ou 15/25) et recul en masse.")
-        elif ab_status == "Low":
+        elif ab_value is not None and ab_status == "Low":
             if is_child:
                 strat_parts.append("- Masque facial de traction postéro-antérieure pour stimuler le maxillaire.")
             else:
                 strat_parts.append("- Chirurgie d'avancée maxillaire (Lefort I) à envisager si la fonction est altérée.")
         
-        if tweed_status == "High":
+        if tweed_value is not None and tweed_status == "High":
             strat_parts.append("- ⚠️ Contrôle vertical strict impératif (ancrage absolu, éviter les extractions maxillaires seules).")
         
-        if impa_status == "High" and not is_child:
+        if impa_value is not None and impa_status == "High" and not is_child:
             strat_parts.append("- Rétroclinaison incisive mandibulaire nécessaire pour l'esthétique du profil.")
             
         strat_parts.append("\n🛠 MOYENS PROPOSÉS :")

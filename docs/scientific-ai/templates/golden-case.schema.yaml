@@ -1,0 +1,24 @@
+schema_version: "2.0"
+title: Scientific golden case
+type: object
+required: [id, version, domain, purpose, data_policy, oracle, inputs, expected, tolerances, invariants, provenance, status]
+properties:
+  id: {type: string}
+  version: {type: string}
+  domain: {type: string, enum: [pharmacology, clinical-diagnosis, cephalometry, radiology]}
+  purpose: {type: string}
+  data_policy: {type: string, enum: [synthetic, approved-public-example, anonymized-nonproduction-fixture]}
+  oracle:
+    type: object
+    required: [kind, source_ids, independent_from_implementation]
+    properties:
+      kind: {type: string, enum: [approved-source, analytic-derivation, clinician-approved-example]}
+      source_ids: {type: array, items: {type: string}}
+      independent_from_implementation: {type: boolean}
+  inputs: {type: object}
+  expected: {type: object}
+  tolerances: {type: object}
+  invariants: {type: array, items: {type: string}}
+  provenance: {type: object, required: [created_by, reviewed_by, created_at]}
+  status: {type: string, enum: [candidate, reviewed, approved, rejected]}
+additionalProperties: false

@@ -1,0 +1,1054 @@
+schema_version: "2.0"
+registry_status: candidate-only
+accessed_at: "2026-07-18"
+sources:
+  - source_id: claude-subagents
+    domain: claude-code
+    title: "Create custom subagents"
+    organization: "Anthropic"
+    authors: []
+    publication_date: "not_verified"
+    version: "not_verified"
+    accessed_at: "2026-07-18"
+    source_type: official-authority
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://code.claude.com/docs/en/sub-agents"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: not_applicable
+    claims_supported:
+      - "Supported subagent frontmatter includes model, effort, tools, permissionMode and skills."
+    limitations:
+      - "Documentation may evolve."
+    contradictions: []
+    implementation_targets:
+      - ".claude/agents/*"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: claude-skills
+    domain: claude-code
+    title: "Extend Claude with skills"
+    organization: "Anthropic"
+    authors: []
+    publication_date: "not_verified"
+    version: "not_verified"
+    accessed_at: "2026-07-18"
+    source_type: official-authority
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://code.claude.com/docs/en/slash-commands"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: not_applicable
+    claims_supported:
+      - "SKILL.md requires YAML frontmatter and can use isolated context."
+    limitations:
+      - "Documentation may evolve."
+    contradictions: []
+    implementation_targets:
+      - ".claude/skills/*"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: morocco-law-10-22-ammps
+    domain: pharmacology
+    title: "Law 10-22 creating the Moroccan Agency for Medicines and Health Products"
+    organization: "Kingdom of Morocco - SGG"
+    authors: []
+    publication_date: "2023"
+    version: "2023"
+    accessed_at: "2026-07-18"
+    source_type: official-authority
+    jurisdiction: "Morocco"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "Morocco"
+    url: "https://www.sgg.gov.ma/BO/FR/2873/2025/BO_7462_Fr.pdf"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: direct
+    claims_supported:
+      - "AMMPS has statutory responsibilities for medicine availability, safety and quality."
+    limitations:
+      - "Does not provide a structured list of marketed products."
+      - "Reuse and API availability not established."
+    contradictions: []
+    implementation_targets:
+      - "medication-source-strategy"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: who-inn-programme
+    domain: pharmacology
+    title: "International Nonproprietary Names Programme"
+    organization: "World Health Organization"
+    authors: []
+    publication_date: "not_verified"
+    version: "not_verified"
+    accessed_at: "2026-07-18"
+    source_type: official-authority
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.who.int/teams/health-product-and-policy-standards/inn"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "INN identifies active pharmaceutical substances independently from brands."
+    limitations:
+      - "INN does not establish Moroccan authorization, presentation or dose."
+    contradictions: []
+    implementation_targets:
+      - "medication-identity"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: who-atc-ddd-methodology
+    domain: pharmacology
+    title: "The ATC/DDD Methodology"
+    organization: "World Health Organization"
+    authors: []
+    publication_date: "not_verified"
+    version: "not_verified"
+    accessed_at: "2026-07-18"
+    source_type: official-authority
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.who.int/tools/atc-ddd-toolkit/methodology"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "DDD is a technical unit for drug-utilization statistics."
+    limitations:
+      - "DDD is not an individual prescribing dose."
+    contradictions: []
+    implementation_targets:
+      - "medication-classification"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: sdcep-drug-prescribing
+    domain: pharmacology
+    title: "Drug Prescribing For Dentistry"
+    organization: "Scottish Dental Clinical Effectiveness Programme"
+    authors: []
+    publication_date: "2026"
+    version: "2026"
+    accessed_at: "2026-07-18"
+    source_type: professional-society-guideline
+    jurisdiction: "United Kingdom"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "United Kingdom"
+    url: "https://www.sdcep.org.uk/published-guidance/drug-prescribing/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Current UK dental prescribing guidance and versioning strategy."
+    limitations:
+      - "UK formulary and jurisdiction; Moroccan applicability requires review."
+    contradictions: []
+    implementation_targets:
+      - "prescription-guidance"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ada-antibiotics-2019
+    domain: pharmacology
+    title: "Antibiotics for Dental Pain and Swelling Guideline"
+    organization: "American Dental Association"
+    authors: []
+    publication_date: "2019"
+    version: "2019"
+    accessed_at: "2026-07-18"
+    source_type: professional-society-guideline
+    jurisdiction: "United States"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "United States"
+    url: "https://www.ada.org/resources/research/science/evidence-based-dental-research/antibiotics-for-dental-pain-and-swelling/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Antibiotic stewardship for urgent pulpal and periapical conditions."
+    limitations:
+      - "Adult immunocompetent scope and US context."
+    contradictions: []
+    implementation_targets:
+      - "antibiotic-stewardship"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: aapd-antibiotics-2026
+    domain: pharmacology
+    title: "Use of Antibiotic Therapy for Pediatric Dental Patients"
+    organization: "American Academy of Pediatric Dentistry"
+    authors: []
+    publication_date: "2026"
+    version: "2026"
+    accessed_at: "2026-07-18"
+    source_type: professional-society-guideline
+    jurisdiction: "United States"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "United States"
+    url: "https://www.aapd.org/research/oral-health-policies--recommendations/use-of-antibiotic-therapy-for-pediatric-dental-patients/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Pediatric dental antibiotic stewardship considerations."
+    limitations:
+      - "US context; exact dose tables require separate product and clinician review."
+    contradictions: []
+    implementation_targets:
+      - "pediatric-prescription"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: aha-ie-2021
+    domain: pharmacology
+    title: "Prevention of Viridans Group Streptococcal Infective Endocarditis"
+    organization: "American Heart Association"
+    authors: []
+    publication_date: "2021"
+    version: "2021"
+    accessed_at: "2026-07-18"
+    source_type: consensus
+    jurisdiction: "United States"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "United States"
+    url: "https://professional.heart.org/en/science-news/prevention-of-viridans-group-streptococcal-infective-endocarditis/top-things-to-know"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Dental prophylaxis is limited to patients at highest risk of adverse outcomes."
+    limitations:
+      - "US guidance; regimen details and Morocco applicability need review."
+    contradictions: []
+    implementation_targets:
+      - "endocarditis-prophylaxis"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: aae-diagnostic-terminology
+    domain: clinical-diagnosis
+    title: "Updating Diagnostic Terminology in Endodontics"
+    organization: "American Association of Endodontists and European Society of Endodontology"
+    authors: []
+    publication_date: "2026"
+    version: "2026"
+    accessed_at: "2026-07-18"
+    source_type: consensus
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.aae.org/specialty/diagnostic-terminology-stakeholder-input/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Current terminology update remains under stakeholder review."
+    limitations:
+      - "Not yet a final stable classification; reuse restrictions noted in related materials."
+    contradictions: []
+    implementation_targets:
+      - "endodontic-terminology"
+    status: needs_review
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: efp-perio-classification
+    domain: clinical-diagnosis
+    title: "Periodontal classification and EFP guidelines"
+    organization: "European Federation of Periodontology"
+    authors: []
+    publication_date: "2018"
+    version: "2018"
+    accessed_at: "2026-07-18"
+    source_type: consensus
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.efp.org/education/continuing-education/perio-classification-and-efp-guidelines/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "2017 World Workshop classification is the current referenced framework."
+    limitations:
+      - "Implementation mapping and Morocco applicability require review."
+    contradictions: []
+    implementation_targets:
+      - "periodontal-terminology"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: iso-3950-2016
+    domain: clinical-diagnosis
+    title: "Dentistry - Designation system for teeth and areas of the oral cavity"
+    organization: "International Organization for Standardization"
+    authors: []
+    publication_date: "2016"
+    version: "2016"
+    accessed_at: "2026-07-18"
+    source_type: official-standard
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.iso.org/standard/68292.html"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Two-digit designation system for teeth and oral regions."
+    limitations:
+      - "Full standard is licensed; revision is planned."
+    contradictions: []
+    implementation_targets:
+      - "tooth-numbering"
+    status: license_uncertain
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: snomed-dentistry-crg
+    domain: clinical-diagnosis
+    title: "Dentistry Clinical Reference Group"
+    organization: "SNOMED International"
+    authors: []
+    publication_date: "not_verified"
+    version: "not_verified"
+    accessed_at: "2026-07-18"
+    source_type: official-standard
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://conf.spaces.snomed.org/wiki/spaces/DT/overview"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "SNOMED maintains dental terminology through a clinical reference group."
+    limitations:
+      - "Deployment and licensing terms require jurisdiction-specific review."
+    contradictions: []
+    implementation_targets:
+      - "clinical-terminology"
+    status: license_uncertain
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: steiner-1953
+    domain: cephalometry
+    title: "Cephalometrics for you and me"
+    organization: "Cecil C. Steiner"
+    authors: []
+    publication_date: "1953"
+    version: "1953"
+    accessed_at: "2026-07-18"
+    source_type: original-publication
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://doi.org/10.1016/0002-9416(53)90082-7"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Original Steiner analysis publication identity."
+    limitations:
+      - "Full formula/norm extraction and license require expert review."
+    contradictions: []
+    implementation_targets:
+      - "cephalo-formulas"
+    status: license_uncertain
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: downs-1948
+    domain: cephalometry
+    title: "Variations in facial relationships: Their significance in treatment and prognosis"
+    organization: "William B. Downs"
+    authors: []
+    publication_date: "1948"
+    version: "1948"
+    accessed_at: "2026-07-18"
+    source_type: original-publication
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://doi.org/10.1016/0002-9416(48)90015-3"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Original Downs analysis publication identity."
+    limitations:
+      - "Historic sample and copyrighted full text; formula extraction pending."
+    contradictions: []
+    implementation_targets:
+      - "cephalo-formulas"
+    status: license_uncertain
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: jacobson-wits-1975
+    domain: cephalometry
+    title: "The Wits appraisal of jaw disharmony"
+    organization: "Allan Jacobson"
+    authors: []
+    publication_date: "1975"
+    version: "1975"
+    accessed_at: "2026-07-18"
+    source_type: original-publication
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://pubmed.ncbi.nlm.nih.gov/1054214/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Defines AO/BO projections onto occlusal plane and original sign interpretation."
+    limitations:
+      - "Small adult sample; plane definition and population profile require expert verification."
+    contradictions: []
+    implementation_targets:
+      - "wits-measurement"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: moroccan-steiner-norms-2012
+    domain: cephalometry
+    title: "Cephalometric norms for a Moroccan population"
+    organization: "Ousehal et al."
+    authors: []
+    publication_date: "2012"
+    version: "2012"
+    accessed_at: "2026-07-18"
+    source_type: original-publication
+    jurisdiction: "Morocco"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "Morocco"
+    url: "https://pubmed.ncbi.nlm.nih.gov/22236522/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: direct
+    claims_supported:
+      - "Candidate Steiner profile from 71 young Moroccan adults."
+    limitations:
+      - "Single-center selected sample; not a universal Moroccan profile."
+    contradictions: []
+    implementation_targets:
+      - "moroccan-norm-profile"
+    status: needs_review
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ada-aaomr-radiography-2026
+    domain: radiology
+    title: "Patient selection for dental radiography and cone-beam computed tomography"
+    organization: "American Dental Association and AAOMR"
+    authors: []
+    publication_date: "2026"
+    version: "2026"
+    accessed_at: "2026-07-18"
+    source_type: professional-society-guideline
+    jurisdiction: "United States"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "United States"
+    url: "https://www.ada.org/resources/ada-library/oral-health-topics/x-rays-radiographs"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: indirect
+    claims_supported:
+      - "Imaging selection should be patient-specific and clinically justified."
+    limitations:
+      - "US context; source page summarizes publications."
+    contradictions: []
+    implementation_targets:
+      - "radiology-governance"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: dicom-wg22
+    domain: radiology
+    title: "WG-22 Dentistry"
+    organization: "DICOM Standards Committee"
+    authors: []
+    publication_date: "2020"
+    version: "2020"
+    accessed_at: "2026-07-18"
+    source_type: official-standard
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.dicomstandard.org/activity/wgs/wg-22"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "DICOM dentistry scope includes acquisition, storage, communication, display and reporting."
+    limitations:
+      - "WG roadmap is not a complete implementation profile."
+    contradictions: []
+    implementation_targets:
+      - "dicom-architecture"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: dicom-storage-2026c
+    domain: radiology
+    title: "DICOM PS3.4 Storage Service Class"
+    organization: "DICOM Standards Committee"
+    authors: []
+    publication_date: "2026c"
+    version: "2026c"
+    accessed_at: "2026-07-18"
+    source_type: official-standard
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://dicom.nema.org/medical/dicom/current/output/chtml/part04/chapter_B.html"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Current DICOM storage semantics and patient/study/series entities."
+    limitations:
+      - "Requires modality-specific conformance design."
+    contradictions: []
+    implementation_targets:
+      - "dicom-storage"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: claim-2024
+    domain: testing-and-safety
+    title: "Checklist for Artificial Intelligence in Medical Imaging: 2024 Update"
+    organization: "RSNA"
+    authors: []
+    publication_date: "2024"
+    version: "2024"
+    accessed_at: "2026-07-18"
+    source_type: reporting-guideline
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://pubs.rsna.org/doi/10.1148/ryai.240300"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Promotes transparent and reproducible reporting of medical imaging AI."
+    limitations:
+      - "Reporting guideline, not a validation score or clinical approval."
+    contradictions: []
+    implementation_targets:
+      - "radiology-ai-testing"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: stard-ai-2025
+    domain: testing-and-safety
+    title: "STARD-AI reporting guideline"
+    organization: "EQUATOR Network"
+    authors: []
+    publication_date: "2025"
+    version: "2025"
+    accessed_at: "2026-07-18"
+    source_type: reporting-guideline
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://www.equator-network.org/reporting-guidelines/the-stard-ai-reporting-guideline-for-diagnostic-accuracy-studies-using-artificial-intelligence/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Reporting framework for AI diagnostic-accuracy studies."
+    limitations:
+      - "Not a substitute for clinical validation."
+    contradictions: []
+    implementation_targets:
+      - "diagnostic-ai-testing"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: bland-altman-1986
+    domain: testing-and-safety
+    title: "Statistical methods for assessing agreement between two methods of clinical measurement"
+    organization: "Bland and Altman"
+    authors: []
+    publication_date: "1986"
+    version: "1986"
+    accessed_at: "2026-07-18"
+    source_type: original-publication
+    jurisdiction: "International"
+    population:
+      description: "not_verified"
+      age_range: "unknown"
+      sex: "unknown"
+      geography: "International"
+    url: "https://pubmed.ncbi.nlm.nih.gov/2868172/"
+    doi_or_identifier: "not_verified"
+    license: "not_verified"
+    evidence_level: B
+    applicability_to_morocco: partial
+    claims_supported:
+      - "Agreement assessment is distinct from correlation."
+    limitations:
+      - "Application requires study-specific statistical design."
+    contradictions: []
+    implementation_targets:
+      - "measurement-agreement"
+    status: candidate
+    reviewed_by: "scientific-deep-review-agent"
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ammps-medication-list-2026
+    domain: pharmacology
+    title: "Liste marocaine des medicaments"
+    organization: "Agence marocaine du medicament et des produits de sante"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-authority-database
+    jurisdiction: Morocco
+    population: {description: "Moroccan product records", age_range: unknown, sex: unknown, geography: Morocco}
+    url: "https://www.ammps.gov.ma/basesdedonnes/liste_marocaine_des_medicaments"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: direct
+    claims_supported: ["Candidate primary source for Moroccan product, substance, form, presentation, authorization and commercialization fields."]
+    limitations: ["API, bulk export, stable identifiers, history and reuse license were not confirmed."]
+    contradictions: []
+    implementation_targets: [medication-identity, morocco-market-authorization]
+    status: license_uncertain
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ammps-generic-repertoire-2026
+    domain: pharmacology
+    title: "Repertoire pilote des medicaments generiques"
+    organization: "Agence marocaine du medicament et des produits de sante"
+    authors: []
+    publication_date: "2026-01"
+    version: pilot
+    accessed_at: "2026-07-18"
+    source_type: official-authority-database
+    jurisdiction: Morocco
+    population: {description: "Generic medicine repertoire", age_range: unknown, sex: unknown, geography: Morocco}
+    url: "https://ammps.gov.ma/repertoire-medicaments-generiques"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: direct
+    claims_supported: ["Pilot repertoire advertises 312 active substances and an evolving resource."]
+    limitations: ["Pilot status; reuse and automation terms not confirmed."]
+    contradictions: []
+    implementation_targets: [medication-identity, generic-repertoire]
+    status: license_uncertain
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ada-acute-pain-2024
+    domain: pharmacology
+    title: "Acute dental pain management guideline"
+    organization: "American Dental Association"
+    authors: []
+    publication_date: "2024"
+    version: "2024"
+    accessed_at: "2026-07-18"
+    source_type: official-guideline
+    jurisdiction: United-States
+    population: {description: "Source-defined acute dental pain populations", age_range: source-defined, sex: all, geography: United-States}
+    url: "https://www.ada.org/resources/research/science/evidence-based-dental-research/pain-management-guideline"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: needs_review
+    claims_supported: ["Candidate source for acute dental pain architecture."]
+    limitations: ["US guideline; exact recommendations need extraction and Moroccan review."]
+    contradictions: []
+    implementation_targets: [analgesic-rule-research]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: aapd-useful-medications-2025
+    domain: pharmacology
+    title: "Useful Medications for Oral Conditions"
+    organization: "American Academy of Pediatric Dentistry"
+    authors: []
+    publication_date: "2025"
+    version: "2025"
+    accessed_at: "2026-07-18"
+    source_type: specialty-guidance
+    jurisdiction: United-States
+    population: {description: "Pediatric dental patients", age_range: pediatric, sex: all, geography: United-States}
+    url: "https://www.aapd.org/research/oral-health-policies--recommendations/useful-medications-for-oral-conditions/"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: needs_review
+    claims_supported: ["Candidate source for pediatric rule structure and dose verification."]
+    limitations: ["Does not establish Moroccan products or clinical approval."]
+    contradictions: []
+    implementation_targets: [pediatric-dosing-research]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: cdc-dental-antibiotic-stewardship
+    domain: pharmacology
+    title: "Core Elements of Outpatient Antibiotic Stewardship"
+    organization: "US Centers for Disease Control and Prevention"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-guidance
+    jurisdiction: United-States
+    population: {description: "Outpatient antimicrobial stewardship", age_range: source-defined, sex: all, geography: United-States}
+    url: "https://www.cdc.gov/antibiotic-use/hcp/educational-resources/stewardship/index.html"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported: ["Candidate architecture source for stewardship controls."]
+    limitations: ["Not a Moroccan dental prescribing rule."]
+    contradictions: []
+    implementation_targets: [antibiotic-stewardship]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: ada-antibiotic-prophylaxis
+    domain: pharmacology
+    title: "Antibiotic Prophylaxis Prior to Dental Procedures"
+    organization: "American Dental Association"
+    authors: []
+    publication_date: accessed-2026-07-18
+    version: references-AHA-2021
+    accessed_at: "2026-07-18"
+    source_type: official-guidance-summary
+    jurisdiction: United-States
+    population: {description: "Selected prophylaxis assessment", age_range: source-defined, sex: all, geography: United-States}
+    url: "https://www.ada.org/resources/ada-library/oral-health-topics/antibiotic-prophylaxis"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: needs_review
+    claims_supported: ["Current AHA guidance no longer recommends clindamycin as an oral/parenteral prophylaxis alternative."]
+    limitations: ["Summary page; source statement and Moroccan adoption require review."]
+    contradictions: ["Digital Crown current code includes clindamycin prophylaxis."]
+    implementation_targets: [prophylaxis-safety-audit]
+    status: conflicting-sources
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: esc-ie-2023
+    domain: pharmacology
+    title: "2023 ESC endocarditis guidelines - essential messages"
+    organization: "European Society of Cardiology"
+    authors: []
+    publication_date: "2023"
+    version: "2023"
+    accessed_at: "2026-07-18"
+    source_type: official-guideline
+    jurisdiction: Europe
+    population: {description: "Source-defined endocarditis populations", age_range: source-defined, sex: all, geography: Europe}
+    url: "https://www.escardio.org/static-file/Escardio/Guidelines/Products/Slide%20sets/2023%20Gls/Essential%20Messages_2023%20Endocarditis.pdf"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: needs_review
+    claims_supported: ["Candidate source for prophylaxis reconciliation."]
+    limitations: ["European guidance; full tables and Moroccan adoption require review."]
+    contradictions: []
+    implementation_targets: [prophylaxis-rule-research]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: nice-drug-allergy-cg183
+    domain: pharmacology
+    title: "Drug allergy: diagnosis and management"
+    organization: "National Institute for Health and Care Excellence"
+    authors: []
+    publication_date: "2014"
+    version: CG183-current-page
+    accessed_at: "2026-07-18"
+    source_type: official-guideline
+    jurisdiction: United-Kingdom
+    population: {description: "Suspected or documented drug allergy", age_range: all, sex: all, geography: United-Kingdom}
+    url: "https://www.nice.org.uk/guidance/CG183/chapter/recommendations"
+    doi_or_identifier: CG183
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: partial
+    claims_supported: ["Candidate source for structured allergy status and separation from adverse reactions."]
+    limitations: ["Alternative rules and Moroccan workflow require separate review."]
+    contradictions: []
+    implementation_targets: [allergy-data-model]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: rxnav-ddi-discontinued-2024
+    domain: pharmacology
+    title: "RxNav FAQ - interaction feature discontinued"
+    organization: "US National Library of Medicine"
+    authors: []
+    publication_date: "2024-01-02"
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-software-documentation
+    jurisdiction: United-States
+    population: {description: not_applicable, age_range: unknown, sex: unknown, geography: International}
+    url: "https://lhncbc.nlm.nih.gov/RxNav/information/FAQs.html"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: C
+    applicability_to_morocco: partial
+    claims_supported: ["RxNav interaction feature was discontinued on 2024-01-02."]
+    limitations: ["Software status source, not clinical evidence."]
+    contradictions: []
+    implementation_targets: [interaction-source-selection]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: openfda-drug-label-api
+    domain: pharmacology
+    title: "openFDA drug label API"
+    organization: "US Food and Drug Administration"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-data-api
+    jurisdiction: United-States
+    population: {description: "US structured labels", age_range: unknown, sex: unknown, geography: United-States}
+    url: "https://open.fda.gov/apis/drug/label/"
+    doi_or_identifier: not_verified
+    license: not_verified
+    evidence_level: C
+    applicability_to_morocco: limited
+    claims_supported: ["Candidate research source for structured US label sections."]
+    limitations: ["Not Morocco-specific; warns against medical-decision reliance; not a complete interaction engine."]
+    contradictions: []
+    implementation_targets: [interaction-source-research]
+    status: insufficient-evidence
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: drugbank-licensing-2026
+    domain: pharmacology
+    title: "DrugBank licensing"
+    organization: DrugBank
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: commercial-licensing-documentation
+    jurisdiction: International
+    population: {description: not_applicable, age_range: unknown, sex: unknown, geography: International}
+    url: "https://go.drugbank.com/business-development-licensing"
+    doi_or_identifier: not_verified
+    license: commercial-license-required
+    evidence_level: C
+    applicability_to_morocco: partial
+    claims_supported: ["Commercial and derivative uses require licensing review."]
+    limitations: ["Not selected or licensed during this mission."]
+    contradictions: []
+    implementation_targets: [interaction-source-selection]
+    status: license-blocked
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: fr-public-medicine-hextril
+    domain: pharmacology
+    title: "HEXTRIL 0.1 percent product record"
+    organization: "French public medicine database"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-product-information
+    jurisdiction: France
+    population: {description: product-record, age_range: source-defined, sex: all, geography: France}
+    url: "https://base-donnees-publique.medicaments.gouv.fr/medicament/67376038/extrait"
+    doi_or_identifier: "67376038"
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: limited
+    claims_supported: ["French HEXTRIL product identity is hexetidine 0.1 percent, not chlorhexidine."]
+    limitations: ["Does not prove Moroccan product identity or status."]
+    contradictions: ["Digital Crown maps HEXTRIL to chlorhexidine."]
+    implementation_targets: [medication-identity-audit]
+    status: conflicting-sources
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: fr-public-medicine-antadys
+    domain: pharmacology
+    title: "ANTADYS 100 mg product record"
+    organization: "French public medicine database"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-product-information
+    jurisdiction: France
+    population: {description: product-record, age_range: source-defined, sex: all, geography: France}
+    url: "https://base-donnees-publique.medicaments.gouv.fr/medicament/61032482/extrait"
+    doi_or_identifier: "61032482"
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: limited
+    claims_supported: ["French ANTADYS product identity is flurbiprofen 100 mg."]
+    limitations: ["Does not prove Moroccan authorization or prescribing suitability."]
+    contradictions: []
+    implementation_targets: [medication-identity-audit]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"
+  - source_id: fr-public-medicine-birodogyl
+    domain: pharmacology
+    title: "BIRODOGYL product record"
+    organization: "French public medicine database"
+    authors: []
+    publication_date: not_verified
+    version: accessed-2026-07-18
+    accessed_at: "2026-07-18"
+    source_type: official-product-information
+    jurisdiction: France
+    population: {description: product-record, age_range: source-defined, sex: all, geography: France}
+    url: "https://base-donnees-publique.medicaments.gouv.fr/medicament/64483490/extrait"
+    doi_or_identifier: "64483490"
+    license: not_verified
+    evidence_level: A
+    applicability_to_morocco: limited
+    claims_supported: ["French BIRODOGYL is spiramycin 1.5 MUI plus metronidazole 250 mg per tablet."]
+    limitations: ["Does not prove Moroccan identity, status or indication."]
+    contradictions: []
+    implementation_targets: [medication-identity-audit]
+    status: candidate
+    reviewed_by: pharmacology-baseline-agent
+    reviewed_at: "2026-07-18"
+    approval_evidence: "none; candidate research record only"

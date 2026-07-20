@@ -133,7 +133,6 @@ class VisionEngine:
                     # Retrieve SOTA points (which already include apex if available)
                     final_landmarks = res["landmarks"]
                     mode_inference = res["mode_inference"]
-                    # Continue to check if we need to add missing COM apexes
                 else:
                     logger.warning("SOTA returned an empty list, falling back to PyTorch")
             except Exception as e:
@@ -179,71 +178,6 @@ class VisionEngine:
             logger.error(f"VisionEngine: {warning_msg}")
             # Renvoyer une liste vide pour forcer le tracé manuel au lieu de points aléatoires
             final_landmarks = []
-
-        # --- DENTAL APEX INJECTION (Default COM Norms) ---
-        # Apex is placed to respect:
-        # - IMPA = 90°: L1 axis perpendicular to mandibular plane (Go→Me)
-        # - I/Francfort = 107°: U1 axis at 107° from Francfort plane (Po→Or)
-        
-        has_u1_apex = any(p['id'] == 'U1_apex' for p in final_landmarks)
-        has_l1_apex = any(p['id'] == 'L1_apex' for p in final_landmarks)
-
-        if has_u1_apex and has_l1_apex:
-            logger.info("VisionEngine: Apex already provided by inference engine (SOTA).")
-        else:
-            logger.info("VisionEngine: Manual calculation of missing COM apexes...")
-        
-        u1_inc = next((p for p in final_landmarks if p['id'] == 'U1_incisal'), None)
-        l1_inc = next((p for p in final_landmarks if p['id'] == 'L1_incisal'), None)
-        go = next((p for p in final_landmarks if p['id'] == 'Go'), None)
-        me = next((p for p in final_landmarks if p['id'] == 'Me'), None)
-        po = next((p for p in final_landmarks if p['id'] == 'Po'), None)
-        or_ = next((p for p in final_landmarks if p['id'] == 'Or'), None)
-        
-        # Standard tooth length (incisal → apex distance)
-        TOOTH_LENGTH = 85  # pixels
-        
-        # === L1_apex PLACEMENT: IMPA = 90° (perpendicular to mandibular plane) ===
-        if l1_inc and go and me:
-            dx = me['x'] - go['x']
-            dy = me['y'] - go['y']
-            length = math.hypot(dx, dy)
-            if length > 0:
-                nx, ny = dx / length, dy / length
-                # Direction conditionnelle: l'apex inférieur doit pointer vers le BAS (Y augmente)
-                sign_x = 1 if nx >= 0 else -1
-                perp_x = -ny * sign_x
-                perp_y = nx * sign_x
-                
-                if not has_l1_apex:
-                    l1_apex_x = l1_inc['x'] + TOOTH_LENGTH * perp_x
-                    l1_apex_y = l1_inc['y'] + TOOTH_LENGTH * perp_y
-                    final_landmarks.append({"id": "L1_apex", "x": round(l1_apex_x, 2), "y": round(l1_apex_y, 2)})
-                    logger.info(f"[APEX] L1_apex placed (IMPA=90°) - Orientation agnostic")
-        elif l1_inc and not has_l1_apex:
-            # Fallback: simple vertical placement
-            final_landmarks.append({"id": "L1_apex", "x": l1_inc['x'], "y": l1_inc['y'] + TOOTH_LENGTH})
-        
-        # === U1_apex PLACEMENT: I/Francfort = 107° ===
-        if u1_inc and po and or_:
-            dx = or_['x'] - po['x']
-            dy = or_['y'] - po['y']
-            fh_angle = math.atan2(dy, dx)
-            # L'angle doit s'adapter à la direction du regard (gauche ou droite)
-            # Pour l'incisive supérieure, l'apex doit pointer vers le HAUT (Y diminue) et vers l'ARRIÈRE
-            if dx >= 0:
-                tooth_angle = fh_angle - math.radians(107)
-            else:
-                tooth_angle = fh_angle + math.radians(107)
-                
-            if not has_u1_apex:
-                u1_apex_x = u1_inc['x'] + TOOTH_LENGTH * math.cos(tooth_angle)
-                u1_apex_y = u1_inc['y'] + TOOTH_LENGTH * math.sin(tooth_angle)
-                final_landmarks.append({"id": "U1_apex", "x": round(u1_apex_x, 2), "y": round(u1_apex_y, 2)})
-                logger.info(f"[APEX] U1_apex placed (I/F=107°) - Orientation agnostic")
-        elif u1_inc and not has_u1_apex:
-            # Fallback: simple vertical placement upwards
-            final_landmarks.append({"id": "U1_apex", "x": u1_inc['x'], "y": max(0, u1_inc['y'] - TOOTH_LENGTH)})
 
         exec_time = time.time() - start_time
         logger.info(f"Vision Inference finished in {exec_time:.3f}s. Mode: {mode_inference}. Native matrix: {orig_w}x{orig_h}")

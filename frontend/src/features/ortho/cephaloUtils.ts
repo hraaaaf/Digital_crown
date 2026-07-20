@@ -106,6 +106,35 @@ export function computeDistanceToVertical(target: {x:number, y:number}, origin: 
 }
 
 /**
+ * Signed overbite projected onto the Frankfort perpendicular. The direction is
+ * fixed toward increasing image-y so frontend and backend share one convention.
+ */
+export function computeSignedOverbite(
+  upperIncisal: { x: number; y: number } | undefined,
+  lowerIncisal: { x: number; y: number } | undefined,
+  po: { x: number; y: number } | undefined,
+  or_: { x: number; y: number } | undefined,
+  ratio: number | null,
+): number | null {
+  if (!upperIncisal || !lowerIncisal || !po || !or_ || ratio === null) return null;
+  const dx = or_.x - po.x;
+  const dy = or_.y - po.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.1) return null;
+
+  let perpX = -dy / length;
+  let perpY = dx / length;
+  if (perpY < 0) {
+    perpX = -perpX;
+    perpY = -perpY;
+  }
+
+  const projection = (upperIncisal.x - lowerIncisal.x) * perpX
+    + (upperIncisal.y - lowerIncisal.y) * perpY;
+  return Math.round(projection * ratio * 10) / 10;
+}
+
+/**
  * Projections McNamara (N', A', B') sur le plan de Francfort.
  */
 export function computeMcNamaraProjections(lms: Landmark[]): { N_prime?: [number, number]; A_prime?: [number, number]; B_prime?: [number, number] } {
@@ -216,6 +245,42 @@ export function computeDistanceToLine(p: Landmark, l1: Landmark, l2: Landmark, r
   return signed ? (num / den) * ratio : (Math.abs(num) / den) * ratio;
 }
 
+/**
+ * E-line distance signed by the anatomical posterior-to-anterior Po -> Or axis.
+ * The epsilon is only a pixel-geometry guard, never a clinical threshold.
+ */
+export function computeSignedELineDistance(
+  lip: { x: number; y: number } | undefined,
+  prn: { x: number; y: number } | undefined,
+  pogSoft: { x: number; y: number } | undefined,
+  po: { x: number; y: number } | undefined,
+  or_: { x: number; y: number } | undefined,
+  ratio: number | null,
+): number | null {
+  if (!lip || !prn || !pogSoft || !po || !or_ || ratio === null) return null;
+
+  const epsilon = 1e-6;
+  const eX = pogSoft.x - prn.x;
+  const eY = pogSoft.y - prn.y;
+  const eLengthSq = eX * eX + eY * eY;
+  const aX = or_.x - po.x;
+  const aY = or_.y - po.y;
+  const aLength = Math.hypot(aX, aY);
+  if (eLengthSq <= epsilon * epsilon || aLength <= epsilon) return null;
+
+  const t = ((lip.x - prn.x) * eX + (lip.y - prn.y) * eY) / eLengthSq;
+  const qX = prn.x + t * eX;
+  const qY = prn.y + t * eY;
+  const rX = lip.x - qX;
+  const rY = lip.y - qY;
+  const magnitudePx = Math.hypot(rX, rY);
+  if (magnitudePx <= epsilon) return 0;
+
+  const anteriorScore = rX * (aX / aLength) + rY * (aY / aLength);
+  if (Math.abs(anteriorScore) <= epsilon) return null;
+  return Math.sign(anteriorScore) * magnitudePx * ratio;
+}
+
 export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 'F', mmPerPixel: number | null, etape2: DonneesEtape2 | null = null): Partial<DonneesEtape3> {
 
 
@@ -231,7 +296,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   const l1i = g('l1_incisal') || g('l1i');
   const l1a = g('l1_apex') || g('l1a');
 
-  const ratio = mmPerPixel || 0.1; // Fallback to 0.1 if not calibrated
+  const ratio = mmPerPixel;
   const results: Partial<DonneesEtape3> = {
     age: age,
     cvm: estimateCVM(age, sexe) || 'CS1',
@@ -281,7 +346,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   }
 
   // C. McNamara / COM (Projections FH)
-  if (s && n && po && or_) {
+  if (ratio !== null && s && n && po && or_) {
     if (a) {
       const distA = computeDistanceToVertical(a, n, po, or_, ratio);
       results.osseuse!.situation_a = Math.round(distA * 10) / 10;
@@ -308,11 +373,11 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     // Steiner specific (1/NA, 1/NB)
     if (n && a) {
       results.dentaire!.i_na_angle = Math.round(computeAngle(n, a, u1a, u1i));
-      results.dentaire!.i_na_mm = Math.round(computeDistanceToLine(u1i, n, a, ratio) * 10) / 10;
+      if (ratio !== null) results.dentaire!.i_na_mm = Math.round(computeDistanceToLine(u1i, n, a, ratio) * 10) / 10;
     }
     if (n && b) {
       results.dentaire!.i_nb_angle = Math.round(computeAngle(n, b, l1a, l1i));
-      results.dentaire!.i_nb_mm = Math.round(computeDistanceToLine(l1i, n, b, ratio) * 10) / 10;
+      if (ratio !== null) results.dentaire!.i_nb_mm = Math.round(computeDistanceToLine(l1i, n, b, ratio) * 10) / 10;
     }
   }
 
@@ -329,11 +394,11 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     results.dentaire!.i_francfort = computeAngle(u1a, u1i, po, or_);
   }
 
-  if (u1i && l1i && po && or_) {
+  if (ratio !== null && u1i && l1i && po && or_) {
     const overjet = computeDistanceToVertical(l1i, u1i, po, or_, ratio);
     results.dentaire!.surplomb = Math.round(Math.abs(overjet) * 10) / 10;
-    const dy = l1i.y - u1i.y;
-    results.dentaire!.recouvrement = Math.round(Math.abs(dy * ratio) * 10) / 10;
+    const overbite = computeSignedOverbite(u1i, l1i, po, or_, ratio);
+    if (overbite !== null) results.dentaire!.recouvrement = overbite;
   }
 
   // --- 2. LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
@@ -379,12 +444,12 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   if (u1i && u1a && l1i && l1a) {
     results.dentaire!.inter_incisif = Math.round(computeInterIncisalAngle(u1i, u1a, l1i, l1a));
   }
-  if (u1i && l1i && po && or_) {
+  if (ratio !== null && u1i && l1i && po && or_) {
     const overjet = computeDistanceToVertical(l1i, u1i, po, or_, ratio);
     results.dentaire!.surplomb = Math.round(Math.abs(overjet) * 10) / 10;
     
-    const dy = l1i.y - u1i.y;
-    results.dentaire!.recouvrement = Math.round(Math.abs(dy * ratio) * 10) / 10;
+    const overbite = computeSignedOverbite(u1i, l1i, po, or_, ratio);
+    if (overbite !== null) results.dentaire!.recouvrement = overbite;
   }
 
   if (l1i && l1a && go && me) {
@@ -395,10 +460,11 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   }
 
   // Analyse Esthétique
-  if (prn && pogSoft) {
-    const projectOnE = (p: Landmark) => computeDistanceToLine(p, prn, pogSoft, ratio, true);
-    if (ls) results.esthetique!.ligne_e_ls = Math.round(projectOnE(ls) * 10) / 10;
-    if (li) results.esthetique!.ligne_e_li = Math.round(projectOnE(li) * 10) / 10;
+  if (ratio !== null && prn && pogSoft && po && or_) {
+    const eLineLs = computeSignedELineDistance(ls, prn, pogSoft, po, or_, ratio);
+    const eLineLi = computeSignedELineDistance(li, prn, pogSoft, po, or_, ratio);
+    if (eLineLs !== null) results.esthetique!.ligne_e_ls = Math.round(eLineLs * 10) / 10;
+    if (eLineLi !== null) results.esthetique!.ligne_e_li = Math.round(eLineLi * 10) / 10;
     
     if (results.esthetique?.ligne_e_ls !== undefined && results.esthetique.ligne_e_ls !== '') {
       const ls_e = Number(results.esthetique.ligne_e_ls);

@@ -3,8 +3,6 @@ import logging
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from backend.models import Patient, Acte, Medication
-from backend.services.ai_coherence import ai_coherence
-from backend.services.prescription_service import prescription_service
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +14,7 @@ class ClinicalCoherenceService:
     
     async def analyze_coherence(self, patient_id: int, doc_type: str, doc_data: Dict[str, Any], db: Session, doctor_id: int = None) -> List[Dict[str, Any]]:
         """
-        Analyse globale (Déterministe + IA) et retourne une liste d'alertes.
+        Analyse les contrôles de cohérence déterministes et retourne une liste d'alertes.
         """
         warnings = []
         
@@ -25,37 +23,6 @@ class ClinicalCoherenceService:
             warnings.extend(self._check_ordonnance_coherence(patient_id, doc_data, db))
         elif doc_type in ["devis", "note"]:
             warnings.extend(self._check_accounting_coherence(patient_id, doc_data, db))
-            
-        # 2. Analyse IA Sémantique (Phase 2)
-        try:
-            patient = db.query(Patient).filter(Patient.id == patient_id).first()
-            if patient:
-                # Récupération des habitudes du docteur si dispo
-                doctor_habits = {}
-                if doctor_id:
-                    doctor_habits = prescription_service.get_doctor_habits_summary(db, doctor_id)
-
-                # Utilisation de date_debut pour le tri
-                recent_acts = db.query(Acte).filter(Acte.patient_id == patient_id).order_by(Acte.date_debut.desc()).limit(10).all()
-                act_list = [a.libelle for a in recent_acts]
-                
-                patient_info = {
-                    "age": self._calculate_age(patient.date_naissance) if patient.date_naissance else None,
-                    "genre": patient.sexe,
-                    "antecedents": patient.antecedents_medicaux,
-                    "doctor_habits": doctor_habits
-                }
-                
-                ia_warnings = await ai_coherence.analyze_with_ia(patient_info, doc_type, doc_data, act_list)
-                if ia_warnings:
-                    logger.info(f"🤖 IA Coherence: {len(ia_warnings)} alertes trouvées.")
-                    # Ajouter un marqueur "IA" aux messages pour la transparence UX
-                    for w in ia_warnings:
-                        w["message"] = f"🤖 {w['message']}"
-                    warnings.extend(ia_warnings)
-        except Exception as e:
-            logger.error(f"Erreur fusion IA Coherence: {e}")
-            
         if warnings:
             logger.info(f"🚨 Clinical Coherence: {len(warnings)} alertes totales pour Patient {patient_id}")
             

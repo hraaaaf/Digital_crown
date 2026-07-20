@@ -121,7 +121,7 @@ class McNamaraProjections(BaseModel):
 
 class AnalysisMetadata(BaseModel):
     unit: str = "mm"
-    pixel_ratio: float
+    pixel_ratio: Optional[float] = None
     type: str = "COM_Skeletal"
     cohort: str
 

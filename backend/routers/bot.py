@@ -13,23 +13,14 @@ from backend import models, schemas
 from backend.routers.auth import get_current_user, has_permission
 from backend.services.audit_service import audit_service
 from backend.services.bot.intent_parser import intent_parser as regex_parser, ParsedIntent
-from backend.services.bot.llm_parser import llm_parser
 from backend.services.bot.action_dispatcher import (
-    ActionDispatcher, CONVERSATIONAL_FALLBACK, CONVERSATIONAL_SUGGESTIONS,
+    ActionDispatcher,
 )
 
 router = APIRouter(tags=["bot"])
 logger = logging.getLogger(__name__)
 
-# On utilise le SLM Parser par défaut, qui bascule (fallback) 
-# sur le regex_parser en cas d'erreur ou timeout.
-parser = llm_parser
 dispatcher = ActionDispatcher()
-
-# En-dessous de ce seuil de confiance (ou si l'intent est UNKNOWN), on demande
-# au LLM de désambiguïser. 0.80 = le regex a matché quelque chose mais sans
-# certitude → vaut le coup de vérifier. Au-dessus, on fait confiance au regex.
-LLM_CONFIDENCE_THRESHOLD = 0.80
 
 INTENT_PERMISSIONS = {
     "QUERY_PATIENT": "patients",
@@ -126,17 +117,9 @@ PATIENT_CENTRIC_INTENTS = {"QUERY_PATIENT", "CREATE_PRESCRIPTION", "CREATE_DEVIS
 def _parse_and_authorize(
     message: str, context_window: List[Dict[str, str]], current_user: models.User,
     session_patient_id: Optional[int] = None,
-) -> Tuple[ParsedIntent, bool]:
-    """Regex-first puis fallback LLM si peu confiant. Vérifie la permission. Retourne (intent, llm_used)."""
+) -> ParsedIntent:
+    """Parse une commande déterministe et vérifie les permissions."""
     parsed_intent = regex_parser.parse(message, context=context_window)
-    llm_used = False
-    if parsed_intent.intent == "UNKNOWN" or parsed_intent.confidence < LLM_CONFIDENCE_THRESHOLD:
-        logger.info(
-            "Regex peu confiant (intent=%s, conf=%.2f), appel au LLM avec contexte...",
-            parsed_intent.intent, parsed_intent.confidence,
-        )
-        parsed_intent = parser.parse(message, context=context_window)
-        llm_used = True
 
     # Injection du patient de session : si la conversation est ouverte depuis un
     # dossier patient et qu'aucun patient n'est cité, on l'utilise par défaut puis
@@ -153,7 +136,7 @@ def _parse_and_authorize(
         parsed_intent.clarification_prompt = prompt
 
     require_bot_permission(current_user, INTENT_PERMISSIONS.get(parsed_intent.intent))
-    return parsed_intent, llm_used
+    return parsed_intent, False
 
 
 def _store_pending_action(
@@ -175,8 +158,7 @@ def _store_pending_action(
 
 
 def _persist_bot_message(
-    session_id: str, response_dict: Dict[str, Any], llm_used: bool,
-    db: Session, current_user: models.User
+    session_id: str, response_dict: Dict[str, Any], db: Session, current_user: models.User
 ) -> None:
     pending_action = response_dict.get("pending_action")
     pending_action_id = None
@@ -197,24 +179,10 @@ def _persist_bot_message(
             "pending_action": pending_action,       # description display uniquement
             "pending_action_id": pending_action_id, # ID executable
             "suggestions": response_dict.get("suggestions", []),
-            "used_llm": llm_used,
         },
     ))
     db.commit()
 
-
-def _apply_upsell(session_id: str, llm_used: bool, db: Session, response_dict: Dict[str, Any]) -> None:
-    """Compte les échanges LLM de la session et active l'upsell au-delà de 3."""
-    if not llm_used:
-        response_dict["show_upsell"] = False
-        return
-    all_bot_msgs = db.query(models.BotMessage).filter(
-        models.BotMessage.session_id == session_id,
-        models.BotMessage.sender == "bot",
-    ).all()
-    count = sum(1 for m in all_bot_msgs if m.raw_data and m.raw_data.get("used_llm"))
-    response_dict["llm_exchange_count"] = count
-    response_dict["show_upsell"] = count >= 3
 
 @router.get("/sessions")
 async def get_sessions(
@@ -313,12 +281,12 @@ async def bot_chat(
     """
     session_id, message, session_patient_id = _resolve_session(req, db, current_user)
     context_window = _build_context(session_id, db)
-    parsed_intent, llm_used = _parse_and_authorize(message, context_window, current_user, session_patient_id)
+    parsed_intent, _ = _parse_and_authorize(message, context_window, current_user, session_patient_id)
 
     response_dict = dispatcher.dispatch(parsed_intent, db, current_user).to_dict()
 
-    _persist_bot_message(session_id, response_dict, llm_used, db, current_user)
-    _apply_upsell(session_id, llm_used, db, response_dict)
+    _persist_bot_message(session_id, response_dict, db, current_user)
+    response_dict["show_upsell"] = False
     response_dict["session_id"] = session_id
     return response_dict
 
@@ -340,52 +308,21 @@ async def bot_chat_stream(
       - {type:"final", ...response_dict}     une fois, à la fin (message, suggestions,
                                              pending_action, show_upsell, session_id)
     Les réponses "read"/"write" (DB, instantanées) sont émises en un seul token.
-    Seuls GREETING/UNKNOWN sont réellement streamés depuis le LLM.
+    Toutes les réponses sont émises en un seul token déterministe.
     """
     # Tout ce qui peut lever une HTTPException (session, permission) se fait AVANT
     # le StreamingResponse — une fois le statut 200 envoyé, on ne peut plus l'annuler.
     session_id, message, session_patient_id = _resolve_session(req, db, current_user)
     context_window = _build_context(session_id, db)
-    parsed_intent, llm_used = _parse_and_authorize(message, context_window, current_user, session_patient_id)
-
-    is_conversational = (
-        parsed_intent.intent in ("GREETING", "UNKNOWN")
-        and not parsed_intent.needs_clarification
-    )
+    parsed_intent, _ = _parse_and_authorize(message, context_window, current_user, session_patient_id)
 
     def event_stream():
         yield _sse({"type": "session", "session_id": session_id})
-        nonlocal llm_used
+        response_dict = dispatcher.dispatch(parsed_intent, db, current_user).to_dict()
+        yield _sse({"type": "token", "content": response_dict.get("message", "")})
 
-        if is_conversational:
-            kind = parsed_intent.intent
-            messages_llm, mapping = dispatcher.build_conversational(kind, message)
-            collected: List[str] = []
-            for piece in data_sanitizer.restore_stream(parser.stream_completion(messages_llm), mapping):
-                collected.append(piece)
-                yield _sse({"type": "token", "content": piece})
-
-            text = "".join(collected).strip()
-            if not text:
-                # LLM indisponible → texte de repli, émis en un bloc
-                text = CONVERSATIONAL_FALLBACK[kind]
-                yield _sse({"type": "token", "content": text})
-            # UNKNOWN = vrai raisonnement LLM → compte dans le quota upsell.
-            # GREETING reste gratuit (ne pénalise pas un simple "bonjour").
-            if kind == "UNKNOWN":
-                llm_used = True
-            response_dict = {
-                "message": text,
-                "action_type": "info",
-                "pending_action": None,
-                "suggestions": CONVERSATIONAL_SUGGESTIONS[kind],
-            }
-        else:
-            response_dict = dispatcher.dispatch(parsed_intent, db, current_user).to_dict()
-            yield _sse({"type": "token", "content": response_dict.get("message", "")})
-
-        _persist_bot_message(session_id, response_dict, llm_used, db, current_user)
-        _apply_upsell(session_id, llm_used, db, response_dict)
+        _persist_bot_message(session_id, response_dict, db, current_user)
+        response_dict["show_upsell"] = False
         response_dict["session_id"] = session_id
         yield _sse({"type": "final", **response_dict})
 

@@ -1,0 +1,37 @@
+schema_version: "2.0"
+title: Scientific source record
+type: object
+required: [source_id, domain, title, organization, publication_date, accessed_at, source_type, jurisdiction, population, url, license, evidence_level, claims_supported, limitations, implementation_targets, status]
+properties:
+  source_id: {type: string, pattern: "^[a-z0-9][a-z0-9-]+$"}
+  domain: {type: string, enum: [pharmacology, clinical-diagnosis, cephalometry, radiology, testing-and-safety, claude-code, architecture-interoperability]}
+  title: {type: string}
+  organization: {type: string}
+  authors: {type: array, items: {type: string}}
+  publication_date: {type: string}
+  version: {type: string}
+  accessed_at: {type: string, format: date}
+  source_type: {type: string, enum: [official-authority, official-standard, professional-society-guideline, systematic-review, consensus, original-publication, product-information, reporting-guideline, other]}
+  jurisdiction: {type: string}
+  population:
+    type: object
+    required: [description, age_range, sex, geography]
+    properties:
+      description: {type: string}
+      age_range: {type: string}
+      sex: {type: string}
+      geography: {type: string}
+  url: {type: string, format: uri}
+  doi_or_identifier: {type: string}
+  license: {type: string}
+  evidence_level: {type: string, enum: [A, B, C, not_verified]}
+  applicability_to_morocco: {type: string, enum: [direct, partial, indirect, unknown, not_applicable]}
+  claims_supported: {type: array, items: {type: string}}
+  limitations: {type: array, items: {type: string}}
+  contradictions: {type: array, items: {type: string}}
+  implementation_targets: {type: array, items: {type: string}}
+  status: {type: string, enum: [candidate, needs_review, approved-by-clinician, rejected, superseded, license-blocked, insufficient-evidence, conflicting-sources, license_uncertain]}
+  reviewed_by: {type: string}
+  reviewed_at: {type: string}
+  approval_evidence: {type: string}
+additionalProperties: false

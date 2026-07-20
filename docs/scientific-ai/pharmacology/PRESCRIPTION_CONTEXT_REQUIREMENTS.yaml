@@ -1,0 +1,82 @@
+schema_version: "1.0"
+status: candidate
+requirements:
+  - field: age
+    why_needed: "Population eligibility, age restrictions and pediatric/adult rule selection."
+    rule_dependencies: [pediatric-rules, age-restricted-products, prophylaxis-candidates]
+    source_ids: [aapd-useful-medications-2025, aapd-antibiotics-2026]
+    requirement: conditional
+    missing_behavior: block_when_rule_has_age_constraint
+  - field: measured_weight
+    why_needed: "Weight-based calculations and population/formulation limits."
+    rule_dependencies: [pediatric-weight-based-rules, weight-capped-rules]
+    source_ids: [aapd-useful-medications-2025]
+    requirement: conditional
+    missing_behavior: block_weight_based_rule
+  - field: allergy_status
+    why_needed: "Substance/class contraindication and reviewed alternative pathways."
+    rule_dependencies: [antibiotic-rules, nsaid-rules, local-anesthetic-rules]
+    source_ids: [nice-drug-allergy-cg183, sdcep-drug-prescribing]
+    requirement: mandatory_before_prescription_validation
+    missing_behavior: block_and_request_clarification
+  - field: pregnancy
+    why_needed: "Product- and trimester-specific contraindications/precautions."
+    rule_dependencies: [nsaid-rules, antibiotic-rules, corticosteroid-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_by_patient_context
+    missing_behavior: block_affected_rules
+  - field: breastfeeding
+    why_needed: "Product-specific exposure and precaution decisions."
+    rule_dependencies: [systemic-medication-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_by_patient_context
+    missing_behavior: block_affected_rules
+  - field: renal_status
+    why_needed: "Contraindications, dose adjustment or product avoidance."
+    rule_dependencies: [nsaid-rules, renally-cleared-medication-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_by_rule
+    missing_behavior: block_when_rule_requires_renal_classification
+  - field: hepatic_status
+    why_needed: "Contraindications, total exposure limits and adjustment."
+    rule_dependencies: [paracetamol-rules, hepatically-relevant-medication-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_by_rule
+    missing_behavior: block_when_rule_requires_hepatic_classification
+  - field: gi_ulcer_or_bleeding_history
+    why_needed: "NSAID contraindication/precaution and bleeding-risk assessment."
+    rule_dependencies: [nsaid-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_for_nsaid
+    missing_behavior: block_nsaid_rule
+  - field: asthma_or_nsaid_reaction_history
+    why_needed: "Relevant NSAID hypersensitivity/bronchospasm pathway."
+    rule_dependencies: [nsaid-rules]
+    source_ids: [product-information-source-required]
+    requirement: conditional_for_nsaid
+    missing_behavior: block_when_risk_status_unknown
+  - field: anticoagulant_or_antiplatelet_use
+    why_needed: "Bleeding and interaction assessment."
+    rule_dependencies: [nsaid-rules, procedure-adjunct-rules]
+    source_ids: [licensed-interaction-source-required]
+    requirement: conditional_by_rule
+    missing_behavior: block_affected_rules
+  - field: current_medications
+    why_needed: "Interaction and duplicate active ingredient screening."
+    rule_dependencies: [all-systemic-rules, duplicate-ingredient-check]
+    source_ids: [licensed-interaction-source-required]
+    requirement: mandatory_before_final_validation
+    missing_behavior: mark_unknown_and_block_rules_requiring_interaction_clearance
+  - field: indication_and_diagnostic_certainty
+    why_needed: "Prevents medication generation from a single finding or vague procedure label."
+    rule_dependencies: [antibiotic-rules, analgesic-rules, prophylaxis-rules]
+    source_ids: [ada-antibiotics-2019, ada-acute-pain-2024]
+    requirement: mandatory_for_rule_selection
+    missing_behavior: block_rule_selection
+  - field: exact_formulation
+    why_needed: "Strength, concentration, route and representability are calculation inputs."
+    rule_dependencies: [all-dose-rules]
+    source_ids: [ammps-medication-list-2026]
+    requirement: mandatory_before_calculation
+    missing_behavior: block_calculation
+
