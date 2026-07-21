@@ -1,0 +1,129 @@
+# Cephalometric classification rules — Phase 2 (legacy inventory).
+#
+# Kept as a separate file/model from normative_profiles.yaml because a
+# reference mean/SD and the clinical threshold derived from it are not
+# always the same claim — e.g. ANB's own evaluate_metric band (0-4, see
+# ANB_ENGINE_LEGACY_V1) is a DIFFERENT number from its classification cutoff
+# (4.5/0) below, even inside the same engine file. Preserved exactly as
+# coded; no threshold corrected or harmonized.
+#
+# measurement_definition_version added in Phase 3 (cephalo_normative_service.py)
+# so a rule can never be applied against a formula version it wasn't written
+# for — "v1" everywhere since no formula has changed.
+#
+# Schema: docs/scientific-ai/templates/normative-profile.schema.yaml (rule section)
+# Types:  backend/schemas/cephalo_normative.py::ClassificationRule
+
+rules:
+
+  # --- ANB skeletal classification (Classe I/II/III) ---
+  - rule_id: ANB_ENGINE_RULE_LEGACY_V1
+    measurement_id: ANB
+    measurement_definition_version: v1
+    thresholds: [0.0, 4.5]
+    labels: ["Classe III", "Classe I", "Classe II"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "class_steiner = \"II\" if val_anb > 4.5 else \"III\" if val_anb < 0 else \"I\"", line: "581"}
+
+  - rule_id: ANB_CEPHALOUTILS_RULE_LEGACY_V1
+    measurement_id: ANB
+    measurement_definition_version: v1
+    thresholds: [0.0, 4.5]
+    labels: ["Classe III", "Classe I", "Classe II"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: frontend/src/features/ortho/cephaloUtils.ts, symbol: "computeStep3Data classeSteiner", line: "408-411"}
+    notes: "Exact duplicate of ANB_ENGINE_RULE_LEGACY_V1's threshold values."
+
+  - rule_id: ANB_BILAN_ORTHO_RULE_LEGACY_V1
+    measurement_id: ANB
+    measurement_definition_version: v1
+    thresholds: [0.0, 4.5]
+    labels: ["Classe III", "Classe I", "Classe II"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/bilan_ortho_engine.py, symbol: "_generate_resume_cephalo / _generate_synthese_diagnostique (anb > 4.5 / anb < 0)", line: "38-43,103-105"}
+    notes: "Third independent copy of the same 4.5/0 threshold — a third duplication of this exact classification logic (master audit §M)."
+
+  # --- Angle_de_Tweed vertical typology (hypo/normo/hyperdivergent) ---
+  - rule_id: TWEED_ENGINE_RULE_LEGACY_V1
+    measurement_id: Angle_de_Tweed
+    measurement_definition_version: v1
+    thresholds: [22.0, 30.0]
+    labels: ["Hypodivergent", "Normodivergent", "Hyperdivergent"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "div = \"hyperdivergent\" if val_tweed > 30 else \"hypodivergent\" if val_tweed < 22 else \"normodivergent\"", line: "590"}
+
+  - rule_id: TWEED_CEPHALOUTILS_RULE_LEGACY_V1
+    measurement_id: Angle_de_Tweed
+    measurement_definition_version: v1
+    thresholds: [20.0, 30.0]
+    labels: ["Hypodivergent", "Normodivergent", "Hyperdivergent"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: frontend/src/features/ortho/cephaloUtils.ts, symbol: "pattern_vertical (fma < 20 / fma > 30), also duplicated in generateTreatmentPlan", line: "334-335,566,571"}
+    notes: "CONFLICT, preserved exactly as coded: lower cutoff is 20 here vs 22 in the engine — a direct numeric mismatch, not just a band-width difference (master audit top-blocker #4)."
+
+  # --- IMPA dento-alveolar classification ---
+  - rule_id: IMPA_ENGINE_RULE_LEGACY_V1
+    measurement_id: IMPA
+    measurement_definition_version: v1
+    thresholds: [85.0, 95.0]
+    labels: ["Retroalveolie mandibulaire", "Normoalveolie", "Proalveolie mandibulaire"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "impa_diag = \"proalveolie mandibulaire\" if val_impa > 95 else \"retroalveolie mandibulaire\" if val_impa < 85 else \"normoalveolie\"", line: "604"}
+    notes: "Consistent with IMPA_ENGINE_LEGACY_V1's own mean±SD band (90±5 = 85-95) and with IMPA_STEP4_LEGACY_V1's card range — a rare case of internal agreement."
+
+  - rule_id: IMPA_BILAN_ORTHO_RULE_LEGACY_V1
+    measurement_id: IMPA
+    measurement_definition_version: v1
+    thresholds: [85.0, 95.0]
+    labels: ["Retroalveolie mandibulaire", "Normoalveolie", "Proalveolie mandibulaire"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/bilan_ortho_engine.py, symbol: "_generate_synthese_diagnostique (impa > 95 / impa < 85)", line: "109-110,113-114"}
+    notes: "Duplicate of IMPA_ENGINE_RULE_LEGACY_V1's threshold values."
+
+  # --- I_Francfort dento-alveolar classification ---
+  - rule_id: I_FRANCFORT_ENGINE_RULE_LEGACY_V1
+    measurement_id: I_Francfort
+    measurement_definition_version: v1
+    thresholds: [102.0, 112.0]
+    labels: ["Retroalveolie maxillaire", "Normoalveolie", "Proalveolie maxillaire"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "if_diag = \"proalveolie maxillaire\" if val_if > 112 else \"retroalveolie maxillaire\" if val_if < 102 else \"normoalveolie\"", line: "608"}
+    notes: "Matches I_FRANCFORT_STEP4_LEGACY_V1's card range [102,112] exactly — internal agreement between this rule and that profile."
+
+  # --- Surplomb (overjet) pathology classification ---
+  - rule_id: SURPLOMB_AI_ADVISOR_RULE_LEGACY_V1
+    measurement_id: Surplomb
+    measurement_definition_version: v1
+    thresholds: [3.0]
+    labels: ["Normal ou diminue", "Augmente"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/ai_advisor.py, symbol: "if surplomb_data.valeur > 3: \"surplomb (overjet) augmente\"", line: "114-115"}
+    notes: "Cutoff (3.0) coincides with SURPLOMB_ENGINE_LEGACY_V1's mean+sd (2.25+0.75=3.0) — an independent literal that happens to match today, not derived from the profile's own stored bound (master audit §C.10)."
+
+  - rule_id: SURPLOMB_STEP3_RULE_LEGACY_V1
+    measurement_id: Surplomb
+    measurement_definition_version: v1
+    thresholds: [1.5, 4.0]
+    labels: ["Retroalveolie", "Normal", "Proalveolie"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "surplomb > 4 ? 'Proalveolie' : surplomb < 1.5 ? 'Retroalveolie' : 'Normal'", line: "288"}
+    notes: "Distinct pathology cutoff from the reference mean/SD bands. Same threshold (>4) is independently duplicated in orthoExpertSystem.ts:130."
+
+  # --- Recouvrement (overbite) pathology classification ---
+  - rule_id: RECOUVREMENT_AI_ADVISOR_RULE_LEGACY_V1
+    measurement_id: Recouvrement
+    measurement_definition_version: v1
+    thresholds: [3.0]
+    labels: ["Normal ou diminue", "Deep bite (supraclusion)"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: backend/services/ai_advisor.py, symbol: "if recouv_data.valeur > 3: \"supraclusion incisive (deep bite)\"", line: "116-117"}
+    notes: "Cutoff (3.0) coincides with RECOUVREMENT_ENGINE_LEGACY_V1's mean+sd (2.25+0.75=3.0), same independent-literal caveat as the Surplomb rule above."
+
+  - rule_id: RECOUVREMENT_STEP3_RULE_LEGACY_V1
+    measurement_id: Recouvrement
+    measurement_definition_version: v1
+    thresholds: [1.0, 3.5]
+    labels: ["Infraclusie", "Normoclusie", "Supraclusie"]
+    validation_status: LEGACY_UNVALIDATED
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "recouvrement > 3.5 ? 'Supraclusie' : recouvrement < 1.0 ? 'Infraclusie' : 'Normoclusie'", line: "282"}
+    notes: "Distinct pathology cutoff from the reference mean/SD bands. Same thresholds (>3.5/<1.0) independently duplicated in orthoExpertSystem.ts:124,126."

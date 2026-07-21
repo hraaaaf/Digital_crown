@@ -165,7 +165,7 @@ class PanoramicEliteGenerator(BaseTemplate):
         """Prépare les métriques céphalométriques pour la table avec indicateurs visuels."""
         metrics = []
         # On sélectionne les métriques clés (SNA, SNB, ANB, Tweed, IMPA)
-        key_metrics = ["SNA", "SNB", "ANB", "Angle_de_Tweed", "IMPA", "I_Francfort", "Situation_A", "Situation_B"]
+        key_metrics = ["SNA", "SNB", "ANB", "Angle_de_Tweed", "IMPA", "I_Francfort", "Situation_A"]
         
         for name in key_metrics:
             data = angles_data.get(name)

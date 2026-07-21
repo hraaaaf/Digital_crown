@@ -1,0 +1,40 @@
+schema_version: "1.0"
+title: Cephalometric normative profile
+type: object
+required: [profile_id, measurement_id, measurement_definition_version, reference_type, unit, age_dependency_type, sex, population_id, source_id, validation_status, profile_version, effective_from]
+properties:
+  profile_id: {type: string}
+  measurement_id: {type: string}
+  measurement_definition_version: {type: string, description: "Must exactly match a measurement_definition's definition_version. A mismatch means this profile does not apply — never matched by proximity."}
+  reference_type: {type: string, enum: [MEAN_SD, FIXED_RANGE, SINGLE_REFERENCE_VALUE, CATEGORICAL_THRESHOLDS]}
+  unit: {type: string}
+  mean: {type: number}
+  sd: {type: number}
+  range: {type: array, items: {type: number}, minItems: 2, maxItems: 2}
+  single_value: {type: number}
+  categorical_thresholds: {type: array, items: {type: string}}
+  age_min: {type: number}
+  age_max: {type: number}
+  age_dependency_type: {type: string, enum: [AGE_INDEPENDENT, TWO_BUCKET, CONTINUOUS_TABLE]}
+  sex: {type: string, enum: [MALE, FEMALE, POOLED]}
+  population_id: {type: string, description: "References a population description (age_range/sex/geography/sample_context), never a bare ethnicity label on its own."}
+  source_id: {type: string, description: "Foreign key into docs/scientific-ai/SOURCE_REGISTRY.yaml. No duplicated author/DOI/year fields here."}
+  validation_status: {type: string, enum: [LEGACY_UNVALIDATED, UNDER_REVIEW, VALIDATED_FOR_PROFILE, QUARANTINED, DEPRECATED]}
+  profile_version: {type: string}
+  effective_from: {type: string, format: date}
+  effective_to: {type: string, format: date}
+additionalProperties: false
+
+# --- Classification rule (separate concept, same file for reviewer convenience) ---
+# A reference statistic (above) and the clinical threshold derived from it
+# are distinct, independently-sourced claims (architecture design §17).
+# type: classification_rule
+# required: [rule_id, measurement_id, thresholds, labels, validation_status]
+# properties:
+#   rule_id: {type: string}
+#   measurement_id: {type: string}
+#   profile_id: {type: string, description: "Nullable — the profile this rule interprets, if any."}
+#   thresholds: {type: array, items: {type: number}, minItems: 1}
+#   labels: {type: array, items: {type: string}, description: "Exactly thresholds.length + 1 entries."}
+#   source_id: {type: string, description: "Nullable — inherits the profile's source_id if absent."}
+#   validation_status: {type: string, enum: [LEGACY_UNVALIDATED, UNDER_REVIEW, VALIDATED_FOR_PROFILE, QUARANTINED, DEPRECATED]}

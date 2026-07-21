@@ -70,7 +70,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
 
         flat_metrics = []
         # Mesures linéaires calibration-dépendantes : exclues car non comparables sans confirmation étalonnage
-        LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B"}
+        LINEAR_MEASURES_EXCLUDED = {"Profondeur_Faciale", "Situation_A", "Situation_B", "Decalage_A_B"}
         analysis = vm.analysis
         for cat_name, measures in [("Dentaire", analysis.metrics.analyse_dentaire),
                                    ("Osseuse", analysis.metrics.analyse_osseuse),

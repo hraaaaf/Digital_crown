@@ -117,9 +117,9 @@ const METRIC_META: Record<string, {
   Recouvrement:  { label: 'Recouvrement (overbite)',    unit: 'mm', points: ['U1_incisal','L1_incisal'],                    lines: ['fh'],         abbrev: 'OB'    },
   // Analyse Osseuse
   Angle_de_Tweed: { label: 'Angle de Tweed (FMA)',      unit: '°',  points: ['Go','Me','Po','Or'],                          lines: ['mp','fh'],    abbrev: 'FMA'   },
-  Decalage_A_B:   { label: "Décalage A'B' (sagittal)",  unit: 'mm', points: ['A','B'],                                      lines: ['na','nb','ab'], abbrev: "A'B'" },
+  Decalage_A_B:   { label: "Décalage A-B interne",  unit: 'mm', points: ['A','B'],                                      lines: ['na','nb','ab'], abbrev: "A'B'" },
   Situation_A:    { label: "Position Point A (mxl.)",   unit: 'mm', points: ['A','N','Po','Or'],                            lines: ['na','fh'],    abbrev: 'sit.A' },
-  Situation_B:    { label: "Position Point B (mdb.)",   unit: 'mm', points: ['B','N','Po','Or'],                            lines: ['nb','fh'],    abbrev: 'sit.B' },
+  Situation_B:    { label: "B/N-perp interne",   unit: 'mm', points: ['B','N','Po','Or'],                            lines: ['nb','fh'],    abbrev: 'sit.B' },
   Profondeur_Faciale: { label: 'Profondeur Faciale',   unit: 'mm', points: ['S','N','Po','Or'],                            lines: ['sn','fh'],    abbrev: 'PF'    },
   // Analyse Esthétique
   Ligne_E_Ls:     { label: 'Lèvre Sup. / Ligne E',      unit: 'mm', points: ['Prn','Pog_soft','Ls'],                        lines: ['ligne_e'],    abbrev: 'Ls-E'  },

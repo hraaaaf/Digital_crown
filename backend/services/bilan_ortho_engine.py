@@ -1,8 +1,63 @@
 import logging
 from typing import Dict, Any, Optional
 from backend import schemas
+from backend.schemas.cephalo_normative import NormativeContext, Sex
+from backend.services.cephalo_normative_service import evaluate_measurement, NormativeEvaluationStatus
 
 logger = logging.getLogger(__name__)
+
+# ANB skeletal-class label -> bare letter, matching the same convention used
+# in cephalo_engine.py (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-STEINER-4A).
+# Only these exact, already-migrated ClassificationRule label strings are
+# recognized — an unrecognized future label must never silently drive
+# treatment-strategy text.
+_ANB_LABEL_TO_SKELETAL_CLASS = {"Classe I": "I", "Classe II": "II", "Classe III": "III"}
+
+# Registry classification labels -> this file's own feminine-agreement bare
+# words ("Typologie faciale {div}" — div agrees with "typologie", unlike
+# cephalo_engine.py's masculine "Angle de Tweed: {div}") (CEPHALOMETRY-
+# NORMATIVE-BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C).
+_TWEED_LABEL_TO_DIV_FEMININE = {
+    "Hyperdivergent": "hyperdivergente",
+    "Hypodivergent": "hypodivergente",
+    "Normodivergent": "normodivergente",
+}
+
+# Patient.sexe is stored as "M"/"F" — anything else maps to None, never
+# guessed (CEPHALOMETRY-NORMATIVE-CONTEXT-PLUMBING-4A2).
+_SEX_CODE_TO_ENUM = {"M": Sex.MALE, "F": Sex.FEMALE}
+
+
+def _map_sex(sex_code: Optional[str]) -> Optional[Sex]:
+    if sex_code is None:
+        return None
+    return _SEX_CODE_TO_ENUM.get(sex_code)
+
+
+def _authoritative_label(
+    measurement_id: str,
+    value: Optional[float],
+    age: Optional[int] = None,
+    sex: Optional[str] = None,
+) -> Optional[str]:
+    """Returns a classification label only if the normative service
+    considers it authoritative — None otherwise (no silent fallback to
+    local legacy constants). Duplicated from cephalo_engine.py's identical
+    helper rather than cross-imported, to keep the two engine modules
+    independent as they already are. population_id stays None: no
+    population-profile concept exists anywhere in Digital Crown today
+    (documented limitation, not an omission).
+    """
+    if value is None:
+        return None
+    result = evaluate_measurement(
+        measurement_id, value, "v1",
+        NormativeContext(age=age, sex=_map_sex(sex), population_id=None),
+    )
+    if result.status == NormativeEvaluationStatus.VALIDATED_PROFILE_MATCH and result.classification:
+        return result.classification
+    return None
+
 
 class BilanOrthoEngine:
     """
@@ -11,10 +66,16 @@ class BilanOrthoEngine:
     pour générer une synthèse médicale d'une précision chirurgicale.
     """
 
-    def generate_bilan(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> Dict[str, str]:
-        resume_cephalo = self._generate_resume_cephalo(cephalo)
+    def generate_bilan(
+        self,
+        cephalo: schemas.CephaloAnalysisResult,
+        clinique: schemas.ClinicalData,
+        age: Optional[int] = None,
+        sex: Optional[str] = None,
+    ) -> Dict[str, str]:
+        resume_cephalo = self._generate_resume_cephalo(cephalo, age, sex)
         resume_moulages = self._generate_resume_moulages(clinique)
-        resume_diagnostic = self._generate_synthese_diagnostique(cephalo, clinique)
+        resume_diagnostic = self._generate_synthese_diagnostique(cephalo, clinique, age, sex)
         plan_traitement = self._generate_plan_traitement(cephalo, clinique)
 
         return {
@@ -25,32 +86,32 @@ class BilanOrthoEngine:
             "is_fallback": False # Déterministe natif
         }
 
-    def _generate_resume_cephalo(self, cephalo: schemas.CephaloAnalysisResult) -> str:
+    def _generate_resume_cephalo(self, cephalo: schemas.CephaloAnalysisResult, age: Optional[int] = None, sex: Optional[str] = None) -> str:
         narrative = cephalo.ai_narrative or {}
         diag_sq = narrative.get("diagnostic_squelettique", "")
         diag_dent = narrative.get("analyse_dentaire", "")
 
         if not diag_sq or len(diag_sq) < 20:
-            ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
             anb = cephalo.metrics.analyse_osseuse.ANB.valeur
             tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur
             parts = []
-            cl = None
-            if (anb is not None and anb > 4.5) or (ab is not None and ab > 5.4):
-                cl = "II"
-            elif (anb is not None and anb < 0) or (ab is not None and ab < -0.8):
-                cl = "III"
-            elif anb is not None or ab is not None:
-                cl = "I"
-            if cl is not None:
-                parts.append(f"Base squelettique de Classe {cl}.")
-            if tweed is not None:
-                div = "normodivergente"
-                if tweed > 30:
-                    div = "hyperdivergente"
-                elif tweed < 22:
-                    div = "hypodivergente"
+            # ANB no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-
+            # STEINER-4A) — only an authoritative service classification may name a
+            # skeletal class; the registry has no VALIDATED_FOR_PROFILE Steiner profile
+            # today, so this stays a neutral, value-only note.
+            anb_label = _authoritative_label("ANB", anb, age, sex)
+            if anb_label is not None:
+                parts.append(f"Base squelettique de {anb_label}.")
+            elif anb is not None:
+                parts.append(f"ANB = {anb}° (référence normative non validée).")
+            # Tweed no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-
+            # WIRING-TWEED-IMPA-FRANCFORT-4C) \u2014 same non-authoritative pattern as ANB above.
+            tweed_label = _authoritative_label("Angle_de_Tweed", tweed, age, sex)
+            div = _TWEED_LABEL_TO_DIV_FEMININE.get(tweed_label) if tweed_label else None
+            if tweed_label is not None:
                 parts.append(f"Typologie faciale {div} (Tweed = {tweed}\u00b0).")
+            elif tweed is not None:
+                parts.append(f"Tweed = {tweed}\u00b0 (r\u00e9f\u00e9rence normative non valid\u00e9e).")
             diag_sq = " ".join(parts)
 
         if not diag_dent:
@@ -96,25 +157,32 @@ class BilanOrthoEngine:
             
         return " ".join(parts)
 
-    def _generate_synthese_diagnostique(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData) -> str:
-        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
+    def _generate_synthese_diagnostique(self, cephalo: schemas.CephaloAnalysisResult, clinique: schemas.ClinicalData, age: Optional[int] = None, sex: Optional[str] = None) -> str:
         anb = cephalo.metrics.analyse_osseuse.ANB.valeur
         ddm = clinique.ddm_reelle
         impa = cephalo.metrics.analyse_dentaire.IMPA.valeur
         synthese = []
-        is_cl2 = (anb is not None and anb > 4.5) or (ab is not None and ab > 5.4)
-        is_cl3 = (anb is not None and anb < 0) or (ab is not None and ab < -0.8)
-        if is_cl2:
+        # ANB no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-
+        # STEINER-4A) \u2014 this method's whole job is naming *the* sagittal problem, and
+        # with no authoritative classification there is no class-specific sentence to
+        # attach a note to, so it is omitted entirely rather than replaced (confirmed
+        # design choice). Raw ANB stays visible via diagnostic_squelettique instead.
+        anb_label = _authoritative_label("ANB", anb, age, sex)
+        skeletal_class = _ANB_LABEL_TO_SKELETAL_CLASS.get(anb_label) if anb_label else None
+        # IMPA no longer classifies locally (same 4C mission as Tweed above) \u2014
+        # only fires when the service names it authoritatively.
+        impa_label = _authoritative_label("IMPA", impa, age, sex)
+        if skeletal_class == "II":
             synthese.append("La Classe II squelettique est le probl\u00e8me sagittal majeur.")
             if ddm is not None and ddm < -4:
                 synthese.append("Elle est aggrav\u00e9e par un encombrement dentaire limitant les compensations.")
-            if impa is not None and impa > 95:
+            if impa_label == "Proalveolie mandibulaire":
                 synthese.append("Notez une forte proalv\u00e9olie mandibulaire (compensation physiologique \u00e0 g\u00e9rer).")
-        elif is_cl3:
+        elif skeletal_class == "III":
             synthese.append("Probl\u00e9matique de Classe III squelettique identifi\u00e9e.")
-            if impa is not None and impa < 85:
+            if impa_label == "Retroalveolie mandibulaire":
                 synthese.append("L'incisive inf\u00e9rieure est linguovers\u00e9e en tentative de compensation naturelle.")
-        elif anb is not None or ab is not None:
+        elif skeletal_class == "I":
             synthese.append("Bases osseuses \u00e9quilibr\u00e9es sagittalement (Classe I).")
             if ddm is not None and ddm < -5:
                 synthese.append("L'encombrement dentaire (DDM) constitue le d\u00e9fi th\u00e9rapeutique principal.")
@@ -129,7 +197,6 @@ class BilanOrthoEngine:
             return clinique.plan_traitement
             
         cvm = clinique.cvm or "CS3"
-        ab = cephalo.metrics.analyse_osseuse.Decalage_A_B.valeur
         tweed = cephalo.metrics.analyse_osseuse.Angle_de_Tweed.valeur
         ddm = clinique.ddm_reelle
         denture = clinique.denture_type or "PERMANENTE"
@@ -147,17 +214,6 @@ class BilanOrthoEngine:
             plan.append(f"Patient en denture permanente. Objectif : Alignement, nivellement et coordination occlusale.")
 
         # --- 2. PHASE SQUELETTIQUE (Orthopédie / Chirurgie) ---
-        if ab is not None and ab > 7: # Classe II marquée
-            if is_interceptive:
-                plan.append("- **Orthopédie** : Correction fonctionnelle de la Classe II (Twin Block ou Activateur) pour stimuler la croissance mandibulaire.")
-            else:
-                plan.append("- **Orthodontie** : Camouflage par recul en masse (mini-vis) ou chirurgie orthognathique (BSSO) si le décalage est trop sévère.")
-        elif ab is not None and ab < 1: # Classe III
-            if cvm in ["CS1", "CS2"]:
-                plan.append("- **Orthopédie** : Traction maxillaire précoce via Masque de Delaire et disjonction palatine.")
-            else:
-                plan.append("- **Compromis/Chirurgie** : Risque de compensation incisive. Chirurgie Le Fort I à envisager en fin de croissance.")
-
         # --- 3. GESTION DE L'ESPACE & TECHNIQUE ---
         if tech == "DAMON":
             mechanical_text = "- **M\u00e9canique Passive (Syst\u00e8me Damon)** : Expansion physiologique privil\u00e9gi\u00e9e. Utilisation de forces l\u00e9g\u00e8res pour limiter les extractions."

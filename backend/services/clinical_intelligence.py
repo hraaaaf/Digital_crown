@@ -274,22 +274,28 @@ class ClinicalIntelligenceService:
             cohort = "Adulte"
             age = self._calculate_age(patient.date_naissance)
             if age < 14: cohort = f"Enfant ({age} ans)"
-            
+
             # AIAdvisor._heuristic_fallback expects SkeletalAnalysis and DentalAnalysis objects
             # It's better to implement a "Global" prompt for AIAdvisor that takes Patient + Analysis
-            
+
             report_dict = ai_advisor.generate_diagnostic(
                 schemas.CephaloAnalysisResult(
                     analysis_metadata=schemas.AnalysisMetadata(
-                        pixel_ratio=last_analysis.mm_per_pixel or 1.0, 
+                        pixel_ratio=last_analysis.mm_per_pixel or 1.0,
                         cohort=cohort
                     ),
                     metrics=schemas.AnalysisMetrics(**last_analysis.angles_data),
                     visual_debug={},
                     t1_projection={},
+                    t2_projection={},
                     clinical_data=schemas.ClinicalData()
                 ),
-                use_slm=False # Force heuristic for speed in "Live"
+                use_slm=False, # Force heuristic for speed in "Live"
+                # Real patient age/sex, threaded through so Tweed/IMPA/I_Francfort
+                # can reach the normative service (CEPHALOMETRY-NORMATIVE-BACKEND-
+                # WIRING-TWEED-IMPA-FRANCFORT-4C) — same plumbing-gap fix as 4A2.
+                age=age,
+                sex=patient.sexe,
             )
             
             # Format report as Markdown

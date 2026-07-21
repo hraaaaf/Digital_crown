@@ -1,0 +1,303 @@
+# Cephalometric measurement definitions — Phase 2 (legacy inventory).
+#
+# `origin` here points to the geometric formula's primary location (usually
+# backend/services/cephalo_engine.py). It is NOT where a norm value lives —
+# that's on the NormativeProfile/ClassificationRule/PlausibilityBounds
+# entries in the sibling files, each with its own origin.
+#
+# `definition_version: "v1"` for everything: this phase does not change any
+# formula, so there is exactly one version of each in the current codebase.
+#
+# Schema: docs/scientific-ai/templates/cephalo-measurement.schema.yaml
+# Types:  backend/schemas/cephalo_normative.py::MeasurementDefinition
+
+measurements:
+  - measurement_id: SNA
+    canonical_name: "Steiner SNA"
+    display_name: "SNA"
+    analysis_family: Steiner
+    unit: degree
+    definition_version: v1
+    required_landmarks: [S, N, A]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (SNA)", line: "373"}
+
+  - measurement_id: SNB
+    canonical_name: "Steiner SNB"
+    display_name: "SNB"
+    analysis_family: Steiner
+    unit: degree
+    definition_version: v1
+    required_landmarks: [S, N, B]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (SNB)", line: "378"}
+
+  - measurement_id: ANB
+    canonical_name: "Steiner ANB"
+    display_name: "ANB"
+    analysis_family: Steiner
+    unit: degree
+    definition_version: v1
+    required_landmarks: [S, N, A, B]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (ANB = SNA - SNB)", line: "383"}
+
+  - measurement_id: Angle_de_Tweed
+    canonical_name: "Tweed FMA (Frankfort-Mandibular Plane Angle)"
+    display_name: "Angle de Tweed"
+    analysis_family: Tweed
+    unit: degree
+    definition_version: v1
+    required_landmarks: [Go, Me, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Angle_de_Tweed)", line: "402"}
+    notes: >
+      Canonical FMA (Go-Me vs Po-Or). Not the same measurement as the
+      classification cutoff duplicated across three files at different
+      values (22/30 in the engine's own narrative vs 20/30 in
+      frontend cephaloUtils.ts) — see the ClassificationRule entries.
+
+  - measurement_id: IMPA
+    canonical_name: "Tweed IMPA (Incisor Mandibular Plane Angle)"
+    display_name: "1 / Mandibulaire (IMPA)"
+    analysis_family: Tweed
+    unit: degree
+    definition_version: v1
+    required_landmarks: [L1_incisal, L1_apex, Go, Me]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (IMPA, 180 - raw angle)", line: "350-354"}
+
+  - measurement_id: I_Francfort
+    canonical_name: "Upper incisor to Frankfort plane (1 to FH)"
+    display_name: "1 / Francfort"
+    analysis_family: Downs
+    unit: degree
+    definition_version: v1
+    required_landmarks: [U1_apex, U1_incisal, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (I_Francfort, 180 - raw angle)", line: "356-360"}
+    notes: >
+      Confirmed distinct from Tweed's FMIA (180 - (FMA + IMPA)) — Digital
+      Crown computes FMIA as its own separate measurement
+      (frontend cephaloUtils.ts:389-390), not confounded with I_Francfort
+      in code, though undocumented as such and visually adjacent in the
+      Step3Clinical UI. See CEPHALOMETRY_NORMATIVE_SYSTEM_MASTER_AUDIT §E.
+
+  - measurement_id: FMIA
+    canonical_name: "Tweed FMIA (Frankfort-Mandibular Incisor Angle)"
+    display_name: "FMIA"
+    analysis_family: Tweed
+    unit: degree
+    definition_version: v1
+    required_landmarks: [Po, Or, L1_apex, L1_incisal]
+    definition_status: ACTIVE
+    origin: {file: frontend/src/features/ortho/cephaloUtils.ts, symbol: "computeStep3Data (fmia)", line: "389-390"}
+    notes: "Computed only on the frontend (cephaloUtils.ts) — no backend engine counterpart found under this name."
+
+  - measurement_id: Inter_Incisif
+    canonical_name: "Inter-incisal angle (1/1)"
+    display_name: "Inter Incisif (1/1)"
+    analysis_family: Downs
+    unit: degree
+    definition_version: v1
+    required_landmarks: [U1_incisal, U1_apex, L1_incisal, L1_apex]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Inter_Incisif)", line: "362-365"}
+
+  - measurement_id: I_NA_angle
+    canonical_name: "Steiner 1/NA angle"
+    display_name: "1 / NA (°)"
+    analysis_family: Steiner
+    unit: degree
+    definition_version: v1
+    required_landmarks: [N, A, U1_apex, U1_incisal]
+    definition_status: ACTIVE
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "MetricInput i_na_angle", line: "161"}
+    notes: "Computed only on the frontend (cephaloUtils.ts i_na_angle field) — no backend engine metric found under this exact name."
+
+  - measurement_id: I_NA_mm
+    canonical_name: "Steiner 1/NA linear distance"
+    display_name: "1 / NA (mm)"
+    analysis_family: Steiner
+    unit: mm
+    definition_version: v1
+    required_landmarks: [N, A, U1_incisal]
+    definition_status: ACTIVE
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "MetricInput i_na_mm", line: "162"}
+    notes: >
+      Frontend-computed (cephaloUtils.ts i_na_mm field). The validator
+      (cephalo_consistency_validator.py _MM_METRICS) has bounds registered
+      under this exact name, but no confirmed backend engine emission of a
+      metric literally named "I_NA_mm" was found — same latent
+      name-mismatch risk class as the Wits/Wits_Appraisal bug fixed
+      earlier; not re-investigated further in this phase.
+
+  - measurement_id: I_NB_angle
+    canonical_name: "Steiner 1/NB angle"
+    display_name: "1 / NB (°)"
+    analysis_family: Steiner
+    unit: degree
+    definition_version: v1
+    required_landmarks: [N, B, L1_apex, L1_incisal]
+    definition_status: ACTIVE
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "MetricInput i_nb_angle", line: "163"}
+    notes: "Computed only on the frontend (cephaloUtils.ts i_nb_angle field) — no backend engine metric found under this exact name."
+
+  - measurement_id: I_NB_mm
+    canonical_name: "Steiner 1/NB linear distance"
+    display_name: "1 / NB (mm)"
+    analysis_family: Steiner
+    unit: mm
+    definition_version: v1
+    required_landmarks: [N, B, L1_incisal]
+    definition_status: ACTIVE
+    origin: {file: frontend/src/features/ortho/components/Step3Clinical.tsx, symbol: "MetricInput i_nb_mm", line: "164"}
+    notes: "Same latent name-mismatch risk noted for I_NA_mm above (validator has bounds under this name; no confirmed backend engine emission)."
+
+  - measurement_id: Surplomb
+    canonical_name: "Overjet"
+    display_name: "Surplomb"
+    analysis_family: COM
+    unit: mm
+    definition_version: v1
+    required_landmarks: [U1_incisal, L1_incisal, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Surplomb)", line: "342-344"}
+
+  - measurement_id: Recouvrement
+    canonical_name: "Overbite"
+    display_name: "Recouvrement"
+    analysis_family: COM
+    unit: mm
+    definition_version: v1
+    required_landmarks: [U1_incisal, L1_incisal, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Recouvrement)", line: "345-347"}
+
+  - measurement_id: Longueur_Maxillaire
+    canonical_name: "McNamara effective midfacial length (Co-A)"
+    display_name: "Longueur Maxillaire (Co-A)"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Co, A]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Longueur_Maxillaire)", line: "506-509"}
+    notes: >
+      No NormativeProfile entries migrated — the engine stores this as a
+      raw value with a hardcoded literal status:"Normal" and no mean/SD/
+      range at all (confirmed: no _evaluate_metric call wraps it). This is
+      a mislabeled field (claims "Normal" without evaluating anything), not
+      a real norm to migrate. Flagged in the master audit as a P2 finding.
+
+  - measurement_id: Longueur_Mandibulaire
+    canonical_name: "McNamara effective mandibular length (Co-Gn)"
+    display_name: "Longueur Mandibulaire (Co-Gn)"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Co, Gn]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Longueur_Mandibulaire)", line: "510-514"}
+    notes: "Same as Longueur_Maxillaire above — hardcoded status:\"Normal\", zero profile entries migrated."
+
+  - measurement_id: Differentiel_Maxillo_Mandibulaire
+    canonical_name: "McNamara maxillo-mandibular length differential"
+    display_name: "Differentiel Maxillo-Mandibulaire"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Co, A, Gn]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Differentiel_Maxillo_Mandibulaire)", line: "516-518"}
+
+  - measurement_id: Etage_Inferieur_Face
+    canonical_name: "Lower anterior facial height (ANS-Me)"
+    display_name: "Etage Inferieur de la Face"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [ANS, Me]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Etage_Inferieur_Face)", line: "520-526"}
+
+  - measurement_id: Situation_A
+    canonical_name: "McNamara point A to nasion-perpendicular"
+    display_name: "Situation Point A"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [N, A, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Situation_A)", line: "406-424"}
+
+  - measurement_id: Ligne_E_Ls
+    canonical_name: "Ricketts E-line, upper lip"
+    display_name: "Ligne E / Ls"
+    analysis_family: Ricketts
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Prn, Pog_soft, Ls, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics / _signed_e_line_distance (Ligne_E_Ls)", line: "532-538"}
+
+  - measurement_id: Ligne_E_Li
+    canonical_name: "Ricketts E-line, lower lip"
+    display_name: "Ligne E / Li"
+    analysis_family: Ricketts
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Prn, Pog_soft, Li, Po, Or]
+    definition_status: ACTIVE
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics / _signed_e_line_distance (Ligne_E_Li)", line: "539-544"}
+
+  # --- Quarantined measurements (definition_status: QUARANTINED) ---
+  # Per the Phase-3 two-gate design: a QUARANTINED definition_status blocks
+  # ANY profile from activating a clinical classification, regardless of
+  # that profile's own validation_status. All profiles/rules below for
+  # these four measurements are themselves tagged QUARANTINED too (never
+  # LEGACY_UNVALIDATED) so both gates agree.
+
+  - measurement_id: Wits_Appraisal
+    canonical_name: "Jacobson Wits appraisal (AO-BO on occlusal plane)"
+    display_name: "Wits Appraisal"
+    analysis_family: Wits
+    unit: mm
+    definition_version: v1
+    required_landmarks: [Occ_Ant, Occ_Post, A, B]
+    definition_status: QUARANTINED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Wits_Appraisal)", line: "475-493"}
+    notes: "Quarantined per CEPHALOMETRY_WITS_UNVALIDATED_PLANE_QUARANTINED — Occ_Ant/Occ_Post anatomical provenance unverified. Raw calc only, 0 active clinical consumers (re-confirmed by the master audit)."
+
+  - measurement_id: Angle_Nasolabial
+    canonical_name: "Nasolabial angle"
+    display_name: "Angle Nasolabial"
+    analysis_family: Esthetic
+    unit: degree
+    definition_version: v1
+    required_landmarks: [Prn, Sn_soft, Ls]
+    definition_status: QUARANTINED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Angle_Nasolabial)", line: "387-396"}
+    notes: "Quarantined per CEPHALOMETRY_NASOLABIAL_INVALID_DEFINITION_QUARANTINED. Raw calc only, 0 active clinical consumers (re-confirmed by the master audit)."
+
+  - measurement_id: Situation_B
+    canonical_name: "McNamara point B to nasion-perpendicular"
+    display_name: "Situation Point B"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [N, B, Po, Or]
+    definition_status: QUARANTINED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Situation_B)", line: "406-425"}
+    notes: "Quarantined per CEPHALOMETRY_MCNAMARA_CUSTOM_MEASUREMENTS_QUARANTINED. Raw calc only, 0 active clinical consumers (re-confirmed by the master audit)."
+
+  - measurement_id: Decalage_A_B
+    canonical_name: "McNamara/Downs-adjacent A-B linear discrepancy"
+    display_name: "Decalage A-B"
+    analysis_family: McNamara
+    unit: mm
+    definition_version: v1
+    required_landmarks: [N, A, B, Po, Or]
+    definition_status: QUARANTINED
+    origin: {file: backend/services/cephalo_engine.py, symbol: "calculate_metrics (Decalage_A_B)", line: "406-420"}
+    notes: "Quarantined per CEPHALOMETRY_MCNAMARA_CUSTOM_MEASUREMENTS_QUARANTINED. Raw calc + an inert internal narrative sentence never surfaced downstream — 0 decision consumers (re-confirmed by the master audit)."

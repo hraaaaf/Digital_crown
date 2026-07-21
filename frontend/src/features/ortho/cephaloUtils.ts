@@ -289,7 +289,7 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   const a = g('a'); const b = g('b'); const s = g('s');
   const go = g('go'); const me = g('me');
   const sn = g('sn_soft') || g('sn'); const prn = g('prn') || g('nose_tip');
-  const cm = g('cm'); const ls = g('ls_soft') || g('ls') || g('ul');
+  const ls = g('ls_soft') || g('ls') || g('ul');
   const li = g('li_soft') || g('li') || g('ll'); const pogSoft = g('pog_soft') || g('stpog');
   const u1i = g('u1_incisal') || g('u1i');
   const u1a = g('u1_apex') || g('u1a');
@@ -328,12 +328,15 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
   // --- 1. CALCULS SYSTÉMATIQUES (TOUTES ANALYSES) ---
   
   // A. Tweed & Verticalité
+  // pattern_vertical is no longer derived from a local fma<20/>30 threshold
+  // here (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C) — it
+  // stays unset (''), the same neutral state the type already models for
+  // "not computed", since PatternVertical is a closed literal union and no
+  // consumer needs to distinguish "present but unclassified" from "absent"
+  // the way classe_squelettique's ANB fix did.
   if (po && or_ && go && me) {
     const fma = computeAngle(po, or_, go, me);
     results.osseuse!.angle_tweed = Math.round(fma);
-    if (fma < 20) results.pattern_vertical = 'hypodivergent';
-    else if (fma > 30) results.pattern_vertical = 'hyperdivergent';
-    else results.pattern_vertical = 'normodivergent';
   }
 
   // B. Steiner (ANB)
@@ -401,45 +404,14 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     if (overbite !== null) results.dentaire!.recouvrement = overbite;
   }
 
-  // --- 2. LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
+  // --- 2. LOGIQUE DE CONSENSUS SQUELETTIQUE ---
+  // ANB ne classifie plus localement (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B) :
+  // seul le service normatif backend peut produire une classification autoritative, et le
+  // registre actuel n'a aucun profil Steiner validé. "Indéterminée" reste réservé à
+  // l'absence de valeur ANB ; "Non classifiable" distingue explicitement le cas où ANB
+  // existe mais n'a pas de classification autoritative (pas une donnée manquante).
   const anb = results.osseuse!.anb !== '' ? Number(results.osseuse!.anb) : null;
-  const ab = results.osseuse!.decalage_ab !== '' ? Number(results.osseuse!.decalage_ab) : null;
-  const isChild = age !== '' && Number(age) < 13;
-  
-  // Bornes McNamara (COM)
-  const lowBoundMc = isChild ? 1.0 : -0.8;
-  const highBoundMc = isChild ? 7.4 : 5.4;
-
-  let classeSteiner: 'I' | 'II' | 'III' | null = null;
-  if (anb !== null) {
-    if (anb > 4.5) classeSteiner = 'II';
-    else if (anb < 0) classeSteiner = 'III';
-    else classeSteiner = 'I';
-  }
-
-  let classeMcNamara: 'I' | 'II' | 'III' | null = null;
-  if (ab !== null) {
-    if (ab > highBoundMc) classeMcNamara = 'II';
-    else if (ab < lowBoundMc) classeMcNamara = 'III';
-    else classeMcNamara = 'I';
-  }
-
-  // Consensus Elite : Si les deux sont dispos, on cherche l'accord. Sinon on prend celui dispo.
-  if (classeSteiner && classeMcNamara) {
-    if (classeSteiner === classeMcNamara) {
-      results.classe_squelettique = `Classe ${classeSteiner}`;
-    } else {
-      // Discordance Steiner/McNamara — libellé neutre sans contradiction de classe
-      results.classe_squelettique = `Classe ${classeSteiner} — discordance angulaire/linéaire`;
-    }
-  } else if (classeSteiner) {
-    results.classe_squelettique = `Classe ${classeSteiner}`;
-  } else if (classeMcNamara) {
-    results.classe_squelettique = `Classe ${classeMcNamara}`;
-  } else {
-    results.classe_squelettique = 'Indéterminée';
-  }
-
+  results.classe_squelettique = anb !== null ? 'Non classifiable' : 'Indéterminée';
   // Analyse Dentaire COM
   if (u1i && u1a && l1i && l1a) {
     results.dentaire!.inter_incisif = Math.round(computeInterIncisalAngle(u1i, u1a, l1i, l1a));
@@ -474,11 +446,6 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
     }
   }
 
-  if (cm && sn && ls) {
-    const angleNL = computeAngle(sn, cm, sn, ls);
-    results.esthetique!.angle_nasolabial = Math.round(angleNL);
-  }
-
   // Automatisation Analyse Moulage (depuis Étape 2)
   if (etape2) {
     const { molaire_droite, molaire_gauche, canine_droite, canine_gauche } = etape2.occlusal;
@@ -497,11 +464,14 @@ export function computeStep3Data(lms: Landmark[], age: number | '', sexe: 'M' | 
  * Génère un plan de traitement orthodontique contemporain (Damon / Invisalign)
  */
 export function generateTreatmentPlan(data: DonneesEtape3): string {
-  const { cvm, classe_squelettique: classe, pattern_vertical: pattern, severite_ddm: ddmSev, division } = data;
-  const anb = data.osseuse.anb === '' ? 0 : Number(data.osseuse.anb);
+  // classe_squelettique/division are no longer read here: ANB stopped classifying locally
+  // (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B) and the skeletal-strategy branch that
+  // consumed them was removed below, not merely disabled. pattern_vertical is no longer
+  // read either, for the same reason applied to Tweed (CEPHALOMETRY-NORMATIVE-BACKEND-
+  // WIRING-TWEED-IMPA-FRANCFORT-4C) — the vertical-control branch below was removed too.
+  const { cvm, severite_ddm: ddmSev } = data;
   const impa = data.dentaire.impa === '' ? 90 : Number(data.dentaire.impa);
   const ifranc = data.dentaire.i_francfort === '' ? 107 : Number(data.dentaire.i_francfort);
-  const fma = data.osseuse.angle_tweed === '' ? 25 : Number(data.osseuse.angle_tweed);
 
   const denture_type = data.denture_type || '';
   const isMixteOrPediatric = denture_type === 'MIXTE' || denture_type === 'TEMPORAIRE';
@@ -524,9 +494,6 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
   if (indicateExtraction) {
     plan += '🔴 **INDICATIONS EXTRACTIONNELLES**\n';
     plan += '• DDM sévère avec protrusion (IMPA > 95° / I/F > 120°).\n';
-    if (pattern === 'hyperdivergent') {
-      plan += '⚠ Attention : Face longue (Tweed > 30°). L\'extraction peut fermer l\'axe charnière. Contrôle vertical strict requis.\n';
-    }
     plan += '\n';
   } else {
     plan += '🟢 **PROTOCOLE NON-EXTRACTIONNEL (BONE ADAPTATION)**\n';
@@ -557,51 +524,21 @@ export function generateTreatmentPlan(data: DonneesEtape3): string {
   }
 
   // 3. GESTION SQUELETTIQUE & OCCLUSALE
+  // ANB ne classifie plus localement (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B) : classe
+  // ne vaut plus jamais "Classe I/II/III" (voir computeStep3Data ci-dessus), donc aucune
+  // décision squelettique/chirurgicale n'est plus dérivée localement d'ANB. Explicite plutôt
+  // que silencieusement vide, conformément au principe "RAW_ONLY/UNAVAILABLE plutôt qu'une
+  // conclusion inventée" — aucun seuil ANB (8, -4, 4.5, 0) n'est réintroduit ni remplacé.
   plan += '🦴 **STRATÉGIE SQUELETTIQUE (' + (isChild ? 'En Croissance' : 'Adulte') + ')**\n';
-  
-  if (classe?.includes('Classe I')) {
-    plan += '• Maintien de la Classe I bilatérale.\n';
-    plan += '• Focus sur l\'alignement et le nivellement.\n';
-  } 
-  else if (classe?.includes('Classe II')) {
-    if (isChild) {
-      plan += '• Croissance active : Thérapeutique fonctionnelle interceptive.\n';
-      plan += '• **Invisalign MA (Mandibular Advancement)** ou bielles (Herbst) en conjonction avec Damon.\n';
-      if (division === '2') plan += '• Division 2 : Dérétroclinaison préalable du bloc incisif maxillaire requise.\n';
-    } else {
-      if (anb > 8) {
-        plan += '• Classe II chirurgicale : Préparation orthodontique pour avancée mandibulaire (BSSO).\n';
-        plan += '• NE PAS compenser (camoufler) les incisives si chirurgie prévue.\n';
-      } else {
-        plan += '• Camouflage : Élastiques de Classe II lourds ou recul maxillaire (Mini-vis / IPR supérieur).\n';
-        plan += '• Surveillance de l\'IMPA (actuel: ' + impa + '°) lors du port des élastiques.\n';
-      }
-    }
-  } 
-  else if (classe?.includes('Classe III')) {
-    if (isChild && cvm !== 'CS4') {
-      plan += '• Interception : Masque facial (Delaire) + Disjoncteur (ERM) précoce.\n';
-    } else {
-      if (anb < -4) {
-        plan += '• Classe III chirurgicale (Ostéotomie bimaxillaire ou recul mandibulaire).\n';
-      } else {
-        plan += '• Camouflage : Élastiques de Classe III.\n';
-        plan += '• Rétroclinaison incisive mandibulaire (Damon avec torque bas en bas) + IPR inférieur.\n';
-      }
-    }
-  }
+  plan += '• Classification squelettique non disponible (ANB non interprété par le référentiel normatif).\n';
 
   // 4. GESTION VERTICALE
-  if (pattern === 'hyperdivergent' || fma > 30) {
-    plan += '\n📏 **CONTRÔLE VERTICAL STRICT**\n';
-    plan += '• Tendance face longue (Tweed: ' + fma + '°).\n';
-    plan += '• Éviter les forces extrusives. Caller les secteurs postérieurs.\n';
-    plan += '• Invisalign est un excellent choix car l\'épaisseur des gouttières offre une légère ingression molaire (effet bite-block).\n';
-  } else if (pattern === 'hypodivergent' || fma < 20) {
-    plan += '\n📏 **ESTHÉTIQUE VERTICALE**\n';
-    plan += '• Face courte. Autorisation des mécaniques d\'extrusion postérieures (nivellement courbe de Spee).\n';
-    plan += '• Les élastiques verticaux sont favorables.\n';
-  }
+  // Tweed no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-
+  // TWEED-IMPA-FRANCFORT-4C) — no fma threshold (20, 30) is reintroduced or
+  // replaced, same "RAW_ONLY/UNAVAILABLE rather than an invented conclusion"
+  // principle as the skeletal-strategy section above.
+  plan += '\n📏 **GESTION VERTICALE**\n';
+  plan += '• Typologie verticale non disponible (Tweed non interprété par le référentiel normatif).\n';
 
   return plan;
 }

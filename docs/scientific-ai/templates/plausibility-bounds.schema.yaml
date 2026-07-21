@@ -1,0 +1,16 @@
+schema_version: "1.0"
+title: Cephalometric plausibility bounds
+type: object
+required: [measurement_id, hard_min, hard_max, soft_min, soft_max]
+properties:
+  measurement_id: {type: string}
+  hard_min: {type: number, description: "Below this, the value is anatomically impossible for any human — never population-specific."}
+  hard_max: {type: number}
+  soft_min: {type: number, description: "Outside this, the value is plausible but unusual — a warning, not a block."}
+  soft_max: {type: number}
+additionalProperties: false
+
+# Ordering invariant: hard_min <= soft_min <= soft_max <= hard_max.
+# Deliberately separate from normative-profile.schema.yaml: these bounds
+# apply unconditionally, even with no matching population/age/sex profile
+# (architecture design §18) — they are a safety check, not a population norm.

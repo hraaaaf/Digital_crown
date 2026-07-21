@@ -21,7 +21,6 @@ const ANGLE_CARDS = [
   { key: 'I_Francfort',    label: '1 / Francfort', unit: '°', lo: 102, hi: 112, flo: 60, fhi: 155 },
   { key: 'IMPA',           label: 'IMPA',        unit: '°', lo: 85, hi: 95,   flo: 60,  fhi: 125 },
   { key: 'Inter_Incisif',  label: 'Inter-Inc.',  unit: '°', lo: 118, hi: 144, flo: 80,  fhi: 180 },
-  { key: 'Angle_Nasolabial', label: 'Nasolabial', unit: '°', lo: 92, hi: 112, flo: 50, fhi: 160 },
 ] as const;
 
 // Miroir de MM_KEYWORDS (backend/services/cephalo_measure_registry.py) — source unique
@@ -322,6 +321,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
                     for (const section of [m.analyse_osseuse, m.analyse_dentaire, m.analyse_esthetique]) {
                       if (!section) continue;
                       for (const [k, v] of Object.entries(section as Record<string, any>)) {
+                        if (k === 'Angle_Nasolabial' || k === 'Situation_B' || k === 'Decalage_A_B') continue;
                         const val = v?.valeur ?? null;
                         entries.push([k, typeof val === 'number' ? val : null]);
                       }

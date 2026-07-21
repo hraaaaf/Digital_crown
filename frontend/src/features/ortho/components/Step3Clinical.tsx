@@ -186,9 +186,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               )}
               {currentAnalysis === 'COM' && (
                 <>
-                  <MetricInput label="Mesure A'B'" value={data.osseuse.decalage_ab} onChange={(v: string) => updateOsseuse('decalage_ab', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+4.2 ± 3.2" : "+2.3 ± 3.1"} mean={data.age && Number(data.age) < 13 ? 4.2 : 2.3} tol={3.1} P={P} />
                   <MetricInput label="Situation Point A" value={data.osseuse.situation_a} onChange={(v: string) => updateOsseuse('situation_a', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "+2.8 ± 3.3" : "+2.3 ± 3"} mean={data.age && Number(data.age) < 13 ? 2.8 : 2.3} tol={3} P={P} />
-                  <MetricInput label="Situation Point B" value={data.osseuse.situation_b} onChange={(v: string) => updateOsseuse('situation_b', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "-1.5 ± 4.5" : "0.0 ± 4.9"} mean={data.age && Number(data.age) < 13 ? -1.5 : 0} tol={4.9} P={P} />
                   <MetricInput label="Profondeur Faciale" value={data.osseuse.profondeur_faciale} onChange={(v: string) => updateOsseuse('profondeur_faciale', v)} unit="mm" normal={data.age && Number(data.age) < 13 ? "61.3 ± 5" : "70.3 ± 5"} mean={data.age && Number(data.age) < 13 ? 61.3 : 70.3} tol={5} P={P} />
                 </>
               )}
@@ -211,7 +209,6 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             <div className="grid grid-cols-2 gap-4 pt-2">
               <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={(v: string) => updateEsthetique('ligne_e_ls', v)} unit="mm" normal="-2mm ± 2" mean={-2} tol={2} P={P} />
               <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={(v: string) => updateEsthetique('ligne_e_li', v)} unit="mm" normal="-1mm ± 2" mean={-1} tol={2} P={P} />
-              <MetricInput label="Angle Nasolabial" value={data.esthetique?.angle_nasolabial} onChange={(v: string) => updateEsthetique('angle_nasolabial', v)} unit="°" normal="102° ± 10" mean={102} tol={10} P={P} />
             </div>
           </AccordionSection>
         </div>

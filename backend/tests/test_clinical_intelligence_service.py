@@ -198,6 +198,38 @@ class TestGetFullDiagnostic:
         assert "report" in result
         assert len(result["report"]) > 100
 
+    def test_patient_age_and_sex_reach_ai_advisor(self, db, dentiste, monkeypatch):
+        # CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C:
+        # get_full_diagnostic already computes numeric age (self._calculate_age)
+        # but never threaded it (or sex) into ai_advisor.generate_diagnostic —
+        # same plumbing-gap class as CEPHALOMETRY-NORMATIVE-CONTEXT-PLUMBING-4A2's
+        # cephalo_service.py fix. This proves the real patient's age/sex now reach it.
+        import backend.services.clinical_intelligence as ci_module
+        captured = {}
+        original = ci_module.ai_advisor.generate_diagnostic
+
+        def _spy(result, use_slm=False, age=None, sex=None):
+            captured["age"] = age
+            captured["sex"] = sex
+            return original(result, use_slm=use_slm, age=age, sex=sex)
+
+        monkeypatch.setattr(ci_module.ai_advisor, "generate_diagnostic", _spy)
+
+        pat = _make_patient(db, dentiste, "AGESEX")
+        cephalo = models.CephaloAnalysis(
+            patient_id=pat.id,
+            image_original_path="api/static/uploads/radios/test.jpg",
+            angles_data={"analyse_osseuse": {}, "analyse_dentaire": {}, "analyse_esthetique": {}},
+            mm_per_pixel=0.2,
+            is_calibrated=True,
+        )
+        db.add(cephalo)
+        db.commit()
+
+        self.service.get_full_diagnostic(db, pat.id)
+        assert captured["age"] == self.service._calculate_age(pat.date_naissance)
+        assert captured["sex"] == pat.sexe == "M"
+
 
 class TestCalculateAge:
     def test_age_calculation(self):

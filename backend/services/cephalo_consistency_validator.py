@@ -72,7 +72,6 @@ class CephaloConsistencyValidator:
         "Inter_Incisif": (80.0, 180.0),
         "I_Francfort":   (60.0, 155.0),
         "IMPA":          (60.0, 125.0),
-        "Angle_Nasolabial": (50.0, 160.0),
     }
 
     # Bornes cliniques normales — angles (hors → warning)
@@ -83,7 +82,6 @@ class CephaloConsistencyValidator:
         "Inter_Incisif": (110.0, 150.0),
         "I_Francfort":   (93.0, 120.0),
         "IMPA":          (80.0, 105.0),
-        "Angle_Nasolabial": (85.0, 125.0),
     }
 
     # Métriques linéaires (mm) : (hard_lo, hard_hi, soft_lo, soft_hi)
@@ -179,7 +177,6 @@ class CephaloConsistencyValidator:
         metrics = angles_data.get("metrics", angles_data)
         osseuse = metrics.get("analyse_osseuse", {})
         dentaire = metrics.get("analyse_dentaire", {})
-        esthetique = metrics.get("analyse_esthetique", {})
 
         sna = _val(osseuse, "SNA", "valeur")
         snb = _val(osseuse, "SNB", "valeur")
@@ -187,12 +184,11 @@ class CephaloConsistencyValidator:
         inter = _val(dentaire, "Inter_Incisif", "valeur")
         i_franc = _val(dentaire, "I_Francfort", "valeur")
         impa = _val(dentaire, "IMPA", "valeur")
-        nasolab = _val(esthetique, "Angle_Nasolabial", "valeur")
 
         named = {
             "SNA": sna, "SNB": snb, "ANB": anb,
             "Inter_Incisif": inter, "I_Francfort": i_franc,
-            "IMPA": impa, "Angle_Nasolabial": nasolab,
+            "IMPA": impa,
         }
 
         # 1. Bornes physiologiques absolues

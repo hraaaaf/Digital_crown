@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateCase } from './orthoExpertSystem';
+import { evaluateCase, deriveDivision } from './orthoExpertSystem';
 import type { DonneesEtape3 } from './cephaloTypes';
 
 const missingMeasurements: DonneesEtape3 = {
@@ -98,5 +98,39 @@ describe('Wits Appraisal quarantine (unvalidated occlusal plane provenance)', ()
 
     expect(withWitsExplicitlyEmpty.mecanique).toEqual(withWitsUndefined.mecanique);
     expect(withWitsExplicitlyEmpty.extraction).toEqual(withWitsUndefined.extraction);
+  });
+});
+
+describe('ANB no longer classifies via classe_squelettique (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B)', () => {
+  it('never routes to the Classe II extraction-teeth branch when classe_squelettique is the new non-authoritative value', () => {
+    const severeCrowdingNonClassifiable: DonneesEtape3 = {
+      ...missingMeasurements,
+      dentaire: { ...missingMeasurements.dentaire, impa: 96 },
+      classe_squelettique: 'Non classifiable',
+      profil: 'droit',
+    };
+    const report = evaluateCase(severeCrowdingNonClassifiable, -8);
+
+    expect(report.extraction.recommandee).toBe(true);
+    // Class-II-specific tooth set ("35, 45...") must not appear — classe.includes('Classe II') can't match.
+    expect(report.extraction.dents).toBe('14, 24, 34, 44');
+  });
+
+  it('same for "Indéterminée" (ANB missing entirely)', () => {
+    const severeCrowdingIndeterminee: DonneesEtape3 = {
+      ...missingMeasurements,
+      dentaire: { ...missingMeasurements.dentaire, impa: 96 },
+      classe_squelettique: 'Indéterminée',
+      profil: 'droit',
+    };
+    const report = evaluateCase(severeCrowdingIndeterminee, -8);
+
+    expect(report.extraction.dents).toBe('14, 24, 34, 44');
+  });
+
+  it('deriveDivision never resolves Division 1/2 without a real "Classe II" string', () => {
+    // Consumed by Step3Clinical.tsx — confirms it can't be tricked by the new labels either.
+    expect(deriveDivision('Non classifiable', 5)).toBeNull();
+    expect(deriveDivision('Indéterminée', 5)).toBeNull();
   });
 });

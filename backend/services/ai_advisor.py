@@ -2,21 +2,54 @@ import logging
 from typing import Dict, Optional, Any
 from backend import schemas
 from backend.config import settings
+from backend.schemas.cephalo_normative import NormativeContext, Sex
+from backend.services.cephalo_normative_service import evaluate_measurement, NormativeEvaluationStatus
 
 logger = logging.getLogger(__name__)
 
+# Patient.sexe is stored as "M"/"F" — anything else maps to None, never
+# guessed (same convention as cephalo_engine.py/bilan_ortho_engine.py,
+# CEPHALOMETRY-NORMATIVE-CONTEXT-PLUMBING-4A2).
+_SEX_CODE_TO_ENUM = {"M": Sex.MALE, "F": Sex.FEMALE}
+
+
+def _map_sex(sex_code: Optional[str]) -> Optional[Sex]:
+    if sex_code is None:
+        return None
+    return _SEX_CODE_TO_ENUM.get(sex_code)
+
+
+def _authoritative_label(
+    measurement_id: str,
+    value: Optional[float],
+    age: Optional[int] = None,
+    sex: Optional[str] = None,
+) -> Optional[str]:
+    """Returns a classification label only if the normative service
+    considers it authoritative — None otherwise (no silent fallback to
+    local legacy constants/`.status`). Duplicated from cephalo_engine.py's
+    identical helper rather than cross-imported, to keep these modules
+    independent as they already are (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-
+    TWEED-IMPA-FRANCFORT-4C). population_id stays None: no population-profile
+    concept exists anywhere in Digital Crown today (documented limitation).
+    """
+    if value is None:
+        return None
+    result = evaluate_measurement(
+        measurement_id, value, "v1",
+        NormativeContext(age=age, sex=_map_sex(sex), population_id=None),
+    )
+    if result.status == NormativeEvaluationStatus.VALIDATED_PROFILE_MATCH and result.classification:
+        return result.classification
+    return None
+
+
 class ClinicalNorms:
     CHILD = {
-        "ab_mean": 4.2, "ab_dev": 3.2,
         "a_mean": 2.8, "a_dev": 3.3,
-        "b_mean": -1.5, "b_dev": 4.5,
-        "severe_cl2": 7.4, "severe_cl3": -6.0,
     }
     ADULT = {
-        "ab_mean": 2.3, "ab_dev": 3.1,
         "a_mean": 2.3, "a_dev": 3.0,
-        "b_mean": 0.0, "b_dev": 4.9,
-        "severe_cl2": 8.0, "severe_cl3": -4.9,
     }
 
     @classmethod
@@ -34,17 +67,32 @@ class AIAdvisor:
         # Configuration purement symbolique pour compatibilité avec l'existant
         self.model_name = "ghost-brain-nlg"
 
-    def generate_diagnostic(self, result: schemas.CephaloAnalysisResult, use_slm: bool = False) -> Dict[str, str]:
+    def generate_diagnostic(
+        self,
+        result: schemas.CephaloAnalysisResult,
+        use_slm: bool = False,
+        age: Optional[int] = None,
+        sex: Optional[str] = None,
+    ) -> Dict[str, str]:
         """
         Génère un diagnostic expert instantané. Le paramètre use_slm est ignoré.
+        age/sex (numeric age, "M"/"F") are optional and, when provided by the
+        caller, reach the normative service for Tweed/IMPA/I_Francfort — never
+        inferred here (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C).
         """
         metrics = result.metrics
-        age = result.analysis_metadata.cohort # "Enfant (9 ans)" or "Adulte"
-        
-        logger.info("Ghost Brain V2: Génération déterministe (NLG) de l'analyse céphalométrique")
-        return self._generate_nlg_report(metrics, age)
+        cohort = result.analysis_metadata.cohort # "Enfant (9 ans)" or "Adulte"
 
-    def _generate_nlg_report(self, metrics: schemas.AnalysisMetrics, cohort: str) -> Dict[str, str]:
+        logger.info("Ghost Brain V2: Génération déterministe (NLG) de l'analyse céphalométrique")
+        return self._generate_nlg_report(metrics, cohort, age=age, sex=sex)
+
+    def _generate_nlg_report(
+        self,
+        metrics: schemas.AnalysisMetrics,
+        cohort: str,
+        age: Optional[int] = None,
+        sex: Optional[str] = None,
+    ) -> Dict[str, str]:
         """
         Deterministic expert rule engine (NLG).
         Génère un rapport clinique complet basé sur les standards COM.
@@ -52,71 +100,39 @@ class AIAdvisor:
         osseuse = metrics.analyse_osseuse
         dentaire = metrics.analyse_dentaire
         is_child = "Enfant" in cohort
-        
-        # --- NORMES ---
-        norms = ClinicalNorms.get(is_child)
-        NORM_AB_MEAN = norms["ab_mean"]
-        NORM_AB_DEV = norms["ab_dev"]
-        NORM_A_MEAN = norms["a_mean"]
-        NORM_A_DEV = norms["a_dev"]
-        NORM_B_MEAN = norms["b_mean"]
-        NORM_B_DEV = norms["b_dev"]
-        
-        ab_data = osseuse.Decalage_A_B
+
         tweed_data = osseuse.Angle_de_Tweed
         sit_a_data = osseuse.Situation_A
-        sit_b_data = osseuse.Situation_B
-        
-        ab_status = ab_data.status
-        ab_value = ab_data.valeur
-        tweed_status = tweed_data.status
         tweed_value = tweed_data.valeur
         sit_a_value = sit_a_data.valeur
-        sit_b_value = sit_b_data.valeur
-        
+        # Tweed no longer classifies via the shared `.status` field (that field
+        # stays DISPLAY_ONLY for frontend/PDF cards, per Phase 4A precedent) —
+        # only an authoritative service classification may drive this narrative
+        # (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C).
+        tweed_label = _authoritative_label("Angle_de_Tweed", tweed_value, age, sex)
+
         # --- SYNTHESE SQUELETTIQUE ---
         diag_os_parts = ["L'analyse céphalométrique révèle"]
-        
-        if ab_value is not None and ab_status == "High":
-            severe_cl2 = NORM_AB_MEAN + 2 * NORM_AB_DEV
-            if ab_value > severe_cl2:
-                diag_os_parts.append(f"une structure de Classe II sévère (A-B = {ab_value} mm).")
-            else:
-                diag_os_parts.append(f"une structure de Classe II modérée (A-B = {ab_value} mm).")
-        elif ab_value is not None and ab_status == "Low":
-            severe_cl3 = NORM_AB_MEAN - 2 * NORM_AB_DEV
-            if ab_value < severe_cl3:
-                diag_os_parts.append(f"une structure de Classe III sévère (A-B = {ab_value} mm).")
-            else:
-                diag_os_parts.append(f"une structure de Classe III modérée (A-B = {ab_value} mm).")
-        elif ab_value is not None:
-            diag_os_parts.append(f"une structure de Classe I normosquelettique (A-B = {ab_value} mm).")
-        
-        sit_a_seuil_sup = NORM_A_MEAN + NORM_A_DEV
-        sit_a_seuil_inf = NORM_A_MEAN - NORM_A_DEV
-        sit_b_seuil_sup = NORM_B_MEAN + NORM_B_DEV
-        sit_b_seuil_inf = NORM_B_MEAN - NORM_B_DEV
-        
-        causes = []
-        if sit_a_value is not None:
-            if sit_a_value > sit_a_seuil_sup: causes.append(f"un maxillaire prognathique (+{sit_a_value} mm)")
-            elif sit_a_value < sit_a_seuil_inf: causes.append(f"un maxillaire rétrognathique ({sit_a_value} mm)")
-        
-        if sit_b_value is not None:
-            if sit_b_value > sit_b_seuil_sup: causes.append(f"une mandibule prognathique (+{sit_b_value} mm)")
-            elif sit_b_value < sit_b_seuil_inf: causes.append(f"une mandibule rétrognathique ({sit_b_value} mm)")
-        
-        if causes:
-            diag_os_parts.append("Ce décalage est principalement dû à " + " et ".join(causes) + ".")
-        elif sit_a_value is not None or sit_b_value is not None:
-            diag_os_parts.append("des bases osseuses bien positionnées par rapport à la base du crâne.")
-            
-        if tweed_value is not None and tweed_status == "High":
+
+        # Situation_A no longer classifies via local ClinicalNorms constants
+        # (CEPHALOMETRY-FINAL-NORMATIVE-MIGRATION-5) — only an authoritative service
+        # classification may name a maxillary position (prognathique/rétrognathique)
+        # or assert "bien positionnées"; none exists in the registry today, so the
+        # raw value is stated without any normative claim.
+        sit_a_label = _authoritative_label("Situation_A", sit_a_value, age, sex)
+        if sit_a_label is not None:
+            diag_os_parts.append(f"une Situation A classée {sit_a_label} ({sit_a_value} mm).")
+        elif sit_a_value is not None:
+            diag_os_parts.append(f"une Situation A = {sit_a_value} mm (référence normative non validée).")
+
+        if tweed_value is not None and tweed_label == "Hyperdivergent":
             diag_os_parts.append(f"une typologie hyperdivergente (Tweed = {tweed_value}°), caractérisant une face longue avec un risque d'ouverture de l'occlusion.")
-        elif tweed_value is not None and tweed_status == "Low":
+        elif tweed_value is not None and tweed_label == "Hypodivergent":
             diag_os_parts.append(f"une typologie hypodivergente (Tweed = {tweed_value}°), caractérisant une face courte avec un risque de surplomb.")
-        elif tweed_value is not None:
+        elif tweed_value is not None and tweed_label == "Normodivergent":
             diag_os_parts.append(f"un équilibre normodivergent favorable (Tweed = {tweed_value}°).")
+        elif tweed_value is not None:
+            diag_os_parts.append(f"Tweed = {tweed_value}° (référence normative non validée).")
             
         diag_os = " ".join(diag_os_parts)
         
@@ -126,64 +142,61 @@ class AIAdvisor:
         surplomb_data = dentaire.Surplomb
         recouv_data = dentaire.Recouvrement
         
-        impa_status = impa_data.status
         impa_value = impa_data.valeur
-        if_status = if_data.status
         if_value = if_data.valeur
-        
+        # IMPA/I_Francfort no longer classify via the shared `.status` field
+        # (same reasoning as Tweed above).
+        impa_label = _authoritative_label("IMPA", impa_value, age, sex)
+        if_label = _authoritative_label("I_Francfort", if_value, age, sex)
+
         diag_dent_parts = ["Au niveau dento-alvéolaire,"]
-        
-        if impa_value is not None and impa_status == "High":
+
+        if impa_value is not None and impa_label == "Proalveolie mandibulaire":
             diag_dent_parts.append(f"l'incisive inférieure est vestibuloversée (IMPA = {impa_value}°).")
-        elif impa_value is not None and impa_status == "Low":
+        elif impa_value is not None and impa_label == "Retroalveolie mandibulaire":
             diag_dent_parts.append(f"l'incisive inférieure est linguoversée (IMPA = {impa_value}°).")
-        elif impa_value is not None:
+        elif impa_value is not None and impa_label == "Normoalveolie":
             diag_dent_parts.append(f"les incisives inférieures sont bien positionnées sur leur base (IMPA = {impa_value}°).")
-            
-        if if_value is not None and if_status == "High":
+        elif impa_value is not None:
+            diag_dent_parts.append(f"IMPA = {impa_value}° (référence normative non validée).")
+
+        if if_value is not None and if_label == "Proalveolie maxillaire":
             diag_dent_parts.append(f"On note également une proalvéolie maxillaire (I/F = {if_value}°).")
-        elif if_value is not None and if_status == "Low":
+        elif if_value is not None and if_label == "Retroalveolie maxillaire":
             diag_dent_parts.append(f"On note également une rétroalvéolie maxillaire (I/F = {if_value}°).")
-            
-        if impa_value is not None and impa_data.plage_compensation and impa_status == "Compensated":
-            diag_dent_parts.append("Ces inclinaisons correspondent à une compensation dento-alvéolaire physiologique du décalage squelettique.")
-            
-        if surplomb_data.valeur is not None and surplomb_data.valeur > 3:
-            diag_dent_parts.append("Cliniquement, cela se traduit par un surplomb (overjet) augmenté.")
-        if recouv_data.valeur is not None and recouv_data.valeur > 3:
-            diag_dent_parts.append("Il y a aussi une supraclusion incisive (deep bite).")
-            
+
+        # Note: the previous "Compensated" sentence (keyed off the shared
+        # `.status` field's third state, driven by _evaluate_metric's own
+        # comp_range logic) has no equivalent in the registry's IMPA
+        # classification rule (a plain 2-threshold rule with no compensation
+        # concept) — omitted rather than invented, per the established
+        # "never invent semantics" precedent (CEPHALOMETRY-NORMATIVE-
+        # BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C).
+
+        # Surplomb/Recouvrement no longer classify via local raw>3 cutoffs
+        # (CEPHALOMETRY-FINAL-NORMATIVE-MIGRATION-5) — only an authoritative service
+        # classification may assert overjet/deep-bite; none exists today.
+        surplomb_label = _authoritative_label("Surplomb", surplomb_data.valeur, age, sex)
+        recouv_label = _authoritative_label("Recouvrement", recouv_data.valeur, age, sex)
+        if surplomb_label is not None and surplomb_label not in ("Normal", "Normal ou diminue"):
+            diag_dent_parts.append(f"Cliniquement, le surplomb est classé {surplomb_label} ({surplomb_data.valeur} mm).")
+        if recouv_label is not None and recouv_label not in ("Normal ou diminue", "Normoclusie", "Normal"):
+            diag_dent_parts.append(f"Le recouvrement est classé {recouv_label} ({recouv_data.valeur} mm).")
+
         diag_dent = " ".join(diag_dent_parts)
         
         # --- STRATEGIE ---
         strat_parts = []
-        SEVERE_CL2_THRESHOLD = norms["severe_cl2"]
-        SEVERE_CL3_THRESHOLD = norms["severe_cl3"]
-        
         strat_parts.append("🎯 OBJECTIFS THÉRAPEUTIQUES :")
         if is_child:
             strat_parts.append("Patient en croissance : L'objectif prioritaire est la modification orthopédique.")
         else:
             strat_parts.append("Patient adulte : L'objectif est la compensation orthodontique ou la chirurgie.")
             
-        if ab_value is not None and ab_status == "High":
-            if is_child:
-                strat_parts.append("- Correction de la Classe II par propulsion mandibulaire (élastiques, Herbst).")
-            else:
-                if ab_value > SEVERE_CL2_THRESHOLD:
-                    strat_parts.append("- Approche ortho-chirurgicale recommandée (avancée mandibulaire BSSO).")
-                else:
-                    strat_parts.append("- Compensation avec extractions (14/24 ou 15/25) et recul en masse.")
-        elif ab_value is not None and ab_status == "Low":
-            if is_child:
-                strat_parts.append("- Masque facial de traction postéro-antérieure pour stimuler le maxillaire.")
-            else:
-                strat_parts.append("- Chirurgie d'avancée maxillaire (Lefort I) à envisager si la fonction est altérée.")
-        
-        if tweed_value is not None and tweed_status == "High":
+        if tweed_value is not None and tweed_label == "Hyperdivergent":
             strat_parts.append("- ⚠️ Contrôle vertical strict impératif (ancrage absolu, éviter les extractions maxillaires seules).")
-        
-        if impa_value is not None and impa_status == "High" and not is_child:
+
+        if impa_value is not None and impa_label == "Proalveolie mandibulaire" and not is_child:
             strat_parts.append("- Rétroclinaison incisive mandibulaire nécessaire pour l'esthétique du profil.")
             
         strat_parts.append("\n🛠 MOYENS PROPOSÉS :")

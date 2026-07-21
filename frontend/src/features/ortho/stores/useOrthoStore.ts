@@ -390,10 +390,12 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
             // Osseuse
             if (m.analyse_osseuse) {
               if (m.analyse_osseuse.Angle_de_Tweed?.valeur !== undefined) {
-                const fma = m.analyse_osseuse.Angle_de_Tweed.valeur;
-                e3.osseuse.angle_tweed = String(fma);
-                // Déduction du pattern vertical
-                e3.pattern_vertical = fma > 30 ? 'HYPERDIVERGENT' : (fma < 22 ? 'HYPODIVERGENT' : 'NORMODIVERGENT');
+                e3.osseuse.angle_tweed = String(m.analyse_osseuse.Angle_de_Tweed.valeur);
+                // pattern_vertical ne classifie plus localement lors de la synchronisation
+                // d'une analyse persistée (CEPHALOMETRY-NORMATIVE-BACKEND-WIRING-TWEED-
+                // IMPA-FRANCFORT-4C) — seul le service normatif backend peut produire une
+                // classification autoritative ; le registre actuel n'a aucun profil Tweed
+                // validé. Reste '' (non calculé), aucun seuil (22, 30) réintroduit.
               }
               if (m.analyse_osseuse.Decalage_A_B?.valeur !== undefined) e3.osseuse.decalage_ab = String(m.analyse_osseuse.Decalage_A_B.valeur);
               if (m.analyse_osseuse.Situation_A?.valeur !== undefined) e3.osseuse.situation_a = String(m.analyse_osseuse.Situation_A.valeur);
@@ -404,8 +406,11 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
               if (m.analyse_osseuse.ANB?.valeur !== undefined) {
                 const anb = m.analyse_osseuse.ANB.valeur;
                 e3.osseuse.anb = String(anb);
-                // Déduction Classe Squelettique
-                e3.classe_squelettique = anb > 4 ? 'CLASSE II' : (anb < 0 ? 'CLASSE III' : 'CLASSE I');
+                // ANB ne classifie plus localement lors de la synchronisation d'une analyse
+                // persistée (CEPHALOMETRY-FRONTEND-AUTHORITY-REMOVAL-4B) — seul le service
+                // normatif backend peut produire une classification autoritative ; le
+                // registre actuel n'a aucun profil Steiner validé. Aucun seuil (4, 0) réintroduit.
+                e3.classe_squelettique = 'Non classifiable';
                 // Profil is set from backend Ricketts E-line when available (see below); ANB fallback only if missing
               }
             }

@@ -25,7 +25,7 @@ def test_engine_without_calibration_keeps_angles_and_omits_mm_metrics():
     assert dental.I_Francfort.valeur is not None
     assert dental.Inter_Incisif.valeur is not None
     assert skeletal.Angle_de_Tweed.valeur is not None
-    assert esthetic.Angle_Nasolabial.valeur is not None
+    assert esthetic.Angle_Nasolabial.valeur is None
 
     assert dental.Surplomb.valeur is None
     assert dental.Recouvrement.valeur is None

@@ -47,7 +47,7 @@ export function evaluateCase(data: DonneesEtape3, ddmTotale: number | null): Ort
   const surplomb = optionalNumber(data.dentaire.surplomb);
   const recouv = optionalNumber(data.dentaire.recouvrement);
   
-  // 1. DÉCISION EXTRACTION (INTÉGRATION PANORAMIQUE & WITS)
+  // 1. DÉCISION EXTRACTION (INTÉGRATION PANORAMIQUE)
   let extrRecommandee = false;
   let extrRaison = "Données insuffisantes pour une orientation extractionnelle.";
   let extrDents = "";

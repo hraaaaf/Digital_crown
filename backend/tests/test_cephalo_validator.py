@@ -88,6 +88,11 @@ class TestAngleBounds:
         r = self.v.validate(data)
         assert any("Contradiction" in f for f in r.fatals)
 
+    def test_nasolabial_value_is_not_clinically_classified(self):
+        data = _make_data(analyse_esthetique={"Angle_Nasolabial": _angle(170)})
+        r = self.v.validate(data)
+        assert not any("Nasolabial" in message for message in r.fatals + r.warnings)
+
 
 # ── MM bounds ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +120,22 @@ class TestMmBounds:
         data = _make_data(analyse_dentaire={"Recouvrement": _mm(15.0)})
         r = self.v.validate(data)
         assert any("Recouvrement" in f for f in r.fatals)
+
+    def test_wits_appraisal_real_key_normal_clean(self):
+        # Production shape: cephalo_engine.py emits "Wits_Appraisal" under the
+        # "wits_mcnamara" section, not bare "Wits" under "analyse_osseuse".
+        data = _make_data(wits_mcnamara={"Wits_Appraisal": _mm(0.5)})
+        r = self.v.validate(data)
+        assert not r.fatals
+        assert not r.warnings
+
+    def test_wits_appraisal_real_key_out_of_physio_fatal(self):
+        # Regression guard for the name-contract mismatch: "Wits" alone in
+        # _MM_METRICS never matched the real "Wits_Appraisal" key, so this
+        # physiologically impossible value used to pass through silently.
+        data = _make_data(wits_mcnamara={"Wits_Appraisal": _mm(20.0)})
+        r = self.v.validate(data)
+        assert any("Wits_Appraisal" in f for f in r.fatals)
 
 
 # ── Unit contradictions ───────────────────────────────────────────────────────

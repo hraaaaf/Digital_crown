@@ -1,14 +1,38 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from backend.repositories.cephalo_repository import CephaloRepository
 from backend.services.cephalo_engine import cephalo_engine
 from backend.services.vision_service import vision_engine
 from backend.services.bilan_ortho_engine import bilan_ortho_engine
 from backend.services.ai_advisor import ai_advisor
-from backend import schemas
+from backend import schemas, models
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _calculate_age(birth_date) -> Optional[int]:
+    """Same pattern already used in prescription_service.py, clinical_coherence.py,
+    clinical_intelligence.py, panoramic_elite_gen.py — duplicated here rather than
+    shared, consistent with how every other file already does it.
+    """
+    if birth_date is None:
+        return None
+    from datetime import date
+    today = date.today()
+    return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+
+
+def _patient_age_and_sex(patient: Optional["models.Patient"]) -> Tuple[Optional[int], Optional[str]]:
+    """Reads exactly what's available on Patient — no invention. sex stays the raw
+    "M"/"F" code (or whatever is stored); the Sex-enum mapping happens downstream in
+    cephalo_engine.py/bilan_ortho_engine.py's own _map_sex (CEPHALOMETRY-NORMATIVE-
+    CONTEXT-PLUMBING-4A2). population is never here: no population-profile concept
+    exists anywhere in Digital Crown today.
+    """
+    if patient is None:
+        return None, None
+    return _calculate_age(patient.date_naissance), patient.sexe
 
 class CephaloService:
     """
@@ -47,10 +71,15 @@ class CephaloService:
         mm_ratio = auto_ratio
         logger.info(f"Ratio retenu : {mm_ratio} mm/px (Auto: {auto_ratio is not None})")
 
+        # 2bis. Contexte patient (âge/sexe) pour le service normatif — CEPHALOMETRY-
+        # NORMATIVE-CONTEXT-PLUMBING-4A2. Jamais inventé : lu directement sur Patient.
+        patient = self.db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+        age, sex = _patient_age_and_sex(patient)
+
         # 3. Calcul des métriques Géométriques -> CephaloAnalysisResult
         logger.info("Calcul des métriques géométriques...")
         try:
-            result = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_ratio)
+            result = cephalo_engine.calculate_metrics(points_dict, custom_mm_ratio=mm_ratio, age=age, sex=sex)
         except Exception as ce_err:
             logger.error(f"Échec du moteur géométrique: {ce_err}")
             raise ValueError(f"Erreur lors du calcul des angles : {ce_err}")
@@ -105,10 +134,17 @@ class CephaloService:
             mm_per_pixel if mm_per_pixel is not None else existing.mm_per_pixel
         )
 
+        # Contexte patient (âge/sexe) pour le service normatif — CEPHALOMETRY-
+        # NORMATIVE-CONTEXT-PLUMBING-4A2. Jamais inventé : lu directement sur Patient
+        # via la relation déjà chargée par la même session.
+        age, sex = _patient_age_and_sex(existing.patient)
+
         # 1. Recalcul Géométrique -> CephaloAnalysisResult
         result = cephalo_engine.calculate_metrics(
-            points_dict, 
+            points_dict,
             custom_mm_ratio=effective_mm_per_pixel,
+            age=age,
+            sex=sex,
             mcnamara_projections=mcnamara_projections
         )
 
@@ -122,7 +158,9 @@ class CephaloService:
             final_data_dict["ai_diagnostic"] = ai_diagnostic
         else:
             # Génération Local First (sans LLM) avec intégration complète Céphalométrie + Moulages
-            final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(result, clinical_data if clinical_data else schemas.ClinicalData())
+            final_data_dict["ai_diagnostic"] = bilan_ortho_engine.generate_bilan(
+                result, clinical_data if clinical_data else schemas.ClinicalData(), age=age, sex=sex
+            )
 
         # 4. Mise à jour via Repository — réinjecte calibration_status depuis is_calibrated
         # persisté : sans ça, le statut disparaîtrait au premier auto-save (silentSave

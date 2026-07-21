@@ -1,0 +1,191 @@
+# Cephalometric plausibility bounds — Phase 2 (legacy inventory).
+#
+# Copied exactly from backend/services/cephalo_consistency_validator.py's
+# current _HARD_BOUNDS / _SOFT_BOUNDS / _MM_METRICS dicts, plus the
+# frontend Step4Documents.tsx ANGLE_CARDS "flo/fhi" fatal-boundary values
+# that duplicate several of these hard bounds independently. Where a
+# Step4 card has no separate soft band of its own (it only has a single
+# fatal boundary), soft_min/soft_max are set equal to hard_min/hard_max —
+# this accurately represents "this origin does not distinguish soft from
+# hard", not an invented soft band.
+#
+# These bounds are NOT normative profiles (see normative_profiles.yaml) —
+# they represent "anatomically possible for any human", independent of
+# population/age/sex, per the approved architecture design §18.
+#
+# Schema: docs/scientific-ai/templates/plausibility-bounds.schema.yaml
+# Types:  backend/schemas/cephalo_normative.py::PlausibilityBounds
+
+bounds:
+
+  - bounds_id: SNA_VALIDATOR_LEGACY_V1
+    measurement_id: SNA
+    hard_min: 60.0
+    hard_max: 105.0
+    soft_min: 76.0
+    soft_max: 88.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[SNA] / _SOFT_BOUNDS[SNA]", line: "69,80"}
+
+  - bounds_id: SNA_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: SNA
+    hard_min: 60.0
+    hard_max: 105.0
+    soft_min: 60.0
+    soft_max: 105.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS SNA (flo/fhi)", line: "18"}
+    notes: "Duplicate of SNA_VALIDATOR_LEGACY_V1's hard bound. Step4's card has no separate soft band — soft_min/max collapsed to equal hard_min/max."
+
+  - bounds_id: SNB_VALIDATOR_LEGACY_V1
+    measurement_id: SNB
+    hard_min: 58.0
+    hard_max: 102.0
+    soft_min: 74.0
+    soft_max: 86.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[SNB] / _SOFT_BOUNDS[SNB]", line: "70,81"}
+
+  - bounds_id: SNB_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: SNB
+    hard_min: 58.0
+    hard_max: 102.0
+    soft_min: 58.0
+    soft_max: 102.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS SNB (flo/fhi)", line: "19"}
+    notes: "Duplicate of SNB_VALIDATOR_LEGACY_V1's hard bound."
+
+  - bounds_id: ANB_VALIDATOR_LEGACY_V1
+    measurement_id: ANB
+    hard_min: -10.0
+    hard_max: 15.0
+    soft_min: -2.0
+    soft_max: 6.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[ANB] / _SOFT_BOUNDS[ANB]", line: "71,82"}
+
+  - bounds_id: ANB_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: ANB
+    hard_min: -10.0
+    hard_max: 15.0
+    soft_min: -10.0
+    soft_max: 15.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS ANB (flo/fhi)", line: "20"}
+    notes: "Duplicate of ANB_VALIDATOR_LEGACY_V1's hard bound."
+
+  - bounds_id: INTER_INCISIF_VALIDATOR_LEGACY_V1
+    measurement_id: Inter_Incisif
+    hard_min: 80.0
+    hard_max: 180.0
+    soft_min: 110.0
+    soft_max: 150.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[Inter_Incisif] / _SOFT_BOUNDS[Inter_Incisif]", line: "72,83"}
+    notes: "A fourth, wider band for the same measurement already carrying two conflicting normative-profile SDs (10 vs 13) — see INTER_INCISIF_* profiles."
+
+  - bounds_id: INTER_INCISIF_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: Inter_Incisif
+    hard_min: 80.0
+    hard_max: 180.0
+    soft_min: 80.0
+    soft_max: 180.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS Inter_Incisif (flo/fhi)", line: "23"}
+    notes: "Duplicate of INTER_INCISIF_VALIDATOR_LEGACY_V1's hard bound."
+
+  - bounds_id: I_FRANCFORT_VALIDATOR_LEGACY_V1
+    measurement_id: I_Francfort
+    hard_min: 60.0
+    hard_max: 155.0
+    soft_min: 93.0
+    soft_max: 120.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[I_Francfort] / _SOFT_BOUNDS[I_Francfort]", line: "73,84"}
+
+  - bounds_id: I_FRANCFORT_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: I_Francfort
+    hard_min: 60.0
+    hard_max: 155.0
+    soft_min: 60.0
+    soft_max: 155.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS I_Francfort (flo/fhi)", line: "21"}
+    notes: "Duplicate of I_FRANCFORT_VALIDATOR_LEGACY_V1's hard bound."
+
+  - bounds_id: IMPA_VALIDATOR_LEGACY_V1
+    measurement_id: IMPA
+    hard_min: 60.0
+    hard_max: 125.0
+    soft_min: 80.0
+    soft_max: 105.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_HARD_BOUNDS[IMPA] / _SOFT_BOUNDS[IMPA]", line: "74,85"}
+    notes: "Soft band (80-105) is wider/off-center vs IMPA_ENGINE_LEGACY_V1's own comp_range (80-100) and IMPA_STEP4_LEGACY_V1's card range (85-95) — the PDF-gate warning uses a fourth, uncoordinated definition of normal (master audit top-blocker #5)."
+
+  - bounds_id: IMPA_STEP4_BOUNDS_LEGACY_V1
+    measurement_id: IMPA
+    hard_min: 60.0
+    hard_max: 125.0
+    soft_min: 60.0
+    soft_max: 125.0
+    origin: {file: frontend/src/features/ortho/components/Step4Documents.tsx, symbol: "ANGLE_CARDS IMPA (flo/fhi)", line: "22"}
+    notes: "Duplicate of IMPA_VALIDATOR_LEGACY_V1's hard bound."
+
+  - bounds_id: WITS_APPRAISAL_VALIDATOR_BAREKEY_LEGACY_V1
+    measurement_id: Wits_Appraisal
+    hard_min: -15.0
+    hard_max: 15.0
+    soft_min: -2.0
+    soft_max: 4.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[\"Wits\"] (bare-key legacy alias)", line: "91"}
+    notes: "Kept for possible historical data still using the bare 'Wits' key — see the name-mismatch fix already applied in CEPHALOMETRY_WITS_UNVALIDATED_PLANE_QUARANTINED."
+
+  - bounds_id: WITS_APPRAISAL_VALIDATOR_EXACTKEY_LEGACY_V1
+    measurement_id: Wits_Appraisal
+    hard_min: -15.0
+    hard_max: 15.0
+    soft_min: -2.0
+    soft_max: 4.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[\"Wits_Appraisal\"] (exact runtime key)", line: "96"}
+    notes: "Added to _MM_METRICS in the earlier Wits-quarantine mission to fix a name-contract mismatch — this is the entry that actually matches the engine's real emitted key."
+
+  - bounds_id: I_NA_MM_VALIDATOR_LEGACY_V1
+    measurement_id: I_NA_mm
+    hard_min: -5.0
+    hard_max: 15.0
+    soft_min: 2.0
+    soft_max: 6.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[I_NA_mm]", line: "95"}
+
+  - bounds_id: I_NB_MM_VALIDATOR_LEGACY_V1
+    measurement_id: I_NB_mm
+    hard_min: -5.0
+    hard_max: 15.0
+    soft_min: 2.0
+    soft_max: 6.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[I_NB_mm]", line: "95"}
+
+  - bounds_id: SURPLOMB_VALIDATOR_LEGACY_V1
+    measurement_id: Surplomb
+    hard_min: -10.0
+    hard_max: 12.0
+    soft_min: 1.0
+    soft_max: 4.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[Surplomb]", line: "97"}
+
+  - bounds_id: RECOUVREMENT_VALIDATOR_LEGACY_V1
+    measurement_id: Recouvrement
+    hard_min: -8.0
+    hard_max: 10.0
+    soft_min: 1.0
+    soft_max: 4.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[Recouvrement]", line: "98"}
+
+  - bounds_id: LIGNE_E_LS_VALIDATOR_SHARED_LEGACY_V1
+    measurement_id: Ligne_E_Ls
+    hard_min: -10.0
+    hard_max: 10.0
+    soft_min: -4.0
+    soft_max: 2.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[Ligne_E] (shared, no Ls/Li distinction)", line: "99"}
+    notes: "The validator has one generic 'Ligne_E' bound shared by both Ls and Li — correct-ish for Ls (mean -4) but see LIGNE_E_LI_VALIDATOR_SHARED_LEGACY_V1: this same bound is wrong-centered for Li (mean -2). Ambiguous shared origin, master audit §M."
+
+  - bounds_id: LIGNE_E_LI_VALIDATOR_SHARED_LEGACY_V1
+    measurement_id: Ligne_E_Li
+    hard_min: -10.0
+    hard_max: 10.0
+    soft_min: -4.0
+    soft_max: 2.0
+    origin: {file: backend/services/cephalo_consistency_validator.py, symbol: "_MM_METRICS[Ligne_E] (shared, no Ls/Li distinction)", line: "99"}
+    notes: "Same shared bound as LIGNE_E_LS_VALIDATOR_SHARED_LEGACY_V1 — soft band (-4,2) is centered near Ls's mean (-4), not Li's (-2). The validator cannot correctly bound both from one entry."

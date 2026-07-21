@@ -690,27 +690,6 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {/* 3. Angle Naso-Labial (Cm - Sn - Ls) */}
-        {!isGhost && cm && sn && ls && (
-          <g>
-            <line x1={cm.x} y1={cm.y} x2={sn.x} y2={sn.y} stroke="#10b981" strokeWidth="1.5" opacity="0.6" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" />
-            <line x1={sn.x} y1={sn.y} x2={ls.x} y2={ls.y} stroke="#10b981" strokeWidth="1.5" opacity="0.6" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" />
-            {(() => {
-              const ang1 = Math.atan2(cm.y - sn.y, cm.x - sn.x);
-              const ang2 = Math.atan2(ls.y - sn.y, ls.x - sn.x);
-              let angle = Math.abs((ang2 - ang1) * 180 / Math.PI);
-              if (angle > 180) angle = 360 - angle;
-              const r = 30;
-              const textPos = { x: sn.x + Math.cos((ang1 + ang2) / 2) * (r + 15), y: sn.y + Math.sin((ang1 + ang2) / 2) * (r + 15) };
-              return (
-                <text x={textPos.x} y={textPos.y} fontSize="10" fontWeight="bold" fill="#10b981" style={{ userSelect: 'none', pointerEvents: 'none' }} textAnchor="middle">
-                  {Math.round(angle)}°
-                </text>
-              );
-            })()}
-          </g>
-        )}
-
         {/* ══════════════════════════════════════════════════════════════ */}
 
         {/* Secteur JAUNE compensation ±10° — en premier = derrière */}

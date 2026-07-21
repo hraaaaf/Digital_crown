@@ -2,8 +2,81 @@ import math
 import logging
 from typing import Dict, Optional, Tuple, List, Any
 from backend import schemas
+from backend.schemas.cephalo_normative import NormativeContext, Sex
+from backend.services.cephalo_normative_service import evaluate_measurement, NormativeEvaluationStatus
 
 logger = logging.getLogger(__name__)
+
+# ANB skeletal-class label -> bare letter used by the downstream treatment-
+# strategy branches (strategie_parts). Only these exact, already-migrated
+# ClassificationRule label strings are recognized — an unrecognized future
+# label must never silently drive treatment strategy (CEPHALOMETRY-
+# NORMATIVE-BACKEND-WIRING-STEINER-4A).
+_ANB_LABEL_TO_SKELETAL_CLASS = {"Classe I": "I", "Classe II": "II", "Classe III": "III"}
+
+# Registry classification labels -> the bare lowercase words the downstream
+# narrative/anomalies-list code already expects (CEPHALOMETRY-NORMATIVE-
+# BACKEND-WIRING-TWEED-IMPA-FRANCFORT-4C).
+_TWEED_LABEL_TO_DIV = {
+    "Hyperdivergent": "hyperdivergent",
+    "Hypodivergent": "hypodivergent",
+    "Normodivergent": "normodivergent",
+}
+_IMPA_LABEL_TO_DIAG = {
+    "Proalveolie mandibulaire": "proalveolie mandibulaire",
+    "Retroalveolie mandibulaire": "retroalveolie mandibulaire",
+    "Normoalveolie": "normoalveolie",
+}
+_IF_LABEL_TO_DIAG = {
+    "Proalveolie maxillaire": "proalveolie maxillaire",
+    "Retroalveolie maxillaire": "retroalveolie maxillaire",
+    "Normoalveolie": "normoalveolie",
+}
+
+# Classification labels that denote a normal/within-range result and therefore
+# must NOT be listed as an anomaly (used by the synthese anomalies list). Covers
+# the label vocabularies of every migrated measurement's ClassificationRule
+# (CEPHALOMETRY-FINAL-NORMATIVE-MIGRATION-5).
+_NON_ANOMALY_LABELS = {
+    "Normal", "Normal ou diminue", "Normoalveolie", "Normoclusie", "Normodivergent",
+}
+
+# Patient.sexe is stored as "M"/"F" (backend/models.py, AddPatientForm.tsx).
+# Anything else (unset, legacy/unexpected value) maps to None — never guessed
+# (CEPHALOMETRY-NORMATIVE-CONTEXT-PLUMBING-4A2).
+_SEX_CODE_TO_ENUM = {"M": Sex.MALE, "F": Sex.FEMALE}
+
+
+def _map_sex(sex_code: Optional[str]) -> Optional[Sex]:
+    if sex_code is None:
+        return None
+    return _SEX_CODE_TO_ENUM.get(sex_code)
+
+
+def _authoritative_label(
+    measurement_id: str,
+    value: Optional[float],
+    age: Optional[int] = None,
+    sex: Optional[str] = None,
+) -> Optional[str]:
+    """Returns the classification label only if the normative service
+    considers it authoritative (VALIDATED_PROFILE_MATCH with a fired
+    ClassificationRule) — None in every other case (no silent fallback to
+    local legacy constants). age/sex are passed exactly as available in
+    this call path (Patient.date_naissance / Patient.sexe), never inferred.
+    population_id stays None: no population-profile concept exists
+    anywhere in Digital Crown today (CEPHALOMETRY-NORMATIVE-CONTEXT-
+    PLUMBING-4A2) — this is a documented limitation, not an omission.
+    """
+    if value is None:
+        return None
+    result = evaluate_measurement(
+        measurement_id, value, "v1",
+        NormativeContext(age=age, sex=_map_sex(sex), population_id=None),
+    )
+    if result.status == NormativeEvaluationStatus.VALIDATED_PROFILE_MATCH and result.classification:
+        return result.classification
+    return None
 
 class CephaloEngine:
     """
@@ -30,7 +103,7 @@ class CephaloEngine:
             "Prn": ["Prn", "Pronasale", "Nose_Tip"],
             "Pog_soft": ["Pog_soft", "Soft_Pogonion", "stPog", "stpog", "Soft_Pog"],
             # Alias *_soft : nomenclature émise par le modèle SOTA (sota_vision_service).
-            # Sans eux, Ligne E et angle nasolabial ne se calculent jamais avec les points SOTA.
+            # Sans eux, la Ligne E ne se calcule jamais avec les points SOTA.
             "Sn": ["Sn", "Sn_soft", "Subnasale"],
             "Ls": ["Ls", "Ls_soft", "Labrale_Superius", "UL", "ul", "Upper_Lip"],
             "Li": ["Li", "Li_soft", "Labrale_Inferius", "LL", "ll", "Lower_Lip"],
@@ -163,6 +236,20 @@ class CephaloEngine:
             "z_score": round(z_score, 2)
         }
 
+    @staticmethod
+    def _custom_measurement(value: Optional[float], label: str) -> dict:
+        """Preserve a geometric value without implying a clinical norm."""
+        return {
+            "valeur": round(value, 1) if value is not None else None,
+            "norm_mean": 0.0,
+            "norm_min": 0.0,
+            "norm_max": 0.0,
+            "plage_compensation": None,
+            "status": "N/A" if value is not None else "Missing",
+            "interpretation": label if value is not None else "Points requis manquants",
+            "z_score": 0.0,
+        }
+
     # --- LOGIQUE MÉTIER V4 : DDM RÉELLE ---
 
     def calculate_ddm_reelle(self, ddm_clinique: float, impa_patient: float) -> float:
@@ -278,6 +365,7 @@ class CephaloEngine:
                           raw_points: Dict,
                           custom_mm_ratio: Optional[float] = None,
                           age: Optional[int] = None,
+                          sex: Optional[str] = None,
                           cvm_stage: Optional[str] = None,
                           mcnamara_projections: Optional[Dict] = None) -> schemas.CephaloAnalysisResult:
         """
@@ -384,16 +472,8 @@ class CephaloEngine:
                     anb, 2.0, 2.0, "Classe II squelettique (Steiner)", "Classe III squelettique (Steiner)", "Classe I squelettique"
                 )
 
-        # Angle Nasolabial (Prn-Sn-Ls)
-        prn = pts.get("Prn")
-        sn_soft = pts.get("Sn_soft") or pts.get("Sn")
-        ls_soft = pts.get("Ls_soft") or pts.get("Ls")
-        if prn and sn_soft and ls_soft:
-            # Angle entre segment Sn-Prn et Sn-Ls
-            nla = self._get_clinical_angle(sn_soft, prn, sn_soft, ls_soft, invert=True)
-            payload["metrics"]["analyse_esthetique"]["Angle_Nasolabial"] = self._evaluate_metric(
-                nla, 102.0, 10.0, "Angle ouvert (Nez relevé)", "Angle fermé (Nez tombant)", "Harmonie nasolabiale"
-            )
+        # Angle nasolabial intentionally quarantined: the historical Prn-Sn-Ls
+        # construction is not the validated tangent-based definition.
 
         # 1.C. ANALYSE OSSEUSE
 
@@ -410,19 +490,17 @@ class CephaloEngine:
             if pts["S"]: prof_faciale = abs(((pts["S"][0] - pts["N"][0])*uFH[0] + (pts["S"][1] - pts["N"][1])*uFH[1])) * ratio
             if sit_a is not None and sit_b is not None: dec_ab = sit_a - sit_b
 
-        norm_dec_ab = (4.2, 3.2) if is_child else (2.3, 3.1)
         norm_sit_a = (2.8, 3.3) if is_child else (2.3, 3.0)
-        norm_sit_b = (-1.5, 4.5) if is_child else (0.0, 4.9)
         norm_prof_fac = (61.3, 5.0) if is_child else (70.3, 5.0)
 
-        payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
-            dec_ab, norm_dec_ab[0], norm_dec_ab[1], "Décalage Classe II", "Décalage Classe III", "Décalage Classe I"
+        payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._custom_measurement(
+            dec_ab, "Mesure géométrique interne A-B non validée cliniquement"
         )
         payload["metrics"]["analyse_osseuse"]["Situation_A"] = self._evaluate_metric(
             sit_a, norm_sit_a[0], norm_sit_a[1], "Maxillaire en avant", "Maxillaire en retrait", "Position maxillaire normale"
         )
-        payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
-            sit_b, norm_sit_b[0], norm_sit_b[1], "Mandibule en avant", "Mandibule en retrait", "Position mandibulaire normale"
+        payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._custom_measurement(
+            sit_b, "Mesure géométrique interne B/N-perp non validée comme McNamara"
         )
         payload["metrics"]["analyse_osseuse"]["Profondeur_Faciale"] = self._evaluate_metric(
             prof_faciale, norm_prof_fac[0], norm_prof_fac[1], "Profondeur augmentée", "Profondeur diminuée", "Profondeur normale"
@@ -460,16 +538,16 @@ class CephaloEngine:
                 # Distance N'B' (algébrique sur FH)
                 v_nb = (bp[0] - np[0], bp[1] - np[1])
                 dist_nb_mm = (v_nb[0]*uFH[0] + v_nb[1]*uFH[1]) * ratio
-                payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._evaluate_metric(
-                    dist_nb_mm, norm_sit_b[0], norm_sit_b[1], "Prognathie mandibulaire", "Rétrognathie mandibulaire", "Normoposition"
+                payload["metrics"]["analyse_osseuse"]["Situation_B"] = self._custom_measurement(
+                    dist_nb_mm, "Mesure géométrique interne B/N-perp non validée comme McNamara"
                 )
 
             if ap and bp:
                 # Décalage A-B (positif = Classe II, négatif = Classe III)
                 v_ab = (ap[0] - bp[0], ap[1] - bp[1])
                 dist_ab_mm = (v_ab[0]*uFH[0] + v_ab[1]*uFH[1]) * ratio
-                payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._evaluate_metric(
-                    dist_ab_mm, norm_dec_ab[0], norm_dec_ab[1], "Classe II squelettique", "Classe III squelettique", "Classe I squelettique"
+                payload["metrics"]["analyse_osseuse"]["Decalage_A_B"] = self._custom_measurement(
+                    dist_ab_mm, "Mesure géométrique interne A-B non validée cliniquement"
                 )
 
         # --- NOUVEAU: WITS APPRAISAL ---
@@ -556,10 +634,8 @@ class CephaloEngine:
             return payload["metrics"][group].get(name, {}).get("valeur")
 
         val_tweed = metric_value("analyse_osseuse", "Angle_de_Tweed")
-        val_dec_ab = metric_value("analyse_osseuse", "Decalage_A_B")
         val_anb = metric_value("analyse_osseuse", "ANB")
         val_sit_a = metric_value("analyse_osseuse", "Situation_A")
-        val_sit_b = metric_value("analyse_osseuse", "Situation_B")
         val_impa = metric_value("analyse_dentaire", "IMPA")
         val_if = metric_value("analyse_dentaire", "I_Francfort")
         val_inter = metric_value("analyse_dentaire", "Inter_Incisif")
@@ -568,93 +644,102 @@ class CephaloEngine:
 
         # Extraction Esthétique — None si la mesure n'a pas pu être faite (points cutanés
         # absents) : la narration doit dire "non évaluable", jamais coalescer vers une
-        # valeur par défaut présentée comme mesurée (0.0 / 102°).
+        # valeur par défaut présentée comme mesurée.
         val_e_ls = payload["metrics"].get("analyse_esthetique", {}).get("Ligne_E_Ls", {}).get("valeur")
-        val_nla = payload["metrics"].get("analyse_esthetique", {}).get("Angle_Nasolabial", {}).get("valeur")
 
-        # --- LOGIQUE DE CONSENSUS SQUELETTIQUE (CERVEAU SCIENTIFIQUE) ---
-        mean_ab, dev_ab = norm_dec_ab
-        max_ab = mean_ab + dev_ab
-        min_ab = mean_ab - dev_ab
-
-        class_steiner = None
-        if val_anb is not None:
-            class_steiner = "II" if val_anb > 4.5 else "III" if val_anb < 0 else "I"
-        class_mcnamara = None
-        if val_dec_ab is not None:
-            class_mcnamara = "II" if val_dec_ab > max_ab else "III" if val_dec_ab < min_ab else "I"
-        skeletal_class = class_steiner or class_mcnamara
+        # --- LOGIQUE DE CONSENSUS SQUELETTIQUE ---
+        # Decalage_A_B is a quarantined internal A-B construction and cannot
+        # determine a skeletal class or clinical strategy.
+        #
+        # ANB no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-
+        # WIRING-STEINER-4A): the registry currently has no VALIDATED_FOR_
+        # PROFILE Steiner profile, so this is expected to stay non-
+        # authoritative until a future mission validates one. Raw ANB value
+        # is preserved elsewhere in the payload regardless.
+        anb_label = _authoritative_label("ANB", val_anb, age, sex)
+        skeletal_class = _ANB_LABEL_TO_SKELETAL_CLASS.get(anb_label) if anb_label else None
 
         skeletal_parts = []
-        if class_steiner is not None and class_mcnamara is not None:
-            if class_steiner == class_mcnamara:
-                skeletal_parts.append(f"Structure de Classe {class_steiner} (ANB: {val_anb}°, A'B': {val_dec_ab} mm).")
-            else:
-                skeletal_parts.append(f"Discordance angulaire/linéaire: Classe {class_steiner} selon ANB ({val_anb}°), Classe {class_mcnamara} selon A'B' ({val_dec_ab} mm).")
-        elif class_steiner is not None:
-            skeletal_parts.append(f"Tendance squelettique de Classe {class_steiner} selon ANB ({val_anb}°).")
-        elif class_mcnamara is not None:
-            skeletal_parts.append(f"Tendance squelettique de Classe {class_mcnamara} selon A'B' ({val_dec_ab} mm).")
+        if anb_label is not None:
+            skeletal_parts.append(f"Tendance squelettique de {anb_label} selon ANB ({val_anb}°).")
+        elif val_anb is not None:
+            skeletal_parts.append(f"ANB = {val_anb}° (référence normative non validée).")
 
-        div = None
-        if val_tweed is not None:
-            div = "hyperdivergent" if val_tweed > 30 else "hypodivergent" if val_tweed < 22 else "normodivergent"
+        # Tweed no longer classifies locally (CEPHALOMETRY-NORMATIVE-BACKEND-
+        # WIRING-TWEED-IMPA-FRANCFORT-4C): the registry has conflicting
+        # unvalidated Tweed profiles ([22,30] vs [20,30]), so this stays
+        # non-authoritative until a future mission validates one.
+        tweed_label = _authoritative_label("Angle_de_Tweed", val_tweed, age, sex)
+        div = _TWEED_LABEL_TO_DIV.get(tweed_label) if tweed_label else None
+        if tweed_label is not None:
             skeletal_parts.append(f"Typologie faciale: {div.capitalize()} (Angle de Tweed: {val_tweed}°).")
+        elif val_tweed is not None:
+            skeletal_parts.append(f"Angle de Tweed = {val_tweed}° (référence normative non validée).")
 
-        val_sna = metric_value("analyse_osseuse", "SNA")
-        val_snb = metric_value("analyse_osseuse", "SNB")
-        if val_sit_a is not None:
-            if val_sit_a > norm_sit_a[0] + norm_sit_a[1]:
-                skeletal_parts.append("Prognathie maxillaire.")
-            elif val_sit_a < norm_sit_a[0] - norm_sit_a[1]:
-                skeletal_parts.append("Retrognathie maxillaire." if val_sna is not None and val_sna < 80.0 else "Situation A hors norme (a confirmer cliniquement).")
-        if val_sit_b is not None:
-            if val_sit_b > norm_sit_b[0] + norm_sit_b[1]:
-                skeletal_parts.append("Prognathie mandibulaire.")
-            elif val_sit_b < norm_sit_b[0] - norm_sit_b[1]:
-                skeletal_parts.append("Retrognathie mandibulaire." if val_snb is not None and val_snb < 78.0 else "Situation B hors norme (a confirmer cliniquement).")
+        # Situation_A no longer classifies locally (CEPHALOMETRY-FINAL-NORMATIVE-
+        # MIGRATION-5): the former norm_sit_a-gated "Prognathie/Retrognathie maxillaire"
+        # text (and its SNA workaround) is retired. The registry has no
+        # VALIDATED_FOR_PROFILE Situation_A profile today, so this stays
+        # non-authoritative (raw value preserved). norm_sit_a survives only as a
+        # DISPLAY_ONLY _evaluate_metric input above.
+        sit_a_label = _authoritative_label("Situation_A", val_sit_a, age, sex)
+        if sit_a_label is not None:
+            skeletal_parts.append(f"Situation A: {sit_a_label} ({val_sit_a} mm).")
+        elif val_sit_a is not None:
+            skeletal_parts.append(f"Situation A = {val_sit_a} mm (référence normative non validée).")
         diag_squelettique = " ".join(skeletal_parts) or "Analyse squelettique non evaluable: mesures requises absentes."
 
+        # IMPA/I_Francfort no longer classify locally (same 4C mission as
+        # Tweed above) — non-authoritative until a future mission validates
+        # a profile for either.
         dental_parts = []
-        impa_diag = None
-        if val_impa is not None:
-            impa_diag = "proalveolie mandibulaire" if val_impa > 95 else "retroalveolie mandibulaire" if val_impa < 85 else "normoalveolie"
+        impa_label = _authoritative_label("IMPA", val_impa, age, sex)
+        impa_diag = _IMPA_LABEL_TO_DIAG.get(impa_label) if impa_label else None
+        if impa_label is not None:
             dental_parts.append(f"IMPA: {impa_diag} ({val_impa}°).")
-        if_diag = None
-        if val_if is not None:
-            if_diag = "proalveolie maxillaire" if val_if > 112 else "retroalveolie maxillaire" if val_if < 102 else "normoalveolie"
+        elif val_impa is not None:
+            dental_parts.append(f"IMPA = {val_impa}° (référence normative non validée).")
+        if_label = _authoritative_label("I_Francfort", val_if, age, sex)
+        if_diag = _IF_LABEL_TO_DIAG.get(if_label) if if_label else None
+        if if_label is not None:
             dental_parts.append(f"I/F: {if_diag} ({val_if}°).")
+        elif val_if is not None:
+            dental_parts.append(f"I/F = {val_if}° (référence normative non validée).")
+        # Inter_Incisif has no ClassificationRule in the registry — only its raw
+        # value is ever shown, never a local ±10/±13 classification (the conflict
+        # between backend 131±10 and frontend 131±13 is preserved, never arbitrated).
         if val_inter is not None:
             dental_parts.append(f"Angle inter-incisif a {val_inter}°.")
-        overjet = None
-        if val_surplomb is not None:
-            overjet = "augmente" if val_surplomb > 3 else "diminue" if val_surplomb < 1.5 else "normal"
-            dental_parts.append(f"Surplomb {overjet} ({val_surplomb} mm).")
-        overbite = None
-        if val_recouvrement is not None:
-            overbite = "supraclusion" if val_recouvrement > 3 else "infraclusion" if val_recouvrement < 1.5 else "normal"
-            dental_parts.append(f"Recouvrement {overbite} ({val_recouvrement} mm).")
+        # Surplomb/Recouvrement no longer classify locally (CEPHALOMETRY-FINAL-
+        # NORMATIVE-MIGRATION-5) — non-authoritative until a validated profile exists.
+        surplomb_label = _authoritative_label("Surplomb", val_surplomb, age, sex)
+        if surplomb_label is not None:
+            dental_parts.append(f"Surplomb: {surplomb_label} ({val_surplomb} mm).")
+        elif val_surplomb is not None:
+            dental_parts.append(f"Surplomb = {val_surplomb} mm (référence normative non validée).")
+        recouv_label = _authoritative_label("Recouvrement", val_recouvrement, age, sex)
+        if recouv_label is not None:
+            dental_parts.append(f"Recouvrement: {recouv_label} ({val_recouvrement} mm).")
+        elif val_recouvrement is not None:
+            dental_parts.append(f"Recouvrement = {val_recouvrement} mm (référence normative non validée).")
         diag_dentaire = " ".join(dental_parts) or "Analyse dentaire non evaluable: mesures requises absentes."
 
-        # 3. DIAGNOSTIC ESTHÉTIQUE — chaque segment n'est affirmé que si la mesure existe.
+        # 3. DIAGNOSTIC ESTHÉTIQUE — E-line profil no longer classifies locally
+        # (CEPHALOMETRY-FINAL-NORMATIVE-MIGRATION-5): the former >2.0/<-4.0 cutoffs are
+        # retired (the backend -4/-2 vs frontend -2/-1 conflict is preserved, never
+        # arbitrated). Non-authoritative until a validated Ligne_E_Ls profile exists.
+        els_label = _authoritative_label("Ligne_E_Ls", val_e_ls, age, sex)
         if val_e_ls is None:
             profil_cutane = None
             segment_profil = "Profil cutané non évaluable (points cutanés non détectés)"
+        elif els_label is not None:
+            profil_cutane = els_label
+            segment_profil = f"Profil {els_label} selon la ligne E de Ricketts"
         else:
-            profil_cutane = "droit"
-            if val_e_ls > 2.0: profil_cutane = "convexe (Lèvre supérieure protrusive)"
-            elif val_e_ls < -4.0: profil_cutane = "concave (Lèvre supérieure en retrait)"
-            segment_profil = f"Profil {profil_cutane} selon la ligne E de Ricketts"
+            profil_cutane = None
+            segment_profil = f"Ligne E (Lèvre sup.) = {val_e_ls} mm (référence normative non validée)"
 
-        if val_nla is None:
-            segment_nla = "Angle nasolabial non évaluable (points cutanés non détectés)"
-        else:
-            nla_diag = "normal"
-            if val_nla > 110: nla_diag = "ouvert (Nez relevé)"
-            elif val_nla < 90: nla_diag = "fermé (Nez tombant)"
-            segment_nla = f"Angle nasolabial {nla_diag} ({val_nla}°)"
-
-        diag_esthetique = f"{segment_profil}. {segment_nla}."
+        diag_esthetique = f"{segment_profil}."
 
         # --- SYNTHÈSE GHOST ELITE (4 SECTIONS) ---
 
@@ -670,8 +755,8 @@ class CephaloEngine:
         if div is not None and div != "normodivergent": anomalies.append(div)
         if impa_diag is not None and impa_diag != "normoalveolie": anomalies.append(impa_diag)
         if if_diag is not None and if_diag != "normoalveolie": anomalies.append(if_diag)
-        if overjet is not None and overjet != "normal": anomalies.append(f"Surplomb {overjet}")
-        if overbite is not None and overbite != "normal": anomalies.append(overbite)
+        if surplomb_label is not None and surplomb_label not in _NON_ANOMALY_LABELS: anomalies.append(f"Surplomb {surplomb_label}")
+        if recouv_label is not None and recouv_label not in _NON_ANOMALY_LABELS: anomalies.append(recouv_label)
 
         synthese = f"Anomalies detectees: {', '.join(anomalies)}." if anomalies else "Aucune anomalie ne peut etre conclue avec les mesures disponibles."
 
@@ -734,11 +819,14 @@ class CephaloEngine:
             }
             return schemas.CephaloAnalysisResult.model_validate(payload)
 
-        if val_e_ls is not None:
-            profil_cutane_short = "droit"
-            if val_e_ls > 2.0: profil_cutane_short = "convexe"
-            elif val_e_ls < -4.0: profil_cutane_short = "concave"
-            payload["ai_narrative"]["profil_cutane"] = profil_cutane_short
+        # profil_cutane (frontend-facing, drives Step3's `profil` and thereby the ODF
+        # engine's extraction/torque logic) is emitted ONLY when the normative service
+        # classifies Ligne_E_Ls authoritatively — never from the local >2.0/<-4.0
+        # cutoffs (CEPHALOMETRY-FINAL-NORMATIVE-MIGRATION-5). Absent today (no validated
+        # profile); the frontend already skips `if (n.profil_cutane)`.
+        els_label_short = _authoritative_label("Ligne_E_Ls", val_e_ls, age, sex)
+        if els_label_short is not None:
+            payload["ai_narrative"]["profil_cutane"] = els_label_short
 
         return schemas.CephaloAnalysisResult.model_validate(payload)
 
