@@ -1,244 +1,150 @@
 # Digital Crown — Guide Claude Code
 
-Logiciel de gestion de cabinet dentaire. **On-premise, pas un SaaS** : tourne
-localement chez le cabinet (poste unique ou LAN cabinet), pas sur un serveur
-distant. Firebase sert uniquement à la licence/auth, jamais aux données
-patients.
+Digital Crown est une application **on-premise / local-first**. Le runtime principal vit sur le poste du cabinet ou son LAN. Firebase sert à l'identité/licence et services associés ; les données métier restent sous l'autorité du backend local.
 
-## Architecture
+> **Ordre de lecture obligatoire**
+>
+> 1. `STATE.md`
+> 2. `CLAUDE.md`
+> 3. règle applicable sous `.claude/rules/`
+> 4. `SKILL.md` du domaine
+> 5. agent spécialisé éventuel sous `.claude/agents/`
+> 6. code, tests et runbooks référencés
+>
+> L'ancienne version détaillée reste disponible dans l'historique Git à `master@f6dd36e`.
 
-- **Backend** : FastAPI + SQLAlchemy — **PostgreSQL 15+ obligatoire pour production** (SQLite réservé aux tests/dev)
-- **Frontend** : React 19 + Vite 7 + TypeScript + Zustand, servi par le
-  backend en mode packagé (un seul port, pas de frontend séparé en prod)
-- **Mobile** : PWA appairée par QR (ZKA/ECDH), JWT mobile 365 jours, LAN
-  cabinet uniquement
-- **IA** : ONNX local (panoramique, céphalométrie) + Ollama pour le LLM —
-  aucune IA cloud par défaut (`CLOUD_AI_ENABLED=false`)
-- **Packaging** : PyInstaller → `DigitalCrown.exe` (`console=False`, aucun
-  terminal visible), puis `installer/DigitalCrown.iss` (Inno Setup) →
-  `DigitalCrownSetup.exe`, installeur un clic pour cabinet solo (secrets
-  auto-générés au 1er lancement, tâche planifiée au logon, pas de droits
-  admin) — voir `docs/CABINET_ONPREM_GUIDE.md`
+## Architecture courante
 
-## Environnements (`ENVIRONMENT`)
+- Backend : FastAPI + SQLAlchemy.
+- Frontend : React 19 + Vite + TypeScript + Zustand.
+- Mobile : PWA/Capacitor appairée au cabinet, réseau local, cache/offline.
+- Automatisation : modèles locaux et moteurs déterministes.
+- LLM : aucune dépendance LLM requise dans l'architecture courante.
+- Packaging : PyInstaller + Inno Setup.
 
-`development` / `local` / `test` : aucun invariant bloquant.
-`cabinet` : production-like (DEBUG interdit, CORS wildcard interdit) **mais
-autorise SQLite/SQLCipher** (c'est le mode solo cabinet).
-`production` : comme cabinet, **mais exige PostgreSQL** (refuse SQLite).
-Logique dans `backend/main.py::validate_environment_invariants()`.
+### Environnements
 
-## Pièges connus (chers à re-découvrir — lire avant de toucher)
+- `development` / `local` / `test` : développement/test.
+- `cabinet` : production-like local ; `DEBUG` interdit, CORS wildcard interdit, SQLite/SQLCipher autorisé.
+- `production` : mêmes exigences, PostgreSQL obligatoire.
 
-- **`--reload` interdit sur le port 8005 (cabinet réel)** : un `uvicorn --reload` lancé à la
-  main sur le port réel recharge automatiquement le process à chaque édition de fichier Python
-  dans le dépôt — y compris pendant une session de dev sur une feature non terminée. Incident
-  réel (P0-TREATMENT-JOURNEY-1, 2026-07-10) : des éditions de `backend/*.py` ont fait apparaître
-  une table + des routes non validées sur `digitalcrown_db` sans déploiement explicite. Le
-  cabinet réel doit **toujours** démarrer via `backend/scripts/run_real_backend.ps1` (jamais
-  `uvicorn --reload` à la main), qui lance une **release immuable** (`backend/scripts/create_release.ps1`,
-  copiée hors du dépôt dans `C:\Users\lenovo\DigitalCrown-Runtime\releases\<id>\`) — le dépôt de
-  travail n'est jamais le runtime de production. `npm run build` (frontend) refuse aussi
-  d'écraser `frontend/dist` tant que le port 8005 répond (`frontend/scripts/build-guard.mjs`) ;
-  utiliser `build:rehearsal` pour tout build de test.
-- **`load_backend_env()`** (`backend/env_loader.py`) : `main.py` doit
-  appeler `override=False` en premier (ne JAMAIS écraser des vars déjà
-  injectées par l'OS/orchestrateur), puis `override=True` seulement si
-  `ENVIRONMENT` résout à dev/local/test. Sinon un `.env.local` oublié dans
-  un déploiement écrase silencieusement la config réelle.
-- **PyInstaller** (`DigitalCrown.spec`) : `passlib` et `jose` résolvent
-  leurs handlers/backends *par nom* au runtime — invisibles à l'analyse
-  statique. Sans `passlib.handlers.bcrypt` et `jose.backends.*` en
-  `hiddenimports`, l'EXE crashe au boot (passlib) ou au premier login
-  (jose). **Ne jamais embarquer `backend/.env`** dans l'EXE (secrets) — la
-  config vient de `DIGITALCROWN_ENV_FILE` ou `%APPDATA%/DigitalCrown/.env`.
-- **Alembic** existe (`alembic/versions/`) mais n'est **jamais invoqué
-  automatiquement**. Le schéma est géré par `create_all()` +
-  `migrate_appointment_columns()` (les deux additifs, jamais de DROP) dans
-  le lifespan de `main.py`. Ne pas supposer qu'une migration Alembic
-  s'applique toute seule.
-- **Isolation tenant** : toujours `current_user.get_employer_id()`, jamais
-  un `employer_id` venant du client. `assert_patient_access(patient_id,
-  current_user, db)` — attention à l'ordre des paramètres (un bug passé
-  avait `db` et `current_user` inversés, silencieux jusqu'au crash runtime).
-- **Médias patients** : servis par des routes FastAPI authentifiées
-  (`main.py::serve_panoramic/serve_radios/...`), jamais par un mount
-  `StaticFiles` public. Ne jamais réintroduire `/api/static/uploads` en
-  accès anonyme.
-- **Licence Firebase hors-ligne** : `validate_license_with_expiry()`
-  retourne `active=None` (pas `False`) quand Firebase est injoignable —
-  l'appelant doit conserver l'état local, pas le révoquer. `active=False`
-  reste une vraie révocation Firebase.
-- **Backup automatique = routage par moteur actif, jamais un chemin codé en dur**
-  (AUTO-BACKUP-POSTGRES-ROUTING-FIX-1, 2026-07-10) : `backend/services/backup_service.py`
-  ciblait auparavant en dur `clinical_vault.db` (fichier SQLite hérité de la V1
-  pré-PostgreSQL, aujourd'hui migré transparemment en SQLCipher par `database.py`),
-  ouvert via `sqlite3.connect()` standard — qui ne sait pas lire du SQLCipher. Résultat :
-  `digitalcrown_db` (PostgreSQL réel) n'a **jamais** été sauvegardée automatiquement,
-  silencieusement, pendant plus d'un mois. Doctrine désormais verrouillée : **PostgreSQL
-  utilise exclusivement `pg_dump`** (jamais `sqlite3` sur une base PostgreSQL) ; le
-  scheduler (`daily_scheduler.py`) route via `BackupService.backup_active_database()`,
-  qui détecte le moteur réellement actif via `backend.database.engine.dialect.name`
-  (le même pattern que `migrate_appointment_columns()`) — jamais une heuristique fichier.
-  **SQLite/SQLCipher ne doit jamais être ouvert avec `sqlite3` standard** : le driver
-  `pysqlcipher` (`engine.driver`) est détecté explicitement et route vers un échec propre
-  (`SKIPPED_UNSUPPORTED_ENGINE`, jamais présenté comme un succès) — backlog séparé
-  `SQLCIPHER-AUTO-BACKUP-FIX-1` pour un vrai mécanisme SQLCipher si un déploiement
-  solo-cabinet en a besoin un jour. **Une réussite de chiffrement ne suffit pas** : le
-  dump source et le restore doivent être vérifiés (voir la validation rehearsal de cette
-  mission dans `STATE.md`) avant de faire confiance à un backup automatique.
-- **`backend/scripts/backup_db.py` et `backup_media.py` sont importables comme
-  librairies** (utilisés par `backup_service.py` et `scheduled_backup.py` en plus de
-  leur usage CLI) : ne jamais réintroduire un `load_backend_env(override=True)` ou un
-  import de `settings` au niveau module dans ces fichiers — ça écraserait
-  silencieusement la config réelle du process serveur qui les importe. Le chargement
-  d'env et l'import de `settings` sont volontairement paresseux (dans
-  `backup_db()`/`backup_media()`, ou sous `if __name__ == "__main__":`).
-- **Backup planifié Windows = tâche indépendante, jamais un rafistolage du scheduler
-  in-app** (SCHEDULED-TASK-BACKUP-REPLACE-1, 2026-07-11) : `DigitalCrown_DailyBackup_User`
-  (l'ancienne tâche, `python backend\scripts\backup_db.py` sans `-m`, mauvais
-  interpréteur) n'a **jamais** produit un seul backup depuis sa création — ~5 semaines
-  d'échec silencieux. Remplacée par `DigitalCrown_DailyBackup_v2`, qui appelle
-  `C:\Users\lenovo\DigitalCrown-Runtime\bin\run_scheduled_backup.ps1` →
-  `python -m backend.scripts.scheduled_backup` (orchestrateur DB+médias, réutilise
-  `BackupService._backup_postgres()` et `backup_media._build_media_archive()`, jamais
-  une 3e/4e implémentation de pg_dump ou du chiffrement). **Doctrine verrouillée** :
-  cette tâche exécute toujours son propre backup DB+médias indépendant du scheduler
-  in-app — un backup DB seul (ce que produit le scheduler in-app) n'est jamais
-  considéré comme un backup complet, donc aucune logique de saut/coordination entre les
-  deux n'est nécessaire ; seul un verrou fichier (`scheduled\.backup.lock`, détection de
-  péremption par PID+âge) protège contre deux exécutions de la tâche Windows elle-même
-  qui se chevauchent. Répertoires dédiés
-  (`DigitalCrown-Runtime\backups\scheduled\{db,media,manifests,logs}\`) — **jamais**
-  mélangés avec les backups manuels (`backend/backups/`, aucune rétention) ni ceux du
-  scheduler in-app (`%APPDATA%\DigitalCrown\backups\`). Rétention configurable
-  (`SCHEDULED_DB_RETENTION_DAYS`, `SCHEDULED_MEDIA_RETENTION_DAYS`,
-  `SCHEDULED_MIN_BACKUPS_TO_KEEP`) mais **toujours dry-run par défaut** — seul
-  `--apply-retention` (présent dans la commande de `DigitalCrown_DailyBackup_v2`) la
-  rend réelle, et jamais en dessous du plancher `MIN_BACKUPS_TO_KEEP`.
-- **Backup planifié = release immuable dédiée, jamais exécuté depuis le dépôt**
-  (SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1, 2026-07-11) : la première version de
-  `run_scheduled_backup.ps1` (ci-dessus) faisait `Push-Location $RepoRoot` avant
-  d'invoquer `-m backend.scripts.scheduled_backup` — le code exécuté venait donc
-  entièrement du dépôt de travail mutable, jamais d'une release, contrairement à
-  `run_real_backend.ps1`. Corrigé : `backend/scripts/create_backup_release.ps1`
-  construit une release dédiée (`DigitalCrown-Runtime\backup-releases\<id>\`) via
-  `git archive` sur un commit exact (**jamais** une copie du dépôt courant, même
-  propre) ; `DigitalCrown-Runtime\backup-current.json` est le pointeur atomique vers
-  la release active ; `run_scheduled_backup.ps1` (désormais **versionné** dans
-  `backend/scripts/`, déployé/copié vers `DigitalCrown-Runtime\bin\` avec vérification
-  de checksum) lit ce pointeur, revalide les hashes SHA-256 des 5 fichiers critiques
-  contre le manifeste (`backup-release-manifest.json`), puis `Push-Location` vers la
-  release — jamais `$RepoRoot`. **Seconde ligne de défense côté Python** :
-  `scheduled_backup.py::_check_execution_provenance()` s'exécute en tout premier dans
-  `run()`, avant même le verrou — si `__file__` d'un des 5 modules critiques
-  (`scheduled_backup`, `backup_service`, `backup_db`, `backup_media`, `database`)
-  résout sous le dépôt de travail plutôt qu'une release, le backup est refusé
-  (`overall_status=FAILED`, `error_code=EXECUTION_PROVENANCE_VIOLATION`), aucune
-  tentative de pg_dump. `sys.executable` (le venv du dépôt) reste une exception
-  explicite — seul le **code** ne doit jamais venir du dépôt, pas l'interpréteur.
-  **Dépendance résiduelle documentée** : l'interpréteur épinglé reste celui du venv du
-  dépôt de travail (`...\DigitalCrown\venv\Scripts\python.exe`) — aucun Python
-  n'existe encore de façon indépendante dans `DigitalCrown-Runtime` ; backlog séparé
-  `RUNTIME-PYTHON-INDEPENDENCE-1` si une vraie indépendance est requise un jour.
-- **Vérifier en live, pas juste en unitaire** : plusieurs bugs bloquants
-  (RVG cassé, `NoneType.strftime` sur génération PDF) passaient les tests
-  unitaires (mocks/objets en mémoire) mais crashaient sur le vrai chemin
-  API. Après une modif sur `backend/routers/*.py` ou
-  `backend/services/generators/*.py`, booter et taper l'API réellement
-  avant de déclarer "terminé".
-- **`backend/ai_models/` contient des dépôts de recherche vendored, pas
-  seulement des poids** (INSTALL-AUTOMATION-1, 2026-07-14) : plusieurs
-  sous-dossiers (`CLdetection2023-master/`, `dentex_repo/`,
-  `CL-Detection2023/`, `cephalometric-master/`, `cephmark/`,
-  `cephld_cca/model/`) sont des vestiges de compétitions/entraînement
-  (~1,7 Go) **jamais chargés au runtime** — vérifié au cas par cas (grep sur
-  `backend/services`/`backend/routers`, comparaison taille/date avec les
-  vrais poids chargés). `CLdetection2023-master/` a une arborescence assez
-  profonde pour faire échouer la compilation Inno Setup (limite de longueur
-  de chemin Windows). `DigitalCrown.spec` les exclut du packaging EXE via
-  `_collect_ai_models_datas()` (jamais supprimés du dépôt Git). **Avant
-  d'ajouter un nouveau modèle dans `ai_models/`, ne pas vendorer tout un
-  dépôt de recherche si seul un fichier de poids est nécessaire** — sinon la
-  taille du build explose silencieusement (4,9 Go avant nettoyage, 3,2 Go
-  après) et un futur nettoyage devra refaire cette vérification.
-- **PyInstaller `console=False` = plus de stdout du tout** : `run.py`
-  configure un `RotatingFileHandler` (`%APPDATA%/DigitalCrown/logs/`) et un
-  `sys.excepthook` avant d'importer `backend.main`, sinon toute exception
-  non interceptée en mode packagé disparaît silencieusement (l'app se ferme
-  sans aucune trace, impossible à diagnostiquer sans terminal). Ne jamais
-  retirer cette config si `console=False` reste actif dans `DigitalCrown.spec`.
-- **`run.py::_first_boot_bootstrap()` doit s'exécuter avant `from backend.main
-  import app`** : `backend/main.py` appelle `load_backend_env()` dès son
-  import (niveau module), qui lit `%APPDATA%/DigitalCrown/.env` s'il existe
-  déjà. Le bootstrap génère ce fichier (secrets aléatoires, `ENVIRONMENT=cabinet`)
-  au tout premier lancement de l'EXE packagé — s'il s'exécutait après cet
-  import, il serait trop tard pour que `load_backend_env()` le voie. N'importe
-  volontairement que `backend.env_loader`/`backend.core.paths` (jamais
-  `backend.config`/`backend.database`) pour ne jamais déclencher la lecture
-  des settings avant que le fichier n'existe. No-op complet hors `sys.frozen`
-  (aucun changement pour les postes de dev).
-- **Exporter `DATABASE_URL` dans le shell NE SUFFIT PAS à isoler un test d'une
-  DB réelle** (QR-LOGO-POSITION-ENV-LEAK-1, 2026-07-15) : `load_backend_env()`
-  fait un premier passage `override=False` (n'écrase rien), puis un second
-  passage `override=True` dès que `ENVIRONMENT` résout à
-  `development`/`local`/`test` — ce second passage recharge `backend/.env.local`
-  et **écrase silencieusement** toute variable déjà exportée manuellement dans
-  le shell, y compris `DATABASE_URL`. Un test lancé avec `DATABASE_URL=<db_test>
-  uvicorn ...` peut donc quand même finir connecté à `digitalcrown_db` (la vraie
-  base du cabinet) si `backend/.env.local` pointe dessus. Incident réel : un
-  smoke-test PDF isolé a fini par exécuter une migration additive (colonnes
-  nullable, `ALTER TABLE ADD COLUMN`, aucune perte de donnée) directement sur
-  `digitalcrown_db`, en dehors de tout déploiement officiel — même famille que
-  P0-TREATMENT-JOURNEY-1. **Pour tout test qui doit toucher une DB isolée,
-  utiliser `DIGITALCROWN_ENV_FILE` pointant vers un fichier `.env` dédié**
-  (jamais de simples variables shell), et vérifier explicitement après coup
-  (`load_backend_env()` doit rapporter le bon fichier, `DATABASE_URL` doit
-  rester celui attendu) avant de lancer quoi que ce soit qui écrit.
+Source : `backend/main.py::validate_environment_invariants()`.
 
-## Documents PDF (`backend/services/generators/`)
+## Routage des skills
 
-14 générateurs (ordonnance, certificat, devis, note d'honoraires, bilan
-ortho, céphalo, panoramique...). Utiliser le registre typographique
-existant plutôt que des tailles ad-hoc :
-- `document_typography.py` — constantes de taille (`TITLE_SIZE`,
-  `PRESCRIPTION_*`, `MIN_READABLE_SIZE`, largeurs de colonnes)
-- `document_layout_safety.py` — `join_unbreakable()` (groupe insécable,
-  ex. "33 ans"), `protect_unit_patterns()` (protège nombre+unité dans du
-  texte libre)
-- `base_template.py` — `get_adaptive_font_size()`, `get_document_margins()`
-  : ne jamais dupliquer, toujours réutiliser/étendre
+- Choisir le skill par sémantique de tâche, pas par simple mot-clé.
+- Lire intégralement le `SKILL.md` avant action.
+- Respecter `context`, `allowed-tools`, `Forbidden`, workflow et `Output contract`.
+- Si le skill impose un audit read-only, ne rien modifier pendant ce lot.
+- Effectuer ensuite le handoff vers le skill/agent d'implémentation prévu.
+- Les contrats détaillés restent dans `.claude/rules/`, `.claude/skills/` et `.claude/agents/` ; ne pas les dupliquer ici.
 
-`ordonnance_elite.html` est du **code mort** (aucune référence Python) —
-le vrai générateur d'ordonnance est `ordonnance_gen.py` (ReportLab).
+### Skills vérifiés le 13/08/2026
 
-## Tests
+- `.claude/skills/audit-prescription-flow/SKILL.md`
+- `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md`
+- `.claude/skills/audit-panoramic-report-pipeline/SKILL.md`
+- `.claude/skills/validate-cephalo-pipeline/SKILL.md`
 
-- Backend : `pytest backend/tests/` — ~2200+ tests, **9-15 minutes** (lancer
-  en background). Fixtures réelles dans `conftest.py` : `db`, `dentiste`,
-  `auth_headers`, `client`, helper `make_user()`. Ne pas halluciner
-  `current_user`/`db_session`/`other_employer` — n'existent pas.
-- Frontend : `npm test` et `npm run build` depuis la racine
-  (delegation vers `frontend`), ou directement
-  `npm --prefix frontend test` et `npm --prefix frontend run build`
-- CI (`ci.yml`) : backend uniquement (`pytest` + `prod_safety_check.py`) —
-  **pas de job frontend actuellement**.
+Tous imposent un mode **read-only** pour leur phase d'audit/validation.
 
-## Déploiement / opérations
+## Règles absolues d'ingénierie
 
-- `docs/CABINET_ONPREM_GUIDE.md` — architecture cible, installation,
-  update, backup/restore cabinet
-- `docs/PREPROD_RUNBOOK.md` — health checks, logs, rollback
-- `docs/PATIENT_DATA_ROLLBACK.md` — procédure d'urgence courte
-- Scripts : `backend/scripts/backup_db.py`, `backup_media.py`,
-  `restore_db.py` (chiffrés Fernet, `find_pg_binary()` gère `pg_dump`/`psql`
-  hors PATH Windows)
+- Ne jamais perdre, réinitialiser ou reseeder une vraie donnée utilisateur.
+- Jamais de seed/demo sur une DB cabinet.
+- Backup avant restore/migration à risque.
+- Jamais de restore sur DB principale sans confirmation explicite.
+- Toute opération de test qui écrit doit prouver qu'elle cible l'environnement isolé prévu.
+- Toujours dériver le cabinet depuis l'identité backend, jamais depuis une valeur client non fiable.
+- Médias sensibles : routes authentifiées et tenant-aware.
+- Ne jamais logger secrets, tokens, mots de passe ou master key.
+- Ne jamais inventer une donnée manquante ni masquer une incertitude.
+- Tests verts ne valent pas certification du domaine.
 
-## Règles absolues
+## Pièges opérationnels
 
-- Ne jamais perdre de vraie donnée patient : toujours backup avant
-  restore/migration, jamais de restore sur la DB principale sans
-  confirmation explicite, jamais de `seed_demo` sur une vraie DB cabinet
-- Ne jamais logger secrets/tokens/mots de passe/`CABINET_MASTER_KEY_HEX`
-- Contexte7 MCP pour toute question de doc de librairie (règle globale
-  utilisateur, prioritaire sur la recherche web)
+### Runtime réel
+
+- Le dépôt de travail n'est pas le runtime cabinet.
+- Ne jamais utiliser un process auto-reload contre le runtime réel.
+- Utiliser les scripts de release immuable sous `backend/scripts/`.
+- Un build de test ne doit jamais écraser un frontend réellement servi.
+
+### Environnement de test
+
+- Une variable shell isolée ne suffit pas si `load_backend_env()` recharge un fichier local.
+- Pour un test d'écriture isolé, utiliser `DIGITALCROWN_ENV_FILE` vers un fichier dédié et vérifier explicitement la DB réellement résolue avant mutation.
+
+### Database / migrations
+
+- Ne pas supposer qu'Alembic s'exécute automatiquement.
+- Lire le chemin runtime courant avant toute migration.
+- Ne jamais ouvrir une DB SQLCipher avec `sqlite3` standard.
+- Backup PostgreSQL via `pg_dump`.
+
+### Backup
+
+- Les backups planifiés utilisent une release immuable dédiée.
+- Ne pas créer une implémentation parallèle si un service existant couvre déjà le besoin.
+- Une réussite n'est prouvée qu'après vérification de l'artefact et du restore attendu selon le runbook.
+
+### Packaging
+
+- Conserver les hidden imports runtime requis dans `DigitalCrown.spec`.
+- Ne jamais embarquer un `.env` contenant des secrets.
+- `console=False` exige une journalisation fichier fiable.
+- Le bootstrap first-run doit précéder les imports qui figent les settings.
+
+## Documents / PDF
+
+- Réutiliser les helpers typographiques et de layout existants.
+- Une preview doit être read-only sur l'état métier.
+- Après modification d'une route ou d'un générateur, faire un smoke réel/rehearsal adapté au risque.
+
+## Tests et CI
+
+### Backend
+
+```bash
+python -m pytest backend/tests -q
+python scripts/prod_safety_check.py
+```
+
+### Frontend
+
+```bash
+npm --prefix frontend test
+npm --prefix frontend run build
+```
+
+### CI actuelle
+
+`.github/workflows/ci.yml` contient :
+
+- backend : install + prod safety check + pytest ;
+- frontend : `npm ci` + tests + build ;
+- garde production négatif.
+
+Ne déclarer aucun head certifié sans preuve du run correspondant.
+
+## Runbooks utiles
+
+- `docs/CABINET_ONPREM_GUIDE.md`
+- `docs/PREPROD_RUNBOOK.md`
+- `docs/PATIENT_DATA_ROLLBACK.md`
+- `STATE.md`
+
+## Workflow par lot
+
+1. Lire `STATE.md`.
+2. Lire `CLAUDE.md`, la règle et le skill du domaine.
+3. Cartographier scope et invariants.
+4. Audit read-only d'abord lorsque le skill l'impose.
+5. Implémenter dans un lot distinct.
+6. Tests ciblés puis régression proportionnée au risque.
+7. Smoke/rehearsal lorsque nécessaire.
+8. Review indépendante si requise.
+9. Mettre à jour les canoniques et vérifier leur cohérence.
+10. PR/merge/certification seulement après preuves.
+
+**Dernière révision canonique : 13 août 2026.**
