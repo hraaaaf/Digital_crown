@@ -16,9 +16,13 @@ class PrescriptionAgenticService:
     ) -> Dict[str, Any]:
         plan = prescription_service.resolve_smart_prescription(db, patient_id, act_names, doctor_id)
         patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
-        plan["age"] = calculate_age(patient.date_naissance) if patient else None
-        plan["weight"] = plan.get("patient_context", {}).get("weight")
         evaluation = plan.get("evaluation", {"status": "non_evaluable"})
+
+        # Keep the real age in patient_context, but do not expose it through the
+        # legacy top-level automation hook unless the context is evaluable.
+        actual_age = calculate_age(patient.date_naissance) if patient else None
+        plan["age"] = actual_age if evaluation.get("status") == "evaluable" else None
+        plan["weight"] = plan.get("patient_context", {}).get("weight")
         plan["bilan_markdown"] = (
             "### Données incomplètes\nAucune automatisation disponible."
             if evaluation.get("status") != "evaluable"
