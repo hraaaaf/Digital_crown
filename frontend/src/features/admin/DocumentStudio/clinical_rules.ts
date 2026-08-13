@@ -35,7 +35,6 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     adult_dose: '1G',
     adult_posology: '1 comprimé 2 à 3 fois par jour pendant 6 jours',
     pediatric_calc: (weight: number) => {
-      // 50 mg/kg/jour en 2 ou 3 prises
       const totalMg = weight * 50;
       if (totalMg <= 500) return { dosage: '250MG', posology: '1 cuillère mesure 2 fois par jour' };
       if (totalMg <= 1000) return { dosage: '500MG', posology: '1 sachet/comprimé 2 fois par jour' };
@@ -50,10 +49,10 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     category: 'Antibiotiques',
     adult_dose: '1G',
     adult_posology: '1 sachet 2 fois par jour pendant 7 jours',
-    pediatric_calc: (weight: number) => {
-      // 80 mg/kg/jour en 3 prises (Dose Amoxicilline)
-      return { dosage: '100MG/ML', posology: `1 dose-poids (${weight}kg) 3 fois par jour` };
-    },
+    pediatric_calc: (weight: number) => ({
+      dosage: '100MG/ML',
+      posology: `1 dose-poids (${weight}kg) 3 fois par jour`,
+    }),
     contraindications: ['ALLERGIE PENICILLINE', 'INSUFFISANCE HEPATIQUE'],
     available_strengths_mg: [500, 1000],
     max_mg_per_kg_day: 80,
@@ -63,10 +62,10 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     category: 'Antalgiques',
     adult_dose: '1G',
     adult_posology: '1 comprimé toutes les 6 heures si douleur (max 4g/jour)',
-    pediatric_calc: (weight: number) => {
-      // 15 mg/kg toutes les 6 heures -> 60 mg/kg/jour
-      return { dosage: '2.4%', posology: `1 dose-poids (${weight}kg) toutes les 6 heures si douleur` };
-    },
+    pediatric_calc: (weight: number) => ({
+      dosage: '2.4%',
+      posology: `1 dose-poids (${weight}kg) toutes les 6 heures si douleur`,
+    }),
     contraindications: ['INSUFFISANCE HEPATIQUE SEVERE'],
     available_strengths_mg: [100, 150, 200, 300, 500, 1000],
     max_mg_per_kg_day: 60,
@@ -76,10 +75,10 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     category: 'AINS',
     adult_dose: '400MG',
     adult_posology: '1 comprimé toutes les 8 heures si douleur au milieu des repas',
-    pediatric_calc: (weight: number) => {
-      // 20 à 30 mg/kg/jour en 3 à 4 prises
-      return { dosage: '2%', posology: `1 dose-poids (${weight}kg) 3 fois par jour au milieu des repas` };
-    },
+    pediatric_calc: (weight: number) => ({
+      dosage: '2%',
+      posology: `1 dose-poids (${weight}kg) 3 fois par jour au milieu des repas`,
+    }),
     contraindications: ['FEMME ENCEINTE', 'ULCERE', 'INFECTION SEVERE SANS ANTIBIOTIQUE', 'ALLERGIE AINS', 'ASTHME'],
     available_strengths_mg: [200, 400],
     max_mg_per_kg_day: 30,
@@ -89,10 +88,7 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     category: 'Antibiotiques',
     adult_dose: '500MG',
     adult_posology: '1 comprimé 3 fois par jour pendant 7 jours',
-    pediatric_calc: (weight: number) => {
-      // 30 à 40 mg/kg/jour en 3 prises
-      return { dosage: '125MG/5ML', posology: '1 cuillère mesure 3 fois par jour' };
-    },
+    pediatric_calc: () => ({ dosage: '125MG/5ML', posology: '1 cuillère mesure 3 fois par jour' }),
     contraindications: ['ALCOOL', 'FEMME ENCEINTE T1'],
     available_strengths_mg: [250, 500],
     max_mg_per_kg_day: 40,
@@ -103,16 +99,16 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     adult_dose: '20MG',
     adult_posology: '3 comprimés le matin pendant 3 jours (60mg/j)',
     pediatric_calc: (weight: number) => {
-      // 1 à 2 mg/kg/jour le matin
-      const dose = Math.round(weight * 1); // 1mg/kg
-      return { dosage: '20MG', posology: `${Math.max(1, Math.round(dose/20))} comprimé(s) effervescent(s) le matin dans un verre d'eau pendant 3 jours` };
+      const dose = Math.round(weight * 1);
+      return {
+        dosage: '20MG',
+        posology: `${Math.max(1, Math.round(dose / 20))} comprimé(s) effervescent(s) le matin dans un verre d'eau pendant 3 jours`,
+      };
     },
     contraindications: ['INFECTION NON CONTROLEE', 'ULCERE EVOLUTIF'],
     available_strengths_mg: [5, 20],
     max_mg_per_kg_day: 2,
   },
-
-  // ── Ajouts arsenal dentaire (juin 2026) ─────────────────────────────────────
   'RODOGYL': {
     molecule: 'SPIRAMYCINE + MÉTRONIDAZOLE',
     category: 'Antibiotiques',
@@ -128,7 +124,6 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     adult_dose: '300MG',
     adult_posology: '1 gélule (300 mg) 3 fois par jour pendant 7 jours',
     pediatric_calc: (weight: number) => {
-      // 8 à 25 mg/kg/jour en 3 prises (cible ~15 mg/kg/j)
       const perDose = Math.max(75, Math.round((weight * 15) / 3));
       return { dosage: '75MG/5ML', posology: `~${perDose} mg 3 fois par jour (8 à 25 mg/kg/jour)` };
     },
@@ -143,7 +138,6 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
     adult_dose: '500MG',
     adult_posology: '500 mg (1 cp) par jour pendant 3 jours',
     pediatric_calc: (weight: number) => {
-      // 10 mg/kg/jour pendant 3 jours
       const perDay = Math.round(weight * 10);
       return { dosage: '200MG/5ML', posology: `~${perDay} mg/jour (10 mg/kg) pendant 3 jours` };
     },
@@ -181,6 +175,7 @@ export const MOROCCAN_CLINICAL_RULES: Record<string, ClinicalRule> = {
 };
 
 export function getPediatricGuide(moleculeName: string, weight: number) {
+  if (!Number.isFinite(weight) || weight <= 0) return null;
   const name = moleculeName.toUpperCase();
   for (const [key, rule] of Object.entries(MOROCCAN_CLINICAL_RULES)) {
     if (name.includes(key) || rule.molecule.includes(name)) {
@@ -190,8 +185,6 @@ export function getPediatricGuide(moleculeName: string, weight: number) {
   return null;
 }
 
-// Marques commerciales fréquentes au Maroc → clé de règle clinique.
-// Volontairement conservateur : on ne mappe que les correspondances sûres.
 export const BRAND_TO_RULE: Record<string, string> = {
   DOLIPRANE: 'PARACETAMOL',
   EFFERALGAN: 'PARACETAMOL',
@@ -206,7 +199,6 @@ export const BRAND_TO_RULE: Record<string, string> = {
   IBUPROFENE: 'IBUPROFENE',
   SOLUPRED: 'CORTICOIDES',
   PREDNISOLONE: 'CORTICOIDES',
-  // Ajouts arsenal dentaire
   RODOGYL: 'RODOGYL',
   BIRODOGYL: 'RODOGYL',
   SPIRAMYCINE: 'RODOGYL',
@@ -224,7 +216,6 @@ export const BRAND_TO_RULE: Record<string, string> = {
   CODEINE: 'CODEINE',
 };
 
-/** Résout la règle clinique d'un nom de médicament (molécule OU marque). */
 export function resolveRule(name: string): ClinicalRule | null {
   const upper = (name || '').toUpperCase().trim();
   if (!upper) return null;
@@ -236,14 +227,9 @@ export function resolveRule(name: string): ClinicalRule | null {
   return key ? MOROCCAN_CLINICAL_RULES[key] : null;
 }
 
-/**
- * Estimation usuelle du poids pédiatrique à partir de l'âge (faute de poids saisi).
- * 1-10 ans : poids ≈ (âge × 2) + 8. Au-delà : approximation plafonnée.
- */
-export function estimateWeightFromAge(age: number): number {
-  if (age <= 0) return 3.5;
-  if (age <= 10) return age * 2 + 8;
-  return Math.min(age * 3, 60);
+/** Legacy compatibility only. Missing weight must remain unknown. */
+export function estimateWeightFromAge(_age: number): number {
+  return 0;
 }
 
 export type ValidationLevel = 'ok' | 'info' | 'warn' | 'danger' | 'unknown';
@@ -254,7 +240,6 @@ export interface DrugValidation {
   messages: string[];
 }
 
-/** Extrait une quantité en mg depuis un texte de dosage ("350 MG", "1G", "500mg"). */
 export function parseDosageToMg(dosage: string): number | null {
   if (!dosage) return null;
   const m = dosage.toUpperCase().replace(/\s/g, '').match(/(\d+(?:[.,]\d+)?)(MG|G)\b/);
@@ -263,13 +248,6 @@ export function parseDosageToMg(dosage: string): number | null {
   return m[2] === 'G' ? val * 1000 : val;
 }
 
-/**
- * Validation Ghost Brain d'une ligne de prescription (référentiel curé) :
- *  - adéquation à l'âge de l'enfant (dose adulte chez un petit, dépassement mg/kg)
- *  - contre-indications selon les antécédents
- * L'EXISTENCE du dosage est vérifiée séparément par le dictionnaire national.
- * Retourne level 'unknown' si le médicament est hors référentiel curé.
- */
 export function validatePrescriptionLine(
   name: string,
   dosage: string,
@@ -287,31 +265,21 @@ export function validatePrescriptionLine(
   };
 
   const mg = parseDosageToMg(dosage);
+  const isAgeKnown = typeof age === 'number' && Number.isFinite(age) && age > 0;
+  const isChild = isAgeKnown && age < 15;
 
-  // 1. Adéquation à l'âge de l'enfant
-  const isChild = typeof age === 'number' && age > 0 && age < 15;
-  if (isChild && mg !== null) {
-    const weight = estimateWeightFromAge(age as number);
-    if (rule.max_mg_per_kg_day) {
-      // Hypothèse prudente : 3 prises/jour pour estimer la dose journalière.
-      const estDailyMg = mg * 3;
-      const maxDailyMg = rule.max_mg_per_kg_day * weight;
-      if (estDailyMg > maxDailyMg) {
-        bump('danger');
-        messages.push(
-          `Dosage probablement trop élevé pour un enfant de ${age} ans (~${weight} kg) : ` +
-          `max ≈ ${Math.round(maxDailyMg)} mg/j pour ${rule.molecule}.`
-        );
-      }
-    }
+  if (!isAgeKnown) {
+    bump('warn');
+    messages.push('Âge patient non renseigné : vérification liée à l’âge non évaluable.');
+  } else if (isChild && mg !== null) {
+    bump('warn');
+    messages.push('Poids patient requis pour toute vérification pédiatrique dépendante du poids ; aucune estimation automatique n’est utilisée.');
     const adultMg = parseDosageToMg(rule.adult_dose);
-    if (adultMg !== null && mg >= adultMg && order.indexOf(level) < order.indexOf('danger')) {
-      bump('warn');
-      messages.push(`Dose adulte (${rule.adult_dose}) chez un enfant — adapter au poids.`);
+    if (adultMg !== null && mg >= adultMg) {
+      messages.push(`Dose adulte (${rule.adult_dose}) chez un enfant — validation manuelle requise.`);
     }
   }
 
-  // 2. Contre-indications selon les antécédents
   const hist = (antecedents || '').toUpperCase();
   if (hist.trim()) {
     for (const ci of rule.contraindications) {
@@ -327,12 +295,6 @@ export function validatePrescriptionLine(
   return { level, molecule: rule.molecule, messages };
 }
 
-/**
- * Retourne dosage + posologie ADAPTÉS À L'ÂGE pour un médicament connu.
- * - adulte (≥ 15 ans) : dose/posologie adulte de référence
- * - enfant (< 15 ans) : calcul pédiatrique (poids saisi, sinon estimé via l'âge)
- * Retourne null si le médicament n'est pas dans le référentiel.
- */
 export function getAgeAwareDosing(
   name: string,
   age: number | null | undefined,
@@ -340,11 +302,14 @@ export function getAgeAwareDosing(
 ): { dosage: string; posology: string; pediatric: boolean; weight?: number } | null {
   const rule = resolveRule(name);
   if (!rule) return null;
-  const isChild = typeof age === 'number' && age > 0 && age < 15;
+  if (typeof age !== 'number' || !Number.isFinite(age) || age <= 0) return null;
+
+  const isChild = age < 15;
   if (!isChild) {
     return { dosage: rule.adult_dose, posology: rule.adult_posology, pediatric: false };
   }
-  const w = weight && weight > 0 ? weight : estimateWeightFromAge(age as number);
-  const ped = rule.pediatric_calc(w);
-  return { dosage: ped.dosage, posology: ped.posology, pediatric: true, weight: w };
+
+  if (typeof weight !== 'number' || !Number.isFinite(weight) || weight <= 0) return null;
+  const ped = rule.pediatric_calc(weight);
+  return { dosage: ped.dosage, posology: ped.posology, pediatric: true, weight };
 }
