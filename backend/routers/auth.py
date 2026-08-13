@@ -90,12 +90,6 @@ async def get_current_user(
             # sub est l'employer_id (int) pour les tokens mobiles
             user_id = int(payload["sub"])
             user = db.query(models.User).filter(models.User.id == user_id).first()
-            access_state = db.query(models.MobileAccessState).filter(
-                models.MobileAccessState.employer_id == user_id,
-            ).first()
-            current_generation = access_state.generation if access_state else 0
-            if payload.get("mobile_generation", 0) != current_generation:
-                raise credentials_exception
         else:
             email: str = payload.get("sub")
             if email is None:
