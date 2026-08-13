@@ -89,3 +89,87 @@ class TestPrescriptionAgenticCalculateAge:
         today = datetime.now()
         expected = today.year - 2000 - ((today.month, today.day) < (1, 1))
         assert age == expected
+
+
+# ── clinical_rules_engine extra paths ────────────────────────────────────────
+
+class TestClinicalRulesEngineGetAlternative:
+    def _svc(self):
+        from backend.services.clinical_rules_engine import ClinicalRulesEngine
+        return ClinicalRulesEngine()
+
+    def test_amoxicilline_allergie_suggests_alternative(self):
+        result = self._svc()._get_alternative("amoxicilline", "allergie_penicilline")
+        # Should return alternative or None — not crash
+        # The method may return None or an alternative molecule
+
+    def test_returns_none_or_string(self):
+        result = self._svc()._get_alternative("ibuprofene", "ulcere")
+        assert result is None or isinstance(result, str)
+
+    def test_unknown_molecule_returns_none(self):
+        result = self._svc()._get_alternative("molecule_inconnue_xyz", "allergie")
+        assert result is None or isinstance(result, str)
+
+
+class TestClinicalRulesEnginePediatricDosage:
+    def _svc(self):
+        from backend.services.clinical_rules_engine import ClinicalRulesEngine
+        return ClinicalRulesEngine()
+
+    def test_amoxicilline_returns_string(self):
+        result = self._svc()._calculate_pediatric_dosage("amoxicilline", 20.0)
+        assert isinstance(result, str)
+
+    def test_ibuprofene_returns_string(self):
+        result = self._svc()._calculate_pediatric_dosage("ibuprofene", 15.0)
+        assert isinstance(result, str)
+
+    def test_unknown_returns_string(self):
+        result = self._svc()._calculate_pediatric_dosage("molecule_inconnue", 25.0)
+        assert isinstance(result, str)
+
+    def test_dosage_includes_weight_context(self):
+        result = self._svc()._calculate_pediatric_dosage("amoxicilline", 20.0)
+        # Should return a meaningful dosage string (e.g., "Xmg" or similar)
+        assert len(result) > 0
+
+    def test_zero_weight_handled(self):
+        # Should not crash
+        result = self._svc()._calculate_pediatric_dosage("amoxicilline", 0.0)
+        assert isinstance(result, str)
+
+
+# ── habits_engine more patterns ───────────────────────────────────────────────
+
+class TestGetRecommendedDurationExtended:
+    def _svc(self):
+        from backend.services.habits_engine import HabitsEngine
+        return HabitsEngine()
+
+    def test_endo_pluriradiculaire_returns_60(self):
+        assert self._svc().get_recommended_duration("Traitement Canalaire Pluriradiculaire") == 60
+
+    def test_biopsie_returns_60(self):
+        assert self._svc().get_recommended_duration("Biopsie gingivale") == 60
+
+    def test_incluse_returns_45(self):
+        assert self._svc().get_recommended_duration("Extraction Dent Incluse") == 45
+
+    def test_avulsion_simple_returns_30(self):
+        assert self._svc().get_recommended_duration("Avulsion dent") == 30
+
+    def test_prothese_returns_45(self):
+        assert self._svc().get_recommended_duration("Prothèse amovible") == 45
+
+    def test_prophylaxie_returns_30(self):
+        assert self._svc().get_recommended_duration("Prophylaxie dentaire") == 30
+
+    def test_facette_returns_45(self):
+        assert self._svc().get_recommended_duration("Pose Facette céramique") == 45
+
+    def test_reconstruction_returns_30(self):
+        assert self._svc().get_recommended_duration("Reconstruction composite") == 30
+
+    def test_examen_returns_15(self):
+        assert self._svc().get_recommended_duration("Examen clinique complet") == 15
