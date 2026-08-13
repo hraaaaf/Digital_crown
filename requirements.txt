@@ -38,3 +38,4 @@ qrcode==7.4.2
 arabic-reshaper
 python-bidi
 reportlab==4.4.3
+PyMuPDF
