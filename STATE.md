@@ -25,8 +25,8 @@
 
 - Repository : `hraaaaf/Digital_crown`
 - Baseline auditée : `master@f6dd36eca196d614c2d81d1dd78d3f45e481323a`
-- Audit : architecture, UX/UI, mobile, sécurité, proactivité, céphalométrie, panoramique, documents, prescriptions, comptabilité, paramètres et CI.
-- Nature : **audit statique/read-only**. Aucun test ou run CI n'est déclaré réussi pour ce head sans preuve d'exécution.
+- Baseline LOT 1 : `master@c8669527c6eb9c5232afa4277b5cd4c387a862fd`
+- Nature : audit statique/read-only. Aucun test ou run CI n'est déclaré réussi sans preuve d'exécution.
 
 ## Doctrine produit confirmée
 
@@ -34,6 +34,7 @@
 - Firebase : identité/licence et services associés, jamais source de vérité des dossiers patients.
 - Architecture courante : modèles locaux + moteurs déterministes ; aucune dépendance LLM requise.
 - Audits scientifiques = read-only ; correctifs = missions distinctes avec tests et review.
+- Donnée manquante = inconnue/non-évaluable ; jamais valeur inventée.
 - `tests green != validation scientifique`.
 
 ## Évaluation audit du 13/08/2026
@@ -44,20 +45,22 @@
 
 Ces notes sont une évaluation d'audit, pas un pourcentage de roadmap ni une certification de release.
 
-## Forces confirmées
-
-- Couverture métier large : patient, agenda, Journey, documents, finance, équipe, mobile, imagerie, ortho, analytics.
-- Compagnon mobile dédié avec appairage sécurisé et fonctionnement offline.
-- Panoramique : séparation assistance machine / validation praticien.
-- Céphalométrie : registre normatif versionné et refus des classifications ambiguës/non autoritatives.
-- Proactivité : scheduler, déduplication, snooze, expiration, push et signaux cabinet/patient.
-- CI versionnée avec backend, frontend et garde de configuration production.
-
 ## P0 — Safety & Integrity
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED
+### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT CLOSED / BLOCKER CONFIRMED
 
-Une donnée patient manquante est remplacée par une valeur par défaut dans un chemin de suggestion clinique. Cette inférence doit être supprimée : donnée inconnue = état non-évaluable.
+Rapport détaillé versionné sur la branche `audit/p0-1-prescription-missing-data-2026-08-13`, commit `e9d9f3a26395e19d933a074d74ba90195171a140`.
+
+Constats structurants confirmés :
+- valeurs patient synthétiques/fallbacks dans le chemin de suggestion ;
+- estimation frontend d'une donnée manquante pouvant influencer le guidage ;
+- absence de source structurée de poids actuel dans le modèle Patient ;
+- état d'antécédents manquant pouvant être confondu avec absence de signal ;
+- logique métier dupliquée backend/frontend ;
+- propagation possible vers document puis apprentissage d'habitudes ;
+- tests missing-data/parité insuffisants.
+
+**Décision :** LOT 1B doit rendre le flux fail-closed sans introduire de nouvelle constante scientifique.
 
 ### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY
 
@@ -101,39 +104,43 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## Skills scientifiques lus et applicables
 
-- `.claude/skills/audit-prescription-flow/SKILL.md` : audit prescription read-only, puis handoff séparé pour correction.
-- `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md` : audit états cliniques read-only ; pas de correction silencieuse.
-- `.claude/skills/audit-panoramic-report-pipeline/SKILL.md` : audit upload → stockage → processing → review → report/PDF.
-- `.claude/skills/validate-cephalo-pipeline/SKILL.md` : validation read-only de la chaîne céphalométrique et de ses invariants.
-- `.claude/rules/scientific-engineering.md` : provenance, unités, contexte, missing-data, confirmation praticien et review indépendante obligatoires.
+- `.claude/skills/audit-prescription-flow/SKILL.md`
+- `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md`
+- `.claude/skills/audit-panoramic-report-pipeline/SKILL.md`
+- `.claude/skills/validate-cephalo-pipeline/SKILL.md`
+- `.claude/rules/scientific-engineering.md`
 
 ## Lot canonique — CLOSED
 
 Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/canonical-refresh-2026-08-13`.
 
-- ✅ `README.md` aligné avec l'architecture locale déterministe actuelle.
-- ✅ `STATE.md` rafraîchi avec l'audit du 13/08 et le backlog P0/P1/P2.
-- ✅ ancien `STATE.md` archivé intégralement dans `docs/archive/STATE_2026-07-21.md`.
-- ✅ `AGENTS.md` audité et aligné avec le code/CI actuels.
-- ✅ `CLAUDE.md` audité et aligné avec les règles/skills actuels.
-- ✅ `ARCHITECTURE.md` remplacé par une architecture conceptuelle stable ; l'arborescence exacte reste Git.
-- ✅ cohérence documentaire vérifiée sur LLM, environnements DB, CI et ordre de gouvernance.
-- ✅ diff d'intégration : 6 fichiers documentaires uniquement, aucun code/runtime/DB/workflow modifié.
-- ℹ️ création de PR tentée puis bloquée par le connecteur ; `master` étant resté sur la baseline exacte et la branche étant un fast-forward pur non protégé, intégration effectuée sans force.
+- ✅ `README.md`, `STATE.md`, `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md` réalignés.
+- ✅ ancien `STATE.md` archivé dans `docs/archive/STATE_2026-07-21.md`.
+- ✅ aucun code/runtime/DB/workflow modifié par ce lot documentaire.
 
-## Lot actif
+## LOT 1 — P0-1 audit — CLOSED
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT READ-ONLY
+- ✅ route active cartographiée de l'UI au document ;
+- ✅ missing-data/fallbacks backend et frontend identifiés ;
+- ✅ propagation vers génération/archivage/habitudes identifiée ;
+- ✅ tests existants et gaps recensés ;
+- ✅ formulaire actif confirmé : `PrescriptionAgenticStudio` ;
+- ✅ aucun code, règle, test, fixture ou donnée patient modifié pendant l'audit.
 
-Skill obligatoire : `.claude/skills/audit-prescription-flow/SKILL.md`.
+## Lot actif suivant
 
-Objectif immédiat : tracer le chemin suggestion prescription de bout en bout et confirmer tous les usages de données patient manquantes, valeurs par défaut, doublons de règles et parité UI/API/DB/PDF avant toute correction.
+### LOT 1B — PRESCRIPTION FAIL-CLOSED STRUCTURAL FIX — À DÉMARRER
+
+Objectif : supprimer toute utilisation métier d'une valeur patient inventée/estimée, introduire un état explicite `incomplete/non_evaluable`, rendre le backend autorité unique et empêcher la persistance/apprentissage d'une valeur non autoritative.
+
+**Important :** ne pas modifier les constantes scientifiques existantes sans recherche de sources séparée.
 
 ## Prochaine action exacte
 
-1. Cartographier les routes et services du flux prescription.
-2. Vérifier les valeurs hardcodées et états missing-data.
-3. Vérifier les contrôles d'accès et validations adjacentes dans le même flux.
-4. Recenser tests existants/manquants.
-5. Produire le rapport d'audit P0-1 sans modifier code/tests/fixtures.
-6. Handoff vers le skill/agent d'implémentation approprié seulement après clôture de l'audit.
+1. Lire l'agent/skill d'implémentation prescription.
+2. Concevoir le contrat fail-closed minimal sans nouvelle constante scientifique.
+3. Implémenter sur branche dédiée.
+4. Ajouter tests ciblés missing-data + parité backend/frontend + persistance/document.
+5. Exécuter régression proportionnée au risque.
+6. Faire review scientifique indépendante.
+7. Mettre à jour les canoniques puis certifier le head exact.
