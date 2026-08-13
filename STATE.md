@@ -24,9 +24,9 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- Baseline auditée : `master@f6dd36eca196d614c2d81d1dd78d3f45e481323a`
-- Audit : architecture, UX/UI, mobile, sécurité, proactivité, céphalométrie, panoramique, documents, prescriptions, comptabilité, paramètres et CI.
-- Nature : **audit statique/read-only**. Aucun test ou run CI n'est déclaré réussi pour ce head sans preuve d'exécution.
+- Baseline initiale audit global : `master@f6dd36eca196d614c2d81d1dd78d3f45e481323a`
+- Baseline LOT 1 audit prescription : `master@c8669527c6eb9c5232afa4277b5cd4c387a862fd`
+- Nature des audits : **read-only**. Aucun test ou run CI n'est déclaré réussi sans preuve d'exécution.
 
 ## Doctrine produit confirmée
 
@@ -34,9 +34,10 @@
 - Firebase : identité/licence et services associés, jamais source de vérité des dossiers patients.
 - Architecture courante : modèles locaux + moteurs déterministes ; aucune dépendance LLM requise.
 - Audits scientifiques = read-only ; correctifs = missions distinctes avec tests et review.
+- Donnée manquante = inconnue/non-évaluable ; jamais valeur inventée.
 - `tests green != validation scientifique`.
 
-## Évaluation audit du 13/08/2026
+## Évaluation audit global du 13/08/2026
 
 - Qualité / ambition produit : **8,6 / 10**
 - Readiness clinique/production : **6,6 / 10**
@@ -44,20 +45,22 @@
 
 Ces notes sont une évaluation d'audit, pas un pourcentage de roadmap ni une certification de release.
 
-## Forces confirmées
-
-- Couverture métier large : patient, agenda, Journey, documents, finance, équipe, mobile, imagerie, ortho, analytics.
-- Compagnon mobile dédié avec appairage sécurisé et fonctionnement offline.
-- Panoramique : séparation assistance machine / validation praticien.
-- Céphalométrie : registre normatif versionné et refus des classifications ambiguës/non autoritatives.
-- Proactivité : scheduler, déduplication, snooze, expiration, push et signaux cabinet/patient.
-- CI versionnée avec backend, frontend et garde de configuration production.
-
 ## P0 — Safety & Integrity
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED
+### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT CLOSED / BLOCKER CONFIRMED
 
-Une donnée patient manquante est remplacée par une valeur par défaut dans un chemin de suggestion clinique. Cette inférence doit être supprimée : donnée inconnue = état non-évaluable.
+Rapport : `docs/audits/P0_1_PRESCRIPTION_MISSING_DATA_AUDIT_2026-08-13.md`
+
+Constats structurants confirmés :
+- valeurs patient synthétiques/fallbacks utilisées dans le chemin de suggestion ;
+- estimation frontend d'une donnée manquante pouvant participer au guidage de dose ;
+- modèle Patient sans source structurée de poids actuel ;
+- donnée d'antécédents manquante pouvant être confondue avec absence de signal ;
+- logique clinique dupliquée backend/frontend ;
+- valeurs suggérées pouvant atteindre PDF/archive puis apprentissage des habitudes ;
+- tests missing-data/parité UI-API-PDF insuffisants.
+
+**Décision :** aucune correction numérique/scientifique dans le lot d'audit. Le prochain lot doit d'abord rendre le système fail-closed sans inventer de nouvelle constante.
 
 ### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY
 
@@ -111,29 +114,36 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/canonical-refresh-2026-08-13`.
 
-- ✅ `README.md` aligné avec l'architecture locale déterministe actuelle.
-- ✅ `STATE.md` rafraîchi avec l'audit du 13/08 et le backlog P0/P1/P2.
-- ✅ ancien `STATE.md` archivé intégralement dans `docs/archive/STATE_2026-07-21.md`.
-- ✅ `AGENTS.md` audité et aligné avec le code/CI actuels.
-- ✅ `CLAUDE.md` audité et aligné avec les règles/skills actuels.
-- ✅ `ARCHITECTURE.md` remplacé par une architecture conceptuelle stable ; l'arborescence exacte reste Git.
-- ✅ cohérence documentaire vérifiée sur LLM, environnements DB, CI et ordre de gouvernance.
-- ✅ diff d'intégration : 6 fichiers documentaires uniquement, aucun code/runtime/DB/workflow modifié.
-- ℹ️ création de PR tentée puis bloquée par le connecteur ; `master` étant resté sur la baseline exacte et la branche étant un fast-forward pur non protégé, intégration effectuée sans force.
+- ✅ `README.md`, `STATE.md`, `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md` réalignés.
+- ✅ ancien `STATE.md` archivé dans `docs/archive/STATE_2026-07-21.md`.
+- ✅ aucun code/runtime/DB/workflow modifié par ce lot documentaire.
 
-## Lot actif
+## LOT 1 — P0-1 audit prescription — CLOSED
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT READ-ONLY
+Branche d'audit : `audit/p0-1-prescription-missing-data-2026-08-13`
 
-Skill obligatoire : `.claude/skills/audit-prescription-flow/SKILL.md`.
+- ✅ route active prescription cartographiée de l'UI au PDF ;
+- ✅ valeurs manquantes/fallbacks backend et frontend identifiés ;
+- ✅ propagation vers génération/archivage/habitudes identifiée ;
+- ✅ tests existants et gaps recensés ;
+- ✅ formulaire actif confirmé : `PrescriptionAgenticStudio` ;
+- ✅ aucun code, règle, test, fixture ou donnée patient modifié pendant l'audit ;
+- ✅ rapport dédié créé.
 
-Objectif immédiat : tracer le chemin suggestion prescription de bout en bout et confirmer tous les usages de données patient manquantes, valeurs par défaut, doublons de règles et parité UI/API/DB/PDF avant toute correction.
+## Lot actif suivant
+
+### LOT 1B — PRESCRIPTION FAIL-CLOSED STRUCTURAL FIX — À DÉMARRER
+
+Objectif : supprimer toute utilisation clinique d'une valeur patient inventée/estimée, introduire un état explicite `incomplete/non_evaluable`, rendre le backend autorité unique et empêcher la persistance/apprentissage d'une valeur non autoritative.
+
+**Important :** ne pas modifier les constantes médicales/dosages existants sans recherche de sources séparée. Toute règle numérique conservée comme autoritative devra passer ensuite par `scientific-source-research`.
 
 ## Prochaine action exacte
 
-1. Cartographier les routes et services du flux prescription.
-2. Vérifier les valeurs hardcodées et états missing-data.
-3. Vérifier les contrôles d'accès et validations adjacentes dans le même flux.
-4. Recenser tests existants/manquants.
-5. Produire le rapport d'audit P0-1 sans modifier code/tests/fixtures.
-6. Handoff vers le skill/agent d'implémentation approprié seulement après clôture de l'audit.
+1. Lire l'agent/skill d'implémentation prescription (`pharmacology-engineer` + règles scientifiques).
+2. Concevoir le contrat fail-closed minimal sans nouvelle constante médicale.
+3. Implémenter sur branche dédiée.
+4. Ajouter tests ciblés missing-data + parité backend/frontend + persistance/PDF.
+5. Exécuter régression proportionnée au risque.
+6. Faire review scientifique indépendante.
+7. Mettre à jour les canoniques puis certifier le head exact.
