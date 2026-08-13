@@ -107,9 +107,9 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 - `.claude/skills/validate-cephalo-pipeline/SKILL.md` : validation read-only de la chaîne céphalométrique et de ses invariants.
 - `.claude/rules/scientific-engineering.md` : provenance, unités, contexte, missing-data, confirmation praticien et review indépendante obligatoires.
 
-## Lot canonique — clôture technique
+## Lot canonique — CLOSED
 
-Branche : `audit/canonical-refresh-2026-08-13`
+Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/canonical-refresh-2026-08-13`.
 
 - ✅ `README.md` aligné avec l'architecture locale déterministe actuelle.
 - ✅ `STATE.md` rafraîchi avec l'audit du 13/08 et le backlog P0/P1/P2.
@@ -118,13 +118,22 @@ Branche : `audit/canonical-refresh-2026-08-13`
 - ✅ `CLAUDE.md` audité et aligné avec les règles/skills actuels.
 - ✅ `ARCHITECTURE.md` remplacé par une architecture conceptuelle stable ; l'arborescence exacte reste Git.
 - ✅ cohérence documentaire vérifiée sur LLM, environnements DB, CI et ordre de gouvernance.
-- ⏳ PR canonique et vérification finale du diff.
+- ✅ diff d'intégration : 6 fichiers documentaires uniquement, aucun code/runtime/DB/workflow modifié.
+- ℹ️ création de PR tentée puis bloquée par le connecteur ; `master` étant resté sur la baseline exacte et la branche étant un fast-forward pur non protégé, intégration effectuée sans force.
+
+## Lot actif
+
+### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT READ-ONLY
+
+Skill obligatoire : `.claude/skills/audit-prescription-flow/SKILL.md`.
+
+Objectif immédiat : tracer le chemin suggestion prescription de bout en bout et confirmer tous les usages de données patient manquantes, valeurs par défaut, doublons de règles et parité UI/API/DB/PDF avant toute correction.
 
 ## Prochaine action exacte
 
-1. Comparer la branche à `f6dd36e`.
-2. Ouvrir une PR canonique dédiée vers `master`.
-3. Vérifier les fichiers de la PR et son head exact.
-4. Vérifier CI une fois.
-5. Si le lot canonique est mergeable, le fermer proprement.
-6. Reprendre ensuite P0-1 avec `audit-prescription-flow` en **read-only** sur un lot séparé.
+1. Cartographier les routes et services du flux prescription.
+2. Vérifier les valeurs hardcodées et états missing-data.
+3. Vérifier les contrôles d'accès et validations adjacentes dans le même flux.
+4. Recenser tests existants/manquants.
+5. Produire le rapport d'audit P0-1 sans modifier code/tests/fixtures.
+6. Handoff vers le skill/agent d'implémentation approprié seulement après clôture de l'audit.
