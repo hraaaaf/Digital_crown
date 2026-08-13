@@ -1,236 +1,234 @@
 # Digital Crown — SANINOVA Edition
-## *Plateforme de gestion dentaire & orthodontique — Local-First, Production-Ready*
 
-![Version](https://img.shields.io/badge/Version-v4.0_hardened-blue?style=for-the-badge)
-![Python](https://img.shields.io/badge/Backend-FastAPI_0.110-green?style=for-the-badge&logo=fastapi)
-![React](https://img.shields.io/badge/Frontend-React_19_TypeScript-61DAFB?style=for-the-badge&logo=react)
-![Database](https://img.shields.io/badge/Database-PostgreSQL_18.2-336791?style=for-the-badge&logo=postgresql)
-![AI](https://img.shields.io/badge/IA-Ollama_Local--First-orange?style=for-the-badge)
-![Security](https://img.shields.io/badge/Security-Hardened_S0--S9-red?style=for-the-badge)
+## Plateforme de gestion dentaire & orthodontique — local-first
 
----
+Digital Crown est une application de gestion de cabinet dentaire et orthodontique conçue pour fonctionner **sur le poste du cabinet ou sur son LAN**, et non comme un SaaS hébergeant les données patients à distance.
 
-## Vue d'ensemble
+- **Backend** : FastAPI + SQLAlchemy
+- **Frontend** : React 19 + Vite + TypeScript + Zustand
+- **Mode cabinet solo** : SQLite/SQLCipher local autorisé
+- **Mode production serveur** : PostgreSQL requis
+- **Mobile** : compagnon PWA/Capacitor appairé au cabinet
+- **Imagerie** : modèles locaux ONNX / moteurs déterministes
+- **LLM** : aucune dépendance LLM requise dans l'architecture clinique courante
+- **Firebase** : identité/licence et services associés, jamais source de vérité des dossiers patients
 
-Digital Crown est une application de gestion de cabinet dentaire et orthodontique **multi-tenant**, déployée en local (réseau LAN du cabinet). Elle gère des données patients réelles (197+ patients en production), couvre le cycle clinique complet — agenda, dossiers, céphalométrie, panoramique, ordonnances, comptabilité — et expose une API REST sécurisée pour une app mobile compagnon (PWA + native).
-
-> **Base de données active** : PostgreSQL 18.2 `digitalcrown_db` (localhost)  
-> **Environnement** : `ENVIRONMENT=development` sur le poste du praticien  
-> **Pas de cloud** : toutes les données cliniques restent sur la machine du cabinet
-> **Firebase** : licence/identité uniquement — jamais patients/documents/données cliniques
-
-**🔒 Doctrine base de données :**
-- ✅ PostgreSQL 15+ obligatoire pour toute installation cabinet/client
-- ✅ SQLite réservé aux tests/développement (jamais production)
-- ✅ Firebase gère uniquement la licence et l'authentification
-- ❌ Zéro donnée patient ou clinique dans le cloud
+> La source de vérité opérationnelle et les risques ouverts vivent dans `STATE.md`.
+> `AGENTS.md` et `CLAUDE.md` décrivent les règles de développement à respecter avant toute modification.
 
 ---
 
-## Architecture technique
+## Architecture d'exécution
 
-```
-Backend  FastAPI :8005     →  PostgreSQL 18.2 (digitalcrown_db)
-                            →  SQLAlchemy ORM (multi-tenant employer_id)
-                            →  ReportLab (PDF génération Elite)
-                            →  ONNX YOLO11x (analyse panoramique)
-                            →  Ollama local-first (LLM, fallback cloud opt-in)
-                            →  Firebase (push FCM mobile uniquement)
+### Environnements
 
-Frontend React/Vite :5173  →  Zustand (état global)
-                            →  Axios (API client, refresh JWT auto)
-                            →  Framer Motion + TailwindCSS
-                            →  Vite PWA (Service Worker offline)
+- `development` / `local` / `test` : environnements de développement et de test.
+- `cabinet` : environnement production-like pour installation locale ; `DEBUG` et CORS wildcard sont interdits, SQLite/SQLCipher reste autorisé.
+- `production` : mêmes exigences de durcissement, avec PostgreSQL obligatoire.
 
-Mobile (PWA LAN)           →  App compagnon sur réseau local
-                            →  ZKA : appairage ECDH P-256, masterKey jamais en clair
-```
+Les invariants de démarrage sont appliqués par `backend/main.py::validate_environment_invariants()`.
 
-### Multi-tenant
-Toutes les données cliniques sont isolées par `employer_id`. Chaque requête vérifie l'appartenance via `assert_patient_access(patient_id, user, db)`. Aucun fichier patient n'est accessible sans authentification JWT.
+### Données patients
+
+- Backend = autorité métier.
+- Frontend = client non fiable.
+- Isolation cabinet par `employer_id`.
+- Toute route patient doit faire respecter l'accès via les guards backend appropriés, notamment `assert_patient_access(...)` lorsque le flux est patient-scopé.
+- Les médias patients sont servis via des routes authentifiées, pas via un répertoire statique public.
+- Les données cliniques ne doivent pas être envoyées dans un service LLM externe.
 
 ---
 
-## Modules fonctionnels
+## Modules principaux
 
-### Agenda & Patients
-- Agenda multi-praticien avec gestion des statuts RDV
-- Dossiers patients complets (anamnèse, actes, prescriptions, documents)
-- Scoring patient (prédiction no-show, B1/B3/B4/B5)
-- Ghost Hub proactif : alertes cliniques quotidiennes (traitements abandonnés, suivi post-extraction, etc.)
+### Agenda & patients
 
-### Studio Céphalométrique (Step 1→4)
-- **Étape 1** : Upload radio + placement landmarks (36 points requis) + calibration mm/px
-- **Étape 2** : Examen occlusal (classe molaire/canine, type d'arcade)
-- **Étape 3** : Calcul automatique SNA/SNB/ANB/IMPA/I-Francfort/Inter-incisif/Nasolabial (3 analyses : COM / Steiner / Tweed) + diagnostic textuel
-- **Étape 4 (M3)** : Interface structurée en 4 sections — synthèse angles (7 cards code couleur), checklist validation live, plan de traitement, 3 boutons (Prévisualiser / Brouillon PDF / Valider & Archiver)
-- **CephaloConsistencyValidator** : validation clinique avant PDF — erreurs fatales bloquantes (bornes physiologiques, SNA-SNB≠ANB, contradiction de classe) + warnings non-bloquants
-- **Endpoint** `GET /patients/{id}/cephalo-validation` pour pré-validation frontend
+- Agenda multi-praticien et statuts de rendez-vous
+- Dossier patient longitudinal
+- Patient Journey
+- Actes, paiements et échéanciers
+- Documents et archives
+- Scoring et signaux administratifs
 
-### Panoramique ELITE
-- **IA** : ONNX YOLO11x — détecte les dents uniquement (0 pathologie auto-diagnostiquée)
-- **Annotation manuelle** : taxonomie clinique (Endo, Paro, Chirurgie, Prothèse, dent_absente, appareil) + constats généraux (lyse, parodontite, édentement)
-- **Bilan 100% déterministe** sans LLM : phrases cliniques, CCAM, conduite à tenir, normalité conditionnelle
-- **Preview + édition** : visualisation et modification ligne par ligne avant archivage
+### Céphalométrie
 
-### CrownBot — Assistant Conversationnel IA
-- Intent parser hybride (regex + Ollama fallback)
-- **Pending actions server-side** : le LLM propose → action stockée en DB avec UUID + TTL 30 min → seul l'UUID est renvoyé au client → exécution uniquement sur confirmation avec UUID
-- Action dispatcher : prise de RDV, fiche patient, solde, ouverture ordonnance/devis
-- Contexte LLM anonymisé (data_sanitizer) — aucune PII dans le prompt
+- Import / landmarks / correction manuelle
+- Calculs géométriques locaux
+- SNA, SNB, ANB, IMPA, I-Francfort, Tweed/FMA, Wits et mesures associées
+- Registre normatif versionné : définitions, profils, règles de classification et bornes de plausibilité
+- Refus des classifications normatives ambiguës, quarantined ou non autoritatives
 
-### Document Studio
-- **Ordonnances** : protocoles rapides, suggestion IA, architecture galénique, QR e-verify
-- **Devis / Honoraires** : odontogramme FDI SVG, archivage anti-doublon SHA-256
-- **Échéancier** : plan de paiement A5, statuts CheckBox, rappels WhatsApp
-- **Bilan orthodontique** : PDF Elite avec disclaimer praticien obligatoire
+**État scientifique important :** une partie du registre historique reste explicitement marquée `LEGACY_UNVALIDATED`. L'existence d'une valeur historique dans le registre ne constitue donc pas une validation scientifique.
 
-### Comptabilité & Finance
-- Tableau de bord recettes/dépenses, trésorerie, projection mensuelle
-- Forecast semaine (C1), taux de conversion devis (C4)
-- Export PDF comptable
+### Panoramique
 
-### Équipe & Plans d'abonnement
-| Plan | Dentistes | Assistantes |
-|------|-----------|-------------|
-| GOLD | 1 (owner) | 2 |
-| PREMIUM | 2 | 6 |
-| ELITE | Illimité | Illimité |
+- Studio panoramique local
+- Détection/localisation assistée
+- Annotation et validation praticien
+- Rapport déterministe et archivage
+- Protection d'accès aux médias patients
 
-- Workflow d'approbation : création → `PENDING` (login bloqué) → `APPROVED/REJECTED` par le praticien propriétaire
-- `GET /team/quota` · `POST /team/{id}/approve` · `POST /team/{id}/reject`
+Le chemin clinique courant doit conserver la séparation suivante : **assistance machine ≠ diagnostic autonome**.
 
-### App Mobile (ZKA)
-- Appairage QR : ECDH secp256r1 → masterKey chiffrée AES-256-GCM (jamais en clair sur le réseau)
-- Cockpit : agenda, performance, finance, labo, sécurité
-- Push FCM, offline queue (Workbox Background Sync)
+### Documents
 
----
+- Ordonnances
+- Certificats
+- Devis
+- Notes d'honoraires
+- Documents libres / lettres
+- Échéanciers
+- Rapports céphalométriques et panoramiques
+- Archivage, versioning et génération PDF
 
-## Sécurité (Sprint S0–S9)
+### Comptabilité
 
-| Domaine | Mesure |
-|---------|--------|
-| **Télémétrie** | `TELEMETRY_ENABLED=False` par défaut — opt-in explicite |
-| **Fichiers patients** | Auth JWT obligatoire sur toutes les routes `/uploads/`, `/archives/`, `/documents/` |
-| **Cross-tenant** | `assert_patient_access` sur chaque endpoint patient · guard `_assert_media_tenant` sur les routes statiques |
-| **Permissions** | RBAC 9 permissions · fail-closed sur type inconnu · guards serrés sur prescriptions/actes/accounting/cephalo |
-| **Cloud IA** | `CLOUD_AI_ENABLED=False` par défaut · AI Gateway (`ai_gateway.py`) local-first avec résolution d'URL d'egress |
-| **ZKA Mobile** | ECDH P-256 + HKDF-SHA256 + AES-256-GCM · masterKey jamais en clair · `get_mobile_role` fail-closed |
-| **Bot** | Pending actions en DB (UUID + TTL) · tenant-check avant exécution · allowlist d'actions explicite |
-| **Audit** | `AuditLog` par cabinet (employer_id) · EXPORT_DB/MOBILE_PAIRING/BOT_EXECUTE tracés |
-| **Prod gate** | `prod_safety_check.py` + CI GitHub Actions · invariants fail-fast au démarrage |
+- Actes
+- Paiements
+- Échéanciers
+- Impayés
+- Forecasts et analytics
+- Export et reporting
 
----
+### Proactivité
 
-## Migrations disponibles
+- Alertes quotidiennes
+- Snooze / lecture / expiration
+- Risque de no-show
+- Traitement non commencé
+- Suivi post-soin
+- Gaps orthodontiques
+- Signaux de pression agenda / matériaux
 
-```bash
-# Table pending actions bot
-python scripts/migrate_bot_pending_actions.py
+Les automatismes administratifs peuvent proposer une action. Les automatismes cliniques doivent rester des **signaux à vérifier par le praticien**, pas devenir une décision thérapeutique autonome.
 
-# Colonnes plans / approbation équipe
-python scripts/migrate_m1_subscription_plans.py
+### Mobile
 
-# Contrainte unique multi-tenant numero_dossier
-python scripts/migrate_p04_numero_dossier_tenant.py
+- Appairage LAN
+- ECDH P-256 / HKDF / AES-GCM pour l'échange de secrets
+- Dashboard mobile
+- Agenda, finance, labo et sécurité
+- Cache/offline queue
+- Révocation des accès mobiles
 
-# Audit read-only (baseline counts)
-python scripts/preflight_data_audit.py
-
-# Vérification config production
-python scripts/prod_safety_check.py
-```
-
-Toutes les migrations sont **idempotentes** et vérifient `count_before == count_after` (patients, documents).
+Le stockage local des credentials mobiles doit être traité comme une surface de sécurité séparée du chiffrement réseau.
 
 ---
 
-## Installation & Démarrage
+## Paramètres cabinet
 
-> Ce qui suit est le setup **développeur** (dépôt source, PostgreSQL, Ollama).
-> Pour installer Digital Crown chez un cabinet client, voir
-> `docs/CABINET_ONPREM_GUIDE.md` — un installeur Windows un clic existe
-> désormais (`installer/DigitalCrown.iss` → `DigitalCrownSetup.exe`),
-> aucune commande, secrets générés automatiquement.
+Le centre de paramètres couvre actuellement :
 
-### Prérequis
-- Python 3.11+ avec `venv`
-- PostgreSQL 18.2 (base `digitalcrown_db`)
-- Node.js 20+ / npm
-- Ollama (LLM local, modèle `llama3.2` recommandé)
+1. Profil cabinet
+2. Branding / design
+3. Catalogue des actes
+4. Horaires & agenda
+5. Intelligence & performance
+6. Sécurité & backup
+7. Équipe
 
-### Démarrage rapide (Windows)
-```powershell
-./Start_DigitalCrown.bat
-```
+---
 
-### Développement manuel
-```bash
-# Backend
-venv\Scripts\activate
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8005
+## Sécurité
 
-# Frontend (autre terminal)
-cd frontend && npm run dev
-```
+Mesures présentes dans le code :
 
-### Variables d'environnement clés (`.env`)
-```env
-DATABASE_URL=postgresql://user:password@localhost/digitalcrown_db
-SECRET_KEY=<clé 32+ caractères aléatoires>
-ENVIRONMENT=development        # production active les fail-fast guards
-TELEMETRY_ENABLED=false
-CLOUD_AI_ENABLED=false         # opt-in cloud LLM
-OLLAMA_URL=http://localhost:11434
-```
+- JWT et contrôle d'accès backend
+- RBAC
+- isolation tenant
+- audit logs
+- CORS borné
+- headers de sécurité
+- protection anti-path-traversal des médias
+- health checks
+- garde de configuration production
+- tokens d'appairage mobiles temporaires
+- rotation/révocation d'accès mobile
 
-### Accès
-| Service | URL |
-|---------|-----|
-| Application | `http://localhost:5173` |
-| API + Swagger | `http://localhost:8005/docs` |
-| Mobile (LAN) | `http://<ip-locale>:5173` |
+### Doctrine
+
+- Ne jamais exposer un média patient anonymement.
+- Ne jamais accepter un `employer_id` client comme autorité d'isolation.
+- Ne jamais inventer une donnée patient manquante.
+- Ne jamais transformer une approximation en écriture financière réelle.
+- Une base locale attendue chiffrée ne doit pas être considérée sûre uniquement parce qu'une tentative de chiffrement a été effectuée.
+- Un test vert ne constitue pas à lui seul une validation scientifique ou clinique.
+
+---
+
+## Gouvernance scientifique
+
+Les changements touchant prescription, diagnostic, céphalométrie, panoramique, radiologie ou logique clinique sont régis par :
+
+- `.claude/rules/scientific-engineering.md`
+- `.claude/skills/audit-prescription-flow/SKILL.md`
+- `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md`
+- `.claude/skills/audit-panoramic-report-pipeline/SKILL.md`
+- `.claude/skills/validate-cephalo-pipeline/SKILL.md`
+- les skills d'implémentation/review scientifiques correspondant au domaine
+
+Les audits sont **read-only**. Un finding d'audit doit être corrigé dans une mission distincte, testée puis revue indépendamment.
 
 ---
 
 ## Tests & CI
 
+Workflow : `.github/workflows/ci.yml`.
+
+Le pipeline versionné comprend actuellement :
+
+- backend : installation, `prod_safety_check.py`, `pytest backend/tests`
+- frontend : `npm ci`, tests, build
+- garde production négatif : une configuration faible doit être refusée
+
+Commandes usuelles :
+
 ```bash
-# Commandes frontend officielles depuis la racine
-npm test
-npm run build
+# Backend
+python -m pytest backend/tests -q
+python scripts/prod_safety_check.py
 
-# Suite de tests backend
-pytest backend/tests/
-
-# Vérification TypeScript frontend
-cd frontend && npx tsc --noEmit
-
-# Équivalents directs frontend
+# Frontend
 npm --prefix frontend test
 npm --prefix frontend run build
-
-# Gate de sécurité production
-python scripts/prod_safety_check.py
 ```
 
-Pipeline CI (`.github/workflows/ci.yml`) : install → prod_safety_check → pytest → test négatif garde prod.
+Pour un changement sur un chemin API ou un générateur PDF, une validation live/rehearsal adaptée au risque est requise en plus des tests unitaires.
 
 ---
 
-## Contraintes non-négociables (données patients)
+## Packaging cabinet
 
-- Ne **jamais** supprimer / réinitialiser / recréer des données patients
-- Ne **jamais** dropper la table `patients` ni régénérer `numero_dossier`
-- Toute migration : `count_before == count_after` prouvé par `preflight_data_audit.py`
-- Backend = seule autorité · Frontend = non fiable · LLM = non fiable (capsule confinée)
-- Aucune sortie IA clinique sans validation praticien
-- `masterKey` jamais en clair sur le réseau
+Le packaging Windows s'appuie sur :
+
+- `DigitalCrown.spec` / PyInstaller
+- `installer/DigitalCrown.iss` / Inno Setup
+- les scripts de runtime et release immuable sous `backend/scripts/`
+
+Voir `docs/CABINET_ONPREM_GUIDE.md` et les runbooks associés avant toute opération sur une installation réelle.
 
 ---
 
-## Équipe & Version
+## Contraintes non négociables
 
-**Staff Engineering — Digital Crown SANINOVA**  
-*Dernière mise à jour : 17 Juin 2026 — v4.0 hardened (S0–S9 + M1/M2/M3/M4 cephalo + panoramique déterministe)*
+- Jamais de perte de données patients.
+- Jamais de seed/demo sur une base cabinet réelle.
+- Jamais de secret, token, mot de passe ou master key dans les logs.
+- Jamais de test d'écriture supposé isolé sans vérifier explicitement le fichier d'environnement et la DB réellement ciblée.
+- Jamais de diagnostic automatique confirmé sans état clinique explicite et validation praticien.
+- Jamais de constante clinique non sourcée introduite silencieusement.
+
+---
+
+## État courant
+
+Ce README décrit l'architecture et les invariants, pas le statut de certification d'une release.
+
+Pour reprendre le projet ou décider du prochain lot, lire dans cet ordre :
+
+1. `STATE.md`
+2. `AGENTS.md` ou `CLAUDE.md` selon l'agent utilisé
+3. la règle/`SKILL.md` correspondant au domaine modifié
+4. les fichiers scientifiques ou runbooks référencés par ce skill
+
+**Dernière révision canonique : 13 août 2026.**
