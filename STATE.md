@@ -3,6 +3,8 @@
 > Fichier de reprise (handoff). **Lis-moi en premier** pour savoir où on en est.
 > Le bloc AUTO ci-dessous est régénéré automatiquement à chaque fin de session : ne l'édite pas à la main.
 > Les sections plus bas sont à toi (l'agent) : tiens-les à jour avant de t'arrêter.
+>
+> Historique canonique pré-audit conservé intégralement dans `docs/archive/STATE_2026-07-21.md`.
 
 <!-- STATE:AUTO:START -->
 ## Dernière session (auto — ne pas éditer à la main)
@@ -111,6 +113,7 @@ Branche : `audit/canonical-refresh-2026-08-13`
 
 - ✅ `README.md` aligné avec l'architecture locale déterministe actuelle.
 - ✅ `STATE.md` rafraîchi avec l'audit du 13/08 et le backlog P0/P1/P2.
+- ✅ ancien `STATE.md` archivé intégralement dans `docs/archive/STATE_2026-07-21.md`.
 - ⏳ `AGENTS.md` : audit ligne par ligne sans perdre l'historique opérationnel.
 - ⏳ `CLAUDE.md` : retirer les références Ollama/LLM obsolètes et aligner CI/architecture.
 - ⏳ `ARCHITECTURE.md` : audit ciblé après AGENTS/CLAUDE.
