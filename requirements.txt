@@ -26,6 +26,7 @@ sentry-sdk[fastapi]
 
 # --- Config & Registry ---
 PyYAML==6.0.3
+markdown
 
 # --- Security & File Validation ---
 python-magic==0.4.27
