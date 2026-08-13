@@ -152,9 +152,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 payment_status=p_status,
                 is_collected=p_collected,
                 on_conflict=(
-                    schemas.ConflictResolution.OVERWRITE
-                    if force and req.type in ["honoraires", "note"]
-                    else schemas.ConflictResolution.CREATE_VERSION if force
+                    schemas.ConflictResolution.CREATE_VERSION
+                    if force
                     else schemas.ConflictResolution.CANCEL
                 )
             )
@@ -783,4 +782,3 @@ async def list_patient_rvg(
         }
         for d in rvg_docs
     ]
-
