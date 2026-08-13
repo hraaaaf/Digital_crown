@@ -1,93 +1,68 @@
 # STATE — DigitalCrown
 
-> Fichier de reprise (handoff). **Lis-moi en premier** pour savoir où on en est.
-> Le bloc AUTO ci-dessous est régénéré automatiquement à chaque fin de session : ne l'édite pas à la main.
-> Les sections plus bas sont à toi (l'agent) : tiens-les à jour avant de t'arrêter.
->
-> Historique canonique pré-audit conservé intégralement dans `docs/archive/STATE_2026-07-21.md`.
+> Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
-<!-- STATE:AUTO:START -->
-## Dernière session (auto — ne pas éditer à la main)
-- **Mis à jour :** 2026-07-21 10:39
-- **Branche :** `master`
-- **Worktree :** `C:/Users/lenovo/Documents/Cabinet/DigitalCrown`
-
-### Fichiers touchés
-- _(aucun fichier modifié détecté)_
-
-### Dernières demandes
-- _(rien à extraire)_
-<!-- STATE:AUTO:END -->
-
-# État canonique manuel — 2026-08-13
+# État canonique manuel — 2026-08-14
 
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- Baseline auditée : `master@f6dd36eca196d614c2d81d1dd78d3f45e481323a`
-- Baseline P0-1 avant correctif : `master@f01bab51595659e0fccb1fd89bd1a03b49d16316`
-- Branche candidat : `fix/missing-data-guard-v2-2026-08-13`
-- Candidat code+tests avant mise à jour de ce fichier : `73a5e2953e388e86287251e552c110421bcf0f5b`
-- Aucun test ou run CI n'est déclaré réussi sans preuve d'exécution.
+- `master` après merge P0-1 : `8b442dfd613a608ac2e84f0a1690ba213aecfd5e`
+- PR P0-1 : `#5` — MERGED
+- Head candidat certifié avant merge : `9cb4b7f4b26260e7e9176299a44a9db0247c48bb`
+- CI exact-head : run `31752891471`
+- Backend : **2459 passed, 7 skipped, 4 warnings, 0 failed**
+- Frontend tests : **SUCCESS**
+- Frontend build : **SUCCESS**
+- Garde production négative : **SUCCESS**
 
 ## Doctrine produit confirmée
 
 - Application **on-premise / local-first**.
-- Firebase : identité/licence et services associés, jamais source de vérité des dossiers patients.
-- Architecture courante : modèles locaux + moteurs déterministes ; aucune dépendance LLM requise.
-- Audits scientifiques = read-only ; correctifs = missions distinctes avec tests et review.
-- Donnée manquante = inconnue/non-évaluable ; jamais valeur inventée.
+- Firebase : identité/licence, jamais source de vérité des dossiers patients.
+- Architecture courante : modèles locaux + moteurs déterministes ; aucun LLM requis.
+- Donnée patient requise mais absente = inconnue/non-évaluable ; jamais inventée.
 - `tests green != validation scientifique`.
+- Dans ce projet, `review` signifie par défaut **double-check complet par l’agent**, sauf demande explicite d’un reviewer externe.
 
 ## P0 — Safety & Integrity
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — IMPLEMENTED / NOT CERTIFIED
+### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — CLOSED ✅
 
-Audit initial : branche `audit/p0-1-prescription-missing-data-2026-08-13`, commit `e9d9f3a26395e19d933a074d74ba90195171a140`.
+Objectif : empêcher toute valeur patient synthétique/estimée de déclencher un calcul patient-spécifique lorsqu’une donnée requise manque.
 
-Human gate : principe fail-closed approuvé le 13/08/2026.
-
-Correctif structurel implémenté sur `fix/missing-data-guard-v2-2026-08-13` :
+Implémentation intégrée :
 - garde backend explicite `evaluable/non_evaluable` ;
 - âge absent reste `None` ;
-- poids absent n'est jamais synthétisé ;
+- poids absent n’est jamais synthétisé ;
 - antécédents absents restent explicitement incomplets ;
-- enfant sans poids structuré ne passe pas dans le moteur pédiatrique legacy ;
+- enfant sans contexte sûr ne passe pas dans le chemin pédiatrique legacy ;
 - plan non évaluable = zéro ligne automatique ;
-- ancien service conservé dans `prescription_service_legacy.py` pour ne pas modifier silencieusement ses constantes ;
-- `PrescriptionGuideModal` exige une donnée de poids explicite pour les automatismes pédiatriques ;
-- `estimateWeightFromAge()` est neutralisé et ne fournit plus de valeur exploitable ;
-- hook top-level `assessment.age` masqué lorsque l'évaluation n'est pas `evaluable`, afin de rendre inertes les adaptations patient-spécifiques du Studio legacy ;
-- tests backend missing-data ajoutés ;
-- tests frontend structurels missing-data ajoutés.
+- `PrescriptionGuideModal` exige un poids explicite pour l’automatisme pédiatrique ;
+- `estimateWeightFromAge()` est neutralisé ;
+- top-level `assessment.age` est masqué lorsque le contexte n’est pas évaluable ;
+- tests backend/frontend missing-data ajoutés.
 
-Contrôle statique au candidat `73a5e295...` :
-- branche en avance de 9 commits sur `f01bab5`, derrière de 0 ;
-- 8 fichiers code/tests dans le diff ;
-- aucune migration DB ;
-- aucun workflow modifié ;
-- aucune donnée patient modifiée ;
-- aucune constante scientifique volontairement revalidée ou remplacée dans ce lot.
+Double-check final avant merge :
+- restauration de tests `clinical_rules_engine` + `habits_engine` supprimés accidentellement ;
+- test honoraires rendu déterministe, sans assertion permissive `409 ou 422` ;
+- diff final : 16 fichiers, aucun fichier parasite ;
+- couverture backend finale supérieure au run précédent : 2459 tests passés.
 
-Résidu connu :
-- `PrescriptionAgenticStudio.tsx` contient encore du code legacy (dont anciennes valeurs littérales/adaptations locales), mais ses déclencheurs patient-spécifiques sont rendus inertes pour un contexte non évaluable par le garde backend + le GuideModal sûr. Nettoyage/quarantaine ultérieure recommandé après certification fonctionnelle.
+Limite explicite :
+- ce lot **ne valide pas scientifiquement** les constantes thérapeutiques/doses historiques du moteur legacy ;
+- ces constantes restent une dette scientifique distincte.
 
-### Certification P0-1 — BLOQUÉE EXTERNE
+Dette CI non bloquante :
+- la CI force `httpx==0.27.2` pour compatibilité Starlette/TestClient ;
+- cela entre en conflit déclaré avec `firebase-admin 7.5.0` et `ultralytics-platform 0.1.4`, qui demandent `httpx>=0.28` ;
+- correction durable à traiter séparément : upgrade FastAPI/Starlette ou isolation des dépendances de test.
 
-État réel : **NOT CERTIFIED / NOT MERGED**.
+### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY — ACTIVE
 
-Preuves :
-- aucun status check associé au candidat ;
-- aucune exécution Actions visible sur les branches de certification ;
-- l'intégration GitHub renvoie `403 Resource not accessible by integration` sur l'accès aux permissions Actions ;
-- aucune PR n'a pu être créée via le connecteur dans cette session ;
-- les tests ajoutés sont versionnés mais **non exécutés dans cette session**.
+Le service de synthèse clinique peut produire des conclusions trop prescriptives à partir de signaux textuels.
 
-Interdiction : ne pas merger P0-1 sur `master` avant preuve d'exécution backend + frontend + build.
-
-### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY
-
-Le service de synthèse clinique peut produire des conclusions trop prescriptives à partir de signaux textuels. La frontière doit devenir : signal + preuve + incertitude + validation praticien.
+Frontière cible : **signal + preuve + incertitude + validation praticien**, sans conclusion thérapeutique autonome.
 
 ### P0-3 — SQLCIPHER-FAIL-CLOSED
 
@@ -95,7 +70,7 @@ Le démarrage local peut continuer si le driver de chiffrement attendu est indis
 
 ### P0-4 — PARTIAL-PAYMENT-NO-INFERENCE
 
-Une écriture financière partielle peut être déduite automatiquement lorsque le montant exact manque. Toute écriture financière doit provenir d'un montant explicite.
+Une écriture financière partielle peut être déduite automatiquement lorsque le montant exact manque. Toute écriture financière doit provenir d’un montant explicite.
 
 ### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD
 
@@ -117,13 +92,12 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## P2 — Certification
 
-- Exécuter CI sur le head réellement candidat.
-- Rejouer backend + frontend + build.
+- CI sur le head réellement candidat.
+- Backend + frontend + build.
 - Smoke live/rehearsal ciblé selon le risque.
 - Audit visuel 390 / 768 / 1280 pour les lots UI concernés.
 - Accessibilité clavier/ARIA sur contrôles custom.
-- Finaliser validation scientifique céphalométrique source par source avant toute revendication autoritative.
-- Vérifier cohérence README / AGENTS / CLAUDE / ARCHITECTURE après chaque gros lot.
+- Validation scientifique céphalométrique source par source avant toute revendication autoritative.
 
 ## Skills scientifiques applicables
 
@@ -133,37 +107,8 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 - `.claude/skills/validate-cephalo-pipeline/SKILL.md`
 - `.claude/rules/scientific-engineering.md`
 
-## Lot canonique précédent — CLOSED
-
-Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/canonical-refresh-2026-08-13`.
-
-- ✅ `README.md`, `STATE.md`, `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md` réalignés.
-- ✅ ancien `STATE.md` archivé dans `docs/archive/STATE_2026-07-21.md`.
-- ✅ aucun code/runtime/DB/workflow modifié par ce lot documentaire.
-
-## LOT 1 — P0-1 audit — CLOSED
-
-- ✅ route active cartographiée de l'UI au document ;
-- ✅ missing-data/fallbacks backend et frontend identifiés ;
-- ✅ propagation vers génération/archivage/habitudes identifiée ;
-- ✅ tests existants et gaps recensés ;
-- ✅ formulaire actif confirmé : `PrescriptionAgenticStudio` ;
-- ✅ aucun code, règle, test, fixture ou donnée patient modifié pendant l'audit.
-
 ## Lot actif
 
-### LOT 1B — PRESCRIPTION FAIL-CLOSED STRUCTURAL FIX — IMPLEMENTED / CERTIFICATION BLOCKED
+### LOT 2 — P0-2 CMO NON-PRESCRIPTIVE BOUNDARY — À AUDITER / CORRIGER
 
-Le correctif structurel est implémenté. Le lot ne peut pas être déclaré CLOSED tant que la régression exécutable n'est pas prouvée.
-
-## Prochaine action exacte
-
-Exécuter sur le head candidat final :
-
-1. `python -m pytest backend/tests -q --maxfail=1`
-2. dans `frontend/` : `npm test`
-3. dans `frontend/` : `npm run build`
-4. vérifier le diff exact-head et les tests P0-1 ciblés ;
-5. corriger toute régression ;
-6. recertifier ;
-7. seulement après succès : PR/review, merge contrôlé vers `master`, contrôle post-merge et réalignement final des canoniques.
+Prochaine action exacte : cartographier le service CMO/synthèse clinique actif, ses entrées, ses sorties, ses tests et les chemins où un signal textuel peut devenir une conclusion prescriptive ; définir ensuite le contrat fail-safe minimal avant modification.
