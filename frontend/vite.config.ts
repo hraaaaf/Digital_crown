@@ -34,8 +34,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt',
+      injectRegister: false,
       filename: 'pwa-sw.js', // Worker applicatif unique pour le scope racine
       includeAssets: ['logo.svg', 'logo.png'],
       manifest: false, // Utilise public/manifest.json

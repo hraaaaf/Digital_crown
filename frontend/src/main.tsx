@@ -36,7 +36,12 @@ if ('serviceWorker' in navigator) {
   // /sw.js au même scope faisait alterner les deux workers en continu et
   // rechargeait toute l'application. La file mobile hors ligne est gérée par
   // MobileStorage ; Workbox reste l'unique worker applicatif.
-  registerSW({ immediate: true })
+  registerSW({
+    immediate: true,
+    // Une nouvelle release sera chargée au prochain démarrage de l'application.
+    // Ne jamais recharger automatiquement une session de travail en cours.
+    onNeedRefresh() {},
+  })
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
