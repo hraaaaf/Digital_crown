@@ -25,8 +25,10 @@
 
 - Repository : `hraaaaf/Digital_crown`
 - Baseline auditée : `master@f6dd36eca196d614c2d81d1dd78d3f45e481323a`
-- Baseline LOT 1 : `master@c8669527c6eb9c5232afa4277b5cd4c387a862fd`
-- Nature : audit statique/read-only. Aucun test ou run CI n'est déclaré réussi sans preuve d'exécution.
+- Baseline P0-1 avant correctif : `master@f01bab51595659e0fccb1fd89bd1a03b49d16316`
+- Branche candidat : `fix/missing-data-guard-v2-2026-08-13`
+- Candidat code+tests avant mise à jour de ce fichier : `73a5e2953e388e86287251e552c110421bcf0f5b`
+- Aucun test ou run CI n'est déclaré réussi sans preuve d'exécution.
 
 ## Doctrine produit confirmée
 
@@ -37,30 +39,51 @@
 - Donnée manquante = inconnue/non-évaluable ; jamais valeur inventée.
 - `tests green != validation scientifique`.
 
-## Évaluation audit du 13/08/2026
-
-- Qualité / ambition produit : **8,6 / 10**
-- Readiness clinique/production : **6,6 / 10**
-- Note globale audit : **7,7 / 10**
-
-Ces notes sont une évaluation d'audit, pas un pourcentage de roadmap ni une certification de release.
-
 ## P0 — Safety & Integrity
 
-### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — AUDIT CLOSED / BLOCKER CONFIRMED
+### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — IMPLEMENTED / NOT CERTIFIED
 
-Rapport détaillé versionné sur la branche `audit/p0-1-prescription-missing-data-2026-08-13`, commit `e9d9f3a26395e19d933a074d74ba90195171a140`.
+Audit initial : branche `audit/p0-1-prescription-missing-data-2026-08-13`, commit `e9d9f3a26395e19d933a074d74ba90195171a140`.
 
-Constats structurants confirmés :
-- valeurs patient synthétiques/fallbacks dans le chemin de suggestion ;
-- estimation frontend d'une donnée manquante pouvant influencer le guidage ;
-- absence de source structurée de poids actuel dans le modèle Patient ;
-- état d'antécédents manquant pouvant être confondu avec absence de signal ;
-- logique métier dupliquée backend/frontend ;
-- propagation possible vers document puis apprentissage d'habitudes ;
-- tests missing-data/parité insuffisants.
+Human gate : principe fail-closed approuvé le 13/08/2026.
 
-**Décision :** LOT 1B doit rendre le flux fail-closed sans introduire de nouvelle constante scientifique.
+Correctif structurel implémenté sur `fix/missing-data-guard-v2-2026-08-13` :
+- garde backend explicite `evaluable/non_evaluable` ;
+- âge absent reste `None` ;
+- poids absent n'est jamais synthétisé ;
+- antécédents absents restent explicitement incomplets ;
+- enfant sans poids structuré ne passe pas dans le moteur pédiatrique legacy ;
+- plan non évaluable = zéro ligne automatique ;
+- ancien service conservé dans `prescription_service_legacy.py` pour ne pas modifier silencieusement ses constantes ;
+- `PrescriptionGuideModal` exige une donnée de poids explicite pour les automatismes pédiatriques ;
+- `estimateWeightFromAge()` est neutralisé et ne fournit plus de valeur exploitable ;
+- hook top-level `assessment.age` masqué lorsque l'évaluation n'est pas `evaluable`, afin de rendre inertes les adaptations patient-spécifiques du Studio legacy ;
+- tests backend missing-data ajoutés ;
+- tests frontend structurels missing-data ajoutés.
+
+Contrôle statique au candidat `73a5e295...` :
+- branche en avance de 9 commits sur `f01bab5`, derrière de 0 ;
+- 8 fichiers code/tests dans le diff ;
+- aucune migration DB ;
+- aucun workflow modifié ;
+- aucune donnée patient modifiée ;
+- aucune constante scientifique volontairement revalidée ou remplacée dans ce lot.
+
+Résidu connu :
+- `PrescriptionAgenticStudio.tsx` contient encore du code legacy (dont anciennes valeurs littérales/adaptations locales), mais ses déclencheurs patient-spécifiques sont rendus inertes pour un contexte non évaluable par le garde backend + le GuideModal sûr. Nettoyage/quarantaine ultérieure recommandé après certification fonctionnelle.
+
+### Certification P0-1 — BLOQUÉE EXTERNE
+
+État réel : **NOT CERTIFIED / NOT MERGED**.
+
+Preuves :
+- aucun status check associé au candidat ;
+- aucune exécution Actions visible sur les branches de certification ;
+- l'intégration GitHub renvoie `403 Resource not accessible by integration` sur l'accès aux permissions Actions ;
+- aucune PR n'a pu être créée via le connecteur dans cette session ;
+- les tests ajoutés sont versionnés mais **non exécutés dans cette session**.
+
+Interdiction : ne pas merger P0-1 sur `master` avant preuve d'exécution backend + frontend + build.
 
 ### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY
 
@@ -102,7 +125,7 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 - Finaliser validation scientifique céphalométrique source par source avant toute revendication autoritative.
 - Vérifier cohérence README / AGENTS / CLAUDE / ARCHITECTURE après chaque gros lot.
 
-## Skills scientifiques lus et applicables
+## Skills scientifiques applicables
 
 - `.claude/skills/audit-prescription-flow/SKILL.md`
 - `.claude/skills/audit-clinical-diagnosis-flow/SKILL.md`
@@ -110,7 +133,7 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 - `.claude/skills/validate-cephalo-pipeline/SKILL.md`
 - `.claude/rules/scientific-engineering.md`
 
-## Lot canonique — CLOSED
+## Lot canonique précédent — CLOSED
 
 Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/canonical-refresh-2026-08-13`.
 
@@ -127,20 +150,20 @@ Intégré sur `master` le 13/08/2026 par fast-forward contrôlé depuis `audit/c
 - ✅ formulaire actif confirmé : `PrescriptionAgenticStudio` ;
 - ✅ aucun code, règle, test, fixture ou donnée patient modifié pendant l'audit.
 
-## Lot actif suivant
+## Lot actif
 
-### LOT 1B — PRESCRIPTION FAIL-CLOSED STRUCTURAL FIX — À DÉMARRER
+### LOT 1B — PRESCRIPTION FAIL-CLOSED STRUCTURAL FIX — IMPLEMENTED / CERTIFICATION BLOCKED
 
-Objectif : supprimer toute utilisation métier d'une valeur patient inventée/estimée, introduire un état explicite `incomplete/non_evaluable`, rendre le backend autorité unique et empêcher la persistance/apprentissage d'une valeur non autoritative.
-
-**Important :** ne pas modifier les constantes scientifiques existantes sans recherche de sources séparée.
+Le correctif structurel est implémenté. Le lot ne peut pas être déclaré CLOSED tant que la régression exécutable n'est pas prouvée.
 
 ## Prochaine action exacte
 
-1. Lire l'agent/skill d'implémentation prescription.
-2. Concevoir le contrat fail-closed minimal sans nouvelle constante scientifique.
-3. Implémenter sur branche dédiée.
-4. Ajouter tests ciblés missing-data + parité backend/frontend + persistance/document.
-5. Exécuter régression proportionnée au risque.
-6. Faire review scientifique indépendante.
-7. Mettre à jour les canoniques puis certifier le head exact.
+Exécuter sur le head candidat final :
+
+1. `python -m pytest backend/tests -q --maxfail=1`
+2. dans `frontend/` : `npm test`
+3. dans `frontend/` : `npm run build`
+4. vérifier le diff exact-head et les tests P0-1 ciblés ;
+5. corriger toute régression ;
+6. recertifier ;
+7. seulement après succès : PR/review, merge contrôlé vers `master`, contrôle post-merge et réalignement final des canoniques.
