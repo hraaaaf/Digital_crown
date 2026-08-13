@@ -39,7 +39,7 @@ jobs:
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
           pip install -r /tmp/requirements-ci.txt
-          pip install pytest
+          pip install httpx==0.27.2 pytest
 
       - name: Prod safety check (config hardening)
         run: python scripts/prod_safety_check.py
