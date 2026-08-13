@@ -26,12 +26,16 @@ sentry-sdk[fastapi]
 
 # --- Config & Registry ---
 PyYAML==6.0.3
+markdown
 
 # --- Security & File Validation ---
 python-magic==0.4.27
 python-magic-bin==0.4.14; platform_system == "Windows"
+python-jose[cryptography]
 passlib[bcrypt]==1.7.4
 bcrypt==4.1.2
 qrcode==7.4.2
 arabic-reshaper
 python-bidi
+reportlab==4.4.3
+PyMuPDF

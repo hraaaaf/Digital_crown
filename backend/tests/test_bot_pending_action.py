@@ -42,7 +42,7 @@ def _can_execute(action, user_id, employer_id, now=None):
     return True, "ok"
 
 
-# ── TTL ───────────────────────────────────────────────────────────────────────
+# ── TTL ─────────────────────────────────────────────────────────────────────
 
 class TestBotActionTTL:
     def test_fresh_action_not_expired(self):
@@ -59,12 +59,12 @@ class TestBotActionTTL:
 
     def test_action_exactly_30min_expired(self):
         action = _make_action(minutes_ago=30)
-        # expires_at = created_at + 30min; now = created_at + 30min → now == expires_at
-        # > is strict, so at exactly 30min it is NOT yet expired
-        assert not _is_expired(action)
+        # Injecter exactement la frontière TTL évite le décalage de quelques
+        # microsecondes entre la fabrication du mock et un nouvel utcnow().
+        assert not _is_expired(action, now=action.expires_at)
 
 
-# ── Ownership ─────────────────────────────────────────────────────────────────
+# ── Ownership ────────────────────────────────────────────────────────────────
 
 class TestBotActionOwnership:
     def test_correct_owner_can_execute(self):

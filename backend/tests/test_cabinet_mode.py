@@ -127,17 +127,21 @@ class TestEnvLoaderCabinetCandidates:
         assert os.environ["DATABASE_URL"] == "postgresql://from-explicit/db"
 
     def test_appdata_fallback_when_no_repo_env(self, tmp_path, monkeypatch):
-        """Mode EXE frozen : pas de .env dans le bundle → fallback %APPDATA%."""
+        """Mode EXE frozen Windows : pas de .env bundle → fallback %APPDATA%."""
         appdata = tmp_path / "appdata"
-        (appdata / "DigitalCrown").mkdir(parents=True)
-        (appdata / "DigitalCrown" / ".env").write_text("SECRET_KEY=from-appdata-install\n")
+        appdata_env = appdata / "DigitalCrown" / ".env"
+        appdata_env.parent.mkdir(parents=True)
+        appdata_env.write_text("SECRET_KEY=from-appdata-install\n")
         monkeypatch.setenv("APPDATA", str(appdata))
         monkeypatch.delenv("DIGITALCROWN_ENV_FILE", raising=False)
         monkeypatch.delenv("SECRET_KEY", raising=False)
 
         from backend.env_loader import load_backend_env
-        with patch("backend.env_loader.BASE_DIR", tmp_path / "empty_frozen_dir"):
+        with (
+            patch("backend.env_loader.BASE_DIR", tmp_path / "empty_frozen_dir"),
+            patch("backend.env_loader._appdata_env_path", return_value=appdata_env),
+        ):
             loaded = load_backend_env(override=True)
 
-        assert loaded == appdata / "DigitalCrown" / ".env"
+        assert loaded == appdata_env
         assert os.environ["SECRET_KEY"] == "from-appdata-install"

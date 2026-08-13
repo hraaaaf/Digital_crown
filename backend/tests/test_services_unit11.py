@@ -10,21 +10,25 @@ class TestPrescriptionAgenticDesignPlan:
         from backend.services.prescription_agentic_service import PrescriptionAgenticService
         return PrescriptionAgenticService()
 
+    @staticmethod
+    def _evaluable(**assessment):
+        return {"evaluation": {"status": "evaluable"}, **assessment}
+
     def test_empty_drugs_returns_empty_prescriptions(self):
-        assessment = {"drugs": [], "act_context": "carie"}
+        assessment = self._evaluable(drugs=[], act_context="carie")
         result = self._svc().design_treatment_plan(assessment, {})
         assert result["prescriptions"] == []
 
     def test_plan_nom_includes_act_context(self):
-        assessment = {"drugs": [], "act_context": "Détartrage"}
+        assessment = self._evaluable(drugs=[], act_context="Détartrage")
         result = self._svc().design_treatment_plan(assessment, {})
         assert "Détartrage" in result["plan_nom"]
 
     def test_single_drug_mapped(self):
-        assessment = {
-            "drugs": [{"name": "amoxicilline", "dosage": "1g", "forme": "Comprimés", "posologie": "3/j"}],
-            "act_context": "extraction"
-        }
+        assessment = self._evaluable(
+            drugs=[{"name": "amoxicilline", "dosage": "1g", "forme": "Comprimés", "posologie": "3/j"}],
+            act_context="extraction",
+        )
         result = self._svc().design_treatment_plan(assessment, {})
         assert len(result["prescriptions"]) == 1
         assert result["prescriptions"][0]["medicament"] == "AMOXICILLINE"
@@ -35,13 +39,13 @@ class TestPrescriptionAgenticDesignPlan:
         assert result["is_deterministic"] is True
 
     def test_multiple_drugs(self):
-        assessment = {
-            "drugs": [
+        assessment = self._evaluable(
+            drugs=[
                 {"name": "amoxicilline", "dosage": "1g", "forme": "Cp", "posologie": "3/j"},
                 {"name": "ibuprofene", "dosage": "400mg", "forme": "Cp", "posologie": "2/j"},
             ],
-            "act_context": "chirurgie"
-        }
+            act_context="chirurgie",
+        )
         result = self._svc().design_treatment_plan(assessment, {})
         assert len(result["prescriptions"]) == 2
 
@@ -51,8 +55,17 @@ class TestPrescriptionAgenticDesignPlan:
         assert isinstance(result["conseils_patient"], list)
 
     def test_default_act_context(self):
-        result = self._svc().design_treatment_plan({}, {})
+        result = self._svc().design_treatment_plan(self._evaluable(drugs=[]), {})
         assert "Standard" in result["plan_nom"]
+
+    def test_missing_evaluation_fails_closed(self):
+        result = self._svc().design_treatment_plan(
+            {"drugs": [{"name": "amoxicilline", "dosage": "1g"}], "act_context": "extraction"},
+            {},
+        )
+        assert result["plan_nom"] == "Non évaluable"
+        assert result["prescriptions"] == []
+        assert result["evaluation"]["status"] == "non_evaluable"
 
 
 class TestPrescriptionAgenticCalculateAge:
@@ -60,8 +73,8 @@ class TestPrescriptionAgenticCalculateAge:
         from backend.services.prescription_agentic_service import PrescriptionAgenticService
         return PrescriptionAgenticService()
 
-    def test_none_returns_30(self):
-        assert self._svc()._calculate_age(None) == 30
+    def test_none_returns_none(self):
+        assert self._svc()._calculate_age(None) is None
 
     def test_positive_age(self):
         born = datetime(1990, 1, 1)
