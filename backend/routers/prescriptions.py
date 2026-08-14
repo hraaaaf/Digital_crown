@@ -104,6 +104,7 @@ def check_prescription_safety(req: dict, db: Session = Depends(database.get_db),
     drug_names = req.get("drug_names", [])
     if not patient_id:
         raise HTTPException(status_code=400, detail="ID Patient manquant")
+    assert_patient_access(patient_id, current_user, db)
     return prescription_service.check_safety(db, patient_id, drug_names)
 
 @prescription_router.get("/smart-suggest/{patient_id}")
