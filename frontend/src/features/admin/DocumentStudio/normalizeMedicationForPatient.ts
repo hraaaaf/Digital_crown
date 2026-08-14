@@ -4,6 +4,11 @@ import {
   type PatientPharmacologyContext,
   type PharmacologyArbitration,
 } from './DentalPharmacologyArbiter';
+import {
+  arbitrateForMorocco,
+  type MoroccoMedicationEvidence,
+  type MoroccoPolicyDecision,
+} from './MoroccoPharmacologyPolicy';
 
 export type MedicationInputSource =
   | 'quick_entry'
@@ -25,11 +30,18 @@ export interface MedicationNormalizationInput {
   /** True only when the practitioner explicitly entered the value. */
   practitionerExplicitDosage?: boolean;
   practitionerExplicitPosology?: boolean;
+  /**
+   * Optional Morocco-specific evidence gathered for the actual molecule/
+   * presentation. Absence means Morocco status is unverified and therefore
+   * automatic adoption is forbidden, even if international support exists.
+   */
+  moroccoEvidence?: MoroccoMedicationEvidence;
 }
 
 export interface MedicationNormalizationResult {
   drug: DrugItem;
   arbitration: PharmacologyArbitration;
+  moroccoDecision: MoroccoPolicyDecision;
   changedByEvidence: boolean;
   requiresPractitionerConfirmation: boolean;
   source: MedicationInputSource;
@@ -37,6 +49,16 @@ export interface MedicationNormalizationResult {
 }
 
 const canon = (value: string | undefined) => (value || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+const defaultMoroccoEvidence = (
+  molecule: string,
+  arbitration: PharmacologyArbitration,
+): MoroccoMedicationEvidence => ({
+  molecule,
+  ammVerified: false,
+  moroccoRegimenEvidenceIds: [],
+  internationalSupportEvidenceIds: arbitration.evidenceIds,
+});
 
 /**
  * R1 canonical medication pipeline.
@@ -50,14 +72,14 @@ const canon = (value: string | undefined) => (value || '').trim().toUpperCase().
  * 4. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
  * 5. Drug-library values are treated as explicit only when the library UI
- *    actually supplies them; curated/search rows should pass empty therapeutic
- *    fields when they want the arbiter to calculate them.
+ *    actually supplies them.
  * 6. A practitioner override that diverges from the sourced regimen never gets
  *    silently paired with the other half of the sourced regimen.
  * 7. No therapeutic substitution is performed here.
- * 8. Missing/non-applicable evidence fails closed: automatic legacy dose and
- *    posology are cleared, while explicit practitioner input is preserved for
- *    visible/manual review.
+ * 8. Missing/non-applicable evidence fails closed.
+ * 9. International guidance may populate a visible support regimen, but it is
+ *    never considered automatically adoptable for Morocco unless the Morocco
+ *    policy gate explicitly allows it.
  */
 export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
@@ -65,6 +87,9 @@ export function normalizeMedicationForPatient(
   const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
   const arbitration = arbitrateMedication(arbitratedMolecule, input.patient);
   const regimen = arbitration.regimen;
+  const moroccoDecision = arbitrateForMorocco(
+    input.moroccoEvidence ?? defaultMoroccoEvidence(arbitratedMolecule, arbitration),
+  );
 
   const practitionerExplicitDosage = input.practitionerExplicitDosage
     ?? (input.source === 'drug_library' && Boolean(input.drug.dosage?.trim()));
@@ -75,6 +100,7 @@ export function normalizeMedicationForPatient(
     return {
       drug: { ...input.drug },
       arbitration,
+      moroccoDecision,
       changedByEvidence: false,
       requiresPractitionerConfirmation: false,
       source: input.source,
@@ -98,6 +124,7 @@ export function normalizeMedicationForPatient(
     return {
       drug: next,
       arbitration,
+      moroccoDecision,
       changedByEvidence,
       requiresPractitionerConfirmation: true,
       source: input.source,
@@ -107,7 +134,7 @@ export function normalizeMedicationForPatient(
 
   const next: DrugItem = { ...input.drug };
   let changedByEvidence = false;
-  let requiresPractitionerConfirmation = false;
+  let requiresPractitionerConfirmation = !moroccoDecision.mayAutoProposeRegimen;
 
   const explicitDosageDiffers = Boolean(
     practitionerExplicitDosage && canon(next.dosage) !== canon(regimen.dosage),
@@ -147,6 +174,7 @@ export function normalizeMedicationForPatient(
   return {
     drug: next,
     arbitration,
+    moroccoDecision,
     changedByEvidence,
     requiresPractitionerConfirmation,
     source: input.source,
