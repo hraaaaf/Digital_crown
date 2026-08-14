@@ -91,12 +91,16 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 return doc_factory.create_document_libre(thread_patient, schemas.LibreData(**req.data), thread_db, user_id)
             elif req.type == "echeancier":
                 if req.data.get("plan_id"):
-                    return doc_factory.create_installment_plan(thread_db, req.data.get("plan_id"), user_id)
+                    return doc_factory.create_installment_plan(
+                        thread_db,
+                        req.data.get("plan_id"),
+                        user_id,
+                        archive=not preview,
+                    )
                 else:
-                    # Cas où on passe les données directement (depuis le frontend)
-                    # Création du plan à la volée si ce n'est pas une preview, sinon mock ?
-                    # Pour simplifier, on crée le plan si 'archive=true' ou on le fait en mémoire
-                    # Comme la factory s'attend à un ID en base, on crée le plan temporairement puis on l'utilise.
+                    # Données directes depuis le frontend. Une preview peut utiliser
+                    # des objets temporaires dans la transaction, mais ne doit rien
+                    # persister en base.
                     plan_data = req.data
                     db_plan = models.InstallmentPlan(
                         patient_id=thread_patient.id,
@@ -104,8 +108,11 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                         total_amount=plan_data.get("totalAmount", 0)
                     )
                     thread_db.add(db_plan)
-                    thread_db.commit()
-                    thread_db.refresh(db_plan)
+                    if preview:
+                        thread_db.flush()
+                    else:
+                        thread_db.commit()
+                        thread_db.refresh(db_plan)
                     
                     for inst in plan_data.get("items", []):
                         db_inst = models.Installment(
@@ -115,10 +122,20 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             due_date=datetime.fromisoformat(inst.get("dueDate", datetime.now().isoformat()).split("T")[0])
                         )
                         thread_db.add(db_inst)
+
+                    if preview:
+                        thread_db.flush()
+                        try:
+                            return doc_factory.create_installment_plan(
+                                thread_db,
+                                db_plan.id,
+                                user_id,
+                                archive=False,
+                            )
+                        finally:
+                            thread_db.rollback()
+
                     thread_db.commit()
-                    
-                    # On retourne le doc généré. Si ce n'est qu'une preview, on pourrait le supprimer ensuite,
-                    # mais il est plus sûr de le conserver comme brouillon ou de laisser le backend faire le ménage.
                     return doc_factory.create_installment_plan(thread_db, db_plan.id, user_id)
             raise ValueError(f"Type de document non supporté : {req.type}")
 
@@ -294,7 +311,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                     suggest_radio = True
                     break
 
-        audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {archive}")
+        if not preview:
+            audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {archive}")
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
     except ValueError as e:
         msg = str(e)

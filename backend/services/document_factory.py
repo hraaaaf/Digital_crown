@@ -162,9 +162,11 @@ class DocumentFactory:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
             
-    def create_installment_plan(self, db: Session, plan_id: int, user_id: int) -> dict:
+    def create_installment_plan(self, db: Session, plan_id: int, user_id: int, archive: bool = True) -> dict:
         """
         Génère un PDF d'échéancier de paiement Ortho/Autre.
+
+        En mode preview (`archive=False`), aucune archive BDD n'est créée.
         """
         plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == plan_id).first()
         if not plan:
@@ -176,9 +178,16 @@ class DocumentFactory:
             raise ValueError("Clinique non trouvée")
             
         filepath = generate_installment_plan(plan, patient, clinic, self.output_dir)
+
+        if not archive:
+            return {
+                "url": f"/static/documents/{os.path.basename(filepath)}",
+                "archive_id": None,
+                "filename": os.path.basename(filepath)
+            }
         
-        # Archiver
-        archive = models.DocumentArchive(
+        # Archiver uniquement hors preview.
+        archive_obj = models.DocumentArchive(
             patient_id=patient.id,
             clinic_id=clinic.id,
             document_type="echeancier",
@@ -187,12 +196,12 @@ class DocumentFactory:
             created_by=user_id,
             data_snapshot={"plan_id": plan.id}
         )
-        db.add(archive)
+        db.add(archive_obj)
         db.commit()
-        db.refresh(archive)
+        db.refresh(archive_obj)
         
         return {
             "url": f"/static/documents/{os.path.basename(filepath)}",
-            "archive_id": archive.id,
+            "archive_id": archive_obj.id,
             "filename": os.path.basename(filepath)
         }
