@@ -99,8 +99,8 @@ export async function resolveAndNormalizeMedication(args: {
     source: args.source,
     patient: buildPatientPharmacologyContext(args.assessment),
     moleculeName: dci,
-    practitionerExplicitDosage: Boolean(args.practitionerExplicit?.dosage),
-    practitionerExplicitPosology: Boolean(args.practitionerExplicit?.posology),
+    practitionerExplicitDosage: args.practitionerExplicit?.dosage,
+    practitionerExplicitPosology: args.practitionerExplicit?.posology,
   });
 
   return { ...result, dictionaryResult };
@@ -108,7 +108,10 @@ export async function resolveAndNormalizeMedication(args: {
 
 export function pharmacologyReviewMessage(result: MedicationNormalizationResult): string | null {
   if (!result.requiresPractitionerConfirmation) return null;
-  const details = result.arbitration.messages.filter(Boolean).join(' ');
-  if (details) return details;
+  const details = [
+    ...result.arbitration.messages,
+    ...result.moroccoDecision.messages,
+  ].filter(Boolean);
+  if (details.length > 0) return [...new Set(details)].join(' ');
   return 'Revue pharmacologique requise avant validation de cette ligne.';
 }
