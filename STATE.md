@@ -7,10 +7,10 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- `master` après merge P0-4 : `a99025d67a5470219369c633570a617e19f6f557`
-- PR P0-4 : `#9` — MERGED
-- Head candidat P0-4 certifié : `7e5066d1dd53abfde33ad5e8043cd1c5d14c4d37`
-- CI P0-4 : run `31805059079` — SUCCESS
+- `master` après merge P0-5 : `67dc6620f5667ad4060592ef5662379fc720b6f9`
+- PR P0-5 : `#11` — MERGED
+- Head candidat P0-5 certifié : `d579750ce5897f86e902cf70b4e5003d188f1762`
+- CI P0-5 : run `31807332356` — SUCCESS
 - Frontend tests/build : **SUCCESS**
 - Garde production négative : **SUCCESS**
 
@@ -120,18 +120,32 @@ Certification :
 Limite UX connue :
 - le bouton `PARTIEL` du Document Studio reste fail-closed jusqu'à ajout d'un vrai champ montant encaissé ; aucune valeur financière ne doit être devinée entre-temps.
 
-### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD — ACTIVE
+### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD — CLOSED ✅
 
-Défaut confirmé : la route `POST /api/prescriptions/safety/check` appelle le service de sécurité prescription sans appliquer explicitement le guard tenant sur `patient_id`.
+Objectif : empêcher `POST /api/prescriptions/safety/check` de lire ou évaluer un patient hors tenant avant l'appel au service clinique.
+
+Implémentation intégrée :
+- `assert_patient_access(patient_id, current_user, db)` s'exécute avant `prescription_service.check_safety(...)` ;
+- un patient d'un autre tenant produit `403 Accès refusé` ;
+- le service de sécurité n'est jamais appelé pour ce patient ;
+- test cross-tenant dédié ajouté.
+
+Certification :
+- PR `#11` — MERGED ;
+- head candidat certifié : `d579750ce5897f86e902cf70b4e5003d188f1762` ;
+- CI : run `31807332356` — SUCCESS ;
+- frontend tests/build et garde production négative : **SUCCESS** ;
+- merge commit : `67dc6620f5667ad4060592ef5662379fc720b6f9`.
+
+### P0-6 — PREVIEW-MUST-BE-READ-ONLY — ACTIVE
+
+Défaut confirmé : la preview documentaire `echeancier` peut persister `InstallmentPlan`, `Installment`, `DocumentArchive` et un audit `GENERATE`.
 
 Critère de fermeture :
-- `assert_patient_access(patient_id, current_user, db)` doit s'exécuter avant `prescription_service.check_safety(...)` ;
-- un patient d'un autre tenant doit produire `403 Accès refusé` ;
-- le service de sécurité ne doit jamais être appelé pour ce patient.
-
-### P0-6 — PREVIEW-MUST-BE-READ-ONLY
-
-Un chemin de preview documentaire peut muter la base. Une preview doit conserver `count_before == count_after`.
+- `preview=true` doit conserver les compteurs BDD strictement inchangés ;
+- la factory d'échéancier doit être appelée avec archivage désactivé ;
+- le contrat `DocumentRequest` doit accepter explicitement `echeancier` puisque le routeur le supporte ;
+- recertification complète sur un head basé sur le `master` post-P0-5 avant merge.
 
 ## P1 — Hardening
 
@@ -162,6 +176,6 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## Lot actif
 
-### LOT 5 — P0-5 PRESCRIPTION SAFETY TENANT GUARD — ACTIVE
+### LOT 6 — P0-6 PREVIEW MUST BE READ-ONLY — ACTIVE
 
-Prochaine action exacte : intégrer le guard tenant avant l'appel au service, certifier le test cross-tenant dédié, puis recertifier le candidat courant avant merge et closeout canonique ; continuer ensuite automatiquement vers P0-6.
+Prochaine action exacte : recertifier le candidat P0-6 rebased sur le `master` post-P0-5 ; si la CI est verte, merge PR #12 puis closeout canonique du P0.
