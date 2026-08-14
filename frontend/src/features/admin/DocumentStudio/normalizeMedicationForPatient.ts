@@ -49,10 +49,13 @@ const canon = (value: string | undefined) => (value || '').trim().toUpperCase().
  * 3. No paediatric weight is inferred.
  * 4. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
- * 5. A practitioner override that diverges from the sourced regimen never gets
+ * 5. Drug-library values are treated as explicit only when the library UI
+ *    actually supplies them; curated/search rows should pass empty therapeutic
+ *    fields when they want the arbiter to calculate them.
+ * 6. A practitioner override that diverges from the sourced regimen never gets
  *    silently paired with the other half of the sourced regimen.
- * 6. No therapeutic substitution is performed here.
- * 7. Missing/non-applicable evidence fails closed: automatic legacy dose and
+ * 7. No therapeutic substitution is performed here.
+ * 8. Missing/non-applicable evidence fails closed: automatic legacy dose and
  *    posology are cleared, while explicit practitioner input is preserved for
  *    visible/manual review.
  */
@@ -62,6 +65,11 @@ export function normalizeMedicationForPatient(
   const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
   const arbitration = arbitrateMedication(arbitratedMolecule, input.patient);
   const regimen = arbitration.regimen;
+
+  const practitionerExplicitDosage = input.practitionerExplicitDosage
+    ?? (input.source === 'drug_library' && Boolean(input.drug.dosage?.trim()));
+  const practitionerExplicitPosology = input.practitionerExplicitPosology
+    ?? (input.source === 'drug_library' && Boolean(input.drug.posologie?.trim()));
 
   if (input.drug.type === 'EXAMEN') {
     return {
@@ -78,11 +86,11 @@ export function normalizeMedicationForPatient(
     const next: DrugItem = { ...input.drug };
     let changedByEvidence = false;
 
-    if (!input.practitionerExplicitDosage && next.dosage) {
+    if (!practitionerExplicitDosage && next.dosage) {
       next.dosage = '';
       changedByEvidence = true;
     }
-    if (!input.practitionerExplicitPosology && next.posologie) {
+    if (!practitionerExplicitPosology && next.posologie) {
       next.posologie = '';
       changedByEvidence = true;
     }
@@ -102,32 +110,30 @@ export function normalizeMedicationForPatient(
   let requiresPractitionerConfirmation = false;
 
   const explicitDosageDiffers = Boolean(
-    input.practitionerExplicitDosage && canon(next.dosage) !== canon(regimen.dosage),
+    practitionerExplicitDosage && canon(next.dosage) !== canon(regimen.dosage),
   );
   const explicitPosologyDiffers = Boolean(
-    input.practitionerExplicitPosology && canon(next.posologie) !== canon(regimen.posology),
+    practitionerExplicitPosology && canon(next.posologie) !== canon(regimen.posology),
   );
 
   if (explicitDosageDiffers || explicitPosologyDiffers) {
     requiresPractitionerConfirmation = true;
 
-    // Do not construct a hybrid regimen by pairing an explicit override with
-    // the untouched half of a different evidence regimen.
-    if (explicitDosageDiffers && !input.practitionerExplicitPosology && next.posologie) {
+    if (explicitDosageDiffers && !practitionerExplicitPosology && next.posologie) {
       next.posologie = '';
       changedByEvidence = true;
     }
-    if (explicitPosologyDiffers && !input.practitionerExplicitDosage && next.dosage) {
+    if (explicitPosologyDiffers && !practitionerExplicitDosage && next.dosage) {
       next.dosage = '';
       changedByEvidence = true;
     }
   } else {
-    if (!input.practitionerExplicitDosage && next.dosage !== regimen.dosage) {
+    if (!practitionerExplicitDosage && next.dosage !== regimen.dosage) {
       next.dosage = regimen.dosage;
       changedByEvidence = true;
     }
 
-    if (!input.practitionerExplicitPosology && next.posologie !== regimen.posology) {
+    if (!practitionerExplicitPosology && next.posologie !== regimen.posology) {
       next.posologie = regimen.posology;
       changedByEvidence = true;
     }
