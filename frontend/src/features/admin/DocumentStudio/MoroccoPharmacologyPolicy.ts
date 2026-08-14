@@ -43,34 +43,35 @@ export interface MoroccoPolicyDecision {
 }
 
 export const MOROCCO_PHARMACOLOGY_EVIDENCE: Record<string, MoroccoEvidenceRef> = {
-  MOROCCO_DMP: {
-    id: 'MOROCCO_DMP',
+  MOROCCO_AMMPS_MEDICINES: {
+    id: 'MOROCCO_AMMPS_MEDICINES',
     tier: 'MOROCCO_OFFICIAL',
-    authority: 'Ministère de la Santé / DMP – Maroc',
-    title: 'Direction du Médicament et de la Pharmacie — missions et référentiel réglementaire',
-    url: 'https://www.sante.gov.ma/Pages/ADM_Centrale/DMP.aspx',
-    reviewedAt: '2026-08-14',
-    scope: 'FORMULARY',
-  },
-  MOROCCO_AMM: {
-    id: 'MOROCCO_AMM',
-    tier: 'MOROCCO_OFFICIAL',
-    authority: 'Ministère de la Santé / AMMPS – Maroc',
-    title: 'Médicaments autorisés — recherche AMM Maroc',
-    url: 'https://www.sante.gov.ma/medicaments/amm/default.aspx',
-    reviewedAt: '2026-08-14',
+    authority: 'Agence Marocaine du Médicament et des Produits de Santé (AMMPS)',
+    title: 'Base de données des médicaments — Maroc',
+    url: 'https://www.ammps.gov.ma/recherche-medicaments',
+    reviewedAt: '2026-08-15',
     scope: 'AMM',
-    note: 'Required before Digital Crown may claim Moroccan market availability or auto-propose a marketed presentation.',
+    note: 'Référentiel officiel courant. Vérifier par présentation la substance active, le dosage, la forme, le RCP et le statut de commercialisation. La présence dans la base ne signifie pas nécessairement « commercialisé ».',
+  },
+  MOROCCO_AMMPS_GENERICS_2026: {
+    id: 'MOROCCO_AMMPS_GENERICS_2026',
+    tier: 'MOROCCO_OFFICIAL',
+    authority: 'Agence Marocaine du Médicament et des Produits de Santé (AMMPS)',
+    title: 'Répertoire Marocain des Médicaments Génériques — édition projet janvier 2026',
+    url: 'https://www.ammps.gov.ma/repertoire-medicaments-generiques',
+    reviewedAt: '2026-08-15',
+    scope: 'FORMULARY',
+    note: 'Répertoire pilote des génériques autorisés. Complément de gouvernance, pas substitut au RCP ni au statut de commercialisation par présentation.',
   },
   MOROCCO_ANTIBIOTIC_STEWARDSHIP: {
     id: 'MOROCCO_ANTIBIOTIC_STEWARDSHIP',
     tier: 'MOROCCO_OFFICIAL',
-    authority: 'Ministère de la Santé – Maroc',
+    authority: 'Autorités sanitaires marocaines',
     title: 'Bon usage des antibiotiques / antibiorésistance',
     url: 'https://www.sante.gov.ma/Pages/Communiques.aspx?IDCom=307',
-    reviewedAt: '2026-08-14',
+    reviewedAt: '2026-08-15',
     scope: 'STEWARDSHIP',
-    note: 'Antibiotics require appropriate indication, dose and duration; inappropriate and unnecessary use must be avoided.',
+    note: 'Support de bon usage. Une recommandation dentaire de schéma doit rester sourcée séparément.',
   },
   MOROCCO_PARACETAMOL: {
     id: 'MOROCCO_PARACETAMOL',
@@ -78,19 +79,19 @@ export const MOROCCO_PHARMACOLOGY_EVIDENCE: Record<string, MoroccoEvidenceRef> =
     authority: 'Sehati / Ministère de la Santé – Maroc',
     title: 'Recommandations pour le bon usage du paracétamol',
     url: 'https://sehati.gov.ma/article/recommandations_pour_le_bon_usage_du_paracetamol',
-    reviewedAt: '2026-08-14',
+    reviewedAt: '2026-08-15',
     scope: 'DOSING',
-    note: 'Official Moroccan good-use rules; exact product dosing still depends on locally authorised product information.',
+    note: 'Bon usage marocain. Le dosage exact d’une présentation reste à vérifier dans son RCP/AMM.',
   },
   MOROCCO_PRACTITIONER_ANTIBIOTICS_2020: {
     id: 'MOROCCO_PRACTITIONER_ANTIBIOTICS_2020',
     tier: 'MOROCCO_PROFESSIONAL',
-    authority: 'Pr Lahcen Belyamani & Dr Said Jidane / Moroccan academic reference',
+    authority: 'Pr Lahcen Belyamani & Dr Said Jidane / référence académique marocaine',
     title: 'Antibiotiques — Antibio-choix du praticien marocain',
     url: 'https://biblio.um6ss.ma/antibiotiques-antibio-choix-du-praticien-marocain/',
-    reviewedAt: '2026-08-14',
+    reviewedAt: '2026-08-15',
     scope: 'FORMULARY',
-    note: 'Moroccan professional reference, useful for arbitration but lower authority than current official Moroccan regulator/guidance.',
+    note: 'Référence professionnelle marocaine, autorité inférieure à une recommandation officielle actuelle ou au RCP.',
   },
 };
 
@@ -98,12 +99,13 @@ export const MOROCCO_PHARMACOLOGY_EVIDENCE: Record<string, MoroccoEvidenceRef> =
  * Morocco-first gate.
  *
  * Automatic regimen proposal requires BOTH:
- * 1. Moroccan AMM/market verification for the molecule/presentation context, and
+ * 1. Moroccan AMM/market verification for the actual molecule/presentation, and
  * 2. Moroccan regimen-level evidence.
  *
- * If Morocco has no current dental regimen guidance for that molecule, an
- * international guideline may be displayed as SUPPORT ONLY, never silently
- * promoted to a Moroccan recommendation.
+ * A local dictionary match is identity assistance only and never proves current
+ * AMM/commercialisation. If Morocco has no current dental regimen guidance for a
+ * molecule, an international guideline may be displayed as SUPPORT ONLY, never
+ * silently promoted to a Moroccan recommendation.
  */
 export function arbitrateForMorocco(
   evidence: MoroccoMedicationEvidence,
@@ -125,7 +127,7 @@ export function arbitrateForMorocco(
     return {
       status: 'morocco_amm_unverified',
       mayAutoProposeRegimen: false,
-      messages: [`Statut AMM Maroc non vérifié pour ${evidence.molecule}; proposition automatique interdite.`],
+      messages: [`Statut AMM/commercialisation Maroc non vérifié pour ${evidence.molecule}; proposition automatique interdite.`],
       evidenceIds: evidence.internationalSupportEvidenceIds,
     };
   }
