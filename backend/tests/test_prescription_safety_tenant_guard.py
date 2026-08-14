@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import patch
 
 from backend import models
@@ -11,6 +12,7 @@ def test_prescription_safety_rejects_cross_tenant_before_service_call(
     patient = models.Patient(
         nom="Tenant",
         prenom="Interdit",
+        date_naissance=date(1990, 1, 1),
         sexe="M",
         employer_id=other_owner.id,
     )
