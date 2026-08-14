@@ -108,6 +108,31 @@ describe('normalizeMedicationForPatient — R1 cross-path invariants', () => {
     expect(result.drug.dosage).toBe('375MG');
     expect(result.drug.posologie).toBe('schéma explicitement saisi');
     expect(result.arbitration.regimen?.dosage).toBe('250MG');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+
+  it('does not build a hybrid regimen after a partial explicit override', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('AMOXICILLINE', '1G', 'ancien preset automatique'),
+      source: 'quick_entry',
+      patient: { ageYears: 40 },
+      practitionerExplicitDosage: true,
+      practitionerExplicitPosology: false,
+    });
+    expect(result.drug.dosage).toBe('1G');
+    expect(result.drug.posologie).toBe('');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+
+  it('treats non-empty drug-library therapeutic fields as practitioner-explicit', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('AMOXICILLINE', '1G', '1 g matin et soir'),
+      source: 'drug_library',
+      patient: { ageYears: 40 },
+    });
+    expect(result.drug.dosage).toBe('1G');
+    expect(result.drug.posologie).toBe('1 g matin et soir');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
   });
 
   it('clears unsupported automatic legacy dose and posology', () => {
