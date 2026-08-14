@@ -1,0 +1,74 @@
+name: P1-2 canonical closeout
+
+on:
+  push:
+    branches: [master]
+    paths: [.github/workflows/p1-2-state-closeout.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Update STATE exactly
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('STATE.md')
+          t = p.read_text(encoding='utf-8')
+          old = '''### P1-2 — MOBILE-CREDENTIAL-LIFETIME-REVOCATION — ACTIVE
+
+Objectif : réduire l'exposition des credentials mobiles longue durée et vérifier une révocation réellement fail-closed.
+
+Constats initiaux :
+- le flux mobile/ZKA émet actuellement un bearer JWT avec une durée de vie de 365 jours ;
+- une infrastructure `jti`/blacklist existe déjà et doit être conservée puis testée, pas réinventée ;
+- le flux de claim one-shot doit être vérifié pour ne pas consommer définitivement le token avant validation complète du handshake.
+'''
+          new = '''### P1-2 — MOBILE-CREDENTIAL-LIFETIME-REVOCATION — CLOSED ✅
+
+Objectif : réduire l'exposition des credentials mobiles longue durée et vérifier une révocation réellement fail-closed.
+
+Implémentation intégrée :
+- bearer mobile réduit de 365 jours à 24 heures ;
+- claim `jti` désormais obligatoire : absence = 401 fail-closed ;
+- révocation persistante via blacklist/JTI conservée et testée ;
+- token d'appairage ZKA consommé uniquement après validation ECDH réussie ;
+- consommation one-shot conditionnelle/atomique pour rejeter une réutilisation concurrente ;
+- clé maître jamais retournée en clair ;
+- commentaire PWA aligné sur la durée réelle de 24 h.
+
+Certification :
+- PR `#13` — MERGED ;
+- head candidat certifié : `d04fd263482ff0f421b3a6a9835cccf9a3cd13dc` ;
+- CI : run `31818331954` — SUCCESS ;
+- backend tests/durcissement, frontend tests/build et garde production négative : **SUCCESS** ;
+- merge commit : `3c677294d296a67e27eb66a441292871455ab03a`.
+'''
+          if t.count(old) != 1:
+              raise SystemExit(f'P1-2 block match count={t.count(old)}')
+          t = t.replace(old, new, 1)
+          old2 = '''### LOT P1-2 — MOBILE CREDENTIAL LIFETIME + REVOCATION — ACTIVE
+
+Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, dépendance d'auth mobile et consommation du claim token ; appliquer le durcissement minimal sûr avec tests ciblés, certifier puis continuer automatiquement vers P1-3.'''
+          new2 = '''### LOT P1-3 — CABINET SETTINGS STRICT WHITELIST — ACTIVE
+
+Prochaine action exacte : rebaser/reconstruire P1-3 sur le master post-P1-2, recertifier le head exact, merger si vert, effectuer le closeout canonique puis continuer automatiquement vers P1-4.'''
+          if t.count(old2) != 1:
+              raise SystemExit(f'active lot match count={t.count(old2)}')
+          t = t.replace(old2, new2, 1)
+          p.write_text(t, encoding='utf-8')
+      - name: Remove workflow and commit closeout
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/p1-2-state-closeout.yml
+          git add STATE.md
+          git commit -m "docs: close P1-2 and advance to P1-3"
+          git push origin HEAD:master
