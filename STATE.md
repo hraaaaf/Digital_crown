@@ -7,11 +7,11 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- `master` après merge P0-1 : `8b442dfd613a608ac2e84f0a1690ba213aecfd5e`
-- PR P0-1 : `#5` — MERGED
-- Head candidat certifié avant merge : `9cb4b7f4b26260e7e9176299a44a9db0247c48bb`
-- CI exact-head : run `31752891471`
-- Backend : **2459 passed, 7 skipped, 4 warnings, 0 failed**
+- `master` après merge P0-2 : `6def2a2501cd687f5fa9be03741206b77b02643f`
+- PR P0-2 : `#6` — MERGED
+- Head candidat certifié avant merge : `84c14bb54068d21a9d7c668b5d041fdac7d93e01`
+- CI exact-head : run `31758201657`
+- Backend : **2462 passed, 7 skipped, 4 warnings, 0 failed**
 - Frontend tests : **SUCCESS**
 - Frontend build : **SUCCESS**
 - Garde production négative : **SUCCESS**
@@ -58,13 +58,28 @@ Dette CI non bloquante :
 - cela entre en conflit déclaré avec `firebase-admin 7.5.0` et `ultralytics-platform 0.1.4`, qui demandent `httpx>=0.28` ;
 - correction durable à traiter séparément : upgrade FastAPI/Starlette ou isolation des dépendances de test.
 
-### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY — ACTIVE
+### P0-2 — CMO-NON-PRESCRIPTIVE-BOUNDARY — CLOSED ✅
 
-Le service de synthèse clinique peut produire des conclusions trop prescriptives à partir de signaux textuels.
+Objectif : empêcher le service CMO de transformer des mentions textuelles en diagnostic, pronostic ou décision thérapeutique autonome.
 
-Frontière cible : **signal + preuve + incertitude + validation praticien**, sans conclusion thérapeutique autonome.
+Implémentation intégrée :
+- `cmo_agent_service.py` converti en synthèse documentaire déterministe et non prescriptive ;
+- sortie enrichie avec `evidence`, `uncertainty`, `practitioner_validation_required=True` et `automation_scope="signal_only"` ;
+- pronostic automatique neutralisé (`Non déterminé automatiquement`) ;
+- décisions autonomes de type `feu vert`, report orthodontique, avulsion ou soins impératifs supprimées ;
+- mémoire CMO convertie en `SIGNAL_CLINIQUE`, sans urgence/pharmacologie/orthodontie autonome ;
+- cas négatifs conservés comme mentions à vérifier, jamais interprétés comme diagnostic ;
+- tests contractuels ciblés ajoutés.
 
-### P0-3 — SQLCIPHER-FAIL-CLOSED
+Certification :
+- PR `#6` mergée ;
+- head candidat exact `84c14bb54068d21a9d7c668b5d041fdac7d93e01` ;
+- CI `31758201657` : backend **2462 passed, 7 skipped, 0 failed**, frontend tests/build et gardes verts.
+
+Limite explicite :
+- ce lot sécurise la frontière CMO ; il ne constitue pas une validation scientifique des autres moteurs cliniques historiques.
+
+### P0-3 — SQLCIPHER-FAIL-CLOSED — ACTIVE
 
 Le démarrage local peut continuer si le driver de chiffrement attendu est indisponible. Un environnement exigeant le chiffrement ne doit jamais considérer ce cas comme sûr.
 
@@ -109,6 +124,6 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## Lot actif
 
-### LOT 2 — P0-2 CMO NON-PRESCRIPTIVE BOUNDARY — À AUDITER / CORRIGER
+### LOT 3 — P0-3 SQLCIPHER FAIL-CLOSED — À AUDITER / CORRIGER
 
-Prochaine action exacte : cartographier le service CMO/synthèse clinique actif, ses entrées, ses sorties, ses tests et les chemins où un signal textuel peut devenir une conclusion prescriptive ; définir ensuite le contrat fail-safe minimal avant modification.
+Prochaine action exacte : cartographier la création du moteur SQLite/SQLCipher, les flags d’environnement qui exigent le chiffrement, les fallbacks de driver et les tests de démarrage ; définir puis implémenter le garde fail-closed minimal avant toute poursuite du démarrage local.
