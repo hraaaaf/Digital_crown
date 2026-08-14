@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic_core import PydanticCustomError
 import datetime
 from typing import Optional, Dict, List, Literal, Any, Union
 
@@ -154,9 +155,9 @@ class DocumentRequest(BaseModel):
         financial write from this document request.
         """
         if self.payment_status == "PARTIEL":
-            raise ValueError(
-                "Paiement partiel refusé : aucun montant encaissé explicite n'est fourni. "
-                "Enregistrez le montant réel via le flux d'encaissement dédié."
+            raise PydanticCustomError(
+                "partial_payment_requires_explicit_amount",
+                "Paiement partiel refusé : aucun montant encaissé explicite n'est fourni. Enregistrez le montant réel via le flux d'encaissement dédié."
             )
         return self
 
