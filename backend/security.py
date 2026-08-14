@@ -131,7 +131,9 @@ class TokenBlacklist:
                     if own_session:
                         db_session.close()
             except Exception:
-                return False
+                # P1-2: une panne du store de révocation ne doit jamais rendre
+                # un bearer potentiellement révoqué acceptable.
+                return True
         return False
 
     def _purge(self, db=None) -> None:

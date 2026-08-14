@@ -1,6 +1,6 @@
 """
-Routes PWA Mobile â€” LAN-first, zÃ©ro cloud.
-Aucune donnÃ©e ne sort du rÃ©seau local du cabinet.
+Routes PWA Mobile — LAN-first, zéro cloud.
+Aucune donnée ne sort du réseau local du cabinet.
 """
 import uuid
 import socket
@@ -15,22 +15,23 @@ from pydantic import BaseModel
 from jose import jwt, JWTError
 
 from backend import models, database
+from backend.config import settings
 from backend.security import SECRET_KEY, ALGORITHM
 from backend.services.zka_crypto import encrypt_payload, decrypt_payload
 
 router = APIRouter(tags=["Mobile ZKA"])
 
 
-# â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 
 def _create_mobile_jwt(employer_id: int, role: str) -> str:
-    """JWT mobile Ã  365 jours â€” type=mobile pour isolation des routes rÃ©guliÃ¨res."""
+    """JWT mobile court avec JTI obligatoire pour permettre une révocation effective."""
     payload = {
         "sub": str(employer_id),
         "type": "mobile",
         "role": role,
         "jti": str(uuid.uuid4()),
-        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=settings.MOBILE_TOKEN_EXPIRE_HOURS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -48,12 +49,13 @@ def get_mobile_employer_id(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "mobile":
             raise err
-            
+
         jti = payload.get("jti")
-        if jti:
-            from backend.security import token_blacklist
-            if token_blacklist.is_revoked(jti, db):
-                raise err
+        if not jti:
+            raise err
+        from backend.security import token_blacklist
+        if token_blacklist.is_revoked(jti, db):
+            raise err
 
         user_id = int(payload["sub"])
         user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -80,11 +82,14 @@ def get_mobile_role(
         scheme, token = authorization.split(" ", 1)
         if scheme.lower() == "bearer":
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            if payload.get("type") != "mobile":
+                return LEAST_PRIVILEGE
             jti = payload.get("jti")
-            if jti:
-                from backend.security import token_blacklist
-                if token_blacklist.is_revoked(jti, db):
-                    return LEAST_PRIVILEGE
+            if not jti:
+                return LEAST_PRIVILEGE
+            from backend.security import token_blacklist
+            if token_blacklist.is_revoked(jti, db):
+                return LEAST_PRIVILEGE
             return payload.get("role", LEAST_PRIVILEGE)
     except Exception:
         pass
@@ -154,7 +159,7 @@ def _to_mobile_status(status) -> Optional[str]:
     return _BACKEND_TO_MOBILE_STATUS.get(status, "PLANIFIE")
 
 
-# â”€â”€ PING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── PING ──────────────────────────────────────────────────────────────────────
 
 @router.get("/ping", summary="Vérification de connectivité LAN")
 def ping():
@@ -243,7 +248,7 @@ def get_ca_cert():
     )
 
 
-# â”€â”€ CLAIM TOKEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── CLAIM TOKEN ────────────────────────────────────────────────────────────────
 
 class ClaimTokenRequest(BaseModel):
     token: str
@@ -258,38 +263,32 @@ def claim_pairing_token(
     body: ClaimTokenRequest,
     db: Session = Depends(database.get_db),
 ):
+    now = datetime.utcnow()
     record = (
         db.query(models.ZKAPairingToken)
         .filter(
             models.ZKAPairingToken.token == body.token,
             models.ZKAPairingToken.used_at == None,  # noqa: E711
-            models.ZKAPairingToken.expires_at > datetime.utcnow(),
+            models.ZKAPairingToken.expires_at > now,
         )
         .first()
     )
     if not record:
         raise HTTPException(status_code=404, detail="Token invalide, expiré ou déjà utilisé.")
 
-    record.used_at = datetime.utcnow()
-    role = getattr(record, "role", "DENTISTE")
-    db.commit()
-    
-    response_data = {
-        "publicId": record.public_id,
-        "role": role,
-        "access_token": _create_mobile_jwt(record.employer_id, role),
-    }
-
     # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.
-    # La masterKey ne transite JAMAIS en clair (contrainte non-négociable),
-    # même sur le LAN HTTP. Le mode legacy en clair est supprimé.
+    # Le token one-shot ne doit être consommé qu'après un handshake complet.
     if not body.client_public_key_hex:
         raise HTTPException(
             status_code=400,
             detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",
         )
 
-    # ECDH Key Exchange pour sécuriser la transmission de la masterKey
+    role = getattr(record, "role", "DENTISTE")
+    public_id = record.public_id
+    employer_id = record.employer_id
+    master_key = record.master_key
+
     try:
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -316,10 +315,7 @@ def claim_pairing_token(
 
         aesgcm = AESGCM(derived_key)
         nonce = os.urandom(12)
-        encrypted_master_key = aesgcm.encrypt(nonce, record.master_key.encode(), None)
-
-        response_data["server_public_key_hex"] = server_public_key.hex()
-        response_data["encrypted_master_key_hex"] = (nonce + encrypted_master_key).hex()
+        encrypted_master_key = aesgcm.encrypt(nonce, master_key.encode(), None)
     except HTTPException:
         raise
     except Exception as e:
@@ -327,15 +323,37 @@ def claim_pairing_token(
         logging.error(f"Erreur ECDH: {e}")
         raise HTTPException(status_code=400, detail="Cle publique client invalide.")
 
-    return response_data
+    # Consommation atomique : un second claim concurrent ne peut pas gagner.
+    claimed_at = datetime.utcnow()
+    updated = (
+        db.query(models.ZKAPairingToken)
+        .filter(
+            models.ZKAPairingToken.id == record.id,
+            models.ZKAPairingToken.used_at == None,  # noqa: E711
+            models.ZKAPairingToken.expires_at > claimed_at,
+        )
+        .update({models.ZKAPairingToken.used_at: claimed_at}, synchronize_session=False)
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Token déjà utilisé ou expiré pendant l'appairage.")
+    db.commit()
+
+    return {
+        "publicId": public_id,
+        "role": role,
+        "access_token": _create_mobile_jwt(employer_id, role),
+        "server_public_key_hex": server_public_key.hex(),
+        "encrypted_master_key_hex": (nonce + encrypted_master_key).hex(),
+    }
 
 
-# â”€â”€ SNAPSHOT LAN-FIRST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── SNAPSHOT LAN-FIRST ────────────────────────────────────────────────────────
 
 @router.get(
     "/snapshot",
-    summary="Snapshot temps rÃ©el du cabinet â€” LAN uniquement",
-    description="Retourne agenda du jour, KPIs financiers et liste rouge. DonnÃ©es 100% locales.",
+    summary="Snapshot temps réel du cabinet — LAN uniquement",
+    description="Retourne agenda du jour, KPIs financiers et liste rouge. Données 100% locales.",
 )
 def get_mobile_snapshot(
     target_date: str = None,
@@ -350,7 +368,7 @@ def get_mobile_snapshot(
     day_start = datetime.combine(today, dt_time.min)
     day_end = datetime.combine(today, dt_time.max)
 
-    # â”€â”€ Agenda du jour â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Agenda du jour ────────────────────────────────────────────────────────
     apts = (
         db.query(models.Appointment)
         .options(joinedload(models.Appointment.patient))
@@ -432,7 +450,7 @@ def get_mobile_snapshot(
     return encrypt_payload(data)
 
 
-# â”€â”€ MISE Ã€ JOUR STATUT RENDEZ-VOUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── MISE À JOUR STATUT RENDEZ-VOUS ────────────────────────────────────────────
 
 class AppointmentStatusUpdate(BaseModel):
     status: str
@@ -440,7 +458,7 @@ class AppointmentStatusUpdate(BaseModel):
 
 @router.patch(
     "/appointments/{appointment_id}/status",
-    summary="Mettre Ã  jour le statut d'un rendez-vous depuis le mobile",
+    summary="Mettre à jour le statut d'un rendez-vous depuis le mobile",
 )
 def update_appointment_status(
     appointment_id: int,
@@ -471,7 +489,7 @@ def register_device(
     employer_id: int = Depends(get_mobile_employer_id),
     db: Session = Depends(database.get_db),
 ):
-    """E5 â€” Enregistre ou met Ã  jour le token FCM d'un appareil mobile."""
+    """E5 — Enregistre ou met à jour le token FCM d'un appareil mobile."""
     token = payload.get("fcm_token", "").strip()
     platform = payload.get("platform", "android")
     if not token:
@@ -799,5 +817,3 @@ def sign_mobile_document(
 
     db.commit()
     return {"status": "success", "signed": True}
-
-

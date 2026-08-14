@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30            # 30 minutes (rotation via refresh token)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30             # 30 jours
+    MOBILE_TOKEN_EXPIRE_HOURS: int = 24             # P1-2: bearer mobile court, ré-appairage explicite
     
     # Database
     DATABASE_URL: str = "sqlite:///./digital_crown.db"
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
     RATE_LIMIT_LOGIN: str = "10/minute"
 
-    # TÃ©lÃ©mÃ©trie / remontÃ©e cloud (P0.1) â€” OFF par dÃ©faut, opt-in EXPLICITE.
+    # Télémétrie / remontée cloud (P0.1) — OFF par défaut, opt-in EXPLICITE.
     # Tant que ce flag est False, AUCUNE statistique ne quitte le cabinet.
     TELEMETRY_ENABLED: bool = False
     
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 # 10 Mo
     
     # Firebase
-    # Les clÃ©s Firebase sont gÃ©rÃ©es par le fichier firebase_creds.json
+    # Les clés Firebase sont gérées par le fichier firebase_creds.json
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""

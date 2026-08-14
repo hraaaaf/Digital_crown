@@ -2,7 +2,7 @@ import localforage from 'localforage';
 
 /**
  * MOBILE-STORAGE (Digital Crown Elite)
- * Gestionnaire de stockage sécurisé utilisant IndexedDB.
+ * Gestionnaire de stockage local utilisant IndexedDB.
  */
 
 localforage.config({
@@ -18,7 +18,7 @@ const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
-  /** JWT mobile 365 jours pour /api/mobile/* (cf. backend/routers/mobile.py::_create_mobile_jwt) */
+  /** JWT mobile court (24 h par défaut) pour /api/mobile/* ; ré-appairage après expiration. */
   access_token: string;
   /** URL du backend LAN (ex: http://192.168.1.50:8000) */
   api_base_url: string;
