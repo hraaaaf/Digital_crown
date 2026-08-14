@@ -36,6 +36,17 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 - [ ] Cartographie complète des appels backend et dépendances
 - [ ] Verdict UX : garder / fusionner / cacher / refaire
 
+#### P1 — lots d’audit et de refonte
+- **P1-L1 — Saisie rapide & clavier** : texte libre, parsing, `Enter`, ↑/↓, Escape, clic suggestion, blur, remplacement du placeholder, état `PLANNING`, tests et edge cases. **Statut : 🟡 audit code en cours.**
+- **P1-L2 — Ligne médicament** : nom, autocomplétion, dosage, forme, posologie, NS, type Médicament/Examen, réordonnancement, suppression, dropdowns, alertes inline. **Statut : 🟡 audit code en cours.**
+- **P1-L3 — Protocoles & habitudes** : presets système, ordonnances personnelles, apprentissage/habitudes, application, suppression, sauvegarde, priorité des sources et adaptation. **Statut : ⬜.**
+- **P1-L4 — Référentiel médicaments** : modal, recherche nationale, filtres catégories, ajout manuel, ajout depuis règles/national, édition posologie, fermeture et états vides. **Statut : ⬜.**
+- **P1-L5 — Âge / poids / dosage pédiatrique** : origine des données patient, absence de poids, règles par molécule, priorité preset/règle/habitude, aucun calcul implicite non sûr. **Statut : 🟡 audit code en cours.**
+- **P1-L6 — Sécurité & validation** : allergies, CI, grossesse, validation nationale, dosage disponible, override praticien, cohérence, doublons et messages. **Statut : ⬜.**
+- **P1-L7 — Contexte patient & conseils** : assessment silencieux, conseils patient, suggestion/contextualisation, états RESEARCH/ASSESSMENT/PLANNING. **Statut : ⬜.**
+- **P1-L8 — Sauvegarde / preview / impression / sortie** : persistance, PDF, footer, preview, dirty state, erreurs réseau, navigation et perte d’état. **Statut : ⬜.**
+- **P1-L9 — Synthèse UX premium & plan d’implémentation** : scoring consolidé, GARDER/AMÉLIORER/FUSIONNER/CACHER/SUPPRIMER/REFAIRE, hiérarchie cible et lots de refonte réversibles. **Statut : ⬜.**
+
 ### P2 — Devis + Honoraires
 - [ ] Actes rapides / recherche catalogue
 - [ ] Odontogramme : chaque interaction dent/groupe/schéma
@@ -109,7 +120,7 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 - [ ] Recertification finale du Studio documentaire
 
 ## État initial
-- P1 : ⬜ à auditer en profondeur
+- P1 : 🟡 audit détaillé lancé, lots P1-L1 à P1-L9 définis
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -120,4 +131,4 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 Le précédent audit statique général sert uniquement de pré-analyse. Il **ne valide aucun sous-P** tant que la cartographie détaillée correspondante n’est pas terminée et double-checkée.
 
 ## Baseline de code
-Audit détaillé lancé depuis la branche `master`, baseline observée : `c740b6644b4b85363438998dcf34284054122464`.
+Audit détaillé de P1 lancé depuis la branche `master` au commit `93649aef0ae6323075cc680eac54ff0ebf4018ba` (parent applicatif `c740b6644b4b85363438998dcf34284054122464`; le commit courant ajoute uniquement cette roadmap).
