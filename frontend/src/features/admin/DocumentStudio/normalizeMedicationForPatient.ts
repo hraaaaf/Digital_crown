@@ -4,6 +4,7 @@ import {
   type PatientPharmacologyContext,
   type PharmacologyArbitration,
 } from './DentalPharmacologyArbiter';
+import { arbitrateMedicationSupplement } from './DentalPharmacologySupplement';
 import {
   arbitrateForMorocco,
   type MoroccoMedicationEvidence,
@@ -66,18 +67,20 @@ const defaultMoroccoEvidence = (
  * Invariants:
  * 1. Same resolved molecule + same patient context => same evidence arbitration,
  *    regardless of UI entry path.
- * 2. Brand-to-DCI resolution is external to this function. Unknown brands are
+ * 2. Core and supplementary source-backed dental rules are consumed through
+ *    this same normalizer; supplements never bypass Morocco or practitioner gates.
+ * 3. Brand-to-DCI resolution is external to this function. Unknown brands are
  *    never guessed here.
- * 3. No paediatric weight is inferred.
- * 4. Evidence-backed values may replace non-explicit preset/habit defaults,
+ * 4. No paediatric weight is inferred.
+ * 5. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
- * 5. Drug-library values are treated as explicit only when the library UI
+ * 6. Drug-library values are treated as explicit only when the library UI
  *    actually supplies them.
- * 6. A practitioner override that diverges from the sourced regimen never gets
+ * 7. A practitioner override that diverges from the sourced regimen never gets
  *    silently paired with the other half of the sourced regimen.
- * 7. No therapeutic substitution is performed here.
- * 8. Missing/non-applicable evidence fails closed.
- * 9. International guidance may populate a visible support regimen, but it is
+ * 8. No therapeutic substitution is performed here.
+ * 9. Missing/non-applicable evidence fails closed.
+ * 10. International guidance may populate a visible support regimen, but it is
  *    never considered automatically adoptable for Morocco unless the Morocco
  *    policy gate explicitly allows it.
  */
@@ -85,7 +88,8 @@ export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
 ): MedicationNormalizationResult {
   const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
-  const arbitration = arbitrateMedication(arbitratedMolecule, input.patient);
+  const arbitration = arbitrateMedicationSupplement(arbitratedMolecule, input.patient)
+    ?? arbitrateMedication(arbitratedMolecule, input.patient);
   const regimen = arbitration.regimen;
   const moroccoDecision = arbitrateForMorocco(
     input.moroccoEvidence ?? defaultMoroccoEvidence(arbitratedMolecule, arbitration),
