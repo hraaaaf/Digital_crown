@@ -36,6 +36,8 @@ export interface MedicationNormalizationResult {
   arbitratedMolecule: string;
 }
 
+const canon = (value: string | undefined) => (value || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
 /**
  * R1 canonical medication pipeline.
  *
@@ -47,8 +49,10 @@ export interface MedicationNormalizationResult {
  * 3. No paediatric weight is inferred.
  * 4. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
- * 5. No therapeutic substitution is performed here.
- * 6. Missing/non-applicable evidence fails closed: automatic legacy dose and
+ * 5. A practitioner override that diverges from the sourced regimen never gets
+ *    silently paired with the other half of the sourced regimen.
+ * 6. No therapeutic substitution is performed here.
+ * 7. Missing/non-applicable evidence fails closed: automatic legacy dose and
  *    posology are cleared, while explicit practitioner input is preserved for
  *    visible/manual review.
  */
@@ -95,15 +99,38 @@ export function normalizeMedicationForPatient(
 
   const next: DrugItem = { ...input.drug };
   let changedByEvidence = false;
+  let requiresPractitionerConfirmation = false;
 
-  if (!input.practitionerExplicitDosage && next.dosage !== regimen.dosage) {
-    next.dosage = regimen.dosage;
-    changedByEvidence = true;
-  }
+  const explicitDosageDiffers = Boolean(
+    input.practitionerExplicitDosage && canon(next.dosage) !== canon(regimen.dosage),
+  );
+  const explicitPosologyDiffers = Boolean(
+    input.practitionerExplicitPosology && canon(next.posologie) !== canon(regimen.posology),
+  );
 
-  if (!input.practitionerExplicitPosology && next.posologie !== regimen.posology) {
-    next.posologie = regimen.posology;
-    changedByEvidence = true;
+  if (explicitDosageDiffers || explicitPosologyDiffers) {
+    requiresPractitionerConfirmation = true;
+
+    // Do not construct a hybrid regimen by pairing an explicit override with
+    // the untouched half of a different evidence regimen.
+    if (explicitDosageDiffers && !input.practitionerExplicitPosology && next.posologie) {
+      next.posologie = '';
+      changedByEvidence = true;
+    }
+    if (explicitPosologyDiffers && !input.practitionerExplicitDosage && next.dosage) {
+      next.dosage = '';
+      changedByEvidence = true;
+    }
+  } else {
+    if (!input.practitionerExplicitDosage && next.dosage !== regimen.dosage) {
+      next.dosage = regimen.dosage;
+      changedByEvidence = true;
+    }
+
+    if (!input.practitionerExplicitPosology && next.posologie !== regimen.posology) {
+      next.posologie = regimen.posology;
+      changedByEvidence = true;
+    }
   }
 
   if (!next.forme?.trim() && regimen.form) {
@@ -115,7 +142,7 @@ export function normalizeMedicationForPatient(
     drug: next,
     arbitration,
     changedByEvidence,
-    requiresPractitionerConfirmation: false,
+    requiresPractitionerConfirmation,
     source: input.source,
     arbitratedMolecule,
   };
