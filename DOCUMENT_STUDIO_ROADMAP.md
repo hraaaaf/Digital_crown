@@ -8,10 +8,10 @@ L’audit doit descendre au niveau **interaction par interaction** : clic, touch
 ## Règle de preuve
 Pour chaque comportement, distinguer explicitement :
 - **CODE VÉRIFIÉ** : comportement démontré par le code source.
-- **TEST VÉRIFIÉ** : comportement couvert par un test identifié/exécuté.
+- **TEST IDENTIFIÉ** : comportement couvert par un test source inspecté ; ne signifie pas que le test a été exécuté dans cette session.
 - **INTERACTION EXÉCUTÉE** : comportement observé dans l’application réelle.
 
-Ne jamais assimiler une lecture de code à un test UX réel.
+Ne jamais assimiler une lecture de code ou la présence d’un test à un test UX réel.
 
 ## Format d’audit de chaque interaction
 **Interaction → déclencheur → état avant → action → état après → élément affiché → position → contenu → données utilisées → backend/calcul → erreurs/edge cases → valeur UX → décision refonte.**
@@ -19,33 +19,46 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 ## Roadmap
 
 ### P1 — Ordonnance
-- [ ] Saisie rapide, clavier et comportement de `Enter`
-- [ ] Autocomplétion et sélection
-- [ ] Presets intégrés
-- [ ] Presets personnels / favoris
-- [ ] Habitudes apprises / suggestions
-- [ ] Bibliothèque médicaments
-- [ ] Recherche et filtres bibliothèque
-- [ ] Ajout/suppression/réorganisation d’un médicament
-- [ ] Posologies et dosettes
-- [ ] Adaptation âge / poids / contexte patient
-- [ ] Validations médicament / dosage / alertes
-- [ ] Conseils patient
-- [ ] États vides, erreurs et fallback
-- [ ] Preview / sauvegarde / impression / sortie
-- [ ] Cartographie complète des appels backend et dépendances
-- [ ] Verdict UX : garder / fusionner / cacher / refaire
+Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`
 
-#### P1 — lots d’audit et de refonte
-- **P1-L1 — Saisie rapide & clavier** : texte libre, parsing, `Enter`, ↑/↓, Escape, clic suggestion, blur, remplacement du placeholder, état `PLANNING`, tests et edge cases. **Statut : 🟡 audit code en cours.**
-- **P1-L2 — Ligne médicament** : nom, autocomplétion, dosage, forme, posologie, NS, type Médicament/Examen, réordonnancement, suppression, dropdowns, alertes inline. **Statut : 🟡 audit code en cours.**
-- **P1-L3 — Protocoles & habitudes** : presets système, ordonnances personnelles, apprentissage/habitudes, application, suppression, sauvegarde, priorité des sources et adaptation. **Statut : ⬜.**
-- **P1-L4 — Référentiel médicaments** : modal, recherche nationale, filtres catégories, ajout manuel, ajout depuis règles/national, édition posologie, fermeture et états vides. **Statut : ⬜.**
-- **P1-L5 — Âge / poids / dosage pédiatrique** : origine des données patient, absence de poids, règles par molécule, priorité preset/règle/habitude, aucun calcul implicite non sûr. **Statut : 🟡 audit code en cours.**
-- **P1-L6 — Sécurité & validation** : allergies, CI, grossesse, validation nationale, dosage disponible, override praticien, cohérence, doublons et messages. **Statut : ⬜.**
-- **P1-L7 — Contexte patient & conseils** : assessment silencieux, conseils patient, suggestion/contextualisation, états RESEARCH/ASSESSMENT/PLANNING. **Statut : ⬜.**
-- **P1-L8 — Sauvegarde / preview / impression / sortie** : persistance, PDF, footer, preview, dirty state, erreurs réseau, navigation et perte d’état. **Statut : ⬜.**
-- **P1-L9 — Synthèse UX premium & plan d’implémentation** : scoring consolidé, GARDER/AMÉLIORER/FUSIONNER/CACHER/SUPPRIMER/REFAIRE, hiérarchie cible et lots de refonte réversibles. **Statut : ⬜.**
+- [x] Saisie rapide, clavier et comportement de `Enter` — **code cartographié**
+- [x] Autocomplétion et sélection — **code cartographié**
+- [x] Presets intégrés — **inventaire/code cartographié**
+- [x] Presets personnels / favoris — **code cartographié**
+- [x] Habitudes apprises / suggestions — **code cartographié**
+- [x] Bibliothèque médicaments — **code cartographié**
+- [x] Recherche et filtres bibliothèque — **code cartographié**
+- [x] Ajout/suppression/réorganisation d’un médicament — **code cartographié**
+- [x] Posologies et chemins d’hydratation — **code cartographié**
+- [x] Adaptation âge / poids / contexte patient — **code cartographié**
+- [x] Validations médicament / dosage / alertes — **code cartographié**
+- [x] Conseils patient — **code cartographié**
+- [x] États vides, erreurs et fallback — **code cartographié**
+- [x] Preview / sauvegarde / impression / sortie — **code cartographié**
+- [x] Cartographie des appels backend et dépendances principales — **code cartographié**
+- [x] Verdict UX et lots de refonte — **audit statique consolidé**
+- [ ] **Interaction réelle exécutée/certifiée dans l’application**
+- [ ] **Recertification après refonte**
+
+#### P1 — lots d’audit
+- **P1-L1 — Saisie rapide & clavier** : ✅ code cartographié. Score statique **8.1/10**.
+- **P1-L2 — Ligne médicament** : ✅ code cartographié. Score statique **7.9/10**.
+- **P1-L3 — Protocoles & habitudes** : ✅ code cartographié. Score statique **7.5/10**.
+- **P1-L4 — Référentiel médicaments** : ✅ code cartographié. Score statique **8.0/10**.
+- **P1-L5 — Âge / poids / dosage pédiatrique** : ✅ code cartographié. Score statique **7.0/10**.
+- **P1-L6 — Sécurité & validation** : ✅ code cartographié. Score statique **6.8/10**.
+- **P1-L7 — Contexte patient & conseils** : ✅ code cartographié. Score statique **6.8/10**.
+- **P1-L8 — Sauvegarde / preview / impression / sortie** : ✅ code cartographié. Score statique **7.2/10**.
+- **P1-L9 — Synthèse UX premium & plan d’implémentation** : ✅ consolidé. Score statique global P1 **7.4/10**.
+
+#### P1 — lots de refonte planifiés
+- **R1 — P0 Cohérence médicament** : pipeline unique quick/ligne/protocole/bibliothèque/assessment ; âge/poids identiques ; aucune substitution thérapeutique silencieuse.
+- **R2 — P0 Persistance protocoles/habitudes** : corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
+- **R3 — P0 Safety orchestration** : connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
+- **R4 — P0 Dirty-state & actions** : toutes mutations ordonnance détectées, garde onglet/navigateur, refresh corrigé, défaut de forme implicite supprimé.
+- **R5 — P1 Fast Prescription UX** : saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
+- **R6 — P1 Protocoles + Référentiel** : `Mes protocoles` unifié, masquer/réafficher réversible, bibliothèque search-first, contexte âge/poids homogène.
+- **R7 — P1 Contexte + Preview premium** : terminologie déterministe, contexte patient compact, split-view responsive, preview read-only ordonnance certifiée.
 
 ### P2 — Devis + Honoraires
 - [ ] Actes rapides / recherche catalogue
@@ -119,8 +132,8 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 - [ ] Critères de validation UX/fonctionnels
 - [ ] Recertification finale du Studio documentaire
 
-## État initial
-- P1 : 🟡 audit détaillé lancé, lots P1-L1 à P1-L9 définis
+## État courant
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; interaction runtime et refonte R1→R7 non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -128,7 +141,7 @@ Ne jamais assimiler une lecture de code à un test UX réel.
 - P6 : ⬜
 - P7 : ⬜
 
-Le précédent audit statique général sert uniquement de pré-analyse. Il **ne valide aucun sous-P** tant que la cartographie détaillée correspondante n’est pas terminée et double-checkée.
+Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
-## Baseline de code
-Audit détaillé de P1 lancé depuis la branche `master` au commit `93649aef0ae6323075cc680eac54ff0ebf4018ba` (parent applicatif `c740b6644b4b85363438998dcf34284054122464`; le commit courant ajoute uniquement cette roadmap).
+## Baseline
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. Les commits ultérieurs de cette séquence modifient uniquement la documentation d’audit/roadmap.
