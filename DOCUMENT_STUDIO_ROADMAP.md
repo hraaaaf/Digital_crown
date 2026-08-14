@@ -52,13 +52,23 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **P1-L9 — Synthèse UX premium & plan d’implémentation** : ✅ consolidé. Score statique global P1 **7.4/10**.
 
 #### P1 — lots de refonte planifiés
-- **R1 — P0 Cohérence médicament / Maroc-first** : pipeline unique quick/ligne/protocole/bibliothèque/assessment ; âge/poids identiques ; aucune substitution thérapeutique silencieuse ; AMM/AMMPS-DMP et recommandations marocaines prioritaires ; toute lacune nationale reste `MOROCCO_GUIDELINE_GAP`, les sources internationales ne servant que de support explicite.
+- **R1 — P0 Cohérence médicament / Maroc-first** : 🟡 **implémentation branchée sur tous les chemins principaux; frontend 109/109 + build ✅ sur le head `5024baf`; backend full suite encore en cours au dernier contrôle.** Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
 - **R2 — P0 Persistance protocoles/habitudes** : corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
 - **R3 — P0 Safety orchestration** : connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
 - **R4 — P0 Dirty-state & actions** : toutes mutations ordonnance détectées, garde onglet/navigateur, refresh corrigé, défaut de forme implicite supprimé.
 - **R5 — P1 Fast Prescription UX** : saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
 - **R6 — P1 Protocoles + Référentiel** : `Mes protocoles` unifié, masquer/réafficher réversible, bibliothèque search-first, contexte âge/poids homogène.
 - **R7 — P1 Contexte + Preview premium** : terminologie déterministe, contexte patient compact, split-view responsive, preview read-only ordonnance certifiée.
+
+#### R1 — preuve engineering exécutée
+- CI PR #17 / run `31851832646`.
+- Job **Frontend (tests & build)** : ✅.
+- Vitest : **15 fichiers / 109 tests passés**.
+- Tests R1 exécutés dans cette suite : `normalizeMedicationForPatient` 14/14, `DentalPharmacologySupplement` 10/10, `PrescriptionPharmacologyPipeline` 5/5, `MoroccoPharmacologyPolicy` 4/4, `DrugRow` 6/6, `clinical_rules.missing-data` 4/4.
+- Build Vite production : ✅.
+- Garde production négative : ✅.
+- **Backend Tests & durcissement : en cours au dernier contrôle; R1 non fermé tant que ce gate n’est pas rendu.**
+- **Aucune certification clinique humaine n’est revendiquée.** La validation par un reviewer marocain qualifié en pharmacologie/dentisterie reste un gate clinique séparé.
 
 ### P2 — Devis + Honoraires
 - [ ] Actes rapides / recherche catalogue
@@ -133,7 +143,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 Maroc-first en cours sur `work-20260814-r1-pharmaco`; interaction runtime et recertification non exécutées.**
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 Maroc-first engineering quasi fermé, frontend/build/gardes verts, backend full suite en cours au dernier contrôle ; interaction runtime et recertification clinique non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
