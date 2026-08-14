@@ -1,66 +1,84 @@
-# Dental Pharmacology — evidence baseline
+# Dental Pharmacology — Morocco-first evidence baseline
 
 ## Status
-R1 foundation. This file records the evidence policy used by `DentalPharmacologyArbiter.ts`.
+R1 foundation for Digital Crown Morocco. This file records the evidence policy used by the pharmacology arbiter.
 
 ## Non-negotiable rules
+- **Morocco-first**: Moroccan official/regulatory sources outrank foreign dental guidance for market status and local recommendations.
 - Molecule-first; brands are display/search aliases only.
 - No dose, duration, contraindication or paediatric conversion without an identified source.
 - No paediatric weight is inferred from age.
 - No automatic therapeutic substitution.
 - Missing or conflicting evidence returns `requires_review`; it never fabricates a regimen.
 - Dental indication and drug regimen are separate gates.
-- Morocco availability/AMM must be verified against the Moroccan Ministry/DMP AMM source before UI claims such as “available in Morocco”.
+- No UI claim such as “available in Morocco” without Moroccan AMM verification.
+- A foreign dental regimen is **supporting evidence only** when no current Moroccan dental regimen is identified. It must not be silently presented as a Moroccan recommendation.
 
-## Evidence hierarchy
-1. Moroccan national regulator / Ministry-DMP for local AMM, withdrawals and local regulatory status.
-2. Current dental prescribing guidance: SDCEP Drug Prescribing for Dentistry, currently aligned with BNF 91 (March 2026) and BNFC 2025-2026.
-3. WHO AWaRe for antibiotic stewardship/global classification where relevant.
-4. Product RCP/SmPC from a national medicines regulator for product composition, licensed indications, warnings and formulation details.
+## Evidence hierarchy for the Moroccan market
+1. **Moroccan official sources**: AMMPS / Ministry-DMP for AMM, withdrawals, pharmacovigilance, essential medicines, official good-use or antimicrobial-stewardship guidance.
+2. **Moroccan professional / academic references**: only when identifiable, current enough, and not conflicting with official Moroccan sources. These do not replace the regulator.
+3. **Current international product/regulatory evidence**: SmPC/RCP from recognised regulators for pharmacology details when Morocco does not publish an accessible equivalent.
+4. **Current international dental guidance**: SDCEP/BNF, HAS and comparable sources to fill an explicitly recorded `MOROCCO_GUIDELINE_GAP` only.
+5. **WHO AWaRe**: antimicrobial-stewardship classification and global support, not a substitute for Moroccan dental guidance.
 
-A lower level must not silently override a higher/local rule.
+A lower tier must never silently override a higher/local rule.
 
-## Current primary sources reviewed — 2026-08-14
+## Morocco sources reviewed — 2026-08-14
+
+### Official regulator / Ministry
+- DMP mission and medicines governance: https://www.sante.gov.ma/Pages/ADM_Centrale/DMP.aspx
+- Moroccan authorised medicines (AMM) search: https://www.sante.gov.ma/medicaments/amm/default.aspx
+- Medicines/products regulation: https://www.sante.gov.ma/Reglementation/Pages/REGLEMENTATION-APPLICABLE-AU-PRODUITS-DE-SANTE.aspx
+- National medicines / essential-products lists: https://www.sante.gov.ma/Medicaments/PHCS/pages/default.aspx
+- Ministry antimicrobial good-use campaign / stewardship: https://www.sante.gov.ma/Pages/Communiques.aspx?IDCom=307
+- Official Moroccan paracetamol good-use recommendations: https://sehati.gov.ma/article/recommandations_pour_le_bon_usage_du_paracetamol
+
+### Moroccan professional / academic support
+- Belyamani L, Jidane S. *Antibiotiques — Antibio-choix du praticien marocain* (2020), Moroccan academic/practitioner reference; catalogue record: https://biblio.um6ss.ma/antibiotiques-antibio-choix-du-praticien-marocain/
+- Published Moroccan dentistry prescribing-pattern literature may be used to identify practice gaps, **not** as a dosing authority.
+
+## Important evidence gap found
+As of the 2026-08-14 search performed for R1, no current, comprehensive, official Moroccan **dentistry-specific prescribing guideline** equivalent to SDCEP was identified on the accessible Ministry/AMMPS sources.
+
+Therefore Digital Crown must represent this as an explicit evidence state:
+
+`MOROCCO_GUIDELINE_GAP`
+
+It must **not** convert an SDCEP/BNF/HAS regimen into a “Moroccan recommendation” merely because no Moroccan document was found.
+
+## International support reviewed — secondary only
 
 ### Dental prescribing
 - SDCEP guidance: https://www.sdcepdentalprescribing.nhs.scot/guidance/
 - Bacterial infections: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/
 - Dental abscess: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/
-- Phenoxymethylpenicillin: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/first-line-antibiotics/phenoxymethylpenicillin/
-- Amoxicillin: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/first-line-antibiotics/amoxicillin/
-- Metronidazole: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/first-line-antibiotics/metronidazole/
-- Clindamycin: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/second-line-antibiotics/clindamycin/
-- Clarithromycin: https://www.sdcepdentalprescribing.nhs.scot/guidance/bacterial-infections/dental-abscess/second-line-antibiotics/clarithromycin/
-- Paracetamol: https://www.sdcepdentalprescribing.nhs.scot/guidance/odontogenic-pain/analgesics/paracetamol/
-- Ibuprofen: https://www.sdcepdentalprescribing.nhs.scot/guidance/odontogenic-pain/analgesics/ibuprofen/
-- Miconazole: https://www.sdcepdentalprescribing.nhs.scot/guidance/fungal-infections/candidosis/miconazole/
-- Fluconazole: https://www.sdcepdentalprescribing.nhs.scot/guidance/fungal-infections/candidosis/fluconazole/
-- Chlorhexidine mouthwash: https://www.sdcepdentalprescribing.nhs.scot/guidance/ulceration-inflammation/antimicrobial-mouthwashes/chlorhexidine-mouthwash/
-- Benzydamine mouthwash: https://www.sdcepdentalprescribing.nhs.scot/guidance/ulceration-inflammation/local-analgesics/benzydamine-mouthwash/
-- Contraindications/cautions antibiotics: https://www.sdcepdentalprescribing.nhs.scot/guidance/supporting-tools/contraindications-cautions/contraindications-cautions-antibiotics/
+- Phenoxymethylpenicillin, amoxicillin, metronidazole, clindamycin, clarithromycin dental pages under SDCEP
+- Paracetamol, ibuprofen, miconazole, fluconazole, chlorhexidine, benzydamine dental pages under SDCEP
+- HAS dentistry antibiotic work may be used as secondary francophone dental guidance when current and applicable.
 
 ### Antimicrobial stewardship
 - WHO AWaRe antibiotic book: https://www.who.int/publications/i/item/9789240062382
 
-### Morocco regulatory baseline
-- Ministry/DMP mission: https://www.sante.gov.ma/Pages/ADM_Centrale/DMP.aspx
-- Moroccan authorised medicines (AMM) search: https://www.sante.gov.ma/medicaments/amm/default.aspx
-- Pharmacovigilance/withdrawals: https://www.sante.gov.ma/Medicaments/Pharmacovigilance/Pages/default.aspx
+## Consequence for R1 implementation
+For a medication/regimen to be auto-proposed in Digital Crown Morocco, the R1 target is now:
 
-## 2026 changes that invalidate old Digital Crown defaults
-- SDCEP bacterial guidance was updated in May 2026.
-- Review of antibiotic treatment should ideally occur at 3 days (clarified June 2026).
-- Co-amoxiclav was removed from the SDCEP second-line dental-abscess recommendation in May 2026.
-- Second-line clindamycin/clarithromycin should be restricted to severe infection after first-line failure/review or specialist discussion.
-- Antibiotics are not a default treatment for inflammatory dental pain and are not routine prophylaxis after routine dental surgery.
+1. molecule identity resolved;
+2. Moroccan AMM/market status verified where applicable;
+3. Moroccan official or accepted Moroccan regimen evidence present;
+4. patient context sufficient;
+5. no higher-priority conflict;
+6. only then may the deterministic arbiter return an automatic regimen.
+
+If step 3 is missing, international guidance may be shown as **support for practitioner review**, not auto-labelled as a Moroccan rule.
 
 ## R1 integration status
-- Evidence registry: created.
-- Deterministic DentalPharmacologyArbiter: created.
-- Unified `normalizeMedicationForPatient()` invariant: created.
+- Morocco-first evidence policy: created.
+- Morocco market policy gate: created.
+- Deterministic DentalPharmacologyArbiter: created but still needs Morocco gate integration.
+- Unified `normalizeMedicationForPatient()` invariant: created but still needs Morocco gate integration.
 - Cross-path unit tests: created.
 - Existing Ordonnance entry points are NOT yet wired to this canonical pipeline.
 - Existing hard-coded `clinical_rules.ts` and presets remain legacy until R1 wiring/removal is completed.
 
 ## Human clinical governance
-This software-side arbiter is not a human dental pharmacologist. Before declaring the pharmacology module clinically certified, the source matrix and rule set require formal review/sign-off by a qualified clinician/pharmacology reviewer under the project governance process.
+The software arbiter is not a human dental pharmacologist. Before declaring this module clinically certified for Morocco, the source matrix and rule set require formal sign-off by a qualified Moroccan dental/pharmacology reviewer. Until then, uncertain or foreign-only rules remain review-only/fail-closed.
