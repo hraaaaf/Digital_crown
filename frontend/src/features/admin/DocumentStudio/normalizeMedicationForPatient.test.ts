@@ -86,6 +86,31 @@ describe('normalizeMedicationForPatient — R1 cross-path invariants', () => {
     expect(result.arbitration.regimen?.dosage).toBe('250MG');
   });
 
+  it('clears unsupported automatic legacy dose and posology', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('MOLECULE_INCONNUE', '1G', 'ancien preset automatique'),
+      source: 'system_protocol',
+      patient: { ageYears: 30 },
+    });
+    expect(result.arbitration.status).toBe('no_evidence');
+    expect(result.drug.dosage).toBe('');
+    expect(result.drug.posologie).toBe('');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+
+  it('preserves explicit practitioner values even when evidence is missing', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('MOLECULE_INCONNUE', '500MG', 'schéma praticien'),
+      source: 'quick_entry',
+      patient: { ageYears: 30 },
+      practitionerExplicitDosage: true,
+      practitionerExplicitPosology: true,
+    });
+    expect(result.drug.dosage).toBe('500MG');
+    expect(result.drug.posologie).toBe('schéma praticien');
+    expect(result.requiresPractitionerConfirmation).toBe(true);
+  });
+
   it('fails closed when no sourced dental rule exists', () => {
     const result = normalizeMedicationForPatient({
       drug: baseDrug('MOLECULE_INCONNUE'),
