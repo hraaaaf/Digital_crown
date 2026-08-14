@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic_core import PydanticCustomError
 import datetime
 from typing import Optional, Dict, List, Literal, Any, Union
 
@@ -143,6 +144,22 @@ class DocumentRequest(BaseModel):
     data: Dict
     is_accounted: bool = True
     payment_status: Optional[str] = "EN_ATTENTE" # EN_ATTENTE, PAYE, PARTIEL
+
+    @model_validator(mode="after")
+    def reject_implicit_partial_payment(self):
+        """Fail closed: this document flow has no explicit amount-paid field.
+
+        A PARTIEL status used to synthesize a Payment equal to 50% of the billed
+        total. Until the caller supplies an explicit collected amount through the
+        dedicated accounting payment flow, partial payment must not create any
+        financial write from this document request.
+        """
+        if self.payment_status == "PARTIEL":
+            raise PydanticCustomError(
+                "partial_payment_requires_explicit_amount",
+                "Paiement partiel refusé : aucun montant encaissé explicite n'est fourni. Enregistrez le montant réel via le flux d'encaissement dédié."
+            )
+        return self
 
 
 # --- SMART ORDONNANCE ---
