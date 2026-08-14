@@ -73,6 +73,30 @@ describe('normalizeMedicationForPatient — R1 cross-path invariants', () => {
     expect(line.drug.posologie).toBe(quick.drug.posologie);
   });
 
+  it('uses a trusted resolved DCI for a commercial brand without renaming the displayed drug', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('CLAMOXYL'),
+      moleculeName: 'AMOXICILLINE',
+      source: 'quick_entry',
+      patient: { ageYears: 4, weightKg: 16 },
+    });
+    expect(result.drug.name).toBe('CLAMOXYL');
+    expect(result.arbitratedMolecule).toBe('AMOXICILLINE');
+    expect(result.drug.dosage).toBe('250MG');
+    expect(result.drug.posologie).toBe('250MG 3 fois par jour');
+  });
+
+  it('never guesses an unknown brand-to-DCI mapping', () => {
+    const result = normalizeMedicationForPatient({
+      drug: baseDrug('MARQUE_INCONNUE', '1G', 'ancien preset'),
+      source: 'quick_entry',
+      patient: { ageYears: 30 },
+    });
+    expect(result.arbitration.status).toBe('no_evidence');
+    expect(result.drug.dosage).toBe('');
+    expect(result.drug.posologie).toBe('');
+  });
+
   it('preserves an explicit practitioner dosage and posology', () => {
     const result = normalizeMedicationForPatient({
       drug: baseDrug('AMOXICILLINE', '375MG', 'schéma explicitement saisi'),
