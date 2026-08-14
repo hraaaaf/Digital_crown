@@ -17,6 +17,11 @@ export interface MedicationNormalizationInput {
   drug: DrugItem;
   source: MedicationInputSource;
   patient: PatientPharmacologyContext;
+  /**
+   * DCI / substance active resolved from a trusted medication dictionary.
+   * If absent, the displayed drug name is used and unknown brands fail closed.
+   */
+  moleculeName?: string | null;
   /** True only when the practitioner explicitly entered the value. */
   practitionerExplicitDosage?: boolean;
   practitionerExplicitPosology?: boolean;
@@ -28,26 +33,30 @@ export interface MedicationNormalizationResult {
   changedByEvidence: boolean;
   requiresPractitionerConfirmation: boolean;
   source: MedicationInputSource;
+  arbitratedMolecule: string;
 }
 
 /**
  * R1 canonical medication pipeline.
  *
  * Invariants:
- * 1. Same molecule + same patient context => same evidence arbitration,
+ * 1. Same resolved molecule + same patient context => same evidence arbitration,
  *    regardless of UI entry path.
- * 2. No paediatric weight is inferred.
- * 3. Evidence-backed values may replace non-explicit preset/habit defaults,
+ * 2. Brand-to-DCI resolution is external to this function. Unknown brands are
+ *    never guessed here.
+ * 3. No paediatric weight is inferred.
+ * 4. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
- * 4. No therapeutic substitution is performed here.
- * 5. Missing/non-applicable evidence fails closed: automatic legacy dose and
+ * 5. No therapeutic substitution is performed here.
+ * 6. Missing/non-applicable evidence fails closed: automatic legacy dose and
  *    posology are cleared, while explicit practitioner input is preserved for
  *    visible/manual review.
  */
 export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
 ): MedicationNormalizationResult {
-  const arbitration = arbitrateMedication(input.drug.name, input.patient);
+  const arbitratedMolecule = input.moleculeName?.trim() || input.drug.name;
+  const arbitration = arbitrateMedication(arbitratedMolecule, input.patient);
   const regimen = arbitration.regimen;
 
   if (input.drug.type === 'EXAMEN') {
@@ -57,6 +66,7 @@ export function normalizeMedicationForPatient(
       changedByEvidence: false,
       requiresPractitionerConfirmation: false,
       source: input.source,
+      arbitratedMolecule,
     };
   }
 
@@ -79,6 +89,7 @@ export function normalizeMedicationForPatient(
       changedByEvidence,
       requiresPractitionerConfirmation: true,
       source: input.source,
+      arbitratedMolecule,
     };
   }
 
@@ -106,5 +117,6 @@ export function normalizeMedicationForPatient(
     changedByEvidence,
     requiresPractitionerConfirmation: false,
     source: input.source,
+    arbitratedMolecule,
   };
 }
