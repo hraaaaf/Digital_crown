@@ -74,6 +74,7 @@ If step 3 is missing, international guidance may be shown as **support for pract
 ## R1 integration status
 - Morocco-first evidence policy: created.
 - Morocco market policy gate: created.
+- Morocco policy unit tests: created, not yet executed in this session.
 - Deterministic DentalPharmacologyArbiter: created but still needs Morocco gate integration.
 - Unified `normalizeMedicationForPatient()` invariant: created but still needs Morocco gate integration.
 - Cross-path unit tests: created.
