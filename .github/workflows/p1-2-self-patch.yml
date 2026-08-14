@@ -1,0 +1,67 @@
+name: P1-2 self patch
+
+on:
+  push:
+    branches:
+      - work-20260814-p12-mobile-credential-hardening
+    paths:
+      - .github/workflows/p1-2-self-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work-20260814-p12-mobile-credential-hardening
+          fetch-depth: 0
+
+      - name: Apply exact hardening patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('backend/routers/mobile.py')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '"exp": datetime.now(timezone.utc) + timedelta(days=365),',
+                  '"exp": datetime.now(timezone.utc) + timedelta(hours=24),',
+              ),
+              (
+                  '''        jti = payload.get("jti")\n        if jti:\n            from backend.security import token_blacklist\n            if token_blacklist.is_revoked(jti, db):\n                raise err\n''',
+                  '''        jti = payload.get("jti")\n        if not jti:\n            raise err\n        from backend.security import token_blacklist\n        if token_blacklist.is_revoked(jti, db):\n            raise err\n''',
+              ),
+              (
+                  '''    record.used_at = datetime.utcnow()\n    role = getattr(record, "role", "DENTISTE")\n    db.commit()\n    \n    response_data = {\n        "publicId": record.public_id,\n        "role": role,\n        "access_token": _create_mobile_jwt(record.employer_id, role),\n    }\n\n    # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.\n    # La masterKey ne transite JAMAIS en clair (contrainte non-négociable),\n    # même sur le LAN HTTP. Le mode legacy en clair est supprimé.\n    if not body.client_public_key_hex:\n        raise HTTPException(\n            status_code=400,\n            detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",\n        )\n''',
+                  '''    role = getattr(record, "role", "DENTISTE")\n\n    # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.\n    # Le token one-shot n'est consommé qu'après validation complète du handshake.\n    if not body.client_public_key_hex:\n        raise HTTPException(\n            status_code=400,\n            detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",\n        )\n\n    response_data = {\n        "publicId": record.public_id,\n        "role": role,\n        "access_token": _create_mobile_jwt(record.employer_id, role),\n    }\n''',
+              ),
+              (
+                  '''        raise HTTPException(status_code=400, detail="Cle publique client invalide.")\n\n    return response_data\n''',
+                  '''        db.rollback()\n        raise HTTPException(status_code=400, detail="Cle publique client invalide.")\n\n    consumed_at = datetime.utcnow()\n    claimed = (\n        db.query(models.ZKAPairingToken)\n        .filter(\n            models.ZKAPairingToken.id == record.id,\n            models.ZKAPairingToken.used_at == None,  # noqa: E711\n            models.ZKAPairingToken.expires_at > consumed_at,\n        )\n        .update(\n            {models.ZKAPairingToken.used_at: consumed_at},\n            synchronize_session=False,\n        )\n    )\n    if claimed != 1:\n        db.rollback()\n        raise HTTPException(status_code=409, detail="Token déjà utilisé ou expiré.")\n    db.commit()\n\n    return response_data\n''',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          test = Path('backend/tests/test_mobile_credential_hardening.py')
+          test.write_text('''from datetime import datetime, timedelta, timezone\nimport uuid\n\nfrom jose import jwt\nfrom cryptography.hazmat.primitives.asymmetric import ec\nfrom cryptography.hazmat.primitives import serialization\n\nfrom backend import models\nfrom backend.routers.mobile import _create_mobile_jwt\nfrom backend.security import ALGORITHM, SECRET_KEY, token_blacklist\n\n\ndef _pairing_record(db, dentiste):\n    record = models.ZKAPairingToken(\n        token=str(uuid.uuid4()),\n        employer_id=dentiste.id,\n        public_id="abcdef1234567890",\n        master_key="a" * 64,\n        role="DENTISTE",\n        expires_at=datetime.utcnow() + timedelta(minutes=5),\n    )\n    db.add(record)\n    db.commit()\n    db.refresh(record)\n    return record\n\n\ndef test_mobile_jwt_expires_within_24_hours(dentiste):\n    before = datetime.now(timezone.utc)\n    token = _create_mobile_jwt(dentiste.id, "DENTISTE")\n    after = datetime.now(timezone.utc)\n    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])\n    expiry = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)\n    assert before + timedelta(hours=24) - timedelta(seconds=2) <= expiry\n    assert expiry <= after + timedelta(hours=24) + timedelta(seconds=2)\n    assert payload.get("jti")\n\n\ndef test_mobile_token_without_jti_is_rejected(client, dentiste):\n    token = jwt.encode(\n        {\n            "sub": str(dentiste.id),\n            "type": "mobile",\n            "role": "DENTISTE",\n            "exp": datetime.now(timezone.utc) + timedelta(hours=1),\n        },\n        SECRET_KEY,\n        algorithm=ALGORITHM,\n    )\n    response = client.get(\n        "/api/mobile/snapshot",\n        headers={"Authorization": f"Bearer {token}"},\n    )\n    assert response.status_code == 401\n\n\ndef test_revoked_mobile_token_is_rejected(client, db, dentiste):\n    token = _create_mobile_jwt(dentiste.id, "DENTISTE")\n    token_blacklist.revoke(token, db)\n    response = client.get(\n        "/api/mobile/snapshot",\n        headers={"Authorization": f"Bearer {token}"},\n    )\n    assert response.status_code == 401\n\n\ndef test_pairing_missing_ecdh_key_does_not_consume_token(client, db, dentiste):\n    record = _pairing_record(db, dentiste)\n    response = client.post(\n        "/api/mobile/claim-token",\n        json={"token": record.token},\n    )\n    assert response.status_code == 400\n    db.refresh(record)\n    assert record.used_at is None\n\n\ndef test_pairing_invalid_ecdh_key_does_not_consume_token(client, db, dentiste):\n    record = _pairing_record(db, dentiste)\n    response = client.post(\n        "/api/mobile/claim-token",\n        json={"token": record.token, "client_public_key_hex": "00"},\n    )\n    assert response.status_code == 400\n    db.refresh(record)\n    assert record.used_at is None\n\n\ndef test_pairing_success_consumes_token_once(client, db, dentiste):\n    record = _pairing_record(db, dentiste)\n    private_key = ec.generate_private_key(ec.SECP256R1())\n    public_hex = private_key.public_key().public_bytes(\n        encoding=serialization.Encoding.X962,\n        format=serialization.PublicFormat.UncompressedPoint,\n    ).hex()\n\n    first = client.post(\n        "/api/mobile/claim-token",\n        json={"token": record.token, "client_public_key_hex": public_hex},\n    )\n    assert first.status_code == 200\n    body = first.json()\n    assert body.get("access_token")\n    assert body.get("encrypted_master_key_hex")\n    assert "masterKey" not in body\n    assert "master_key" not in body\n\n    db.refresh(record)\n    assert record.used_at is not None\n\n    second = client.post(\n        "/api/mobile/claim-token",\n        json={"token": record.token, "client_public_key_hex": public_hex},\n    )\n    assert second.status_code == 404\n''', encoding='utf-8')
+
+      - name: Remove temporary workflow and commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/p1-2-self-patch.yml
+          git add backend/routers/mobile.py backend/tests/test_mobile_credential_hardening.py
+          git commit -m "fix: harden mobile credential lifetime and pairing"
+          git push origin HEAD:work-20260814-p12-mobile-credential-hardening
