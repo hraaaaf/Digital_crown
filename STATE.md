@@ -7,11 +7,10 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- `master` après merge P0-3 : `c4adedb6528d586e3a8ec8fa5c52e33069cfb9f3`
-- PR P0-3 : `#8` — MERGED
-- Head candidat P0-3 certifié : `bf01fc9b66848c64ba159924ceb900da90d886fe`
-- CI P0-3 : run `31785414095` — SUCCESS
-- Backend P0-3 : **2465 passed, 7 skipped, 4 warnings, 0 failed**
+- `master` après merge P0-4 : `a99025d67a5470219369c633570a617e19f6f557`
+- PR P0-4 : `#9` — MERGED
+- Head candidat P0-4 certifié : `7e5066d1dd53abfde33ad5e8043cd1c5d14c4d37`
+- CI P0-4 : run `31805059079` — SUCCESS
 - Frontend tests/build : **SUCCESS**
 - Garde production négative : **SUCCESS**
 
@@ -100,23 +99,35 @@ Certification :
 - frontend tests/build et garde production négative : **SUCCESS** ;
 - merge commit : `c4adedb6528d586e3a8ec8fa5c52e33069cfb9f3`.
 
-### P0-4 — PARTIAL-PAYMENT-NO-INFERENCE — ACTIVE
+### P0-4 — PARTIAL-PAYMENT-NO-INFERENCE — CLOSED ✅
 
-Défaut confirmé : le flux `documents/generate` peut convertir `payment_status=PARTIEL` en véritable `Payment` en inventant `total_amount / 2.0`, alors que le contrat Document Studio ne transporte aucun montant encaissé explicite.
+Objectif : empêcher `documents/generate` de créer un véritable `Payment` partiel à partir d'un montant inventé lorsque le contrat ne transporte aucun montant encaissé explicite.
 
-Correctif candidat :
-- `DocumentRequest` refuse désormais `PARTIEL` tant qu'aucun montant encaissé explicite n'existe dans ce contrat ;
+Implémentation intégrée :
+- `DocumentRequest` refuse `payment_status=PARTIEL` sans montant encaissé explicite ;
 - le flux dédié `/accounting/payments` reste le chemin autorisé pour un paiement partiel car `PaymentCreate.amount` y est obligatoire ;
 - `EN_ATTENTE` et `PAYE` restent valides ;
-- tests de contrat ajoutés.
+- tests dédiés couvrent le refus fail-closed et l'absence d'écriture partielle inférée ;
+- le test financier legacy a été réaligné sur `PAYE` afin de ne plus codifier l'ancien comportement dangereux.
 
-État : PR `#9` ouverte, recertification requise contre le `master` post-P0-3 avant merge.
+Certification :
+- PR `#9` — MERGED ;
+- head candidat certifié : `7e5066d1dd53abfde33ad5e8043cd1c5d14c4d37` ;
+- CI : run `31805059079` — SUCCESS ;
+- frontend tests/build et garde production négative : **SUCCESS** ;
+- merge commit : `a99025d67a5470219369c633570a617e19f6f557`.
 
-Limite UX connue : le bouton `PARTIEL` du Document Studio sera fail-closed jusqu'à ajout d'un vrai champ montant encaissé ; aucune valeur financière ne doit être devinée entre-temps.
+Limite UX connue :
+- le bouton `PARTIEL` du Document Studio reste fail-closed jusqu'à ajout d'un vrai champ montant encaissé ; aucune valeur financière ne doit être devinée entre-temps.
 
-### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD
+### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD — ACTIVE
 
-Une route patient-scopée de vérification prescription ne fait pas appliquer explicitement le guard tenant avant lecture du contexte patient.
+Défaut confirmé : la route `POST /api/prescriptions/safety/check` appelle le service de sécurité prescription sans appliquer explicitement le guard tenant sur `patient_id`.
+
+Critère de fermeture :
+- `assert_patient_access(patient_id, current_user, db)` doit s'exécuter avant `prescription_service.check_safety(...)` ;
+- un patient d'un autre tenant doit produire `403 Accès refusé` ;
+- le service de sécurité ne doit jamais être appelé pour ce patient.
 
 ### P0-6 — PREVIEW-MUST-BE-READ-ONLY
 
@@ -151,6 +162,6 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## Lot actif
 
-### LOT 4 — P0-4 PARTIAL PAYMENT NO INFERENCE — CERTIFICATION EN COURS
+### LOT 5 — P0-5 PRESCRIPTION SAFETY TENANT GUARD — ACTIVE
 
-Prochaine action exacte : recertifier PR `#9` contre le `master` post-P0-3 et démontrer qu'aucune écriture `Payment` partielle ne peut être créée à partir d'un montant inféré ; merge uniquement après CI verte sur le candidat courant, puis closeout canonique et passage automatique à P0-5.
+Prochaine action exacte : intégrer le guard tenant avant l'appel au service, certifier le test cross-tenant dédié, puis recertifier le candidat courant avant merge et closeout canonique ; continuer ensuite automatiquement vers P0-6.
