@@ -7,13 +7,12 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- `master` après merge P0-2 : `6def2a2501cd687f5fa9be03741206b77b02643f`
-- PR P0-2 : `#6` — MERGED
-- Head candidat certifié avant merge : `84c14bb54068d21a9d7c668b5d041fdac7d93e01`
-- CI exact-head : run `31758201657`
-- Backend : **2462 passed, 7 skipped, 4 warnings, 0 failed**
-- Frontend tests : **SUCCESS**
-- Frontend build : **SUCCESS**
+- `master` après merge P0-3 : `c4adedb6528d586e3a8ec8fa5c52e33069cfb9f3`
+- PR P0-3 : `#8` — MERGED
+- Head candidat P0-3 certifié : `bf01fc9b66848c64ba159924ceb900da90d886fe`
+- CI P0-3 : run `31785414095` — SUCCESS
+- Backend P0-3 : **2465 passed, 7 skipped, 4 warnings, 0 failed**
+- Frontend tests/build : **SUCCESS**
 - Garde production négative : **SUCCESS**
 
 ## Doctrine produit confirmée
@@ -47,7 +46,7 @@ Double-check final avant merge :
 - restauration de tests `clinical_rules_engine` + `habits_engine` supprimés accidentellement ;
 - test honoraires rendu déterministe, sans assertion permissive `409 ou 422` ;
 - diff final : 16 fichiers, aucun fichier parasite ;
-- couverture backend finale supérieure au run précédent : 2459 tests passés.
+- couverture backend finale : **2459 passed, 7 skipped, 0 failed**.
 
 Limite explicite :
 - ce lot **ne valide pas scientifiquement** les constantes thérapeutiques/doses historiques du moteur legacy ;
@@ -68,27 +67,52 @@ Implémentation intégrée :
 - ajout explicite de `evidence`, `uncertainty`, `practitioner_validation_required=True` et `automation_scope="signal_only"` ;
 - pronostic autonome neutralisé en `Non déterminé automatiquement` ;
 - aucune décision automatique d'initier, reporter ou modifier un traitement orthodontique ;
-- mémoire Ghost CMO reclassée en `SIGNAL_CLINIQUE`, sans urgence/pharmacologie/autorisation orthodontique autonome ;
+- mémoire Ghost CMO reclassée en `SIGNAL_CLINIQUE` ;
 - tests ciblés couvrant les signaux textuels et le cas de texte négatif traité comme mention à valider, jamais comme diagnostic.
 
 Certification :
 - PR `#6` — MERGED ;
 - head candidat certifié : `84c14bb54068d21a9d7c668b5d041fdac7d93e01` ;
-- CI exact-head : run `31758201657` — SUCCESS ;
+- CI : run `31758201657` — SUCCESS ;
 - backend : **2462 passed, 7 skipped, 4 warnings, 0 failed** ;
 - frontend tests/build et garde production négative : **SUCCESS** ;
 - merge commit : `6def2a2501cd687f5fa9be03741206b77b02643f`.
 
 Limite explicite :
-- la détection reste lexicale et peut relever une mention négative ou hors contexte ; c'est volontairement exposé comme **signal incertain à valider**, jamais comme conclusion clinique.
+- la détection reste lexicale et peut relever une mention négative ou hors contexte ; elle est exposée comme **signal incertain à valider**, jamais comme conclusion clinique.
 
-### P0-3 — SQLCIPHER-FAIL-CLOSED — ACTIVE
+### P0-3 — SQLCIPHER-FAIL-CLOSED — CLOSED ✅
 
-Le démarrage local peut continuer si le driver de chiffrement attendu est indisponible. Un environnement exigeant le chiffrement ne doit jamais considérer ce cas comme sûr.
+Objectif : empêcher un cabinet on-premise configuré sur SQLite disque de démarrer en clair si SQLCipher est indisponible ou si la migration de chiffrement échoue.
 
-### P0-4 — PARTIAL-PAYMENT-NO-INFERENCE
+Implémentation intégrée :
+- `ENVIRONMENT=cabinet` + SQLite disque impose désormais SQLCipher ;
+- driver `sqlcipher3` absent = `RuntimeError` bloquant avant ouverture d'une SQLite non chiffrée ;
+- migration plaintext → SQLCipher échouée = restauration du fichier d'origine puis démarrage refusé ;
+- `development` et SQLite `:memory:` restent compatibles avec la CI/tests ;
+- tests subprocess forcent l'absence de `sqlcipher3`, couvrent le refus de démarrage, la restauration du fichier plaintext et la non-régression development.
 
-Une écriture financière partielle peut être déduite automatiquement lorsque le montant exact manque. Toute écriture financière doit provenir d’un montant explicite.
+Certification :
+- PR `#8` — MERGED ;
+- head candidat certifié : `bf01fc9b66848c64ba159924ceb900da90d886fe` ;
+- CI : run `31785414095` — SUCCESS ;
+- backend : **2465 passed, 7 skipped, 4 warnings, 0 failed** ;
+- frontend tests/build et garde production négative : **SUCCESS** ;
+- merge commit : `c4adedb6528d586e3a8ec8fa5c52e33069cfb9f3`.
+
+### P0-4 — PARTIAL-PAYMENT-NO-INFERENCE — ACTIVE
+
+Défaut confirmé : le flux `documents/generate` peut convertir `payment_status=PARTIEL` en véritable `Payment` en inventant `total_amount / 2.0`, alors que le contrat Document Studio ne transporte aucun montant encaissé explicite.
+
+Correctif candidat :
+- `DocumentRequest` refuse désormais `PARTIEL` tant qu'aucun montant encaissé explicite n'existe dans ce contrat ;
+- le flux dédié `/accounting/payments` reste le chemin autorisé pour un paiement partiel car `PaymentCreate.amount` y est obligatoire ;
+- `EN_ATTENTE` et `PAYE` restent valides ;
+- tests de contrat ajoutés.
+
+État : PR `#9` ouverte, recertification requise contre le `master` post-P0-3 avant merge.
+
+Limite UX connue : le bouton `PARTIEL` du Document Studio sera fail-closed jusqu'à ajout d'un vrai champ montant encaissé ; aucune valeur financière ne doit être devinée entre-temps.
 
 ### P0-5 — PRESCRIPTION-SAFETY-TENANT-GUARD
 
@@ -127,6 +151,6 @@ Un chemin de preview documentaire peut muter la base. Une preview doit conserver
 
 ## Lot actif
 
-### LOT 3 — P0-3 SQLCIPHER FAIL-CLOSED — À AUDITER / CORRIGER
+### LOT 4 — P0-4 PARTIAL PAYMENT NO INFERENCE — CERTIFICATION EN COURS
 
-Prochaine action exacte : cartographier l'initialisation de la base locale, la sélection du driver SQLCipher, les fallbacks et les tests de démarrage ; démontrer le chemin où un environnement exigeant le chiffrement peut continuer sans driver, puis imposer un échec explicite avant toute ouverture de base non chiffrée.
+Prochaine action exacte : recertifier PR `#9` contre le `master` post-P0-3 et démontrer qu'aucune écriture `Payment` partielle ne peut être créée à partir d'un montant inféré ; merge uniquement après CI verte sur le candidat courant, puis closeout canonique et passage automatique à P0-5.
