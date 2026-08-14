@@ -17,10 +17,7 @@ export interface MedicationNormalizationInput {
   drug: DrugItem;
   source: MedicationInputSource;
   patient: PatientPharmacologyContext;
-  /**
-   * True only when the practitioner explicitly entered a dose/posology.
-   * Explicit practitioner input is preserved and never silently overwritten.
-   */
+  /** True only when the practitioner explicitly entered the value. */
   practitionerExplicitDosage?: boolean;
   practitionerExplicitPosology?: boolean;
 }
@@ -43,7 +40,9 @@ export interface MedicationNormalizationResult {
  * 3. Evidence-backed values may replace non-explicit preset/habit defaults,
  *    but never explicit practitioner-entered dose/posology.
  * 4. No therapeutic substitution is performed here.
- * 5. Missing evidence fails closed to practitioner confirmation.
+ * 5. Missing/non-applicable evidence fails closed: automatic legacy dose and
+ *    posology are cleared, while explicit practitioner input is preserved for
+ *    visible/manual review.
  */
 export function normalizeMedicationForPatient(
   input: MedicationNormalizationInput,
@@ -51,12 +50,34 @@ export function normalizeMedicationForPatient(
   const arbitration = arbitrateMedication(input.drug.name, input.patient);
   const regimen = arbitration.regimen;
 
-  if (input.drug.type === 'EXAMEN' || !regimen || arbitration.status !== 'applicable') {
+  if (input.drug.type === 'EXAMEN') {
     return {
       drug: { ...input.drug },
       arbitration,
       changedByEvidence: false,
-      requiresPractitionerConfirmation: input.drug.type !== 'EXAMEN',
+      requiresPractitionerConfirmation: false,
+      source: input.source,
+    };
+  }
+
+  if (!regimen || arbitration.status !== 'applicable') {
+    const next: DrugItem = { ...input.drug };
+    let changedByEvidence = false;
+
+    if (!input.practitionerExplicitDosage && next.dosage) {
+      next.dosage = '';
+      changedByEvidence = true;
+    }
+    if (!input.practitionerExplicitPosology && next.posologie) {
+      next.posologie = '';
+      changedByEvidence = true;
+    }
+
+    return {
+      drug: next,
+      arbitration,
+      changedByEvidence,
+      requiresPractitionerConfirmation: true,
       source: input.source,
     };
   }
