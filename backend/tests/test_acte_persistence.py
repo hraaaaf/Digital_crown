@@ -66,7 +66,7 @@ class TestActePersistenceOnNoteHonoraires:
         assert couronne.statut_paiement == models.PaiementStatut.PAYE
         assert couronne.document_archive_id == doc.id
 
-    def test_partiel_status_propagated_payment_lump_sum_unchanged(self, client, auth_headers, db):
+    def test_partiel_without_explicit_amount_is_rejected_without_financial_writes(self, client, auth_headers, db):
         patient_id = _make_patient(client, auth_headers, "PARTIELPAT")
         req_data = {
             "type": "note",
@@ -82,18 +82,12 @@ class TestActePersistenceOnNoteHonoraires:
             },
         }
         resp = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == 422, resp.text
+        assert "partial_payment_requires_explicit_amount" in resp.text
 
-        acte = db.query(models.Acte).filter(models.Acte.patient_id == patient_id).first()
-        assert acte is not None
-        assert acte.statut_paiement == models.PaiementStatut.PARTIEL
-        assert acte.is_collected is False
-
-        # Le Payment lump-sum existant reste inchangé (comportement pré-mission : total/2.0)
-        payment = db.query(models.Payment).filter(models.Payment.patient_id == patient_id).first()
-        assert payment is not None
-        assert payment.amount == 500.0
-        assert payment.acte_id is None  # décision Option B : pas de rattachement Payment<->Acte
+        assert db.query(models.Acte).filter(models.Acte.patient_id == patient_id).count() == 0
+        assert db.query(models.Payment).filter(models.Payment.patient_id == patient_id).count() == 0
+        assert db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id == patient_id).count() == 0
 
     def test_devis_creates_no_acte(self, client, auth_headers, db):
         patient_id = _make_patient(client, auth_headers, "DEVISPAT")

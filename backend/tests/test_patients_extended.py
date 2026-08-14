@@ -397,7 +397,7 @@ class TestFinancialSnapshotAndJourneyReflectNewBilling:
             "type": "note",
             "patient_id": pat["id"],
             "is_accounted": True,
-            "payment_status": "PARTIEL",
+            "payment_status": "PAYE",
             "data": {
                 "payments": [{"date": "2026-05-18", "acte": "Détartrage", "dent": "-", "montant": 1000.0, "mode_reglement": "ESPECES"}],
                 "doc_date": "2026-05-18",
@@ -410,11 +410,11 @@ class TestFinancialSnapshotAndJourneyReflectNewBilling:
         r = client.get(f"/api/patients/{pat['id']}/financial-snapshot", headers=auth_headers)
         assert r.status_code == 200
         body = r.json()
-        # Avant cette mission, total_billed aurait été 0 (aucune ligne Acte jamais créée
-        # par ce flux) — désormais reflète le vrai montant facturé.
+        # Ce test vérifie la persistance du montant facturé via le flux document.
+        # Le cas PARTIEL sans montant explicite est couvert séparément par P0-4 et doit échouer fermé.
         assert body["total_billed"] == 1000.0
-        assert body["total_collected"] == 500.0  # Payment lump-sum existant : total/2.0
-        assert body["remaining_due"] == 500.0
+        assert body["total_collected"] == 1000.0
+        assert body["remaining_due"] == 0.0
 
     def test_journey_summary_has_billing_data_true_after_note(self, client, auth_headers, db):
         pat = _create_patient(client, auth_headers, nom="Journeypat", prenom="Test", dob="1990-01-01")
