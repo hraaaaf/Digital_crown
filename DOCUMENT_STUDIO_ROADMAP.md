@@ -52,7 +52,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **P1-L9 — Synthèse UX premium & plan d’implémentation** : ✅ consolidé. Score statique global P1 **7.4/10**.
 
 #### P1 — lots de refonte planifiés
-- **R1 — P0 Cohérence médicament** : pipeline unique quick/ligne/protocole/bibliothèque/assessment ; âge/poids identiques ; aucune substitution thérapeutique silencieuse.
+- **R1 — P0 Cohérence médicament / Maroc-first** : pipeline unique quick/ligne/protocole/bibliothèque/assessment ; âge/poids identiques ; aucune substitution thérapeutique silencieuse ; AMM/AMMPS-DMP et recommandations marocaines prioritaires ; toute lacune nationale reste `MOROCCO_GUIDELINE_GAP`, les sources internationales ne servant que de support explicite.
 - **R2 — P0 Persistance protocoles/habitudes** : corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
 - **R3 — P0 Safety orchestration** : connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
 - **R4 — P0 Dirty-state & actions** : toutes mutations ordonnance détectées, garde onglet/navigateur, refresh corrigé, défaut de forme implicite supprimé.
@@ -133,7 +133,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; interaction runtime et refonte R1→R7 non exécutées.**
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 Maroc-first en cours sur `work-20260814-r1-pharmaco`; interaction runtime et recertification non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -144,4 +144,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. Les commits ultérieurs de cette séquence modifient uniquement la documentation d’audit/roadmap.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. Les commits ultérieurs de cette séquence modifient uniquement la documentation d’audit/roadmap jusqu’au démarrage de R1.
