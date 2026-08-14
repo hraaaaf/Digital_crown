@@ -30,7 +30,7 @@ def _create_mobile_jwt(employer_id: int, role: str) -> str:
         "type": "mobile",
         "role": role,
         "jti": str(uuid.uuid4()),
-        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -50,10 +50,11 @@ def get_mobile_employer_id(
             raise err
             
         jti = payload.get("jti")
-        if jti:
-            from backend.security import token_blacklist
-            if token_blacklist.is_revoked(jti, db):
-                raise err
+        if not jti:
+            raise err
+        from backend.security import token_blacklist
+        if token_blacklist.is_revoked(jti, db):
+            raise err
 
         user_id = int(payload["sub"])
         user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -270,24 +271,21 @@ def claim_pairing_token(
     if not record:
         raise HTTPException(status_code=404, detail="Token invalide, expiré ou déjà utilisé.")
 
-    record.used_at = datetime.utcnow()
     role = getattr(record, "role", "DENTISTE")
-    db.commit()
-    
-    response_data = {
-        "publicId": record.public_id,
-        "role": role,
-        "access_token": _create_mobile_jwt(record.employer_id, role),
-    }
 
     # ZKA (S5) : l'appairage sécurisé par ECDH est OBLIGATOIRE.
-    # La masterKey ne transite JAMAIS en clair (contrainte non-négociable),
-    # même sur le LAN HTTP. Le mode legacy en clair est supprimé.
+    # Le token one-shot n'est consommé qu'après validation complète du handshake.
     if not body.client_public_key_hex:
         raise HTTPException(
             status_code=400,
             detail="Appairage sécurisé requis : clé publique client (ECDH) manquante.",
         )
+
+    response_data = {
+        "publicId": record.public_id,
+        "role": role,
+        "access_token": _create_mobile_jwt(record.employer_id, role),
+    }
 
     # ECDH Key Exchange pour sécuriser la transmission de la masterKey
     try:
@@ -325,7 +323,26 @@ def claim_pairing_token(
     except Exception as e:
         import logging
         logging.error(f"Erreur ECDH: {e}")
+        db.rollback()
         raise HTTPException(status_code=400, detail="Cle publique client invalide.")
+
+    consumed_at = datetime.utcnow()
+    claimed = (
+        db.query(models.ZKAPairingToken)
+        .filter(
+            models.ZKAPairingToken.id == record.id,
+            models.ZKAPairingToken.used_at == None,  # noqa: E711
+            models.ZKAPairingToken.expires_at > consumed_at,
+        )
+        .update(
+            {models.ZKAPairingToken.used_at: consumed_at},
+            synchronize_session=False,
+        )
+    )
+    if claimed != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Token déjà utilisé ou expiré.")
+    db.commit()
 
     return response_data
 

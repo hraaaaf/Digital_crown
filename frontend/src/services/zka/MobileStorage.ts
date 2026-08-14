@@ -18,7 +18,7 @@ const STORE_SNAPSHOT_ID = 'zka_last_snapshot';
 export interface ZKACredentials {
   publicId: string;
   masterKey: string;
-  /** JWT mobile 365 jours pour /api/mobile/* (cf. backend/routers/mobile.py::_create_mobile_jwt) */
+  /** JWT mobile 24 h pour /api/mobile/* (cf. backend/routers/mobile.py::_create_mobile_jwt) */
   access_token: string;
   /** URL du backend LAN (ex: http://192.168.1.50:8000) */
   api_base_url: string;
