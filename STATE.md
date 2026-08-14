@@ -157,15 +157,45 @@ Certification :
 - backend tests/durcissement, frontend tests/build et garde production négative : **SUCCESS** ;
 - merge commit : `412ab81cc5c47b7220865881f83836b539458a69`.
 
-## P1 — Hardening
+## P1 — Hardening — ACTIVE
 
-- Secure Storage natif pour secrets/credentials mobiles longue durée.
-- Revoir durée de vie et révocation des credentials mobiles.
-- Whitelist Pydantic stricte pour les paramètres cabinet ; pas de mass assignment générique.
-- Audit tenant exhaustif des routes patient-scopées.
-- MIME + magic bytes systématiques sur uploads sensibles.
-- Centraliser `hasAccess()` frontend.
-- Quarantainer/supprimer les anciens moteurs non utilisés.
+### P1-1 — NATIVE-SECURE-STORAGE — CLOSED ✅ (N/A runtime courant)
+
+Constat vérifié : le client actuel est une PWA React/Vite et le dépôt ne contient aucun runtime natif Capacitor/Tauri/Electron ni dépendance Keychain/Keystore/SecureStore à câbler.
+
+Décision :
+- ne pas introduire un wrapper natif artificiel uniquement pour satisfaire la roadmap ;
+- le runtime web courant ne doit pas persister de bearer secret longue durée dans `localStorage`, `sessionStorage` ou IndexedDB ;
+- tout futur client natif devra stocker les credentials longue durée exclusivement dans le Keychain/Keystore du système.
+
+### P1-2 — MOBILE-CREDENTIAL-LIFETIME-REVOCATION — ACTIVE
+
+Objectif : réduire l'exposition des credentials mobiles longue durée et vérifier une révocation réellement fail-closed.
+
+Constats initiaux :
+- le flux mobile/ZKA émet actuellement un bearer JWT avec une durée de vie de 365 jours ;
+- une infrastructure `jti`/blacklist existe déjà et doit être conservée puis testée, pas réinventée ;
+- le flux de claim one-shot doit être vérifié pour ne pas consommer définitivement le token avant validation complète du handshake.
+
+### P1-3 — CABINET-SETTINGS-STRICT-WHITELIST
+
+Whitelist Pydantic stricte pour les paramètres cabinet ; pas de mass assignment générique.
+
+### P1-4 — PATIENT-SCOPED-TENANT-AUDIT
+
+Audit tenant exhaustif des routes patient-scopées.
+
+### P1-5 — UPLOAD-MIME-MAGIC-BYTES
+
+MIME + magic bytes systématiques sur uploads sensibles.
+
+### P1-6 — FRONTEND-HASACCESS-CENTRALIZATION
+
+Centraliser `hasAccess()` frontend.
+
+### P1-7 — LEGACY-ENGINE-QUARANTINE
+
+Quarantainer/supprimer les anciens moteurs non utilisés.
 
 ## P2 — Certification
 
@@ -186,6 +216,6 @@ Certification :
 
 ## Lot actif
 
-### P1 — HARDENING — ACTIVE
+### LOT P1-2 — MOBILE CREDENTIAL LIFETIME + REVOCATION — ACTIVE
 
-Prochaine action exacte : traiter le P1 par ordre de risque, en commençant par l'audit tenant exhaustif des routes patient-scopées et la whitelist stricte des paramètres cabinet, puis poursuivre automatiquement jusqu'aux gates P2.
+Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, dépendance d'auth mobile et consommation du claim token ; appliquer le durcissement minimal sûr avec tests ciblés, certifier puis continuer automatiquement vers P1-3.
