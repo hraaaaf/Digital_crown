@@ -78,6 +78,16 @@ export async function resolveMedicationDci(
   }
 }
 
+const arbitrationIdentity = (dci: string | null, drug: DrugItem): string | null => {
+  if (!dci) return null;
+  const normalized = dci.toUpperCase();
+  if (normalized.includes('FLUORURE DE SODIUM') || normalized.includes('SODIUM FLUORIDE')) {
+    const presentation = [drug.dosage, drug.forme].filter(Boolean).join(' ').trim();
+    return presentation ? `${dci} ${presentation}` : dci;
+  }
+  return dci;
+};
+
 export async function resolveAndNormalizeMedication(args: {
   drug: DrugItem;
   source: MedicationInputSource;
@@ -98,7 +108,7 @@ export async function resolveAndNormalizeMedication(args: {
     drug: args.drug,
     source: args.source,
     patient: buildPatientPharmacologyContext(args.assessment),
-    moleculeName: dci,
+    moleculeName: arbitrationIdentity(dci, args.drug),
     practitionerExplicitDosage: args.practitionerExplicit?.dosage,
     practitionerExplicitPosology: args.practitionerExplicit?.posology,
   });
