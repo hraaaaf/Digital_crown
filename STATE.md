@@ -7,10 +7,11 @@
 ## Baseline vérifiée
 
 - Repository : `hraaaaf/Digital_crown`
-- `master` après merge P0-5 : `67dc6620f5667ad4060592ef5662379fc720b6f9`
-- PR P0-5 : `#11` — MERGED
-- Head candidat P0-5 certifié : `d579750ce5897f86e902cf70b4e5003d188f1762`
-- CI P0-5 : run `31807332356` — SUCCESS
+- `master` après merge P0-6 : `412ab81cc5c47b7220865881f83836b539458a69`
+- PR P0-6 : `#12` — MERGED
+- Head candidat P0-6 certifié : `8dfe6bcfd866f62a1b41aca08554246411ad67e4`
+- CI P0-6 : run `31810762297` — SUCCESS
+- Backend tests/durcissement : **SUCCESS**
 - Frontend tests/build : **SUCCESS**
 - Garde production négative : **SUCCESS**
 
@@ -23,7 +24,7 @@
 - `tests green != validation scientifique`.
 - Dans ce projet, `review` signifie par défaut **double-check complet par l’agent**, sauf demande explicite d’un reviewer externe.
 
-## P0 — Safety & Integrity
+## P0 — Safety & Integrity — CLOSED ✅
 
 ### P0-1 — PRESCRIPTION-MISSING-DATA-FAIL-CLOSED — CLOSED ✅
 
@@ -137,15 +138,24 @@ Certification :
 - frontend tests/build et garde production négative : **SUCCESS** ;
 - merge commit : `67dc6620f5667ad4060592ef5662379fc720b6f9`.
 
-### P0-6 — PREVIEW-MUST-BE-READ-ONLY — ACTIVE
+### P0-6 — PREVIEW-MUST-BE-READ-ONLY — CLOSED ✅
 
-Défaut confirmé : la preview documentaire `echeancier` peut persister `InstallmentPlan`, `Installment`, `DocumentArchive` et un audit `GENERATE`.
+Objectif : garantir qu'une preview documentaire ne persiste aucun état comptable ou archive en base.
 
-Critère de fermeture :
-- `preview=true` doit conserver les compteurs BDD strictement inchangés ;
-- la factory d'échéancier doit être appelée avec archivage désactivé ;
-- le contrat `DocumentRequest` doit accepter explicitement `echeancier` puisque le routeur le supporte ;
-- recertification complète sur un head basé sur le `master` post-P0-5 avant merge.
+Implémentation intégrée :
+- les previews d'échéancier à données directes utilisent `flush()` puis `rollback()` au lieu de commits durables ;
+- `DocumentFactory.create_installment_plan(..., archive=False)` désactive la création de `DocumentArchive` en preview ;
+- le chemin preview avec `plan_id` existant désactive lui aussi l'archivage ;
+- le log d'audit `GENERATE` n'est pas persisté en preview ;
+- `DocumentRequest` accepte explicitement `echeancier`, alignant le contrat avec le routeur ;
+- test dédié vérifie que `InstallmentPlan`, `Installment` et `AuditLog` restent inchangés et que la factory reçoit `archive=False`.
+
+Certification :
+- PR `#12` — MERGED ;
+- head candidat certifié : `8dfe6bcfd866f62a1b41aca08554246411ad67e4` ;
+- CI : run `31810762297` — SUCCESS ;
+- backend tests/durcissement, frontend tests/build et garde production négative : **SUCCESS** ;
+- merge commit : `412ab81cc5c47b7220865881f83836b539458a69`.
 
 ## P1 — Hardening
 
@@ -176,6 +186,6 @@ Critère de fermeture :
 
 ## Lot actif
 
-### LOT 6 — P0-6 PREVIEW MUST BE READ-ONLY — ACTIVE
+### P1 — HARDENING — ACTIVE
 
-Prochaine action exacte : recertifier le candidat P0-6 rebased sur le `master` post-P0-5 ; si la CI est verte, merge PR #12 puis closeout canonique du P0.
+Prochaine action exacte : traiter le P1 par ordre de risque, en commençant par l'audit tenant exhaustif des routes patient-scopées et la whitelist stricte des paramètres cabinet, puis poursuivre automatiquement jusqu'aux gates P2.
