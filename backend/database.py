@@ -18,19 +18,28 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # En mode dev/prod locale, on utilise SQLite via AppPaths.
 # En mode Cloud (si DATABASE_URL est présent), on garde PostgreSQL.
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", AppPaths.get_db_url())
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 
 logger = logging.getLogger(__name__)
+
+# En mode cabinet on-premise, une SQLite sur disque DOIT être chiffrée.
+# Les bases :memory: restent autorisées pour les tests/dev isolés.
+SQLCIPHER_REQUIRED = (
+    ENVIRONMENT == "cabinet"
+    and SQLALCHEMY_DATABASE_URL.startswith("sqlite")
+    and ":memory:" not in SQLALCHEMY_DATABASE_URL
+)
 
 # --- CONFIGURATION & ENCRYPTION SQLCIPHER POUR SQLITE ---
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     # Récupérer la clé principale Cabinet (ZKA) ou dériver depuis SECRET_KEY
     passphrase = os.getenv("CABINET_MASTER_KEY_HEX", os.getenv("SECRET_KEY", "default-dc-fallback-key"))
-    
+
     # Si base sur disque (pas de :memory:), vérifier et migrer la base existante si elle est en clair
     if ":memory:" not in SQLALCHEMY_DATABASE_URL:
         db_file_path = SQLALCHEMY_DATABASE_URL.replace("sqlite:///", "")
         db_file_path = os.path.abspath(db_file_path)
-        
+
         if os.path.exists(db_file_path):
             is_plaintext = False
             conn_test = None
@@ -50,18 +59,18 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                         conn_test.close()
                     except Exception as e:
                         logger.debug(f"Could not close test connection: {e}")
-            
+
             # Si elle est lisible en clair, on effectue la migration vers SQLCipher
             if is_plaintext:
                 logger.warning(f"⚠️ Détection d'une base locale non chiffrée : {db_file_path}")
                 logger.warning("🚀 Lancement de la migration transparente à chaud vers SQLCipher AES-256...")
-                
+
                 temp_unencrypted = db_file_path + ".unencrypted.tmp"
                 try:
                     if os.path.exists(temp_unencrypted):
                         os.remove(temp_unencrypted)
                     os.rename(db_file_path, temp_unencrypted)
-                    
+
                     # Créer la base chiffrée avec SQLCipher
                     from sqlcipher3 import dbapi2 as sqlcipher
                     enc_conn = sqlcipher.connect(db_file_path)
@@ -75,7 +84,7 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                     enc_conn.execute("SELECT sqlcipher_export('main', 'plaintext')")
                     enc_conn.execute("DETACH DATABASE plaintext")
                     enc_conn.close()
-                    
+
                     # Supprimer le fichier en clair temporaire
                     os.remove(temp_unencrypted)
                     logger.info("✅ Migration transparente vers SQLCipher terminée avec succès.")
@@ -84,12 +93,17 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
                     # En cas d'erreur fatale, restaurer le fichier d'origine
                     if os.path.exists(temp_unencrypted) and not os.path.exists(db_file_path):
                         os.rename(temp_unencrypted, db_file_path)
+                    if SQLCIPHER_REQUIRED:
+                        raise RuntimeError(
+                            "SQLCipher requis en mode cabinet : migration de la base locale impossible. "
+                            "Démarrage refusé pour éviter l'ouverture d'une base non chiffrée."
+                        ) from e
 
     # Injecter sqlcipher3 dans sys.modules pour que SQLAlchemy l'utilise comme pysqlcipher3
     try:
         import sqlcipher3
-        sys.modules['pysqlcipher3'] = sqlcipher3
-        
+        sys.modules["pysqlcipher3"] = sqlcipher3
+
         # Mettre à jour la chaîne de connexion SQLAlchemy pour utiliser sqlite+pysqlcipher
         if ":memory:" in SQLALCHEMY_DATABASE_URL:
             SQLALCHEMY_DATABASE_URL = f"sqlite+pysqlcipher://:{passphrase}@/:memory:"
@@ -98,18 +112,24 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
             db_file_path = os.path.abspath(db_file_path).replace("\\", "/")
             SQLALCHEMY_DATABASE_URL = f"sqlite+pysqlcipher://:{passphrase}@/{db_file_path}"
         logger.info("🔒 Connexion SQLite sécurisée par chiffrement SQLCipher (AES-256).")
-    except ImportError:
+    except ImportError as e:
         logger.error("❌ Module 'sqlcipher3' non trouvé. La base SQLite ne sera pas chiffrée.")
+        if SQLCIPHER_REQUIRED:
+            raise RuntimeError(
+                "SQLCipher requis en mode cabinet mais le driver 'sqlcipher3' est indisponible. "
+                "Démarrage refusé pour éviter une SQLite non chiffrée."
+            ) from e
 
 # --- INITIALISATION DU MOTEUR ---
 # Si SQLite, on utilise le dialecte pysqlcipher sécurisé
 if "pysqlcipher" in SQLALCHEMY_DATABASE_URL or SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
-        SQLALCHEMY_DATABASE_URL, 
-        connect_args={"check_same_thread": False} # Requis pour FastAPI
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False}  # Requis pour FastAPI
     )
-    
+
     from sqlalchemy import event
+
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
