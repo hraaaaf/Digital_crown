@@ -10,7 +10,11 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.prescription_service import prescription_service
 from backend.services.audit_service import audit_service
-from backend.services.certificate_suggestion_policy import build_certificate_context_signal, certificate_same_day_bounds
+from backend.services.certificate_suggestion_policy import (
+    appointment_status_supports_presence,
+    build_certificate_context_signal,
+    certificate_same_day_bounds,
+)
 
 prescription_router = APIRouter(tags=["Prescriptions"])
 actes_router = APIRouter(tags=["Actes Cliniques"])
@@ -478,7 +482,7 @@ async def suggest_certificate(patient_id: int, db: Session = Depends(database.ge
     if last_act:
         motif_text = last_act.libelle or ""
         has_same_day_visit = True
-    elif last_rdv:
+    elif last_rdv and appointment_status_supports_presence(last_rdv.status):
         motif_text = last_rdv.motif or ""
         has_same_day_visit = True
     else:
