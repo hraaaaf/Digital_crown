@@ -229,10 +229,10 @@ Approche recommandée :
 - [x] harness/workflow temporaire retiré
 - [x] audit historique glassmorphisme exécuté sur baseline pré-R1
 - [x] glassmorphisme techniquement confirmé comme conservé
-- [ ] hiérarchie visuelle glass premium restaurée sans perte de sécurité
-- [ ] recapture comparative glass 1440/768/390 validée
-- [ ] CI exacte sur le head final de PR #43 verte
-- [ ] merge PR #43
+- [x] hiérarchie visuelle glass premium restaurée sans perte de sécurité
+- [x] recapture comparative glass 1440/768/390 validée
+- [x] CI exacte sur le head final de PR #43 verte
+- [x] merge PR #43
 - [ ] CI exacte post-merge sur `master` verte
 - [ ] `DOCUMENT_STUDIO_ROADMAP.md` mis à jour
 - [ ] `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` mis à jour
@@ -297,3 +297,23 @@ Puis : recapture 1440 / 768 / 390, comparaison directe à la baseline pré-R1, c
 - La preuve visuelle via harness ne remplace pas une interaction authentifiée dans l'application locale réelle.
 - La sécurité fonctionnelle ne doit jamais être sacrifiée au profit du design glass.
 - Toute future conversation peut reprendre en demandant : **« ouvre `ROADMAP_ORDONNANCE_P1.md` et continue à partir de la prochaine action exacte »**.
+
+---
+
+## 13. Closeout UX/engineering P1 — 2026-08-15
+
+### Preuves finales
+- PR `#43` mergée sur `master` : `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`.
+- Head fonctionnel final PR : `9a00f07c4b1dc98776cf03bc17b27c23b50d7a81`.
+- CI exacte-head PR : run `31898122575` — **SUCCESS**.
+- Audit visuel historique pré-R1 : run `31897932430` — **SUCCESS**, artifact `9250318673`, digest `sha256:81db7ba5b525413908bb3b9faa84a2d6fc6478da756a6367b22d590c88e511e0`.
+- Recertification glass finale 1440 / 768 / 390 : run `31898157179` — **SUCCESS**, artifact `9250378182`, digest `sha256:4809953baa1ed5dd49a7b143da694ae13e438394146a2d3c8809be90e39dd6de`.
+- Inspection visuelle manuelle des trois captures : **propre**, sans débordement horizontal destructif ni action principale rognée.
+- Le langage glassmorphique historique est conservé ; la hiérarchie contexte/sécurité a été regroupée en une surface glass principale sans suppression d'information de sécurité.
+- CI push exacte du merge sur `master` : run `31898590067` — **à vérifier avant fermeture complète**.
+
+### Limites explicitement conservées
+- L'interaction authentifiée dans l'application locale réelle du cabinet reste **non certifiée** par ces captures isolées.
+- La certification clinique/pharmacologique humaine reste un gate séparé.
+- Aucun statut `production ready` n'est déduit de cette certification visuelle/engineering.
+

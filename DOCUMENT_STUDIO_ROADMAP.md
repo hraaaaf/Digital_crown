@@ -38,7 +38,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [x] Cartographie des appels backend et dépendances principales — **code cartographié**
 - [x] Verdict UX et lots de refonte — **audit statique consolidé**
 - [ ] **Interaction réelle exécutée/certifiée dans l’application**
-- [ ] **Recertification après refonte**
+- [x] **Recertification visuelle après refonte** — PR #43 mergée `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8` ; captures 1440/768/390 inspectées ; CI PR `31898122575` SUCCESS. Interaction authentifiée locale reste séparée.
 
 #### P1 — lots d’audit
 - **P1-L1 — Saisie rapide & clavier** : ✅ code cartographié. Score statique **8.1/10**.
@@ -138,6 +138,17 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - Merge squash sur `master` : `2596da527fdd1bee5c6746f645e995f682ca3189`.
 - Le candidat final consolide les anciens sous-lots #24/#25 devenus obsolètes après R6 : contexte patient déterministe, preview responsive et preuve DB read-only ordonnance.
 - **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+
+
+#### P1 — closeout runtime visuel / glass
+- PR `#43` — **MERGED**.
+- Head final PR : `9a00f07c4b1dc98776cf03bc17b27c23b50d7a81` ; CI exacte run `31898122575` — **SUCCESS**.
+- Merge `master` : `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`.
+- Baseline visuelle pré-R1 auditée via run `31897932430` — SUCCESS.
+- Recapture finale glass 1440 / 768 / 390 via run `31898157179` — **SUCCESS** ; artifact `9250378182` ; inspection visuelle propre.
+- Le glassmorphisme historique n'a pas été supprimé ; le correctif final regroupe contexte, sécurité, actions et alerte forme dans une hiérarchie glass cohérente sans retirer les gardes de sécurité.
+- **Non couvert par cette preuve :** interaction authentifiée dans l'application locale réelle et certification clinique/pharmacologique.
+- CI push post-merge : run `31898590067` — à vérifier avant fermeture documentaire complète.
 
 ### P2 — Devis + Honoraires
 Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`

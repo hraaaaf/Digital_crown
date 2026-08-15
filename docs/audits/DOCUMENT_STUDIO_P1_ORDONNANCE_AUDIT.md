@@ -372,3 +372,28 @@ Le backend expose `/prescriptions/safety/check` et possède des tests dédiés, 
 8. **Aperçu / Enregistrer / Imprimer**
 
 Le principe de refonte est donc : **ne pas retirer la puissance, retirer la concurrence visuelle entre les fonctions.**
+
+---
+
+## Addendum de recertification P1 — 2026-08-15
+
+Cet addendum met à jour le statut de l'audit statique historique sans réécrire rétroactivement ses constats.
+
+### État engineering / UX vérifié
+- R1 → R7 sont fermés côté engineering selon leurs CI exact-head documentées.
+- PR `#43` a corrigé les défauts responsive observés en runtime isolé et restauré la hiérarchie glass premium.
+- Head final PR : `9a00f07c4b1dc98776cf03bc17b27c23b50d7a81` ; CI exacte `31898122575` — **SUCCESS**.
+- Merge sur `master` : `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`.
+- Comparaison historique pré-R1 : run `31897932430` — SUCCESS, artifact `9250318673`, digest `sha256:81db7ba5b525413908bb3b9faa84a2d6fc6478da756a6367b22d590c88e511e0`.
+- Recertification finale glass : run `31898157179` — SUCCESS, artifact `9250378182`, digest `sha256:4809953baa1ed5dd49a7b143da694ae13e438394146a2d3c8809be90e39dd6de`.
+- Vues inspectées : **1440 × 1100, 768 × 1100, 390 × 844**.
+- Verdict visuel : aucune action principale rognée, aucun débordement horizontal destructif observé ; glassmorphisme conservé et hiérarchie contexte/sécurité regroupée.
+
+### Constats historiques désormais corrigés côté engineering
+Les sections plus haut décrivent la baseline auditée au moment de l'audit. Elles restent utiles comme historique, mais ne doivent plus être lues comme l'état courant pour : safety non branchée, dirty-state absent, fallback de forme implicite, UX rapide, protocoles/référentiel et preview responsive. Les preuves R1→R7 et PR #43 font foi pour l'état engineering actuel.
+
+### Gates toujours ouverts
+- **INTERACTION AUTHENTIFIÉE APPLICATION LOCALE : non certifiée.** Le harness rend les vrais composants mais n'est pas une session cabinet authentifiée.
+- **CERTIFICATION CLINIQUE/PHARMACOLOGIQUE : non certifiée.** Revue qualifiée distincte requise.
+- CI push exacte du merge `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8` : run `31898590067` — à vérifier avant closeout documentaire final.
+
