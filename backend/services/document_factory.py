@@ -16,6 +16,7 @@ from backend.services.generators.accounting_gen import AccountingGenerator
 from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
+from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +109,9 @@ class DocumentFactory:
         return self.ord_gen.generate(patient, data, db=db, user_id=user_id, custom_config=custom_config)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):
-        """Génère un certificat médical PDF via ReportLab (Stable v1.2 Ghost Elite)."""
-        return self.cert_gen.generate(patient, data, db=db, user_id=user_id)
+        """Génère un certificat médical PDF après validation du contrat P3."""
+        validated_data = normalize_and_validate_certificate_data(data)
+        return self.cert_gen.generate(patient, validated_data, db=db, user_id=user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
         facture_seq = getattr(data, 'facture_numero', None)
