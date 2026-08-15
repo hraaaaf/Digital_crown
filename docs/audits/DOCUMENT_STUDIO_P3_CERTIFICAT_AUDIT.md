@@ -6,19 +6,15 @@ Date de l'audit : 2026-08-15
 
 P3 Certificat n'est **pas certifié final** à ce stade.
 
-Le décorticage pratique, technique et médico-légal a produit des correctifs dédiés, mais les PR ouvertes ne peuvent pas être certifiées par GitHub Actions tant que le blocage compte `Billing & plans` empêche les jobs de démarrer. Les runs observés échouent avant toute étape (`steps=[]`, `runner_id=0`).
+Le décorticage pratique, technique et médico-légal a produit des correctifs dédiés, mais GitHub Actions reste bloqué par `Billing & plans`. Les runs concernés échouent avant toute étape (`steps=[]`, `runner_id=0`).
 
-Aucun pourcentage d'avancement global n'est déclaré tant que l'audit complet, la CI réellement exécutée, les merges et la validation runtime/visuelle ne sont pas clos.
+Aucun pourcentage d'avancement global n'est déclaré tant que la CI réellement exécutée, les merges, la régression finale et la validation runtime/visuelle ne sont pas clos.
 
 ## Baseline déjà mergée
 
-### PR #48 — Nature du document
-- mergée ; trois parcours explicites : `Arrêt de travail`, `Certificat de Présence`, `Certificat médical` ; contenu libre praticien ; aucune suggestion clinique injectée ; migration legacy ; durée uniquement pour arrêt de travail.
-
-### PR #49 — Dates + durée
-- mergée ; date d'émission distincte du début du repos ; présence et certificat libre sans durée/date de repos inutile ; réouverture historique compatible.
-
-Baseline `master` auditée : `a7fc4417e39120ff844c119fd2f4cfe42239bb8b`.
+- PR #48 — Nature du document : mergée.
+- PR #49 — Dates + durée : mergée.
+- Baseline `master` vérifiée : `a7fc4417e39120ff844c119fd2f4cfe42239bb8b`.
 
 ## Lots P3 ouverts
 
@@ -26,15 +22,15 @@ Baseline `master` auditée : `a7fc4417e39120ff844c119fd2f4cfe42239bb8b`.
 |---|---|---|---|---|---|
 | #52 | signature manuscrite + signataire DENTISTE uniquement | master | `31e7943fab0b3d1e7a38bc7f091c545fb3fbdf24` | open / mergeable | non certifiée |
 | #53 | validation UX praticien | master | `00f85c37639dc5537a2e19387a273e9e91cda1bb` | open / mergeable | non certifiée |
-| #54 | signal contextuel non prescriptif | master | `7371793eaa4857dbbd03e461e38bccb422c23f5e` | open / mergeable | CI exact-head bloquée avant steps |
-| #55 | identité datée + intégrité PDF | #52 | `f859e9ba652a36bfc4553318d56716ede19fe0d2` | open | doit être réaligné sur le nouveau head #52 |
+| #54 | signal contextuel non prescriptif | master | `7371793eaa4857dbbd03e461e38bccb422c23f5e` | open / mergeable | CI bloquée avant steps |
+| #55 | identité datée + intégrité PDF | #52 | `b122d92dc15d38dec37542b66ad133f161143636` | open / mergeable | non certifiée |
 | #56 | contrat backend fail-closed | master | `9976a7a5a4a06665dc5601e8af101414d45b9aa7` | open / mergeable | non certifiée |
-| #57 | suppression assertions PDF non vérifiées | #55 | `954ae116b174778d9d60056b36ae242ef52f0e3f` | open | dépend du réalignement #55 |
-| #58 | QR validation fail-closed | #57 | `407c0d8a1814246fe7b8aa4df99648d399dcb34f` | open | dépend du réalignement amont |
-| #59 | identité réelle dans zone de signature | #58 | `cee04dbf08c792795fe10046b4ea763b781384ac` | open | dépend du réalignement amont |
-| #60 | état neuf sans choix clinique + preview/UX | #53 | `f800925a2b0e72af6816feda1277459a0dca7804` | open / mergeable | CI exact-head à recertifier |
-| #63 | impression sûre Certificat uniquement | #60 | `84ad80b14c82a4eb7b297b16526afe55f82af161` | open / mergeable | run 31908774717 : 3 jobs failure avant toute étape, Billing & plans |
-| #61 | routage PDF, noms de fichiers, texte libre long | #59 | `f59fb121904b9bf61f67ee3e8d73fdbecf46a2f2` | open | dépend du réalignement amont |
+| #57 | suppression assertions PDF non vérifiées | #55 | `e1a538c9f1890a20f5c90fe5297b78475a4973f7` | open / mergeable | non certifiée |
+| #58 | QR validation fail-closed | #57 | `963915c7d4ff2326a863fee9ce59451d169e821d` | open / mergeable | non certifiée |
+| #59 | identité réelle dans zone de signature | #58 | `ee316763f25d0eab9d509d5e18d370147fff63ef` | open / mergeable | non certifiée |
+| #60 | état neuf sans choix clinique + preview/UX | #53 | `f800925a2b0e72af6816feda1277459a0dca7804` | open / mergeable | CI à recertifier |
+| #63 | impression sûre Certificat uniquement | #60 | `84ad80b14c82a4eb7b297b16526afe55f82af161` | open / mergeable | run 31908774717 : failure avant toute étape, Billing & plans |
+| #61 | routage PDF, noms de fichiers, texte libre long | #59 | `85bba649947f8d912777fa9ea8cb1e665f62a76c` | open / mergeable | non certifiée |
 
 ## Audit pratique synthétique
 
@@ -62,7 +58,7 @@ Conséquence de conception : le logiciel ne doit pas inventer un fait clinique/d
 ## Blocages réels avant certification finale
 
 1. **CI GitHub Actions** : blocage `Billing & plans`; notamment #63 run `31908774717`, `steps=[]`, `runner_id=0`.
-2. **Pile PDF** : #52 a changé de head après durcissement `DENTISTE`-only ; #55→#57→#58→#59→#61 doivent être réalignées avant toute certification/merge.
+2. **Merges** : toutes les PR P3 ouvertes restent non certifiées tant qu'une CI exacte-head n'a pas réellement exécuté les tests.
 3. **Régression finale** : backend + frontend + PDF après convergence.
 4. **Runtime/visuel** : génération réelle des trois parcours et inspection PDF finale.
 5. **Closeout canonique** : roadmap/statut/changelog après preuves finales uniquement.
@@ -71,9 +67,9 @@ Conséquence de conception : le logiciel ne doit pas inventer un fait clinique/d
 
 - indépendants : #54, #56.
 - UX : #53 → #60 → #63.
-- PDF : #52 → réaligner #55 → #57 → #58 → #59 → #61.
+- PDF : #52 → #55 → #57 → #58 → #59 → #61.
 
-Après chaque merge parent : réaligner le lot enfant, CI exacte-head réellement exécutée, puis merge. Après convergence : régression P3 complète + runtime/visuel + closeout.
+La pile PDF est désormais réalignée sur le head courant #52. Après chaque merge parent : CI exacte-head réellement exécutée, puis merge de l'enfant. Après convergence : régression P3 complète + runtime/visuel + closeout.
 
 ## Amélioration non bloquante
 
