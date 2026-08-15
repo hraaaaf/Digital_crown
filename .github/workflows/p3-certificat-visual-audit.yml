@@ -1,0 +1,46 @@
+name: P3 Certificat Visual Audit
+
+on:
+  push:
+    branches: [audit-20260815-p3-certificat-types]
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        run: npm ci
+      - name: Install Chromium
+        run: npx -y playwright@1.55.0 install --with-deps chromium
+      - name: Start certificat audit harness
+        run: |
+          npm run dev -- --port 4173 > /tmp/p3-certificat-vite.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/p3-certificat-audit.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p3-certificat-vite.log
+          exit 1
+      - name: Capture certificat states
+        run: |
+          mkdir -p p3-certificat-screens
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="1440,1000" --full-page --wait-for-timeout=1500 "http://127.0.0.1:4173/p3-certificat-audit.html?mode=work" p3-certificat-screens/01-work-1440.png
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="1440,1000" --full-page --wait-for-timeout=1500 "http://127.0.0.1:4173/p3-certificat-audit.html?mode=presence" p3-certificat-screens/02-presence-1440.png
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="1440,1100" --full-page --wait-for-timeout=1500 "http://127.0.0.1:4173/p3-certificat-audit.html?mode=free" p3-certificat-screens/03-free-1440.png
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="768,1000" --full-page --wait-for-timeout=1500 "http://127.0.0.1:4173/p3-certificat-audit.html?mode=free" p3-certificat-screens/04-free-768.png
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="390,844" --full-page --wait-for-timeout=1500 "http://127.0.0.1:4173/p3-certificat-audit.html?mode=free" p3-certificat-screens/05-free-390.png
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-certificat-visual-audit
+          path: frontend/p3-certificat-screens/*.png
+          if-no-files-found: error
