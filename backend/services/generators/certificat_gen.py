@@ -86,6 +86,19 @@ def _safe_pdf_text(value) -> str:
     return escape(str(value or ''))
 
 
+def _build_presence_certificate_text(dr_name_pdf: str, honorific: str, patient_name_pdf: str, issue_date: date) -> str:
+    """Formulation minimale : aucune nature de soin ou modalité de remise n'est inventée."""
+    return (
+        f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie avoir constaté la présence de "
+        f"{honorific} <b>{patient_name_pdf}</b> à notre cabinet le "
+        f"<b>{issue_date.strftime('%d/%m/%Y')}</b>.<br/><br/>"
+    )
+
+
+def _certificate_closing_text() -> str:
+    return "Ce certificat est établi pour servir et valoir ce que de droit."
+
+
 def _format_free_certificate_content(content: str) -> str:
     cleaned = (content or '').strip()
     if not cleaned:
@@ -243,27 +256,9 @@ class CertificatGenerator:
         gender = getattr(patient, 'sexe', getattr(patient, 'genre', 'M'))
         is_male = gender in ["Homme", "Garçon", "M", "m", "Male", "male"]
 
-        # Accord grammatical selon âge et genre
-        if is_minor:
-            hon = "l'enfant"
-            pres = "présent" if is_male else "présente"
-            int_ = "l'intéressé" if is_male else "l'intéressée"
-            eviction_term = "une éviction scolaire"
-            reprise_term = "la reprise des cours"
-            ne_e = "né" if is_male else "née"
-        else:
-            hon = "Monsieur" if is_male else "Madame"
-            pres = "présent" if is_male else "présente"
-            int_ = "l'intéressé" if is_male else "l'intéressée"
-            # Le praticien demande explicitement "arrêt de travail"
-            eviction_term = "un arrêt de travail"
-            reprise_term = "la reprise de son activité professionnelle"
-            ne_e = "né" if is_male else "née"
-
-        # Déterminer la spécialité (Ortho vs Dentaire)
-        is_ortho = False
-        if hasattr(patient, 'dossier') and patient.dossier:
-            is_ortho = patient.dossier.is_ortho_active
+        # L'âge ne détermine jamais la nature du certificat : le praticien a choisi le type.
+        hon = "l'enfant" if is_minor else ("Monsieur" if is_male else "Madame")
+        eviction_term = "un arrêt de travail"
 
         reason = (getattr(data, 'reason', "Arrêt de travail") or "Arrêt de travail").strip()
         days = getattr(data, 'days', 1)
@@ -284,7 +279,6 @@ class CertificatGenerator:
         from datetime import timedelta
 
         days_int = int(days or 0)
-        days_words = _days_in_words(days_int)
         days_label = f"({days_int} jours)"
 
         if days_int > 0:
@@ -301,11 +295,11 @@ class CertificatGenerator:
         if is_free_medical:
             certif_text = _format_free_certificate_content(free_content)
         elif "présence" in reason_lower:
-            spec = "orthodontiques" if is_ortho else "bucco-dentaires"
-            certif_text = (
-                f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie que "
-                f"{hon} <b>{nom_complet}</b> a été <b>{pres} à notre cabinet</b> "
-                f"le <b>{issue_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
+            certif_text = _build_presence_certificate_text(
+                dr_name_pdf,
+                hon,
+                nom_complet,
+                issue_date_obj,
             )
         else:
             certif_text = (
@@ -328,10 +322,7 @@ class CertificatGenerator:
             certif_text += f"<b>Observations :</b> {_safe_pdf_text(observations)}<br/><br/>"
 
         if not is_free_medical:
-            certif_text += (
-                f"Ce certificat est délivré à {int_}, remis en main propre à sa demande, "
-                f"pour servir et valoir ce que de droit."
-            )
+            certif_text += _certificate_closing_text()
 
         elements.append(Paragraph(certif_text, body_style))
         _append_handwritten_signature_space(elements, font_name=font_bold, text_color=p_color)
