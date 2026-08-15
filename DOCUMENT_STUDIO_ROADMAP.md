@@ -206,21 +206,30 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 - [ ] États vides / erreurs / protection saisie
 - [ ] Verdict UX
 
-Pré-audit statique isolé sur `work-20260815-p3-static-audit`. P3-A (suggestion certificat non mutante) est en recertification exacte sur le head rebased `069d06a60e6ae34339768ae3a50f4b6273b961a6` de PR `#37`. P3-B supprime le fallback `Autre → Repos Post-Opératoire` dans le candidat intégré de PR draft `#39`. P3-C corrige le contrat d’erreur Document Libre dans PR `#40`. **Aucun de ces lots n’est déclaré fusionné tant que son gate exact n’est pas vert.**
+#### P3 — lots engineering fermés
+- **P3-A — Suggestions de certificat non mutantes** : ✅ **engineering fermé**. PR `#37`, head final `6b88c0aebed8ba95dc248a743f9e82cf62c511e1`, CI exacte `31887555410` — 3/3 SUCCESS, merge `52d58f0efc94e68ef45fc12fa7912d15c2830e64`. Les suggestions ne modifient plus automatiquement type ou durée.
+- **P3-B — Motif personnalisé obligatoire pour certificat “Autre”** : ✅ **engineering fermé**. PR `#39`, head final `5eacafb57f5d76f9fddd748e468b4828b5d31834`, CI exacte `31894899652` — 3/3 SUCCESS, merge `2c677f229a25732c2895615261f9205d2a227e52`. Le fallback silencieux `Autre → Repos Post-Opératoire` est supprimé ; un motif personnalisé vide échoue explicitement.
+- **P3-C — Validation visuelle du Document Libre** : ✅ **engineering fermé**. PR `#40`, head final `7c1793f2331ff5e726f9f964d941dc1e96c56f5f`, CI exacte `31895447932` — 3/3 SUCCESS, merge `a7f81ed332ab2a3774382ace3db2446cd6d447d1`. Les erreurs `libreTitle`/`libreContent` sont reliées aux champs canoniques et les actions de formatage ne soumettent pas le formulaire.
+
+Les cases P3 ci-dessus restent ouvertes tant que l’audit interaction-par-interaction, la preview/sauvegarde/impression et la certification UX runtime correspondante ne sont pas exécutés. **Aucune certification clinique/scientifique ou UX runtime n’est revendiquée par ces fermetures engineering.**
 
 ### P4 — Suivi Paiement / Échéancier
 - [ ] Chargement plan existant
 - [ ] Total / avance / nombre d’échéances
 - [ ] Génération des lignes
-- [ ] Arrondis et réconciliation exacte
+- [x] Arrondis et réconciliation exacte — **P4-A engineering fermé**
 - [ ] Modification manuelle
-- [ ] Statut payé / non payé
+- [x] Statut payé / non payé — **P4-B intégrité backend fail-closed fermée ; UX runtime reste ouverte**
 - [ ] Rappels / WhatsApp
 - [ ] Résumé payé / restant / prochaine échéance
 - [ ] États vides, erreurs, sauvegarde
 - [ ] Verdict UX
 
-Pré-audit statique isolé sur `work-20260815-p4-static-audit`. P4-A candidat dans PR draft `#41` corrige la répartition exacte au centime et neutralise l’auto-application de valeurs financières `PriceBrain`; CI exacte encore requise avant fusion. Les autres défauts P4 pré-audités restent ouverts. **Aucune certification financière runtime n’est revendiquée.**
+#### P4 — lots engineering fermés
+- **P4-A — Répartition exacte des échéances** : ✅ **engineering fermé**. PR `#41`, head final `7a715bdd79c9579329bcdd496807f72ed8f69d9a`, CI exacte `31896494441` — 3/3 SUCCESS, merge `989b819fe9f38ea616a48bf34e59263f7bcab82b`. La répartition réconcilie exactement le total au centime et l’auto-application de valeurs financières `PriceBrain` est supprimée ; l’apprentissage ne survient qu’après génération explicite.
+- **P4-B — Paiement d’échéance fail-closed** : ✅ **engineering fermé**. PR `#42`, head final rebasé `d75b132a3d9ef705f6dc27eb4de8d44ca1eebe53`, CI exacte `31897537545` — 3/3 SUCCESS, merge `365a8cd9f1e9543898a70e060fd3e6890f647d66`. Création plan+échéances atomique, méthode de paiement explicite obligatoire au premier passage PAYE, `Payment.amount` basé sur le montant final, et une échéance déjà payée ne peut plus être rouverte ou repricée silencieusement.
+
+Les autres comportements P4 restent à auditer/exécuter dans l’application réelle. **Aucune certification financière runtime n’est revendiquée.**
 
 ### P5 — Compagnon diagnostique + interactions inter-pages
 - [ ] Arbre complet des états/questions
@@ -267,7 +276,6 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 - [ ] Matrice **GARDER / AMÉLIORER / FUSIONNER / CACHER / SUPPRIMER / REFAIRE**
 - [ ] Nouvelle architecture de navigation
 - [ ] Hiérarchie de ce qui doit être visible en premier
-- [ ] Wireflow fonctionnel cible
 - [ ] Priorités P0/P1/P2 de refonte
 - [ ] Plan d’implémentation par lots réversibles
 - [ ] Critères de validation UX/fonctionnels
@@ -276,8 +284,8 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 ## État courant
 - **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
 - **P2 : 🟡 ACTIVE** — P2-A/B/E/F fermés et fusionnés ; P2-C/D préparés sans intégration ; audit runtime non exécuté.
-- **P3 : 🟡 ACTIVE** — P3-A/B/C en candidats distincts ; aucun merge encore revendiqué sur ces trois lots.
-- **P4 : 🟡 ACTIVE** — P4-A candidat intégré en draft ; reste du pré-audit ouvert.
+- **P3 : 🟡 ACTIVE** — P3-A/B/C engineering fermés et fusionnés ; audit interaction-par-interaction, preview/sauvegarde/impression et certification UX runtime restent ouverts.
+- **P4 : 🟡 ACTIVE** — P4-A/B engineering fermés et fusionnés ; autres comportements et certification financière/UX runtime restent ouverts.
 - **P5 : 🟡 ACTIVE** — P5-P0 clinique fermé et fusionné ; reste du compagnon diagnostique/inter-pages à auditer/refondre.
 - **P6 : 🟡 pré-audit statique isolé, non fusionné.**
 - P7 : ⬜
@@ -285,4 +293,4 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`; P2-F via `5916216ae6b3ebe6cf3609ff652ee09cc549391f`; P5-P0 via `46d9388e80e3334230f8bea1356e4e38951408ca`. Les autres lots actifs doivent repartir de cette baseline fonctionnelle après rebase exact.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`; P2-F via `5916216ae6b3ebe6cf3609ff652ee09cc549391f`; P3-A via `52d58f0efc94e68ef45fc12fa7912d15c2830e64`; P3-B via `2c677f229a25732c2895615261f9205d2a227e52`; P3-C via `a7f81ed332ab2a3774382ace3db2446cd6d447d1`; P4-A via `989b819fe9f38ea616a48bf34e59263f7bcab82b`; P4-B via `365a8cd9f1e9543898a70e060fd3e6890f647d66`; P5-P0 via `46d9388e80e3334230f8bea1356e4e38951408ca`. Les autres lots actifs doivent repartir de cette baseline fonctionnelle après rebase exact.
