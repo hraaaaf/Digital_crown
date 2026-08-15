@@ -7,6 +7,10 @@ import {
   setPrescriptionDirty,
 } from '../PrescriptionDirtyState';
 import {
+  hasMissingMedicationForm,
+  preserveExplicitMedicationForms,
+} from '../PrescriptionFormPolicy';
+import {
   derivePrescriptionSafetyViewState,
   prescriptionSafetyFingerprint,
   type PrescriptionSafetyStatus,
@@ -45,12 +49,19 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [legacyEpoch, setLegacyEpoch] = useState(0);
   const baselineFingerprintRef = useRef<string | null>(null);
   const currentFingerprintRef = useRef('');
+  const currentDrugsRef = useRef(props.drugs);
+  currentDrugsRef.current = props.drugs;
 
   const prescriptionFingerprint = useMemo(
     () => prescriptionMutationFingerprint(props.drugs),
     [props.drugs],
   );
   currentFingerprintRef.current = prescriptionFingerprint;
+
+  const missingMedicationForm = useMemo(
+    () => hasMissingMedicationForm(props.drugs),
+    [props.drugs],
+  );
 
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
@@ -62,6 +73,23 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   }, [prescriptionFingerprint]);
 
   useEffect(() => {
+    const requestInterceptor = api.interceptors.request.use(config => {
+      const url = config.url || '';
+      if (!url.includes('/documents/generate')) return config;
+
+      if (typeof config.data === 'string') {
+        try {
+          const parsed = JSON.parse(config.data);
+          config.data = JSON.stringify(preserveExplicitMedicationForms(parsed, currentDrugsRef.current));
+        } catch {
+          return config;
+        }
+      } else if (config.data && typeof config.data === 'object') {
+        config.data = preserveExplicitMedicationForms(config.data, currentDrugsRef.current);
+      }
+      return config;
+    });
+
     const responseInterceptor = api.interceptors.response.use(response => {
       const url = response.config?.url || '';
       const archivedDocument = url.includes('/documents/generate')
@@ -73,7 +101,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
       }
       return response;
     });
-    return () => api.interceptors.response.eject(responseInterceptor);
+
+    return () => {
+      api.interceptors.request.eject(requestInterceptor);
+      api.interceptors.response.eject(responseInterceptor);
+    };
   }, []);
 
   useEffect(() => {
@@ -199,6 +231,18 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           Actualiser le contexte
         </button>
       </div>
+
+      {missingMedicationForm && (
+        <div className="mx-1 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800" role="alert">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-widest">Forme pharmaceutique non renseignée</div>
+            <div className="mt-0.5 text-[10px] font-semibold opacity-80">
+              Aucune forme ne sera déduite automatiquement. Renseignez la forme avant validation si elle est nécessaire au document.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="prescription-r3-legacy">
         <LegacyPrescriptionAgenticStudio key={legacyEpoch} {...props} />
