@@ -16,7 +16,9 @@ jobs:
           ref: work-20260815-p3-certificat-dates
           fetch-depth: 0
       - name: Apply date model patch
-        run: python scripts/p3_certificat_dates_once.py
+        run: |
+          python scripts/p3_certificat_dates_once.py
+          sed -i 's/[[:space:]]\+$//' frontend/src/features/admin/DocumentHub.tsx
       - name: Commit clean source patch
         run: |
           git config user.name "github-actions[bot]"
