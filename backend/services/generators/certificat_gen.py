@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
+from backend.services.certificate_signer_policy import resolve_certificate_signer_name
 from backend.services.generators.document_layout_safety import join_unbreakable
 
 # Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
@@ -252,14 +253,11 @@ class CertificatGenerator:
         observations = getattr(data, 'observations', '').strip()
         reason_lower = reason.lower()
         is_free_medical = _is_free_medical_certificate(reason)
-        if user_obj and getattr(user_obj, 'nom_complet', None):
-            dr_name = user_obj.nom_complet
-        else:
-            dr_name = "BENMOUSSA Achraf"
-            
+        dr_name = resolve_certificate_signer_name(user_obj)
+
         # Nettoyage pour éviter "Dr Dr."
         dr_name_clean = dr_name.replace("Dr.", "").replace("Dr ", "").replace("Docteur ", "").strip()
-            
+
         nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
 
         certif_text = ""
@@ -324,7 +322,6 @@ class CertificatGenerator:
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
-        
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
