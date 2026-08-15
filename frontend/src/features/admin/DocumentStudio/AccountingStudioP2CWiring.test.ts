@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const sourcePath = fileURLToPath(new URL('../AccountingStudioLegacy.tsx', import.meta.url));
+const sourcePath = resolve(process.cwd(), 'src/features/admin/AccountingStudioLegacy.tsx');
 const source = readFileSync(sourcePath, 'utf8');
 
 describe('AccountingStudio P2-C wiring', () => {
   it('branche les actes rapides explicites et le regroupement déterministe', () => {
-    expect(source).toContain("AccountingQuickActions");
-    expect(source).toContain("groupAccountingItemsByPhase");
-    expect(source).toContain("Organiser par phases");
+    expect(source).toContain('AccountingQuickActions');
+    expect(source).toContain('groupAccountingItemsByPhase');
+    expect(source).toContain('Organiser par phases');
   });
 
   it('retire les libellés pseudo-IA et la durée clinique non sourcée du flux devis', () => {
