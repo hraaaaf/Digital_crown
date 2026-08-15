@@ -140,6 +140,10 @@ export function shouldSkipInvalidCertificatePreview(params: UseDocumentGenerator
   return params.activeTab === 'certificat' && validatePayload(params).length > 0;
 }
 
+export function shouldSkipInvalidLibrePreview(params: UseDocumentGeneratorParams): boolean {
+  return params.activeTab === 'libre' && validatePayload(params).length > 0;
+}
+
 // --- Analyse de cohérence IA (Phase 4) ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
@@ -177,7 +181,7 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
     if (ains.length > 1) {
       warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
     }
-
+    
     const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
     if (paracetamol.length > 1) {
       warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
@@ -416,9 +420,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       return;
     }
 
-    // Un certificat incomplet ne déclenche pas de requête d'auto-preview ni de toast d'erreur.
+    // Un certificat ou document libre incomplet ne déclenche pas de requête d'auto-preview ni de toast d'erreur.
     // La validation finale reste strictement inchangée ci-dessous.
-    if (isPreview && shouldSkipInvalidCertificatePreview(params)) {
+    if (
+      isPreview &&
+      (shouldSkipInvalidCertificatePreview(params) || shouldSkipInvalidLibrePreview(params))
+    ) {
       setValidationErrors([]);
       setCoherenceWarnings([]);
       return;
