@@ -16,7 +16,7 @@ import {
 import { cn } from '../../../utils/cn';
 import { api } from '../../../services/api';
 import { useEliteStore } from '../../../stores/useEliteStore';
-import { evaluateDiagnosis } from './DiagnosticEngine';
+import { evaluateDiagnosisWithoutAutomaticSubstitution } from './SafeDiagnosticEngine';
 
 interface HouseWizardProps {
   onClose: () => void;
@@ -114,7 +114,7 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
 
   // Clinically deterministic decision logic
   const calculateDiagnosis = () => {
-    return evaluateDiagnosis({
+    return evaluateDiagnosisWithoutAutomaticSubstitution({
       motif,
       vitality,
       percussion,
@@ -137,7 +137,6 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
           for (const item of baseResult.treatmentPlan) {
             const response = await api.get(`/actes/catalog/search?q=${encodeURIComponent(item.act)}`);
             let finalPrice = item.price;
-            
             if (response.data && response.data.length > 0) {
               const match = response.data.find(
                 (h: any) => h.name.toLowerCase() === item.act.toLowerCase()
@@ -697,7 +696,6 @@ export const HouseWizard: React.FC<HouseWizardProps> = ({ onClose, onApplyDiagno
         )}
 
       </motion.div>
-
       {/* CONFIRMATION APPLY DIALOG OVERLAY */}
       <AnimatePresence>
         {showConfirm && (
