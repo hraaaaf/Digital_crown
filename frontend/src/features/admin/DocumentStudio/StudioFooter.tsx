@@ -45,7 +45,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
     );
   }
 
-  const isCertificate = activeTab === 'certificat';
+  const preparesFreshPdf = activeTab === 'certificat' || activeTab === 'libre';
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
@@ -75,18 +75,18 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         </button>
 
         <button
-          onClick={() => isCertificate
+          onClick={() => preparesFreshPdf
             ? onGenerate(true, false, false, false)
             : onGenerate(false, true, false, false)}
           disabled={loading}
           className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-8 py-3 bg-slate-800 text-white rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50"
         >
           <Printer size={14} className="shrink-0" />
-          <span>{isCertificate ? 'Préparer impression' : 'Imprimer'}</span>
+          <span>{preparesFreshPdf ? 'Préparer impression' : 'Imprimer'}</span>
         </button>
       </div>
 
-      {showPrintWarning && !isCertificate && typeof document !== 'undefined' && createPortal(
+      {showPrintWarning && !preparesFreshPdf && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 animate-in fade-in zoom-in-95 duration-300">
           <div className="flex flex-col items-center text-center max-w-sm bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
             <AlertTriangle className="text-amber-500 mb-4" size={48} />
