@@ -1,0 +1,28 @@
+name: P1 Canonical Closeout V2
+
+on:
+  push:
+    branches:
+      - work-20260815-p1-canonical-closeout
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply closeout
+        run: python scripts/p1_canonical_closeout_once.py
+      - name: Remove temporary closeout machinery
+        run: rm -f .github/workflows/p1-canonical-closeout-once.yml .github/workflows/p1-canonical-closeout-v2.yml scripts/p1_canonical_closeout_once.py
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs(p1): close out visual runtime certification"
+          git push origin HEAD:work-20260815-p1-canonical-closeout
