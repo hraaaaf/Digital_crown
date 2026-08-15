@@ -92,7 +92,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 >
                   <AlertCircle size={12} className="shrink-0" />
                   <span>
-                    Signal documentaire : {suggestion.reason || 'contexte détecté'}. Suggestion non appliquée ; type et durée restent à valider par le praticien.
+                    Signal documentaire : {suggestion.reason || 'contexte détecté'} Le logiciel ne choisit ni le type ni la durée à la place du praticien.
                   </span>
                 </motion.div>
               )}

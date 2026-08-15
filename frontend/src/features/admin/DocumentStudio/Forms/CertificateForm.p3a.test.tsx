@@ -39,8 +39,8 @@ describe('CertificateForm P3', () => {
 
     expect(setCertifType).not.toHaveBeenCalled();
     expect(setCertifDays).not.toHaveBeenCalled();
-    expect(screen.getByText(/Suggestion non appliquée/i)).toBeTruthy();
-    expect(screen.getByText(/valider.*praticien/i)).toBeTruthy();
+    expect(screen.getByText(/ne choisit ni le type ni la durée/i)).toBeTruthy();
+    expect(screen.getByText(/praticien/i)).toBeTruthy();
   });
 
   it('affiche Certificat médical comme dernier choix et ouvre une rédaction libre', async () => {
