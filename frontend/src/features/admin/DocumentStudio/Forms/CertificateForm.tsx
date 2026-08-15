@@ -59,6 +59,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
+  const freeContentMissing = certifType === CERTIFICATE_TYPE_FREE && !certifCustomMotif.trim();
 
   const certifTypes = [
     {
@@ -95,10 +96,12 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-[9px] font-bold bg-amber-500/10 text-amber-700 border border-amber-200 max-w-sm"
+                  role="status"
+                  aria-live="polite"
                 >
                   <AlertCircle size={12} className="shrink-0" />
                   <span>
-                    Signal documentaire : {suggestion.reason || 'contexte détecté'}. Suggestion non appliquée ; type et durée restent à valider par le praticien.
+                    Signal documentaire : {suggestion.reason || 'contexte détecté'}. Aucun choix n’est appliqué automatiquement ; le praticien décide du type, du contenu et, le cas échéant, de la durée.
                   </span>
                 </motion.div>
               )}
@@ -134,15 +137,31 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 <label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>
                 <textarea
                   id="certificate-free-content"
-                  className={cn(inputClass, "min-h-40 resize-y leading-relaxed")}
+                  className={cn(
+                    inputClass,
+                    "min-h-40 resize-y leading-relaxed",
+                    freeContentMissing && "border-amber-200 focus:border-amber-400 focus:ring-amber-100",
+                  )}
                   placeholder="Rédigez librement le contenu certifié par le praticien..."
                   value={certifCustomMotif}
                   onChange={(e) => setCertifCustomMotif(e.target.value)}
                   autoFocus
                   rows={6}
+                  required
+                  aria-required="true"
+                  aria-invalid={freeContentMissing}
+                  aria-describedby="certificate-free-content-help"
                 />
-                <p className="mt-2 px-1 text-[9px] font-bold text-slate-400">
-                  Ce texte est repris tel quel dans le corps du certificat. Aucune suggestion clinique n’est injectée automatiquement.
+                <p
+                  id="certificate-free-content-help"
+                  className={cn(
+                    "mt-2 px-1 text-[9px] font-bold",
+                    freeContentMissing ? "text-amber-600" : "text-slate-400",
+                  )}
+                >
+                  {freeContentMissing
+                    ? 'Contenu requis avant génération. Le logiciel ne complète jamais ce texte à la place du praticien.'
+                    : 'Ce texte est repris tel quel dans le corps du certificat. Aucune suggestion clinique n’est injectée automatiquement.'}
                 </p>
               </motion.div>
             )}
@@ -191,7 +210,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
       <div className="flex items-center justify-center gap-2 text-slate-400">
         <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-        <span className="text-[9px] font-black uppercase tracking-[0.3em]">Certificat Médical SÉCURISÉ</span>
+        <span className="text-[9px] font-black uppercase tracking-[0.3em]">Validation du praticien requise</span>
         <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
       </div>
     </div>
