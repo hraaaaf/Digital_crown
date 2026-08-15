@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, DollarSign, FileText, MessageCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, DollarSign, FileText, MessageCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
 import { api } from '../../../../services/api';
+import { buildExactInstallmentAllocation } from '../InstallmentAllocationPolicy';
 
 interface InstallmentStudioProps {
   patientId: string;
@@ -66,66 +66,65 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
   }, [patientId]);
 
   const generateTable = () => {
-    if (monthsCount < 1) {
-      toast.error('Le nombre de mensualités doit être > 0');
+    if (!Number.isInteger(monthsCount) || monthsCount < 1) {
+      toast.error('Le nombre de mensualités doit être un entier positif');
       return;
     }
+
+    let normalizedAdvance = advanceAmount;
+    let monthlyAmounts = Array.from({ length: monthsCount }, () => monthlyAmount);
+
+    if (totalAmount > 0) {
+      try {
+        const allocation = buildExactInstallmentAllocation(totalAmount, advanceAmount, monthsCount);
+        normalizedAdvance = allocation.advanceAmount;
+        monthlyAmounts = allocation.monthlyAmounts;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Échéancier financier invalide.');
+        return;
+      }
+    }
+
     const newItems: InstallmentItem[] = [];
-    
-    // Avance
-    if (advanceAmount > 0) {
+    if (normalizedAdvance > 0) {
       newItems.push({
         id: 'advance',
         label: 'Avance Initiale',
-        amount: advanceAmount,
+        amount: normalizedAdvance,
         dueDate: advanceDate,
         paid: false,
         sendReminder: false
       });
     }
 
-    // Mensualités
     const currentDate = new Date(advanceDate);
-    for (let i = 0; i < monthsCount; i++) {
+    monthlyAmounts.forEach((amount, index) => {
       currentDate.setMonth(currentDate.getMonth() + 1);
       newItems.push({
-        id: `inst_${i}`,
-        label: `Mensualité ${i + 1}`,
-        amount: monthlyAmount,
+        id: `inst_${index}`,
+        label: `Mensualité ${index + 1}`,
+        amount,
         dueDate: currentDate.toISOString().split('T')[0],
         paid: false,
         sendReminder: false
       });
-    }
+    });
 
     setItems(newItems);
-    
-    // Ghost Brain Apprentissage
-    PriceBrain.recordInstallmentPlan(title, advanceAmount, monthsCount, monthlyAmount);
+
+    // Apprentissage uniquement après génération explicite par le praticien.
+    PriceBrain.recordInstallmentPlan(title, normalizedAdvance, monthsCount, monthlyAmounts[0] ?? 0);
   };
 
-  // Effet Ghost Brain
+  // Le montant affiché est indicatif. La génération répartit les centimes résiduels
+  // entre les lignes pour garantir une réconciliation exacte avec le total déclaré.
   React.useEffect(() => {
-    if (title.length > 3) {
-      const suggestion = PriceBrain.suggestInstallmentPlan(title);
-      if (suggestion) {
-        // On suggère l'avance et la durée sans forcer si l'utilisateur a déjà modifié
-        if (advanceAmount === 0 && monthsCount === 1) {
-          setAdvanceAmount(suggestion.advance);
-          setMonthsCount(suggestion.months);
-          setMonthlyAmount(suggestion.monthly);
-        }
-      }
-    }
-  }, [title]);
-
-  // Auto-calcul du montant mensuel si le total est renseigné
-  React.useEffect(() => {
-    if (totalAmount > 0 && monthsCount > 0) {
-      const remainder = totalAmount - advanceAmount;
-      if (remainder >= 0) {
-        setMonthlyAmount(Math.round(remainder / monthsCount));
-      }
+    if (totalAmount <= 0 || monthsCount < 1) return;
+    try {
+      const allocation = buildExactInstallmentAllocation(totalAmount, advanceAmount, monthsCount);
+      setMonthlyAmount(allocation.monthlyAmounts[0] ?? 0);
+    } catch {
+      // Les entrées invalides sont refusées explicitement au clic de génération.
     }
   }, [totalAmount, advanceAmount, monthsCount]);
 
@@ -155,6 +154,9 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
       })),
     });
   }, [items, title, totalAmount, patientId]);
+
+  const plannedTotal = items.reduce((acc, it) => acc + (it.amount || 0), 0);
+  const isBalanced = totalAmount > 0 && Math.abs(plannedTotal - totalAmount) < 0.005;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full overflow-y-auto" id="installment-studio-container" data-plan-data={JSON.stringify({title, totalAmount, items})}>
@@ -200,14 +202,14 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
             <input type="number" value={monthlyAmount} onChange={e => setMonthlyAmount(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           </div>
         </div>
-        <button onClick={generateTable} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors w-full">
+        <button type="button" onClick={generateTable} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors w-full">
           Générer le tableau des échéances
         </button>
       </div>
 
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-bold text-slate-800">Échéances Prévues</h4>
-        <button onClick={addItem} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium rounded-lg transition-colors">
+        <button type="button" onClick={addItem} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium rounded-lg transition-colors">
           <Plus className="w-3.5 h-3.5" />
           Ajouter manuellement
         </button>
@@ -228,7 +230,6 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           <tbody className="divide-y divide-slate-100">
             {items.map((item) => (
               <tr key={item.id} className={item.paid ? 'bg-emerald-50/60' : 'hover:bg-slate-50/50'}>
-                {/* Case à cocher Réglé */}
                 <td className="px-3 py-2 text-center">
                   <input
                     type="checkbox"
@@ -260,6 +261,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
                     />
                     {item.sendReminder && (
                       <button 
+                        type="button"
                         onClick={() => {
                           const msg = `Bonjour, ceci est un rappel pour votre échéance: ${item.label} d'un montant de ${item.amount} MAD prévue le ${item.dueDate}. Merci.`;
                           let phone = patientPhone.replace(/\s|-/g, '');
@@ -280,7 +282,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
                   </div>
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <button onClick={() => removeItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                  <button type="button" onClick={() => removeItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
@@ -299,14 +301,13 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
       
       <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-slate-500">Total planifié : <b className="text-slate-900">{items.reduce((acc, it) => acc + (it.amount || 0), 0).toFixed(2)} MAD</b></span>
+          <span className="text-slate-500">Total planifié : <b className="text-slate-900">{plannedTotal.toFixed(2)} MAD</b></span>
           {totalAmount > 0 && (
-            <span className={items.reduce((acc, it) => acc + (it.amount || 0), 0) !== totalAmount ? "text-amber-500 font-medium" : "text-emerald-500 font-medium"}>
-              {items.reduce((acc, it) => acc + (it.amount || 0), 0) === totalAmount ? "Total équilibré" : "Le total planifié diffère du total prévu"}
+            <span className={isBalanced ? "text-emerald-500 font-medium" : "text-amber-500 font-medium"}>
+              {isBalanced ? "Total équilibré" : "Le total planifié diffère du total prévu"}
             </span>
           )}
         </div>
-
       </div>
     </div>
   );
