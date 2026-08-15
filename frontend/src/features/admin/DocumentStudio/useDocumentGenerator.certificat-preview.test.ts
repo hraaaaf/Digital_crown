@@ -33,6 +33,17 @@ const baseParams = {
 } as any;
 
 describe('P3 certificate automatic preview guard', () => {
+  it('skips a new certificate until the practitioner explicitly chooses a type', () => {
+    expect(
+      shouldSkipInvalidCertificatePreview({
+        ...baseParams,
+        certifType: '',
+        certifDays: 0,
+        certifCustomMotif: '',
+      }),
+    ).toBe(true);
+  });
+
   it('skips an incomplete free-certificate preview instead of calling the backend', () => {
     expect(shouldSkipInvalidCertificatePreview(baseParams)).toBe(true);
   });
