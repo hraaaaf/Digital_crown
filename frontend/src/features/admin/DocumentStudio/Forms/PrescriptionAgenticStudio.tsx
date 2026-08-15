@@ -8,7 +8,11 @@ import { cn } from '../../../../utils/cn';
 import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
 import type { ValidationError } from '../useDocumentGenerator';
-import { getAgeAwareDosing, estimateWeightFromAge } from '../clinical_rules';
+import type { MedicationInputSource } from '../normalizeMedicationForPatient';
+import {
+  pharmacologyReviewMessage,
+  resolveAndNormalizeMedication,
+} from '../PrescriptionPharmacologyPipeline';
 
 import type { DrugItem } from './prescriptionTypes';
 import { FORMES, KIN_PRESET, DEFAULT_MOROCCO_PRESETS, fuzzyMatch } from './prescriptionTypes';
@@ -54,6 +58,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     medications: [], dosages: [], posologies: [],
   });
   const [medChecks, setMedChecks] = useState<Record<number, { known: boolean; exists?: boolean; available_mg?: number[]; dci?: string }>>({});
+  const [pharmacologyReviews, setPharmacologyReviews] = useState<Record<number, string[]>>({});
   const [formeDropdownCoords, setFormeDropdownCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [presets, setPresets] = useState<any[]>([]);
   const [showPresets, setShowPresets] = useState(true);
@@ -65,8 +70,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [showPatientAdvice, setShowPatientAdvice] = useState(false);
   const [forcedDrugs, setForcedDrugs] = useState<number[]>([]);
   const [showGuideModal, setShowGuideModal] = useState(false);
-  const [guideWeight, setGuideWeight] = useState(70);
-  const [guideAge, setGuideAge] = useState(30);
+  const [guideWeight, setGuideWeight] = useState(0);
+  const [guideAge, setGuideAge] = useState(0);
   const [guideCategory, setGuideCategory] = useState<string>('TOUS');
   const [guideSearch, setGuideSearch] = useState('');
   const [guideNationalResults, setGuideNationalResults] = useState<Array<{ nom: string; dci: string; dosage: string; unite: string; forme: string }>>([]);
@@ -76,6 +81,34 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   const [quickHighlightedIdx, setQuickHighlightedIdx] = useState(-1);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const [quickExpanded, setQuickExpanded] = useState(true);
+
+  const rememberPharmacologyResult = useCallback((id: number, result: Awaited<ReturnType<typeof resolveAndNormalizeMedication>>) => {
+    if (result.dictionaryResult) {
+      setMedChecks(prev => ({ ...prev, [id]: result.dictionaryResult }));
+    }
+    const reviewMessage = pharmacologyReviewMessage(result);
+    setPharmacologyReviews(prev => {
+      const next = { ...prev };
+      if (reviewMessage) next[id] = [reviewMessage];
+      else delete next[id];
+      return next;
+    });
+  }, []);
+
+  const normalizeCandidate = useCallback(async (
+    drug: DrugItem,
+    source: MedicationInputSource,
+    practitionerExplicit?: { dosage?: boolean; posology?: boolean },
+  ): Promise<DrugItem> => {
+    const result = await resolveAndNormalizeMedication({
+      drug,
+      source,
+      assessment,
+      practitionerExplicit,
+    });
+    rememberPharmacologyResult(drug.id, result);
+    return result.drug;
+  }, [assessment, rememberPharmacologyResult]);
 
   // --- Silent clinical assessment ---
   useEffect(() => {
@@ -88,11 +121,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         if (res.data?.age != null) {
           setGuideAge(res.data.age);
           const w = res.data.weight ?? res.data.poids;
-          if (w) setGuideWeight(w);
-          else if (res.data.age < 15) setGuideWeight(estimateWeightFromAge(res.data.age));
+          setGuideWeight(typeof w === 'number' && Number.isFinite(w) && w > 0 ? w : 0);
         }
       } catch (err) {
-        console.error('Silent AI Error:', err);
+        console.error('Assessment Error:', err);
       } finally {
         setLoading(false);
       }
@@ -108,12 +140,16 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         assessment,
         patient_context: { id: patientId },
       });
-      setDrugs(res.data.prescriptions.map((p: any, idx: number) => ({
-        id: Date.now() + idx,
-        name: p.medicament, dosage: p.dosage,
-        forme: p.forme, posologie: p.posologie,
-        type: 'MEDICAMENT', quantite: 1, non_substituable: false,
-      })));
+      const normalized = await Promise.all(res.data.prescriptions.map(async (p: any, idx: number) => {
+        const candidate: DrugItem = {
+          id: Date.now() + idx,
+          name: p.medicament, dosage: p.dosage,
+          forme: p.forme, posologie: p.posologie,
+          type: 'MEDICAMENT', quantite: 1, non_substituable: false,
+        };
+        return normalizeCandidate(candidate, 'assessment');
+      }));
+      setDrugs(normalized);
     } catch {
       setStep('ASSESSMENT');
     } finally {
@@ -172,48 +208,74 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
 
   const hydrateMedicationDetails = useCallback(async (drug: DrugItem): Promise<DrugItem> => {
     if (drug.type === 'EXAMEN') return drug;
-    const preset = getDefaultMedicationDetails(drug.name);
-    let hydrated: DrugItem = preset
-      ? { ...drug, name: preset.name, dosage: drug.dosage || preset.dosage, forme: drug.forme || preset.forme, posologie: drug.posologie || preset.posologie }
-      : drug;
 
-    const dosing = getAgeAwareDosing(hydrated.name, assessment?.age, assessment?.weight ?? assessment?.poids);
-    if (dosing) {
-      hydrated = { ...hydrated, dosage: hydrated.dosage || dosing.dosage, posologie: hydrated.posologie || dosing.posology };
-    } else {
+    const explicitDosage = Boolean((drug as any).__r1ExplicitDosage);
+    const explicitPosology = Boolean((drug as any).__r1ExplicitPosology);
+    const cleanDrug: DrugItem = { ...drug };
+    delete (cleanDrug as any).__r1ExplicitDosage;
+    delete (cleanDrug as any).__r1ExplicitPosology;
+
+    const preset = getDefaultMedicationDetails(cleanDrug.name);
+    let candidate: DrugItem = preset
+      ? {
+          ...cleanDrug,
+          name: preset.name,
+          dosage: cleanDrug.dosage || preset.dosage,
+          forme: cleanDrug.forme || preset.forme,
+          posologie: cleanDrug.posologie || preset.posologie,
+        }
+      : cleanDrug;
+
+    if (!candidate.dosage || !candidate.posologie) {
       try {
-        const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(hydrated.name)}`);
-        hydrated = {
-          ...hydrated,
-          dosage: hydrated.dosage || res.data.dosages?.[0] || '',
-          posologie: hydrated.posologie || res.data.posologies?.[0] || '',
+        const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(candidate.name)}`);
+        candidate = {
+          ...candidate,
+          dosage: candidate.dosage || res.data.dosages?.[0] || '',
+          posologie: candidate.posologie || res.data.posologies?.[0] || '',
         };
-      } catch { /* offline — keep what we have */ }
+      } catch { /* local/offline fallback stays empty */ }
     }
-    return hydrated;
-  }, [getDefaultMedicationDetails, assessment]);
+
+    return normalizeCandidate(candidate, 'quick_entry', {
+      dosage: explicitDosage,
+      posology: explicitPosology,
+    });
+  }, [getDefaultMedicationDetails, normalizeCandidate]);
 
   const addDrugAtEnd = useCallback((drug: DrugItem) => {
-    // Replace the initial empty placeholder instead of appending behind it
     const hasOnlyEmptyPlaceholder = drugs.length === 1 && !drugs[0].name.trim() && !drugs[0].posologie.trim();
     setDrugs(hasOnlyEmptyPlaceholder ? [drug] : [...drugs, drug]);
     setQuickExpanded(false);
   }, [drugs, setDrugs]);
 
-  const addMolecule = useCallback((molecule: string, forcedDosage?: string, forcedPosology?: string, forme?: string) => {
+  const addMolecule = useCallback(async (
+    molecule: string,
+    forcedDosage?: string,
+    forcedPosology?: string,
+    forme?: string,
+    source: MedicationInputSource = 'assessment',
+  ) => {
     const newId = Date.now();
-    const newDrug: DrugItem = {
+    let candidate: DrugItem = {
       id: newId, name: molecule, dosage: forcedDosage || '', forme: forme || 'COMPRIMÉS',
       posologie: forcedPosology || '', type: 'MEDICAMENT', quantite: 1, non_substituable: false,
     };
-    setDrugs([...drugs, newDrug]);
+
     if (!forcedDosage || !forcedPosology) {
-      api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(molecule)}`).then(res => {
-        if (!forcedDosage && res.data.dosages?.length === 1) onUpdateDrug(newId, 'dosage', res.data.dosages[0]);
-        if (!forcedPosology && res.data.posologies?.length === 1) onUpdateDrug(newId, 'posologie', res.data.posologies[0]);
-      }).catch(() => {});
+      try {
+        const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(molecule)}`);
+        candidate = {
+          ...candidate,
+          dosage: forcedDosage || res.data.dosages?.[0] || '',
+          posologie: forcedPosology || res.data.posologies?.[0] || '',
+        };
+      } catch { /* habits are optional, never evidence */ }
     }
-  }, [drugs, setDrugs, onUpdateDrug]);
+
+    const normalized = await normalizeCandidate(candidate, source);
+    setDrugs([...drugs, normalized]);
+  }, [drugs, setDrugs, normalizeCandidate]);
 
   const moveDrug = useCallback((id: number, direction: 'up' | 'down') => {
     const idx = drugs.findIndex(d => d.id === id);
@@ -297,34 +359,44 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     }
   };
 
-  const applySuggestion = useCallback((id: number, field: string, val: string) => {
-    onUpdateDrug(id, field as keyof DrugItem, val);
+  const applySuggestion = useCallback(async (id: number, field: string, val: string) => {
     setSuggestions({ medications: [], dosages: [], posologies: [] });
     setActiveSearchId(null);
-    if (field === 'name') {
-      const preset = getDefaultMedicationDetails(val);
-      if (preset) {
-        onUpdateDrug(id, 'dosage', preset.dosage);
-        onUpdateDrug(id, 'forme', preset.forme as any);
-        onUpdateDrug(id, 'posologie', preset.posologie);
-      }
-      const age = assessment?.age;
-      const weight = assessment?.weight ?? assessment?.poids;
-      const dosing = getAgeAwareDosing(val, age, weight);
-      if (dosing) {
-        onUpdateDrug(id, 'dosage', dosing.dosage);
-        onUpdateDrug(id, 'posologie', dosing.posology);
-        runMedCheck(id, val, dosing.dosage);
-        if (dosing.pediatric) toast(`Posologie pédiatrique appliquée (≈ ${dosing.weight} kg).`, { icon: '👶', duration: 4000 });
-      } else {
-        runMedCheck(id, val, '');
-        api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(val)}`).then(res => {
-          if (!preset && res.data.dosages?.[0]) onUpdateDrug(id, 'dosage', res.data.dosages[0]);
-          if (!preset && res.data.posologies?.[0]) onUpdateDrug(id, 'posologie', res.data.posologies[0]);
-        }).catch(() => {});
-      }
+
+    if (field !== 'name') {
+      onUpdateDrug(id, field as keyof DrugItem, val);
+      return;
     }
-  }, [getDefaultMedicationDetails, onUpdateDrug, assessment]);
+
+    const current = drugs.find(d => d.id === id);
+    if (!current) return;
+    const preset = getDefaultMedicationDetails(val);
+    let candidate: DrugItem = {
+      ...current,
+      name: val,
+      dosage: preset?.dosage || '',
+      forme: preset?.forme || current.forme || 'COMPRIMÉS',
+      posologie: preset?.posologie || '',
+    };
+
+    if (!candidate.dosage || !candidate.posologie) {
+      try {
+        const res = await api.get(`/prescriptions/habits/details?med_name=${encodeURIComponent(val)}`);
+        candidate = {
+          ...candidate,
+          dosage: candidate.dosage || res.data.dosages?.[0] || '',
+          posologie: candidate.posologie || res.data.posologies?.[0] || '',
+        };
+      } catch { /* optional habit suggestions */ }
+    }
+
+    const normalized = await normalizeCandidate(candidate, 'line_autocomplete');
+    onUpdateDrug(id, 'name', normalized.name);
+    onUpdateDrug(id, 'dosage', normalized.dosage);
+    onUpdateDrug(id, 'forme', normalized.forme);
+    onUpdateDrug(id, 'posologie', normalized.posologie);
+    runMedCheck(id, normalized.name, normalized.dosage);
+  }, [drugs, getDefaultMedicationDetails, normalizeCandidate, onUpdateDrug, runMedCheck]);
 
   useEffect(() => setHighlightedIdx(-1), [activeSearchId]);
 
@@ -340,7 +412,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     if (!list.length) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIdx(i => Math.min(i + 1, list.length - 1)); }
     if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIdx(i => Math.max(i - 1, 0)); }
-    if (e.key === 'Enter' && highlightedIdx >= 0) { e.preventDefault(); applySuggestion(id, field, list[highlightedIdx]); }
+    if (e.key === 'Enter' && highlightedIdx >= 0) { e.preventDefault(); void applySuggestion(id, field, list[highlightedIdx]); }
     if (e.key === 'Escape') { setSuggestions({ medications: [], dosages: [], posologies: [] }); setActiveSearchId(null); }
   };
 
@@ -364,46 +436,26 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
   }, [formeDropdownCoords]);
 
-  // --- Preset application with safety ---
-  const checkLocalSafetyConstraints = useCallback((antecedents: string): { blocked: boolean; reason: string } => {
-    const history = (antecedents || '').toUpperCase();
-    const PENICILLIN_KEYWORDS = ['PENICILLINE', 'PENICILLIN', 'AMOXICILLINE', 'CLAMOXYL', 'AUGMENTIN', 'BETA-LACTAMINE'];
-    const isAllergicToPenicillin = history.includes('ALLERGI') && PENICILLIN_KEYWORDS.some(k => history.includes(k));
-    const PREGNANCY_KEYWORDS = ['GROSSESSE', 'ENCEINTE', 'PREGNANT', 'TRIMESTRE'];
-    const isPregnant = PREGNANCY_KEYWORDS.some(k => history.includes(k));
-    return {
-      blocked: isAllergicToPenicillin || isPregnant,
-      reason: isAllergicToPenicillin
-        ? '⚠️ Allergie pénicilline détectée dans les antécédents.'
-        : isPregnant ? '⚠️ Grossesse détectée dans les antécédents. Vérifiez les contre-indications.' : '',
-    };
-  }, []);
-
-  const applyPresetWithSafety = useCallback((presetDrugs: any[], presetLabel?: string) => {
-    const isChild = assessment?.age < 15 || assessment?.is_child;
-    const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || '').toUpperCase();
-    const localSafety = checkLocalSafetyConstraints(history);
-    if (localSafety.blocked) toast(localSafety.reason, { icon: '⚠️', duration: 6000 });
-
-    const adaptedDrugs = presetDrugs.map((d: any, i: number) => {
-      const drug = { ...d, id: Date.now() + i, type: 'MEDICAMENT' as const, quantite: 1, non_substituable: false };
-      if (history.includes('ALLERGIE') && (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'))) {
-        if (drug.name.includes('CLAMOXYL') || drug.name.includes('AMOXICILLINE') || drug.name.includes('AUGMENTIN')) {
-          drug.name = 'RODOGYL';
-          drug.dosage = '-';
-          drug.posologie = '1 cp x 3 / jour pendant 7 jours (Substitution Allergie)';
-        }
-      }
-      if (isChild) {
-        if (drug.name === 'DOLIPRANE' && drug.dosage === '1G') { drug.dosage = '500MG'; drug.posologie = drug.posologie.replace('1 cp', '1/2 cp'); }
-        if (drug.name === 'ANTADYS') { drug.name = 'PARACETAMOL'; drug.dosage = '500MG'; }
-      }
-      return drug;
-    });
+  // --- Preset application through R1 arbiter ---
+  const applyPresetWithSafety = useCallback(async (
+    presetDrugs: any[],
+    presetLabel?: string,
+    source: MedicationInputSource = 'system_protocol',
+  ) => {
+    const normalized = await Promise.all(presetDrugs.map(async (d: any, i: number) => {
+      const candidate: DrugItem = {
+        ...d,
+        id: Date.now() + i,
+        type: 'MEDICAMENT',
+        quantite: 1,
+        non_substituable: false,
+      };
+      return normalizeCandidate(candidate, source);
+    }));
 
     const PARACETAMOL_NAMES = ['paracetamol', 'doliprane', 'efferalgan', 'dafalgan', 'perfalgan'];
     const isParacetamol = (name: string) => PARACETAMOL_NAMES.some(n => name.toLowerCase().includes(n));
-    const deduplicatedDrugs = adaptedDrugs.reduce((acc: DrugItem[], drug: DrugItem) => {
+    const deduplicatedDrugs = normalized.reduce((acc: DrugItem[], drug: DrugItem) => {
       if (isParacetamol(drug.name) && acc.find(d => isParacetamol(d.name))) return acc;
       acc.push(drug);
       return acc;
@@ -412,9 +464,14 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     setDrugs(deduplicatedDrugs);
     setNewPresetName(presetLabel || '');
     setStep('PLANNING');
-    if (isChild) toast("Ordonnance adaptée au profil pédiatrique.", { icon: '👶' });
-    else toast.success(presetLabel ? `Protocole "${presetLabel}" appliqué.` : "Protocole appliqué.");
-  }, [assessment, setDrugs, checkLocalSafetyConstraints]);
+
+    const reviews = deduplicatedDrugs.filter(d => pharmacologyReviews[d.id]?.length > 0).length;
+    if (reviews > 0) {
+      toast(`Protocole chargé : ${reviews} ligne(s) nécessitent une revue pharmacologique.`, { icon: '⚠️', duration: 5000 });
+    } else {
+      toast.success(presetLabel ? `Protocole "${presetLabel}" normalisé.` : 'Protocole normalisé.');
+    }
+  }, [normalizeCandidate, setDrugs, pharmacologyReviews]);
 
   // --- Quick entry parse ---
   const parseQuickEntry = (text: string): DrugItem => {
@@ -460,6 +517,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     if (qtyTextFound) poso = poso.replace(qtyTextFound, '');
     const parsedPosologie = poso.replace(/\s+/g, ' ').trim();
     if (parsedPosologie) drug.posologie = parsedPosologie;
+    (drug as any).__r1ExplicitDosage = Boolean(dosageMatch);
+    (drug as any).__r1ExplicitPosology = Boolean(parsedPosologie);
     return drug;
   };
 
@@ -540,7 +599,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
           <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
           <div className="relative z-10">
-            <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest mb-1">Alerte Médicale & Allergies</h4>
+            <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest mb-1">Contexte Médical</h4>
             <p className="text-xs font-bold text-red-700">
               {assessment?.patient_context?.antecedents || assessment?.antecedents}
             </p>
@@ -597,7 +656,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Protocoles Cliniques</span>
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
-                <span className="text-[8px] font-bold text-slate-300 uppercase italic">Smart Adaptation active</span>
+                <span className="text-[8px] font-bold text-slate-300 uppercase italic">Arbitrage pharmaco actif</span>
               </div>
               <button onClick={() => setShowPresets(false)} className="text-[9px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-tighter transition-colors">Masquer</button>
             </div>
@@ -610,7 +669,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     value=""
                     onChange={e => {
                       const p = DEFAULT_MOROCCO_PRESETS.find(p => p.label === e.target.value);
-                      if (p) applyPresetWithSafety(p.drugs, p.label);
+                      if (p) void applyPresetWithSafety(p.drugs, p.label, 'system_protocol');
                       e.currentTarget.value = '';
                     }}
                   >
@@ -634,7 +693,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                       onChange={e => {
                         setSelectedUserPreset(e.target.value);
                         const p = presets.find(p => p.act_context === e.target.value);
-                        if (p) applyPresetWithSafety(p.drugs, p.act_context);
+                        if (p) void applyPresetWithSafety(p.drugs, p.act_context, 'user_protocol');
                       }}
                     >
                       <option value="">{presets.length === 0 ? '— Aucune ordonnance sauvegardée —' : '— Choisir une ordonnance —'}</option>
@@ -674,7 +733,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
             <div className="max-w-sm">
               <h4 className="text-xl font-black text-slate-800 mb-3">Analyse du dossier clinique...</h4>
               <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                Apprentissage de vos habitudes, calcul des doses et validation des interactions médicamenteuses.
+                Chargement du contexte patient et des vérifications pharmacologiques disponibles.
               </p>
             </div>
           </motion.div>
@@ -690,8 +749,8 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                       <ShieldCheck size={22} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Bilan Scientifique</h4>
-                      <p className="text-[10px] font-bold text-slate-400">Habits Engine v2.0 (Local)</p>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Bilan Clinique</h4>
+                      <p className="text-[10px] font-bold text-slate-400">Moteur déterministe local</p>
                     </div>
                   </div>
                   <div className="space-y-4">
@@ -710,7 +769,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     ) : (
                       <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
                         <CheckCircle2 size={20} className="text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest">Sécurité Clinique Validée</span>
+                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest">Aucun risque signalé par ce contrôle</span>
                       </div>
                     )}
                     <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10">
@@ -734,7 +793,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                     </div>
                     <div className="space-y-3 mb-8">
                       {assessment.recommandations_moleculaires?.map((m: any, i: number) => (
-                        <button key={i} onClick={() => addMolecule(m.molecule)}
+                        <button key={i} onClick={() => void addMolecule(m.molecule, undefined, undefined, undefined, 'assessment')}
                           className="w-full text-left bg-white/5 p-3 rounded-2xl border border-white/10 hover:bg-primary hover:border-primary hover:shadow-lg hover:shadow-primary/20 transition-all group/sugg"
                         >
                           <div className="flex items-center justify-between mb-1">
@@ -772,39 +831,46 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-2">Génération du plan...</h4>
-                  <p className="text-[10px] font-bold text-slate-400">Application de vos habitudes et structuration finale.</p>
+                  <p className="text-[10px] font-bold text-slate-400">Normalisation pharmacologique et structuration finale.</p>
                 </div>
               </div>
             )}
 
             <div className="space-y-3">
               {drugs.map((drug, idx) => (
-                <DrugRow
-                  key={drug.id}
-                  drug={drug}
-                  idx={idx}
-                  drugsCount={drugs.length}
-                  assessment={assessment}
-                  validationErrors={validationErrors}
-                  forcedDrugs={forcedDrugs}
-                  activeSearchId={activeSearchId}
-                  suggestions={suggestions}
-                  highlightedIdx={highlightedIdx}
-                  medChecks={medChecks}
-                  onUpdateDrug={onUpdateDrug}
-                  onRemoveDrug={onRemoveDrug}
-                  onMove={moveDrug}
-                  onSearch={handleSearch}
-                  onKeyDown={handleKeyDown}
-                  onApplySuggestion={applySuggestion}
-                  onFormeOpen={handleFormeOpen}
-                  onForceAllergy={id => setForcedDrugs(prev => [...prev, id])}
-                  onToggleType={(id, type) =>
-                    setDrugs(drugs.map(d => d.id === id
-                      ? { ...d, type, forme: type === 'MEDICAMENT' ? (d.forme || 'COMPRIMÉS') : '', dosage: type === 'EXAMEN' ? '' : d.dosage, posologie: type === 'EXAMEN' ? '' : d.posologie }
-                      : d))
-                  }
-                />
+                <div key={drug.id} className="space-y-2">
+                  <DrugRow
+                    drug={drug}
+                    idx={idx}
+                    drugsCount={drugs.length}
+                    assessment={assessment}
+                    validationErrors={validationErrors}
+                    forcedDrugs={forcedDrugs}
+                    activeSearchId={activeSearchId}
+                    suggestions={suggestions}
+                    highlightedIdx={highlightedIdx}
+                    medChecks={medChecks}
+                    onUpdateDrug={onUpdateDrug}
+                    onRemoveDrug={onRemoveDrug}
+                    onMove={moveDrug}
+                    onSearch={handleSearch}
+                    onKeyDown={handleKeyDown}
+                    onApplySuggestion={(id, field, val) => { void applySuggestion(id, field, val); }}
+                    onFormeOpen={handleFormeOpen}
+                    onForceAllergy={id => setForcedDrugs(prev => [...prev, id])}
+                    onToggleType={(id, type) =>
+                      setDrugs(drugs.map(d => d.id === id
+                        ? { ...d, type, forme: type === 'MEDICAMENT' ? (d.forme || 'COMPRIMÉS') : '', dosage: type === 'EXAMEN' ? '' : d.dosage, posologie: type === 'EXAMEN' ? '' : d.posologie }
+                        : d))
+                    }
+                  />
+                  {pharmacologyReviews[drug.id]?.length > 0 && (
+                    <div className="mx-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-800 flex items-start gap-2">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                      <span><strong>Revue pharmacologique requise :</strong> {pharmacologyReviews[drug.id].join(' ')}</span>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
 
@@ -813,15 +879,17 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
               <div
                 className={cn(
                   'flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-help',
-                  coherenceWarnings.length > 0
+                  coherenceWarnings.length > 0 || Object.keys(pharmacologyReviews).length > 0
                     ? 'bg-amber-500/10 border-amber-500/20 text-amber-600'
-                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600',
+                    : 'bg-slate-500/10 border-slate-500/20 text-slate-600',
                 )}
-                title={coherenceWarnings.length > 0 ? 'Avertissements de sécurité détectés' : 'Validation de sécurité IAmina : OK'}
+                title="État partiel des contrôles locaux. Le moteur safety complet est traité au lot R3."
               >
-                {coherenceWarnings.length > 0 ? <AlertCircle size={12} /> : <ShieldCheck size={12} />}
+                {coherenceWarnings.length > 0 || Object.keys(pharmacologyReviews).length > 0 ? <AlertCircle size={12} /> : <ShieldCheck size={12} />}
                 <span className="text-[8px] font-black uppercase tracking-widest">
-                  {coherenceWarnings.length > 0 ? `${coherenceWarnings.length} Alertes` : 'Sécurité Validée'}
+                  {coherenceWarnings.length > 0 || Object.keys(pharmacologyReviews).length > 0
+                    ? `${coherenceWarnings.length + Object.keys(pharmacologyReviews).length} Revue(s)`
+                    : 'Contrôles locaux sans alerte'}
                 </span>
               </div>
             </div>
@@ -889,7 +957,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Mémoriser le Preset</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Intelligence Ghost Elite</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Protocole personnel</p>
                 </div>
               </div>
               <div className="space-y-6">
@@ -977,7 +1045,9 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         setGuideSearching={setGuideSearching}
         onNationalSearch={searchGuideNational}
         assessment={assessment}
-        onAddMolecule={addMolecule}
+        onAddMolecule={(molecule, dosage, posology, forme) => {
+          void addMolecule(molecule, dosage, posology, forme, 'drug_library');
+        }}
       />
     </div>
   );

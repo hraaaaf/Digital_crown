@@ -7,7 +7,6 @@ import { cn } from '../../../../utils/cn';
 import type { DrugItem } from './prescriptionTypes';
 import { getFormeIcon } from './prescriptionTypes';
 import type { ValidationError } from '../useDocumentGenerator';
-import { validatePrescriptionLine } from '../clinical_rules';
 
 export interface DrugRowProps {
   drug: DrugItem;
@@ -32,44 +31,30 @@ export interface DrugRowProps {
 }
 
 export const DrugRow: React.FC<DrugRowProps> = ({
-  drug, idx, drugsCount, assessment, validationErrors, forcedDrugs,
+  drug, idx, drugsCount, validationErrors,
   activeSearchId, suggestions, highlightedIdx, medChecks,
   onUpdateDrug, onRemoveDrug, onMove, onSearch, onKeyDown,
-  onApplySuggestion, onFormeOpen, onForceAllergy, onToggleType,
+  onApplySuggestion, onFormeOpen, onToggleType,
 }) => {
   const fieldError = validationErrors.find(e => e.field === `drug_${idx}`);
   const isRadio = drug.type === 'EXAMEN';
 
-  const history = (assessment?.patient_context?.antecedents || assessment?.antecedents || '').toUpperCase();
-  const isPenicillinAllergic =
-    history.includes('ALLERGIE') &&
-    (history.includes('PENICILLINE') || history.includes('CLAMOXYL') || history.includes('AUGMENTIN'));
-  const isAllergen = drug.name?.toUpperCase().match(/AUGMENTIN|CLAMOXYL|AMOXICILLINE|PENICILLINE/);
-  const isBlockedByAllergy = isPenicillinAllergic && isAllergen && !forcedDrugs.includes(drug.id);
-
-  const dosageCheck = !isRadio && drug.name
-    ? validatePrescriptionLine(drug.name, drug.dosage, assessment?.age, history)
-    : null;
-
+  // R1: pharmacology/allergy decisions are owned by the parent canonical
+  // pipeline. DrugRow must not infer allergies from free-text antecedents and
+  // must not expose a local "force allergy" bypass. The only local status kept
+  // here is the medication-dictionary strength check.
   const medCheck = medChecks[drug.id];
   const fmtMg = (mg: number) => (mg < 1000 ? `${mg}mg` : `${mg / 1000}g`);
   const nationalMsg =
     medCheck && medCheck.known && medCheck.exists === false && medCheck.available_mg?.length
-      ? `Dosage non répertorié au Maroc${medCheck.dci ? ` (${medCheck.dci})` : ''} — existant : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
+      ? `Dosage non répertorié dans le référentiel local${medCheck.dci ? ` (${medCheck.dci})` : ''} — présentations connues : ${medCheck.available_mg.map(fmtMg).join(', ')}.`
       : null;
 
-  const ghostMessages = [...(dosageCheck?.messages || [])];
-  if (nationalMsg) ghostMessages.push(nationalMsg);
-  const ghostDanger = dosageCheck?.level === 'danger';
+  const ghostMessages = nationalMsg ? [nationalMsg] : [];
 
-  // Le parent (PrescriptionAgenticStudio) affiche un overlay plein écran en
-  // `fixed z-40` pour fermer les suggestions au clic extérieur. Cette ligne a
-  // `position: relative` sans z-index propre, donc son dropdown à z-[100] reste
-  // scopé au stacking context local de la ligne (créé par le `transform` de
-  // framer-motion) : il perd face au z-40 de l'overlay, qui capte alors le clic
-  // à la place du bouton de suggestion (invisible car l'overlay est transparent
-  // — d'où "je clique sur une suggestion et rien ne se passe"). On élève
-  // uniquement la ligne dont le dropdown nom est ouvert au-dessus de l'overlay.
+  // Le parent affiche un overlay plein écran en `fixed z-40` pour fermer les
+  // suggestions au clic extérieur. On élève uniquement la ligne dont le
+  // dropdown nom est ouvert au-dessus de cet overlay.
   const isNameSuggestOpen =
     activeSearchId?.id === drug.id && activeSearchId?.field === 'name' && suggestions.medications.length > 0;
 
@@ -82,38 +67,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
         'bg-white/60 p-4 rounded-[1.8rem] border transition-all group relative backdrop-blur-xl',
         fieldError ? 'border-red-200 bg-red-50/10' : 'border-white/80 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20',
         isRadio && 'border-amber-100 bg-amber-50/5',
-        isBlockedByAllergy && 'border-red-500 bg-red-50 overflow-hidden',
         isNameSuggestOpen && 'z-50',
       )}
     >
-      {isBlockedByAllergy && (
-        <div className="absolute inset-0 z-50 bg-red-500/10 backdrop-blur-md flex flex-col items-center justify-center rounded-[1.8rem] border-2 border-red-500 shadow-inner">
-          <div className="bg-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-sm">
-            <AlertCircle size={32} className="text-red-500 mb-2 animate-bounce" />
-            <h4 className="text-sm font-black text-red-600 uppercase tracking-widest mb-1">Alerte Vitale : Allergie</h4>
-            <p className="text-xs font-bold text-slate-600 mb-4">
-              Le patient est allergique à la Pénicilline. L'ajout de{' '}
-              <span className="text-red-500">{drug.name}</span> est bloqué par sécurité.
-            </p>
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => onRemoveDrug(drug.id)}
-                className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-colors"
-              >
-                Retirer
-              </button>
-              <button
-                onClick={() => onForceAllergy(drug.id)}
-                className="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-colors"
-                title="Sous votre responsabilité"
-              >
-                Forcer (Débloquer)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-12 gap-3 items-center">
         {/* MOVE ACTIONS (LEFT) */}
         <div className="col-span-12 lg:col-span-1 flex flex-col items-center justify-center self-stretch border-r border-slate-100/50 pr-2">
@@ -252,16 +208,9 @@ export const DrugRow: React.FC<DrugRowProps> = ({
             )}
           </div>
 
-          {/* Ghost Brain alerts */}
+          {/* Local dictionary alerts only; pharmacology review is rendered by the parent R1 pipeline. */}
           {ghostMessages.length > 0 && (
-            <div
-              className={cn(
-                'mt-2 flex flex-col gap-1 rounded-xl px-3 py-2 border text-[10px] font-bold',
-                ghostDanger
-                  ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-amber-50 border-amber-200 text-amber-700',
-              )}
-            >
+            <div className="mt-2 flex flex-col gap-1 rounded-xl px-3 py-2 border text-[10px] font-bold bg-amber-50 border-amber-200 text-amber-700">
               {ghostMessages.map((msg, mi) => (
                 <div key={mi} className="flex items-start gap-1.5">
                   <AlertCircle size={12} className="shrink-0 mt-0.5" />
@@ -283,10 +232,6 @@ export const DrugRow: React.FC<DrugRowProps> = ({
                     key={m}
                     type="button"
                     onMouseDown={e => {
-                      // onMouseDown (pas onClick) : le mousedown précède le blur
-                      // de l'input dans l'ordre des événements navigateur.
-                      // preventDefault empêche l'input de perdre le focus et le
-                      // dropdown de se fermer avant que la sélection ne s'applique.
                       e.preventDefault();
                       onApplySuggestion(drug.id, 'name', m);
                     }}

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Plus, Search, Stethoscope, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../../../utils/cn';
-import { MOROCCAN_CLINICAL_RULES, getAgeAwareDosing, resolveRule } from '../clinical_rules';
+import { arbitrateMedication } from '../DentalPharmacologyArbiter';
+import { buildPatientPharmacologyContext } from '../PrescriptionPharmacologyPipeline';
 
 interface NationalMed {
   nom: string;
@@ -32,7 +33,21 @@ interface PrescriptionGuideModalProps {
   onAddMolecule: (name: string, dosage?: string, posologie?: string, forme?: string) => void;
 }
 
-const CATEGORIES = ['TOUS', 'Antalgiques', 'AINS', 'Antibiotiques', 'Corticoïdes', 'Antiseptiques', 'Antifongiques'];
+const GUIDE_MOLECULES = [
+  { name: 'PARACETAMOL', category: 'Antalgiques' },
+  { name: 'IBUPROFENE', category: 'AINS' },
+  { name: 'PHENOXYMETHYLPENICILLINE', category: 'Antibiotiques' },
+  { name: 'AMOXICILLINE', category: 'Antibiotiques' },
+  { name: 'METRONIDAZOLE', category: 'Antibiotiques' },
+  { name: 'CLINDAMYCINE', category: 'Antibiotiques' },
+  { name: 'CLARITHROMYCINE', category: 'Antibiotiques' },
+  { name: 'MICONAZOLE', category: 'Antifongiques' },
+  { name: 'FLUCONAZOLE', category: 'Antifongiques' },
+  { name: 'CHLORHEXIDINE', category: 'Antiseptiques' },
+  { name: 'BENZYDAMINE', category: 'Antalgiques locaux' },
+] as const;
+
+const CATEGORIES = ['TOUS', ...Array.from(new Set(GUIDE_MOLECULES.map(m => m.category)))];
 const FORMES_RAPIDES = ['Comprimés', 'Gélules', 'Sachets', 'Sirop', 'Flacon', 'Pommade', 'Spray', 'Ampoules'];
 const emptyCustom = { name: '', dosage: '', posologie: '', forme: 'Comprimés' };
 
@@ -47,26 +62,19 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
 
   useEffect(() => {
     if (!show) return;
-    const age = assessment?.patient_context?.age ?? assessment?.age;
-    const weight = assessment?.patient_context?.weight ?? assessment?.weight ?? assessment?.poids;
-    setGuideAge(typeof age === 'number' && Number.isFinite(age) && age > 0 ? age : 0);
-    setGuideWeight(typeof weight === 'number' && Number.isFinite(weight) && weight > 0 ? weight : 0);
+    const context = buildPatientPharmacologyContext(assessment);
+    setGuideAge(context.ageYears ?? 0);
+    setGuideWeight(context.weightKg ?? 0);
   }, [show, assessment, setGuideAge, setGuideWeight]);
 
-  const patientHist = (
-    assessment?.patient_context?.antecedents || assessment?.antecedents || ''
-  ).toUpperCase();
-  const isChild = guideAge > 0 && guideAge < 15;
-  const hasExplicitWeight = guideWeight > 0 && Number.isFinite(guideWeight);
-  const childContextIncomplete = isChild && !hasExplicitWeight;
+  const patientContext = useMemo(() => ({
+    ...buildPatientPharmacologyContext(assessment),
+    ageYears: guideAge > 0 ? guideAge : null,
+    weightKg: guideWeight > 0 ? guideWeight : null,
+  }), [assessment, guideAge, guideWeight]);
 
-  const getPatientCI = (contraindications: string[]) =>
-    patientHist.trim()
-      ? contraindications.filter(ci => {
-          const tokens = ci.split(/\s+/).filter(t => t.length > 3);
-          return tokens.length > 0 && tokens.every(t => patientHist.includes(t));
-        })
-      : [];
+  const isChild = guideAge > 0 && guideAge < 18;
+  const childContextIncomplete = isChild && !(guideWeight > 0 && Number.isFinite(guideWeight));
 
   const addCustom = () => {
     if (!custom.name.trim()) return;
@@ -89,7 +97,7 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
   ) => {
     const poso = editingPoso[key] ?? defaultPoso;
     onAddMolecule(name, dosage, poso, forme);
-    toast.success(`${name} ajouté.`);
+    toast.success(`${name} ajouté pour revue.`);
     onClose();
   };
 
@@ -114,7 +122,7 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-black text-slate-800">Référentiel Médicaments</h3>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Données explicites uniquement</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Arbitrage pharmacologique sourcé</p>
               </div>
               <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
                 <X size={16} />
@@ -123,42 +131,34 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                  Âge (ans)
-                  <input
-                    type="number" min={0} value={guideAge || ''}
-                    onChange={e => setGuideAge(Number(e.target.value) || 0)}
-                    className="mt-1.5 w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none"
-                  />
-                </label>
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                  Poids réel (kg)
-                  <input
-                    type="number" min={0} step="0.1" value={guideWeight || ''}
-                    onChange={e => setGuideWeight(Number(e.target.value) || 0)}
-                    className="mt-1.5 w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none"
-                  />
-                </label>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Âge dossier</p>
+                  <p className="mt-1 text-sm font-black text-slate-800">{guideAge > 0 ? `${guideAge} ans` : 'Non renseigné'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Poids réel dossier</p>
+                  <p className="mt-1 text-sm font-black text-slate-800">{guideWeight > 0 ? `${guideWeight} kg` : 'Non renseigné'}</p>
+                </div>
               </div>
 
               {childContextIncomplete && (
                 <div className="flex gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
                   <AlertCircle size={18} className="shrink-0 mt-0.5" />
-                  <p className="text-xs font-bold">Poids réel requis. Aucun calcul automatique n'est affiché tant que cette donnée manque.</p>
+                  <p className="text-xs font-bold">Poids réel absent du dossier. Toute règle pédiatrique qui en dépend reste bloquée.</p>
                 </div>
               )}
 
               <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
-                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ajout manuel</p>
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ajout manuel praticien</p>
                 <input
                   value={custom.name}
                   onChange={e => setCustom(p => ({ ...p, name: e.target.value }))}
-                  placeholder="Nom"
+                  placeholder="Nom / DCI"
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold"
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <input value={custom.dosage} onChange={e => setCustom(p => ({ ...p, dosage: e.target.value }))} placeholder="Dosage" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
-                  <input value={custom.posologie} onChange={e => setCustom(p => ({ ...p, posologie: e.target.value }))} placeholder="Posologie" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
+                  <input value={custom.dosage} onChange={e => setCustom(p => ({ ...p, dosage: e.target.value }))} placeholder="Dosage explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
+                  <input value={custom.posologie} onChange={e => setCustom(p => ({ ...p, posologie: e.target.value }))} placeholder="Posologie explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {FORMES_RAPIDES.map(f => (
@@ -168,7 +168,7 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
                   ))}
                 </div>
                 <button onClick={addCustom} disabled={!custom.name.trim()} className="w-full py-3 bg-indigo-600 disabled:opacity-40 text-white rounded-xl text-xs font-black uppercase tracking-widest">
-                  <Plus size={15} className="inline mr-2" />Ajouter
+                  <Plus size={15} className="inline mr-2" />Ajouter pour revue
                 </button>
               </div>
 
@@ -182,7 +182,7 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
                     setGuideSearching(value.trim().length >= 2);
                     onNationalSearch(value);
                   }}
-                  placeholder="Rechercher…"
+                  placeholder="Rechercher dans le référentiel médicament local…"
                   className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm"
                 />
               </div>
@@ -202,38 +202,41 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
                   guideSearching ? <p className="text-sm text-slate-400">Recherche…</p> :
                   guideNationalResults.map((med, index) => {
                     const key = `national-${index}-${med.nom}`;
-                    const dosing = childContextIncomplete ? null : getAgeAwareDosing(med.nom, guideAge, guideWeight || undefined);
-                    const defaultPoso = dosing?.posology || '';
+                    const arbitration = arbitrateMedication(med.dci || med.nom, patientContext);
+                    const defaultPoso = arbitration.status === 'applicable' ? arbitration.regimen?.posology || '' : '';
                     return (
                       <SafeRow
                         key={key}
                         name={med.nom}
-                        subtitle={med.dci}
-                        dosage={`${med.dosage}${med.unite ? ` ${med.unite}` : ''}`.trim()}
+                        subtitle={`${med.dci || 'DCI non résolue'} · référentiel local, statut AMMPS à confirmer`}
+                        dosage={arbitration.status === 'applicable' ? arbitration.regimen?.dosage || '' : ''}
                         posologie={editingPoso[key] ?? defaultPoso}
+                        status={arbitration.status}
+                        messages={arbitration.messages}
                         disabled={false}
                         onPosoChange={v => setEditingPoso(p => ({ ...p, [key]: v }))}
-                        onAdd={() => addFromList(key, med.nom, `${med.dosage}${med.unite ? ` ${med.unite}` : ''}`.trim(), defaultPoso, med.forme)}
+                        onAdd={() => addFromList(key, med.nom, med.dosage ? `${med.dosage}${med.unite ? ` ${med.unite}` : ''}`.trim() : '', defaultPoso, med.forme)}
                       />
                     );
                   })
-                ) : Object.values(MOROCCAN_CLINICAL_RULES)
+                ) : GUIDE_MOLECULES
                     .filter(rule => guideCategory === 'TOUS' || rule.category === guideCategory)
                     .map(rule => {
-                      const key = `rule-${rule.molecule}`;
-                      const dosing = childContextIncomplete ? null : getAgeAwareDosing(rule.molecule, guideAge, guideWeight || undefined);
-                      const disabled = guideAge <= 0 || childContextIncomplete || !dosing;
-                      const patientCI = getPatientCI(resolveRule(rule.molecule)?.contraindications || []);
+                      const key = `rule-${rule.name}`;
+                      const arbitration = arbitrateMedication(rule.name, patientContext);
+                      const regimen = arbitration.status === 'applicable' ? arbitration.regimen : null;
                       return (
                         <SafeRow
                           key={key}
-                          name={rule.molecule}
-                          subtitle={patientCI.length ? 'Vigilance dossier' : rule.category}
-                          dosage={dosing?.dosage || ''}
-                          posologie={editingPoso[key] ?? dosing?.posology ?? ''}
-                          disabled={disabled}
+                          name={rule.name}
+                          subtitle={rule.category}
+                          dosage={regimen?.dosage || ''}
+                          posologie={editingPoso[key] ?? regimen?.posology ?? ''}
+                          status={arbitration.status}
+                          messages={arbitration.messages}
+                          disabled={arbitration.status !== 'applicable'}
                           onPosoChange={v => setEditingPoso(p => ({ ...p, [key]: v }))}
-                          onAdd={() => addFromList(key, rule.molecule, dosing?.dosage || '', dosing?.posology || '')}
+                          onAdd={() => addFromList(key, rule.name, regimen?.dosage || '', regimen?.posology || '', regimen?.form)}
                         />
                       );
                     })}
@@ -251,10 +254,12 @@ const SafeRow: React.FC<{
   subtitle?: string;
   dosage: string;
   posologie: string;
+  status: string;
+  messages: string[];
   disabled: boolean;
   onPosoChange: (value: string) => void;
   onAdd: () => void;
-}> = ({ name, subtitle, dosage, posologie, disabled, onPosoChange, onAdd }) => (
+}> = ({ name, subtitle, dosage, posologie, status, messages, disabled, onPosoChange, onAdd }) => (
   <div className="p-4 border border-slate-100 rounded-2xl">
     <div className="flex items-center justify-between gap-3 mb-2">
       <div>
@@ -265,7 +270,12 @@ const SafeRow: React.FC<{
         <Plus size={16} />
       </button>
     </div>
-    {disabled && <p className="text-[10px] text-amber-700 font-bold mb-2">Données requises manquantes. Ajout automatique désactivé.</p>}
+    {status !== 'applicable' && (
+      <div className="flex gap-2 text-[10px] text-amber-700 font-bold mb-2">
+        <AlertCircle size={12} className="shrink-0" />
+        <span>{messages.join(' ') || 'Revue pharmacologique requise.'}</span>
+      </div>
+    )}
     {dosage && <p className="text-xs font-bold text-slate-700 mb-2">{dosage}</p>}
     <input value={posologie} onChange={e => onPosoChange(e.target.value)} placeholder="Posologie" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs" />
   </div>
