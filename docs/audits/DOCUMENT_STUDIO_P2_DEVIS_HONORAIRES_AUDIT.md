@@ -5,7 +5,7 @@
 Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS EXÉCUTÉS** : P2-A, P2-B et P2-E certifiés par CI exacte ; autres lots restent à recertifier sur leur head final.
+- **TESTS EXÉCUTÉS** : P2-A, P2-B, P2-E et P2-F certifiés par CI exacte ; P2-C/D restent à recertifier après intégration active.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
@@ -91,7 +91,7 @@ Le séquençage est une classification regex frontend. Il injecte en plus `DÉLA
 - conserver un regroupement déterministe des phases mais **ne pas injecter de durée clinique estimée** depuis ce moteur documentaire.
 
 ### Préparation technique non fusionnée
-Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`. Banc CI `31884466342` : 3/3 jobs SUCCESS.
+Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`. Banc CI `31884466342` : 3/3 jobs SUCCESS. L’intégration dans `AccountingStudioLegacy.tsx` reste requise ; le lot n’est pas fermé.
 
 ---
 
@@ -116,7 +116,7 @@ En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : 
 - exposer explicitement un prix inconnu plutôt que le traiter silencieusement comme un prix valide à 0.
 
 ### Préparation technique non fusionnée
-Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`. Banc CI `31884472613` : 3/3 jobs SUCCESS.
+Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`. Banc CI `31884472613` : 3/3 jobs SUCCESS. L’intégration dans le callback actif reste requise ; le lot n’est pas fermé.
 
 ---
 
@@ -150,15 +150,7 @@ Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
-## P2-F — Effets après archivage Honoraires / encaissement complet — ACTIVE 🟡
-
-### Faits vérifiés
-Après génération archivée réussie d’un document Honoraires, le frontend :
-- réinitialise sélection groupe + mode odontogramme ;
-- enregistre les actes comme habitudes de manière best-effort ;
-- remplace ensuite les lignes Honoraires par une ligne vide.
-
-Le footer réel ne génère pas de document financier non-preview sans archivage : `Enregistrer` appelle `archive=true`, et `Imprimer` exige une confirmation qui relance avec `archive=true`. Le soupçon d’un mismatch archive=false a donc été écarté.
+## P2-F — Allocation PAYE exacte par Acte — CLOSED ✅
 
 ### Défaut comptable confirmé statiquement ET dynamiquement
 Pour `PAYE`, l’ancien `documents/generate` :
@@ -167,22 +159,30 @@ Pour `PAYE`, l’ancien `documents/generate` :
 
 Or `/accounting/actes-billing/patient/{id}` calcule `total_paid` et `remaining_due` par acte uniquement à partir des `Payment.acte_id` correspondants.
 
-Banc CI préparatoire `31885269345` : frontend/build et garde production SUCCESS ; backend échoue exactement sur le test d’intégration P2-F après création de deux actes PAYE : `assert len(payments) == 2`, valeur réelle `1`. Le run s’arrête à `1 failed, 788 passed, 3 skipped`.
+Banc CI préparatoire `31885269345` : frontend/build et garde production SUCCESS ; backend échoue exactement après création de deux actes PAYE sur `assert len(payments) == 2`, valeur réelle `1`. Ce banc reproduit donc le défaut historique au lieu de seulement l’inférer par lecture de code.
 
-### Candidat final en cours
-PR `#36`, head `4d0268f3c910ea85acde3a951e818da9210610ab` :
+### Correctif fusionné
 - service transactionnel `persist_honoraires_lines()` ;
-- un `Payment` exact par `Acte` PAYE, lié via `acte_id` ;
-- mode de règlement normalisé par ligne, inconnu refusé ;
+- un `Payment` exact positif par `Acte` PAYE, lié via `acte_id` ;
+- mode de règlement normalisé par ligne ; valeur inconnue refusée ;
 - plan global reste `EN_ATTENTE` sans encaissement immédiat ;
 - suppression du paiement global orphelin ;
 - commit unique du lot comptable Document Studio ;
-- branche post-P2-E, ahead 6 / behind 0, diff 6 fichiers.
+- tests helper, service et intégration : 400 + 2500 MAD → 2 Acte + 2 Payments liés, total 2900 MAD.
 
-CI finale `31885911487` en cours. Aucun closeout P2-F revendiqué avant verdict exact-head complet.
+### Preuve engineering finale
+- PR `#36` — **MERGED**.
+- Head final certifié : `63c636266242b5884ec0f21d9cea28611d13c473`.
+- CI exacte : run `31886400223` — **SUCCESS**.
+- Frontend tests/build : ✅ SUCCESS.
+- Backend tests/durcissement : ✅ SUCCESS.
+- Garde production négative : ✅ SUCCESS.
+- Merge squash : `5916216ae6b3ebe6cf3609ff652ee09cc549391f`.
 
 ### Risque UX restant à certifier
 Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
+
+Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
@@ -191,7 +191,7 @@ Une archive réussie efface immédiatement le panier Honoraires actif. Ce compor
 1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
 2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — ✅ CLOSED.
 3. **P2-E — Échéances/réconciliation financière exacte** — ✅ CLOSED.
-4. **P2-F — Allocation PAYE exacte par Acte** — 🟡 ACTIVE, PR #36.
-5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
-6. **P2-D — Odontogramme/déduplication/prix groupe**.
+4. **P2-F — Allocation PAYE exacte par Acte** — ✅ CLOSED.
+5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** — intégration active restante.
+6. **P2-D — Odontogramme/déduplication/prix groupe** — intégration active restante.
 7. Recertification runtime ciblée.
