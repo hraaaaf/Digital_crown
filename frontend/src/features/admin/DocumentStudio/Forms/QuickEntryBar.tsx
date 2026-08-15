@@ -72,9 +72,9 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
   const showQuickPicks = !quickVal.trim() && (visibleRecent.length > 0 || visibleFrequent.length > 0);
 
   return (
-    <div className="relative group space-y-3">
-      <div className="relative">
-        <div className="absolute inset-y-0 left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
+    <div className="relative group space-y-3 min-w-0">
+      <div className="relative min-w-0">
+        <div className="absolute inset-y-0 left-4 sm:left-6 flex items-center text-primary/40 group-focus-within:text-primary transition-colors">
           <Zap size={18} />
         </div>
         <input
@@ -87,7 +87,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
             setQuickVal(v);
             onSearchChange(v);
           }}
-          className="w-full bg-white/70 border border-white/90 backdrop-blur-xl rounded-[2rem] pl-16 pr-32 py-5 text-base font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300 disabled:opacity-60"
+          className="w-full min-w-0 bg-white/70 border border-white/90 backdrop-blur-xl rounded-[2rem] pl-12 pr-4 sm:pl-16 sm:pr-32 py-5 text-sm sm:text-base font-bold text-slate-800 focus:bg-white focus:border-primary/30 focus:shadow-2xl focus:shadow-primary/5 transition-all outline-none placeholder:text-slate-300 disabled:opacity-60"
           placeholder="Médicament, dosage, forme, posologie…"
           onKeyDown={async e => {
             if (e.key === 'ArrowDown') {
@@ -114,7 +114,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
           onBlur={() => setTimeout(() => setQuickHighlightedIdx(-1), 200)}
         />
 
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-2">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded-lg bg-white/70">
             {submitting ? 'AJOUT…' : '↵ AJOUTER'}
           </span>
@@ -126,9 +126,9 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute left-6 right-6 top-full mt-2 bg-white border border-slate-200 rounded-3xl shadow-2xl z-[999] overflow-hidden py-3"
+              className="absolute left-2 right-2 sm:left-6 sm:right-6 top-full mt-2 bg-white border border-slate-200 rounded-3xl shadow-2xl z-[999] overflow-hidden py-3"
             >
-              <div className="px-6 py-2 border-b border-slate-50 mb-2">
+              <div className="px-4 sm:px-6 py-2 border-b border-slate-50 mb-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suggestions de médicaments</span>
               </div>
               {quickSuggestions.map((s, i) => (
@@ -143,15 +143,12 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
                     await submitDrug(parts.join(' '));
                   }}
                   className={cn(
-                    'w-full px-8 py-3 text-left text-sm font-bold transition-all flex items-center justify-between group disabled:opacity-50',
+                    'w-full px-5 sm:px-8 py-3 text-left text-sm font-bold transition-all flex items-center justify-between group disabled:opacity-50',
                     i === quickHighlightedIdx ? 'bg-primary text-white' : 'text-slate-600 hover:bg-primary/5 hover:text-primary',
                   )}
                 >
                   <span>{s}</span>
-                  <ChevronRight
-                    size={14}
-                    className={cn('transition-transform', i === quickHighlightedIdx ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100')}
-                  />
+                  <ChevronRight size={14} className={cn('transition-transform', i === quickHighlightedIdx ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100')} />
                 </button>
               ))}
             </motion.div>
@@ -162,29 +159,13 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
       {showQuickPicks && (
         <div className="flex flex-wrap items-center gap-2 px-2" aria-label="Accès rapides aux médicaments habituels">
           {visibleRecent.map(name => (
-            <button
-              key={`recent-${name}`}
-              type="button"
-              disabled={submitting}
-              onClick={() => void submitDrug(name)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50"
-              title="Médicament récent"
-            >
-              <Clock3 size={11} />
-              {name}
+            <button key={`recent-${name}`} type="button" disabled={submitting} onClick={() => void submitDrug(name)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50" title="Médicament récent">
+              <Clock3 size={11} />{name}
             </button>
           ))}
           {visibleFrequent.map(name => (
-            <button
-              key={`frequent-${name}`}
-              type="button"
-              disabled={submitting}
-              onClick={() => void submitDrug(name)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50"
-              title="Médicament fréquent"
-            >
-              <TrendingUp size={11} />
-              {name}
+            <button key={`frequent-${name}`} type="button" disabled={submitting} onClick={() => void submitDrug(name)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-50" title="Médicament fréquent">
+              <TrendingUp size={11} />{name}
             </button>
           ))}
         </div>

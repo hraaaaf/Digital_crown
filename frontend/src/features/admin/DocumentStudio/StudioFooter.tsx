@@ -25,8 +25,6 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   onGenerate,
   showPrintWarning,
   onCloseWarning,
-  hasChanges,
-  onSavePreference,
   aiReport,
   onGenerateAI,
   loadingAi,
@@ -34,73 +32,48 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   sideStudioType,
   onTogglePreview
 }) => {
-  if (activeTab === 'plan') {
-    return null;
-  }
+  if (activeTab === 'plan') return null;
 
   if (activeTab === 'ai') {
     return (
       <div className="flex justify-end p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 mt-6">
-        <button 
-          onClick={onGenerateAI}
-          disabled={loadingAi}
-          className="px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--primary)' }}
-        >
+        <button onClick={onGenerateAI} disabled={loadingAi} className="px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: 'var(--primary)' }}>
           {loadingAi ? <Loader2 className="animate-spin mr-2 inline" /> : <Eye className="mr-2 inline" />}
-          {aiReport ? "Régénérer Analyse" : "Lancer Analyse IA"}
+          {aiReport ? 'Régénérer Analyse' : 'Lancer Analyse IA'}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
-      
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
       <div className="flex items-center gap-6">
-        {/* Le bouton de sauvegarde du protocole a été déplacé dans le composant de l'ordonnance lui-même pour éviter les doublons */}
-        
         {(activeTab === 'devis' || activeTab === 'honoraires') && typeof total === 'number' && (
           <div className="flex items-center gap-4 px-6 border-r border-slate-200">
             <div className="flex flex-col items-center">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">Total Document</span>
-              <span className="text-xl font-black text-slate-900 tracking-tighter leading-tight">
-                {total.toLocaleString('fr-FR')} <span className="text-[10px] opacity-40">MAD</span>
-              </span>
+              <span className="text-xl font-black text-slate-900 tracking-tighter leading-tight">{total.toLocaleString('fr-FR')} <span className="text-[10px] opacity-40">MAD</span></span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="grid grid-cols-3 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto min-w-0">
         {onTogglePreview && (
-          <button 
-            onClick={onTogglePreview}
-            className={cn(
-              "flex items-center gap-2 px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 border",
-              sideStudioType === 'PREVIEW' 
-                ? "bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30" 
-                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-            )}
-          >
-            <Eye size={16} /> {sideStudioType === 'PREVIEW' ? "Fermer Aperçu" : "Aperçu"}
+          <button onClick={onTogglePreview} className={cn(
+            'min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-3 rounded-xl font-black uppercase text-[8px] sm:text-[10px] tracking-normal sm:tracking-widest whitespace-nowrap transition-all active:scale-95 border',
+            sideStudioType === 'PREVIEW' ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
+          )}>
+            <Eye size={14} className="shrink-0" /> <span>{sideStudioType === 'PREVIEW' ? 'Fermer' : 'Aperçu'}</span>
           </button>
         )}
-        
-        <button 
-          onClick={() => onGenerate(true, false, false, false)}
-          disabled={loading}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md"
-        >
-          <Archive size={16} /> Enregistrer
+
+        <button onClick={() => onGenerate(true, false, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md">
+          <Archive size={14} className="shrink-0" /> <span>Enregistrer</span>
         </button>
 
-        <button 
-          onClick={() => onGenerate(false, true, false, false)}
-          disabled={loading}
-          className="flex items-center gap-2 px-8 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50"
-        >
-          <Printer size={16} /> Imprimer
+        <button onClick={() => onGenerate(false, true, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-8 py-3 bg-slate-800 text-white rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50">
+          <Printer size={14} className="shrink-0" /> <span>Imprimer</span>
         </button>
       </div>
 

@@ -23,11 +23,11 @@ export type { DrugItem } from './PrescriptionAgenticStudioLegacy';
 type PrescriptionAgenticStudioProps = React.ComponentProps<typeof LegacyPrescriptionAgenticStudio>;
 
 const safetyToneClass = {
-  neutral: 'bg-slate-50 border-slate-200 text-slate-600',
-  progress: 'bg-blue-50 border-blue-200 text-blue-600',
-  success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-  warning: 'bg-amber-50 border-amber-200 text-amber-700',
-  error: 'bg-red-50 border-red-200 text-red-700',
+  neutral: 'bg-white/55 border-white/80 text-slate-600',
+  progress: 'bg-blue-50/65 border-blue-100/80 text-blue-700',
+  success: 'bg-emerald-50/65 border-emerald-100/80 text-emerald-700',
+  warning: 'bg-amber-50/65 border-amber-100/80 text-amber-700',
+  error: 'bg-red-50/65 border-red-100/80 text-red-700',
 } as const;
 
 const prescriptionMutationFingerprint = (drugs: PrescriptionAgenticStudioProps['drugs']): string => JSON.stringify(
@@ -194,87 +194,89 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
         }
       `}</style>
 
-      <div className="mx-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <div className="text-[10px] font-black uppercase tracking-widest text-slate-700">Contexte patient</div>
-          <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-            Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.
+      <section className="mx-1 overflow-hidden rounded-[2rem] border border-white/80 bg-white/55 p-3 shadow-xl shadow-slate-200/30 backdrop-blur-2xl sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-widest text-slate-700">Contexte patient</div>
+            <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+              Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/80 bg-white/70 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm backdrop-blur-xl">
+            {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
           </div>
         </div>
-        <div className="rounded-xl bg-slate-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
-          {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
-        </div>
-      </div>
 
-      <div className="mx-1 flex flex-wrap items-start gap-3">
-        <div
-          className={cn(
-            'flex min-w-0 flex-1 items-start gap-3 rounded-2xl border px-4 py-3 shadow-sm',
-            safetyToneClass[safetyView.tone],
-          )}
-          role="status"
-          aria-live="polite"
-          data-safety-status={safetyStatus}
-        >
-          {safetyStatus === 'checking' ? (
-            <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
-          ) : safetyStatus === 'verified' && safetyWarnings.length === 0 ? (
-            <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-          ) : (
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-black uppercase tracking-widest">{safetyView.label}</div>
-            <div className="mt-0.5 text-[10px] font-semibold opacity-80">
-              {safetyStatus === 'unchecked' && 'Le contrôle sécurité patient/médicaments n’a pas encore été exécuté.'}
-              {safetyStatus === 'checking' && 'Contrôle déterministe local en cours sur l’ordonnance actuelle.'}
-              {safetyStatus === 'verified' && safetyWarnings.length === 0 && 'Contrôle backend exécuté sur cette combinaison patient/médicaments : aucune alerte retournée.'}
-              {safetyStatus === 'verified' && safetyWarnings.length > 0 && 'Contrôle backend exécuté : revue praticien requise avant validation.'}
-              {safetyStatus === 'error' && 'Le contrôle backend n’a pas abouti. L’ordonnance ne doit pas être présentée comme vérifiée.'}
-            </div>
-            {safetyStatus === 'verified' && safetyWarnings.length > 0 && (
-              <ul className="mt-2 space-y-1 text-[10px] font-bold">
-                {safetyWarnings.slice(0, 4).map((warning, index) => (
-                  <li key={`${warning.type || 'warning'}-${index}`}>• {warning.message}</li>
-                ))}
-                {safetyWarnings.length > 4 && <li>• +{safetyWarnings.length - 4} autre(s) alerte(s)</li>}
-              </ul>
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div
+            className={cn(
+              'flex min-w-0 items-start gap-3 rounded-2xl border px-4 py-3 shadow-sm backdrop-blur-xl',
+              safetyToneClass[safetyView.tone],
             )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={restoreProtocols}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:text-primary"
-            title="Réafficher la zone Mes protocoles"
+            role="status"
+            aria-live="polite"
+            data-safety-status={safetyStatus}
           >
-            Mes protocoles
-          </button>
-          <button
-            type="button"
-            onClick={refreshClinicalContext}
-            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:text-primary"
-            title="Relancer le chargement du contexte patient"
-          >
-            <RefreshCcw size={14} />
-            Actualiser le contexte
-          </button>
-        </div>
-      </div>
-
-      {missingMedicationForm && (
-        <div className="mx-1 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800" role="alert">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-widest">Forme pharmaceutique non renseignée</div>
-            <div className="mt-0.5 text-[10px] font-semibold opacity-80">
-              Aucune forme ne sera déduite automatiquement. Renseignez la forme avant validation si elle est nécessaire au document.
+            {safetyStatus === 'checking' ? (
+              <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+            ) : safetyStatus === 'verified' && safetyWarnings.length === 0 ? (
+              <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+            ) : (
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest">{safetyView.label}</div>
+              <div className="mt-0.5 text-[10px] font-semibold opacity-80">
+                {safetyStatus === 'unchecked' && 'Le contrôle sécurité patient/médicaments n’a pas encore été exécuté.'}
+                {safetyStatus === 'checking' && 'Contrôle déterministe local en cours sur l’ordonnance actuelle.'}
+                {safetyStatus === 'verified' && safetyWarnings.length === 0 && 'Contrôle backend exécuté sur cette combinaison patient/médicaments : aucune alerte retournée.'}
+                {safetyStatus === 'verified' && safetyWarnings.length > 0 && 'Contrôle backend exécuté : revue praticien requise avant validation.'}
+                {safetyStatus === 'error' && 'Le contrôle backend n’a pas abouti. L’ordonnance ne doit pas être présentée comme vérifiée.'}
+              </div>
+              {safetyStatus === 'verified' && safetyWarnings.length > 0 && (
+                <ul className="mt-2 space-y-1 text-[10px] font-bold">
+                  {safetyWarnings.slice(0, 4).map((warning, index) => (
+                    <li key={`${warning.type || 'warning'}-${index}`}>• {warning.message}</li>
+                  ))}
+                  {safetyWarnings.length > 4 && <li>• +{safetyWarnings.length - 4} autre(s) alerte(s)</li>}
+                </ul>
+              )}
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-2 lg:flex lg:items-stretch">
+            <button
+              type="button"
+              onClick={restoreProtocols}
+              className="rounded-2xl border border-white/80 bg-white/70 px-3 py-3 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:bg-white hover:text-primary sm:px-4 sm:text-[10px] sm:tracking-widest"
+              title="Réafficher la zone Mes protocoles"
+            >
+              Mes protocoles
+            </button>
+            <button
+              type="button"
+              onClick={refreshClinicalContext}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-3 py-3 text-[9px] font-black uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:bg-white hover:text-primary sm:px-4 sm:text-[10px] sm:tracking-widest"
+              title="Relancer le chargement du contexte patient"
+            >
+              <RefreshCcw size={14} className="shrink-0" />
+              <span>Actualiser le contexte</span>
+            </button>
+          </div>
         </div>
-      )}
+
+        {missingMedicationForm && (
+          <div className="mt-2 flex items-start gap-3 rounded-2xl border border-amber-100/80 bg-amber-50/60 px-4 py-3 text-amber-800 shadow-sm backdrop-blur-xl" role="alert">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-widest">Forme pharmaceutique non renseignée</div>
+              <div className="mt-0.5 text-[10px] font-semibold opacity-80">
+                Aucune forme ne sera déduite automatiquement. Renseignez la forme avant validation si elle est nécessaire au document.
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       <div className="prescription-r3-legacy">
         <LegacyPrescriptionAgenticStudio key={legacyEpoch} {...props} />
