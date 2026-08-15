@@ -10,6 +10,11 @@ from backend.routers.auth import get_current_user, require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.services.prescription_service import prescription_service
 from backend.services.audit_service import audit_service
+from backend.services.certificate_suggestion_policy import (
+    appointment_status_supports_presence,
+    build_certificate_context_signal,
+    certificate_same_day_bounds,
+)
 
 prescription_router = APIRouter(tags=["Prescriptions"])
 actes_router = APIRouter(tags=["Actes Cliniques"])
@@ -457,55 +462,31 @@ async def delete_prescription_preference(act_code: str, db: Session = Depends(da
 
 @prescription_router.get("/certif-suggest/{patient_id}")
 async def suggest_certificate(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("prescriptions"))):
-    """
-    Analyse les actes récents pour suggérer un type de certificat.
-    """
+    """Retourne un signal documentaire contextuel, jamais une prescription automatique de type ou de durée."""
     assert_patient_access(patient_id, current_user, db)
-    
-    # Récupérer l'acte ou le RDV le plus récent (aujourd'hui)
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # 1. Chercher un acte réalisé aujourd'hui
+
+    today, tomorrow = certificate_same_day_bounds(datetime.now())
+
     last_act = db.query(models.Acte).filter(
         models.Acte.patient_id == patient_id,
-        models.Acte.date_debut >= today
+        models.Acte.date_debut >= today,
+        models.Acte.date_debut < tomorrow,
     ).order_by(models.Acte.date_debut.desc()).first()
-    
-    # 2. Chercher un RDV aujourd'hui
+
     last_rdv = db.query(models.Appointment).filter(
         models.Appointment.patient_id == patient_id,
-        models.Appointment.datetime_start >= today
+        models.Appointment.datetime_start >= today,
+        models.Appointment.datetime_start < tomorrow,
     ).order_by(models.Appointment.datetime_start.desc()).first()
-    
-    motif_text = (last_act.libelle if last_act else (last_rdv.motif if last_rdv else "")).lower()
-    
-    suggestion = {
-        "type": "Certificat de Présence",
-        "days": 1,
-        "confidence": "low",
-        "reason": "Pas d'acte chirurgical récent détecté."
-    }
-    
-    if any(k in motif_text for k in ["extraction", "chirurgie", "implant", "lambeau", "resection"]):
-        suggestion = {
-            "type": "Repos Post-Opératoire",
-            "days": 3,
-            "confidence": "high",
-            "reason": f"Suite à l'acte : {motif_text.title()}"
-        }
-    elif any(k in motif_text for k in ["ortho", "bagues", "appareil", "ajustement"]):
-        suggestion = {
-            "type": "Suite d'Intervention",
-            "days": 1,
-            "confidence": "medium",
-            "reason": "Suite à un réglage orthodontique."
-        }
-    elif any(k in motif_text for k in ["examen", "aptitude", "sport"]):
-        suggestion = {
-            "type": "Certificat d'aptitude",
-            "days": 1,
-            "confidence": "medium",
-            "reason": "Examen clinique réalisé."
-        }
-        
-    return suggestion
+
+    if last_act:
+        motif_text = last_act.libelle or ""
+        has_same_day_visit = True
+    elif last_rdv and appointment_status_supports_presence(last_rdv.status):
+        motif_text = last_rdv.motif or ""
+        has_same_day_visit = True
+    else:
+        motif_text = ""
+        has_same_day_visit = False
+
+    return build_certificate_context_signal(motif_text, has_same_day_visit=has_same_day_visit)
