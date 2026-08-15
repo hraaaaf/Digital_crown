@@ -58,7 +58,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **R4 — P0 Dirty-state & actions** : ✅ **engineering fermé**. Toutes mutations ordonnance dérivées du fingerprint complet, garde onglet/navigateur, reset après génération archivée, refresh contexte réellement relancé, fallback caché `forme='Sachets'` neutralisé avant transport backend et forme manquante exposée dans l’UI.
 - **R5 — P1 Fast Prescription UX** : ✅ **engineering fermé**. Saisie rapide primaire, anti-double-submit, quick-picks récents/fréquents issus des habitudes praticien, ligne progressive et typographie renforcée.
 - **R6 — P1 Protocoles + Référentiel** : ✅ **engineering fermé**. Référentiel search-first, contexte âge/poids visible, ajout manuel replié, `Mes protocoles` réversible après `Masquer`.
-- **R7 — P1 Contexte + Preview premium** : 🟡 **ACTIVE** — terminologie déterministe, contexte patient compact, preview responsive/read-only ordonnance ; sous-lots en CI.
+- **R7 — P1 Contexte + Preview premium** : ✅ **engineering fermé**. Terminologie déterministe, contexte patient compact, preview responsive, shell rigide neutralisé sur viewport étroit et preview ordonnance prouvée read-only par test backend.
 
 #### R1 — preuve engineering exécutée
 - PR `#17` — **MERGED**.
@@ -128,7 +128,20 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - Référentiel search-first + ajout manuel replié + contexte âge/poids visible ; `Mes protocoles` restaure la barre legacy après masquage par remount contrôlé.
 - **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
 
+#### R7 — preuve engineering exécutée
+- PR `#26` — **MERGED**.
+- Head final certifié : `9a39ecc4d415e59c5457a58638a48ba0c22f81fd`.
+- CI exacte du head final : run `31879649826` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge squash sur `master` : `2596da527fdd1bee5c6746f645e995f682ca3189`.
+- Le candidat final consolide les anciens sous-lots #24/#25 devenus obsolètes après R6 : contexte patient déterministe, preview responsive et preuve DB read-only ordonnance.
+- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+
 ### P2 — Devis + Honoraires
+Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`
+
 - [ ] Actes rapides / recherche catalogue
 - [ ] Odontogramme : chaque interaction dent/groupe/schéma
 - [ ] Déclenchement du tableau/panneau associé
@@ -201,8 +214,8 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 à R6 engineering fermés et fusionnés ; R7 ACTIVE ; interaction runtime et recertification clinique non exécutées.**
-- P2 : 🟡 pré-cartographie commencée ; défaut prix catalogue local confirmé, correction en préparation.
+- **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
+- **P2 : 🟡 ACTIVE** — audit partiel démarré ; P2-A prix catalogue local candidat en PR ; mismatch PARTIEL/UI-backend confirmé pour P2-B.
 - P3 : ⬜
 - P4 : ⬜
 - P5 : ⬜
@@ -212,4 +225,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`. R7 part de cette baseline fonctionnelle.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`. P2 part de cette baseline fonctionnelle.
