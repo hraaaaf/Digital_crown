@@ -53,8 +53,8 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 
 #### P1 — lots de refonte planifiés
 - **R1 — P0 Cohérence médicament / Maroc-first** : ✅ **engineering fermé**. Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
-- **R2 — P0 Persistance protocoles/habitudes** : 🟡 **ACTIVE** — corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
-- **R3 — P0 Safety orchestration** : connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
+- **R2 — P0 Persistance protocoles/habitudes** : ✅ **engineering fermé**. Source de vérité unique `DoctorPrescriptionPreference` ; save/load/delete déterministes ; code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation ; local-first conservé.
+- **R3 — P0 Safety orchestration** : 🟡 **ACTIVE** — connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
 - **R4 — P0 Dirty-state & actions** : toutes mutations ordonnance détectées, garde onglet/navigateur, refresh corrigé, défaut de forme implicite supprimé.
 - **R5 — P1 Fast Prescription UX** : saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
 - **R6 — P1 Protocoles + Référentiel** : `Mes protocoles` unifié, masquer/réafficher réversible, bibliothèque search-first, contexte âge/poids homogène.
@@ -70,6 +70,16 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - Merge squash sur `master` : `e32ab311f72980e0797b93a306c3616a4ff66042`.
 - La preuve précédente `109/109` correspondait à un head fonctionnel antérieur ; la fermeture R1 repose sur le run final exact ci-dessus et n’invente pas de compteur de tests non relu dans ses logs.
 - **Aucune certification clinique humaine n’est revendiquée.** La validation par un reviewer marocain qualifié en pharmacologie/dentisterie reste un gate clinique séparé.
+
+#### R2 — preuve engineering exécutée
+- PR `#19` — **MERGED**.
+- Head final certifié : `ba66457e5f65917f71670e151826062442525200`.
+- CI exacte du head final : run `31852827218` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge sur `master` : `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`.
+- Tests R2 ciblés couvrent save → list → delete, 404 absent, rollback et propagation des erreurs DB.
 
 ### P2 — Devis + Honoraires
 - [ ] Actes rapides / recherche catalogue
@@ -144,7 +154,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 engineering fermé et fusionné ; R2 Persistance protocoles/habitudes ACTIVE ; interaction runtime et recertification clinique non exécutées.**
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 et R2 engineering fermés et fusionnés ; R3 Safety orchestration ACTIVE ; interaction runtime et recertification clinique non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -155,4 +165,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été implémenté et fusionné sur `master` via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 part de cette baseline.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`. R3 part de cette baseline fonctionnelle.
