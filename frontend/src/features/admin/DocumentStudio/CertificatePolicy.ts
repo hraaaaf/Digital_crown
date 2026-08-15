@@ -1,15 +1,90 @@
-export function resolveCertificateReason(certifType: string, customMotif: string): string | null {
-  if (certifType !== 'Autre') return certifType.trim() || null;
-  const reason = customMotif.trim();
-  return reason || null;
+export const CERTIFICATE_TYPE_WORK_STOP = 'Arrêt de travail' as const;
+export const CERTIFICATE_TYPE_PRESENCE = 'Certificat de Présence' as const;
+export const CERTIFICATE_TYPE_FREE = 'Certificat médical' as const;
+
+export const CERTIFICATE_TYPES = [
+  CERTIFICATE_TYPE_WORK_STOP,
+  CERTIFICATE_TYPE_PRESENCE,
+  CERTIFICATE_TYPE_FREE,
+] as const;
+
+export type CertificateType = (typeof CERTIFICATE_TYPES)[number];
+
+const LEGACY_WORK_STOP_TYPES = new Set([
+  'Repos médical',
+  'Certificat de Repos',
+  'Repos Post-Opératoire',
+  "Suite d'Intervention",
+]);
+
+export interface NormalizedCertificateSelection {
+  type: CertificateType;
+  content: string;
 }
 
-export function validateCertificateReason(certifType: string, customMotif: string): string | null {
-  if (certifType === 'Autre' && !customMotif.trim()) {
-    return 'Le motif personnalisé est requis pour un certificat en modèle libre.';
+export function normalizeCertificateSelection(
+  certifType: string,
+  customContent: string,
+): NormalizedCertificateSelection {
+  const rawType = (certifType || '').trim();
+  const rawContent = customContent || '';
+
+  if (rawType === CERTIFICATE_TYPE_WORK_STOP || LEGACY_WORK_STOP_TYPES.has(rawType)) {
+    return { type: CERTIFICATE_TYPE_WORK_STOP, content: rawContent };
   }
-  if (!resolveCertificateReason(certifType, customMotif)) {
-    return 'Le motif du certificat est requis.';
+
+  if (rawType === CERTIFICATE_TYPE_PRESENCE) {
+    return { type: CERTIFICATE_TYPE_PRESENCE, content: rawContent };
+  }
+
+  if (rawType === CERTIFICATE_TYPE_FREE || rawType === 'Autre') {
+    return { type: CERTIFICATE_TYPE_FREE, content: rawContent };
+  }
+
+  if (rawType) {
+    return {
+      type: CERTIFICATE_TYPE_FREE,
+      content: rawContent.trim() ? rawContent : rawType,
+    };
+  }
+
+  return { type: CERTIFICATE_TYPE_WORK_STOP, content: rawContent };
+}
+
+export function certificateRequiresDuration(certifType: string): boolean {
+  return normalizeCertificateSelection(certifType, '').type === CERTIFICATE_TYPE_WORK_STOP;
+}
+
+export function resolveCertificateReason(certifType: string, customContent: string): string | null {
+  const normalized = normalizeCertificateSelection(certifType, customContent);
+  if (normalized.type === CERTIFICATE_TYPE_FREE && !normalized.content.trim()) return null;
+  return normalized.type;
+}
+
+export function validateCertificateReason(certifType: string, customContent: string): string | null {
+  const normalized = normalizeCertificateSelection(certifType, customContent);
+  if (normalized.type === CERTIFICATE_TYPE_FREE && !normalized.content.trim()) {
+    return 'Le contenu du certificat médical est requis.';
+  }
+  if (!resolveCertificateReason(certifType, customContent)) {
+    return 'La nature du certificat est requise.';
   }
   return null;
+}
+
+export function buildCertificatePayload(
+  certifType: string,
+  customContent: string,
+  certifDays: number,
+  startDate: string,
+) {
+  const normalized = normalizeCertificateSelection(certifType, customContent);
+  return {
+    reason: normalized.type,
+    days: certificateRequiresDuration(normalized.type) ? Number(certifDays) : 0,
+    start_date: startDate,
+    ...(normalized.type === CERTIFICATE_TYPE_FREE
+      ? { content: normalized.content.trim() }
+      : {}),
+  };
 }

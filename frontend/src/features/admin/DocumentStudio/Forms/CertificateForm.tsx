@@ -3,6 +3,13 @@ import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
 import { CheckCircle2, Clock, Edit3, AlertCircle } from 'lucide-react';
 import { api } from '../../../../services/api';
+import {
+  CERTIFICATE_TYPE_FREE,
+  CERTIFICATE_TYPE_PRESENCE,
+  CERTIFICATE_TYPE_WORK_STOP,
+  certificateRequiresDuration,
+  normalizeCertificateSelection,
+} from '../CertificatePolicy';
 
 interface CertificateFormProps {
   patientId: string;
@@ -38,13 +45,34 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     fetchSuggestion();
   }, [patientId]);
 
+  React.useEffect(() => {
+    const normalized = normalizeCertificateSelection(certifType, certifCustomMotif);
+    if (normalized.type !== certifType) setCertifType(normalized.type);
+    if (normalized.content !== certifCustomMotif) setCertifCustomMotif(normalized.content);
+  }, [certifType, certifCustomMotif, setCertifType, setCertifCustomMotif]);
+
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
   const certifTypes = [
-    { id: 'Arrêt de travail', label: 'Arrêt de travail', icon: <Clock size={14} /> },
-    { id: 'Certificat de Présence', label: 'Présence (Soin)', icon: <CheckCircle2 size={14} /> },
-    { id: 'Autre', label: 'Modèle Libre', icon: <Edit3 size={14} /> },
+    {
+      id: CERTIFICATE_TYPE_WORK_STOP,
+      label: 'Arrêt de travail',
+      icon: <Clock size={14} />,
+      description: 'Repos prescrit et daté par le praticien',
+    },
+    {
+      id: CERTIFICATE_TYPE_PRESENCE,
+      label: 'Présence (Soin)',
+      icon: <CheckCircle2 size={14} />,
+      description: 'Justifie la présence effective au cabinet',
+    },
+    {
+      id: CERTIFICATE_TYPE_FREE,
+      label: 'Certificat médical',
+      icon: <Edit3 size={14} />,
+      description: 'Document libre rédigé par le praticien',
+    },
   ];
 
   return (
@@ -53,10 +81,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
 
         <div className="relative z-10 space-y-10">
-          {/* TYPE DE CERTIFICAT */}
           <div>
             <div className="flex items-center justify-between mb-4 gap-4">
-              <label className={labelClass + " mb-0"}>Motif Clinique</label>
+              <label className={labelClass + " mb-0"}>Nature du document</label>
               {suggestion && (
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
@@ -75,6 +102,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               {certifTypes.map((type) => (
                 <div key={type.id} className="flex flex-col items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => setCertifType(type.id)}
                     className={cn(
                       "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm min-w-[180px]",
@@ -83,40 +111,43 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                         : "bg-white text-slate-500 border-slate-100 hover:border-primary/30"
                     )}
                     style={certifType === type.id ? { backgroundColor: 'var(--primary)' } : {}}
+                    aria-pressed={certifType === type.id}
                   >
                     <span className={cn(certifType === type.id ? "text-white" : "text-primary/40")}>{type.icon}</span>
                     {type.label}
                   </button>
-                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4">
-                    {type.id === 'Arrêt de travail' && "Génère un arrêt de travail / repos"}
-                    {type.id === 'Certificat de Présence' && "Génère un justificatif de présence"}
-                    {type.id === 'Autre' && "Saisie libre du motif"}
+                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4 max-w-[210px]">
+                    {type.description}
                   </span>
                 </div>
               ))}
             </div>
 
-            {certifType === 'Autre' && (
+            {certifType === CERTIFICATE_TYPE_FREE && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="Saisissez le motif personnalisé..."
+                <label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>
+                <textarea
+                  id="certificate-free-content"
+                  className={cn(inputClass, "min-h-40 resize-y leading-relaxed")}
+                  placeholder="Rédigez librement le contenu certifié par le praticien..."
                   value={certifCustomMotif}
                   onChange={(e) => setCertifCustomMotif(e.target.value)}
                   autoFocus
+                  rows={6}
                 />
+                <p className="mt-2 px-1 text-[9px] font-bold text-slate-400">
+                  Ce texte est repris tel quel dans le corps du certificat. Aucune suggestion clinique n’est injectée automatiquement.
+                </p>
               </motion.div>
             )}
           </div>
 
-          {/* DURÉE */}
-          {certifType !== 'Certificat de Présence' && (
+          {certificateRequiresDuration(certifType) && (
             <div className="pt-8 border-t border-slate-100/50">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <label className={labelClass + " mb-1"}>Durée du repos</label>
-                  <p className="text-[9px] font-bold text-slate-400 italic">Limité aux suites d'actes bucco-dentaires.</p>
+                  <label htmlFor="certificate-rest-days" className={labelClass + " mb-1"}>Durée du repos</label>
+                  <p className="text-[9px] font-bold text-slate-400 italic">À déterminer et valider par le praticien.</p>
                 </div>
                 <span className="text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
                   {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
@@ -124,6 +155,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               </div>
 
               <input
+                id="certificate-rest-days"
                 type="range"
                 min="1"
                 max="30"
@@ -132,6 +164,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 onChange={(e) => setCertifDays(parseInt(e.target.value))}
                 className="w-full h-2.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-primary"
                 style={{ accentColor: 'var(--primary)' }}
+                aria-label="Durée du repos en jours"
               />
             </div>
           )}
