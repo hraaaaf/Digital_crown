@@ -76,13 +76,16 @@ export function buildCertificatePayload(
   certifType: string,
   customContent: string,
   certifDays: number,
+  docDate: string,
   startDate: string,
 ) {
   const normalized = normalizeCertificateSelection(certifType, customContent);
+  const requiresDuration = certificateRequiresDuration(normalized.type);
   return {
     reason: normalized.type,
-    days: certificateRequiresDuration(normalized.type) ? Number(certifDays) : 0,
-    start_date: startDate,
+    days: requiresDuration ? Number(certifDays) : 0,
+    doc_date: docDate,
+    ...(requiresDuration ? { start_date: startDate || docDate } : {}),
     ...(normalized.type === CERTIFICATE_TYPE_FREE
       ? { content: normalized.content.trim() }
       : {}),

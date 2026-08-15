@@ -17,6 +17,9 @@ interface CertificateFormProps {
   setCertifType: (type: string) => void;
   certifDays: number;
   setCertifDays: (days: number) => void;
+  docDate: string;
+  certifStartDate: string;
+  setCertifStartDate: (date: string) => void;
   certifCustomMotif: string;
   setCertifCustomMotif: (v: string) => void;
 }
@@ -27,6 +30,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   setCertifType,
   certifDays,
   setCertifDays,
+  docDate,
+  certifStartDate,
+  setCertifStartDate,
   certifCustomMotif,
   setCertifCustomMotif,
 }) => {
@@ -143,29 +149,41 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
           </div>
 
           {certificateRequiresDuration(certifType) && (
-            <div className="pt-8 border-t border-slate-100/50">
-              <div className="flex justify-between items-center mb-6">
+            <div className="pt-8 border-t border-slate-100/50 space-y-6">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-end">
                 <div>
                   <label htmlFor="certificate-rest-days" className={labelClass + " mb-1"}>Durée du repos</label>
                   <p className="text-[9px] font-bold text-slate-400 italic">À déterminer et valider par le praticien.</p>
                 </div>
-                <span className="text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
+                <div>
+                  <label htmlFor="certificate-rest-start" className={labelClass + " mb-1"}>Début du repos</label>
+                  <input
+                    id="certificate-rest-start"
+                    type="date"
+                    value={certifStartDate || docDate}
+                    onChange={(e) => setCertifStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-100 bg-white/70 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/5"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <input
+                  id="certificate-rest-days"
+                  type="range"
+                  min="1"
+                  max="30"
+                  step="1"
+                  value={certifDays}
+                  onChange={(e) => setCertifDays(parseInt(e.target.value))}
+                  className="min-w-0 flex-1 h-2.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-primary"
+                  style={{ accentColor: 'var(--primary)' }}
+                  aria-label="Durée du repos en jours"
+                />
+                <span className="shrink-0 text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
                   {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
                 </span>
               </div>
-
-              <input
-                id="certificate-rest-days"
-                type="range"
-                min="1"
-                max="30"
-                step="1"
-                value={certifDays}
-                onChange={(e) => setCertifDays(parseInt(e.target.value))}
-                className="w-full h-2.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-primary"
-                style={{ accentColor: 'var(--primary)' }}
-                aria-label="Durée du repos en jours"
-              />
             </div>
           )}
         </div>

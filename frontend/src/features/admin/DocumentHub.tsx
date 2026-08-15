@@ -38,6 +38,7 @@ interface GenericClinicalData {
   medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }[];
   reason?: string;
   days?: number;
+  start_date?: string;
   title?: string;
   content?: string;
   custom_patient?: string;
@@ -93,6 +94,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
   const [certifType, setCertifType] = useState('Arrêt de travail');
   const [certifDays, setCertifDays] = useState(5);
+  const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
   const { 
     items, setItems, paymentMode, installments, setInstallments, 
@@ -187,13 +189,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [setActiveTab]);
 
   const generatorParams = useMemo(() => ({
-    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, onSuggestRadio: handleSuggestRadio,
     showLegalAnnotations, echeancierPayload,
   }), [
-    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
@@ -366,7 +368,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab('certificat');
         setCertifType(d.reason || 'Arrêt de travail');
         setCertifDays(d.days ?? 0);
+        setCertifStartDate(d.start_date || '');
         setCertifCustomMotif(d.content || '');
+        if (!d.doc_date && d.start_date) setDocDate(d.start_date);
       } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
         setLibreTitle(d.title || 'Note Médicale');
@@ -419,8 +423,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sideStudioType, drugs, items, certifType, certifDays, paymentMode, 
-    libreTitle, libreContent, docDate, activeTab, 
+    sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
+    libreTitle, libreContent, docDate, activeTab,
     generator.handleGenerate // Seule la fonction stable est nécessaire
   ]);
 
@@ -521,6 +525,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               patientId={patientId || ""}
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
+              docDate={docDate}
+              certifStartDate={certifStartDate} setCertifStartDate={setCertifStartDate}
               certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
             />
           )}
