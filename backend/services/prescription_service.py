@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -83,6 +84,46 @@ class PrescriptionService(LegacyPrescriptionService):
         except Exception:
             db.rollback()
             raise
+
+    def get_personalized_suggestions(self, db: Session, doctor_id: int, query: str = "") -> Dict[str, List[str]]:
+        """Keep query search behavior and expose doctor-scoped quick picks when q is empty."""
+        normalized_query = (query or "").strip()
+        if normalized_query:
+            return super().get_personalized_suggestions(db, doctor_id, normalized_query)
+
+        recent_rows = (
+            db.query(
+                models.DoctorMedicationHabit.medication_name,
+                func.max(models.DoctorMedicationHabit.last_used).label("last_used"),
+            )
+            .filter(models.DoctorMedicationHabit.doctor_id == doctor_id)
+            .group_by(models.DoctorMedicationHabit.medication_name)
+            .order_by(desc("last_used"), models.DoctorMedicationHabit.medication_name.asc())
+            .limit(5)
+            .all()
+        )
+        frequent_rows = (
+            db.query(
+                models.DoctorMedicationHabit.medication_name,
+                func.sum(models.DoctorMedicationHabit.usage_count).label("total"),
+            )
+            .filter(models.DoctorMedicationHabit.doctor_id == doctor_id)
+            .group_by(models.DoctorMedicationHabit.medication_name)
+            .order_by(desc("total"), models.DoctorMedicationHabit.medication_name.asc())
+            .limit(5)
+            .all()
+        )
+
+        recent = [row[0] for row in recent_rows]
+        frequent = [row[0] for row in frequent_rows]
+        merged = list(dict.fromkeys([*recent, *frequent]))[:8]
+        return {
+            "medications": merged,
+            "dosages": [],
+            "posologies": [],
+            "recent_medications": recent,
+            "frequent_medications": frequent,
+        }
 
     def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
         """Return doctor-scoped persisted presets in a stable order."""
