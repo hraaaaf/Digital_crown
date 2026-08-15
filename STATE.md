@@ -300,6 +300,28 @@ Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 - Interaction runtime et recertification UX/clinique restent des gates séparés et ne sont pas revendiqués.
 
 ### P2 Devis + Honoraires — ACTIVE 🟡
-- Audit canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
-- P2-A : perte du `base_price` catalogue local confirmée ; candidat PR `#27` en cours de recertification sur la baseline post-P1.
-- P2-B : mismatch `PARTIEL` confirmé. Le flux correct est `/accounting/payments` avec montant encaissé explicite ; aucune valeur partielle ne doit être inférée.
+- Audit canonique : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
+
+#### P2-A — Prix catalogue local conservé — CLOSED ✅
+- PR `#27` — MERGED.
+- Head certifié : `7289d0bf64c8139838470923622f8c0b588206e1`.
+- CI : run `31882328096` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
+- Le wrapper répare uniquement les suggestions locales dont le prix catalogue existe ; aucun prix absent n’est inventé.
+
+#### P2-B — PARTIEL fail-closed cohérent UI/backend — ACTIVE 🟡
+- `DocumentRequest` n’expose aucun montant encaissé explicite et refuse PARTIEL.
+- `/accounting/payments` est le flux réel d’encaissement avec montant explicite.
+- `/documents/generate` ne retourne pas les IDs des Acte créés ; aucune allocation partielle multi-actes ne doit être inventée depuis le modal Document Studio.
+- Préparation : contrat PaymentCreate durci, alias de méthodes connus normalisés, selector PARTIEL désactivé + tests. PR draft `#28` utilisée comme banc de CI avant reconstruction post-P2-A.
+
+#### Préparation lots suivants
+- P2-C : quick actions tactiles + phases déterministes sans durée clinique estimée préparées.
+- P2-D : handler legacy de déduplication odontogramme confirmé orphelin ; policy `dent::traitement` préparée.
+- P2-E : absence de réconciliation somme échéances / total facturé confirmée ; policy exacte au centime préparée.
+- P2-F : reste à approfondir après intégration P2-B/C/D/E.
+
+Aucune certification financière production ni interaction UX runtime n’est revendiquée pour P2 à ce stade.
