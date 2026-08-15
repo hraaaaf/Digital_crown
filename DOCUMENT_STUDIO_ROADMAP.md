@@ -56,9 +56,9 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **R2 — P0 Persistance protocoles/habitudes** : ✅ **engineering fermé**. Source de vérité unique `DoctorPrescriptionPreference` ; save/load/delete déterministes ; code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation ; local-first conservé.
 - **R3 — P0 Safety orchestration** : ✅ **engineering fermé**. Le Studio exécute le moteur safety backend, expose un état explicite `unchecked/checking/verified/error`, invalide la vérification sur changement patient/médicaments et n’affiche plus de validation verte avant succès du backend.
 - **R4 — P0 Dirty-state & actions** : ✅ **engineering fermé**. Toutes mutations ordonnance dérivées du fingerprint complet, garde onglet/navigateur, reset après génération archivée, refresh contexte réellement relancé, fallback caché `forme='Sachets'` neutralisé avant transport backend et forme manquante exposée dans l’UI.
-- **R5 — P1 Fast Prescription UX** : 🟡 **ACTIVE** — saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
-- **R6 — P1 Protocoles + Référentiel** : `Mes protocoles` unifié, masquer/réafficher réversible, bibliothèque search-first, contexte âge/poids homogène.
-- **R7 — P1 Contexte + Preview premium** : terminologie déterministe, contexte patient compact, split-view responsive, preview read-only ordonnance certifiée.
+- **R5 — P1 Fast Prescription UX** : ✅ **engineering fermé**. Saisie rapide primaire, anti-double-submit, quick-picks récents/fréquents issus des habitudes praticien, ligne progressive et typographie renforcée.
+- **R6 — P1 Protocoles + Référentiel** : ✅ **engineering fermé**. Référentiel search-first, contexte âge/poids visible, ajout manuel replié, `Mes protocoles` réversible après `Masquer`.
+- **R7 — P1 Contexte + Preview premium** : 🟡 **ACTIVE** — terminologie déterministe, contexte patient compact, preview responsive/read-only ordonnance ; sous-lots en CI.
 
 #### R1 — preuve engineering exécutée
 - PR `#17` — **MERGED**.
@@ -102,6 +102,30 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - Job **Garde production (négatif)** : ✅ SUCCESS.
 - Merge sur `master` : `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`.
 - Dirty-state ordonnance dérivé d’un fingerprint complet ; protections tab + `beforeunload` ; actualisation contexte explicite ; transport conserve la forme visible au praticien sans inférence `Sachets` cachée.
+- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+
+#### R5 — preuve engineering exécutée
+- PR `#22` — **MERGED**.
+- Head final certifié : `6de453962668e66be9e26978ec07fc9082afacb7`.
+- CI exacte du head final : run `31878337816` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge sur `master` : `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`.
+- Quick-picks praticien réutilisent `DoctorMedicationHabit.last_used/usage_count` ; aucun second silo de préférences n’a été créé.
+- Aucun favori étoilé explicite n’a été inventé : l’UX expose les récents/fréquents réellement disponibles.
+- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+
+#### R6 — preuve engineering exécutée
+- PR `#23` — **MERGED**.
+- Head final certifié : `10751078601c3aa5be728bc263e25a58e856c676`.
+- CI exacte du head final : run `31879112143` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge squash sur `master` : `6f2b8a22f9cdca25cafe228f266ed46deee8281b`.
+- Le premier run R6 a échoué uniquement sur une assertion de compteur de rendu trop stricte dans le test wrapper ; le test a été corrigé pour mesurer l’augmentation après remount, puis le head final ci-dessus a passé la CI complète.
+- Référentiel search-first + ajout manuel replié + contexte âge/poids visible ; `Mes protocoles` restaure la barre legacy après masquage par remount contrôlé.
 - **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
 
 ### P2 — Devis + Honoraires
@@ -177,8 +201,8 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 à R4 engineering fermés et fusionnés ; R5 Fast Prescription UX ACTIVE ; interaction runtime et recertification clinique non exécutées.**
-- P2 : ⬜
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 à R6 engineering fermés et fusionnés ; R7 ACTIVE ; interaction runtime et recertification clinique non exécutées.**
+- P2 : 🟡 pré-cartographie commencée ; défaut prix catalogue local confirmé, correction en préparation.
 - P3 : ⬜
 - P4 : ⬜
 - P5 : ⬜
@@ -188,4 +212,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`. R5 part de cette baseline fonctionnelle.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`. R7 part de cette baseline fonctionnelle.
