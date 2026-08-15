@@ -395,5 +395,5 @@ Les sections plus haut décrivent la baseline auditée au moment de l'audit. Ell
 ### Gates toujours ouverts
 - **INTERACTION AUTHENTIFIÉE APPLICATION LOCALE : non certifiée.** Le harness rend les vrais composants mais n'est pas une session cabinet authentifiée.
 - **CERTIFICATION CLINIQUE/PHARMACOLOGIQUE : non certifiée.** Revue qualifiée distincte requise.
-- CI push exacte du merge `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8` : run `31898590067` — à vérifier avant closeout documentaire final.
+- CI push exacte du merge `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8` : run `31898590067` — **SUCCESS**.
 
