@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
 
 interface StudioTabsProps {
   activeTab: import('../DocumentHub').HubDocumentType;
@@ -9,53 +10,65 @@ interface StudioTabsProps {
 }
 
 export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 'data-tour': dataTour }) => {
+  const requestTabChange = (tab: import('../DocumentHub').HubDocumentType) => {
+    if (tab === activeTab) return;
+    if (activeTab === 'ordonnance' && isPrescriptionDirty()) {
+      const confirmed = window.confirm(
+        'Des modifications non enregistrées sont présentes dans l’ordonnance. Quitter cet onglet et les abandonner ?',
+      );
+      if (!confirmed) return;
+      setPrescriptionDirty(false);
+    }
+    onTabChange(tab);
+  };
+
   return (
     <div data-tour={dataTour} className="flex justify-center bg-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto shrink-0 relative z-50">
       <TabButton 
         active={activeTab === 'ordonnance'} 
-        onClick={() => onTabChange('ordonnance')} 
+        onClick={() => requestTabChange('ordonnance')} 
         icon={<Pill size={16} />} 
         label="Ordonnance" 
         tourId="tab-ordonnance"
       />
       <TabButton 
         active={activeTab === 'certificat'} 
-        onClick={() => onTabChange('certificat')} 
+        onClick={() => requestTabChange('certificat')} 
         icon={<FileBadge size={16} />} 
         label="Certificat" 
         tourId="tab-certificat"
       />
       <TabButton 
         active={activeTab === 'devis'} 
-        onClick={() => onTabChange('devis')} 
+        onClick={() => requestTabChange('devis')} 
         icon={<Calculator size={16} />} 
         label="Devis" 
         tourId="tab-devis"
       />
       <TabButton 
         active={activeTab === 'honoraires'} 
-        onClick={() => onTabChange('honoraires')} 
+        onClick={() => requestTabChange('honoraires')} 
         icon={<Receipt size={16} />} 
         label="Note Honoraires" 
         tourId="tab-honoraires"
       />
       <TabButton 
         active={activeTab === 'echeancier'} 
-        onClick={() => onTabChange('echeancier')} 
+        onClick={() => requestTabChange('echeancier')} 
         icon={<Calculator size={16} />} 
         label="Suivi Paiement" 
         tourId="tab-suivi"
       />
       <TabButton 
         active={activeTab === 'libre'} 
-        onClick={() => onTabChange('libre')} 
+        onClick={() => requestTabChange('libre')} 
         icon={<Type size={16} />} 
         label="Document Libre" 
         tourId="tab-libre"
       />
       <TabButton 
         active={activeTab === 'plan'} 
-        onClick={() => onTabChange('plan')} 
+        onClick={() => requestTabChange('plan')} 
         icon={<Brain size={16} />} 
         label="Compagnon Diagnostique" 
         tourId="tab-strategie"
