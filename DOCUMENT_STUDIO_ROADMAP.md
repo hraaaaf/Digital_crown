@@ -150,8 +150,8 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 - [ ] Tarification et habitudes tarifaires
 - [ ] Bundles / propositions complémentaires
 - [ ] Organisation par phases
-- [ ] Totaux et cohérence
-- [x] Honoraires : contrat PARTIEL/modes de règlement — **P2-B fermé ; allocation PAYE reste P2-F**
+- [x] Totaux et cohérence — **P2-E réconciliation Honoraires globale fermée ; flux direct échéancier reste P4**
+- [x] Honoraires : contrat PARTIEL/modes de règlement — **P2-B fermé ; allocation PAYE active en P2-F**
 - [ ] États vides, erreurs, sauvegarde, preview, impression
 - [ ] Verdict UX
 
@@ -174,10 +174,18 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
   - Garde production négative : ✅ SUCCESS.
   - Merge squash : `6543c3dad146bdbe055117fe0302b3fbe9cbda07`.
   - Premier head `1005f228…` : backend rouge uniquement à cause d’un `ValueError` Pydantic non sérialisable par le handler JSON ; corrigé avec `PydanticCustomError` sur le head final.
-- **P2-E — Totaux/payload/échéances** : 🟡 **ACTIVE**. Réconciliation exacte au centime préparée ; PR draft `#30` 3/3 verte mais à reconstruire sur baseline post-P2-B avant merge.
-- **P2-F — Allocation PAYE exacte par Acte** : défaut de paiement global non rattaché confirmé ; helper/test préparés sur PR draft `#31`, intégration route à faire après P2-E.
-- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : préparation isolée en PR draft `#32`.
-- **P2-D — Odontogramme/déduplication/prix groupe** : défaut handler de déduplication orphelin confirmé ; policy préparée en PR draft `#33`.
+- **P2-E — Totaux/payload/échéances** : ✅ **engineering fermé**.
+  - PR `#34` — MERGED.
+  - Head final certifié : `97c3f43019b5eee781da220ef27ef14053593311`.
+  - CI exacte : run `31885119569` — SUCCESS.
+  - Frontend tests/build : ✅ SUCCESS.
+  - Backend tests/durcissement : ✅ SUCCESS.
+  - Garde production négative : ✅ SUCCESS.
+  - Merge squash : `cb265a8070307d3e3be2e76b239af7762254dddd`.
+  - Honoraires global : échéances strictement positives et somme exacte au centime avant persistance.
+- **P2-F — Allocation PAYE exacte par Acte** : 🟡 **ACTIVE**, PR `#36`, head `4d0268f3c910ea85acde3a951e818da9210610ab`. Le banc préparatoire `31885269345` a reproduit dynamiquement le défaut : 2 Acte PAYE mais 1 seul Payment global. Le candidat final crée un paiement exact lié par `acte_id` pour chaque Acte PAYE. CI finale `31885911487` en cours.
+- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : préparation isolée en PR draft `#32`, banc CI `31884466342` 3/3 SUCCESS.
+- **P2-D — Odontogramme/déduplication/prix groupe** : défaut handler de déduplication orphelin confirmé ; policy préparée en PR draft `#33`, banc CI `31884472613` 3/3 SUCCESS.
 
 ### P3 — Certificat + Document Libre
 - [ ] Types de certificats et transitions
@@ -189,7 +197,7 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 - [ ] États vides / erreurs / protection saisie
 - [ ] Verdict UX
 
-Pré-audit statique isolé sur `work-20260815-p3-static-audit` : auto-application lexicale d’un certificat/durée, fallback `Autre → Repos Post-Opératoire`, et robustesse markup Document Libre identifiés. **Non fusionné, non certifié.**
+Pré-audit statique isolé sur `work-20260815-p3-static-audit` : auto-application lexicale d’un certificat/durée, fallback `Autre → Repos Post-Opératoire`, et robustesse markup Document Libre identifiés. Correctif ciblé de l’auto-application préparé sur `work-20260815-p3a-certificate-no-autoapply`, non fusionné. **Non certifié.**
 
 ### P4 — Suivi Paiement / Échéancier
 - [ ] Chargement plan existant
@@ -216,7 +224,7 @@ Pré-audit statique isolé sur `work-20260815-p4-static-audit` : arrondis non r�
 - [ ] Fonctionnalités orphelines / callbacks non utilisés
 - [ ] Verdict UX et positionnement dans le produit
 
-Pré-audit statique isolé sur `work-20260815-p5-static-audit`. Un **P0 clinique** supplémentaire a été découvert dans `DiagnosticEngine` : substitutions thérapeutiques automatiques dérivées de texte d’allergie. Test de frontière préparé sur `work-20260815-p5p0-no-auto-substitution`; correctif applicatif non encore fusionné. **Aucune validation clinique revendiquée.**
+Pré-audit statique isolé sur `work-20260815-p5-static-audit`. Un **P0 clinique** supplémentaire a été découvert dans `DiagnosticEngine` : substitutions thérapeutiques automatiques dérivées de texte d’allergie. Wrapper de sécurité + tests préparés sur PR draft `#35`; `HouseWizard` n’est pas encore branché dessus, donc le défaut applicatif reste actif. **Aucune validation clinique revendiquée.**
 
 ### P6 — Audit transversal premium
 - [ ] Navigation globale et ordre des onglets
@@ -247,14 +255,14 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 
 ## État courant
 - **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
-- **P2 : 🟡 ACTIVE** — P2-A/B fermés et fusionnés ; P2-E ACTIVE ; P2-F/C/D préparés sans intégration ; audit runtime non exécuté.
-- **P3 : 🟡 pré-audit statique isolé, non fusionné.**
+- **P2 : 🟡 ACTIVE** — P2-A/B/E fermés et fusionnés ; P2-F ACTIVE ; P2-C/D préparés sans intégration ; audit runtime non exécuté.
+- **P3 : 🟡 pré-audit statique isolé + correctif certificat préparé, non fusionné.**
 - **P4 : 🟡 pré-audit statique isolé, non fusionné.**
-- **P5 : 🔴 pré-audit statique isolé avec P0 clinique découvert ; correctif non fusionné.**
+- **P5 : 🔴 pré-audit statique isolé avec P0 clinique découvert ; wrapper correctif en draft, intégration HouseWizard restante.**
 - **P6 : 🟡 pré-audit statique isolé, non fusionné.**
 - P7 : ⬜
 
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`. P2-E repart de cette baseline fonctionnelle.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`. P2-F repart de cette baseline fonctionnelle.
