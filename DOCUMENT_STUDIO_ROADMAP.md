@@ -142,7 +142,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 ### P2 — Devis + Honoraires
 Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`
 
-- [ ] Actes rapides / recherche catalogue
+- [x] Actes rapides / recherche catalogue — **P2-A prix catalogue local fermé ; tactile/terminologie restent P2-C**
 - [ ] Odontogramme : chaque interaction dent/groupe/schéma
 - [ ] Déclenchement du tableau/panneau associé
 - [ ] Position, contenu, sélection et validation de ce tableau
@@ -154,6 +154,22 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 - [ ] Honoraires : encaissement et modes de règlement
 - [ ] États vides, erreurs, sauvegarde, preview, impression
 - [ ] Verdict UX
+
+#### P2 — lots de refonte
+- **P2-A — Prix catalogue local conservé** : ✅ **engineering fermé**.
+  - PR `#27` — MERGED.
+  - Head final certifié : `7289d0bf64c8139838470923622f8c0b588206e1`.
+  - CI exacte : run `31882328096` — SUCCESS.
+  - Frontend tests/build : ✅ SUCCESS.
+  - Backend tests/durcissement : ✅ SUCCESS.
+  - Garde production négative : ✅ SUCCESS.
+  - Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
+  - Aucun prix n’est inventé : seul un `base_price` local déjà présent dans le catalogue peut remplacer le zéro legacy.
+- **P2-B — PARTIEL fail-closed cohérent UI/backend** : 🟡 **ACTIVE**.
+- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : préparation isolée en cours.
+- **P2-D — Odontogramme/déduplication/prix groupe** : défaut handler de déduplication orphelin confirmé ; policy préparée.
+- **P2-E — Totaux/payload/échéances** : absence de réconciliation échéances/total confirmée ; policy au centime préparée.
+- **P2-F — Honoraires/encaissement complet + effets post-archive** : à poursuivre.
 
 ### P3 — Certificat + Document Libre
 - [ ] Types de certificats et transitions
@@ -215,7 +231,7 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 
 ## État courant
 - **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
-- **P2 : 🟡 ACTIVE** — audit partiel démarré ; P2-A prix catalogue local candidat en PR ; mismatch PARTIEL/UI-backend confirmé pour P2-B.
+- **P2 : 🟡 ACTIVE** — P2-A fermé et fusionné ; P2-B ACTIVE ; P2-C/D/E préparés sans intégration ; audit runtime non exécuté.
 - P3 : ⬜
 - P4 : ⬜
 - P5 : ⬜
@@ -225,4 +241,4 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`. P2 part de cette baseline fonctionnelle.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`. P2-B part de cette baseline fonctionnelle.
