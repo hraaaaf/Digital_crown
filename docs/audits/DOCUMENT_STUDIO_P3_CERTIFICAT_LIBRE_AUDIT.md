@@ -39,7 +39,25 @@ Une heuristique documentaire fixe peut donc modifier silencieusement un certific
 
 ---
 
-## P3-B — Document Libre : balises utilisateur interprétées par ReportLab
+## P3-B — Certificat « Autre » : fallback médical silencieux
+
+### Fait vérifié
+Dans `useDocumentGenerator.buildPayload()`, lorsque `certifType === 'Autre'`, le motif envoyé est :
+`certifCustomMotif || 'Repos Post-Opératoire'`.
+
+La validation certificat contrôle la durée mais ne bloque pas un motif libre vide.
+
+### Risque
+Le praticien peut sélectionner un certificat libre, laisser le motif vide, puis générer un document dont le motif devient silencieusement `Repos Post-Opératoire`.
+
+### Décision P3 recommandée
+- `Autre` exige un motif explicite non vide ;
+- aucun motif médical de remplacement ne doit être synthétisé ;
+- validation frontend + contrat backend cohérents.
+
+---
+
+## P3-C — Document Libre : balises utilisateur interprétées par ReportLab
 
 ### Frontend vérifié
 La toolbar insère directement dans la textarea des balises :
@@ -48,6 +66,9 @@ La toolbar insère directement dans la textarea des balises :
 - `<u>...</u>` ;
 - `<font size="16">...</font>` ;
 - tableaux Markdown simplifiés.
+
+### Validation frontend vérifiée
+`useDocumentGenerator.validatePayload()` vérifie uniquement que `libreTitle` et `libreContent` ne sont pas vides. Aucun contrôle de structure/whitelist des balises n’est effectué à cette frontière.
 
 ### Backend vérifié
 `LibreGenerator` :
@@ -67,9 +88,8 @@ Aucune exécution de code n’est démontrée. Le risque vérifié est **documen
 
 ---
 
-## P3-C — Points restant à cartographier
+## P3-D — Points restant à cartographier
 
-- validation exacte `title/content` dans `useDocumentGenerator` ;
 - comportement preview/save/print pour certificat et libre ;
 - dirty-state et protection navigation ;
 - format A4/A5 et compression single-page ;
