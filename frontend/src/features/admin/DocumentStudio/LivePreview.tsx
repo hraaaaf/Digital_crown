@@ -138,12 +138,25 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   }
 
   return createPortal(
-    <div
-      className="fixed inset-x-3 bottom-3 top-3 z-[20000] flex flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_32px_64px_rgba(0,0,0,0.2)] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500 sm:inset-y-4 sm:left-auto sm:right-4 sm:w-[min(600px,calc(100vw-2rem))] sm:rounded-[3rem]"
-      style={{ pointerEvents: 'auto' }}
-    >
-      {containerContent}
-    </div>,
+    <>
+      <style>{`
+        body:has(.document-studio-live-preview) .fixed.right-2.top-2.bottom-2.w-\\[550px\\].z-\\[11000\\] {
+          pointer-events: none;
+        }
+        @media (max-width: 1023px) {
+          body:has(.document-studio-live-preview) div:has(> [data-tour="document-hub-content"]) {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+          }
+        }
+      `}</style>
+      <div
+        className="document-studio-live-preview fixed inset-x-3 bottom-3 top-3 z-[20000] flex flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_32px_64px_rgba(0,0,0,0.2)] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500 sm:inset-y-4 sm:left-auto sm:right-4 sm:w-[min(600px,calc(100vw-2rem))] sm:rounded-[3rem]"
+        style={{ pointerEvents: 'auto' }}
+      >
+        {containerContent}
+      </div>
+    </>,
     document.body,
   );
 };
