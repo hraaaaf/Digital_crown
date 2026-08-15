@@ -52,8 +52,8 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **P1-L9 — Synthèse UX premium & plan d’implémentation** : ✅ consolidé. Score statique global P1 **7.4/10**.
 
 #### P1 — lots de refonte planifiés
-- **R1 — P0 Cohérence médicament / Maroc-first** : 🟡 **implémentation branchée sur tous les chemins principaux; frontend 109/109 + build ✅ sur le head `5024baf`; backend full suite encore en cours au dernier contrôle.** Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
-- **R2 — P0 Persistance protocoles/habitudes** : corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
+- **R1 — P0 Cohérence médicament / Maroc-first** : ✅ **engineering fermé**. Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
+- **R2 — P0 Persistance protocoles/habitudes** : 🟡 **ACTIVE** — corriger suppression mauvaise table, propagation des erreurs DB, save/load/delete déterministe, local-first.
 - **R3 — P0 Safety orchestration** : connecter le moteur safety backend au Studio ou supprimer toute affirmation de validation non exécutée ; état de contrôle explicite.
 - **R4 — P0 Dirty-state & actions** : toutes mutations ordonnance détectées, garde onglet/navigateur, refresh corrigé, défaut de forme implicite supprimé.
 - **R5 — P1 Fast Prescription UX** : saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
@@ -61,13 +61,14 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **R7 — P1 Contexte + Preview premium** : terminologie déterministe, contexte patient compact, split-view responsive, preview read-only ordonnance certifiée.
 
 #### R1 — preuve engineering exécutée
-- CI PR #17 / run `31851832646`.
-- Job **Frontend (tests & build)** : ✅.
-- Vitest : **15 fichiers / 109 tests passés**.
-- Tests R1 exécutés dans cette suite : `normalizeMedicationForPatient` 14/14, `DentalPharmacologySupplement` 10/10, `PrescriptionPharmacologyPipeline` 5/5, `MoroccoPharmacologyPolicy` 4/4, `DrugRow` 6/6, `clinical_rules.missing-data` 4/4.
-- Build Vite production : ✅.
-- Garde production négative : ✅.
-- **Backend Tests & durcissement : en cours au dernier contrôle; R1 non fermé tant que ce gate n’est pas rendu.**
+- PR `#17` — **MERGED**.
+- Head final certifié : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
+- CI exacte du head final : run `31852032393` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge squash sur `master` : `e32ab311f72980e0797b93a306c3616a4ff66042`.
+- La preuve précédente `109/109` correspondait à un head fonctionnel antérieur ; la fermeture R1 repose sur le run final exact ci-dessus et n’invente pas de compteur de tests non relu dans ses logs.
 - **Aucune certification clinique humaine n’est revendiquée.** La validation par un reviewer marocain qualifié en pharmacologie/dentisterie reste un gate clinique séparé.
 
 ### P2 — Devis + Honoraires
@@ -143,7 +144,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 Maroc-first engineering quasi fermé, frontend/build/gardes verts, backend full suite en cours au dernier contrôle ; interaction runtime et recertification clinique non exécutées.**
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 engineering fermé et fusionné ; R2 Persistance protocoles/habitudes ACTIVE ; interaction runtime et recertification clinique non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -154,4 +155,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. Les commits ultérieurs de cette séquence modifient uniquement la documentation d’audit/roadmap jusqu’au démarrage de R1.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été implémenté et fusionné sur `master` via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 part de cette baseline.
