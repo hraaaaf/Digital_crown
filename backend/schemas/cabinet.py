@@ -155,7 +155,7 @@ class CabinetConfigCreate(CabinetConfigBase):
 
 
 class CabinetConfigUpdate(CabinetConfigBase):
-    pass
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class CabinetConfigOut(CabinetConfigBase):
