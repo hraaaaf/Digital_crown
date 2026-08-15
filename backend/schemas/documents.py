@@ -28,6 +28,7 @@ class OrdonnanceData(BaseModel):
 class CertificatData(BaseModel):
     reason: Optional[str] = "Arrêt de travail"
     days: Optional[int] = 1
+    doc_date: Optional[datetime.date] = None
     start_date: Optional[datetime.date] = None
     content: Optional[str] = None
     is_work_stop: bool = False

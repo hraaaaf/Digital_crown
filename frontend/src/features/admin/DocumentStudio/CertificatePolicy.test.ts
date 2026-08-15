@@ -19,12 +19,31 @@ describe('CertificatePolicy P3 — types et contenu libre', () => {
       '  Contrôle post-opératoire sans complication.  ',
       5,
       '2026-08-15',
+      '2026-08-17',
     );
     expect(payload).toEqual({
       reason: 'Certificat médical',
       days: 0,
-      start_date: '2026-08-15',
+      doc_date: '2026-08-15',
       content: 'Contrôle post-opératoire sans complication.',
+    });
+  });
+
+  it('sépare la date d’émission du début du repos pour un arrêt de travail', () => {
+    expect(buildCertificatePayload('Arrêt de travail', '', 3, '2026-08-15', '2026-08-17')).toEqual({
+      reason: 'Arrêt de travail',
+      days: 3,
+      doc_date: '2026-08-15',
+      start_date: '2026-08-17',
+    });
+  });
+
+  it('fait suivre le début du repos sur la date d’émission tant qu’aucune date distincte n’est choisie', () => {
+    expect(buildCertificatePayload('Arrêt de travail', '', 2, '2026-08-15', '')).toEqual({
+      reason: 'Arrêt de travail',
+      days: 2,
+      doc_date: '2026-08-15',
+      start_date: '2026-08-15',
     });
   });
 
