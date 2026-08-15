@@ -312,16 +312,43 @@ Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 - Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
 - Le wrapper répare uniquement les suggestions locales dont le prix catalogue existe ; aucun prix absent n’est inventé.
 
-#### P2-B — PARTIEL fail-closed cohérent UI/backend — ACTIVE 🟡
-- `DocumentRequest` n’expose aucun montant encaissé explicite et refuse PARTIEL.
-- `/accounting/payments` est le flux réel d’encaissement avec montant explicite.
-- `/documents/generate` ne retourne pas les IDs des Acte créés ; aucune allocation partielle multi-actes ne doit être inventée depuis le modal Document Studio.
-- Préparation : contrat PaymentCreate durci, alias de méthodes connus normalisés, selector PARTIEL désactivé + tests. PR draft `#28` utilisée comme banc de CI avant reconstruction post-P2-A.
+#### P2-B — PARTIEL fail-closed cohérent UI/backend — CLOSED ✅
+- PR `#29` — MERGED.
+- Head certifié : `d60a99c290e0e27c84d73fb95d947fa111461f7a`.
+- CI finale : run `31884437013` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge squash : `6543c3dad146bdbe055117fe0302b3fbe9cbda07`.
+- Premier head `1005f2281868f435b8fb2f56066bc920b3151df5` : frontend/build + garde production verts, backend rouge uniquement parce qu’un `ValueError` Pydantic restait non sérialisable dans le contexte du handler JSON ; corrigé avec `PydanticCustomError`.
+- `PARTIEL` ne peut plus devenir l’état du document dans ce flux ; aucun montant partiel n’est inféré.
+- `PaymentCreate.amount` est strictement positif et les méthodes connues sont normalisées explicitement.
 
-#### Préparation lots suivants
-- P2-C : quick actions tactiles + phases déterministes sans durée clinique estimée préparées.
-- P2-D : handler legacy de déduplication odontogramme confirmé orphelin ; policy `dent::traitement` préparée.
-- P2-E : absence de réconciliation somme échéances / total facturé confirmée ; policy exacte au centime préparée.
-- P2-F : reste à approfondir après intégration P2-B/C/D/E.
+#### P2-E — Échéances/réconciliation financière exacte — ACTIVE 🟡
+- Défaut confirmé : Honoraires global peut créer un plan dont la somme des échéances diffère du total facturé.
+- Préparation P2-E : réconciliation exacte au centime frontend/backend + tests ; PR draft `#30` 3/3 verte sur ancienne baseline.
+- #30 ne doit pas être mergée : reconstruction obligatoire sur baseline post-P2-B.
 
-Aucune certification financière production ni interaction UX runtime n’est revendiquée pour P2 à ce stade.
+#### P2-F — Allocation PAYE exacte par Acte — PREPARED
+- Défaut confirmé : Honoraires PAYE crée des Acte marqués PAYE mais un Payment global sans `acte_id`, ce qui peut diverger de la vue `actes-billing`.
+- Helper/test d’allocation exacte préparés sur PR draft `#31`; intégration route à faire après P2-E.
+
+#### Préparation UX suivante
+- P2-C : quick actions tactiles + phases déterministes sans durée clinique estimée, PR draft `#32`.
+- P2-D : handler legacy de déduplication odontogramme confirmé orphelin ; policy `dent::traitement`, PR draft `#33`.
+
+#### Pré-audits isolés pendant les CI
+- P3 : `work-20260815-p3-static-audit` — non fusionné.
+- P4 : `work-20260815-p4-static-audit` — non fusionné.
+- P5 : `work-20260815-p5-static-audit` — non fusionné.
+- P6 : `work-20260815-p6-static-audit` — non fusionné.
+
+#### P5-P0 clinique découvert — NON CORRIGÉ 🔴
+- `HouseWizard` est atteignable via `Mode Expert`.
+- `DiagnosticEngine` produit diagnostic/protocole/plan de traitement et substitue actuellement automatiquement des classes thérapeutiques à partir d’une détection textuelle d’allergie.
+- Exemple source vérifié : pénicilline → remplacement `AMOXICILLINE` par `CLINDAMYCINE/MACROLIDE`; AINS → remplacement par `CORTICOSTÉROÏDES`.
+- `Appliquer` transforme le résultat en insight `DETERMINISTIC` et positionne le score d’intelligence à 100 ; il ne persiste pas directement le treatment plan dans la DB au point inspecté.
+- Branche de sécurité `work-20260815-p5p0-no-auto-substitution` : test de frontière ajouté, correctif applicatif non encore fusionné.
+- Priorité : aucune substitution thérapeutique automatique ; exposer une alerte à validation praticien.
+
+Aucune certification financière production, UX runtime ou clinique/scientifique humaine n’est revendiquée pour les lots actifs/pré-audits.
