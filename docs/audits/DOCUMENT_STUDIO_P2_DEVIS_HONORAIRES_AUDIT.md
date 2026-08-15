@@ -5,7 +5,7 @@
 Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS EXÉCUTÉS** : P2-A certifié par CI exacte ; autres lots préparatoires non fusionnés restent à recertifier sur leur head final.
+- **TESTS EXÉCUTÉS** : P2-A et P2-B certifiés par CI exacte ; autres lots préparatoires non fusionnés restent à recertifier sur leur head final.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
@@ -31,22 +31,40 @@ Le legacy est conservé derrière `AccountingStudio.tsx`, devenu un petit wrappe
 
 ---
 
-## P2-B — Statut PARTIEL exposé mais contrat backend fail-closed
+## P2-B — PARTIEL fail-closed cohérent UI/backend — CLOSED ✅
 
 ### Faits vérifiés
-La modale d’encaissement expose `EN_ATTENTE`, `PARTIEL`, `PAYE`.
-
-`useDocumentGenerator.buildPayload()` transmet `payment_status` au niveau racine vers `/documents/generate`.
-
-`DocumentRequest` n’a volontairement **aucun champ montant encaissé explicite** et refuse `payment_status=PARTIEL`. Le flux dédié `/accounting/payments` exige un montant réel et accepte un `acte_id`/`installment_id` optionnel.
+La modale d’encaissement exposait `EN_ATTENTE`, `PARTIEL`, `PAYE` tandis que `DocumentRequest` n’a volontairement **aucun champ montant encaissé explicite** et refuse `payment_status=PARTIEL`.
 
 `/documents/generate` crée les lignes `Acte` Honoraires mais ne retourne pas leurs IDs. Un paiement partiel générique ne peut donc pas être réparti proprement entre plusieurs actes depuis ce modal sans règle d’allocation supplémentaire.
 
-### Décision
-**P0 cohérence financière.** Dans Document Studio, `PARTIEL` doit rester désactivé tant que l’allocation explicite n’existe pas. Le paiement partiel réel reste le flux `/accounting/payments` avec montant explicite. Aucune fraction ni allocation ne doit être inventée.
+Le flux dédié `/accounting/payments` exige un montant réel et accepte un `acte_id`/`installment_id` optionnel.
 
-### Candidat final en cours
-PR `#29` : le store refuse `PARTIEL` avant génération et affiche une raison explicite ; `PaymentCreate` exige un montant positif et normalise uniquement les méthodes connues. CI exacte en cours, aucun closeout revendiqué avant verdict complet.
+### Correctif fusionné
+- le store comptable refuse `PARTIEL` avant qu’il puisse devenir l’état du document ;
+- l’UI expose une raison explicite au lieu de laisser le backend découvrir le mismatch ;
+- les statuts inconnus restent fail-closed ;
+- `PaymentCreate.amount` doit être strictement positif ;
+- les méthodes de règlement sont validées ;
+- les alias UI connus sont normalisés explicitement (`TPE → CARTE`, `Espèces → ESPECES`, etc.) ;
+- une méthode inconnue ne retombe plus silencieusement sur espèces.
+
+### Historique CI
+Premier head `1005f2281868f435b8fb2f56066bc920b3151df5` : frontend/build et garde production verts, backend en échec. La règle métier n’était pas en cause : le validator levait un `ValueError` brut, conservé dans le contexte Pydantic puis non sérialisable par le handler JSON global.
+
+Correctif : `PydanticCustomError` pour l’erreur de méthode de paiement, sans modifier le handler global.
+
+### Preuve engineering finale
+- PR `#29` — **MERGED**.
+- Head final certifié : `d60a99c290e0e27c84d73fb95d947fa111461f7a`.
+- CI exacte : run `31884437013` — **SUCCESS**.
+- Frontend tests/build : ✅ SUCCESS.
+- Backend tests/durcissement : ✅ SUCCESS.
+- Garde production négative : ✅ SUCCESS.
+- Merge squash : `6543c3dad146bdbe055117fe0302b3fbe9cbda07`.
+- PR préparatoire `#28` fermée sans merge, remplacée par #29.
+
+Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
@@ -73,7 +91,7 @@ Le séquençage est une classification regex frontend. Il injecte en plus `DÉLA
 - conserver un regroupement déterministe des phases mais **ne pas injecter de durée clinique estimée** depuis ce moteur documentaire.
 
 ### Préparation technique non fusionnée
-Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée.
+Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`.
 
 ---
 
@@ -89,7 +107,7 @@ Le `TreatmentSelector` ajoute directement les traitements sélectionnés au pani
 
 Le composant contient bien `handleTeethFromOdontogram()` avec une stratégie `_odontogramKey = dent::traitement`, mais ce callback est **défini sans aucun appel dans le composant**. La logique de déduplication associée est donc orpheline dans le flux inspecté.
 
-En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : un acte peut être ajouté à 0 MAD lorsque le moteur n’a aucun historique/prix suggéré.
+En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : un acte peut donc être ajouté à 0 MAD lorsque le moteur n’a aucun historique/prix suggéré.
 
 ### Décision
 - rétablir une source de vérité unique pour les sélections odontogramme ;
@@ -98,11 +116,11 @@ En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : 
 - exposer explicitement un prix inconnu plutôt que le traiter silencieusement comme un prix valide à 0.
 
 ### Préparation technique non fusionnée
-Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée.
+Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`.
 
 ---
 
-## P2-E — Total, payload, échéances et réconciliation
+## P2-E — Total, payload, échéances et réconciliation — ACTIVE 🟡
 
 ### Faits vérifiés
 Le total affiché est la somme directe des `item.price` numériques :
@@ -120,11 +138,11 @@ Dans le backend Honoraires global, `InstallmentPlan.total_amount` prend le total
 - chaque échéance doit être strictement positive ;
 - une somme supérieure ou inférieure au total doit être bloquante, pas silencieuse.
 
-### Préparation technique non fusionnée
+### Préparation technique à reconstruire sur baseline post-P2-B
 - policy frontend de réconciliation au centime + tests ;
 - utilitaire backend `Decimal` + tests ;
-- validation `DocumentRequest` préparée pour Honoraires global uniquement ;
-- PR draft `#30` utilisée uniquement comme banc de CI avant reconstruction post-P2-B.
+- validation `DocumentRequest` pour Honoraires global uniquement ;
+- PR draft `#30` a servi de banc de CI et a passé les trois jobs, mais **ne doit pas être mergée** car sa baseline précède P2-B.
 
 Le flux direct `/accounting/plans` est un contrat partagé avec P4 Échéancier ; son durcissement est suivi séparément afin de ne pas étendre silencieusement P2-E.
 
@@ -153,7 +171,7 @@ Conséquence structurelle possible : un `Acte` est marqué `PAYE` alors que cett
 Pour un document totalement réglé, créer une allocation exacte par ligne : un paiement positif par `Acte` créé, rattaché via `acte_id`, avec le montant exact de la ligne. La somme des allocations doit égaler le total facturé au centime. Ne pas conserver en parallèle un paiement global orphelin qui doublerait le total encaissé.
 
 ### Préparation technique non fusionnée
-Service pur `payment_allocation.py` + tests préparés : allocation exacte par ligne positive, précision centime, rejet des montants invalides/négatifs. L’intégration DB reste à faire après les lots financiers P2-B/P2-E.
+Service pur `payment_allocation.py` + tests préparés sur PR draft `#31`. L’intégration DB reste à faire après P2-E.
 
 ### Risque UX restant à certifier
 Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
@@ -163,8 +181,8 @@ Une archive réussie efface immédiatement le panier Honoraires actif. Ce compor
 ## Ordre de correction P2
 
 1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
-2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — 🟡 ACTIVE.
-3. **P2-E — Échéances/réconciliation financière exacte** — priorité intégrité après P2-B.
+2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — ✅ CLOSED.
+3. **P2-E — Échéances/réconciliation financière exacte** — 🟡 ACTIVE.
 4. **P2-F — Allocation PAYE exacte par Acte** — priorité intégrité après P2-E.
 5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
 6. **P2-D — Odontogramme/déduplication/prix groupe**.
