@@ -32,3 +32,20 @@ def test_certificate_generator_appends_signature_space_after_body():
     assert len(elements) == 2
     assert isinstance(elements[0], Spacer)
     assert isinstance(elements[1], CertificateSignatureSpace)
+
+
+def test_signature_caption_identifies_actual_practitioner_without_changing_body_text():
+    space = CertificateSignatureSpace(
+        font_name='Helvetica',
+        text_color=colors.black,
+        signer_name='Dentiste Test',
+    )
+
+    caption = space._signature_caption()
+    assert caption == f'Dr Dentiste Test — {SIGNATURE_LABEL}'
+    assert 'manuscrite' in caption.casefold()
+
+
+def test_signature_caption_remains_backward_compatible_without_signer_name():
+    space = CertificateSignatureSpace(font_name='Helvetica', text_color=colors.black)
+    assert space._signature_caption() == SIGNATURE_LABEL
