@@ -24,8 +24,7 @@ def test_free_certificate_reason_is_explicit_not_fuzzy():
 
 
 def test_free_certificate_content_is_preserved_but_reportlab_markup_is_escaped():
-    rendered = _format_free_certificate_content('Ligne 1
-<diagnostic> & contrôle')
+    rendered = _format_free_certificate_content('Ligne 1\n<diagnostic> & contrôle')
     assert rendered == 'Ligne 1<br/>&lt;diagnostic&gt; &amp; contrôle'
 
 
