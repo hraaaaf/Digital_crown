@@ -18,11 +18,12 @@ router = APIRouter(tags=["Patients"])
 
 # --- HELPERS ---
 
-def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: datetime, exclude_id: int = None) -> models.Patient:
+def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: datetime, employer_id: int, exclude_id: int = None) -> models.Patient:
     query = db.query(models.Patient).filter(
         func.lower(models.Patient.nom) == nom.lower().strip(),
         func.lower(models.Patient.prenom) == prenom.lower().strip(),
         models.Patient.date_naissance == date_naissance,
+        models.Patient.employer_id == employer_id,
         models.Patient.deleted_at.is_(None),
     )
     if exclude_id:
@@ -81,7 +82,7 @@ class DuplicateCheckRequest(BaseModel):
 
 @router.post("/check-duplicate")
 def check_duplicate_api(payload: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, payload.exclude_id)
+    existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, current_user.get_employer_id(), payload.exclude_id)
     return {
         "has_duplicate": bool(existing),
         "existing_patient": {
@@ -129,7 +130,7 @@ from backend.services.audit_service import audit_service
     summary="Créer un patient",
     description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
 def create_patient(patient: schemas.PatientCreate, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance)
+    existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance, current_user.get_employer_id())
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
     
@@ -659,7 +660,7 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
     if (new_nom != db_patient.nom or 
         new_prenom != db_patient.prenom or 
         new_date != db_patient.date_naissance):
-        existing = check_duplicate_patient(db, new_nom, new_prenom, new_date, exclude_id=patient_id)
+        existing = check_duplicate_patient(db, new_nom, new_prenom, new_date, current_user.get_employer_id(), exclude_id=patient_id)
         if existing:
             raise HTTPException(status_code=409, detail="Un autre patient avec le même nom et date de naissance existe déjà")
 
@@ -927,7 +928,7 @@ async def import_patients_csv(
         nom = nom_raw.upper()
         prenom = prenom_raw.capitalize()
 
-        if check_duplicate_patient(db, nom, prenom, dob):
+        if check_duplicate_patient(db, nom, prenom, dob, employer_id):
             skipped_duplicates += 1
             continue
 
