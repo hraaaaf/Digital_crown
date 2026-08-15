@@ -77,3 +77,24 @@ def test_valid_explicit_payment_persists_exact_amount_and_method(client, db, aut
     assert payment.amount == 375.5
     method_value = payment.payment_method.value if hasattr(payment.payment_method, "value") else payment.payment_method
     assert method_value == "CHEQUE"
+
+
+def test_known_ui_payment_method_alias_is_normalized(client, db, auth_headers, dentiste):
+    patient = _make_patient(db, dentiste)
+
+    response = client.post(
+        "/api/accounting/payments",
+        json={
+            "patient_id": patient.id,
+            "amount": 420,
+            "payment_method": "TPE",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["payment_method"] == "CARTE"
+
+    payment = db.query(models.Payment).filter(models.Payment.patient_id == patient.id).one()
+    method_value = payment.payment_method.value if hasattr(payment.payment_method, "value") else payment.payment_method
+    assert method_value == "CARTE"
