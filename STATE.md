@@ -219,3 +219,30 @@ Quarantainer/supprimer les anciens moteurs non utilisés.
 ### LOT P1-2 — MOBILE CREDENTIAL LIFETIME + REVOCATION — ACTIVE
 
 Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, dépendance d'auth mobile et consommation du claim token ; appliquer le durcissement minimal sûr avec tests ciblés, certifier puis continuer automatiquement vers P1-3.
+
+---
+
+## Document Studio — closeout R1 / activation R2 — 2026-08-15
+
+### R1 — P0 Cohérence médicament / Maroc-first — ENGINEERING CLOSED ✅
+
+- PR `#17` — MERGED.
+- Head final exact : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
+- CI finale exacte : run `31852032393` — **SUCCESS**.
+- Frontend tests/build : **SUCCESS**.
+- Backend tests/durcissement : **SUCCESS**.
+- Garde production négative : **SUCCESS**.
+- Merge squash : `e32ab311f72980e0797b93a306c3616a4ff66042`.
+- Roadmap canonique closeout : commit `81e5befd8c09879ff8380aea2dfc1268fb5ca15f`.
+- Aucun statut de certification clinique humaine n’est revendiqué ; revue marocaine qualifiée reste un gate clinique séparé.
+
+### R2 — P0 Persistance protocoles/habitudes — ACTIVE 🟡
+
+Défauts vérifiés sur `master` avant correctif :
+- suppression vise `DoctorActHabit` alors que save/load utilisent `DoctorPrescriptionPreference` ;
+- suppression retourne toujours succès, même si aucune préférence n’existe ;
+- `learn_habit` rollback/log l’erreur DB mais la masque au caller ;
+- save ne normalise pas encore le code acte de façon centralisée ;
+- tests existants couvrent les endpoints habits génériques mais pas le cycle déterministe save → list → delete ni le 404 absent.
+
+Prochaine action exacte : branche R2 propre depuis le `master` post-closeout → correctif minimal backend + tests de persistance/isolement/propagation → wiring frontend ciblé si nécessaire → CI exacte → closeout R2 → R3.
