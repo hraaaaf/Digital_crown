@@ -68,6 +68,19 @@ class CertificateSignatureSpace(Flowable):
         canvas.restoreState()
 
 
+class _CertificateConfigView:
+    """Vue lecture seule d'une config cabinet avec quelques overrides de rendu."""
+
+    def __init__(self, base, **overrides):
+        self._base = base
+        self._overrides = overrides
+
+    def __getattr__(self, name):
+        if name in self._overrides:
+            return self._overrides[name]
+        return getattr(self._base, name)
+
+
 def _append_handwritten_signature_space(elements, font_name: str, text_color) -> None:
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(CertificateSignatureSpace(font_name=font_name, text_color=text_color))
@@ -138,6 +151,20 @@ def _certificate_config_owner_id(user, fallback_user_id: int) -> int:
     return getattr(user, 'employer_id', None) or getattr(user, 'id', fallback_user_id)
 
 
+def _certificate_render_config(config):
+    """N'imprime jamais un QR VALIDATION tant qu'aucun contrat de vérification réel n'existe.
+
+    Les autres QR configurés par le cabinet (contact, site, localisation...) restent inchangés.
+    """
+    if not config:
+        return config
+    qr_enabled = bool(getattr(config, 'qr_code_enabled', False))
+    qr_type = str(getattr(config, 'qr_code_type', '') or '').strip().upper()
+    if qr_enabled and qr_type == 'VALIDATION':
+        return _CertificateConfigView(config, qr_code_enabled=False)
+    return config
+
+
 class CertificatGenerator:
     def __init__(self, output_dir="static/documents"):
         self.output_dir = output_dir
@@ -162,8 +189,9 @@ class CertificatGenerator:
         return os.path.join(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
-        """Rendu Elite avec signature et QR Code alignés."""
-        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
+        """Rendu Elite avec signature et QR sûrs."""
+        render_config = _certificate_render_config(config)
+        self.base_template.draw_static_elements(canvas, doc, config=render_config, draw_legal_ids=False, user=user)
 
     def _create_header(self, patient, data, p_color, config=None):
         doc_date, _ = _resolve_certificate_dates(data)
@@ -343,8 +371,6 @@ class CertificatGenerator:
                 rightMargin=m_right, leftMargin=m_left,
                 topMargin=m_top, bottomMargin=m_bottom,
             )
-            doc.qr_type = 'VALIDATION'
-            doc.doc_id = getattr(data, 'id', 'CERT-TEMP')
             doc.cloture_text = None
             page_counter = PageCounter()
             doc.build(scaled_elements, onFirstPage=draw_method, onLaterPages=draw_method,
