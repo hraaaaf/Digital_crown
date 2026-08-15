@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, Plus, Search, Stethoscope, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, Plus, Search, Stethoscope, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../../../utils/cn';
 import { arbitrateMedication } from '../DentalPharmacologyArbiter';
@@ -59,6 +59,7 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
 }) => {
   const [custom, setCustom] = useState(emptyCustom);
   const [editingPoso, setEditingPoso] = useState<Record<string, string>>({});
+  const [showManual, setShowManual] = useState(false);
 
   useEffect(() => {
     if (!show) return;
@@ -122,9 +123,9 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-black text-slate-800">Référentiel Médicaments</h3>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Arbitrage pharmacologique sourcé</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Recherche locale + arbitrage pharmacologique</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+              <button type="button" onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500" aria-label="Fermer le référentiel">
                 <X size={16} />
               </button>
             </div>
@@ -148,58 +149,39 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
                 </div>
               )}
 
-              <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
-                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Ajout manuel praticien</p>
-                <input
-                  value={custom.name}
-                  onChange={e => setCustom(p => ({ ...p, name: e.target.value }))}
-                  placeholder="Nom / DCI"
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input value={custom.dosage} onChange={e => setCustom(p => ({ ...p, dosage: e.target.value }))} placeholder="Dosage explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
-                  <input value={custom.posologie} onChange={e => setCustom(p => ({ ...p, posologie: e.target.value }))} placeholder="Posologie explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    autoFocus
+                    value={guideSearch}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setGuideSearch(value);
+                      setGuideSearching(value.trim().length >= 2);
+                      onNationalSearch(value);
+                    }}
+                    placeholder="Rechercher un nom commercial ou une DCI…"
+                    className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-base font-bold outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50"
+                    aria-label="Rechercher un médicament"
+                  />
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {FORMES_RAPIDES.map(f => (
-                    <button key={f} onClick={() => setCustom(p => ({ ...p, forme: f }))} className={cn('px-3 py-1 rounded-lg text-[10px] font-black border', custom.forme === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500')}>
-                      {f}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={addCustom} disabled={!custom.name.trim()} className="w-full py-3 bg-indigo-600 disabled:opacity-40 text-white rounded-xl text-xs font-black uppercase tracking-widest">
-                  <Plus size={15} className="inline mr-2" />Ajouter pour revue
-                </button>
+
+                {!guideSearch.trim() && (
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map(cat => (
+                      <button key={cat} type="button" onClick={() => setGuideCategory(cat)} className={cn('px-3 py-1.5 rounded-full text-[10px] font-black', guideCategory === cat ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500')}>
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="relative">
-                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={guideSearch}
-                  onChange={e => {
-                    const value = e.target.value;
-                    setGuideSearch(value);
-                    setGuideSearching(value.trim().length >= 2);
-                    onNationalSearch(value);
-                  }}
-                  placeholder="Rechercher dans le référentiel médicament local…"
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm"
-                />
-              </div>
-
-              {!guideSearch.trim() && (
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(cat => (
-                    <button key={cat} onClick={() => setGuideCategory(cat)} className={cn('px-3 py-1.5 rounded-full text-[10px] font-black', guideCategory === cat ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500')}>
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-2">
+              <div className="space-y-2" aria-live="polite">
                 {guideSearch.trim().length >= 2 ? (
                   guideSearching ? <p className="text-sm text-slate-400">Recherche…</p> :
+                  guideNationalResults.length === 0 ? <p className="text-sm font-semibold text-slate-400">Aucun résultat local.</p> :
                   guideNationalResults.map((med, index) => {
                     const key = `national-${index}-${med.nom}`;
                     const arbitration = arbitrateMedication(med.dci || med.nom, patientContext);
@@ -241,6 +223,43 @@ export const PrescriptionGuideModal: React.FC<PrescriptionGuideModalProps> = ({
                       );
                     })}
               </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowManual(v => !v)}
+                  className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50"
+                  aria-expanded={showManual}
+                >
+                  Ajout manuel praticien
+                  <ChevronDown size={15} className={cn('transition-transform', showManual && 'rotate-180')} />
+                </button>
+
+                {showManual && (
+                  <div className="mt-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                    <input
+                      value={custom.name}
+                      onChange={e => setCustom(p => ({ ...p, name: e.target.value }))}
+                      placeholder="Nom / DCI"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={custom.dosage} onChange={e => setCustom(p => ({ ...p, dosage: e.target.value }))} placeholder="Dosage explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
+                      <input value={custom.posologie} onChange={e => setCustom(p => ({ ...p, posologie: e.target.value }))} placeholder="Posologie explicite" className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FORMES_RAPIDES.map(f => (
+                        <button key={f} type="button" onClick={() => setCustom(p => ({ ...p, forme: f }))} className={cn('px-3 py-1 rounded-lg text-[10px] font-black border', custom.forme === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500')}>
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={addCustom} disabled={!custom.name.trim()} className="w-full py-3 bg-indigo-600 disabled:opacity-40 text-white rounded-xl text-xs font-black uppercase tracking-widest">
+                      <Plus size={15} className="inline mr-2" />Ajouter pour revue
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
@@ -266,7 +285,7 @@ const SafeRow: React.FC<{
         <h4 className="font-black text-slate-800 text-sm">{name}</h4>
         {subtitle && <p className="text-[10px] text-slate-400 font-bold">{subtitle}</p>}
       </div>
-      <button disabled={disabled} onClick={onAdd} className="w-9 h-9 rounded-xl bg-indigo-600 disabled:bg-slate-200 text-white flex items-center justify-center">
+      <button type="button" disabled={disabled} onClick={onAdd} className="w-9 h-9 rounded-xl bg-indigo-600 disabled:bg-slate-200 text-white flex items-center justify-center" aria-label={`Ajouter ${name}`}>
         <Plus size={16} />
       </button>
     </div>
