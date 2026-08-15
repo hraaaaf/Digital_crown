@@ -43,7 +43,7 @@ Baseline `master` auditée : `a7fc4417e39120ff844c119fd2f4cfe42239bb8b`.
 | #58 | QR validation fail-closed | #57 | `407c0d8a1814246fe7b8aa4df99648d399dcb34f` | open / mergeable | non certifiée |
 | #59 | identité réelle dans zone de signature | #58 | `cee04dbf08c792795fe10046b4ea763b781384ac` | open / mergeable | non certifiée |
 | #60 | état neuf sans choix clinique + preview/UX | #53 | `f800925a2b0e72af6816feda1277459a0dca7804` | open / mergeable | CI exact-head à recertifier |
-| #63 | impression sûre Certificat uniquement | #60 | `84ad80b14c82a4eb7b297b16526afe55f82af161` | open | run 31908774717 lancé, résultat non utilisé tant qu'il est en cours |
+| #63 | impression sûre Certificat uniquement | #60 | `84ad80b14c82a4eb7b297b16526afe55f82af161` | open / mergeable | run 31908774717 : 3 jobs failure avant toute étape, Billing & plans |
 | #61 | routage PDF, noms de fichiers, texte libre long | #59 | `f59fb121904b9bf61f67ee3e8d73fdbecf46a2f2` | open / mergeable | run 31908239478 bloqué avant steps |
 
 ## Audit pratique
@@ -182,7 +182,7 @@ Couverture préparée notamment pour :
 
 ## Blocages réels avant certification finale
 
-1. **CI GitHub Actions** : blocage compte `Billing & plans` observé sur les heads précédents ; les jobs concernés échouent avant toute étape. Aucun échec de test applicatif ne peut être déduit de ces runs.
+1. **CI GitHub Actions** : blocage compte `Billing & plans` ; les runs observés, y compris #63 run `31908774717`, échouent avant toute étape (`steps=[]`, `runner_id=0`). Aucun échec de test applicatif ne peut être déduit de ces runs.
 2. **Merges** : les PR sont encore ouvertes et certaines sont empilées ; elles doivent être fusionnées dans l'ordre de dépendance puis recertifiées sur la baseline finale.
 3. **Régression finale** : backend + frontend + PDF après convergence des piles.
 4. **Runtime/visuel** : génération réelle des trois parcours et inspection du PDF final requises après convergence.
