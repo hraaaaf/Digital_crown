@@ -82,11 +82,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           <div className="flex flex-col items-center text-center max-w-sm bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
             <AlertTriangle className="text-amber-500 mb-4" size={48} />
             <h4 className="text-lg font-black text-slate-800 mb-2">Attention : Impression Directe</h4>
-            <p className="text-sm text-slate-500 font-medium mb-6">
-              {activeTab === 'certificat'
-                ? 'Le PDF sera archivé lors de la génération, puis l’impression sera lancée. Le certificat imprimé doit être signé manuscritement par le praticien.'
-                : 'Le document sera archivé lors de la génération, puis l’impression sera lancée.'}
-            </p>
+            <p className="text-sm text-slate-500 font-medium mb-6">Assurez-vous que votre imprimante est prête. Le document sera archivé automatiquement après l'impression.</p>
             <div className="flex gap-4">
               <button onClick={onCloseWarning} className="px-6 py-2 text-slate-400 font-bold hover:text-slate-600 transition-colors">Annuler</button>
               <button onClick={() => onGenerate(true, true, false, true)} className="px-8 py-2 bg-primary text-white rounded-xl font-black" style={{ backgroundColor: 'var(--primary)' }}>Confirmer</button>
