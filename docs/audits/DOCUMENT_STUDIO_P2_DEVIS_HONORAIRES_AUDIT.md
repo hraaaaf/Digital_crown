@@ -45,11 +45,8 @@ La modale d’encaissement expose `EN_ATTENTE`, `PARTIEL`, `PAYE`.
 ### Décision
 **P0 cohérence financière.** Dans Document Studio, `PARTIEL` doit rester désactivé tant que l’allocation explicite n’existe pas. Le paiement partiel réel reste le flux `/accounting/payments` avec montant explicite. Aucune fraction ni allocation ne doit être inventée.
 
-### Préparation technique non fusionnée
-- policy frontend fail-closed + sélecteur accessible préparés ;
-- contrat `PaymentCreate` préparé avec montant strictement positif et méthodes connues normalisées ;
-- tests API et frontend préparés sur PR draft `#28` ;
-- intégration dans `AccountingStudioLegacy` à faire après baseline P2-A.
+### Candidat final en cours
+PR `#29` : le store refuse `PARTIEL` avant génération et affiche une raison explicite ; `PaymentCreate` exige un montant positif et normalise uniquement les méthodes connues. CI exacte en cours, aucun closeout revendiqué avant verdict complet.
 
 ---
 
@@ -119,24 +116,46 @@ Dans le backend Honoraires global, `InstallmentPlan.total_amount` prend le total
 
 ### Décision
 - conserver le calcul total simple ;
-- ajouter une réconciliation exacte au centime avant toute persistance d’un plan ;
+- ajouter une réconciliation exacte au centime avant toute persistance d’un plan Honoraires ;
 - chaque échéance doit être strictement positive ;
 - une somme supérieure ou inférieure au total doit être bloquante, pas silencieuse.
 
 ### Préparation technique non fusionnée
-Policy de réconciliation au centime + tests préparés sur branche dédiée.
+- policy frontend de réconciliation au centime + tests ;
+- utilitaire backend `Decimal` + tests ;
+- validation `DocumentRequest` préparée pour Honoraires global uniquement ;
+- PR draft `#30` utilisée uniquement comme banc de CI avant reconstruction post-P2-B.
+
+Le flux direct `/accounting/plans` est un contrat partagé avec P4 Échéancier ; son durcissement est suivi séparément afin de ne pas étendre silencieusement P2-E.
 
 ---
 
 ## P2-F — Effets après archivage Honoraires / encaissement complet
 
-### Fait vérifié
+### Faits vérifiés
 Après génération archivée réussie d’un document Honoraires, le frontend :
 - réinitialise sélection groupe + mode odontogramme ;
 - enregistre les actes comme habitudes de manière best-effort ;
 - remplace ensuite les lignes Honoraires par une ligne vide.
 
-### Risque UX à certifier
+Le footer réel ne génère pas de document financier non-preview sans archivage : `Enregistrer` appelle `archive=true`, et `Imprimer` exige une confirmation qui relance avec `archive=true`. Le soupçon d’un mismatch archive=false a donc été écarté.
+
+### Défaut comptable vérifié — paiement global non rattaché aux Acte
+Pour `PAYE`, `documents/generate` :
+1. crée une ligne `Acte` par prestation et la marque `PAYE` ;
+2. crée ensuite **un seul `Payment` global** de `total_amount`, sans `acte_id`.
+
+Or `/accounting/actes-billing/patient/{id}` calcule `total_paid` et `remaining_due` par acte uniquement à partir des `Payment.acte_id` correspondants.
+
+Conséquence structurelle possible : un `Acte` est marqué `PAYE` alors que cette vue calcule `total_paid=0` et `remaining_due=montant` pour le même acte.
+
+### Décision
+Pour un document totalement réglé, créer une allocation exacte par ligne : un paiement positif par `Acte` créé, rattaché via `acte_id`, avec le montant exact de la ligne. La somme des allocations doit égaler le total facturé au centime. Ne pas conserver en parallèle un paiement global orphelin qui doublerait le total encaissé.
+
+### Préparation technique non fusionnée
+Service pur `payment_allocation.py` + tests préparés : allocation exacte par ligne positive, précision centime, rejet des montants invalides/négatifs. L’intégration DB reste à faire après les lots financiers P2-B/P2-E.
+
+### Risque UX restant à certifier
 Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
 
 ---
@@ -145,8 +164,8 @@ Une archive réussie efface immédiatement le panier Honoraires actif. Ce compor
 
 1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
 2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — 🟡 ACTIVE.
-3. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
-4. **P2-D — Odontogramme/déduplication/prix groupe**.
-5. **P2-E — Totaux, payload, échéances et réconciliation**.
-6. **P2-F — Honoraires/encaissement complet + effets post-archive**.
+3. **P2-E — Échéances/réconciliation financière exacte** — priorité intégrité après P2-B.
+4. **P2-F — Allocation PAYE exacte par Acte** — priorité intégrité après P2-E.
+5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
+6. **P2-D — Odontogramme/déduplication/prix groupe**.
 7. Recertification runtime ciblée.
