@@ -17,7 +17,7 @@ jobs:
           ref: master
           fetch-depth: 0
       - name: Update STATE exactly
-        shell: python
+        shell: python {0}
         run: |
           from pathlib import Path
           p = Path('STATE.md')
