@@ -182,27 +182,26 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 is_global = req.data.get('is_global_note', False)
                 total_amount = sum(float(p.get('montant', 0)) for p in req.data.get('payments', []))
 
-                # --- UNIFY-ACT-PERSISTENCE-1 : un Acte par ligne facturée -------------
-                # La table Acte ne couvrait que ~13,6% des patients réels (jamais peuplée
-                # par ce flux). Commun aux deux branches ci-dessous : la granularité par
-                # ligne ne doit pas dépendre du mode de règlement (échéancier ou non).
-                from backend.services.acte_classification import classify_acte_type
+                # P2-F: source transactionnelle unique pour Acte + encaissements liés.
+                # Un plan global reste EN_ATTENTE ; hors échéancier, PAYE crée un Payment
+                # exact par Acte avec acte_id, sans paiement global orphelin.
+                from backend.services.honoraires_persistence import persist_honoraires_lines
                 acte_default_statut = (
-                    models.PaiementStatut.EN_ATTENTE if (is_global and installments_data) else p_status
+                    models.PaiementStatut.EN_ATTENTE
+                    if (is_global and installments_data)
+                    else models.PaiementStatut(p_status)
                 )
-                for item in req.data.get('payments', []):
-                    libelle = item.get('acte') or 'Acte'
-                    montant_item = float(item.get('montant', 0))
-                    db.add(models.Acte(
-                        patient_id=patient.id, praticien_id=user_id,
-                        type_acte=classify_acte_type(libelle), libelle=libelle, montant=montant_item,
-                        date_debut=doc.created_at, statut_paiement=acte_default_statut,
-                        is_accounted=req.is_accounted,
-                        is_collected=(acte_default_statut == models.PaiementStatut.PAYE),
-                        document_archive_id=doc.id,
-                    ))
-                db.commit()
-                # --- fin bloc Acte -----------------------------------------------------
+                persist_honoraires_lines(
+                    db,
+                    patient_id=patient.id,
+                    practitioner_id=user_id,
+                    document_archive_id=doc.id,
+                    document_created_at=doc.created_at,
+                    items=req.data.get('payments', []),
+                    payment_status=acte_default_statut,
+                    is_accounted=req.is_accounted,
+                    validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",
+                )
 
                 if is_global and installments_data:
                     # Création d'un plan de paiement
@@ -232,33 +231,9 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                             status="EN_ATTENTE",
                             notes='{"sendReminder": true}' if send_rem else None
                         ))
-                    db.commit()
-                else:
-                    # Structure Unique (Pas de plan global)
-                    if p_status in [models.PaiementStatut.PAYE, models.PaiementStatut.PARTIEL]:
-                        # Création de l'encaissement (Payment)
-                        # S'il y a des paiements avec mode de règlement, on les utilise, sinon on prend le premier
-                        payments_arr = req.data.get('payments', [])
-                        pm = "ESPECES"
-                        if payments_arr:
-                            pm_str = str(payments_arr[0].get('mode_reglement', 'Espèces')).upper()
-                            if "VIREMENT" in pm_str: pm = "VIREMENT"
-                            elif "CH" in pm_str: pm = "CHEQUE"
-                            elif "TPE" in pm_str or "CARTE" in pm_str: pm = "CARTE"
-                            
-                        # Si partiel, idéalement on aurait le montant partiel, sinon on met 0 ou on attend une màj manuelle
-                        paid_amount = total_amount if p_status == models.PaiementStatut.PAYE else total_amount / 2.0
-                        
-                        payment_obj = models.Payment(
-                            patient_id=patient.id,
-                            amount=paid_amount,
-                            payment_method=pm,
-                            payment_date=doc.created_at,
-                            notes=f"Lien Doc ID: {doc.id}",
-                            validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
-                        )
-                        db.add(payment_obj)
-                        db.commit()
+
+                # Commit unique du lot comptable Document Studio.
+                db.commit()
 
         # Analyse de cohérence déterministe.
         warnings = await coherence_service.analyze_coherence(patient.id, req.type, req.data, db, doctor_id=user_id)
