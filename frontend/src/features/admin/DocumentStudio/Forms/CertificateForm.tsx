@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../../../utils/cn';
-import { CheckCircle2, Clock, Edit3, Sparkles, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Edit3, AlertCircle } from 'lucide-react';
 import { api } from '../../../../services/api';
 
 interface CertificateFormProps {
@@ -31,17 +31,13 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
       try {
         const res = await api.get(`/prescriptions/certif-suggest/${patientId}`);
         setSuggestion(res.data);
-        // Si confiance haute, on applique directement (Zero Friction)
-        if (res.data.confidence === 'high') {
-          setCertifType(res.data.type);
-          setCertifDays(res.data.days);
-        }
       } catch (err) {
         console.error('Certif Suggest Error:', err);
       }
     };
     fetchSuggestion();
-  }, [patientId, setCertifType, setCertifDays]);
+  }, [patientId]);
+
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
 
@@ -59,19 +55,18 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
         <div className="relative z-10 space-y-10">
           {/* TYPE DE CERTIFICAT */}
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-4">
               <label className={labelClass + " mb-0"}>Motif Clinique</label>
               {suggestion && (
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                    suggestion.confidence === 'high' ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200" : "bg-primary/5 text-primary border border-primary/10"
-                  )}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[9px] font-bold bg-amber-500/10 text-amber-700 border border-amber-200 max-w-sm"
                 >
-                  <Sparkles size={10} className="animate-pulse" />
-                  {suggestion.reason}
+                  <AlertCircle size={12} className="shrink-0" />
+                  <span>
+                    Signal documentaire : {suggestion.reason || 'contexte détecté'}. Suggestion non appliquée ; type et durée restent à valider par le praticien.
+                  </span>
                 </motion.div>
               )}
             </div>
