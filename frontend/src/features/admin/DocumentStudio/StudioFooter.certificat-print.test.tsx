@@ -12,7 +12,7 @@ const baseProps = {
   onTogglePreview: vi.fn(),
 };
 
-describe('P3 certificate print safety', () => {
+describe('P3 prepared print safety', () => {
   it('prepares and archives a fresh certificate PDF instead of direct-printing the current preview', () => {
     const onGenerate = vi.fn();
 
@@ -20,6 +20,23 @@ describe('P3 certificate print safety', () => {
       <StudioFooter
         {...baseProps}
         activeTab="certificat"
+        onGenerate={onGenerate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Préparer impression/i }));
+
+    expect(onGenerate).toHaveBeenCalledWith(true, false, false, false);
+    expect(screen.queryByRole('button', { name: /^Imprimer$/i })).toBeNull();
+  });
+
+  it('prepares and archives a fresh Document Libre PDF instead of direct-printing a stale preview', () => {
+    const onGenerate = vi.fn();
+
+    render(
+      <StudioFooter
+        {...baseProps}
+        activeTab="libre"
         onGenerate={onGenerate}
       />,
     );
