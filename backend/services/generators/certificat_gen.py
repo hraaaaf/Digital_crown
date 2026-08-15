@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 from datetime import datetime, date
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
@@ -26,6 +27,9 @@ _DAYS_WORDS = {
 
 
 SIGNATURE_LABEL = 'Signature manuscrite du praticien'
+CERTIFICATE_REASON_WORK_STOP = 'Arrêt de travail'
+CERTIFICATE_REASON_PRESENCE = 'Certificat de Présence'
+CERTIFICATE_REASON_FREE = 'Certificat médical'
 
 
 class CertificateSignatureSpace(Flowable):
@@ -102,8 +106,39 @@ def _days_in_words(n: int) -> str:
     return _DAYS_WORDS.get(n, str(n))
 
 
+def _certificate_reason_kind(reason: str) -> str:
+    """Accepte uniquement les trois types canoniques ; aucun fallback clinique implicite."""
+    normalized = str(reason or '').strip().casefold()
+    if normalized == CERTIFICATE_REASON_WORK_STOP.casefold():
+        return 'work_stop'
+    if normalized == CERTIFICATE_REASON_PRESENCE.casefold():
+        return 'presence'
+    if normalized in {CERTIFICATE_REASON_FREE.casefold(), 'certificat medical'}:
+        return 'free'
+    raise ValueError('Nature de certificat absente ou non reconnue.')
+
+
 def _is_free_medical_certificate(reason: str) -> bool:
-    return (reason or '').strip().casefold() in {'certificat médical', 'certificat medical'}
+    try:
+        return _certificate_reason_kind(reason) == 'free'
+    except ValueError:
+        return False
+
+
+def _safe_filename_component(value, fallback: str = 'PATIENT') -> str:
+    """Neutralise séparateurs et caractères de contrôle sans dégrader les accents utiles."""
+    text = str(value or '').strip()
+    text = re.sub(r'[\x00-\x1f<>:"/\\|?*]+', '_', text)
+    text = re.sub(r'\s+', '_', text)
+    text = re.sub(r'_+', '_', text).strip(' ._')
+    return (text[:80] or fallback)
+
+
+def _certificate_compression_factors(is_free_medical: bool) -> tuple[float, ...]:
+    """Le texte médical libre reste lisible et peut naturellement passer sur plusieurs pages."""
+    if is_free_medical:
+        return (1.0,)
+    return (1.0, 0.9, 0.8, 0.7)
 
 
 def _safe_pdf_text(value) -> str:
@@ -196,7 +231,9 @@ class CertificatGenerator:
         date_str = now.strftime('%Y%m%d_%H%M%S')
         save_dir = os.path.join(self.output_dir, now.strftime('%Y'), now.strftime('%m'))
         os.makedirs(save_dir, exist_ok=True)
-        safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
+        patient_name = _safe_filename_component(getattr(patient, 'nom', ''), 'PATIENT')
+        patient_first_name = _safe_filename_component(getattr(patient, 'prenom', ''), 'SANS_PRENOM')
+        safe_name = f"{patient_name.upper()}_{patient_first_name}"
         filename = f"CERTIFICAT_{safe_name}_{date_str}.pdf"
         return os.path.join(save_dir, filename)
 
@@ -300,12 +337,12 @@ class CertificatGenerator:
         hon = "l'enfant" if is_minor else ("Monsieur" if is_male else "Madame")
         eviction_term = "un arrêt de travail"
 
-        reason = (getattr(data, 'reason', "Arrêt de travail") or "Arrêt de travail").strip()
-        days = getattr(data, 'days', 1)
+        reason = str(getattr(data, 'reason', '') or '').strip()
+        reason_kind = _certificate_reason_kind(reason)
+        days = getattr(data, 'days', 0)
         free_content = getattr(data, 'content', None)
         observations = str(getattr(data, 'observations', '') or '').strip()
-        reason_lower = reason.lower()
-        is_free_medical = _is_free_medical_certificate(reason)
+        is_free_medical = reason_kind == 'free'
         dr_name = resolve_certificate_signer_name(user_obj)
 
         # Nettoyage pour éviter "Dr Dr."
@@ -316,25 +353,25 @@ class CertificatGenerator:
 
         certif_text = ""
 
-        from datetime import timedelta
+        if reason_kind == 'work_stop':
+            from datetime import timedelta
 
-        days_int = int(days or 0)
-        days_label = f"({days_int} jours)"
-
-        if days_int > 0:
+            days_int = int(days or 0)
+            if days_int < 1:
+                raise ValueError("La durée de l'arrêt de travail doit être supérieure ou égale à 1 jour.")
+            days_label = f"({days_int} jours)"
             end_date = rest_start_date_obj + timedelta(days=days_int - 1)
             date_phrase = (
                 f"du <b>{rest_start_date_obj.strftime('%d/%m/%Y')}</b> "
                 f"au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
             )
-        else:
-            date_phrase = f"le <b>{rest_start_date_obj.strftime('%d/%m/%Y')}</b>"
-
-        age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
-
-        if is_free_medical:
-            certif_text = _format_free_certificate_content(free_content)
-        elif "présence" in reason_lower:
+            age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
+            certif_text = (
+                f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie que l'état de santé de "
+                f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
+                f"{date_phrase} {days_label}.<br/><br/>"
+            )
+        elif reason_kind == 'presence':
             certif_text = _build_presence_certificate_text(
                 dr_name_pdf,
                 hon,
@@ -342,11 +379,7 @@ class CertificatGenerator:
                 issue_date_obj,
             )
         else:
-            certif_text = (
-                f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie que l'état de santé de "
-                f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
-                f"{date_phrase} {days_label}.<br/><br/>"
-            )
+            certif_text = _format_free_certificate_content(free_content)
 
         body_style = ParagraphStyle(
             name='CertifBody',
@@ -379,9 +412,9 @@ class CertificatGenerator:
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
 
-        # Single-Page Force : compression progressive jusqu'à ce que tout tienne sur 1 page
-        compression_factor = 1.0
-        for _ in range(6):
+        # Les certificats standard restent compacts sans devenir illisibles.
+        # Le certificat médical libre reste à taille normale et peut s'étendre sur plusieurs pages.
+        for compression_factor in _certificate_compression_factors(is_free_medical):
             scaled_elements = self._scale_elements(elements, compression_factor)
             doc = SimpleDocTemplate(
                 filepath, pagesize=A5,
@@ -392,10 +425,7 @@ class CertificatGenerator:
             page_counter = PageCounter()
             doc.build(scaled_elements, onFirstPage=draw_method, onLaterPages=draw_method,
                       canvasmaker=page_counter.make_canvas_class())
-            if page_counter.page_count <= 1:
-                break
-            compression_factor *= 0.85
-            if compression_factor < 0.4:
+            if is_free_medical or page_counter.page_count <= 1:
                 break
 
         return filepath.replace("\\", "/")
@@ -413,8 +443,8 @@ class CertificatGenerator:
                 new_style = ParagraphStyle(
                     style.name + '_scaled',
                     parent=style,
-                    fontSize=max(style.fontSize * factor, 6),
-                    leading=max(style.leading * factor if hasattr(style, 'leading') and style.leading else style.fontSize * factor * 1.2, 7),
+                    fontSize=max(style.fontSize * factor, 7),
+                    leading=max(style.leading * factor if hasattr(style, 'leading') and style.leading else style.fontSize * factor * 1.2, 8),
                     spaceAfter=style.spaceAfter * factor if hasattr(style, 'spaceAfter') else 0,
                 )
                 scaled.append(RLParagraph(el.text, new_style))
