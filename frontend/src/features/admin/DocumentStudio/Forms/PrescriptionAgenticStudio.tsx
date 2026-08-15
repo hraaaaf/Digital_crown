@@ -63,6 +63,11 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     [props.drugs],
   );
 
+  const activeLineCount = useMemo(
+    () => props.drugs.filter(drug => drug.name.trim()).length,
+    [props.drugs],
+  );
+
   useEffect(() => {
     if (baselineFingerprintRef.current === null) {
       baselineFingerprintRef.current = prescriptionFingerprint;
@@ -180,6 +185,7 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
   return (
     <div className="prescription-r3-safety-orchestrated space-y-3">
       <style>{`
+        .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:first-child,
         .prescription-r3-safety-orchestrated .prescription-r3-legacy > div > div:first-child > div:nth-child(2) {
           display: none !important;
         }
@@ -187,6 +193,18 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           display: none !important;
         }
       `}</style>
+
+      <div className="mx-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 shadow-sm">
+        <div className="min-w-0">
+          <div className="text-[10px] font-black uppercase tracking-widest text-slate-700">Contexte patient</div>
+          <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+            Données du dossier et vérifications déterministes utilisées pour l’ordonnance en cours.
+          </div>
+        </div>
+        <div className="rounded-xl bg-slate-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
+          {activeLineCount} ligne{activeLineCount > 1 ? 's' : ''} renseignée{activeLineCount > 1 ? 's' : ''}
+        </div>
+      </div>
 
       <div className="mx-1 flex flex-wrap items-start gap-3">
         <div
