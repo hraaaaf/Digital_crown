@@ -384,7 +384,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       }
       if (print && !isPreview && !force) { setShowPrintWarning(true); return; }
       setLoading(true);
-      if (print) setPendingPrint(true);
       try {
         const res = await api.post('/installments/generate-preview', payload);
         if (res.data.pdf_url) {
@@ -401,6 +400,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
             finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
             setPdfUrl(finalUrl);
           }
+          if (print && !isPreview) setPendingPrint(true);
           if (!isPreview && !print) window.open(finalUrl, '_blank');
         }
       } catch (e: any) {
@@ -447,7 +447,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     }
 
     setLoading(true);
-    if (print) setPendingPrint(true);
 
     try {
       const payload = buildPayload();
@@ -467,6 +466,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
           setPdfUrl(finalUrl);
         }
+
+        if (print && !isPreview) setPendingPrint(true);
 
         // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
         if (res.data.warnings && res.data.warnings.length > 0) {
