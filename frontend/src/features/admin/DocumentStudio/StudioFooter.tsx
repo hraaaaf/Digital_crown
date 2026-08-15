@@ -58,22 +58,22 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-3 items-stretch gap-2 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto min-w-0">
+      <div className="grid grid-cols-3 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto min-w-0">
         {onTogglePreview && (
           <button onClick={onTogglePreview} className={cn(
-            'min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-5 py-3 rounded-xl font-black uppercase text-[9px] sm:text-[10px] tracking-wide sm:tracking-widest transition-all active:scale-95 border',
+            'min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-3 rounded-xl font-black uppercase text-[8px] sm:text-[10px] tracking-normal sm:tracking-widest whitespace-nowrap transition-all active:scale-95 border',
             sideStudioType === 'PREVIEW' ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/30' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
           )}>
-            <Eye size={15} className="shrink-0" /> <span className="truncate">{sideStudioType === 'PREVIEW' ? 'Fermer' : 'Aperçu'}</span>
+            <Eye size={14} className="shrink-0" /> <span>{sideStudioType === 'PREVIEW' ? 'Fermer' : 'Aperçu'}</span>
           </button>
         )}
 
-        <button onClick={() => onGenerate(true, false, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wide sm:tracking-widest hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md">
-          <Archive size={15} className="shrink-0" /> <span className="truncate">Enregistrer</span>
+        <button onClick={() => onGenerate(true, false, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md">
+          <Archive size={14} className="shrink-0" /> <span>Enregistrer</span>
         </button>
 
-        <button onClick={() => onGenerate(false, true, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-8 py-3 bg-slate-800 text-white rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wide sm:tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50">
-          <Printer size={15} className="shrink-0" /> <span className="truncate">Imprimer</span>
+        <button onClick={() => onGenerate(false, true, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-8 py-3 bg-slate-800 text-white rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:bg-black transition-all shadow-lg shadow-slate-800/20 active:scale-95 disabled:opacity-50">
+          <Printer size={14} className="shrink-0" /> <span>Imprimer</span>
         </button>
       </div>
 
