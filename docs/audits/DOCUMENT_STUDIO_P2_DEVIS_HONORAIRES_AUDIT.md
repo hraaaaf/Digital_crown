@@ -5,7 +5,7 @@
 Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS EXÉCUTÉS** : P2-A, P2-B et P2-E certifiés par CI exacte ; autres lots restent à recertifier sur leur head final.
+- **TESTS EXÉCUTÉS** : P2-A, P2-B, P2-C, P2-E et P2-F certifiés par CI exacte ; P2-D reste à intégrer/recertifier sur son head final.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
@@ -68,30 +68,37 @@ Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
-## P2-C — Actes rapides, terminologie et organisation par phases
+## P2-C — Actes rapides, terminologie et organisation par phases — CLOSED ✅
 
-### Faits vérifiés
-La barre `Smart Acts` est repliée et s’ouvre principalement via `group-hover`, ce qui n’est pas un contrat fiable sur tactile.
+### Défauts vérifiés
+La barre `Smart Acts` était repliée et s’ouvrait principalement via `group-hover`, contrat non fiable sur tactile.
 
-Labels visibles non alignés avec les moteurs réellement déterministes :
-- `Smart Acts` ;
-- `Combo IA Détecté` ;
-- `Intelligence appliquée` ;
-- `Studio Clinique Elite` ;
-- `Odontogramme & Catalogue Ghost` ;
-- `Séquencer avec l'IA` ;
-- `Ghost Treasury` ;
-- `Flux d'encaissement intelligent`.
+Plusieurs labels visibles suggéraient une IA alors que les moteurs concernés sont déterministes : `Smart Acts`, `Combo IA Détecté`, `Intelligence appliquée`, `Studio Clinique Elite`, `Odontogramme & Catalogue Ghost`, `Séquencer avec l'IA`, `Ghost Treasury`, `Flux d'encaissement intelligent`.
 
-Le séquençage est une classification regex frontend. Il injecte en plus `DÉLAI DE CICATRISATION (ESTIMÉ : 3 MOIS)` lorsque chirurgie + prothèse sont détectées, sans donnée patient ni source clinique dans ce flux.
+Le séquençage était une classification regex frontend et injectait `DÉLAI DE CICATRISATION (ESTIMÉ : 3 MOIS)` lorsque chirurgie + prothèse étaient détectées, sans donnée patient ni source clinique dans ce flux.
 
-### Décision
-- interaction explicite ouvrir/fermer pour les actes rapides ;
-- terminologie fonctionnelle (`Actes rapides`, `Suggestions complémentaires`, `Organiser par phases`, `Encaissement`) ;
-- conserver un regroupement déterministe des phases mais **ne pas injecter de durée clinique estimée** depuis ce moteur documentaire.
+### Correctif fusionné
+- `AccountingQuickActions` rend l’ouverture/fermeture et les actions rapides explicites, utilisables sans hover ;
+- `AccountingPhasePolicy` porte le regroupement déterministe des phases ;
+- le composant actif `AccountingStudioLegacy.tsx` est réellement branché sur ces policies ;
+- la terminologie visible est fonctionnelle et neutre (`Actes rapides`, `Suggestions complémentaires`, `Organiser par phases`, `Encaissement`) ;
+- aucune durée clinique de cicatrisation n’est injectée par ce moteur documentaire ;
+- un test de wiring garde le branchement actif et l’absence des anciens tokens pseudo-IA / durée fixe.
 
-### Préparation technique non fusionnée
-Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`. Banc CI `31884466342` : 3/3 jobs SUCCESS.
+### Historique CI
+Le premier candidat final `b8893035…` a échoué uniquement sur le nouveau test de wiring : `fileURLToPath()` recevait une URL non `file:` sous Vitest (`ERR_INVALID_URL_SCHEME`). Les 158 autres tests passaient. Le test a été corrigé avec `path.resolve(process.cwd(), ...)` sans modification du code métier.
+
+### Preuve engineering finale
+- ancienne PR préparatoire `#32` : fermée sans merge ; elle ne contenait que les policies/tests isolés ;
+- PR finale `#46` — **MERGED** ;
+- head final certifié : `0a5b7dc50fd452c8950c42043340ad9cbea44106` ;
+- CI exacte : run `31900572795` — **3/3 SUCCESS** ;
+- Frontend tests/build : ✅ SUCCESS ;
+- Backend tests/durcissement : ✅ SUCCESS ;
+- Garde production négative : ✅ SUCCESS ;
+- merge `master` : `967f56ed10d61b373bcd3c75e6a737a49bd7349a`.
+
+**Aucune interaction authentifiée dans l’application locale réelle, certification clinique ou certification financière production n’est revendiquée par cette fermeture engineering.**
 
 ---
 
@@ -150,7 +157,7 @@ Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
-## P2-F — Effets après archivage Honoraires / encaissement complet — ACTIVE 🟡
+## P2-F — Effets après archivage Honoraires / encaissement complet — CLOSED ✅
 
 ### Faits vérifiés
 Après génération archivée réussie d’un document Honoraires, le frontend :
@@ -161,28 +168,31 @@ Après génération archivée réussie d’un document Honoraires, le frontend :
 Le footer réel ne génère pas de document financier non-preview sans archivage : `Enregistrer` appelle `archive=true`, et `Imprimer` exige une confirmation qui relance avec `archive=true`. Le soupçon d’un mismatch archive=false a donc été écarté.
 
 ### Défaut comptable confirmé statiquement ET dynamiquement
-Pour `PAYE`, l’ancien `documents/generate` :
-1. créait une ligne `Acte` par prestation et la marquait `PAYE` ;
-2. créait ensuite **un seul `Payment` global** de `total_amount`, sans `acte_id`.
+Pour `PAYE`, l’ancien `documents/generate` créait une ligne `Acte` par prestation puis un seul `Payment` global de `total_amount`, sans `acte_id`. Or `/accounting/actes-billing/patient/{id}` calcule le payé/reste dû par acte à partir des `Payment.acte_id` correspondants.
 
-Or `/accounting/actes-billing/patient/{id}` calcule `total_paid` et `remaining_due` par acte uniquement à partir des `Payment.acte_id` correspondants.
+Le banc CI préparatoire `31885269345` a reproduit le défaut : 2 actes PAYE mais 1 seul Payment global sans `acte_id`.
 
-Banc CI préparatoire `31885269345` : frontend/build et garde production SUCCESS ; backend échoue exactement sur le test d’intégration P2-F après création de deux actes PAYE : `assert len(payments) == 2`, valeur réelle `1`. Le run s’arrête à `1 failed, 788 passed, 3 skipped`.
-
-### Candidat final en cours
-PR `#36`, head `4d0268f3c910ea85acde3a951e818da9210610ab` :
+### Correctif fusionné
 - service transactionnel `persist_honoraires_lines()` ;
-- un `Payment` exact par `Acte` PAYE, lié via `acte_id` ;
+- un `Payment` exact positif par `Acte` PAYE, lié via `acte_id` ;
 - mode de règlement normalisé par ligne, inconnu refusé ;
 - plan global reste `EN_ATTENTE` sans encaissement immédiat ;
 - suppression du paiement global orphelin ;
-- commit unique du lot comptable Document Studio ;
-- branche post-P2-E, ahead 6 / behind 0, diff 6 fichiers.
+- commit unique du lot comptable Document Studio.
 
-CI finale `31885911487` en cours. Aucun closeout P2-F revendiqué avant verdict exact-head complet.
+### Preuve engineering finale
+- PR `#36` — **MERGED** ;
+- head final certifié : `63c636266242b5884ec0f21d9cea28611d13c473` ;
+- CI exacte : run `31886400223` — **SUCCESS** ;
+- Frontend tests/build : ✅ SUCCESS ;
+- Backend tests/durcissement : ✅ SUCCESS ;
+- Garde production négative : ✅ SUCCESS ;
+- merge squash : `5916216ae6b3ebe6cf3609ff652ee09cc549391f`.
 
 ### Risque UX restant à certifier
 Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
+
+Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
@@ -191,7 +201,7 @@ Une archive réussie efface immédiatement le panier Honoraires actif. Ce compor
 1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
 2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — ✅ CLOSED.
 3. **P2-E — Échéances/réconciliation financière exacte** — ✅ CLOSED.
-4. **P2-F — Allocation PAYE exacte par Acte** — 🟡 ACTIVE, PR #36.
-5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
-6. **P2-D — Odontogramme/déduplication/prix groupe**.
+4. **P2-F — Allocation PAYE exacte par Acte** — ✅ CLOSED.
+5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** — ✅ CLOSED.
+6. **P2-D — Odontogramme/déduplication/prix groupe** — prochain lot engineering.
 7. Recertification runtime ciblée.
