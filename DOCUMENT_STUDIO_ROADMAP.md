@@ -148,7 +148,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - Recapture finale glass 1440 / 768 / 390 via run `31898157179` — **SUCCESS** ; artifact `9250378182` ; inspection visuelle propre.
 - Le glassmorphisme historique n'a pas été supprimé ; le correctif final regroupe contexte, sécurité, actions et alerte forme dans une hiérarchie glass cohérente sans retirer les gardes de sécurité.
 - **Non couvert par cette preuve :** interaction authentifiée dans l'application locale réelle et certification clinique/pharmacologique.
-- CI push post-merge : run `31898590067` — à vérifier avant fermeture documentaire complète.
+- CI push post-merge : run `31898590067` — **SUCCESS**.
 
 ### P2 — Devis + Honoraires
 Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`

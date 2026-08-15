@@ -233,10 +233,10 @@ Approche recommandée :
 - [x] recapture comparative glass 1440/768/390 validée
 - [x] CI exacte sur le head final de PR #43 verte
 - [x] merge PR #43
-- [ ] CI exacte post-merge sur `master` verte
-- [ ] `DOCUMENT_STUDIO_ROADMAP.md` mis à jour
-- [ ] `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` mis à jour
-- [ ] cohérence documentaire finale vérifiée
+- [x] CI exacte post-merge sur `master` verte
+- [x] `DOCUMENT_STUDIO_ROADMAP.md` mis à jour
+- [x] `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` mis à jour
+- [x] cohérence documentaire finale vérifiée
 
 ### Gate non satisfait par les screenshots
 - [ ] interaction authentifiée réellement exécutée/certifiée dans l'application locale du cabinet
@@ -250,40 +250,28 @@ La fermeture UX/engineering de P1 ne vaut pas certification clinique/pharmacolog
 
 ## 10. État de reprise
 
-### Terminé
-- R1→R7 engineering
-- baseline engineering post-R7
-- découverte des défauts runtime responsive
-- correctifs responsive
-- recapture finale 1440 / 768 / 390
-- inspection visuelle responsive
-- retrait du harness temporaire
-- audit historique glassmorphisme pré-R1
-- comparaison directe ancienne vs actuelle
+### Terminé côté engineering / UX visuelle
+- R1→R7 engineering ;
+- responsive 1440 / 768 / 390 recertifié ;
+- fidélité glass historique vérifiée puis hiérarchie premium restaurée ;
+- PR #43 mergée ;
+- CI post-merge `31898590067` — **SUCCESS** ;
+- documentation canonique P1 réalignée via PR #44 ;
+- cohérence documentaire finale vérifiée.
 
-### En cours
-- restauration de la hiérarchie visuelle glass premium du haut de la page Ordonnance
+### Gates explicitement séparés et toujours ouverts
+- interaction authentifiée dans l’application locale réelle du cabinet ;
+- certification clinique/pharmacologique humaine.
 
-### Restant
-1. regrouper visuellement contexte + sécurité sans perte d'information ;
-2. réduire l'effet de pile des alertes pleine largeur ;
-3. recapturer 1440 / 768 / 390 ;
-4. comparer au screenshot pré-R1 ;
-5. valider CI exacte-head finale de PR #43 ;
-6. merger #43 ;
-7. vérifier la CI exacte post-merge sur `master` ;
-8. mettre à jour `DOCUMENT_STUDIO_ROADMAP.md` ;
-9. mettre à jour `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` ;
-10. vérifier la cohérence documentaire finale ;
-11. conserver explicitement non certifiée la case d'interaction authentifiée tant que l'application locale réelle n'a pas été exécutée.
+Ces gates ne remettent pas en cause la fermeture engineering / UX visuelle de P1, mais interdisent toute formulation du type « production ready » ou « cliniquement certifié ».
 
 ---
 
 ## 11. Prochaine action exacte
 
-**Restaurer la hiérarchie glass premium du haut de la page Ordonnance sur la PR #43, sans supprimer aucune donnée de sécurité.**
+**Aucune action engineering / UX visuelle P1 restante.**
 
-Puis : recapture 1440 / 768 / 390, comparaison directe à la baseline pré-R1, correction des éventuels écarts, CI finale et merge uniquement après passage propre.
+La prochaine action P1 ne peut être que l’un des gates séparés ci-dessus : exécution authentifiée dans l’application locale réelle, ou revue clinique/pharmacologique qualifiée.
 
 ---
 
@@ -310,7 +298,7 @@ Puis : recapture 1440 / 768 / 390, comparaison directe à la baseline pré-R1, c
 - Recertification glass finale 1440 / 768 / 390 : run `31898157179` — **SUCCESS**, artifact `9250378182`, digest `sha256:4809953baa1ed5dd49a7b143da694ae13e438394146a2d3c8809be90e39dd6de`.
 - Inspection visuelle manuelle des trois captures : **propre**, sans débordement horizontal destructif ni action principale rognée.
 - Le langage glassmorphique historique est conservé ; la hiérarchie contexte/sécurité a été regroupée en une surface glass principale sans suppression d'information de sécurité.
-- CI push exacte du merge sur `master` : run `31898590067` — **à vérifier avant fermeture complète**.
+- CI push exacte du merge sur `master` : run `31898590067` — **SUCCESS**.
 
 ### Limites explicitement conservées
 - L'interaction authentifiée dans l'application locale réelle du cabinet reste **non certifiée** par ces captures isolées.
