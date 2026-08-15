@@ -5,7 +5,7 @@
 Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS EXÉCUTÉS** : P2-A et P2-B certifiés par CI exacte ; autres lots préparatoires non fusionnés restent à recertifier sur leur head final.
+- **TESTS EXÉCUTÉS** : P2-A, P2-B et P2-E certifiés par CI exacte ; autres lots restent à recertifier sur leur head final.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
@@ -91,7 +91,7 @@ Le séquençage est une classification regex frontend. Il injecte en plus `DÉLA
 - conserver un regroupement déterministe des phases mais **ne pas injecter de durée clinique estimée** depuis ce moteur documentaire.
 
 ### Préparation technique non fusionnée
-Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`.
+Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée / PR draft `#32`. Banc CI `31884466342` : 3/3 jobs SUCCESS.
 
 ---
 
@@ -116,39 +116,41 @@ En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : 
 - exposer explicitement un prix inconnu plutôt que le traiter silencieusement comme un prix valide à 0.
 
 ### Préparation technique non fusionnée
-Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`.
+Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`. Banc CI `31884472613` : 3/3 jobs SUCCESS.
 
 ---
 
-## P2-E — Total, payload, échéances et réconciliation — ACTIVE 🟡
+## P2-E — Total, payload, échéances et réconciliation — CLOSED ✅
 
-### Faits vérifiés
-Le total affiché est la somme directe des `item.price` numériques :
-`items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)`.
+### Défaut vérifié
+Pour Honoraires global, `InstallmentPlan.total_amount` prenait le total facturé, puis les échéances étaient persistées depuis les montants bruts sans imposer que leur somme soit égale au total facturé.
 
-Pour Devis/Honoraires, `buildPayload()` filtre les descriptions vides puis transporte chaque ligne sous : `acte`, `dent`, `dents`, `prix_unitaire`, `montant`, `date`, `mode_reglement`.
-
-Les champs `installments` et `is_global_note` sont envoyés dans `payload.data`. Honoraires est normalisé en type backend `note`.
-
-Dans le backend Honoraires global, `InstallmentPlan.total_amount` prend le total facturé, puis chaque échéance est créée avec son montant propre. **Aucune vérification n’impose actuellement que la somme des échéances soit égale au total facturé.**
-
-### Décision
-- conserver le calcul total simple ;
-- ajouter une réconciliation exacte au centime avant toute persistance d’un plan Honoraires ;
+### Correctif fusionné
+- réconciliation backend exacte au centime via `Decimal` ;
 - chaque échéance doit être strictement positive ;
-- une somme supérieure ou inférieure au total doit être bloquante, pas silencieuse.
+- sous-allocation et sur-allocation bloquées par `DocumentRequest` **avant écriture DB** ;
+- validation limitée au flux global `note/honoraires` avec échéances ;
+- Devis et Honoraires non global ne sont pas élargis silencieusement ;
+- policy frontend miroir en centimes avec écart déterministe ;
+- valeurs financières non finies/invalides fail-closed.
 
-### Préparation technique à reconstruire sur baseline post-P2-B
-- policy frontend de réconciliation au centime + tests ;
-- utilitaire backend `Decimal` + tests ;
-- validation `DocumentRequest` pour Honoraires global uniquement ;
-- PR draft `#30` a servi de banc de CI et a passé les trois jobs, mais **ne doit pas être mergée** car sa baseline précède P2-B.
+Le flux direct `/accounting/plans` reste un contrat partagé avec P4 Échéancier et n’a pas été modifié dans P2-E.
 
-Le flux direct `/accounting/plans` est un contrat partagé avec P4 Échéancier ; son durcissement est suivi séparément afin de ne pas étendre silencieusement P2-E.
+### Preuve engineering finale
+- PR `#34` — **MERGED**.
+- Head final certifié : `97c3f43019b5eee781da220ef27ef14053593311`.
+- CI exacte : run `31885119569` — **SUCCESS**.
+- Frontend tests/build : ✅ SUCCESS.
+- Backend tests/durcissement : ✅ SUCCESS.
+- Garde production négative : ✅ SUCCESS.
+- Merge squash : `cb265a8070307d3e3be2e76b239af7762254dddd`.
+- PR draft `#30` fermée sans merge ; elle ne servait que de banc de CI pré-P2-B.
+
+Aucune certification financière production ni UX runtime n’est revendiquée.
 
 ---
 
-## P2-F — Effets après archivage Honoraires / encaissement complet
+## P2-F — Effets après archivage Honoraires / encaissement complet — ACTIVE 🟡
 
 ### Faits vérifiés
 Après génération archivée réussie d’un document Honoraires, le frontend :
@@ -158,20 +160,26 @@ Après génération archivée réussie d’un document Honoraires, le frontend :
 
 Le footer réel ne génère pas de document financier non-preview sans archivage : `Enregistrer` appelle `archive=true`, et `Imprimer` exige une confirmation qui relance avec `archive=true`. Le soupçon d’un mismatch archive=false a donc été écarté.
 
-### Défaut comptable vérifié — paiement global non rattaché aux Acte
-Pour `PAYE`, `documents/generate` :
-1. crée une ligne `Acte` par prestation et la marque `PAYE` ;
-2. crée ensuite **un seul `Payment` global** de `total_amount`, sans `acte_id`.
+### Défaut comptable confirmé statiquement ET dynamiquement
+Pour `PAYE`, l’ancien `documents/generate` :
+1. créait une ligne `Acte` par prestation et la marquait `PAYE` ;
+2. créait ensuite **un seul `Payment` global** de `total_amount`, sans `acte_id`.
 
 Or `/accounting/actes-billing/patient/{id}` calcule `total_paid` et `remaining_due` par acte uniquement à partir des `Payment.acte_id` correspondants.
 
-Conséquence structurelle possible : un `Acte` est marqué `PAYE` alors que cette vue calcule `total_paid=0` et `remaining_due=montant` pour le même acte.
+Banc CI préparatoire `31885269345` : frontend/build et garde production SUCCESS ; backend échoue exactement sur le test d’intégration P2-F après création de deux actes PAYE : `assert len(payments) == 2`, valeur réelle `1`. Le run s’arrête à `1 failed, 788 passed, 3 skipped`.
 
-### Décision
-Pour un document totalement réglé, créer une allocation exacte par ligne : un paiement positif par `Acte` créé, rattaché via `acte_id`, avec le montant exact de la ligne. La somme des allocations doit égaler le total facturé au centime. Ne pas conserver en parallèle un paiement global orphelin qui doublerait le total encaissé.
+### Candidat final en cours
+PR `#36`, head `4d0268f3c910ea85acde3a951e818da9210610ab` :
+- service transactionnel `persist_honoraires_lines()` ;
+- un `Payment` exact par `Acte` PAYE, lié via `acte_id` ;
+- mode de règlement normalisé par ligne, inconnu refusé ;
+- plan global reste `EN_ATTENTE` sans encaissement immédiat ;
+- suppression du paiement global orphelin ;
+- commit unique du lot comptable Document Studio ;
+- branche post-P2-E, ahead 6 / behind 0, diff 6 fichiers.
 
-### Préparation technique non fusionnée
-Service pur `payment_allocation.py` + tests préparés sur PR draft `#31`. L’intégration DB reste à faire après P2-E.
+CI finale `31885911487` en cours. Aucun closeout P2-F revendiqué avant verdict exact-head complet.
 
 ### Risque UX restant à certifier
 Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
@@ -182,8 +190,8 @@ Une archive réussie efface immédiatement le panier Honoraires actif. Ce compor
 
 1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
 2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — ✅ CLOSED.
-3. **P2-E — Échéances/réconciliation financière exacte** — 🟡 ACTIVE.
-4. **P2-F — Allocation PAYE exacte par Acte** — priorité intégrité après P2-E.
+3. **P2-E — Échéances/réconciliation financière exacte** — ✅ CLOSED.
+4. **P2-F — Allocation PAYE exacte par Acte** — 🟡 ACTIVE, PR #36.
 5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
 6. **P2-D — Odontogramme/déduplication/prix groupe**.
 7. Recertification runtime ciblée.
