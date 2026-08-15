@@ -5,13 +5,12 @@ Extension Document Libre : 2026-08-16
 
 ## Statut
 
-P3 est **convergé côté engineering pour les lots Certificat et Document Libre corrigés**, mais n'est **pas certifié final**.
+P3 est **convergé côté engineering pour Certificat et Document Libre**, mais n'est **pas certifié final**.
 
 Limites de preuve actuelles :
 - GitHub Actions échoue encore avant exécution réelle des jobs sur les heads observés (`steps=[]`, `runner_id=0`) ; aucune CI verte n'est revendiquée pour les lots récents ;
 - l'utilisateur a explicitement demandé de continuer malgré ce gate indisponible ;
-- aucune interaction authentifiée runtime ni inspection visuelle finale des PDF issus du `master` convergé n'est encore revendiquée ;
-- une dette sécurité P3-H reste ouverte sur la permission d'émission de Document Libre/Lettre.
+- aucune interaction authentifiée runtime ni inspection visuelle finale des PDF issus du `master` convergé n'est encore revendiquée.
 
 Aucun pourcentage global P3 n'est déclaré tant que ces gates ne sont pas fermés.
 
@@ -57,7 +56,8 @@ Lots ajoutés pendant l'audit complet :
 - #64 — **P3-D contrat + PDF sûr** ; merge `3d9bcd29330fbb1f8be51b53b77718fda88d5d49` ;
 - #65 — **P3-E impression sûre** ; merge `b8e0480b6bdfc6c4c61d4ef31c7ea42b75a59a5c` ;
 - #66 — **P3-F auto-preview invalide silencieux** ; merge `cf805726553431849b514575c79f4648f6b552e0` ;
-- #67 — **P3-G protection des brouillons** ; merge `7ec3f6777b5af22d6cc5c4af286d0d6da9d76918`.
+- #67 — **P3-G protection des brouillons** ; merge `7ec3f6777b5af22d6cc5c4af286d0d6da9d76918` ;
+- #70 — **P3-H permission clinique d'émission** ; merge `23bc6ddf9ae5e2988a077d25e5e4de45e3cd381e`.
 
 ### P3-D — contrat + PDF sûr
 
@@ -98,6 +98,17 @@ Tests source ajoutés pour ces contrats. Ils n'ont pas été déclarés exécut�
 - refus = aucune navigation ; confirmation = abandon explicite + reset ;
 - après archivage Libre réussi, dirty-state remis à zéro ; un échec de génération ne le réinitialise pas.
 
+### P3-H — permission clinique d'émission
+
+- `libre`, `lettre`, `lettre_medicale` et `document_libre` requièrent désormais la permission `clinical` au lieu de la permission trop large `patients` ;
+- secrétaire standard (`patients=True`, `clinical=False`) : refus attendu 403 ;
+- dentiste propriétaire : autorisé par la politique existante ;
+- collaborateur avec `clinical=True` explicitement délégué : autorisé ;
+- les mappings Ordonnance/Devis/Honoraires/photos/radios/échéancier restent inchangés ;
+- le mapping est partagé par génération, archive et téléchargement via `require_document_permission`.
+
+PR #70 : 2 fichiers ; routeur exactement +4/-4 et tests RBAC ciblés ajoutés. Run `31915467184` : jobs non exécutés, blocage GitHub avant steps ; aucune réussite de test n'est revendiquée.
+
 ## Archive / réutilisation / templates
 
 ### Réutilisation vérifiée statiquement
@@ -119,31 +130,6 @@ Aucune bibliothèque de templates Document Libre n'est branchée dans l'interfac
 
 Verdict : **fonctionnalité absente**, pas faux succès caché. Une bibliothèque de templates Libre serait une amélioration produit ultérieure, pas un prérequis de sécurité du P3 actuel.
 
-## P3-H — dette sécurité permission d'émission
-
-### Fait vérifié
-
-`DOCUMENT_TYPE_PERMISSIONS` mappe encore :
-- `libre -> patients` ;
-- `lettre -> patients` ;
-- `lettre_medicale -> patients` ;
-- `document_libre -> patients`.
-
-Les sous-comptes `SECRETAIRE` reçoivent `patients=True` par défaut, tandis que `clinical=False` par défaut. Un compte secrétaire standard peut donc actuellement atteindre la génération/archivage de Document Libre/Lettre dès lors qu'il accède au patient.
-
-### Recommandation retenue
-
-Remapper ces quatre types vers la permission **`clinical`** :
-- fail-closed par défaut pour une secrétaire ;
-- actif par défaut pour un dentiste ;
-- toujours configurable explicitement par le praticien pour un collaborateur auquel il souhaite déléguer ce droit.
-
-### État
-
-**OUVERT / BLOQUANT DE CLOSEOUT P3.**
-
-Le connecteur GitHub utilisé ici ne propose pas de micro-patch serveur et `backend/routers/documents.py` est suffisamment volumineux pour qu'une réécriture intégrale, uniquement pour quatre valeurs, soit un risque de régression disproportionné. Aucun faux correctif n'est revendiqué.
-
 ## Audit médico-documentaire Certificat
 
 Source officielle consultée : Secrétariat Général du Gouvernement, décret n° 2-96-989 du 5 janvier 1999 rendant applicable le code de déontologie des médecins-dentistes.
@@ -163,7 +149,8 @@ Sur les lots Document Libre récents :
 - #64 run `31914469209` : 3 jobs failure avant steps ;
 - #65 run `31914543653` : 3 jobs failure avant steps ;
 - #66 run `31914693644` : 3 jobs failure avant steps ;
-- #67 run préparatoire `31914866255` : 3 jobs failure avant steps avant réalignement final de la branche.
+- #67 run préparatoire `31914866255` : 3 jobs failure avant steps avant réalignement final de la branche ;
+- #70 run `31915467184` : 3 jobs failure avant steps, annotation GitHub Billing & plans.
 
 Ces échecs n'attestent aucun échec applicatif : les jobs n'ont pas exécuté leurs étapes. Ils ne constituent pas non plus une validation.
 
@@ -183,15 +170,15 @@ Points forts :
 - archive/réouverture ;
 - impression finale fraîche ;
 - protection contre perte de brouillon ;
-- PDF long lisible.
+- PDF long lisible ;
+- émission/archivage protégés par permission clinique dédiée.
 
 Limite UX non bloquante : la toolbar insère encore du markup visible (`<b>`, `<i>`, etc.) dans le textarea. C'est fonctionnel mais pas un éditeur WYSIWYG premium. À traiter comme amélioration P7, pas comme défaut de sécurité P3.
 
 ## Restant avant certification finale P3
 
-1. Corriger **P3-H** : `libre/lettre/... -> clinical` + tests RBAC ciblés.
-2. Exécuter une régression réelle sur le `master` final : frontend + backend + PDF.
-3. Runtime authentifié des trois parcours Certificat.
-4. Runtime authentifié Document Libre : saisie, toolbar, tableau, A4/A5, alignement, preview, archive, réouverture, abandon protégé, impression.
-5. Inspection visuelle des PDF finaux, notamment multi-page Libre et signature Certificat.
-6. Mettre à jour ROADMAP/STATUS/CHANGELOG au closeout final uniquement après ces preuves.
+1. Exécuter une régression réelle sur le `master` final : frontend + backend + PDF.
+2. Runtime authentifié des trois parcours Certificat.
+3. Runtime authentifié Document Libre : saisie, toolbar, tableau, A4/A5, alignement, preview, archive, réouverture, abandon protégé, impression.
+4. Inspection visuelle des PDF finaux, notamment multi-page Libre et signature Certificat.
+5. Mettre à jour STATUS/CHANGELOG au closeout final uniquement après ces preuves.
