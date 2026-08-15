@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CertificateForm } from './CertificateForm';
-import { CERTIFICATE_TYPE_FREE } from '../CertificatePolicy';
+import { CERTIFICATE_TYPE_FREE, CERTIFICATE_TYPE_WORK_STOP } from '../CertificatePolicy';
 
 vi.mock('../../../../services/api', () => ({
   api: { get: vi.fn().mockRejectedValue(new Error('offline test')) },
@@ -36,6 +36,46 @@ describe('CertificateForm validation UX', () => {
     const textarea = screen.getByLabelText(/Contenu du certificat médical/i);
     expect(textarea.getAttribute('aria-invalid')).toBe('false');
     expect(screen.getByText(/Ce texte est repris tel quel/i)).toBeTruthy();
+  });
+
+  it('affiche clairement qu’aucune nature n’est sélectionnée sur un nouveau certificat', () => {
+    render(<CertificateForm {...baseProps} certifType="" certifDays={0} certifCustomMotif="" />);
+
+    expect(screen.getByText(/Aucun type sélectionné/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/Durée du repos en jours/i)).toBeNull();
+  });
+
+  it('affiche une durée réellement vide et invalide après choix explicite Arrêt de travail', () => {
+    render(
+      <CertificateForm
+        {...baseProps}
+        certifType={CERTIFICATE_TYPE_WORK_STOP}
+        certifDays={0}
+        certifCustomMotif=""
+      />,
+    );
+
+    const duration = screen.getByLabelText(/Durée du repos en jours/i) as HTMLInputElement;
+    expect(duration.value).toBe('');
+    expect(duration.getAttribute('aria-required')).toBe('true');
+    expect(duration.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText(/Non définie/i)).toBeTruthy();
+    expect(screen.getByText(/Aucune durée n’est préremplie/i)).toBeTruthy();
+  });
+
+  it('rend la durée valide uniquement après saisie du praticien', () => {
+    render(
+      <CertificateForm
+        {...baseProps}
+        certifType={CERTIFICATE_TYPE_WORK_STOP}
+        certifDays={3}
+        certifCustomMotif=""
+      />,
+    );
+
+    const duration = screen.getByLabelText(/Durée du repos en jours/i) as HTMLInputElement;
+    expect(duration.value).toBe('3');
+    expect(duration.getAttribute('aria-invalid')).toBe('false');
   });
 
   it('n’affiche plus une promesse générique de certificat sécurisé', () => {

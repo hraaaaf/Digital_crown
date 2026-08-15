@@ -18,7 +18,7 @@ const LEGACY_WORK_STOP_TYPES = new Set([
 ]);
 
 export interface NormalizedCertificateSelection {
-  type: CertificateType;
+  type: CertificateType | '';
   content: string;
 }
 
@@ -48,7 +48,8 @@ export function normalizeCertificateSelection(
     };
   }
 
-  return { type: CERTIFICATE_TYPE_WORK_STOP, content: rawContent };
+  // Un nouvel écran n'invente jamais une nature de certificat.
+  return { type: '', content: rawContent };
 }
 
 export function certificateRequiresDuration(certifType: string): boolean {
@@ -57,17 +58,18 @@ export function certificateRequiresDuration(certifType: string): boolean {
 
 export function resolveCertificateReason(certifType: string, customContent: string): string | null {
   const normalized = normalizeCertificateSelection(certifType, customContent);
+  if (!normalized.type) return null;
   if (normalized.type === CERTIFICATE_TYPE_FREE && !normalized.content.trim()) return null;
   return normalized.type;
 }
 
 export function validateCertificateReason(certifType: string, customContent: string): string | null {
   const normalized = normalizeCertificateSelection(certifType, customContent);
+  if (!normalized.type) {
+    return 'La nature du certificat est requise.';
+  }
   if (normalized.type === CERTIFICATE_TYPE_FREE && !normalized.content.trim()) {
     return 'Le contenu du certificat médical est requis.';
-  }
-  if (!resolveCertificateReason(certifType, customContent)) {
-    return 'La nature du certificat est requise.';
   }
   return null;
 }

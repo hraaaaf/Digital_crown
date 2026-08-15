@@ -136,6 +136,10 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
   return errors;
 }
 
+export function shouldSkipInvalidCertificatePreview(params: UseDocumentGeneratorParams): boolean {
+  return params.activeTab === 'certificat' && validatePayload(params).length > 0;
+}
+
 // --- Analyse de cohérence IA (Phase 4) ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
@@ -409,6 +413,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
     if (print && !isPreview && !force) {
       setShowPrintWarning(true);
+      return;
+    }
+
+    // Un certificat incomplet ne déclenche pas de requête d'auto-preview ni de toast d'erreur.
+    // La validation finale reste strictement inchangée ci-dessous.
+    if (isPreview && shouldSkipInvalidCertificatePreview(params)) {
+      setValidationErrors([]);
+      setCoherenceWarnings([]);
       return;
     }
 

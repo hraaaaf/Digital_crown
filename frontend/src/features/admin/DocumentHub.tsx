@@ -92,8 +92,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
-  const [certifType, setCertifType] = useState('Arrêt de travail');
-  const [certifDays, setCertifDays] = useState(5);
+  const [certifType, setCertifType] = useState('');
+  const [certifDays, setCertifDays] = useState(0);
   const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
   const { 
