@@ -1,12 +1,18 @@
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Iterable
 
 CENT = Decimal("0.01")
 
 
 def _money(value: float | int | str | Decimal) -> Decimal:
-    return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+    try:
+        amount = Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError("Montant financier invalide.") from exc
+    if not amount.is_finite():
+        raise ValueError("Montant financier invalide.")
+    return amount
 
 
 @dataclass(frozen=True)
