@@ -1,8 +1,13 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 import { QuickEntryBar } from './QuickEntryBar'
 import type { DrugItem } from './prescriptionTypes'
+import { api } from '../../../../services/api'
+
+vi.mock('../../../../services/api', () => ({
+  api: { get: vi.fn() },
+}))
 
 const noop = () => {}
 
@@ -31,6 +36,13 @@ function renderQuickEntryBar(overrides: Partial<React.ComponentProps<typeof Quic
 }
 
 describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.get).mockResolvedValue({
+      data: { recent_medications: [], frequent_medications: [] },
+    } as any)
+  })
+
   it('affiche les suggestions quand la liste est non vide', () => {
     renderQuickEntryBar()
     expect(screen.getByText('PARACETAMOL')).toBeInTheDocument()
@@ -41,10 +53,10 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
     const { onAddDrug, parseQuickEntry } = renderQuickEntryBar()
     const suggestionButton = screen.getByText('PARACETAMOL').closest('button')!
 
-    await fireEvent.mouseDown(suggestionButton)
+    fireEvent.mouseDown(suggestionButton)
 
+    await waitFor(() => expect(onAddDrug).toHaveBeenCalled())
     expect(parseQuickEntry).toHaveBeenCalledWith('PARACETAMOL')
-    expect(onAddDrug).toHaveBeenCalled()
   })
 
   it('le mousedown sur la suggestion empêche le comportement par défaut (évite le blur qui fermerait le dropdown)', () => {
@@ -67,5 +79,43 @@ describe('QuickEntryBar — autocomplete médicament (Saisie Rapide)', () => {
   it("n'affiche pas le dropdown quand la liste de suggestions est vide", () => {
     renderQuickEntryBar({ quickSuggestions: [] })
     expect(screen.queryByText('PARACETAMOL')).not.toBeInTheDocument()
+  })
+
+  it('affiche les médicaments récents et fréquents lorsque la saisie est vide', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        recent_medications: ['DOLIPRANE', 'AUGMENTIN'],
+        frequent_medications: ['AUGMENTIN', 'KIN'],
+      },
+    } as any)
+    const { onAddDrug, parseQuickEntry } = renderQuickEntryBar({ quickVal: '', quickSuggestions: [] })
+
+    const recent = await screen.findByRole('button', { name: 'DOLIPRANE' })
+    expect(screen.getByRole('button', { name: 'KIN' })).toBeInTheDocument()
+
+    fireEvent.click(recent)
+    await waitFor(() => expect(onAddDrug).toHaveBeenCalledTimes(1))
+    expect(parseQuickEntry).toHaveBeenCalledWith('DOLIPRANE')
+  })
+
+  it('ignore un second Enter tant que le premier ajout est encore en cours', async () => {
+    let resolveHydration: ((drug: DrugItem) => void) | undefined
+    const hydrateMedicationDetails = vi.fn((drug: DrugItem) => new Promise<DrugItem>(resolve => {
+      resolveHydration = resolve
+    }))
+    const { parseQuickEntry, onAddDrug } = renderQuickEntryBar({ hydrateMedicationDetails })
+    const input = screen.getByPlaceholderText('Médicament, dosage, forme, posologie…')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(parseQuickEntry).toHaveBeenCalledTimes(1)
+    expect(hydrateMedicationDetails).toHaveBeenCalledTimes(1)
+
+    resolveHydration?.({
+      id: 1, name: 'PARACE', dosage: '', forme: 'COMPRIMÉS',
+      posologie: '', type: 'MEDICAMENT', quantite: 1, non_substituable: false,
+    })
+    await waitFor(() => expect(onAddDrug).toHaveBeenCalledTimes(1))
   })
 })
