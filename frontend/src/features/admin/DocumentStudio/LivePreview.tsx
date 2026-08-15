@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Maximize, Printer, Download } from 'lucide-react';
+import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
 
 interface LivePreviewProps {
   pdfUrl: string | null;
@@ -11,80 +11,77 @@ interface LivePreviewProps {
   inline?: boolean;
 }
 
-export const LivePreview: React.FC<LivePreviewProps> = ({ 
-  pdfUrl, 
-  loading, 
-  onClose, 
-  onRefresh, 
+export const LivePreview: React.FC<LivePreviewProps> = ({
+  pdfUrl,
+  loading,
+  onClose,
+  onRefresh,
   title,
-  inline = false
+  inline = false,
 }) => {
   const [iframeReady, setIframeReady] = useState(false);
 
-  // Reset skeleton whenever pdfUrl changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIframeReady(false);
   }, [pdfUrl]);
 
-  const showSkeleton = loading || (pdfUrl && !iframeReady);
+  const showSkeleton = loading || Boolean(pdfUrl && !iframeReady);
 
   const containerContent = (
-    <div className="w-full h-full flex flex-col bg-white relative">
-      {/* TOOLBAR */}
-      <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-white/40 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center">
+    <div className="relative flex h-full w-full flex-col bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/80 p-4 backdrop-blur-md sm:p-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
             <Maximize size={20} />
           </div>
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-1">Aperçu Réel Studio</span>
-            <span className="text-base font-black text-slate-800 tracking-tight">{title}</span>
+          <div className="min-w-0">
+            <span className="mb-1 block text-[10px] font-black uppercase leading-none tracking-widest text-slate-400">Aperçu document</span>
+            <span className="block truncate text-base font-black tracking-tight text-slate-800">{title}</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {onRefresh && (
-            <button 
+            <button
+              type="button"
               onClick={onRefresh}
               disabled={loading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary hover:text-white hover:border-primary transition-all disabled:opacity-50"
+              className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all hover:border-primary hover:bg-primary hover:text-white disabled:opacity-50 sm:text-[11px]"
             >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Maximize size={16} className="rotate-45" />}
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />}
               Actualiser
             </button>
           )}
-          <button 
-            onClick={onClose} 
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex min-h-10 items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 shadow-sm transition-all hover:bg-red-600 hover:text-white sm:text-[11px]"
           >
-            <X size={18} />
+            <X size={16} />
             Fermer
           </button>
         </div>
       </div>
 
-      {/* VIEWPORT */}
-      <div className="flex-1 bg-slate-900/5 relative overflow-hidden">
-
-        {/* Skeleton (Phase 2) */}
+      <div className="relative flex-1 overflow-hidden bg-slate-900/5">
         {showSkeleton && (
-          <div className="absolute inset-0 z-10 flex flex-col gap-4 p-8 bg-white animate-in fade-in duration-200">
-            <div className="w-full h-12 bg-slate-100 rounded-2xl animate-pulse" />
-            <div className="w-3/4 h-6 bg-slate-100 rounded-xl animate-pulse" />
-            <div className="w-full h-px bg-slate-200 my-4" />
-            <div className="flex flex-col gap-4 mt-2">
+          <div className="absolute inset-0 z-10 flex flex-col gap-4 bg-white p-5 animate-in fade-in duration-200 sm:p-8">
+            <div className="h-12 w-full animate-pulse rounded-2xl bg-slate-100" />
+            <div className="h-6 w-3/4 animate-pulse rounded-xl bg-slate-100" />
+            <div className="my-4 h-px w-full bg-slate-200" />
+            <div className="mt-2 flex flex-col gap-4">
               {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="flex gap-4 items-center">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse shrink-0" />
-                  <div className="flex-1 h-5 bg-slate-100 rounded-xl animate-pulse" style={{ width: `${70 + i * 5}%` }} />
+                <div key={i} className="flex items-center gap-4">
+                  <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-slate-100" />
+                  <div className="h-5 flex-1 animate-pulse rounded-xl bg-slate-100" />
                 </div>
               ))}
             </div>
-            <div className="mt-8 w-full h-48 bg-slate-100 rounded-[2rem] animate-pulse" />
-            <div className="mt-auto flex flex-col items-center gap-4 opacity-50 pb-8">
-              <Loader2 className="animate-spin text-primary" size={32} style={{ color: 'var(--primary)' }} />
-              <span className="text-[12px] font-black text-primary uppercase tracking-[0.4em]">
-                {loading ? 'Intelligence en cours...' : 'Rendu Dynamique...'}
+            <div className="mt-8 h-48 w-full animate-pulse rounded-[2rem] bg-slate-100" />
+            <div className="mt-auto flex flex-col items-center gap-4 pb-8 opacity-60">
+              <Loader2 className="animate-spin text-primary" size={30} style={{ color: 'var(--primary)' }} />
+              <span className="text-center text-[11px] font-black uppercase tracking-[0.28em] text-primary sm:text-[12px]">
+                {loading ? 'Génération du document…' : 'Chargement du PDF…'}
               </span>
             </div>
           </div>
@@ -93,38 +90,38 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         {pdfUrl ? (
           <iframe
             src={pdfUrl}
-            className="w-full h-full border-none"
-            title="PDF Preview"
+            className="h-full w-full border-none"
+            title={`Aperçu PDF — ${title}`}
             onLoad={() => setIframeReady(true)}
           />
         ) : !loading ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-16 text-center">
-            <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center text-slate-300 mb-8 shadow-inner">
-              <Printer size={48} />
+          <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center sm:p-16">
+            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-100 text-slate-300 shadow-inner sm:h-24 sm:w-24">
+              <Printer size={44} />
             </div>
-            <h4 className="text-base font-black text-slate-400 uppercase tracking-widest">En attente de génération</h4>
-            <p className="text-sm text-slate-400 font-medium mt-4 max-w-xs">Complétez les données cliniques pour activer l'aperçu dynamique.</p>
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 sm:text-base">Aperçu non généré</h4>
+            <p className="mt-3 max-w-xs text-sm font-medium text-slate-400">Actualisez l’aperçu pour générer le PDF en lecture seule.</p>
           </div>
         ) : null}
       </div>
 
-      {/* FOOTER ACTIONS */}
-      <div className="p-6 border-t border-slate-200 bg-white/40 backdrop-blur-md flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-3 border-t border-slate-200 bg-white/80 p-4 backdrop-blur-md sm:p-5">
         {pdfUrl && (
           <>
             <a
               href={pdfUrl.split('#')[0]}
               download={`${title}.pdf`}
-              className="flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-600 hover:border-primary hover:text-primary transition-all shadow-sm"
+              className="flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-primary hover:text-primary sm:text-[11px]"
             >
-              <Download size={18} /> Télécharger PDF
+              <Download size={17} /> Télécharger PDF
             </a>
             <button
+              type="button"
               onClick={() => window.open(pdfUrl.split('#')[0], '_blank')}
-              className="flex items-center gap-3 px-6 py-3 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+              className="flex min-h-11 items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] sm:text-[11px]"
               style={{ backgroundColor: 'var(--primary)' }}
             >
-              <Maximize size={18} /> Plein Écran
+              <Maximize size={17} /> Plein écran
             </button>
           </>
         )}
@@ -134,19 +131,32 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
   if (inline) {
     return (
-      <div className="w-full h-full flex flex-col bg-white/90 backdrop-blur-3xl border border-slate-200/60 shadow-xl overflow-hidden rounded-[2.5rem] ring-1 ring-black/5 animate-in fade-in duration-300">
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white/90 shadow-xl ring-1 ring-black/5 backdrop-blur-3xl animate-in fade-in duration-300 sm:rounded-[2.5rem]">
         {containerContent}
       </div>
     );
   }
 
   return createPortal(
-    <div
-      className="fixed right-6 top-6 bottom-6 w-[600px] z-[20000] flex flex-col bg-white border border-slate-200/60 shadow-[0_32px_64px_rgba(0,0,0,0.2)] overflow-hidden rounded-[3rem] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500"
-      style={{ pointerEvents: 'auto' }}
-    >
-      {containerContent}
-    </div>,
-    document.body
+    <>
+      <style>{`
+        body:has(.document-studio-live-preview) .fixed.right-2.top-2.bottom-2.w-\\[550px\\].z-\\[11000\\] {
+          pointer-events: none;
+        }
+        @media (max-width: 1023px) {
+          body:has(.document-studio-live-preview) div:has(> [data-tour="document-hub-content"]) {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+          }
+        }
+      `}</style>
+      <div
+        className="document-studio-live-preview fixed inset-x-3 bottom-3 top-3 z-[20000] flex flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_32px_64px_rgba(0,0,0,0.2)] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500 sm:inset-y-4 sm:left-auto sm:right-4 sm:w-[min(600px,calc(100vw-2rem))] sm:rounded-[3rem]"
+        style={{ pointerEvents: 'auto' }}
+      >
+        {containerContent}
+      </div>
+    </>,
+    document.body,
   );
 };
