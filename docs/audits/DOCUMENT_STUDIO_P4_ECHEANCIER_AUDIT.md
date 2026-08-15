@@ -76,7 +76,35 @@ La trésorerie peut enregistrer un paiement en espèces alors que le règlement 
 
 ---
 
-## P4-E — Preview dédiée
+## P4-E — Réouverture d’une échéance payée laisse le Payment actif
+
+### Fait vérifié
+Quand l’échéance passe de non payée à `PAYE`, un `Payment` est créé et lié par `installment_id`.
+
+Si une requête ultérieure repasse le statut à `EN_ATTENTE` ou un autre statut, le code modifie seulement `inst.status`. Il ne supprime, n’annule ni ne neutralise le `Payment` précédemment créé.
+
+### Risque
+L’échéance peut apparaître non payée tandis que la trésorerie conserve encore l’encaissement correspondant.
+
+### Décision recommandée
+Définir une transition financière atomique et réversible : soit refuser la réouverture après encaissement sans opération d’annulation explicite, soit créer une vraie contre-écriture/annulation auditée. Ne jamais simplement changer le statut.
+
+---
+
+## P4-F — Montant modifié pendant le passage à PAYE : ordre incohérent
+
+### Fait vérifié
+Dans `update_installment`, le `Payment` est créé avec `amount=inst.amount` **avant** l’application éventuelle de `req.amount` sur l’échéance.
+
+### Risque
+Une requête unique `{status: PAYE, amount: nouveau_montant}` peut créer un Payment avec l’ancien montant puis enregistrer l’échéance avec le nouveau montant.
+
+### Décision recommandée
+Valider/appliquer d’abord les champs financiers dans une transaction contrôlée, puis créer l’encaissement à partir de l’état final validé.
+
+---
+
+## P4-G — Preview dédiée
 
 ### Fait vérifié
 Le flux actif échéancier de `useDocumentGenerator.handleGenerate()` utilise `params.echeancierPayload` et appelle `/installments/generate-preview`.
@@ -90,11 +118,9 @@ Le mismatch camelCase du vieux `data-plan-data` est une dette de code mort, **pa
 
 ---
 
-## P4-F — Points restant à cartographier
+## P4-H — Points restant à cartographier
 
 - suppression/modification d’un plan déjà existant ;
-- cohérence `paid`, `paid_date`, `status` ;
-- réouverture PAYE → non payé et impact du Payment déjà créé ;
 - doublons d’encaissement lors de transitions répétées ;
 - rappels WhatsApp et normalisation téléphone ;
 - résumé payé/restant/prochaine échéance ;
