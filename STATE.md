@@ -218,48 +218,39 @@ Quarantainer/supprimer les anciens moteurs non utilisés.
 
 ### LOT P1-2 — MOBILE CREDENTIAL LIFETIME + REVOCATION — ACTIVE
 
-Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, dépendance d'auth mobile et consommation du claim token ; appliquer le durcissement minimal sûr avec tests ciblés, certifier puis continuer automatiquement vers P1-3.
-
 ---
 
-## Document Studio — closeout R1 / R2 / activation R3 — 2026-08-15
+## Document Studio — chantier actif — 2026-08-15
 
-### R1 — P0 Cohérence médicament / Maroc-first — ENGINEERING CLOSED ✅
+Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 
+### R1 — P0 Cohérence médicament / Maroc-first — CLOSED ✅
 - PR `#17` — MERGED.
-- Head final exact : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
-- CI finale exacte : run `31852032393` — **SUCCESS**.
-- Frontend tests/build : **SUCCESS**.
-- Backend tests/durcissement : **SUCCESS**.
-- Garde production négative : **SUCCESS**.
+- Head certifié : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
+- CI : run `31852032393` — SUCCESS.
 - Merge : `e32ab311f72980e0797b93a306c3616a4ff66042`.
-- Aucun statut de certification clinique humaine n’est revendiqué ; revue marocaine qualifiée reste un gate clinique séparé.
 
-### R2 — P0 Persistance protocoles/habitudes — ENGINEERING CLOSED ✅
-
+### R2 — P0 Persistance protocoles/habitudes — CLOSED ✅
 - PR `#19` — MERGED.
-- Head final exact : `ba66457e5f65917f71670e151826062442525200`.
-- CI finale exacte : run `31852827218` — **SUCCESS**.
-- Frontend tests/build : **SUCCESS**.
-- Backend tests/durcissement : **SUCCESS**.
-- Garde production négative : **SUCCESS**.
+- Head certifié : `ba66457e5f65917f71670e151826062442525200`.
+- CI : run `31852827218` — SUCCESS.
 - Merge : `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`.
-- Source de vérité save/load/delete : `DoctorPrescriptionPreference`.
-- Code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation.
-- Tests R2 couvrent cycle save → list → delete et erreurs DB.
 
-### R3 — P0 Safety orchestration — ACTIVE 🟡
+### R3 — P0 Safety orchestration — CLOSED ✅
+- PR `#20` — MERGED.
+- Head certifié : `becadcafb4ba0e6a5f4fda10a0053bb92c96fe1e`.
+- CI : run `31853962025` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge squash : `75e4693dc983ba1708914d16432504bea8f0cd8c`.
+- Le Studio n'affiche plus d'état safety vérifié avant succès réel du backend ; états explicites `unchecked/checking/verified/error`.
+- Dette R3 non bloquante : appel safety read-only parallèle encore présent dans `DocumentHub`, à dédupliquer lors du prochain lot pertinent.
+- Aucune certification clinique/scientifique humaine revendiquée.
 
-Constats vérifiés :
-- `POST /api/prescriptions/safety/check` existe, impose `patient_id`, vérifie l’accès tenant puis appelle `prescription_service.check_safety(...)` ;
-- le moteur retourne une liste d’alertes sécurité/DDI/cohérence/omission ;
-- le Studio affiche actuellement `Cohérence OK` lorsque `coherenceWarnings.length === 0`, sans preuve que ce safety check backend ait été exécuté ;
-- ce faux état positif doit disparaître.
-
-Travail R3 amorcé sur `work-20260815-r3-safety-orchestration` :
-- module d’état safety explicite créé ;
-- états `unchecked | checking | verified | error` ;
-- fingerprint déterministe patient + médicaments ;
-- tests unitaires des états et invalidation d’entrée ajoutés.
-
-Prochaine action exacte : câbler le safety check réel dans `PrescriptionAgenticStudio`, invalider toute vérification lorsque patient/médicaments changent, remplacer le faux `Cohérence OK`, tester frontend/build, ouvrir PR R3 et certifier le head exact.
+### R4 — P0 Dirty-state & actions — ACTIVE 🟡
+Objectifs vérifiés depuis l'audit P1 :
+- wrapper de mutation pour tout changement ordonnance ;
+- garde onglet + navigateur + reset ;
+- bouton ↻ relance réellement le contexte ou devient explicitement `Réinitialiser` ;
+- suppression du fallback caché `forme='Sachets'` ou exposition explicite dans l'UI.
