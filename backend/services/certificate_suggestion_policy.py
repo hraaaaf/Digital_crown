@@ -7,10 +7,20 @@ SURGICAL_KEYWORDS = ("extraction", "chirurgie", "implant", "lambeau", "resection
 ORTHO_KEYWORDS = ("ortho", "bagues", "appareil", "ajustement")
 APTITUDE_KEYWORDS = ("aptitude", "sport")
 
+# Seuls ces statuts correspondent à une présence physique observée au cabinet.
+# PREVU/CONFIRME/ABSENT/ANNULE/REFUSE/EXPIRE ne doivent jamais constituer
+# une preuve de passage pour un certificat.
+OBSERVED_APPOINTMENT_STATUS_VALUES = frozenset({"EN_S_ATTENTE", "EN_FAUTEUIL", "TERMINÉ"})
+
 
 def certificate_same_day_bounds(now: datetime) -> tuple[datetime, datetime]:
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return start, start + timedelta(days=1)
+
+
+def appointment_status_supports_presence(status) -> bool:
+    value = getattr(status, "value", status)
+    return str(value or "").strip().upper() in OBSERVED_APPOINTMENT_STATUS_VALUES
 
 
 def build_certificate_context_signal(motif_text: str, *, has_same_day_visit: bool) -> Optional[dict]:
