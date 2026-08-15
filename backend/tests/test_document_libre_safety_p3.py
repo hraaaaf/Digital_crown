@@ -5,6 +5,7 @@ import fitz
 import pytest
 
 from backend.schemas.documents import LibreData
+from backend.services.base_template import NAVY_BLUE
 from backend.services.generators.libre_gen import (
     LibreGenerator,
     _config_owner_id,
@@ -105,7 +106,7 @@ def test_hide_patient_header_keeps_document_date_visible(tmp_path):
     generator = LibreGenerator(str(tmp_path))
     patient = SimpleNamespace(nom="EL ALAMI", prenom="Youssef", date_naissance=date(1990, 5, 12))
     data = _libre(hide_patient_header=True, doc_date=date(2026, 8, 16))
-    header = generator._create_header(patient, data, generator.base_template.default_text_color, 12 * 28.3465)
+    header = generator._create_header(patient, data, NAVY_BLUE, 12 * 28.3465)
     right_paragraph = header._cellvalues[0][1]
     assert "16/08/2026" in right_paragraph.text
 
