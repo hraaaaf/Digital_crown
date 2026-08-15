@@ -128,6 +128,10 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
     setLegacyEpoch(epoch => epoch + 1);
   }, []);
 
+  const restoreProtocols = useCallback(() => {
+    setLegacyEpoch(epoch => epoch + 1);
+  }, []);
+
   const safetyDrugNames = useMemo(
     () => props.drugs
       .filter(drug => drug.type !== 'EXAMEN')
@@ -221,15 +225,25 @@ export const PrescriptionAgenticStudio: React.FC<PrescriptionAgenticStudioProps>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={refreshClinicalContext}
-          className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:text-primary"
-          title="Relancer le chargement du contexte patient"
-        >
-          <RefreshCcw size={14} />
-          Actualiser le contexte
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={restoreProtocols}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:text-primary"
+            title="Réafficher la zone Mes protocoles"
+          >
+            Mes protocoles
+          </button>
+          <button
+            type="button"
+            onClick={refreshClinicalContext}
+            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:text-primary"
+            title="Relancer le chargement du contexte patient"
+          >
+            <RefreshCcw size={14} />
+            Actualiser le contexte
+          </button>
+        </div>
       </div>
 
       {missingMedicationForm && (
