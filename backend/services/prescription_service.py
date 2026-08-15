@@ -1,4 +1,6 @@
 from typing import Any, Dict, List, Optional
+
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -7,7 +9,7 @@ from backend.services.prescription_service_legacy import PrescriptionService as 
 
 
 class PrescriptionService(LegacyPrescriptionService):
-    """Legacy-compatible service with an explicit missing-data gate."""
+    """Legacy-compatible service with explicit safety and persistence gates."""
 
     def resolve_smart_prescription(
         self,
@@ -40,6 +42,84 @@ class PrescriptionService(LegacyPrescriptionService):
         result["patient_context"] = context.as_dict()
         result["evaluation"] = context.evaluation_dict()
         return result
+
+    @staticmethod
+    def _normalize_preference_act_code(act_code: str) -> str:
+        normalized = " ".join((act_code or "").strip().upper().split())
+        if not normalized:
+            raise ValueError("Code acte vide")
+        return normalized
+
+    def learn_habit(self, db: Session, doctor_id: int, act_code: str, drugs: List[Dict[str, Any]]):
+        """Persist a doctor prescription preference and never mask DB failures."""
+        normalized_act_code = self._normalize_preference_act_code(act_code)
+        cleaned_drugs = [
+            {
+                "name": d.get("name", d.get("nom", "")),
+                "dosage": d.get("dosage", ""),
+                "forme": d.get("forme", ""),
+                "posologie": d.get("posologie", ""),
+            }
+            for d in drugs
+        ]
+
+        try:
+            existing = db.query(models.DoctorPrescriptionPreference).filter(
+                models.DoctorPrescriptionPreference.doctor_id == doctor_id,
+                models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+            ).first()
+
+            if existing:
+                existing.drugs_json = cleaned_drugs
+            else:
+                db.add(
+                    models.DoctorPrescriptionPreference(
+                        doctor_id=doctor_id,
+                        act_code=normalized_act_code,
+                        drugs_json=cleaned_drugs,
+                    )
+                )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+    def get_doctor_presets(self, db: Session, doctor_id: int) -> List[Dict[str, Any]]:
+        """Return doctor-scoped persisted presets in a stable order."""
+        presets = db.query(models.DoctorPrescriptionPreference).filter(
+            models.DoctorPrescriptionPreference.doctor_id == doctor_id
+        ).order_by(
+            models.DoctorPrescriptionPreference.updated_at.desc(),
+            models.DoctorPrescriptionPreference.id.desc(),
+        ).limit(10).all()
+
+        return [
+            {
+                "id": preset.id,
+                "act_context": preset.act_code,
+                "drugs": preset.drugs_json,
+            }
+            for preset in presets
+        ]
+
+    def delete_doctor_preset(self, db: Session, doctor_id: int, act_code: str) -> bool:
+        """Delete the exact doctor preference row used by save/load."""
+        normalized_act_code = self._normalize_preference_act_code(act_code)
+        try:
+            deleted = db.query(models.DoctorPrescriptionPreference).filter(
+                models.DoctorPrescriptionPreference.doctor_id == doctor_id,
+                models.DoctorPrescriptionPreference.act_code == normalized_act_code,
+            ).delete(synchronize_session=False)
+            if not deleted:
+                db.rollback()
+                raise HTTPException(status_code=404, detail="Preset introuvable")
+            db.commit()
+            return True
+        except HTTPException:
+            raise
+        except Exception:
+            db.rollback()
+            raise
 
     def _safe_act_context(self, acts: List[str]) -> str:
         if not acts:
