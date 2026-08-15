@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 from typing import Literal, Optional
 from datetime import datetime
 
@@ -31,7 +32,10 @@ class PaymentCreate(BaseModel):
             return "ESPECES"
         normalized = str(value).strip().upper()
         if normalized not in _PAYMENT_METHOD_ALIASES:
-            raise ValueError("Mode de paiement invalide")
+            raise PydanticCustomError(
+                "invalid_payment_method",
+                "Mode de paiement invalide",
+            )
         return _PAYMENT_METHOD_ALIASES[normalized]
 
 
