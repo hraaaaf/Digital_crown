@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-CERTIFICATE_SIGNER_ROLES = frozenset({'ADMIN', 'DENTISTE'})
+CERTIFICATE_SIGNER_ROLES = frozenset({'DENTISTE'})
 
 
 def certificate_signer_role(user: Any) -> str:
@@ -21,7 +21,7 @@ def resolve_certificate_signer_name(user: Any) -> str:
     if user is None:
         raise ValueError('Praticien signataire introuvable.')
     if not is_authorized_certificate_signer(user):
-        raise ValueError('Seul un praticien autorisé peut émettre un certificat.')
+        raise ValueError('Seul un médecin-dentiste autorisé peut émettre un certificat.')
 
     name = str(getattr(user, 'nom_complet', '') or '').strip()
     if not name:
