@@ -1,8 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Literal, Optional
 from datetime import datetime
 
 PaymentMethodCode = Literal["ESPECES", "CARTE", "VIREMENT", "CHEQUE"]
+
+_PAYMENT_METHOD_ALIASES = {
+    "ESPECES": "ESPECES",
+    "ESPÈCES": "ESPECES",
+    "ESPECES": "ESPECES",
+    "CARTE": "CARTE",
+    "TPE": "CARTE",
+    "VIREMENT": "VIREMENT",
+    "CHEQUE": "CHEQUE",
+    "CHÈQUE": "CHEQUE",
+}
 
 
 class PaymentCreate(BaseModel):
@@ -13,6 +24,16 @@ class PaymentCreate(BaseModel):
     acte_id: Optional[int] = None
     installment_id: Optional[int] = None
     notes: Optional[str] = None
+
+    @field_validator("payment_method", mode="before")
+    @classmethod
+    def normalize_payment_method(cls, value):
+        if value is None:
+            return "ESPECES"
+        normalized = str(value).strip().upper()
+        if normalized not in _PAYMENT_METHOD_ALIASES:
+            raise ValueError("Mode de paiement invalide")
+        return _PAYMENT_METHOD_ALIASES[normalized]
 
 
 class PaymentOut(BaseModel):
