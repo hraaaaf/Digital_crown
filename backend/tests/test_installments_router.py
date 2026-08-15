@@ -86,7 +86,7 @@ class TestUpdateInstallment:
 
         r = client.put(
             f"/api/installments/{inst_id}",
-            json={"status": "PAYE"},
+            json={"status": "PAYE", "payment_method": "ESPECES"},
             headers=auth_headers,
         )
         assert r.status_code == 200
