@@ -25,7 +25,26 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Apply P3 certificate patch
-        run: python scripts/p3_certificat_types_once.py
+        run: |
+          python scripts/p3_certificat_types_once.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = '<label className={labelClass}>Contenu du certificat médical</label>\n                <textarea'
+          new = '<label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>\n                <textarea\n                  id="certificate-free-content"'
+          assert old in text, 'free certificate label anchor not found'
+          text = text.replace(old, new, 1)
+          old = '<label className={labelClass + " mb-1"}>Durée du repos</label>'
+          new = '<label htmlFor="certificate-rest-days" className={labelClass + " mb-1"}>Durée du repos</label>'
+          assert old in text, 'duration label anchor not found'
+          text = text.replace(old, new, 1)
+          old = '<input\n                type="range"'
+          new = '<input\n                id="certificate-rest-days"\n                type="range"'
+          assert old in text, 'duration range anchor not found'
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Targeted frontend tests
         working-directory: frontend
