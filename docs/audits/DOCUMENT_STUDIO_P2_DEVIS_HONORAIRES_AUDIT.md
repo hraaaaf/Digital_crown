@@ -2,95 +2,85 @@
 
 ## Statut de preuve
 
-Audit **partiel** basé sur `AccountingStudio.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et le contrat backend déjà durci sur les paiements.
+Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS IDENTIFIÉS/EXÉCUTÉS** : à compléter par lot.
+- **TESTS EXÉCUTÉS** : P2-A certifié par CI exacte ; autres lots préparatoires non fusionnés restent à recertifier sur leur head final.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
-## P2-1 — Recherche catalogue : prix local perdu
+## P2-A — Recherche catalogue : prix local perdu — CLOSED ✅
 
-### Fait vérifié
-`TREATMENT_TEMPLATES` transporte bien `act.base_price`, mais le legacy `handleActSearch()` transforme les résultats locaux avec `base_price: 0`.
+### Défaut vérifié
+`TREATMENT_TEMPLATES` transporte bien `act.base_price`, mais le legacy `handleActSearch()` transformait les résultats locaux avec `base_price: 0`.
 
-### Conséquence
-Une suggestion issue du catalogue local affiche/applique 0 MAD alors que le prix de base existe dans le catalogue.
+### Correctif fusionné
+Le legacy est conservé derrière `AccountingStudio.tsx`, devenu un petit wrapper. Le wrapper répare uniquement les suggestions locales depuis le catalogue existant :
+- prix distant/non local inchangé ;
+- prix catalogue nul/absent reste nul ;
+- aucun prix inventé.
 
-### Décision
-**P0 fonctionnel P2.** Conserver le `base_price` source lors de la construction des suggestions locales.
-
-### Correctif candidat
-Le lot P2-A conserve le legacy intact derrière un wrapper et répare uniquement les suggestions locales depuis le catalogue existant. Prix distant/non local inchangé ; prix catalogue nul/absent reste nul ; aucun prix inventé.
-
----
-
-## P2-2 — Smart Acts dépend du hover
-
-### Fait vérifié
-La barre `Smart Acts` est visuellement repliée (`max-w-[220px]`, `max-h-[46px]`, contenu `opacity-0`) et s’ouvre principalement via `group-hover`.
-
-### Conséquence
-Le chemin principal des actes rapides est peu fiable sur tactile/mobile, où le hover n’est pas un contrat d’interaction robuste.
-
-### Décision
-**REFAIRE L’INTERACTION, PAS LA SOURCE DE DONNÉES.** Contrôle explicite ouvrir/fermer ou quick-picks toujours visibles sur mobile.
+### Preuve engineering
+- PR `#27` — **MERGED**.
+- Head final certifié : `7289d0bf64c8139838470923622f8c0b588206e1`.
+- CI exacte : run `31882328096` — **SUCCESS**.
+- Frontend tests/build : ✅ SUCCESS.
+- Backend tests/durcissement : ✅ SUCCESS.
+- Garde production négative : ✅ SUCCESS.
+- Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
 
 ---
 
-## P2-3 — Terminologie IA/Ghost non alignée avec moteur déterministe
-
-### Faits vérifiés
-Labels visibles dans le flux comptable :
-- `Smart Acts`
-- `Combo IA Détecté`
-- `Intelligence appliquée`
-- `Studio Clinique Elite`
-- `Odontogramme & Catalogue Ghost`
-- `Séquencer avec l'IA`
-- `Ghost Treasury`
-- `Flux d'encaissement intelligent`
-
-Le séquençage inspecté est une classification regex déterministe côté frontend.
-
-### Décision
-**R7/P6 transversal à appliquer à P2** : terminologie fonctionnelle (`Actes rapides`, `Suggestions complémentaires`, `Organiser par phases`, `Encaissement`).
-
----
-
-## P2-4 — Statut PARTIEL exposé mais contrat backend fail-closed
+## P2-B — Statut PARTIEL exposé mais contrat backend fail-closed
 
 ### Faits vérifiés
 La modale d’encaissement expose `EN_ATTENTE`, `PARTIEL`, `PAYE`.
 
 `useDocumentGenerator.buildPayload()` transmet `payment_status` au niveau racine vers `/documents/generate`.
 
-Le contrat backend `DocumentRequest` refuse déjà `payment_status=PARTIEL` lorsqu’aucun montant encaissé explicite n’est fourni, afin d’empêcher l’ancienne inférence arbitraire de 50 %.
+`DocumentRequest` n’a volontairement **aucun champ montant encaissé explicite** et refuse `payment_status=PARTIEL`. Le flux dédié `/accounting/payments` exige un montant réel et accepte un `acte_id`/`installment_id` optionnel.
 
-### Conséquence
-Le mismatch est certain : l’UI propose une valeur que ce flux backend doit refuser. Aucun champ montant encaissé explicite n’est transmis par ce payload.
+`/documents/generate` crée les lignes `Acte` Honoraires mais ne retourne pas leurs IDs. Un paiement partiel générique ne peut donc pas être réparti proprement entre plusieurs actes depuis ce modal sans règle d’allocation supplémentaire.
 
 ### Décision
-**P0 cohérence financière.** Masquer/désactiver `PARTIEL` dans ce flux tant qu’aucun montant explicite n’est saisi, ou ajouter un vrai flux de montant encaissé explicite. Aucune valeur ne doit être estimée.
+**P0 cohérence financière.** Dans Document Studio, `PARTIEL` doit rester désactivé tant que l’allocation explicite n’existe pas. Le paiement partiel réel reste le flux `/accounting/payments` avec montant explicite. Aucune fraction ni allocation ne doit être inventée.
+
+### Préparation technique non fusionnée
+- policy frontend fail-closed + sélecteur accessible préparés ;
+- contrat `PaymentCreate` préparé avec montant strictement positif et méthodes connues normalisées ;
+- tests API et frontend préparés sur PR draft `#28` ;
+- intégration dans `AccountingStudioLegacy` à faire après baseline P2-A.
 
 ---
 
-## P2-5 — Total et payload
+## P2-C — Actes rapides, terminologie et organisation par phases
 
 ### Faits vérifiés
-Le total affiché est la somme directe des `item.price` numériques :
-`items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)`.
+La barre `Smart Acts` est repliée et s’ouvre principalement via `group-hover`, ce qui n’est pas un contrat fiable sur tactile.
 
-Pour Devis/Honoraires, `buildPayload()` filtre les descriptions vides puis transporte chaque ligne sous : `acte`, `dent`, `dents`, `prix_unitaire`, `montant`, `date`, `mode_reglement`.
+Labels visibles non alignés avec les moteurs réellement déterministes :
+- `Smart Acts` ;
+- `Combo IA Détecté` ;
+- `Intelligence appliquée` ;
+- `Studio Clinique Elite` ;
+- `Odontogramme & Catalogue Ghost` ;
+- `Séquencer avec l'IA` ;
+- `Ghost Treasury` ;
+- `Flux d'encaissement intelligent`.
 
-Les champs `installments` et `is_global_note` sont bien envoyés dans `payload.data` pour les deux variantes. Honoraires est normalisé en type backend `note`.
+Le séquençage est une classification regex frontend. Il injecte en plus `DÉLAI DE CICATRISATION (ESTIMÉ : 3 MOIS)` lorsque chirurgie + prothèse sont détectées, sans donnée patient ni source clinique dans ce flux.
 
-### Statut
-Pas de bug arithmétique identifié dans l’expression de total elle-même. Restent à certifier : arrondis, doublons odontogramme, correspondance stricte total/payload/backend et effets des lignes de phase à 0.
+### Décision
+- interaction explicite ouvrir/fermer pour les actes rapides ;
+- terminologie fonctionnelle (`Actes rapides`, `Suggestions complémentaires`, `Organiser par phases`, `Encaissement`) ;
+- conserver un regroupement déterministe des phases mais **ne pas injecter de durée clinique estimée** depuis ce moteur documentaire.
+
+### Préparation technique non fusionnée
+Composant tactile `AccountingQuickActions` + tests, et policy déterministe de phases sans durée de cicatrisation préparés sur branche dédiée.
 
 ---
 
-## P2-6 — Odontogramme / modes
+## P2-D — Odontogramme / modes / déduplication
 
 ### Faits vérifiés
 Trois modes sont présents :
@@ -98,20 +88,47 @@ Trois modes sont présents :
 - `group` → bridge/prothèses + sélections Q1-Q4/S1-S6 ;
 - `ortho` → libellé UI `Soins Généraux` et panneau d’actes globaux.
 
-Le `TreatmentSelector` ajoute les traitements sélectionnés au panier et enregistre les prix positifs dans `PriceBrain`.
+Le `TreatmentSelector` ajoute directement les traitements sélectionnés au panier et enregistre les prix positifs dans `PriceBrain`.
 
-En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : un acte peut donc être ajouté à 0 MAD lorsque le moteur n’a aucun historique/prix suggéré.
+Le composant contient bien `handleTeethFromOdontogram()` avec une stratégie `_odontogramKey = dent::traitement`, mais ce callback est **défini sans aucun appel dans le composant**. La logique de déduplication associée est donc orpheline dans le flux inspecté.
 
-### Points à certifier ensuite
-- déduplication dent/traitement ;
-- retour/annulation sans mutation ;
-- cohérence surfaces/dents ;
-- traitement explicite des prix groupe inconnus ;
-- comportement tactile/mobile de la barre flottante.
+En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : un acte peut être ajouté à 0 MAD lorsque le moteur n’a aucun historique/prix suggéré.
+
+### Décision
+- rétablir une source de vérité unique pour les sélections odontogramme ;
+- fusion idempotente par clé stable `dent::traitement` ;
+- ne jamais supprimer une ligne manuelle lors de la synchronisation ;
+- exposer explicitement un prix inconnu plutôt que le traiter silencieusement comme un prix valide à 0.
+
+### Préparation technique non fusionnée
+Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée.
 
 ---
 
-## P2-7 — Effets après archivage Honoraires
+## P2-E — Total, payload, échéances et réconciliation
+
+### Faits vérifiés
+Le total affiché est la somme directe des `item.price` numériques :
+`items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)`.
+
+Pour Devis/Honoraires, `buildPayload()` filtre les descriptions vides puis transporte chaque ligne sous : `acte`, `dent`, `dents`, `prix_unitaire`, `montant`, `date`, `mode_reglement`.
+
+Les champs `installments` et `is_global_note` sont envoyés dans `payload.data`. Honoraires est normalisé en type backend `note`.
+
+Dans le backend Honoraires global, `InstallmentPlan.total_amount` prend le total facturé, puis chaque échéance est créée avec son montant propre. **Aucune vérification n’impose actuellement que la somme des échéances soit égale au total facturé.**
+
+### Décision
+- conserver le calcul total simple ;
+- ajouter une réconciliation exacte au centime avant toute persistance d’un plan ;
+- chaque échéance doit être strictement positive ;
+- une somme supérieure ou inférieure au total doit être bloquante, pas silencieuse.
+
+### Préparation technique non fusionnée
+Policy de réconciliation au centime + tests préparés sur branche dédiée.
+
+---
+
+## P2-F — Effets après archivage Honoraires / encaissement complet
 
 ### Fait vérifié
 Après génération archivée réussie d’un document Honoraires, le frontend :
@@ -120,16 +137,16 @@ Après génération archivée réussie d’un document Honoraires, le frontend :
 - remplace ensuite les lignes Honoraires par une ligne vide.
 
 ### Risque UX à certifier
-Une archive réussie efface donc immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
+Une archive réussie efface immédiatement le panier Honoraires actif. Ce comportement peut être voulu, mais doit être testé en runtime et protégé contre les cas d’erreur partielle ou de besoin de réimpression/correction immédiate.
 
 ---
 
-## Ordre de correction P2 recommandé
+## Ordre de correction P2
 
-1. **P2-A — Prix catalogue local conservé**.
-2. **P2-B — PARTIEL fail-closed cohérent UI/backend**.
-3. **P2-C — Actes rapides tactile + terminologie déterministe**.
+1. **P2-A — Prix catalogue local conservé** — ✅ CLOSED.
+2. **P2-B — PARTIEL fail-closed cohérent UI/backend** — 🟡 ACTIVE.
+3. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres**.
 4. **P2-D — Odontogramme/déduplication/prix groupe**.
-5. **P2-E — Totaux, payload, preview et persistance**.
-6. **P2-F — Honoraires/échéances/encaissement complet**.
+5. **P2-E — Totaux, payload, échéances et réconciliation**.
+6. **P2-F — Honoraires/encaissement complet + effets post-archive**.
 7. Recertification runtime ciblée.
