@@ -38,6 +38,7 @@ interface GenericClinicalData {
   medications?: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }[];
   reason?: string;
   days?: number;
+  start_date?: string;
   title?: string;
   content?: string;
   custom_patient?: string;
@@ -93,10 +94,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
   const [certifType, setCertifType] = useState('Arrêt de travail');
   const [certifDays, setCertifDays] = useState(5);
+  const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const { 
-    items, setItems, paymentMode, installments, setInstallments, 
-    isAccounted, paymentStatus, isGlobalNote 
+  const {
+    items, setItems, paymentMode, installments, setInstallments,
+    isAccounted, paymentStatus, isGlobalNote
   } = useAccountingStore();
 
   // --- PERSISTENCE ECHEANCES ---
@@ -187,22 +189,22 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [setActiveTab]);
 
   const generatorParams = useMemo(() => ({
-    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, onSuggestRadio: handleSuggestRadio,
     showLegalAnnotations, echeancierPayload,
   }), [
-    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifCustomMotif,
+    patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
   ]);
 
   // --- INTELLIGENCE SCOPE ---
-  const isSurgical = useMemo(() => items.some(i => 
-    i.description.toLowerCase().includes('extraction') || 
-    i.description.toLowerCase().includes('implant') || 
+  const isSurgical = useMemo(() => items.some(i =>
+    i.description.toLowerCase().includes('extraction') ||
+    i.description.toLowerCase().includes('implant') ||
     i.description.toLowerCase().includes('chirurgie')
   ), [items]);
 
@@ -241,7 +243,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
     // 2. Intelligence Elite : Détection des Protocoles Oubliés
     if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
-       
+
       setInsights(prev => [{
         id: 'ins-missing-protocol',
         type: 'safety',
@@ -267,7 +269,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
         });
       }
-      
+
       if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
         complications.push({
           id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
@@ -355,7 +357,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
-         
+
         setActiveTab('ordonnance');
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
@@ -366,7 +368,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab('certificat');
         setCertifType(d.reason || 'Arrêt de travail');
         setCertifDays(d.days ?? 0);
+        setCertifStartDate(d.start_date || '');
         setCertifCustomMotif(d.content || '');
+        if (!d.doc_date && d.start_date) setDocDate(d.start_date);
       } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
         setLibreTitle(d.title || 'Note Médicale');
@@ -380,10 +384,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
         setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, 
-          description: i.acte || '', 
+          id: Date.now() + idx,
+          description: i.acte || '',
           dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0, 
+          price: i.montant ?? i.prix_unitaire ?? 0,
           toothNumbers: i.dents || [],
         })));
       }
@@ -419,14 +423,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sideStudioType, drugs, items, certifType, certifDays, paymentMode, 
-    libreTitle, libreContent, docDate, activeTab, 
+    sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
+    libreTitle, libreContent, docDate, activeTab,
     generator.handleGenerate // Seule la fonction stable est nécessaire
   ]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
-       
+
       setSideStudioType('PREVIEW');
     }
   }, [activeTab]);
@@ -457,8 +461,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
-            <TreatmentPlanStudio 
-              patientId={Number(patientId)} 
+            <TreatmentPlanStudio
+              patientId={Number(patientId)}
               onConvertToQuote={(allActs) => {
                 const newItems: PriceItem[] = allActs.map((act: any) => ({
                   id: Date.now() + Math.random(),
@@ -521,13 +525,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               patientId={patientId || ""}
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
+              docDate={docDate}
+              certifStartDate={certifStartDate} setCertifStartDate={setCertifStartDate}
               certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
             />
           )}
 
           {activeTab === 'libre' && (
             <LibreForm
-              title={libreTitle} 
+              title={libreTitle}
               setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
@@ -538,7 +544,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
-          
+
           {activeTab === 'echeancier' && (
             <InstallmentStudio
               patientId={patientId || '0'}
@@ -638,10 +644,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {/* APERÇU LATÉRAL */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
-          <motion.div 
-            initial={{ x: 600, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            exit={{ x: 600, opacity: 0 }} 
+          <motion.div
+            initial={{ x: 600, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 600, opacity: 0 }}
             className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
           >
             <LivePreview

@@ -30,6 +30,9 @@ describe('CertificateForm P3', () => {
         setCertifType={setCertifType}
         certifDays={1}
         setCertifDays={setCertifDays}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
         certifCustomMotif=""
         setCertifCustomMotif={vi.fn()}
       />,
@@ -54,6 +57,9 @@ describe('CertificateForm P3', () => {
         setCertifType={setCertifType}
         certifDays={2}
         setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
         certifCustomMotif=""
         setCertifCustomMotif={vi.fn()}
       />,
@@ -71,6 +77,9 @@ describe('CertificateForm P3', () => {
         setCertifType={setCertifType}
         certifDays={2}
         setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate=""
+        setCertifStartDate={vi.fn()}
         certifCustomMotif="Texte rédigé par le praticien"
         setCertifCustomMotif={vi.fn()}
       />,
@@ -79,4 +88,25 @@ describe('CertificateForm P3', () => {
     expect((screen.getByRole('textbox', { name: /Contenu du certificat médical/i }) as HTMLTextAreaElement).value).toBe('Texte rédigé par le praticien');
     expect(screen.queryByLabelText(/Durée du repos/i)).toBeNull();
   });
+
+  it('affiche un début du repos distinct uniquement pour un arrêt de travail', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: null } as never);
+    render(
+      <CertificateForm
+        patientId=""
+        certifType="Arrêt de travail"
+        setCertifType={vi.fn()}
+        certifDays={3}
+        setCertifDays={vi.fn()}
+        docDate="2026-08-15"
+        certifStartDate="2026-08-17"
+        setCertifStartDate={vi.fn()}
+        certifCustomMotif=""
+        setCertifCustomMotif={vi.fn()}
+      />,
+    );
+
+    expect((screen.getByLabelText(/Début du repos/i) as HTMLInputElement).value).toBe('2026-08-17');
+  });
+
 });

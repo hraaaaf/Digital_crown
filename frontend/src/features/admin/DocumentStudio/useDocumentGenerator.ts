@@ -34,6 +34,7 @@ interface UseDocumentGeneratorParams {
   drugs: DrugItem[];
   certifType: string;
   certifDays: number;
+  certifStartDate: string;
   certifCustomMotif: string;
   items: PriceItem[];
   paymentMode: PaymentMode;
@@ -85,6 +86,10 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
 
   if (activeTab === 'certificat') {
     if (certificateRequiresDuration(params.certifType)) {
+      const effectiveStartDate = params.certifStartDate || params.docDate;
+      if (!effectiveStartDate || isNaN(new Date(effectiveStartDate).getTime())) {
+        errors.push({ field: 'certifStartDate', message: 'La date de début du repos est invalide.' });
+      }
       if (!Number.isInteger(certifDays) || certifDays < 1) {
         errors.push({ field: 'certifDays', message: 'Le nombre de jours doit être un entier positif (minimum 1).' });
       }
@@ -277,7 +282,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
 
   const buildPayload = useCallback(() => {
     const {
-      patientId, activeTab, drugs, certifType, certifDays, certifCustomMotif, items, paymentMode,
+      patientId, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
       librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
       installments, isAccounted, paymentStatus, isGlobalNote,
@@ -305,7 +310,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         show_legal_annotations: params.showLegalAnnotations !== false,
       };
     } else if (activeTab === 'certificat') {
-      payload.data = buildCertificatePayload(certifType, certifCustomMotif, certifDays, docDate);
+      payload.data = buildCertificatePayload(certifType, certifCustomMotif, certifDays, docDate, certifStartDate);
     } else if (activeTab === 'libre') {
       const birthDate = patientDetails?.date_naissance;
       let age: number | undefined;
@@ -350,7 +355,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     return payload;
   }, [
     params.patientId, params.activeTab, params.drugs, params.certifType, params.certifDays,
-    params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
+    params.certifStartDate, params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
     params.libreContent, params.libreCustomPatient, params.libreCustomDate,
     params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
     params.patientDetails, params.selectedTeethFromOdontogram, params.installments,

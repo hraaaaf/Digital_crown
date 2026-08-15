@@ -39,6 +39,28 @@ def _format_free_certificate_content(content: str) -> str:
     return '<br/>'.join(escape(line) for line in cleaned.splitlines())
 
 
+def _coerce_certificate_date(value, fallback: date) -> date:
+    if not value:
+        return fallback
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except ValueError:
+            return fallback
+    return fallback
+
+
+def _resolve_certificate_dates(data, today: date | None = None) -> tuple[date, date]:
+    today = today or date.today()
+    issue_date = _coerce_certificate_date(getattr(data, 'doc_date', None), today)
+    rest_start_date = _coerce_certificate_date(getattr(data, 'start_date', None), issue_date)
+    return issue_date, rest_start_date
+
+
 class CertificatGenerator:
     def __init__(self, output_dir="static/documents"):
         self.output_dir = output_dir
@@ -67,13 +89,7 @@ class CertificatGenerator:
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
 
     def _create_header(self, patient, data, p_color, config=None):
-        doc_date = getattr(data, 'doc_date', None) or date.today()
-        if isinstance(doc_date, str):
-            try:
-                doc_date = datetime.strptime(doc_date, '%Y-%m-%d').date()
-            except Exception:
-                doc_date = date.today()
-
+        doc_date, _ = _resolve_certificate_dates(data)
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
 
@@ -201,25 +217,20 @@ class CertificatGenerator:
         certif_text = ""
 
         from datetime import timedelta
-        doc_date_obj = getattr(data, 'doc_date', None) or date.today()
-        if isinstance(doc_date_obj, str):
-            try:
-                doc_date_obj = datetime.strptime(doc_date_obj, '%Y-%m-%d').date()
-            except Exception:
-                doc_date_obj = date.today()
+        issue_date_obj, rest_start_date_obj = _resolve_certificate_dates(data)
 
         days_int = int(days or 0)
         days_words = _days_in_words(days_int)
         days_label = f"({days_int} jours)"
 
         if days_int > 0:
-            end_date = doc_date_obj + timedelta(days=days_int - 1)
+            end_date = rest_start_date_obj + timedelta(days=days_int - 1)
             date_phrase = (
-                f"du <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> "
+                f"du <b>{rest_start_date_obj.strftime('%d/%m/%Y')}</b> "
                 f"au <b>{end_date.strftime('%d/%m/%Y')} inclus</b>"
             )
         else:
-            date_phrase = f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b>"
+            date_phrase = f"le <b>{rest_start_date_obj.strftime('%d/%m/%Y')}</b>"
 
         age = self._calculate_age(patient.date_naissance)
         age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
@@ -231,7 +242,7 @@ class CertificatGenerator:
             certif_text = (
                 f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que "
                 f"{hon} <b>{nom_complet}</b> a été <b>{pres} à notre cabinet</b> "
-                f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
+                f"le <b>{issue_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
             )
         else:
             certif_text = (
