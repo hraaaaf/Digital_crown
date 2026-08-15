@@ -60,6 +60,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
   const freeContentMissing = certifType === CERTIFICATE_TYPE_FREE && !certifCustomMotif.trim();
+  const durationMissing = certificateRequiresDuration(certifType) && (!Number.isInteger(certifDays) || certifDays < 1);
 
   const certifTypes = [
     {
@@ -70,9 +71,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     },
     {
       id: CERTIFICATE_TYPE_PRESENCE,
-      label: 'Présence (Soin)',
+      label: 'Présence au cabinet',
       icon: <CheckCircle2 size={14} />,
-      description: 'Justifie la présence effective au cabinet',
+      description: 'Atteste une présence constatée par le praticien',
     },
     {
       id: CERTIFICATE_TYPE_FREE,
@@ -132,6 +133,12 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               ))}
             </div>
 
+            {!certifType && (
+              <p className="mt-5 text-center text-[9px] font-bold text-slate-400">
+                Aucun type sélectionné. Le praticien choisit explicitement la nature du certificat.
+              </p>
+            )}
+
             {certifType === CERTIFICATE_TYPE_FREE && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
                 <label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>
@@ -172,7 +179,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-end">
                 <div>
                   <label htmlFor="certificate-rest-days" className={labelClass + " mb-1"}>Durée du repos</label>
-                  <p className="text-[9px] font-bold text-slate-400 italic">À déterminer et valider par le praticien.</p>
+                  <p className="text-[9px] font-bold text-slate-400 italic">À saisir et valider par le praticien. Aucune durée n’est préremplie.</p>
                 </div>
                 <div>
                   <label htmlFor="certificate-rest-start" className={labelClass + " mb-1"}>Début du repos</label>
@@ -189,18 +196,30 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               <div className="flex items-center justify-between gap-4">
                 <input
                   id="certificate-rest-days"
-                  type="range"
+                  type="number"
                   min="1"
-                  max="30"
+                  max="365"
                   step="1"
-                  value={certifDays}
-                  onChange={(e) => setCertifDays(parseInt(e.target.value))}
-                  className="min-w-0 flex-1 h-2.5 bg-slate-100 rounded-full appearance-none cursor-pointer accent-primary"
-                  style={{ accentColor: 'var(--primary)' }}
+                  inputMode="numeric"
+                  value={certifDays > 0 ? certifDays : ''}
+                  placeholder="Saisir la durée"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setCertifDays(raw === '' ? 0 : Number.parseInt(raw, 10));
+                  }}
+                  className={cn(
+                    inputClass,
+                    "max-w-xs",
+                    durationMissing && "border-amber-200 focus:border-amber-400 focus:ring-amber-100",
+                  )}
                   aria-label="Durée du repos en jours"
+                  aria-required="true"
+                  aria-invalid={durationMissing}
                 />
-                <span className="shrink-0 text-3xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
-                  {certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span>
+                <span className="shrink-0 text-2xl font-black text-primary tracking-tighter" style={{ color: 'var(--primary)' }}>
+                  {certifDays > 0
+                    ? <>{certifDays} <span className="text-[10px] uppercase tracking-widest ml-1 opacity-40">jours</span></>
+                    : <span className="text-sm uppercase tracking-widest opacity-40">Non définie</span>}
                 </span>
               </div>
             </div>
