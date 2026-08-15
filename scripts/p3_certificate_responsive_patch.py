@@ -57,9 +57,9 @@ contract.write_text("""import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const root = fileURLToPath(new URL('../../../../', import.meta.url));
-const hub = readFileSync(`${root}features/admin/DocumentHub.tsx`, 'utf8');
-const form = readFileSync(`${root}features/admin/DocumentStudio/Forms/CertificateForm.tsx`, 'utf8');
+const frontendRoot = fileURLToPath(new URL('../../../../', import.meta.url));
+const hub = readFileSync(`${frontendRoot}src/features/admin/DocumentHub.tsx`, 'utf8');
+const form = readFileSync(`${frontendRoot}src/features/admin/DocumentStudio/Forms/CertificateForm.tsx`, 'utf8');
 
 describe('P3 Certificat responsive layout contract', () => {
   it('ne réserve la colonne aperçu de 570px que sur grand écran', () => {
