@@ -2,7 +2,7 @@ name: P3 Certificat Dates Once
 
 on:
   push:
-    branches: [work-20260815-p3-certificat-dates]
+    branches: [work-20260815-p3-certificat-dates-clean]
 
 permissions:
   contents: write
@@ -13,12 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: work-20260815-p3-certificat-dates
+          ref: work-20260815-p3-certificat-dates-clean
           fetch-depth: 0
       - name: Apply date model patch
         run: |
           python scripts/p3_certificat_dates_once.py
-          sed -i 's/[[:space:]]\+$//' frontend/src/features/admin/DocumentHub.tsx
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/features/admin/DocumentHub.tsx')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('certifStartDate, paymentMode, \n    libreTitle, libreContent, docDate, activeTab, \n', 'certifStartDate, paymentMode,\n    libreTitle, libreContent, docDate, activeTab,\n', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Commit clean source patch
         run: |
           git config user.name "github-actions[bot]"
@@ -26,4 +32,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "fix(p3): separate certificate issue and rest dates"
-          git push origin HEAD:work-20260815-p3-certificat-dates
+          git push origin HEAD:work-20260815-p3-certificat-dates-clean
