@@ -35,12 +35,18 @@ class CertificateSignatureSpace(Flowable):
     la zone reste volontairement vide pour la signature manuscrite du praticien.
     """
 
-    def __init__(self, font_name: str, text_color=NAVY_BLUE, height=2.4 * cm, line_width=4.8 * cm):
+    def __init__(self, font_name: str, text_color=NAVY_BLUE, height=2.4 * cm, line_width=4.8 * cm, signer_name: str = ''):
         super().__init__()
         self.font_name = font_name
         self.text_color = text_color
         self.signature_height = height
         self.line_width = line_width
+        self.signer_name = str(signer_name or '').strip()
+
+    def _signature_caption(self) -> str:
+        if self.signer_name:
+            return f"Dr {self.signer_name} — {SIGNATURE_LABEL}"
+        return SIGNATURE_LABEL
 
     def wrap(self, availWidth, availHeight):
         self.width = availWidth
@@ -63,7 +69,7 @@ class CertificateSignatureSpace(Flowable):
         canvas.drawCentredString(
             line_start + effective_line_width / 2,
             0.26 * cm,
-            SIGNATURE_LABEL,
+            self._signature_caption(),
         )
         canvas.restoreState()
 
@@ -81,9 +87,15 @@ class _CertificateConfigView:
         return getattr(self._base, name)
 
 
-def _append_handwritten_signature_space(elements, font_name: str, text_color) -> None:
+def _append_handwritten_signature_space(elements, font_name: str, text_color, signer_name: str = '') -> None:
     elements.append(Spacer(1, 0.5 * cm))
-    elements.append(CertificateSignatureSpace(font_name=font_name, text_color=text_color))
+    elements.append(
+        CertificateSignatureSpace(
+            font_name=font_name,
+            text_color=text_color,
+            signer_name=signer_name,
+        )
+    )
 
 
 def _days_in_words(n: int) -> str:
@@ -353,7 +365,12 @@ class CertificatGenerator:
             certif_text += _certificate_closing_text()
 
         elements.append(Paragraph(certif_text, body_style))
-        _append_handwritten_signature_space(elements, font_name=font_bold, text_color=p_color)
+        _append_handwritten_signature_space(
+            elements,
+            font_name=font_bold,
+            text_color=p_color,
+            signer_name=dr_name_clean,
+        )
 
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
