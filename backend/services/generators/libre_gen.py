@@ -2,15 +2,159 @@
 import os
 import re
 from datetime import datetime, date
+from xml.sax.saxutils import escape
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5, A4
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
 from backend.services.generators.document_layout_safety import join_unbreakable
+
+
+_ALLOWED_PAGE_SIZES = {"A4": A4, "A5": A5}
+_ALLOWED_ALIGNMENTS = {
+    "left": TA_LEFT,
+    "center": TA_CENTER,
+    "right": TA_RIGHT,
+    "justify": TA_JUSTIFY,
+}
+_ALLOWED_INLINE_TOKEN = re.compile(
+    r'(<b>|</b>|<i>|</i>|<u>|</u>|<font\s+size\s*=\s*["\']16["\']\s*>|</font>)',
+    re.IGNORECASE,
+)
+_FILENAME_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def _field_was_explicitly_provided(data, field_name: str) -> bool:
+    fields_set = getattr(data, "model_fields_set", None)
+    if fields_set is None:
+        return True
+    return field_name in fields_set
+
+
+def _normalize_and_validate_libre_data(data):
+    """Fail closed on direct API calls and normalize non-clinical layout options."""
+    if not _field_was_explicitly_provided(data, "titre"):
+        raise ValueError("Le titre du document libre doit être saisi explicitement.")
+    if not _field_was_explicitly_provided(data, "contenu"):
+        raise ValueError("Le contenu du document libre doit être saisi explicitement.")
+
+    title = str(getattr(data, "titre", "") or "").strip()
+    content = str(getattr(data, "contenu", "") or "")
+    if not title:
+        raise ValueError("Le titre du document libre est requis.")
+    if not content.strip():
+        raise ValueError("Le contenu du document libre est requis.")
+    if len(title) > 200:
+        raise ValueError("Le titre du document libre ne peut pas dépasser 200 caractères.")
+    if len(content) > 100_000:
+        raise ValueError("Le contenu du document libre est trop volumineux.")
+
+    page_size = str(getattr(data, "page_size", "A5") or "A5").upper()
+    if page_size not in _ALLOWED_PAGE_SIZES:
+        raise ValueError("Le format du document libre doit être A4 ou A5.")
+
+    alignment = str(getattr(data, "alignment", "justify") or "justify").lower()
+    if alignment not in _ALLOWED_ALIGNMENTS:
+        raise ValueError("L'alignement du document libre est invalide.")
+
+    custom_patient = str(getattr(data, "custom_patient", "") or "").strip()
+    custom_date = str(getattr(data, "custom_date", "") or "").strip()
+    if len(custom_patient) > 500:
+        raise ValueError("Le destinataire du document libre est trop long.")
+    if len(custom_date) > 120:
+        raise ValueError("La date/le lieu personnalisé du document libre est trop long.")
+
+    data.titre = title
+    data.contenu = content
+    data.page_size = page_size
+    data.alignment = alignment
+    data.custom_patient = custom_patient or None
+    data.custom_date = custom_date or None
+    return data
+
+
+def _safe_pdf_text(value) -> str:
+    return escape(str(value or ""))
+
+
+def _sanitize_inline_markup(value) -> str:
+    """Keep only toolbar-supported inline markup and escape everything else.
+
+    Unbalanced supported tags are made safe by escaping mismatched closes and
+    auto-closing remaining opens. This prevents malformed ReportLab Paragraph XML.
+    """
+    text = str(value or "")
+    parts = _ALLOWED_INLINE_TOKEN.split(text)
+    stack: list[str] = []
+    output: list[str] = []
+
+    for part in parts:
+        if not part:
+            continue
+        if not _ALLOWED_INLINE_TOKEN.fullmatch(part):
+            output.append(escape(part))
+            continue
+
+        lowered = part.lower().strip()
+        is_close = lowered.startswith("</")
+        if lowered.startswith("<font"):
+            tag_name = "font"
+            canonical = '<font size="16">'
+        elif lowered == "</font>":
+            tag_name = "font"
+            canonical = "</font>"
+        else:
+            tag_name = lowered.replace("<", "").replace(">", "").replace("/", "")
+            canonical = f"</{tag_name}>" if is_close else f"<{tag_name}>"
+
+        if is_close:
+            if stack and stack[-1] == tag_name:
+                stack.pop()
+                output.append(canonical)
+            else:
+                output.append(escape(part))
+        else:
+            stack.append(tag_name)
+            output.append(canonical)
+
+    while stack:
+        output.append(f"</{stack.pop()}>")
+    return "".join(output)
+
+
+def _safe_filename_component(value: str, fallback: str = "DOCUMENT") -> str:
+    value = _FILENAME_UNSAFE.sub("_", str(value or ""))
+    value = re.sub(r"\s+", "_", value.strip())
+    value = re.sub(r"_+", "_", value).strip("._ ")
+    return (value[:80] or fallback)
+
+
+def _coerce_document_date(value) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return date.today()
+
+
+def _config_owner_id(user, fallback_user_id: int) -> int:
+    if user is None:
+        return fallback_user_id
+    getter = getattr(user, "get_employer_id", None)
+    if callable(getter):
+        return getter()
+    return getattr(user, "employer_id", None) or getattr(user, "id", fallback_user_id)
+
 
 class LibreGenerator:
     def __init__(self, output_dir="static/documents"):
@@ -19,269 +163,250 @@ class LibreGenerator:
         self.base_template = BaseTemplate()
         self.styles = getSampleStyleSheet()
 
-    def _calculate_age(self, born):
-        today = date.today()
+    def _calculate_age(self, born, reference_date: date | None = None):
+        if not born:
+            return None
+        ref_date = reference_date or date.today()
         birth = born.date() if isinstance(born, datetime) else born
-        return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        return ref_date.year - birth.year - ((ref_date.month, ref_date.day) < (birth.month, birth.day))
 
     def _get_save_path(self, patient, titre):
         now = datetime.now()
-        date_str = now.strftime('%Y%m%d_%H%M%S')
-        save_dir = os.path.join(self.output_dir, now.strftime('%Y'), now.strftime('%m'))
+        date_str = now.strftime("%Y%m%d_%H%M%S")
+        save_dir = os.path.join(self.output_dir, now.strftime("%Y"), now.strftime("%m"))
         os.makedirs(save_dir, exist_ok=True)
-        
-        safe_titre = re.sub(r'[^\w\s-]', '', titre).strip().replace(' ', '_')[:30]
-        safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
+
+        safe_titre = _safe_filename_component(titre, "DOCUMENT")[:30]
+        patient_label = f"{getattr(patient, 'nom', '')}_{getattr(patient, 'prenom', '')}"
+        safe_name = _safe_filename_component(patient_label, "PATIENT")
         filename = f"LIBRE_{date_str}_{safe_titre}_{safe_name}.pdf"
         return os.path.join(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
-        """Rendu Elite avec identifiants légaux - IDENTIQUE À ACCOUNTING."""
-        self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=True, user=user)
+        self.base_template.draw_static_elements(
+            canvas,
+            doc,
+            config=config,
+            draw_legal_ids=True,
+            user=user,
+        )
 
-    def _create_header(self, patient, data, p_color, config=None):
-        """En-tête flexible : Supporte les surcharges utilisateur."""
-        # 1. Gestion de la Date (Priorité à custom_date)
-        custom_date = getattr(data, 'custom_date', None)
-        if custom_date:
-            current_date = custom_date
-        else:
-            doc_date = getattr(data, 'doc_date', None) or date.today()
-            current_date = doc_date.strftime('%d/%m/%Y') if hasattr(doc_date, 'strftime') else str(doc_date)
-        
-        # 2. Gestion du Destinataire (PrioritÃ© Ã  custom_patient)
-        custom_patient = getattr(data, 'custom_patient', None)
-        hide_patient = getattr(data, 'hide_patient_header', False)
-        
-        if hide_patient:
-            return Spacer(1, 0.1*cm)
+    def _create_header(self, patient, data, p_color, available_width):
+        doc_date = _coerce_document_date(getattr(data, "doc_date", None))
+        custom_date = getattr(data, "custom_date", None)
+        right_text = _safe_pdf_text(custom_date) if custom_date else f"Le : {doc_date.strftime('%d/%m/%Y')}"
 
+        custom_patient = getattr(data, "custom_patient", None)
+        hide_patient = bool(getattr(data, "hide_patient_header", False))
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
         patient_style = ParagraphStyle(
-            name='PatientInfo', 
-            parent=self.styles['Normal'], 
-            fontName=font_bold, 
-            fontSize=11, 
-            textColor=p_color, 
-            leading=14
+            name="PatientInfo",
+            parent=self.styles["Normal"],
+            fontName=font_bold,
+            fontSize=11,
+            textColor=p_color,
+            leading=14,
         )
         style_right = ParagraphStyle(
-            'DocDate', 
-            parent=self.styles['Normal'], 
-            alignment=TA_RIGHT, 
+            "DocDate",
+            parent=self.styles["Normal"],
+            alignment=TA_RIGHT,
             textColor=p_color,
             fontName=font_name,
-            fontSize=11
+            fontSize=11,
         )
-        
-        if custom_patient:
-            # Mode personnalisé : On affiche juste le texte saisi par l'utilisateur
-            left_content = Paragraph(f"<b>Destinataire :</b> {custom_patient}", patient_style)
-        else:
-            # Mode standard : Nom, Âge, Dossier
-            age = self._calculate_age(patient.date_naissance)
-            left_content = Paragraph(f"<b>{patient.nom.upper()} {patient.prenom.upper()}</b><br/>Âge : {join_unbreakable(age, 'ans')}", patient_style)
 
-        header_content = [
-            [
-                left_content, 
-                Paragraph(f"Le : {current_date}", style_right)
-            ]
-        ]
-        
-        header_table = Table(header_content, colWidths=[7.0*cm, 4.8*cm])
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('ALIGN', (1,0), (1,0), 'RIGHT'),
-        ]))
+        if hide_patient:
+            left_content = Paragraph("", patient_style)
+        elif custom_patient:
+            left_content = Paragraph(
+                f"<b>Destinataire :</b> {_safe_pdf_text(custom_patient)}",
+                patient_style,
+            )
+        else:
+            patient_name = (
+                f"{_safe_pdf_text(str(getattr(patient, 'nom', '') or '').upper())} "
+                f"{_safe_pdf_text(str(getattr(patient, 'prenom', '') or '').upper())}"
+            ).strip()
+            age = self._calculate_age(getattr(patient, "date_naissance", None), doc_date)
+            age_line = f"<br/>Âge : {join_unbreakable(age, 'ans')}" if age is not None else ""
+            left_content = Paragraph(f"<b>{patient_name}</b>{age_line}", patient_style)
+
+        header_table = Table(
+            [[left_content, Paragraph(right_text, style_right)]],
+            colWidths=[available_width * 0.62, available_width * 0.38],
+        )
+        header_table.setStyle(
+            TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ])
+        )
         return header_table
 
+    def _parse_content(self, content: str, body_style, font_name, font_bold, p_color, available_width):
+        lines = content.split("\n")
+        parsed_elements = []
+        current_text: list[str] = []
+
+        def flush_text():
+            if not current_text:
+                return
+            safe_block = _sanitize_inline_markup("\n".join(current_text)).replace("\n", "<br/>")
+            parsed_elements.append(Paragraph(safe_block, body_style))
+            current_text.clear()
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if line.strip().startswith("|") and line.strip().endswith("|"):
+                flush_text()
+                raw_rows: list[list[str]] = []
+                while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                    row_line = lines[i].strip()
+                    if not re.match(r"^\|[\s\-:\|]+\|$", row_line):
+                        raw_rows.append([cell.strip() for cell in row_line.strip("|").split("|")])
+                    i += 1
+
+                if raw_rows:
+                    max_cols = max(len(row) for row in raw_rows)
+                    table_data = []
+                    for row_index, row in enumerate(raw_rows):
+                        padded = row + [""] * (max_cols - len(row))
+                        cell_style = ParagraphStyle(
+                            f"LibreCell{row_index}",
+                            parent=body_style,
+                            fontName=font_bold if row_index == 0 else font_name,
+                            alignment=TA_LEFT,
+                        )
+                        table_data.append([
+                            Paragraph(_sanitize_inline_markup(cell), cell_style)
+                            for cell in padded
+                        ])
+                    col_width = available_width / max_cols
+                    table = Table(table_data, colWidths=[col_width] * max_cols, repeatRows=1)
+                    table.setStyle(
+                        TableStyle([
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+                            ("TEXTCOLOR", (0, 0), (-1, 0), p_color),
+                            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                            ("FONTNAME", (0, 0), (-1, 0), font_bold),
+                            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                            ("TOPPADDING", (0, 0), (-1, 0), 8),
+                            ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                            ("PADDING", (0, 0), (-1, -1), 6),
+                        ])
+                    )
+                    parsed_elements.extend([table, Spacer(1, 0.4 * cm)])
+                continue
+
+            current_text.append(line)
+            i += 1
+
+        flush_text()
+        return parsed_elements
+
     def generate(self, patient, data, db=None, user_id=None):
-        titre = getattr(data, 'titre', 'Document Libre')
-        contenu_html = getattr(data, 'contenu', '')
-        # CTO Fix: Preserve newlines for ReportLab Paragraph
-        contenu_html = contenu_html.replace('\n', '<br/>')
+        data = _normalize_and_validate_libre_data(data)
+        titre = data.titre
         filepath = self._get_save_path(patient, titre)
-        
+
         config = None
         user_obj = None
         if db and user_id:
             from backend.models import CabinetConfig, User
-            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
+
             user_obj = db.query(User).filter(User.id == user_id).first()
-        
+            owner_id = _config_owner_id(user_obj, user_id)
+            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == owner_id).first()
+
         self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         font_name = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
-        titre_nbsp = titre.replace(' ', ' ')
-        title_base_fs = 17
-        title_w = (getattr(data, 'page_size_val', None) or A5)[0] if isinstance(getattr(data, 'page_size_val', None) or A5, tuple) else 14.8 * cm
-        title_base_fs = self.base_template.get_adaptive_font_size(titre_nbsp, font_bold, title_base_fs, title_w * 0.7)
+        page_size = _ALLOWED_PAGE_SIZES[data.page_size]
+        p_width_val = page_size[0]
+        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        available_width = p_width_val - m_left - m_right
+
+        title_display = titre.upper().replace(" ", " ")
+        safe_title = _safe_pdf_text(title_display)
+        title_base_fs = self.base_template.get_adaptive_font_size(
+            title_display,
+            font_bold,
+            17,
+            available_width * 0.7,
+        )
         title_style = ParagraphStyle(
-            name='TitleA5',
-            parent=self.styles['Normal'],
+            name="TitleLibre",
+            parent=self.styles["Normal"],
             fontName=font_bold,
             fontSize=title_base_fs,
             textColor=p_color,
             alignment=TA_CENTER,
             leading=title_base_fs * 1.3,
-            spaceAfter=12
+            spaceAfter=12,
         )
-        
-        # 3. Style du corps (Flexible)
-        alignment_map = {
-            'left': TA_LEFT,
-            'center': TA_CENTER,
-            'right': TA_RIGHT,
-            'justify': TA_JUSTIFY
-        }
-        user_align = getattr(data, 'alignment', 'justify')
-        final_align = alignment_map.get(user_align, TA_JUSTIFY)
-        
         body_style = ParagraphStyle(
-            name='LibreBody', 
-            parent=self.styles['Normal'], 
-            fontName=font_name, 
-            fontSize=11, 
-            textColor=p_color, # Respect du Branding Forcing
-            alignment=final_align, 
-            leading=16
+            name="LibreBody",
+            parent=self.styles["Normal"],
+            fontName=font_name,
+            fontSize=11,
+            textColor=p_color,
+            alignment=_ALLOWED_ALIGNMENTS[data.alignment],
+            leading=16,
         )
-        
-        # 4. Parsing du contenu pour gérer les tableaux Markdown
-        contenu_raw = getattr(data, 'contenu', '')
-        lines = contenu_raw.split('\n')
-        
-        parsed_elements = []
-        current_text = []
-        
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            if line.strip().startswith('|') and line.strip().endswith('|'):
-                if current_text:
-                    parsed_elements.append(Paragraph("<br/>".join(current_text), body_style))
-                    current_text = []
-                
-                table_data = []
-                while i < len(lines) and lines[i].strip().startswith('|') and lines[i].strip().endswith('|'):
-                    row_line = lines[i].strip()
-                    if not re.match(r'^\|[\s\-\|]+\|$', row_line):
-                        cells = [cell.strip() for cell in row_line.strip('|').split('|')]
-                        # Envelopper les cellules dans des Paragraph pour supporter le HTML interne (<b>, <i>...)
-                        # Si c'est la première ligne, on peut forcer le gras
-                        is_header = (len(table_data) == 0)
-                        cell_style = ParagraphStyle(
-                            'Cell', parent=body_style, 
-                            fontName=font_bold if is_header else font_name,
-                            alignment=TA_LEFT
-                        )
-                        paragraph_cells = [Paragraph(cell, cell_style) for cell in cells]
-                        table_data.append(paragraph_cells)
-                    i += 1
-                
-                if table_data:
-                    # Calcul automatique des largeurs non nécessaire si on laisse Table faire,
-                    # mais on peut limiter à la largeur dispo (ex: 13cm max divisé par colonnes)
-                    t = Table(table_data, colWidths=None)
-                    t.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f8fafc')),
-                        ('TEXTCOLOR', (0,0), (-1,0), p_color),
-                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                        ('FONTNAME', (0,0), (-1,0), font_bold),
-                        ('BOTTOMPADDING', (0,0), (-1,0), 8),
-                        ('TOPPADDING', (0,0), (-1,0), 8),
-                        ('BACKGROUND', (0,1), (-1,-1), colors.white),
-                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
-                        ('PADDING', (0,0), (-1,-1), 6)
-                    ]))
-                    parsed_elements.append(t)
-                    parsed_elements.append(Spacer(1, 0.4*cm))
-                continue
-            else:
-                current_text.append(line)
-                i += 1
-                
-        if current_text:
-            parsed_elements.append(Paragraph("<br/>".join(current_text), body_style))
 
         elements = [
-            Spacer(1, 0.4*cm),
-            Paragraph(f"<u><b>{titre_nbsp.upper()}</b></u>", title_style),
-            Spacer(1, 0.8*cm),
-            self._create_header(patient, data, p_color, config),
-            Spacer(1, 1.2*cm)
+            Spacer(1, 0.4 * cm),
+            Paragraph(f"<u><b>{safe_title}</b></u>", title_style),
+            Spacer(1, 0.8 * cm),
+            self._create_header(patient, data, p_color, available_width),
+            Spacer(1, 1.2 * cm),
         ]
-        elements.extend(parsed_elements)
-
-        cloture_text = ""
-        cloture_style = ParagraphStyle(
-            name='LibreCloture', 
-            parent=self.styles['Normal'], 
-            fontName=font_bold, 
-            fontSize=10, 
-            textColor=p_color, 
-            alignment=TA_CENTER
+        elements.extend(
+            self._parse_content(
+                data.contenu,
+                body_style,
+                font_name,
+                font_bold,
+                p_color,
+                available_width,
+            )
         )
-        elements.append(PinnedCloture(cloture_text, cloture_style))
 
-        # Gestion du format de page (A4 vs A5)
-        page_format = getattr(data, 'page_size', 'A5').upper()
-        page_size = A4 if page_format == 'A4' else A5
+        cloture_style = ParagraphStyle(
+            name="LibreCloture",
+            parent=self.styles["Normal"],
+            fontName=font_bold,
+            fontSize=10,
+            textColor=p_color,
+            alignment=TA_CENTER,
+        )
+        elements.append(PinnedCloture("", cloture_style))
 
-        # Forçage d'une marge supérieure minimale de sécurité (v5.0)
-        m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
-        m_bottom = (config.margin_bottom if config else 3.2) * cm
-        
-        
-        p_width_val = page_size[0] if isinstance(page_size, tuple) else (14.8*cm if page_size == 'A5' else 21.0*cm)
-        m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=page_size,
+            rightMargin=m_right,
+            leftMargin=m_left,
+            topMargin=m_top,
+            bottomMargin=m_bottom,
+        )
+        doc.qr_type = "WEBSITE"
+        doc.doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
+        doc.cloture_text = ""
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
-        doc_id = f"LIBRE-{datetime.now().strftime('%m%H%M')}"
-
-        # Single-Page Force : compression progressive si contenu dépasse la page
-        compression_factor = 1.0
-        for _ in range(5):
-            doc = SimpleDocTemplate(filepath, pagesize=page_size, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
-            doc.qr_type = 'WEBSITE'
-            doc.doc_id = doc_id
-            doc.cloture_text = cloture_text
-            scaled = self._scale_elements(elements, compression_factor)
-            page_counter = PageCounter()
-            doc.build(scaled, onFirstPage=draw_method, onLaterPages=draw_method,
-                      canvasmaker=page_counter.make_canvas_class())
-            if page_counter.page_count <= 1:
-                break
-            compression_factor *= 0.85
-            if compression_factor < 0.4:
-                break
-
+        page_counter = PageCounter()
+        doc.build(
+            elements,
+            onFirstPage=draw_method,
+            onLaterPages=draw_method,
+            canvasmaker=page_counter.make_canvas_class(),
+        )
         return filepath.replace("\\", "/")
-
-    def _scale_elements(self, elements, factor):
-        if factor >= 0.99:
-            return elements
-        from reportlab.platypus import Paragraph as RLParagraph, Spacer as RLSpacer
-        from reportlab.lib.styles import ParagraphStyle
-        scaled = []
-        for el in elements:
-            if isinstance(el, RLParagraph):
-                style = el.style
-                new_style = ParagraphStyle(
-                    style.name + '_s',
-                    parent=style,
-                    fontSize=max(style.fontSize * factor, 6),
-                    leading=max((style.leading if style.leading else style.fontSize * 1.2) * factor, 7),
-                    spaceAfter=(style.spaceAfter or 0) * factor,
-                )
-                scaled.append(RLParagraph(el.text, new_style))
-            elif isinstance(el, RLSpacer):
-                scaled.append(RLSpacer(el.width, max(el.height * factor, 2)))
-            else:
-                scaled.append(el)
-        return scaled
