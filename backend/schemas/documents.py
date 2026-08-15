@@ -4,6 +4,7 @@ import datetime
 from typing import Optional, Dict, List, Literal, Any, Union
 
 from .base import DocumentType, DocumentStatus, ConflictResolution
+from backend.utils.installment_reconciliation import validate_installments
 
 
 # --- DOCUMENT FACTORY ---
@@ -159,6 +160,33 @@ class DocumentRequest(BaseModel):
                 "partial_payment_requires_explicit_amount",
                 "Paiement partiel refusé : aucun montant encaissé explicite n'est fourni. Enregistrez le montant réel via le flux d'encaissement dédié."
             )
+        return self
+
+    @model_validator(mode="after")
+    def reconcile_global_honoraires_installments(self):
+        """Reject a persisted global honoraires plan whose installments do not match billing.
+
+        The route creates InstallmentPlan/Installment rows from raw request data.
+        Validate the exact monetary reconciliation before any database write.
+        """
+        if self.type not in {"note", "honoraires"}:
+            return self
+        data = self.data or {}
+        if not data.get("is_global_note"):
+            return self
+        installments = data.get("installments") or []
+        if not installments:
+            return self
+        payments = data.get("payments") or []
+        billed_amounts = [payment.get("montant", 0) for payment in payments if isinstance(payment, dict)]
+        installment_amounts = [item.get("amount", 0) for item in installments if isinstance(item, dict)]
+        try:
+            validate_installments(sum(billed_amounts), installment_amounts)
+        except (TypeError, ValueError) as exc:
+            raise PydanticCustomError(
+                "installment_total_mismatch",
+                str(exc),
+            ) from exc
         return self
 
 
