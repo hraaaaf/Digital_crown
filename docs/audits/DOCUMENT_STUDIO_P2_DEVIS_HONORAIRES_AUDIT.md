@@ -5,7 +5,7 @@
 Audit **partiel** basé sur `AccountingStudio.tsx`, `AccountingStudioLegacy.tsx`, `DocumentHub.tsx`, `useDocumentGenerator.ts` et les contrats backend documents/comptabilité.
 
 - **CODE VÉRIFIÉ** : oui, pour les points listés ci-dessous.
-- **TESTS EXÉCUTÉS** : P2-A, P2-B, P2-C, P2-E et P2-F certifiés par CI exacte ; P2-D reste à intégrer/recertifier sur son head final.
+- **TESTS EXÉCUTÉS** : P2-A, P2-B, P2-C, P2-D, P2-E et P2-F certifiés par CI exacte.
 - **INTERACTION RUNTIME** : non exécutée à ce stade.
 - **CERTIFICATION FINANCIÈRE / PRODUCTION** : non revendiquée.
 
@@ -102,28 +102,31 @@ Le premier candidat final `b8893035…` a échoué uniquement sur le nouveau tes
 
 ---
 
-## P2-D — Odontogramme / modes / déduplication
+## P2-D — Odontogramme / modes / déduplication — CLOSED ✅
 
-### Faits vérifiés
-Trois modes sont présents :
-- `individual` → soins ciblés 1 dent ;
-- `group` → bridge/prothèses + sélections Q1-Q4/S1-S6 ;
-- `ortho` → libellé UI `Soins Généraux` et panneau d’actes globaux.
+### Défauts vérifiés
+Trois modes sont présents : `individual`, `group` et `ortho`. Le callback legacy de synchronisation odontogramme existait mais était orphelin, tandis que `TreatmentSelector` ajoutait directement des lignes. En mode groupe, certains actes pouvaient être ajoutés avec `PriceBrain.suggestPrice(act) || 0`, donc à `0 MAD` si aucun prix positif n’était connu.
 
-Le `TreatmentSelector` ajoute directement les traitements sélectionnés au panier et enregistre les prix positifs dans `PriceBrain`.
+### Correctif fusionné
+- clé stable `dent::traitement` ;
+- remplacement idempotent **par dent** qui préserve les autres dents et les lignes manuelles ;
+- réouverture d’une dent avec ses traitements déjà liés ;
+- possibilité de supprimer le dernier traitement uniquement pour une dent déjà renseignée (`allowEmptyConfirm` reste `false` par défaut ailleurs) ;
+- conservation du libellé de surface existant lorsqu’aucune nouvelle surface n’est renvoyée ;
+- refus explicite d’un acte groupé sans prix positif connu au lieu d’un ajout silencieux à `0 MAD` ;
+- tests de policy et de wiring sur le composant legacy actif.
 
-Le composant contient bien `handleTeethFromOdontogram()` avec une stratégie `_odontogramKey = dent::traitement`, mais ce callback est **défini sans aucun appel dans le composant**. La logique de déduplication associée est donc orpheline dans le flux inspecté.
+### Preuve engineering finale
+- ancienne PR préparatoire `#33` : fermée sans merge ;
+- PR finale `#47` — **MERGED** ;
+- head final certifié : `2698f3d508c57ca07a410706d05855adba3bc392` ;
+- CI exacte : run `31902205419` — **3/3 SUCCESS** ;
+- Frontend tests/build : ✅ SUCCESS ;
+- Backend tests/durcissement : ✅ SUCCESS ;
+- Garde production négative : ✅ SUCCESS ;
+- merge `master` : `021ee425a532bb83ae9669ab4c449522258bdcc6`.
 
-En mode groupe, plusieurs actes utilisent `PriceBrain.suggestPrice(act) || 0` : un acte peut donc être ajouté à 0 MAD lorsque le moteur n’a aucun historique/prix suggéré.
-
-### Décision
-- rétablir une source de vérité unique pour les sélections odontogramme ;
-- fusion idempotente par clé stable `dent::traitement` ;
-- ne jamais supprimer une ligne manuelle lors de la synchronisation ;
-- exposer explicitement un prix inconnu plutôt que le traiter silencieusement comme un prix valide à 0.
-
-### Préparation technique non fusionnée
-Policy idempotente `AccountingOdontogramPolicy` + tests préparés sur branche dédiée / PR draft `#33`. Banc CI `31884472613` : 3/3 jobs SUCCESS.
+**Aucune interaction authentifiée dans l’application locale réelle, certification clinique ou certification financière production n’est revendiquée par cette fermeture engineering.**
 
 ---
 
@@ -203,5 +206,5 @@ Aucune certification financière production ni UX runtime n’est revendiquée.
 3. **P2-E — Échéances/réconciliation financière exacte** — ✅ CLOSED.
 4. **P2-F — Allocation PAYE exacte par Acte** — ✅ CLOSED.
 5. **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** — ✅ CLOSED.
-6. **P2-D — Odontogramme/déduplication/prix groupe** — prochain lot engineering.
-7. Recertification runtime ciblée.
+6. **P2-D — Odontogramme/déduplication/prix groupe** — ✅ CLOSED.
+7. Recertification runtime ciblée — reste ouverte.

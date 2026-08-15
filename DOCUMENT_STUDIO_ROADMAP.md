@@ -213,7 +213,16 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
   - Garde production négative : ✅ SUCCESS.
   - Merge `master` : `967f56ed10d61b373bcd3c75e6a737a49bd7349a`.
   - `AccountingQuickActions` est branché au legacy actif ; le regroupement par phases utilise `AccountingPhasePolicy`; les faux labels IA et la durée fixe de cicatrisation non sourcée sont retirés de ce flux.
-- **P2-D — Odontogramme/déduplication/prix groupe** : policy préparée en PR draft `#33`, banc CI `31884472613` 3/3 SUCCESS ; intégration au callback legacy actif encore requise.
+- **P2-D — Odontogramme/déduplication/prix groupe** : ✅ **engineering fermé**.
+  - PR finale `#47` — MERGED ; ancienne PR préparatoire `#33` fermée sans merge.
+  - Head final certifié : `2698f3d508c57ca07a410706d05855adba3bc392`.
+  - CI exacte : run `31902205419` — **3/3 SUCCESS**.
+  - Frontend tests/build : ✅ SUCCESS.
+  - Backend tests/durcissement : ✅ SUCCESS.
+  - Garde production négative : ✅ SUCCESS.
+  - Merge `master` : `021ee425a532bb83ae9669ab4c449522258bdcc6`.
+  - Le flux actif remplace idempotemment les traitements par dent via une clé stable `dent::traitement`, préserve les autres dents et les lignes manuelles, autorise la suppression du dernier traitement d’une dent déjà renseignée, conserve le libellé de surface existant si aucune nouvelle surface n’est fournie et refuse l’ajout silencieux d’un acte groupé à `0 MAD`.
+  - **Aucune interaction authentifiée runtime, certification clinique ou certification financière production n’est revendiquée.**
 
 ### P3 — Certificat + Document Libre
 - [ ] Types de certificats et transitions
