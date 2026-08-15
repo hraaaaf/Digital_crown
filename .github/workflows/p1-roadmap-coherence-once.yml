@@ -1,0 +1,28 @@
+name: P1 Roadmap Coherence Once
+
+on:
+  push:
+    branches:
+      - work-20260815-p1-roadmap-coherence
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message == 'chore(p1): run roadmap coherence fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply coherence fix
+        run: python scripts/p1_roadmap_coherence_fix.py
+      - name: Commit cleanup and roadmap
+        run: |
+          rm -f scripts/p1_roadmap_coherence_fix.py .github/workflows/p1-roadmap-coherence-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ROADMAP_ORDONNANCE_P1.md scripts/p1_roadmap_coherence_fix.py .github/workflows/p1-roadmap-coherence-once.yml
+          git commit -m "docs(p1): align final roadmap state"
+          git push origin HEAD:work-20260815-p1-roadmap-coherence
