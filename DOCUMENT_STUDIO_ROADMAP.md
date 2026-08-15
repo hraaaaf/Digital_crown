@@ -55,8 +55,8 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - **R1 — P0 Cohérence médicament / Maroc-first** : ✅ **engineering fermé**. Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
 - **R2 — P0 Persistance protocoles/habitudes** : ✅ **engineering fermé**. Source de vérité unique `DoctorPrescriptionPreference` ; save/load/delete déterministes ; code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation ; local-first conservé.
 - **R3 — P0 Safety orchestration** : ✅ **engineering fermé**. Le Studio exécute le moteur safety backend, expose un état explicite `unchecked/checking/verified/error`, invalide la vérification sur changement patient/médicaments et n’affiche plus de validation verte avant succès du backend.
-- **R4 — P0 Dirty-state & actions** : 🟡 **ACTIVE** — toutes mutations ordonnance détectées, garde onglet/navigateur/reset, refresh corrigé, défaut de forme implicite supprimé.
-- **R5 — P1 Fast Prescription UX** : saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
+- **R4 — P0 Dirty-state & actions** : ✅ **engineering fermé**. Toutes mutations ordonnance dérivées du fingerprint complet, garde onglet/navigateur, reset après génération archivée, refresh contexte réellement relancé, fallback caché `forme='Sachets'` neutralisé avant transport backend et forme manquante exposée dans l’UI.
+- **R5 — P1 Fast Prescription UX** : 🟡 **ACTIVE** — saisie rapide primaire, ligne progressive, typographie lisible, récents/favoris.
 - **R6 — P1 Protocoles + Référentiel** : `Mes protocoles` unifié, masquer/réafficher réversible, bibliothèque search-first, contexte âge/poids homogène.
 - **R7 — P1 Contexte + Preview premium** : terminologie déterministe, contexte patient compact, split-view responsive, preview read-only ordonnance certifiée.
 
@@ -92,6 +92,17 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - État safety explicite : `unchecked | checking | verified | error`; aucun état `verified` avant réponse backend réussie.
 - Dette non bloquante identifiée avant R4 : le parent `DocumentHub` possède encore un appel safety read-only parallèle ; déduplication à traiter sans modifier la sémantique fail-closed.
 - **Aucune certification clinique/scientifique humaine n’est revendiquée.**
+
+#### R4 — preuve engineering exécutée
+- PR `#21` — **MERGED**.
+- Head final certifié : `cdaf28874bc9155d115108bba7548470300c5ca1`.
+- CI exacte du head final : run `31855874418` — **SUCCESS**.
+- Job **Frontend (tests & build)** : ✅ SUCCESS.
+- Job **Tests & durcissement** : ✅ SUCCESS.
+- Job **Garde production (négatif)** : ✅ SUCCESS.
+- Merge sur `master` : `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`.
+- Dirty-state ordonnance dérivé d’un fingerprint complet ; protections tab + `beforeunload` ; actualisation contexte explicite ; transport conserve la forme visible au praticien sans inférence `Sachets` cachée.
+- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
 
 ### P2 — Devis + Honoraires
 - [ ] Actes rapides / recherche catalogue
@@ -166,7 +177,7 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 - [ ] Recertification finale du Studio documentaire
 
 ## État courant
-- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1, R2 et R3 engineering fermés et fusionnés ; R4 Dirty-state & actions ACTIVE ; interaction runtime et recertification clinique non exécutées.**
+- **P1 Ordonnance : 🟡 audit statique détaillé terminé ; R1 à R4 engineering fermés et fusionnés ; R5 Fast Prescription UX ACTIVE ; interaction runtime et recertification clinique non exécutées.**
 - P2 : ⬜
 - P3 : ⬜
 - P4 : ⬜
@@ -177,4 +188,4 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`. R4 part de cette baseline fonctionnelle.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`. R5 part de cette baseline fonctionnelle.
