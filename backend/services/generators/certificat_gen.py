@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from datetime import datetime, date
+from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
@@ -25,6 +26,17 @@ _DAYS_WORDS = {
 
 def _days_in_words(n: int) -> str:
     return _DAYS_WORDS.get(n, str(n))
+
+
+def _is_free_medical_certificate(reason: str) -> bool:
+    return (reason or '').strip().casefold() in {'certificat médical', 'certificat medical'}
+
+
+def _format_free_certificate_content(content: str) -> str:
+    cleaned = (content or '').strip()
+    if not cleaned:
+        raise ValueError('Le contenu du certificat médical est requis.')
+    return '<br/>'.join(escape(line) for line in cleaned.splitlines())
 
 
 class CertificatGenerator:
@@ -170,10 +182,12 @@ class CertificatGenerator:
         if hasattr(patient, 'dossier') and patient.dossier:
             is_ortho = patient.dossier.is_ortho_active
 
-        reason = (getattr(data, 'reason', "Repos médical") or "Repos médical").strip()
+        reason = (getattr(data, 'reason', "Arrêt de travail") or "Arrêt de travail").strip()
         days = getattr(data, 'days', 1)
+        free_content = getattr(data, 'content', None)
         observations = getattr(data, 'observations', '').strip()
         reason_lower = reason.lower()
+        is_free_medical = _is_free_medical_certificate(reason)
         if user_obj and getattr(user_obj, 'nom_complet', None):
             dr_name = user_obj.nom_complet
         else:
@@ -194,7 +208,7 @@ class CertificatGenerator:
             except Exception:
                 doc_date_obj = date.today()
 
-        days_int = int(days)
+        days_int = int(days or 0)
         days_words = _days_in_words(days_int)
         days_label = f"({days_int} jours)"
 
@@ -210,7 +224,9 @@ class CertificatGenerator:
         age = self._calculate_age(patient.date_naissance)
         age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
 
-        if "présence" in reason_lower:
+        if is_free_medical:
+            certif_text = _format_free_certificate_content(free_content)
+        elif "présence" in reason_lower:
             spec = "orthodontiques" if is_ortho else "bucco-dentaires"
             certif_text = (
                 f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que "
@@ -218,7 +234,6 @@ class CertificatGenerator:
                 f"le <b>{doc_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
             )
         else:
-            # Fallback par défaut (Repos, Autre, etc.)
             certif_text = (
                 f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que l'état de santé de "
                 f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
@@ -238,10 +253,11 @@ class CertificatGenerator:
         if observations:
             certif_text += f"<b>Observations :</b> {observations}<br/><br/>"
 
-        certif_text += (
-            f"Ce certificat est délivré à {int_}, remis en main propre à sa demande, "
-            f"pour servir et valoir ce que de droit."
-        )
+        if not is_free_medical:
+            certif_text += (
+                f"Ce certificat est délivré à {int_}, remis en main propre à sa demande, "
+                f"pour servir et valoir ce que de droit."
+            )
 
         elements.append(Paragraph(certif_text, body_style))
 

@@ -91,7 +91,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
-  const [certifType, setCertifType] = useState('Repos médical');
+  const [certifType, setCertifType] = useState('Arrêt de travail');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
   const { 
@@ -364,8 +364,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         })));
       } else if (type === 'certificat') {
         setActiveTab('certificat');
-        setCertifType(d.reason || 'Certificat de Repos');
-        setCertifDays(d.days || 0);
+        setCertifType(d.reason || 'Arrêt de travail');
+        setCertifDays(d.days ?? 0);
+        setCertifCustomMotif(d.content || '');
       } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
         setLibreTitle(d.title || 'Note Médicale');

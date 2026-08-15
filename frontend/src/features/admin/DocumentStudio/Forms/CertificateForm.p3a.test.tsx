@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CertificateForm } from './CertificateForm';
 import { api } from '../../../../services/api';
@@ -9,7 +9,7 @@ vi.mock('../../../../services/api', () => ({
   },
 }));
 
-describe('CertificateForm P3-A', () => {
+describe('CertificateForm P3', () => {
   it('n’applique jamais automatiquement type ou durée depuis une suggestion haute confiance', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
@@ -41,5 +41,42 @@ describe('CertificateForm P3-A', () => {
     expect(setCertifDays).not.toHaveBeenCalled();
     expect(screen.getByText(/Suggestion non appliquée/i)).toBeTruthy();
     expect(screen.getByText(/valider.*praticien/i)).toBeTruthy();
+  });
+
+  it('affiche Certificat médical comme dernier choix et ouvre une rédaction libre', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ data: null } as never);
+    const setCertifType = vi.fn();
+
+    const { rerender } = render(
+      <CertificateForm
+        patientId="42"
+        certifType="Arrêt de travail"
+        setCertifType={setCertifType}
+        certifDays={2}
+        setCertifDays={vi.fn()}
+        certifCustomMotif=""
+        setCertifCustomMotif={vi.fn()}
+      />,
+    );
+
+    const choices = screen.getAllByRole('button');
+    expect(choices[choices.length - 1].textContent).toMatch(/Certificat médical/i);
+    fireEvent.click(screen.getByRole('button', { name: /Certificat médical/i }));
+    expect(setCertifType).toHaveBeenCalledWith('Certificat médical');
+
+    rerender(
+      <CertificateForm
+        patientId="42"
+        certifType="Certificat médical"
+        setCertifType={setCertifType}
+        certifDays={2}
+        setCertifDays={vi.fn()}
+        certifCustomMotif="Texte rédigé par le praticien"
+        setCertifCustomMotif={vi.fn()}
+      />,
+    );
+
+    expect((screen.getByRole('textbox', { name: /Contenu du certificat médical/i }) as HTMLTextAreaElement).value).toBe('Texte rédigé par le praticien');
+    expect(screen.queryByLabelText(/Durée du repos/i)).toBeNull();
   });
 });
