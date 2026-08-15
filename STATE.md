@@ -248,9 +248,58 @@ Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 - Dette R3 non bloquante : appel safety read-only parallèle encore présent dans `DocumentHub`, à dédupliquer lors du prochain lot pertinent.
 - Aucune certification clinique/scientifique humaine revendiquée.
 
-### R4 — P0 Dirty-state & actions — ACTIVE 🟡
-Objectifs vérifiés depuis l'audit P1 :
-- wrapper de mutation pour tout changement ordonnance ;
-- garde onglet + navigateur + reset ;
-- bouton ↻ relance réellement le contexte ou devient explicitement `Réinitialiser` ;
-- suppression du fallback caché `forme='Sachets'` ou exposition explicite dans l'UI.
+### R4 — P0 Dirty-state & actions — CLOSED ✅
+- PR `#21` — MERGED.
+- Head certifié : `cdaf28874bc9155d115108bba7548470300c5ca1`.
+- CI : run `31855874418` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge : `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`.
+- Dirty-state dérivé du fingerprint ordonnance complet ; garde onglet/navigateur ; reset après archivage ; actualisation contexte explicite.
+- Le fallback source `forme: d.forme || 'Sachets'` existe encore dans le legacy, mais son effet caché est neutralisé à la frontière transport et la forme manquante est explicitée dans l’UI.
+- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+
+### R5 — P1 Fast Prescription UX — CLOSED ✅
+- PR `#22` — MERGED.
+- Head certifié : `6de453962668e66be9e26978ec07fc9082afacb7`.
+- CI : run `31878337816` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge : `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`.
+- Quick-picks praticien issus des habitudes réelles : récents + fréquents. Aucun favori étoilé explicite inventé.
+- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+
+### R6 — P1 Protocoles + Référentiel — CLOSED ✅
+- PR `#23` — MERGED.
+- Head certifié : `10751078601c3aa5be728bc263e25a58e856c676`.
+- CI : run `31879112143` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge : `6f2b8a22f9cdca25cafe228f266ed46deee8281b`.
+- Référentiel search-first, ajout manuel replié, contexte âge/poids visible, `Mes protocoles` réversible après masquage.
+- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+
+### R7 — P1 Contexte + Preview premium — CLOSED ✅
+- PR finale `#26` — MERGED.
+- Head certifié : `9a39ecc4d415e59c5457a58638a48ba0c22f81fd`.
+- CI : run `31879649826` — SUCCESS.
+- Frontend tests/build : SUCCESS.
+- Backend tests/durcissement : SUCCESS.
+- Garde production négative : SUCCESS.
+- Merge squash : `2596da527fdd1bee5c6746f645e995f682ca3189`.
+- PR intermédiaires `#24` et `#25` fermées sans merge car remplacées par le candidat consolidé sur baseline post-R6.
+- Contexte patient et preview utilisent une terminologie déterministe ; preview responsive ; test backend prouve qu’une ordonnance `preview=true&archive=true` ne crée ni archive, ni audit, ni paiement, ni acte.
+- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+
+### P1 Ordonnance — ENGINEERING CLOSED ✅
+- R1→R7 fermés et fusionnés.
+- Roadmap canonique synchronisée.
+- Interaction runtime et recertification UX/clinique restent des gates séparés et ne sont pas revendiqués.
+
+### P2 Devis + Honoraires — ACTIVE 🟡
+- Audit canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
+- P2-A : perte du `base_price` catalogue local confirmée ; candidat PR `#27` en cours de recertification sur la baseline post-P1.
+- P2-B : mismatch `PARTIEL` confirmé. Le flux correct est `/accounting/payments` avec montant encaissé explicite ; aucune valeur partielle ne doit être inférée.
