@@ -6,11 +6,7 @@ Dernière mise à jour : 2026-08-15
 
 Cette roadmap concerne **uniquement P1 Ordonnance** du Document Studio.
 
-Hors scope de cette roadmap :
-- P2 Devis / Honoraires
-- P3 Certificat / Document Libre
-- P4 Échéancier
-- P5 autres défauts transverses
+Hors scope : P2 Devis / Honoraires, P3 Certificat / Document Libre, P4 Échéancier et autres chantiers transverses.
 
 Ne pas élargir ce chantier sans demande explicite.
 
@@ -22,15 +18,14 @@ Fermer P1 Ordonnance avec preuves séparées :
 
 1. engineering R1→R7 validé ;
 2. CI sur baseline courante verte ;
-3. comportement runtime réellement exécuté ;
-4. responsive certifié sur 1440 / 768 / 390 px ;
-5. défauts trouvés corrigés puis recapturés ;
-6. harness de certification temporaire retiré avant merge ;
-7. PR mergée ;
-8. recertification finale sur `master` ;
-9. documentation canonique réalignée.
+3. responsive exécuté et inspecté sur 1440 / 768 / 390 px ;
+4. défauts trouvés corrigés puis recapturés ;
+5. harness de certification temporaire retiré avant merge ;
+6. PR mergée ;
+7. recertification finale sur `master` ;
+8. documentation canonique réalignée.
 
-Ne jamais confondre certification engineering, UX runtime et certification clinique/pharmacologique.
+**Important :** le harness de screenshots rend le vrai composant `DocumentHub`, mais ne constitue pas à lui seul une preuve d'interaction authentifiée dans l'application locale du cabinet. Ne jamais confondre certification engineering, certification visuelle runtime et certification clinique/pharmacologique.
 
 ---
 
@@ -43,7 +38,7 @@ Statut : **fermé côté engineering**.
 - head certifié : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`
 - CI : `31852032393` SUCCESS
 - merge : `e32ab311f72980e0797b93a306c3616a4ff66042`
-- La revue clinique/pharmacologique qualifiée reste un gate distinct.
+- revue clinique/pharmacologique qualifiée = gate distinct
 
 ### R2 — Persistance protocoles / habitudes
 - PR #19 mergée
@@ -56,7 +51,7 @@ Statut : **fermé côté engineering**.
 - head : `becadcafb4ba0e6a5f4fda10a0053bb92c96fe1e`
 - CI : `31853962025` SUCCESS
 - merge : `75e4693dc983ba1708914d16432504bea8f0cd8c`
-- Dette non bloquante connue : appel safety read-only dupliqué dans le parent `DocumentHub`; sémantique fail-closed conservée.
+- dette non bloquante connue : appel safety read-only dupliqué dans le parent `DocumentHub`; sémantique fail-closed conservée
 
 ### R4 — Dirty-state & actions
 - PR #21 mergée
@@ -84,67 +79,46 @@ Statut : **fermé côté engineering**.
 
 ---
 
-## 4. Recertification engineering sur baseline post-R7
+## 4. Recertification engineering post-R7
 
-Baseline vérifiée avant certification runtime :
+Baseline historique vérifiée :
 - `master` : `52d58f0efc94e68ef45fc12fa7912d15c2830e64`
 - CI push : `31889643232`
 - résultat : **3/3 jobs SUCCESS**
 
-Conclusion autorisée : **engineering Ordonnance recertifié sur cette baseline**.
+Conclusion autorisée : engineering Ordonnance recertifié sur cette baseline.
 
-Conclusion NON autorisée à ce stade : UX runtime certifiée / clinique certifiée / production ready.
+Conclusion non autorisée : clinique certifiée / production ready.
 
 ---
 
-## 5. Certification runtime — passage initial
+## 5. Certification visuelle runtime — passage initial
 
-### Harness isolé
 Branche : `work-20260815-p1-runtime-screenshots`
 
-Workflow temporaire :
+Harness temporaire utilisé :
 - `.github/workflows/p1-runtime-screenshots.yml`
-
-Entrées temporaires :
 - `frontend/p1-screens.html`
 - `frontend/src/p1-screens.tsx`
 
-Ces fichiers servent uniquement à la certification et doivent être retirés avant merge final.
+Run initial :
+- `31895624778` SUCCESS
+- head `5a617b0512e48ce4f82ca9166a05a3b32fb2c5fb`
+- artifact id `9249730845`
+- digest `sha256:6f61addfc8f540242fc4c2177967b900530e654c16532e22caac9e8a13a0f896`
 
-### Run initial
-- run : `31895624778`
-- head : `5a617b0512e48ce4f82ca9166a05a3b32fb2c5fb`
-- résultat : **SUCCESS**
-- artefact : `p1-ordonnance-runtime-screenshots`
-- artifact id : `9249730845`
-- digest : `sha256:6f61addfc8f540242fc4c2177967b900530e654c16532e22caac9e8a13a0f896`
-
-Captures :
-- 1440 × 1100
-- 768 × 1100
-- 390 × 844
-
-### Constat visuel initial
-- 1440 px : propre / exploitable ✅
-- 768 px : onglets et certaines zones rognés ⚠️
+Constat initial :
+- 1440 px : propre ✅
+- 768 px : zones rognées ⚠️
 - 390 px : débordements horizontaux significatifs ❌
 
-Défauts runtime trouvés :
-1. navigation tabs mal contenue sur petit écran ;
-2. saisie rapide trop large sur mobile ;
-3. ligne médicament ne reflow pas correctement ;
-4. footer Aperçu / Enregistrer / Imprimer déborde du viewport.
+Défauts trouvés : navigation tabs, saisie rapide, DrugRow et footer.
 
 ---
 
-## 6. Correctifs responsive en cours
+## 6. Correctifs responsive PR #43
 
 PR : **#43 — `P1 Ordonnance — responsive runtime certification fixes`**
-
-Branche : `work-20260815-p1-runtime-screenshots`
-
-Head au lancement de la recertification :
-- `7c1306eb99d0a2ef4ec0269f70ffd720961bb7a8`
 
 Fichiers fonctionnels P1 modifiés :
 - `frontend/src/features/admin/DocumentStudio/StudioTabs.tsx`
@@ -152,32 +126,42 @@ Fichiers fonctionnels P1 modifiés :
 - `frontend/src/features/admin/DocumentStudio/Forms/DrugRow.tsx`
 - `frontend/src/features/admin/DocumentStudio/StudioFooter.tsx`
 
-Intentions des correctifs :
-- tabs scrollables sans perdre le début de la navigation ;
+Correctifs :
+- tabs scrollables sans perdre le premier onglet ;
 - quick-entry adaptée aux petites largeurs ;
-- DrugRow reflow en pile sur mobile tout en conservant tous les contrôles ;
-- footer en wrap/stack afin que les actions restent dans le viewport.
+- DrugRow reflow mobile ;
+- footer responsive ;
+- dernier finding 390 px corrigé au commit `29c7342be73bc08beda411a78847777d9e5e0a8e` afin de conserver entièrement `Aperçu`, `Enregistrer` et `Imprimer`.
 
 ---
 
-## 7. Recertification responsive finale — EN COURS
+## 7. Recertification responsive finale
 
-Run exact : `31896537246`
+Run exact : `31897556420`
 
-État au moment de cette mise à jour : **queued**.
+- head : `29c7342be73bc08beda411a78847777d9e5e0a8e`
+- résultat : **SUCCESS**
+- artifact id : `9250222949`
+- digest : `sha256:8ec03b702c3bee57ec30693a0488af60168916e08d5418b2a1005cce208df482`
 
-Ce run doit produire à nouveau :
-- 1440 px
-- 768 px
-- 390 px
+Inspection visuelle effectuée :
+- 1440 px ✅ propre
+- 768 px ✅ propre
+- 390 px ✅ propre
+- aucune action principale rognée
+- aucun débordement horizontal destructif observé sur ces captures
 
-Critère de réussite : aucune perte de contrôle, aucun élément essentiel rogné, aucun débordement horizontal destructif, actions principales accessibles.
+Le harness temporaire a ensuite été retiré dans le commit :
+- `9fa63992c33c0202c63fc7dbf0ff877c34ce4b00`
+
+Les trois chemins temporaires ne doivent pas être présents dans la PR finale :
+- `.github/workflows/p1-runtime-screenshots.yml`
+- `frontend/p1-screens.html`
+- `frontend/src/p1-screens.tsx`
 
 ---
 
 ## 8. Critères de fermeture P1
-
-P1 Ordonnance ne peut être déclaré fermé que si TOUS les points ci-dessous sont vérifiés :
 
 - [x] R1 fermé engineering
 - [x] R2 fermé engineering
@@ -187,22 +171,26 @@ P1 Ordonnance ne peut être déclaré fermé que si TOUS les points ci-dessous s
 - [x] R6 fermé engineering
 - [x] R7 fermé engineering
 - [x] baseline engineering recertifiée par CI
-- [x] premier runtime screenshot exécuté
+- [x] premier passage screenshot exécuté
 - [x] défauts responsive identifiés
 - [x] correctifs responsive implémentés dans PR #43
-- [ ] recapture finale 1440/768/390 SUCCESS
-- [ ] inspection visuelle finale des 3 captures
-- [ ] CI complète PR #43 verte
-- [ ] retrait du harness/workflow temporaire de screenshots
-- [ ] CI après retrait du harness verte
+- [x] recapture finale 1440/768/390 SUCCESS
+- [x] inspection visuelle finale des 3 captures
+- [x] harness/workflow temporaire retiré
+- [ ] CI exacte sur le head nettoyé de PR #43 verte
 - [ ] merge PR #43
 - [ ] CI exacte post-merge sur `master` verte
 - [ ] `DOCUMENT_STUDIO_ROADMAP.md` mis à jour
 - [ ] `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` mis à jour
 - [ ] cohérence documentaire finale vérifiée
 
+### Gate non satisfait par les screenshots
+- [ ] interaction authentifiée réellement exécutée/certifiée dans l'application locale du cabinet
+
+Cette case ne doit pas être cochée sur la seule base du harness visuel.
+
 ### Gate clinique séparé
-La fermeture UX/engineering de P1 **ne vaut pas certification clinique/pharmacologique**. Toute affirmation de sécurité clinique finale requiert la revue qualifiée prévue par la gouvernance clinique.
+La fermeture UX/engineering de P1 ne vaut pas certification clinique/pharmacologique.
 
 ---
 
@@ -210,46 +198,35 @@ La fermeture UX/engineering de P1 **ne vaut pas certification clinique/pharmacol
 
 ### Terminé
 - R1→R7 engineering
-- CI engineering post-R7
-- premier passage runtime screenshot
-- identification des défauts responsive
-- correctifs responsive principaux
-- PR #43 ouverte
+- baseline engineering post-R7
+- découverte des défauts runtime responsive
+- correctifs responsive
+- recapture finale 1440 / 768 / 390
+- inspection visuelle finale
+- retrait du harness temporaire
 
 ### En cours
-- run `31896537246` de recertification visuelle finale
-- CI PR #43
+- CI exacte sur le head final nettoyé de PR #43
 
 ### Restant
-1. récupérer et inspecter les nouveaux screenshots ;
-2. corriger tout finding résiduel ;
-3. répéter capture jusqu'à passage propre ;
-4. valider CI PR exacte-head ;
-5. supprimer les 3 fichiers temporaires de certification ;
-6. revalider CI ;
-7. merger #43 ;
-8. certifier CI exacte post-merge ;
-9. mettre à jour les deux documents canoniques ;
-10. vérifier cohérence finale et seulement alors fermer P1.
+1. vérifier la CI exacte-head finale de PR #43 ;
+2. vérifier que la PR ne contient plus les trois fichiers temporaires ;
+3. merger #43 si CI verte et baseline compatible ;
+4. vérifier la CI exacte post-merge sur `master` ;
+5. mettre à jour `DOCUMENT_STUDIO_ROADMAP.md` ;
+6. mettre à jour `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` ;
+7. vérifier la cohérence documentaire finale ;
+8. conserver explicitement non certifiée la case d'interaction authentifiée tant que l'application locale réelle n'a pas été exécutée.
 
 ---
 
 ## 10. Prochaine action exacte
 
-**Vérifier le run `31896537246`.**
+**Vérifier la CI du head courant de PR #43.**
 
-S'il est SUCCESS :
-1. télécharger l'artefact `p1-ordonnance-runtime-screenshots` ;
-2. ouvrir les 3 images 1440 / 768 / 390 ;
-3. noter chaque finding visuel ;
-4. corriger immédiatement tout finding bloquant ou important ;
-5. relancer la même certification ;
-6. une fois propre, passer au retrait du harness puis au merge.
+Si SUCCESS : vérifier les fichiers de la PR, vérifier la compatibilité avec le `master` courant, merger, puis recertifier le merge sur `master`.
 
-S'il échoue :
-1. lire le job/log exact ;
-2. corriger la cause ;
-3. relancer sans changer le scope.
+Si échec : diagnostiquer le job exact, corriger, relancer sans élargir le scope.
 
 ---
 
@@ -259,5 +236,6 @@ S'il échoue :
 - Ne jamais annoncer 100 %, terminé, validé ou production ready sans preuve complète.
 - Ne jamais transformer un SUCCESS CI en certification clinique.
 - Les screenshots doivent être inspectés visuellement, pas seulement générés.
-- Le harness de screenshots est temporaire et ne doit pas rester sur `master` après certification.
+- Le harness de screenshots ne doit pas revenir sur `master`.
+- La preuve visuelle via harness ne remplace pas une interaction authentifiée dans l'application locale réelle.
 - Toute future conversation peut reprendre en demandant : **« ouvre `ROADMAP_ORDONNANCE_P1.md` et continue à partir de la prochaine action exacte »**.
