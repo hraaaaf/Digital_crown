@@ -33,10 +33,20 @@ jobs:
       - name: Run focused frontend tests
         working-directory: frontend
         run: npm test -- CertificatePolicy.test.ts CertificateForm.p3a.test.tsx CertificateForm.section1.test.tsx CertificateForm.suggestion.test.tsx
-      - name: Install focused backend test dependencies
-        run: pip install pytest reportlab arabic-reshaper python-bidi qrcode pillow
-      - name: Run focused backend date tests
-        run: pytest -q backend/tests/test_certificate_date_policy.py
+      - name: Install focused generator dependencies
+        run: pip install reportlab arabic-reshaper python-bidi qrcode pillow
+      - name: Run isolated certificate date smoke test
+        run: |
+          python - <<'PY'
+          from datetime import date, datetime
+          from types import SimpleNamespace
+          from backend.services.generators.certificat_gen import _resolve_certificate_date
+
+          assert _resolve_certificate_date(SimpleNamespace(start_date=date(2026, 8, 10), doc_date=date(2026, 8, 1))) == date(2026, 8, 10)
+          assert _resolve_certificate_date(SimpleNamespace(start_date=None, doc_date='2026-08-09')) == date(2026, 8, 9)
+          assert _resolve_certificate_date(SimpleNamespace(start_date=datetime(2026, 8, 8, 12, 30), doc_date=None)) == date(2026, 8, 8)
+          print('certificate date policy smoke test passed')
+          PY
       - name: Remove one-off patch machinery
         run: |
           rm scripts/p3_certificate_section1_patch.py
