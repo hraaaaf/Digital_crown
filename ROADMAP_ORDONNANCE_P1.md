@@ -20,10 +20,11 @@ Fermer P1 Ordonnance avec preuves séparées :
 2. CI sur baseline courante verte ;
 3. responsive exécuté et inspecté sur 1440 / 768 / 390 px ;
 4. défauts trouvés corrigés puis recapturés ;
-5. harness de certification temporaire retiré avant merge ;
-6. PR mergée ;
-7. recertification finale sur `master` ;
-8. documentation canonique réalignée.
+5. fidélité au langage visuel glassmorphique historique vérifiée ;
+6. harness de certification temporaire retiré avant merge ;
+7. PR mergée ;
+8. recertification finale sur `master` ;
+9. documentation canonique réalignée.
 
 **Important :** le harness de screenshots rend le vrai composant `DocumentHub`, mais ne constitue pas à lui seul une preuve d'interaction authentifiée dans l'application locale du cabinet. Ne jamais confondre certification engineering, certification visuelle runtime et certification clinique/pharmacologique.
 
@@ -161,7 +162,56 @@ Les trois chemins temporaires ne doivent pas être présents dans la PR finale :
 
 ---
 
-## 8. Critères de fermeture P1
+## 8. Audit fidélité glassmorphisme historique
+
+Déclencheur : doute sur une possible perte du design glassmorphique historique après R1→R7 et les correctifs responsive.
+
+### Référence historique
+Baseline exacte **pré-PR #17 / pré-R1** :
+- commit `5d3f6ecc808993f90ddb7a2d807f2c4e1f7c84ac`
+
+Capture historique isolée :
+- branche `audit-20260815-p1-pre-r1-glass`
+- run `31897932430` SUCCESS
+- artifact id `9250318673`
+- digest `sha256:81db7ba5b525413908bb3b9faa84a2d6fc6478da756a6367b22d590c88e511e0`
+- capture : `ordonnance-pre-r1-1440.png`
+
+### Vérification code
+Les signatures glass historiques sont toujours présentes après PR #43 :
+- `DrugRow` conserve `bg-white/60` + `backdrop-blur-xl` ;
+- Quick Entry conserve `bg-white/70` + `backdrop-blur-xl` ;
+- footer conserve `bg-slate-50/80` + `backdrop-blur-xl` ;
+- tabs conservent les surfaces translucides, `bg-white` actif et ombres.
+
+Conclusion : **PR #43 n'a pas supprimé le glassmorphisme techniquement.**
+
+### Comparaison visuelle directe
+Finding : **le langage glass est toujours présent mais son effet global est visuellement dilué.**
+
+Cause principale observée : accumulation, au-dessus de la zone prescription, de plusieurs surfaces nouvelles et concurrentes :
+- `Contexte patient` ;
+- `Sécurité non vérifiée` / état de sécurité ;
+- alerte `Forme pharmaceutique` ;
+- actions `Mes protocoles` / `Actualiser le contexte`.
+
+La baseline pré-R1 présentait une hiérarchie plus légère avec une grande surface principale `IAmina Intelligence`, davantage d'espace négatif et moins de bandeaux superposés. La version actuelle paraît donc plus **plate / administrative / tableau de contrôle**, malgré la conservation réelle des transparences et blurs.
+
+### Décision
+Ce finding devient un **gate visuel avant merge de #43**.
+
+Objectif du correctif : restaurer une hiérarchie glass premium proche de la baseline historique **sans retirer, masquer ni affaiblir aucune information de sécurité**.
+
+Approche recommandée :
+1. fusionner visuellement `Contexte patient` + état de sécurité en une seule surface glass principale ;
+2. traiter les alertes comme états secondaires intégrés ou chips/panneaux contextuels plutôt que bandeaux pleine largeur successifs ;
+3. conserver toutes les informations et actions actuelles ;
+4. préserver la lisibilité desktop/mobile et les corrections responsive déjà certifiées ;
+5. recapturer 1440 / 768 / 390 puis comparer à la baseline pré-R1.
+
+---
+
+## 9. Critères de fermeture P1
 
 - [x] R1 fermé engineering
 - [x] R2 fermé engineering
@@ -177,7 +227,11 @@ Les trois chemins temporaires ne doivent pas être présents dans la PR finale :
 - [x] recapture finale 1440/768/390 SUCCESS
 - [x] inspection visuelle finale des 3 captures
 - [x] harness/workflow temporaire retiré
-- [ ] CI exacte sur le head nettoyé de PR #43 verte
+- [x] audit historique glassmorphisme exécuté sur baseline pré-R1
+- [x] glassmorphisme techniquement confirmé comme conservé
+- [ ] hiérarchie visuelle glass premium restaurée sans perte de sécurité
+- [ ] recapture comparative glass 1440/768/390 validée
+- [ ] CI exacte sur le head final de PR #43 verte
 - [ ] merge PR #43
 - [ ] CI exacte post-merge sur `master` verte
 - [ ] `DOCUMENT_STUDIO_ROADMAP.md` mis à jour
@@ -194,7 +248,7 @@ La fermeture UX/engineering de P1 ne vaut pas certification clinique/pharmacolog
 
 ---
 
-## 9. État de reprise
+## 10. État de reprise
 
 ### Terminé
 - R1→R7 engineering
@@ -202,35 +256,38 @@ La fermeture UX/engineering de P1 ne vaut pas certification clinique/pharmacolog
 - découverte des défauts runtime responsive
 - correctifs responsive
 - recapture finale 1440 / 768 / 390
-- inspection visuelle finale
+- inspection visuelle responsive
 - retrait du harness temporaire
+- audit historique glassmorphisme pré-R1
+- comparaison directe ancienne vs actuelle
 
 ### En cours
-- CI exacte sur le head final nettoyé de PR #43
+- restauration de la hiérarchie visuelle glass premium du haut de la page Ordonnance
 
 ### Restant
-1. vérifier la CI exacte-head finale de PR #43 ;
-2. vérifier que la PR ne contient plus les trois fichiers temporaires ;
-3. merger #43 si CI verte et baseline compatible ;
-4. vérifier la CI exacte post-merge sur `master` ;
-5. mettre à jour `DOCUMENT_STUDIO_ROADMAP.md` ;
-6. mettre à jour `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` ;
-7. vérifier la cohérence documentaire finale ;
-8. conserver explicitement non certifiée la case d'interaction authentifiée tant que l'application locale réelle n'a pas été exécutée.
+1. regrouper visuellement contexte + sécurité sans perte d'information ;
+2. réduire l'effet de pile des alertes pleine largeur ;
+3. recapturer 1440 / 768 / 390 ;
+4. comparer au screenshot pré-R1 ;
+5. valider CI exacte-head finale de PR #43 ;
+6. merger #43 ;
+7. vérifier la CI exacte post-merge sur `master` ;
+8. mettre à jour `DOCUMENT_STUDIO_ROADMAP.md` ;
+9. mettre à jour `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md` ;
+10. vérifier la cohérence documentaire finale ;
+11. conserver explicitement non certifiée la case d'interaction authentifiée tant que l'application locale réelle n'a pas été exécutée.
 
 ---
 
-## 10. Prochaine action exacte
+## 11. Prochaine action exacte
 
-**Vérifier la CI du head courant de PR #43.**
+**Restaurer la hiérarchie glass premium du haut de la page Ordonnance sur la PR #43, sans supprimer aucune donnée de sécurité.**
 
-Si SUCCESS : vérifier les fichiers de la PR, vérifier la compatibilité avec le `master` courant, merger, puis recertifier le merge sur `master`.
-
-Si échec : diagnostiquer le job exact, corriger, relancer sans élargir le scope.
+Puis : recapture 1440 / 768 / 390, comparaison directe à la baseline pré-R1, correction des éventuels écarts, CI finale et merge uniquement après passage propre.
 
 ---
 
-## 11. Règles critiques de reprise
+## 12. Règles critiques de reprise
 
 - Scope : Ordonnance P1 uniquement.
 - Ne jamais annoncer 100 %, terminé, validé ou production ready sans preuve complète.
@@ -238,4 +295,5 @@ Si échec : diagnostiquer le job exact, corriger, relancer sans élargir le scop
 - Les screenshots doivent être inspectés visuellement, pas seulement générés.
 - Le harness de screenshots ne doit pas revenir sur `master`.
 - La preuve visuelle via harness ne remplace pas une interaction authentifiée dans l'application locale réelle.
+- La sécurité fonctionnelle ne doit jamais être sacrifiée au profit du design glass.
 - Toute future conversation peut reprendre en demandant : **« ouvre `ROADMAP_ORDONNANCE_P1.md` et continue à partir de la prochaine action exacte »**.
