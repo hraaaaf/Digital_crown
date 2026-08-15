@@ -334,9 +334,10 @@ class LibreGenerator:
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         available_width = p_width_val - m_left - m_right
 
-        safe_title = _safe_pdf_text(titre).replace(" ", " ")
+        title_display = titre.upper().replace(" ", " ")
+        safe_title = _safe_pdf_text(title_display)
         title_base_fs = self.base_template.get_adaptive_font_size(
-            safe_title,
+            title_display,
             font_bold,
             17,
             available_width * 0.7,
@@ -363,7 +364,7 @@ class LibreGenerator:
 
         elements = [
             Spacer(1, 0.4 * cm),
-            Paragraph(f"<u><b>{safe_title.upper()}</b></u>", title_style),
+            Paragraph(f"<u><b>{safe_title}</b></u>", title_style),
             Spacer(1, 0.8 * cm),
             self._create_header(patient, data, p_color, available_width),
             Spacer(1, 1.2 * cm),
