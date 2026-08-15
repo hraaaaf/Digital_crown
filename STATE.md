@@ -222,7 +222,7 @@ Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, d
 
 ---
 
-## Document Studio — closeout R1 / activation R2 — 2026-08-15
+## Document Studio — closeout R1 / R2 / activation R3 — 2026-08-15
 
 ### R1 — P0 Cohérence médicament / Maroc-first — ENGINEERING CLOSED ✅
 
@@ -232,17 +232,34 @@ Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, d
 - Frontend tests/build : **SUCCESS**.
 - Backend tests/durcissement : **SUCCESS**.
 - Garde production négative : **SUCCESS**.
-- Merge squash : `e32ab311f72980e0797b93a306c3616a4ff66042`.
-- Roadmap canonique closeout : commit `81e5befd8c09879ff8380aea2dfc1268fb5ca15f`.
+- Merge : `e32ab311f72980e0797b93a306c3616a4ff66042`.
 - Aucun statut de certification clinique humaine n’est revendiqué ; revue marocaine qualifiée reste un gate clinique séparé.
 
-### R2 — P0 Persistance protocoles/habitudes — ACTIVE 🟡
+### R2 — P0 Persistance protocoles/habitudes — ENGINEERING CLOSED ✅
 
-Défauts vérifiés sur `master` avant correctif :
-- suppression vise `DoctorActHabit` alors que save/load utilisent `DoctorPrescriptionPreference` ;
-- suppression retourne toujours succès, même si aucune préférence n’existe ;
-- `learn_habit` rollback/log l’erreur DB mais la masque au caller ;
-- save ne normalise pas encore le code acte de façon centralisée ;
-- tests existants couvrent les endpoints habits génériques mais pas le cycle déterministe save → list → delete ni le 404 absent.
+- PR `#19` — MERGED.
+- Head final exact : `ba66457e5f65917f71670e151826062442525200`.
+- CI finale exacte : run `31852827218` — **SUCCESS**.
+- Frontend tests/build : **SUCCESS**.
+- Backend tests/durcissement : **SUCCESS**.
+- Garde production négative : **SUCCESS**.
+- Merge : `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`.
+- Source de vérité save/load/delete : `DoctorPrescriptionPreference`.
+- Code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation.
+- Tests R2 couvrent cycle save → list → delete et erreurs DB.
 
-Prochaine action exacte : branche R2 propre depuis le `master` post-closeout → correctif minimal backend + tests de persistance/isolement/propagation → wiring frontend ciblé si nécessaire → CI exacte → closeout R2 → R3.
+### R3 — P0 Safety orchestration — ACTIVE 🟡
+
+Constats vérifiés :
+- `POST /api/prescriptions/safety/check` existe, impose `patient_id`, vérifie l’accès tenant puis appelle `prescription_service.check_safety(...)` ;
+- le moteur retourne une liste d’alertes sécurité/DDI/cohérence/omission ;
+- le Studio affiche actuellement `Cohérence OK` lorsque `coherenceWarnings.length === 0`, sans preuve que ce safety check backend ait été exécuté ;
+- ce faux état positif doit disparaître.
+
+Travail R3 amorcé sur `work-20260815-r3-safety-orchestration` :
+- module d’état safety explicite créé ;
+- états `unchecked | checking | verified | error` ;
+- fingerprint déterministe patient + médicaments ;
+- tests unitaires des états et invalidation d’entrée ajoutés.
+
+Prochaine action exacte : câbler le safety check réel dans `PrescriptionAgenticStudio`, invalider toute vérification lorsque patient/médicaments changent, remplacer le faux `Cohérence OK`, tester frontend/build, ouvrir PR R3 et certifier le head exact.
