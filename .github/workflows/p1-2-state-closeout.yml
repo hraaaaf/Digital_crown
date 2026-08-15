@@ -59,7 +59,7 @@ Certification :
 Prochaine action exacte : vérifier précisément émission, `jti`, blacklist, dépendance d'auth mobile et consommation du claim token ; appliquer le durcissement minimal sûr avec tests ciblés, certifier puis continuer automatiquement vers P1-3.'''
           new2 = '''### LOT P1-3 — CABINET SETTINGS STRICT WHITELIST — ACTIVE
 
-Prochaine action exacte : rebaser/reconstruire P1-3 sur le master post-P1-2, recertifier le head exact, merger si vert, effectuer le closeout canonique puis continuer automatiquement vers P1-4.'''
+Prochaine action exacte : recertifier le head exact P1-3 contre le master courant, merger si vert, effectuer le closeout canonique puis continuer automatiquement vers P1-4.'''
           if t.count(old2) != 1:
               raise SystemExit(f'active lot match count={t.count(old2)}')
           t = t.replace(old2, new2, 1)
