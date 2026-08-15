@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from '../../../../utils/cn';
 
 import type { ValidationError } from '../useDocumentGenerator';
+import { isLibreDirty, setLibreDirty } from '../LibreDirtyState';
 import { AlertCircle, Bold, Italic, Underline, Table, Type } from 'lucide-react';
 
 interface LibreFormProps {
@@ -34,6 +35,18 @@ export const LibreForm: React.FC<LibreFormProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isLibreDirty()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  const markDirty = () => setLibreDirty(true);
+
   const insertTag = (openTag: string, closeTag: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -43,6 +56,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
     const selected = content.substring(start, end);
     
     const newText = content.substring(0, start) + openTag + selected + closeTag + content.substring(end);
+    markDirty();
     setContent(newText);
     
     setTimeout(() => {
@@ -71,7 +85,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
           <div className="md:col-span-1">
             <label className={labelClass}>Titre du Document</label>
-            <input type="text" className={cn(inputClass, titleError && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
+            <input type="text" className={cn(inputClass, titleError && "border-red-300 shadow-red-50")} value={title} onChange={(e) => { markDirty(); setTitle(e.target.value); }} placeholder="Ex: ORDONNANCE, LETTRE..." />
             {titleError && (
               <div className="mt-2 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
                 <AlertCircle size={12} /> Titre Requis
@@ -80,11 +94,11 @@ export const LibreForm: React.FC<LibreFormProps> = ({
           </div>
           <div>
             <label className={labelClass}>Destinataire <span className="opacity-50">(Optionnel)</span></label>
-            <input type="text" className={inputClass} value={customPatient} onChange={(e) => setCustomPatient(e.target.value)} placeholder="Ex: À qui de droit..." />
+            <input type="text" className={inputClass} value={customPatient} onChange={(e) => { markDirty(); setCustomPatient(e.target.value); }} placeholder="Ex: À qui de droit..." />
           </div>
           <div>
             <label className={labelClass}>Date/Lieu <span className="opacity-50">(Optionnel)</span></label>
-            <input type="text" className={inputClass} value={customDate} onChange={(e) => setCustomDate(e.target.value)} placeholder="Ex: Rabat, le 12/05/2026" />
+            <input type="text" className={inputClass} value={customDate} onChange={(e) => { markDirty(); setCustomDate(e.target.value); }} placeholder="Ex: Rabat, le 12/05/2026" />
           </div>
           
           <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-6 mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
@@ -93,7 +107,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                 type="checkbox" 
                 id="hideHeader" 
                 checked={hideHeader} 
-                onChange={(e) => setHideHeader(e.target.checked)}
+                onChange={(e) => { markDirty(); setHideHeader(e.target.checked); }}
                 className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary accent-primary"
               />
               <label htmlFor="hideHeader" className="text-[11px] font-black text-slate-500 uppercase tracking-widest cursor-pointer">Masquer l'en-tête patient</label>
@@ -107,7 +121,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                     <button 
                       key={size}
                       type="button"
-                      onClick={() => setPageSize(size as 'A5' | 'A4')}
+                      onClick={() => { markDirty(); setPageSize(size as 'A5' | 'A4'); }}
                       className={cn(
                         "px-4 py-1.5 rounded-lg text-[10px] font-black transition-all",
                         pageSize === size ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -131,7 +145,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                     <button 
                       key={align.id}
                       type="button"
-                      onClick={() => setAlignment(align.id as 'left' | 'center' | 'right' | 'justify')}
+                      onClick={() => { markDirty(); setAlignment(align.id as 'left' | 'center' | 'right' | 'justify'); }}
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
                         alignment === align.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -183,7 +197,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
             contentError ? "bg-red-50/30" : "bg-transparent"
           )}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => { markDirty(); setContent(e.target.value); }}
           placeholder="Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte."
         />
         {contentError && (

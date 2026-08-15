@@ -5,6 +5,7 @@ import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 import { useAccountingStore } from '../store/useAccountingStore';
 import { buildCertificatePayload, certificateRequiresDuration, validateCertificateReason } from './CertificatePolicy';
+import { setLibreDirty } from './LibreDirtyState';
 
 interface PriceItem {
   id: number;
@@ -529,7 +530,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
       }
-      if (archive && !isPreview) toast.success('Document archivé dans le dossier patient.');
+      if (archive && !isPreview) {
+        if (activeTab === 'libre') setLibreDirty(false);
+        toast.success('Document archivé dans le dossier patient.');
+      }
       // D2: Suggestion RDV après acte ortho
       if (res.data.rdv_suggestion && !isPreview) {
         toast(`📅 ${res.data.rdv_suggestion.message} — Proposé : ${res.data.rdv_suggestion.suggested_date}`, {
