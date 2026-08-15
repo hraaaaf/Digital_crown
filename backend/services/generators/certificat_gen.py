@@ -81,6 +81,11 @@ def _is_free_medical_certificate(reason: str) -> bool:
     return (reason or '').strip().casefold() in {'certificat médical', 'certificat medical'}
 
 
+def _safe_pdf_text(value) -> str:
+    """Échappe toute donnée variable avant insertion dans un Paragraph ReportLab."""
+    return escape(str(value or ''))
+
+
 def _format_free_certificate_content(content: str) -> str:
     cleaned = (content or '').strip()
     if not cleaned:
@@ -110,6 +115,16 @@ def _resolve_certificate_dates(data, today: date | None = None) -> tuple[date, d
     return issue_date, rest_start_date
 
 
+def _certificate_config_owner_id(user, fallback_user_id: int) -> int:
+    """Le branding appartient au cabinet employeur, pas forcément au dentiste connecté."""
+    if user is None:
+        return fallback_user_id
+    getter = getattr(user, 'get_employer_id', None)
+    if callable(getter):
+        return getter()
+    return getattr(user, 'employer_id', None) or getattr(user, 'id', fallback_user_id)
+
+
 class CertificatGenerator:
     def __init__(self, output_dir="static/documents"):
         self.output_dir = output_dir
@@ -117,12 +132,12 @@ class CertificatGenerator:
         self.base_template = BaseTemplate()
         self.styles = getSampleStyleSheet()
 
-    def _calculate_age(self, born):
+    def _calculate_age(self, born, reference_date: date | None = None):
         if not born:
             return 0
-        today = date.today()
+        ref_date = reference_date or date.today()
         birth = born.date() if hasattr(born, 'date') else born
-        return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        return ref_date.year - birth.year - ((ref_date.month, ref_date.day) < (birth.month, birth.day))
 
     def _get_save_path(self, patient, data):
         now = datetime.now()
@@ -140,7 +155,7 @@ class CertificatGenerator:
     def _create_header(self, patient, data, p_color, config=None):
         doc_date, _ = _resolve_certificate_dates(data)
         current_date = doc_date.strftime('%d/%m/%Y')
-        age = self._calculate_age(patient.date_naissance)
+        age = self._calculate_age(patient.date_naissance, doc_date)
 
         # Date de naissance formatée pour identification obligatoire
         dob_str = ""
@@ -168,7 +183,8 @@ class CertificatGenerator:
             fontSize=11,
         )
 
-        patient_line = f"<b>{patient.nom.upper()} {patient.prenom.capitalize()}</b>"
+        patient_display = f"{_safe_pdf_text(patient.nom.upper())} {_safe_pdf_text(patient.prenom.capitalize())}"
+        patient_line = f"<b>{patient_display}</b>"
         patient_line += f", {join_unbreakable(age, 'ans')}"
 
         patient_w = 7.5 * cm
@@ -193,13 +209,15 @@ class CertificatGenerator:
         user_obj = None
         if db and user_id:
             from backend.models import CabinetConfig, User
-            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == user_id).first()
             user_obj = db.query(User).filter(User.id == user_id).first()
+            config_owner_id = _certificate_config_owner_id(user_obj, user_id)
+            config = db.query(CabinetConfig).filter(CabinetConfig.owner_id == config_owner_id).first()
 
         self.base_template.update_active_fonts(config)
         p_color = colors.HexColor(config.primary_color) if config else NAVY_BLUE
         font_main = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
+        issue_date_obj, rest_start_date_obj = _resolve_certificate_dates(data)
 
         title_style = ParagraphStyle(
             name='TitleA5',
@@ -220,7 +238,7 @@ class CertificatGenerator:
             Spacer(1, 1.8 * cm),
         ]
 
-        age = self._calculate_age(patient.date_naissance)
+        age = self._calculate_age(patient.date_naissance, issue_date_obj)
         is_minor = age < 16
         gender = getattr(patient, 'sexe', getattr(patient, 'genre', 'M'))
         is_male = gender in ["Homme", "Garçon", "M", "m", "Male", "male"]
@@ -250,20 +268,20 @@ class CertificatGenerator:
         reason = (getattr(data, 'reason', "Arrêt de travail") or "Arrêt de travail").strip()
         days = getattr(data, 'days', 1)
         free_content = getattr(data, 'content', None)
-        observations = getattr(data, 'observations', '').strip()
+        observations = str(getattr(data, 'observations', '') or '').strip()
         reason_lower = reason.lower()
         is_free_medical = _is_free_medical_certificate(reason)
         dr_name = resolve_certificate_signer_name(user_obj)
 
         # Nettoyage pour éviter "Dr Dr."
         dr_name_clean = dr_name.replace("Dr.", "").replace("Dr ", "").replace("Docteur ", "").strip()
+        dr_name_pdf = _safe_pdf_text(dr_name_clean)
 
-        nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
+        nom_complet = f"{_safe_pdf_text(patient.nom.upper())} {_safe_pdf_text(patient.prenom.capitalize())}"
 
         certif_text = ""
 
         from datetime import timedelta
-        issue_date_obj, rest_start_date_obj = _resolve_certificate_dates(data)
 
         days_int = int(days or 0)
         days_words = _days_in_words(days_int)
@@ -278,7 +296,6 @@ class CertificatGenerator:
         else:
             date_phrase = f"le <b>{rest_start_date_obj.strftime('%d/%m/%Y')}</b>"
 
-        age = self._calculate_age(patient.date_naissance)
         age_text = f", âgé(e) de {join_unbreakable(age, 'ans')}"
 
         if is_free_medical:
@@ -286,13 +303,13 @@ class CertificatGenerator:
         elif "présence" in reason_lower:
             spec = "orthodontiques" if is_ortho else "bucco-dentaires"
             certif_text = (
-                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que "
+                f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie que "
                 f"{hon} <b>{nom_complet}</b> a été <b>{pres} à notre cabinet</b> "
                 f"le <b>{issue_date_obj.strftime('%d/%m/%Y')}</b> de façon effective, pour y recevoir des soins {spec}.<br/><br/>"
             )
         else:
             certif_text = (
-                f"Je soussigné Dr <b>{dr_name_clean}</b>, chirurgien-dentiste, certifie que l'état de santé de "
+                f"Je soussigné Dr <b>{dr_name_pdf}</b>, chirurgien-dentiste, certifie que l'état de santé de "
                 f"{hon} <b>{nom_complet}</b>{age_text}, nécessite <b>{eviction_term}</b> "
                 f"{date_phrase} {days_label}.<br/><br/>"
             )
@@ -308,7 +325,7 @@ class CertificatGenerator:
         )
 
         if observations:
-            certif_text += f"<b>Observations :</b> {observations}<br/><br/>"
+            certif_text += f"<b>Observations :</b> {_safe_pdf_text(observations)}<br/><br/>"
 
         if not is_free_medical:
             certif_text += (
