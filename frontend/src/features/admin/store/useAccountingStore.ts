@@ -1,8 +1,5 @@
 import { create } from 'zustand';
-import {
-  PARTIAL_PAYMENT_DISABLED_REASON,
-  type DocumentPaymentStatus,
-} from '../DocumentStudio/AccountingPaymentPolicy';
+import { PARTIAL_PAYMENT_DISABLED_REASON } from '../DocumentStudio/AccountingPaymentPolicy';
 
 export type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
@@ -28,7 +25,7 @@ interface AccountingState {
   paymentMode: PaymentMode;
   installments: InstallmentItem[];
   isAccounted: boolean;
-  paymentStatus: DocumentPaymentStatus;
+  paymentStatus: string;
   paymentStatusGuardMessage: string | null;
   isGlobalNote: boolean;
 
@@ -46,7 +43,7 @@ interface AccountingState {
   setPaymentMode: (mode: PaymentMode) => void;
   setInstallments: (installments: InstallmentItem[]) => void;
   setIsAccounted: (val: boolean) => void;
-  setPaymentStatus: (status: DocumentPaymentStatus) => void;
+  setPaymentStatus: (status: string) => void;
   clearPaymentStatusGuard: () => void;
   setIsGlobalNote: (val: boolean) => void;
 
@@ -67,7 +64,7 @@ const initialState = {
   paymentMode: 'Espèces' as PaymentMode,
   installments: [],
   isAccounted: true,
-  paymentStatus: 'EN_ATTENTE' as DocumentPaymentStatus,
+  paymentStatus: 'EN_ATTENTE',
   paymentStatusGuardMessage: null as string | null,
   isGlobalNote: false,
   groupTreatmentName: '',
@@ -89,6 +86,10 @@ export const useAccountingStore = create<AccountingState>((set) => ({
   setPaymentStatus: (paymentStatus) => {
     if (paymentStatus === 'PARTIEL') {
       set({ paymentStatusGuardMessage: PARTIAL_PAYMENT_DISABLED_REASON });
+      return;
+    }
+    if (paymentStatus !== 'EN_ATTENTE' && paymentStatus !== 'PAYE') {
+      set({ paymentStatusGuardMessage: 'Statut de paiement invalide.' });
       return;
     }
     set({ paymentStatus, paymentStatusGuardMessage: null });
