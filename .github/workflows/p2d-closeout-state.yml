@@ -1,0 +1,45 @@
+name: P2-D canonical state sync
+
+on:
+  push:
+    branches:
+      - work-20260815-p2d-closeout
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Sync P2-D global roadmap state
+        run: |
+          if git log -1 --pretty=%B | grep -q '\[p2d-state-done\]'; then
+            echo 'Already patched.'
+            exit 0
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('DOCUMENT_STUDIO_ROADMAP.md')
+          text = path.read_text(encoding='utf-8')
+          old_state = '- **P2 : 🟡 ACTIVE** — P2-A/B/C/E/F fermés et fusionnés ; P2-D préparé sans intégration ; audit runtime non exécuté.'
+          new_state = '- **P2 : 🟡 ACTIVE** — P2-A/B/C/D/E/F engineering fermés et fusionnés ; audit runtime interaction-par-interaction non exécuté.'
+          if text.count(old_state) != 1:
+              raise SystemExit(f'P2 state match count: {text.count(old_state)}')
+          text = text.replace(old_state, new_state, 1)
+          old_base = '; P2-C via `967f56ed10d61b373bcd3c75e6a737a49bd7349a`; P3-A via'
+          new_base = '; P2-C via `967f56ed10d61b373bcd3c75e6a737a49bd7349a`; P2-D via `021ee425a532bb83ae9669ab4c449522258bdcc6`; P3-A via'
+          if text.count(old_base) != 1:
+              raise SystemExit(f'baseline match count: {text.count(old_base)}')
+          text = text.replace(old_base, new_base, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DOCUMENT_STUDIO_ROADMAP.md
+          git commit -m "P2-D: sync global roadmap state [p2d-state-done]"
+          git push
