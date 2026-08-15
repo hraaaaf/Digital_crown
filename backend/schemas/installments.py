@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
+from typing import List, Literal, Optional
 from datetime import datetime
 
 
@@ -16,6 +16,7 @@ class InstallmentPreviewRequest(BaseModel):
     total_amount: float
     items: List[InstallmentPreviewItem]
 
+
 class InstallmentBase(BaseModel):
     label: str
     amount: float
@@ -24,8 +25,10 @@ class InstallmentBase(BaseModel):
     status: str = "EN_ATTENTE"
     notes: Optional[str] = None
 
+
 class InstallmentCreate(InstallmentBase):
     pass
+
 
 class InstallmentUpdate(BaseModel):
     label: Optional[str] = None
@@ -34,19 +37,24 @@ class InstallmentUpdate(BaseModel):
     paid_date: Optional[datetime] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    payment_method: Optional[Literal["ESPECES", "CARTE", "CHEQUE", "VIREMENT"]] = None
+
 
 class InstallmentResponse(InstallmentBase):
     id: int
     plan_id: int
     model_config = ConfigDict(from_attributes=True)
 
+
 class InstallmentPlanBase(BaseModel):
     patient_id: int
     title: str
     total_amount: float
 
+
 class InstallmentPlanCreate(InstallmentPlanBase):
     installments: List[InstallmentCreate]
+
 
 class InstallmentPlanResponse(InstallmentPlanBase):
     id: int
