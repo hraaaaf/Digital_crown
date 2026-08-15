@@ -27,6 +27,20 @@ def _days_in_words(n: int) -> str:
     return _DAYS_WORDS.get(n, str(n))
 
 
+def _resolve_certificate_date(data) -> date:
+    value = getattr(data, 'start_date', None) or getattr(data, 'doc_date', None)
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    return date.today()
+
+
 class CertificatGenerator:
     def __init__(self, output_dir="static/documents"):
         self.output_dir = output_dir
@@ -55,12 +69,7 @@ class CertificatGenerator:
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)
 
     def _create_header(self, patient, data, p_color, config=None):
-        doc_date = getattr(data, 'doc_date', None) or date.today()
-        if isinstance(doc_date, str):
-            try:
-                doc_date = datetime.strptime(doc_date, '%Y-%m-%d').date()
-            except Exception:
-                doc_date = date.today()
+        doc_date = _resolve_certificate_date(data)
 
         current_date = doc_date.strftime('%d/%m/%Y')
         age = self._calculate_age(patient.date_naissance)
@@ -187,12 +196,7 @@ class CertificatGenerator:
         certif_text = ""
 
         from datetime import timedelta
-        doc_date_obj = getattr(data, 'doc_date', None) or date.today()
-        if isinstance(doc_date_obj, str):
-            try:
-                doc_date_obj = datetime.strptime(doc_date_obj, '%Y-%m-%d').date()
-            except Exception:
-                doc_date_obj = date.today()
+        doc_date_obj = _resolve_certificate_date(data)
 
         days_int = int(days)
         days_words = _days_in_words(days_int)

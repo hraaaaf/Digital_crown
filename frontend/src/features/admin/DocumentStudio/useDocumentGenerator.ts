@@ -4,7 +4,7 @@ import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
 import { useAccountingStore } from '../store/useAccountingStore';
-import { resolveCertificateReason, validateCertificateReason } from './CertificatePolicy';
+import { isPresenceCertificate, resolveCertificateReason, validateCertificateReason } from './CertificatePolicy';
 
 interface PriceItem {
   id: number;
@@ -84,15 +84,20 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
   }
 
   if (activeTab === 'certificat') {
-    if (!Number.isInteger(certifDays) || certifDays < 1) {
-      errors.push({ field: 'certifDays', message: 'Le nombre de jours doit être un entier positif (minimum 1).' });
-    }
-    if (certifDays > 365) {
-      errors.push({ field: 'certifDays', message: 'Le nombre de jours ne peut pas dépasser 365.' });
+    if (!isPresenceCertificate(params.certifType)) {
+      if (!Number.isInteger(certifDays) || certifDays < 1) {
+        errors.push({ field: 'certifDays', message: 'Le nombre de jours doit être un entier positif (minimum 1).' });
+      }
+      if (certifDays > 365) {
+        errors.push({ field: 'certifDays', message: 'Le nombre de jours ne peut pas dépasser 365.' });
+      }
     }
     const reasonError = validateCertificateReason(params.certifType, params.certifCustomMotif);
     if (reasonError) {
-      errors.push({ field: 'certifCustomMotif', message: reasonError });
+      errors.push({
+        field: params.certifType === 'Autre' ? 'certifCustomMotif' : 'certifType',
+        message: reasonError,
+      });
     }
   }
 
@@ -305,7 +310,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     } else if (activeTab === 'certificat') {
       const reason = resolveCertificateReason(certifType, certifCustomMotif);
       if (!reason) throw new Error('Le motif du certificat est requis.');
-      payload.data = { reason, days: Number(certifDays), start_date: docDate };
+      payload.data = { reason, days: isPresenceCertificate(certifType) ? 0 : Number(certifDays), start_date: docDate };
     } else if (activeTab === 'libre') {
       const birthDate = patientDetails?.date_naissance;
       let age: number | undefined;
@@ -365,6 +370,13 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   ) => {
     if (!patientId) return;
     if (activeTab === 'plan') return;
+    if (activeTab === 'certificat' && isPreview) {
+      const reasonError = validateCertificateReason(params.certifType, params.certifCustomMotif);
+      if (reasonError) {
+        setPdfUrl(null);
+        return;
+      }
+    }
 
     // Flux dédié échéancier — même pattern blob+fallback que honoraires
     if (activeTab === 'echeancier') {

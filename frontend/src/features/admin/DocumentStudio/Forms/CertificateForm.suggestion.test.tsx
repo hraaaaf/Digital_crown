@@ -1,14 +1,4 @@
-from pathlib import Path
-
-path = Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.tsx')
-text = path.read_text(encoding='utf-8')
-old = '        setSuggestion(res.data);'
-new = "        setSuggestion(res.data?.confidence === 'low' ? null : res.data);"
-if text.count(old) != 1:
-    raise SystemExit(f'CertificateForm: expected one suggestion assignment, got {text.count(old)}')
-path.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.suggestion.test.tsx').write_text("""import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CertificateForm } from './CertificateForm';
 import { api } from '../../../../services/api';
@@ -60,6 +50,3 @@ describe('CertificateForm contextual suggestion', () => {
     expect(props.setCertifDays).not.toHaveBeenCalled();
   });
 });
-""", encoding='utf-8')
-
-print('P3 Certificate low-signal suggestion cleanup applied')

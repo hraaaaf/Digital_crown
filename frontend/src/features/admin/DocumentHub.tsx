@@ -20,6 +20,7 @@ import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
+import { normalizeCertificateDraft } from './DocumentStudio/CertificatePolicy';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
 import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
@@ -91,7 +92,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
-  const [certifType, setCertifType] = useState('Repos médical');
+  const [certifType, setCertifType] = useState('');
   const [certifDays, setCertifDays] = useState(5);
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
   const { 
@@ -364,8 +365,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         })));
       } else if (type === 'certificat') {
         setActiveTab('certificat');
-        setCertifType(d.reason || 'Certificat de Repos');
-        setCertifDays(d.days || 0);
+        const certificateDraft = normalizeCertificateDraft(d.reason);
+        setCertifType(certificateDraft.certifType);
+        setCertifCustomMotif(certificateDraft.certifCustomMotif);
+        setCertifDays(d.days ?? 0);
       } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
         setLibreTitle(d.title || 'Note Médicale');
@@ -521,6 +524,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               certifType={certifType} setCertifType={setCertifType}
               certifDays={certifDays} setCertifDays={setCertifDays}
               certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
+              validationErrors={generator.validationErrors}
             />
           )}
 

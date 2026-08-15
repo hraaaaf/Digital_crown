@@ -12,6 +12,7 @@ interface CertificateFormProps {
   setCertifDays: (days: number) => void;
   certifCustomMotif: string;
   setCertifCustomMotif: (v: string) => void;
+  validationErrors?: Array<{ field: string; message: string }>;
 }
 
 export const CertificateForm: React.FC<CertificateFormProps> = ({
@@ -22,15 +23,18 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   setCertifDays,
   certifCustomMotif,
   setCertifCustomMotif,
+  validationErrors = [],
 }) => {
   const [suggestion, setSuggestion] = React.useState<any>(null);
+  const typeError = validationErrors.find((error) => error.field === 'certifType');
+  const customMotifError = validationErrors.find((error) => error.field === 'certifCustomMotif');
 
   React.useEffect(() => {
     if (!patientId) return;
     const fetchSuggestion = async () => {
       try {
         const res = await api.get(`/prescriptions/certif-suggest/${patientId}`);
-        setSuggestion(res.data);
+        setSuggestion(res.data?.confidence === 'low' ? null : res.data);
       } catch (err) {
         console.error('Certif Suggest Error:', err);
       }
@@ -56,7 +60,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
           {/* TYPE DE CERTIFICAT */}
           <div>
             <div className="flex items-center justify-between mb-4 gap-4">
-              <label className={labelClass + " mb-0"}>Motif Clinique</label>
+              <label className={labelClass + " mb-0"}>Type de certificat</label>
               {suggestion && (
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
@@ -75,6 +79,8 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
               {certifTypes.map((type) => (
                 <div key={type.id} className="flex flex-col items-center gap-2">
                   <button
+                    type="button"
+                    aria-pressed={certifType === type.id}
                     onClick={() => setCertifType(type.id)}
                     className={cn(
                       "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm min-w-[180px]",
@@ -95,6 +101,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 </div>
               ))}
             </div>
+            {typeError && (
+              <p role="alert" className="mt-4 text-xs font-bold text-rose-600 text-center">{typeError.message}</p>
+            )}
 
             {certifType === 'Autre' && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
@@ -104,14 +113,21 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                   placeholder="Saisissez le motif personnalisé..."
                   value={certifCustomMotif}
                   onChange={(e) => setCertifCustomMotif(e.target.value)}
+                  aria-invalid={Boolean(customMotifError)}
+                  aria-describedby={customMotifError ? 'certif-custom-motif-error' : undefined}
                   autoFocus
                 />
+                {customMotifError && (
+                  <p id="certif-custom-motif-error" role="alert" className="mt-2 text-xs font-bold text-rose-600">
+                    {customMotifError.message}
+                  </p>
+                )}
               </motion.div>
             )}
           </div>
 
           {/* DURÉE */}
-          {certifType !== 'Certificat de Présence' && (
+          {Boolean(certifType) && certifType !== 'Certificat de Présence' && (
             <div className="pt-8 border-t border-slate-100/50">
               <div className="flex justify-between items-center mb-6">
                 <div>
