@@ -1,0 +1,27 @@
+name: P3 Certificat Dates Once
+
+on:
+  push:
+    branches: [work-20260815-p3-certificat-dates]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work-20260815-p3-certificat-dates
+          fetch-depth: 0
+      - name: Apply date model patch
+        run: python scripts/p3_certificat_dates_once.py
+      - name: Commit clean source patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(p3): separate certificate issue and rest dates"
+          git push origin HEAD:work-20260815-p3-certificat-dates
