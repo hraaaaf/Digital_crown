@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import {
+  PARTIAL_PAYMENT_DISABLED_REASON,
+  type DocumentPaymentStatus,
+} from '../DocumentStudio/AccountingPaymentPolicy';
 
 export type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
@@ -24,33 +28,34 @@ interface AccountingState {
   paymentMode: PaymentMode;
   installments: InstallmentItem[];
   isAccounted: boolean;
-  paymentStatus: string;
+  paymentStatus: DocumentPaymentStatus;
+  paymentStatusGuardMessage: string | null;
   isGlobalNote: boolean;
-  
+
   groupTreatmentName: string;
   groupTreatmentPrice: number | '';
-  
+
   showOdontoPanoramique: boolean;
   odontogramMode: 'individual' | 'group' | 'ortho';
   groupSelectedTeeth: number[];
-  
+
   actSuggestions: any[];
   activeActSearchId: number | null;
 
-  // Actions
   setItems: (items: PriceItem[] | ((prev: PriceItem[]) => PriceItem[])) => void;
   setPaymentMode: (mode: PaymentMode) => void;
   setInstallments: (installments: InstallmentItem[]) => void;
   setIsAccounted: (val: boolean) => void;
-  setPaymentStatus: (status: string) => void;
+  setPaymentStatus: (status: DocumentPaymentStatus) => void;
+  clearPaymentStatusGuard: () => void;
   setIsGlobalNote: (val: boolean) => void;
-  
+
   setGroupTreatmentName: (name: string) => void;
   setGroupTreatmentPrice: (price: number | '') => void;
   setShowOdontoPanoramique: (val: boolean | ((prev: boolean) => boolean)) => void;
   setOdontogramMode: (mode: 'individual' | 'group' | 'ortho') => void;
   setGroupSelectedTeeth: (teeth: number[] | ((prev: number[]) => number[])) => void;
-  
+
   setActSuggestions: (suggestions: any[]) => void;
   setActiveActSearchId: (id: number | null) => void;
 
@@ -62,7 +67,8 @@ const initialState = {
   paymentMode: 'Espèces' as PaymentMode,
   installments: [],
   isAccounted: true,
-  paymentStatus: 'EN_ATTENTE',
+  paymentStatus: 'EN_ATTENTE' as DocumentPaymentStatus,
+  paymentStatusGuardMessage: null as string | null,
   isGlobalNote: false,
   groupTreatmentName: '',
   groupTreatmentPrice: '' as number | '',
@@ -75,22 +81,29 @@ const initialState = {
 
 export const useAccountingStore = create<AccountingState>((set) => ({
   ...initialState,
-  
+
   setItems: (val) => set((state) => ({ items: typeof val === 'function' ? val(state.items) : val })),
   setPaymentMode: (paymentMode) => set({ paymentMode }),
   setInstallments: (installments) => set({ installments }),
   setIsAccounted: (isAccounted) => set({ isAccounted }),
-  setPaymentStatus: (paymentStatus) => set({ paymentStatus }),
+  setPaymentStatus: (paymentStatus) => {
+    if (paymentStatus === 'PARTIEL') {
+      set({ paymentStatusGuardMessage: PARTIAL_PAYMENT_DISABLED_REASON });
+      return;
+    }
+    set({ paymentStatus, paymentStatusGuardMessage: null });
+  },
+  clearPaymentStatusGuard: () => set({ paymentStatusGuardMessage: null }),
   setIsGlobalNote: (isGlobalNote) => set({ isGlobalNote }),
-  
+
   setGroupTreatmentName: (groupTreatmentName) => set({ groupTreatmentName }),
   setGroupTreatmentPrice: (groupTreatmentPrice) => set({ groupTreatmentPrice }),
   setShowOdontoPanoramique: (val) => set((state) => ({ showOdontoPanoramique: typeof val === 'function' ? val(state.showOdontoPanoramique) : val })),
   setOdontogramMode: (odontogramMode) => set({ odontogramMode }),
   setGroupSelectedTeeth: (val) => set((state) => ({ groupSelectedTeeth: typeof val === 'function' ? val(state.groupSelectedTeeth) : val })),
-  
+
   setActSuggestions: (actSuggestions) => set({ actSuggestions }),
   setActiveActSearchId: (activeActSearchId) => set({ activeActSearchId }),
-  
-  reset: () => set(initialState)
+
+  reset: () => set(initialState),
 }));
