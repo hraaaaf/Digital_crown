@@ -43,6 +43,7 @@ Baseline `master` auditée : `a7fc4417e39120ff844c119fd2f4cfe42239bb8b`.
 | #58 | QR validation fail-closed | #57 | `407c0d8a1814246fe7b8aa4df99648d399dcb34f` | open / mergeable | non certifiée |
 | #59 | identité réelle dans zone de signature | #58 | `cee04dbf08c792795fe10046b4ea763b781384ac` | open / mergeable | non certifiée |
 | #60 | état neuf sans choix clinique + preview/UX | #53 | `f800925a2b0e72af6816feda1277459a0dca7804` | open / mergeable | CI exact-head à recertifier |
+| #63 | impression sûre Certificat uniquement | #60 | `84ad80b14c82a4eb7b297b16526afe55f82af161` | open | run 31908774717 lancé, résultat non utilisé tant qu'il est en cours |
 | #61 | routage PDF, noms de fichiers, texte libre long | #59 | `f59fb121904b9bf61f67ee3e8d73fdbecf46a2f2` | open / mergeable | run 31908239478 bloqué avant steps |
 
 ## Audit pratique
@@ -137,8 +138,8 @@ Correctif préparé : désactivation uniquement du QR `VALIDATION` sur le certif
 
 - preview : aucune archive ;
 - preview invalide : aucun appel backend inutile ;
-- impression : un risque de course reste ouvert lorsque `pendingPrint` est armé alors qu'un ancien `pdfUrl` de preview existe ; l'ancien aperçu peut partir avant réception du PDF fraîchement généré ;
-- ce correctif transversal a volontairement été retiré de #60 afin de ne pas modifier Échéancier/Ordonnance/Devis/Honoraires dans un lot P3 ; il reste à fermer par un correctif P3 ciblé ou un lot transversal séparé avant certification finale ;
+- le direct-print Certificat sur un `pdfUrl` potentiellement ancien est évité par #63 : le bouton `Préparer impression` génère et archive un PDF frais, puis ouvre ce fichier final pour impression ;
+- le hook partagé n'est pas modifié et les autres types de documents conservent leur comportement actuel ;
 - doublon : conflit contrôlé puis possibilité de forcer une nouvelle version ;
 - archive : snapshot de `req.data` ;
 - réouverture : type, durée, début du repos, texte libre et date du document sont réhydratés.
@@ -176,16 +177,16 @@ Couverture préparée notamment pour :
 - routage exact des types ;
 - noms de fichiers ;
 - texte libre long ;
-- auto-preview invalide.
+- auto-preview invalide ;
+- action `Préparer impression` Certificat isolée du direct-print des autres documents.
 
 ## Blocages réels avant certification finale
 
-1. **Course impression/preview Certificat** : défaut identifié mais volontairement non corrigé dans #60 après resserrage de périmètre ; correctif ciblé requis.
-2. **CI GitHub Actions** : blocage compte `Billing & plans` ; les runs observés échouent avant toute étape. Aucun échec de test applicatif ne peut être déduit de ces runs.
-3. **Merges** : les PR sont encore ouvertes et certaines sont empilées ; elles doivent être fusionnées dans l'ordre de dépendance puis recertifiées sur la baseline finale.
-4. **Régression finale** : backend + frontend + PDF après convergence des piles.
-5. **Runtime/visuel** : génération réelle des trois parcours et inspection du PDF final requises après convergence.
-6. **Closeout canonique** : roadmap/statut/changelog à mettre à jour uniquement après preuves finales.
+1. **CI GitHub Actions** : blocage compte `Billing & plans` observé sur les heads précédents ; les jobs concernés échouent avant toute étape. Aucun échec de test applicatif ne peut être déduit de ces runs.
+2. **Merges** : les PR sont encore ouvertes et certaines sont empilées ; elles doivent être fusionnées dans l'ordre de dépendance puis recertifiées sur la baseline finale.
+3. **Régression finale** : backend + frontend + PDF après convergence des piles.
+4. **Runtime/visuel** : génération réelle des trois parcours et inspection du PDF final requises après convergence.
+5. **Closeout canonique** : roadmap/statut/changelog à mettre à jour uniquement après preuves finales.
 
 ## Ordre de convergence recommandé
 
@@ -198,7 +199,7 @@ Pile UX :
 
 1. #53 ;
 2. #60 ;
-3. correctif ciblé impression/preview Certificat.
+3. #63.
 
 Pile PDF :
 
