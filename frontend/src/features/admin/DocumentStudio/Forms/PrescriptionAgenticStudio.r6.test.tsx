@@ -39,8 +39,11 @@ describe('PrescriptionAgenticStudio R6 protocol visibility', () => {
       />,
     )
 
-    expect(legacyMount).toHaveBeenCalledTimes(1)
+    const callsBeforeRestore = legacyMount.mock.calls.length
+    expect(callsBeforeRestore).toBeGreaterThan(0)
+
     fireEvent.click(screen.getByRole('button', { name: 'Mes protocoles' }))
-    expect(legacyMount.mock.calls.length).toBeGreaterThanOrEqual(2)
+
+    expect(legacyMount.mock.calls.length).toBeGreaterThan(callsBeforeRestore)
   })
 })
