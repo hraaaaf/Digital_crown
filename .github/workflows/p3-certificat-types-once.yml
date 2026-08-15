@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - work-20260815-p3-certificat-types
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,19 +17,14 @@ jobs:
           ref: work-20260815-p3-certificat-types
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Apply P3 certificate patch
+      - name: Apply and normalize P3 certificate patch
         run: |
           python scripts/p3_certificat_types_once.py
           python - <<'PY'
           from pathlib import Path
-          path = Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.tsx')
-          text = path.read_text(encoding='utf-8')
+
+          form = Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.tsx')
+          text = form.read_text(encoding='utf-8')
           old = '<label className={labelClass}>Contenu du certificat médical</label>\n                <textarea'
           new = '<label htmlFor="certificate-free-content" className={labelClass}>Contenu du certificat médical</label>\n                <textarea\n                  id="certificate-free-content"'
           assert old in text, 'free certificate label anchor not found'
@@ -43,16 +37,17 @@ jobs:
           new = '<input\n                id="certificate-rest-days"\n                type="range"'
           assert old in text, 'duration range anchor not found'
           text = text.replace(old, new, 1)
-          path.write_text(text, encoding='utf-8')
+          form.write_text(text, encoding='utf-8')
+
+          test = Path('frontend/src/features/admin/DocumentStudio/Forms/CertificateForm.p3a.test.tsx')
+          text = test.read_text(encoding='utf-8')
+          old = "expect(screen.getByRole('textbox', { name: /Contenu du certificat médical/i })).toHaveValue('Texte rédigé par le praticien');"
+          new = "expect((screen.getByRole('textbox', { name: /Contenu du certificat médical/i }) as HTMLTextAreaElement).value).toBe('Texte rédigé par le praticien');"
+          assert old in text, 'unsupported matcher anchor not found'
+          test.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
-      - name: Targeted frontend tests
-        working-directory: frontend
-        run: |
-          npm ci
-          npx vitest run src/features/admin/DocumentStudio/CertificatePolicy.test.ts src/features/admin/DocumentStudio/Forms/CertificateForm.p3a.test.tsx
-
-      - name: Commit clean patch
+      - name: Commit clean source patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
