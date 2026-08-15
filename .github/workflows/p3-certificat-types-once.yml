@@ -1,6 +1,9 @@
 name: P3 Certificat Types Once
 
 on:
+  push:
+    branches:
+      - work-20260815-p3-certificat-types
   workflow_dispatch:
 
 permissions:
