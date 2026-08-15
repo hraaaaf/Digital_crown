@@ -5,11 +5,12 @@ from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Flowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
-from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
+from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
+from backend.services.certificate_signer_policy import resolve_certificate_signer_name
 from backend.services.generators.document_layout_safety import join_unbreakable
 
 # Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
@@ -22,6 +23,54 @@ _DAYS_WORDS = {
     25: 'vingt-cinq', 26: 'vingt-six', 27: 'vingt-sept', 28: 'vingt-huit',
     29: 'vingt-neuf', 30: 'trente', 31: 'trente-et-un',
 }
+
+
+SIGNATURE_LABEL = 'Signature manuscrite du praticien'
+
+
+class CertificateSignatureSpace(Flowable):
+    """Réserve une vraie zone blanche à signer à la main sur le certificat imprimé.
+
+    Aucun fac-similé, tampon ou autre procédé n'est injecté par le logiciel :
+    la zone reste volontairement vide pour la signature manuscrite du praticien.
+    """
+
+    def __init__(self, font_name: str, text_color=NAVY_BLUE, height=2.4 * cm, line_width=4.8 * cm):
+        super().__init__()
+        self.font_name = font_name
+        self.text_color = text_color
+        self.signature_height = height
+        self.line_width = line_width
+
+    def wrap(self, availWidth, availHeight):
+        self.width = availWidth
+        self.height = self.signature_height
+        return availWidth, self.signature_height
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+        effective_line_width = min(self.line_width, self.width * 0.55)
+        line_start = self.width - effective_line_width
+        line_y = 0.62 * cm
+
+        canvas.setStrokeColor(self.text_color)
+        canvas.setLineWidth(0.5)
+        canvas.line(line_start, line_y, self.width, line_y)
+
+        canvas.setFillColor(self.text_color)
+        canvas.setFont(self.font_name, 7.5)
+        canvas.drawCentredString(
+            line_start + effective_line_width / 2,
+            0.26 * cm,
+            SIGNATURE_LABEL,
+        )
+        canvas.restoreState()
+
+
+def _append_handwritten_signature_space(elements, font_name: str, text_color) -> None:
+    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(CertificateSignatureSpace(font_name=font_name, text_color=text_color))
 
 
 def _days_in_words(n: int) -> str:
@@ -204,14 +253,11 @@ class CertificatGenerator:
         observations = getattr(data, 'observations', '').strip()
         reason_lower = reason.lower()
         is_free_medical = _is_free_medical_certificate(reason)
-        if user_obj and getattr(user_obj, 'nom_complet', None):
-            dr_name = user_obj.nom_complet
-        else:
-            dr_name = "BENMOUSSA Achraf"
-            
+        dr_name = resolve_certificate_signer_name(user_obj)
+
         # Nettoyage pour éviter "Dr Dr."
         dr_name_clean = dr_name.replace("Dr.", "").replace("Dr ", "").replace("Docteur ", "").strip()
-            
+
         nom_complet = f"{patient.nom.upper()} {patient.prenom.capitalize()}"
 
         certif_text = ""
@@ -271,21 +317,11 @@ class CertificatGenerator:
             )
 
         elements.append(Paragraph(certif_text, body_style))
-
-        cloture_style = ParagraphStyle(
-            name='CertifCloture',
-            parent=self.styles['Normal'],
-            fontName=font_bold,
-            fontSize=10,
-            textColor=p_color,
-            alignment=TA_CENTER
-        )
-        # elements.append(PinnedCloture("Signature et Cachet", cloture_style))
+        _append_handwritten_signature_space(elements, font_name=font_bold, text_color=p_color)
 
         m_top = (max(config.margin_top, 4.8) if config and config.margin_top else 4.8) * cm
         m_bottom = (config.margin_bottom if config else 3.2) * cm
 
-        
         p_width_val = A5[0] if isinstance(A5, tuple) else (14.8*cm if A5 == 'A5' else 21.0*cm)
         m_top, m_bottom, m_left, m_right = self.base_template.get_document_margins(config, p_width_val)
         draw_method = lambda canv, d: self._draw_canvas(canv, d, config=config, user=user_obj)
