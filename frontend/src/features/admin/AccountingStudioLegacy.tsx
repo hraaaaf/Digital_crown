@@ -20,7 +20,7 @@ import { cn } from '../../utils/cn';
 import { OdontogramSVG } from '../../components/odontogram/OdontogramSVG';
 import { TreatmentSelector } from '../../components/odontogram/TreatmentSelector';
 import { createPortal } from 'react-dom';
-import type { SelectedSurfaceData } from '../../components/odontogram/types';
+import type { SelectedSurfaceData, ToothSurface, ToothTreatment } from '../../components/odontogram/types';
 import { api } from '../../services/api';
 import type { ValidationError, CoherenceWarning } from './DocumentStudio/useDocumentGenerator';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
@@ -28,6 +28,7 @@ import { useAccountingStore, type PriceItem, type InstallmentItem } from './stor
 import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 import { AccountingQuickActions } from './DocumentStudio/AccountingQuickActions';
 import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePolicy';
+import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -54,7 +55,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   patientId,
   coherenceWarnings = [],
   validationErrors = [],
-  setSelectedTeethFromOdontogram,
 }) => {
   const {
     items, setItems,
@@ -115,38 +115,54 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
   const applyGroupTreatment = () => {
     if (!groupTreatmentName.trim() || groupSelectedTeeth.length === 0) return;
+    const normalizedPrice = Number(groupTreatmentPrice);
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+      toast.error('Renseignez un prix positif avant d’ajouter cet acte groupé.');
+      return;
+    }
     const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: Number(groupTreatmentPrice) || 0, toothNumbers: sorted }]);
+    setItems((prev: any) => [...prev, { id: Date.now(), description: groupTreatmentName, dent: sorted.join('-'), price: normalizedPrice, toothNumbers: sorted }]);
     setGroupSelectedTeeth([]);
     setGroupTreatmentName('');
     setGroupTreatmentPrice('');
   };
 
-  const handleTeethFromOdontogram = React.useCallback((teeth: SelectedSurfaceData[]) => {
-    setSelectedTeethFromOdontogram(teeth);
-    setItems((prev: any) => {
-      const activeKeys = new Set(teeth.flatMap(t => t.treatments.map(tr => `${t.toothNumber}::${tr.id}`)));
-      const surviving = prev.filter((i: any) => {
-        if (i._odontogramKey) return activeKeys.has(i._odontogramKey);
-        return i.description.trim() !== '';
-      });
-      const existingKeys = new Set(surviving.map((i: any) => i._odontogramKey).filter(Boolean));
-      const newItems: PriceItem[] = [];
-      teeth.forEach(t => {
-        t.treatments.forEach(tr => {
-          const k = `${t.toothNumber}::${tr.id}`;
-          if (!existingKeys.has(k)) {
-            newItems.push({
-              id: Date.now() + Math.random(),
-              description: tr.name, dent: t.toothNumber.toString(),
-              price: tr.price, toothNumbers: [t.toothNumber], _odontogramKey: k,
-            });
-          }
-        });
-      });
-      return [...surviving, ...newItems];
+  const replaceToothTreatmentsFromSelector = React.useCallback((
+    toothNumber: number,
+    treatments: ToothTreatment[],
+    surfaces: ToothSurface[],
+  ) => {
+    const dentLabel = surfaces.length > 0 ? toothNumber.toString() + ` (${surfaces.join('')})` : undefined;
+    setItems((prev: PriceItem[]) => replaceOdontogramToothSelections(
+      prev,
+      toothNumber,
+      treatments.map(treatment => ({
+        toothNumber,
+        treatmentId: treatment.id,
+        name: treatment.name,
+        price: treatment.price,
+        category: treatment.category,
+        dent: dentLabel,
+      })),
+    ));
+  }, [setItems]);
+
+  const [activeTooth, setActiveTooth] = useState<number | null>(null);
+
+  const activeToothTreatments = React.useMemo<ToothTreatment[]>(() => {
+    if (!activeTooth) return [];
+    const prefix = `${activeTooth}::`;
+    return items.flatMap(item => {
+      if (!item._odontogramKey?.startsWith(prefix) || !item.category) return [];
+      return [{
+        id: item._odontogramKey.slice(prefix.length),
+        name: item.description,
+        price: Number(item.price) || 0,
+        category: item.category as ToothTreatment['category'],
+        scope: 'UNITAIRE' as const,
+      }];
     });
-  }, [setSelectedTeethFromOdontogram, setItems]);
+  }, [activeTooth, items]);
 
   const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
   const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
@@ -170,9 +186,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       t.category.toLowerCase().includes(q.toLowerCase())
     ).map((t: any) => ({ 
       id: `template_${t.id}`, 
-      name: t.name, 
-      base_price: 0, 
-      category: t.category, 
+      name: t.name,
+      base_price: 0,
+      category: t.category,
       isLocal: true,
       is_habit: false
     }));
@@ -228,7 +244,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
   const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
   const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
-  const [activeTooth, setActiveTooth] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   
@@ -561,11 +576,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                         key={act}
                                         type="button"
                                         onClick={() => {
-                                          const price = PriceBrain.suggestPrice(act) || 0;
+                                          const suggestedPrice = PriceBrain.suggestPrice(act);
                                           setGroupTreatmentName(act);
-                                          setGroupTreatmentPrice(price);
+                                          if (!suggestedPrice || suggestedPrice <= 0) {
+                                            setGroupTreatmentPrice('');
+                                            toast.error('Prix inconnu : renseignez un prix avant d’ajouter cet acte groupé.');
+                                            return;
+                                          }
+                                          setGroupTreatmentPrice(suggestedPrice);
                                           const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                          setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: Number(price), toothNumbers: sorted }]);
+                                          setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: suggestedPrice, toothNumbers: sorted }]);
                                           selectTeethGroup('none');
                                           setGroupTreatmentName('');
                                           setGroupTreatmentPrice('');
@@ -610,23 +630,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         {activeTooth && (
                           <TreatmentSelector
                             toothNumber={activeTooth as any}
-                            currentTreatments={[]}
+                            currentTreatments={activeToothTreatments}
+                            allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
-                              const newItems = [...items];
+                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces);
                               treatments.forEach(t => {
-                                newItems.push({
-                                  id: Date.now() + Math.random(),
-                                  description: t.name,
-                                  dent: activeTooth.toString() + (surfaces.length > 0 ? ` (${surfaces.join('')})` : ''),
-                                  price: t.price || 0,
-                                  category: t.category,
-                                  toothNumbers: [activeTooth]
-                                });
                                 if (t.price && t.price > 0) {
                                   PriceBrain.recordAct(t.name, t.price, t.category, t.id);
                                 }
                               });
-                              setItems(newItems);
                               setActiveTooth(null);
                             }}
                             onCancel={() => setActiveTooth(null)}

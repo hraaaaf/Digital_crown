@@ -19,6 +19,7 @@ interface TreatmentSelectorProps {
   onConfirm: (treatments: ToothTreatment[], surfaces: ToothSurface[], notes: string) => void;
   onCancel: () => void;
   embedded?: boolean;
+  allowEmptyConfirm?: boolean;
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
@@ -56,6 +57,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   onConfirm,
   onCancel,
   embedded = false,
+  allowEmptyConfirm = false,
 }) => {
   const [selectedTreatments, setSelectedTreatments] = useState<ToothTreatment[]>(currentTreatments);
   const [treatmentPrices, setTreatmentPrices] = useState<Record<string, number>>({});
@@ -426,7 +428,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
               <button
                 onClick={() => onConfirm(selectedTreatments, selectedSurfaces, notes)}
-                disabled={selectedTreatments.length === 0}
+                disabled={selectedTreatments.length === 0 && !allowEmptyConfirm}
                 className={cn(
                   "w-full py-6 rounded-3xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-2xl flex items-center justify-center gap-3",
                   selectedTreatments.length > 0
