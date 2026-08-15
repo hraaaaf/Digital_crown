@@ -2,6 +2,7 @@ import React from 'react';
 import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
+import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
 
 interface StudioTabsProps {
   activeTab: import('../DocumentHub').HubDocumentType;
@@ -18,6 +19,13 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
       );
       if (!confirmed) return;
       setPrescriptionDirty(false);
+    }
+    if (activeTab === 'libre' && isLibreDirty()) {
+      const confirmed = window.confirm(
+        'Des modifications non enregistrées sont présentes dans le document libre. Quitter cet onglet et les abandonner ?',
+      );
+      if (!confirmed) return;
+      setLibreDirty(false);
     }
     onTabChange(tab);
   };
