@@ -2,8 +2,7 @@ import React, { useRef } from 'react';
 import { cn } from '../../../../utils/cn';
 
 import type { ValidationError } from '../useDocumentGenerator';
-import { AlertCircle, Bold, Italic, Underline, Baseline, Table, Type } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { AlertCircle, Bold, Italic, Underline, Table, Type } from 'lucide-react';
 
 interface LibreFormProps {
   title: string;
@@ -59,6 +58,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
 
   const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-100 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2 ml-1";
+  const titleError = validationErrors.find(e => e.field === 'libreTitle');
+  const contentError = validationErrors.find(e => e.field === 'libreContent');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col max-w-4xl mx-auto py-8 w-full">
@@ -70,8 +71,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
           <div className="md:col-span-1">
             <label className={labelClass}>Titre du Document</label>
-            <input type="text" className={cn(inputClass, validationErrors.find(e => e.field === 'title') && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
-            {validationErrors.find(e => e.field === 'title') && (
+            <input type="text" className={cn(inputClass, titleError && "border-red-300 shadow-red-50")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: ORDONNANCE, LETTRE..." />
+            {titleError && (
               <div className="mt-2 text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
                 <AlertCircle size={12} /> Titre Requis
               </div>
@@ -105,7 +106,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                   {['A5', 'A4'].map((size) => (
                     <button 
                       key={size}
-                      onClick={() => setPageSize(size as any)}
+                      type="button"
+                      onClick={() => setPageSize(size as 'A5' | 'A4')}
                       className={cn(
                         "px-4 py-1.5 rounded-lg text-[10px] font-black transition-all",
                         pageSize === size ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -128,7 +130,8 @@ export const LibreForm: React.FC<LibreFormProps> = ({
                   ].map((align) => (
                     <button 
                       key={align.id}
-                      onClick={() => setAlignment(align.id as any)}
+                      type="button"
+                      onClick={() => setAlignment(align.id as 'left' | 'center' | 'right' | 'justify')}
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[10px] font-black transition-all",
                         alignment === align.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -150,13 +153,13 @@ export const LibreForm: React.FC<LibreFormProps> = ({
         {/* Toolbar */}
         <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center gap-2 flex-wrap">
           <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-             <button onClick={() => insertTag('<b>', '</b>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Gras">
+             <button type="button" onClick={() => insertTag('<b>', '</b>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Gras">
                <Bold size={16} strokeWidth={2.5} />
              </button>
-             <button onClick={() => insertTag('<i>', '</i>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Italique">
+             <button type="button" onClick={() => insertTag('<i>', '</i>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Italique">
                <Italic size={16} strokeWidth={2.5} />
              </button>
-             <button onClick={() => insertTag('<u>', '</u>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Souligné">
+             <button type="button" onClick={() => insertTag('<u>', '</u>')} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Souligné">
                <Underline size={16} strokeWidth={2.5} />
              </button>
           </div>
@@ -164,10 +167,10 @@ export const LibreForm: React.FC<LibreFormProps> = ({
           <div className="w-px h-6 bg-slate-200 mx-2" />
           
           <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-             <button onClick={() => insertTag('<font size="16">', '</font>')} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Agrandir">
+             <button type="button" onClick={() => insertTag('<font size="16">', '</font>')} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Agrandir">
                <Type size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Grand Titre</span>
              </button>
-             <button onClick={handleTableInsert} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Tableau">
+             <button type="button" onClick={handleTableInsert} className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all" title="Tableau">
                <Table size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Tableau</span>
              </button>
           </div>
@@ -177,13 +180,13 @@ export const LibreForm: React.FC<LibreFormProps> = ({
           ref={textareaRef}
           className={cn(
             "w-full flex-1 p-8 text-sm font-medium text-slate-700 outline-none transition-all resize-none leading-relaxed custom-scrollbar",
-            validationErrors.find(e => e.field === 'content') ? "bg-red-50/30" : "bg-transparent"
+            contentError ? "bg-red-50/30" : "bg-transparent"
           )}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Rédigez votre document ici... Utilisez la barre d'outils pour mettre en forme le texte."
         />
-        {validationErrors.find(e => e.field === 'content') && (
+        {contentError && (
           <div className="absolute bottom-6 right-6 px-5 py-3 bg-red-50 border border-red-200 rounded-2xl text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2 shadow-lg">
             <AlertCircle size={16} /> Le contenu ne peut être vide
           </div>
