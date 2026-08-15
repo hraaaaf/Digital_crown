@@ -1,0 +1,43 @@
+name: P1 Pre-R1 Glass Audit
+
+on:
+  push:
+    branches: [audit-20260815-p1-pre-r1-glass]
+  workflow_dispatch:
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        run: npm ci
+      - name: Install Chromium
+        run: npx -y playwright@1.55.0 install --with-deps chromium
+      - name: Start visual harness
+        run: |
+          npm run dev -- --port 4173 > /tmp/p1-vite.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/p1-glass-audit.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p1-vite.log
+          exit 1
+      - name: Capture historical ordonnance
+        run: |
+          mkdir -p p1-glass-audit
+          npx -y playwright@1.55.0 screenshot --browser chromium --viewport-size="1440,1100" --full-page --wait-for-timeout=4000 "http://127.0.0.1:4173/p1-glass-audit.html?documentTab=ordonnance" p1-glass-audit/ordonnance-pre-r1-1440.png
+      - name: Upload historical screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-pre-r1-glass-audit
+          path: frontend/p1-glass-audit/ordonnance-pre-r1-1440.png
+          if-no-files-found: error
