@@ -1,0 +1,152 @@
+name: P2 runtime browser certification
+
+on:
+  push:
+    branches:
+      - work-20260815-p2-runtime-browser-cert
+
+jobs:
+  browser-cert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Create isolated P2 runtime harness
+        working-directory: frontend
+        run: |
+          cat > runtime-p2.html <<'EOF'
+          <!doctype html>
+          <html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>P2 Runtime Cert</title></head>
+          <body><div id="root"></div><script type="module" src="/src/runtime-p2.tsx"></script></body></html>
+          EOF
+          cat > src/runtime-p2.tsx <<'EOF'
+          import React from 'react';
+          import ReactDOM from 'react-dom/client';
+          import { Toaster } from 'react-hot-toast';
+          import './index.css';
+          import { AccountingStudio } from './features/admin/AccountingStudioLegacy';
+          import { useAccountingStore } from './features/admin/store/useAccountingStore';
+
+          useAccountingStore.getState().reset();
+
+          ReactDOM.createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <AccountingStudio
+                isDevis
+                patientId="runtime-p2"
+                setSelectedTeethFromOdontogram={() => {}}
+              />
+              <Toaster />
+            </React.StrictMode>,
+          );
+          EOF
+          cat > runtime-p2.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const out = 'runtime-artifacts';
+          fs.mkdirSync(out, { recursive: true });
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
+          const page = await context.newPage();
+          const consoleErrors = [];
+          page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+          page.on('pageerror', err => consoleErrors.push(`PAGEERROR: ${err.message}`));
+
+          await page.route('http://127.0.0.1:8005/**', async route => {
+            const url = route.request().url();
+            const json = (body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+            if (url.includes('/api/accounting/frequent-acts')) return json([
+              { name: 'Consultation', price: 300, category: 'CONSERVATRICE' },
+              { name: 'Détartrage', price: 500, category: 'PREVENTION' },
+              { name: 'Composite 1 face', price: 400, category: 'CONSERVATRICE' },
+              { name: 'Extraction simple', price: 600, category: 'CHIRURGIE' },
+            ]);
+            if (url.includes('/api/actes/catalog/bundles')) return json([]);
+            if (url.includes('/api/actes/search')) return json([]);
+            return json([]);
+          });
+
+          const must = async (condition, message) => { if (!condition) throw new Error(message); };
+          await page.goto('http://127.0.0.1:5173/runtime-p2.html', { waitUntil: 'networkidle' });
+          await page.getByText('Plan de soins').waitFor();
+          await page.screenshot({ path: `${out}/01-initial-desktop.png`, fullPage: true });
+
+          await page.getByRole('button', { name: /Actes rapides/i }).click();
+          await page.getByRole('button', { name: /Consultation/i }).click();
+          await page.waitForTimeout(150);
+          await must(await page.locator('input[value="Consultation"]').count() > 0, 'Quick act Consultation not inserted');
+          await page.screenshot({ path: `${out}/02-quick-act.png`, fullPage: true });
+
+          await page.getByRole('button', { name: /Bridge & Prothèses/i }).click();
+          await page.getByRole('button', { name: 'Q1', exact: true }).click();
+          await page.getByText(/8 dents sélectionnées/i).waitFor();
+          await page.screenshot({ path: `${out}/03-group-q1.png`, fullPage: true });
+
+          await page.getByRole('button', { name: /Soins Généraux/i }).click();
+          await page.getByRole('button', { name: /Consultation Standard/i }).click();
+          await page.waitForTimeout(150);
+          await must(await page.locator('input[value="Consultation Standard"]').count() > 0, 'Global act not inserted');
+          await page.screenshot({ path: `${out}/04-general-act.png`, fullPage: true });
+
+          await page.getByRole('button', { name: /Soins Ciblés/i }).click();
+          const paths = page.locator('svg path.cursor-pointer');
+          await must(await paths.count() > 0, 'No clickable odontogram surfaces rendered');
+          await paths.first().click({ force: true });
+          await page.getByText(/^Dent \d+$/).waitFor();
+          await page.getByText('Composite 1 face', { exact: true }).click();
+          const priceInput = page.locator('input[type="number"]').last();
+          await priceInput.fill('450');
+          await page.getByRole('button', { name: /Confirmer/i }).click();
+          await page.waitForTimeout(150);
+          await must(await page.locator('input[value="Composite 1 face"]').count() > 0, 'Individual treatment not inserted');
+          await page.screenshot({ path: `${out}/05-individual-treatment.png`, fullPage: true });
+
+          await page.getByRole('button', { name: /Organiser par phases/i }).click();
+          await page.getByText(/PHASE 1|ASSAINISSEMENT|AUTRES ACTES/i).first().waitFor();
+          await page.screenshot({ path: `${out}/06-phases.png`, fullPage: true });
+
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.waitForTimeout(250);
+          await page.screenshot({ path: `${out}/07-mobile-390.png`, fullPage: true });
+
+          fs.writeFileSync(`${out}/console-errors.json`, JSON.stringify(consoleErrors, null, 2));
+          fs.writeFileSync(`${out}/summary.json`, JSON.stringify({
+            quickAct: true,
+            groupModeQ1: true,
+            generalAct: true,
+            individualTreatment: true,
+            phaseSequencing: true,
+            mobile390Rendered: true,
+            consoleErrors,
+          }, null, 2));
+          await browser.close();
+          EOF
+
+      - name: Run browser certification
+        working-directory: frontend
+        run: |
+          npm run dev -- --port 5173 > /tmp/p2-vite.log 2>&1 &
+          npx --yes wait-on http://127.0.0.1:5173/runtime-p2.html
+          node runtime-p2.mjs
+
+      - name: Upload runtime screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-runtime-browser-cert
+          path: frontend/runtime-artifacts
+          if-no-files-found: error
