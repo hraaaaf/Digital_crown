@@ -153,14 +153,14 @@ Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.
 ### P2 — Devis + Honoraires
 Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`
 
-- [x] Actes rapides / recherche catalogue — **P2-A prix catalogue local fermé ; tactile/terminologie restent P2-C**
+- [x] Actes rapides / recherche catalogue — **P2-A prix catalogue local + P2-C tactile/terminologie fermés**
 - [ ] Odontogramme : chaque interaction dent/groupe/schéma
 - [ ] Déclenchement du tableau/panneau associé
 - [ ] Position, contenu, sélection et validation de ce tableau
 - [ ] Modes individuel / groupe / général
 - [ ] Tarification et habitudes tarifaires
 - [ ] Bundles / propositions complémentaires
-- [ ] Organisation par phases
+- [x] Organisation par phases — **P2-C regroupement déterministe fermé ; runtime reste ouvert**
 - [x] Totaux et cohérence — **P2-E réconciliation Honoraires globale fermée ; flux direct échéancier reste P4**
 - [x] Honoraires : contrat PARTIEL/modes de règlement — **P2-B et P2-F fermés**
 - [ ] États vides, erreurs, sauvegarde, preview, impression
@@ -204,7 +204,15 @@ Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AU
   - Merge squash : `5916216ae6b3ebe6cf3609ff652ee09cc549391f`.
   - Le banc préparatoire `31885269345` avait reproduit le défaut : 2 Acte PAYE mais 1 seul Payment global sans `acte_id`.
   - Le flux final crée un paiement exact positif par Acte PAYE et lie chaque Payment à son `acte_id`; aucun paiement global orphelin n’est créé.
-- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : préparation isolée en PR draft `#32`, banc CI `31884466342` 3/3 SUCCESS ; intégration au legacy actif encore requise.
+- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : ✅ **engineering fermé**.
+  - PR finale `#46` — MERGED ; ancienne PR préparatoire `#32` fermée sans merge.
+  - Head final certifié : `0a5b7dc50fd452c8950c42043340ad9cbea44106`.
+  - CI exacte : run `31900572795` — **3/3 SUCCESS**.
+  - Frontend tests/build : ✅ SUCCESS.
+  - Backend tests/durcissement : ✅ SUCCESS.
+  - Garde production négative : ✅ SUCCESS.
+  - Merge `master` : `967f56ed10d61b373bcd3c75e6a737a49bd7349a`.
+  - `AccountingQuickActions` est branché au legacy actif ; le regroupement par phases utilise `AccountingPhasePolicy`; les faux labels IA et la durée fixe de cicatrisation non sourcée sont retirés de ce flux.
 - **P2-D — Odontogramme/déduplication/prix groupe** : policy préparée en PR draft `#33`, banc CI `31884472613` 3/3 SUCCESS ; intégration au callback legacy actif encore requise.
 
 ### P3 — Certificat + Document Libre
@@ -294,7 +302,7 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 
 ## État courant
 - **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
-- **P2 : 🟡 ACTIVE** — P2-A/B/E/F fermés et fusionnés ; P2-C/D préparés sans intégration ; audit runtime non exécuté.
+- **P2 : 🟡 ACTIVE** — P2-A/B/C/E/F fermés et fusionnés ; P2-D préparé sans intégration ; audit runtime non exécuté.
 - **P3 : 🟡 ACTIVE** — P3-A/B/C engineering fermés et fusionnés ; audit interaction-par-interaction, preview/sauvegarde/impression et certification UX runtime restent ouverts.
 - **P4 : 🟡 ACTIVE** — P4-A/B engineering fermés et fusionnés ; autres comportements et certification financière/UX runtime restent ouverts.
 - **P5 : 🟡 ACTIVE** — P5-P0 clinique fermé et fusionné ; reste du compagnon diagnostique/inter-pages à auditer/refondre.
@@ -304,4 +312,4 @@ Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typograph
 Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
 
 ## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`; P2-F via `5916216ae6b3ebe6cf3609ff652ee09cc549391f`; P3-A via `52d58f0efc94e68ef45fc12fa7912d15c2830e64`; P3-B via `2c677f229a25732c2895615261f9205d2a227e52`; P3-C via `a7f81ed332ab2a3774382ace3db2446cd6d447d1`; P4-A via `989b819fe9f38ea616a48bf34e59263f7bcab82b`; P4-B via `365a8cd9f1e9543898a70e060fd3e6890f647d66`; P5-P0 via `46d9388e80e3334230f8bea1356e4e38951408ca`. Les autres lots actifs doivent repartir de cette baseline fonctionnelle après rebase exact.
+Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`; P2-F via `5916216ae6b3ebe6cf3609ff652ee09cc549391f`; P2-C via `967f56ed10d61b373bcd3c75e6a737a49bd7349a`; P3-A via `52d58f0efc94e68ef45fc12fa7912d15c2830e64`; P3-B via `2c677f229a25732c2895615261f9205d2a227e52`; P3-C via `a7f81ed332ab2a3774382ace3db2446cd6d447d1`; P4-A via `989b819fe9f38ea616a48bf34e59263f7bcab82b`; P4-B via `365a8cd9f1e9543898a70e060fd3e6890f647d66`; P5-P0 via `46d9388e80e3334230f8bea1356e4e38951408ca`. Les autres lots actifs doivent repartir de cette baseline fonctionnelle après rebase exact.
