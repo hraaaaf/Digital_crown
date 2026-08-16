@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { isP7Dirty, setP7Dirty } from './P7DirtyState';
 
 type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'PEDIATRIE' | 'RESULT';
 
@@ -49,6 +50,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
   React.useEffect(() => {
     // Patient boundary: no diagnostic, proposed act or warning may survive a patient change.
     let cancelled = false;
+    setP7Dirty(false);
     setCurrentState('MOTIF');
     setHistory(INITIAL_HISTORY);
     setFinalDiagnosis('');
@@ -78,7 +80,18 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     };
   }, [patientId]);
 
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isP7Dirty()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const handleAnswer = (answerText: string, nextState: DiagnosticState, diagnosis?: string, acts?: Omit<ProposedAct, 'id'>[]) => {
+    setP7Dirty(true);
     setHistory(prev => [...prev, { role: 'user', text: answerText }]);
 
     if (diagnosis && acts) {
@@ -314,20 +327,33 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
   const addCustomAct = () => {
     if (!newActText.trim()) return;
+    setP7Dirty(true);
     setProposedActs(prev => [...prev, { id: `custom-${Date.now()}`, phase: newActPhase, act: newActText }]);
     setNewActText('');
   };
 
   const removeAct = (id: string) => {
+    setP7Dirty(true);
     setProposedActs(prev => prev.filter(a => a.id !== id));
   };
 
   const resetDiagnostic = () => {
+    setP7Dirty(false);
     setCurrentState('MOTIF');
     setHistory(INITIAL_HISTORY);
     setFinalDiagnosis('');
     setProposedActs([]);
     setAllergyWarning(null);
+  };
+
+  const convertToQuote = () => {
+    if (!onConvertToQuote || proposedActs.length === 0) return;
+    onConvertToQuote(proposedActs.map(act => ({
+      suggested_act: act.act,
+      fdi: 'Global',
+      phase: act.phase,
+    })));
+    setP7Dirty(false);
   };
 
   return (
@@ -456,11 +482,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
               {onConvertToQuote && proposedActs.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => onConvertToQuote(proposedActs.map(act => ({
-                    suggested_act: act.act,
-                    fdi: 'Global',
-                    phase: act.phase,
-                  })))}
+                  onClick={convertToQuote}
                   className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-[0.99]"
                 >
                   Préparer le devis à partir de cette proposition <ArrowRight size={16} />
