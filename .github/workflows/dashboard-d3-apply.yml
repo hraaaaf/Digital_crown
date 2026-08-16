@@ -1,0 +1,41 @@
+name: Dashboard D3 marketplace cleanup
+
+on:
+  push:
+    branches:
+      - agent/dashboard-d3-marketplace-cleanup
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply asserted D3 cleanup and self-clean
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('frontend/src/pages/Dashboard.tsx')
+          s = p.read_text()
+          old = '''      {hasAccess('patients') && (\n        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">\n          <Link\n            to="/approvisionnement"\n            className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"\n            style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}\n          >\n            <div className="p-8 md:p-9 flex items-center justify-between gap-6">\n              <div className="flex items-center gap-4 min-w-0">\n                <div\n                  className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"\n                  style={{\n                    backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',\n                    borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',\n                    color: 'var(--primary, #0f766e)',\n                  }}\n                >\n                  <ShoppingCart size={28} />\n                </div>\n                <div className="min-w-0">\n                  <p\n                    className="text-[10px] uppercase tracking-widest font-black mb-2"\n                    style={{ color: 'var(--text-muted, #64748b)' }}\n                  >\n                    Approvisionnement\n                  </p>\n                  <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>\n                    Marketplace\n                  </h2>\n                </div>\n              </div>\n              <Store\n                size={18}\n                className="shrink-0 transition-transform group-hover:translate-x-1"\n                style={{ color: 'var(--primary, #0f766e)' }}\n              />\n            </div>\n          </Link>\n\n          <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">\n            <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>\n            <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">\n              <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>\n              <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>\n              <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>\n            </div>\n          </div>\n        </motion.section>\n      )}\n'''
+          new = '''      {hasAccess('patients') && (\n        <motion.section variants={itemVariants}>\n          <Link\n            to="/approvisionnement"\n            className="group flex items-center justify-between gap-5 rounded-elite-lg border border-border-main bg-card-bg px-6 py-5 shadow-elite hover:shadow-elite-hover transition-elite"\n          >\n            <div className="flex items-center gap-4 min-w-0">\n              <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">\n                <ShoppingCart size={22} />\n              </div>\n              <div className="min-w-0">\n                <p className="text-[10px] uppercase tracking-widest font-black text-text-muted">Approvisionnement</p>\n                <h2 className="text-lg font-black tracking-tight font-outfit text-main" style={{ color: 'var(--text-main)' }}>Marketplace</h2>\n                <p className="text-xs font-medium text-text-muted mt-0.5">Commander les consommables et fournitures du cabinet</p>\n              </div>\n            </div>\n            <Store size={18} className="shrink-0 text-primary transition-transform group-hover:translate-x-1" />\n          </Link>\n        </motion.section>\n      )}\n'''
+          assert s.count(old) == 1, f'D3 marketplace anchor count={s.count(old)}'
+          s = s.replace(old, new, 1)
+          for forbidden in ('Pourquoi ici', 'frontend only', 'perimetre metier coherent', 're-dessiner tout le dashboard'):
+              assert forbidden not in s, f'forbidden developer copy survived: {forbidden}'
+          p.write_text(s)
+
+          Path('frontend/src/pages/Dashboard.marketplace.test.ts').write_text('''import { describe, expect, it } from "vitest";\nimport fs from "node:fs";\nimport path from "node:path";\nconst source = fs.readFileSync(path.resolve(__dirname, "Dashboard.tsx"), "utf8");\ndescribe("Dashboard D3 marketplace", () => {\n  it("keeps a compact business-facing marketplace entry", () => {\n    expect(source).toContain('to="/approvisionnement"');\n    expect(source).toContain('Commander les consommables et fournitures du cabinet');\n  });\n  it("does not expose internal implementation rationale", () => {\n    expect(source).not.toContain('Pourquoi ici');\n    expect(source).not.toContain('frontend only');\n    expect(source).not.toContain('perimetre metier coherent');\n  });\n});\n''')
+          PY
+
+          rm -f .github/workflows/dashboard-d3-apply.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(dashboard): remove developer copy from marketplace card"
+          git push origin HEAD:agent/dashboard-d3-marketplace-cleanup
