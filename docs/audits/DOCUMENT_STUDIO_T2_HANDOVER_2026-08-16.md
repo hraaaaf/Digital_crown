@@ -2,9 +2,9 @@
 
 ## Objectif
 
-Reprendre uniquement la **certification finale** du Document Studio. Aucun correctif critique engineering connu ne reste ouvert dans le périmètre audité P1→P7/T1/T2.
+Reprendre uniquement la **certification full-app** du Document Studio. Aucun P0/P1 engineering connu ne reste ouvert dans le périmètre audité P1→P7/T1/T2.
 
-## État
+## État vérifié
 
 - P1 Ordonnance : engineering fermé ; validation clinique/runtime séparée.
 - P2 Certificat : engineering convergé ; runtime/PDF différé.
@@ -14,15 +14,17 @@ Reprendre uniquement la **certification finale** du Document Studio. Aucun corre
 - P6 Document Libre : engineering local convergé ; PR #96 draft.
 - P7 Compagnon Diagnostique : engineering safety local convergé ; PR #97 draft.
 - T1 Transversal : engineering local convergé ; PR #101 draft.
-- T2 : engineering closeout local convergé ; PR T2 draft sur branche `agent/t2-document-studio-final-recertification`.
+- T2 : engineering closeout local convergé ; PR #102 draft.
 
 ## Derniers changements T2
 
-- Libre : suppression du `beforeunload` et de l'interceptor archive locaux ; Hub = autorité lifecycle.
-- `scripts/certify_document_studio.sh` créé comme harness fail-closed final.
-- `DocumentNavigationPolicy.test.ts` versionné.
-- `DiagnosticCompanionPolicy.test.ts` versionné.
-- audit final : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_RECERTIFICATION.md`.
+- `scripts/certify_document_studio.sh` étendu en harness fail-closed P1→P7/T1 : targeted backend + full backend + targeted DocumentStudio Vitest + full frontend + build + invariants source + prod safety.
+- toolchain du harness : Python >=3.12, Node >=20.
+- `LivePreview` non-inline durci : dialog ARIA, focus initial, Escape, loading live-region.
+- `LivePreview.r7.test.tsx` étendu pour cette accessibilité.
+- legacy potentiellement orphelin non supprimé faute de scan de références exhaustif (`incomplete_results=true`).
+- statut canonique : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_STATUS.md`.
+- rapport : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_RECERTIFICATION.md`.
 
 ## Preuves déjà acquises
 
@@ -31,24 +33,20 @@ Reprendre uniquement la **certification finale** du Document Studio. Aucun corre
 - P5 backend 15/15 ; summary 4/4 ; create payload 8/8 + tsc.
 - P6 dirty/archive 11/11 + tsc.
 - P7 safety 8/8 + tsc ; P7→P3 + dirty 12/12 + tsc.
-- T1 navigation 10/10 + tsc ; legacy installment path 4/4.
-- T2 harness : `bash -n` PASS.
+- T1 navigation dernier rerun 9/9 + tsc ; legacy installment helper 4/4.
+- T2 harness : `bash -n` PASS sous Linux Python 3.13.5 / Node 22.16.0 / npm 10.9.2.
 
 Ces preuves sont locales/ciblées et ne valent pas full-project certification.
 
 ## Prochaine action exacte
 
-Sur un checkout propre du **head candidat T2 exact**, avec Python 3.12 / Node 20 et toutes les dépendances :
+Sur un checkout propre du **head candidat T2 exact**, avec Python >=3.12, Node >=20 et toutes les dépendances :
 
 ```bash
 bash scripts/certify_document_studio.sh
 ```
 
-Ne considérer le gate automatisé fermé que si le script imprime réellement :
-
-```text
-AUTOMATED_DOCUMENT_STUDIO_GATES_PASS
-```
+Ne considérer le gate automatisé fermé que si le script termine réellement tous ses gates avec succès.
 
 ## Puis exécuter, dans cet ordre
 
@@ -68,8 +66,13 @@ AUTOMATED_DOCUMENT_STUDIO_GATES_PASS
 - ne pas merger les PR stackées avant gates applicables ;
 - ne pas déduire production-ready de tests locaux ;
 - ne pas rouvrir P3 tant que la décision produit de pause n'est pas explicitement levée ;
-- ne pas réintroduire de chemin IA/LLM dans Document Studio sans décision d'architecture et validation dédiée.
+- ne pas réintroduire de chemin IA/LLM dans Document Studio sans décision d'architecture et validation dédiée ;
+- ne pas supprimer les fichiers legacy potentiellement orphelins sans scan complet fiable des références.
 
 ## Blocage actuel
 
-L'environnement de cette session ne fournit pas le checkout full-repository exact avec toolchain Python 3.12 / Node 20 et runtime cabinet authentifié. Le verrou restant est donc **exécution/certification externe**, pas un correctif de code connu.
+L'environnement de cette session ne fournit pas le checkout full-repository exact avec dépendances installées ni runtime cabinet authentifié. Le verrou restant est **exécution/certification externe**, pas un correctif engineering connu.
+
+## Avancement
+
+Aucune pondération officielle : **pourcentage global indéterminé**.
