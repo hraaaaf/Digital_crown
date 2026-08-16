@@ -161,19 +161,21 @@ export const DashboardHeader = ({
           </button>
         )}
 
-        <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
-          <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut système</span>
-            <div className="flex items-center gap-2" role="status" aria-live="polite">
-              {systemStatus.isLoading
-                ? <Loader2 size={12} className="text-slate-400 animate-spin" aria-hidden="true" />
-                : <div className={cn('w-2 h-2 rounded-full', systemStatus.dotClassName)} aria-hidden="true" />}
-              <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
-                {systemStatus.label}
-              </span>
+        {canAdmin && (
+          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
+            <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut système</span>
+              <div className="flex items-center gap-2" role="status" aria-live="polite">
+                {systemStatus.isLoading
+                  ? <Loader2 size={12} className="text-slate-400 animate-spin" aria-hidden="true" />
+                  : <div className={cn('w-2 h-2 rounded-full', systemStatus.dotClassName)} aria-hidden="true" />}
+                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
+                  {systemStatus.label}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </motion.header>
   );
