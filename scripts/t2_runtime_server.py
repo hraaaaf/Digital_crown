@@ -61,7 +61,7 @@ with database.SessionLocal() as db:
             sexe="M",
             employer_id=user.id,
             telephone="0600000000",
-            email="patient-t2@example.test",
+            email="patient.t2.certification@example.com",
             assurance="AUCUNE",
         )
         db.add(patient)
