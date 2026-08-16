@@ -7,15 +7,13 @@ from typing import Any
 MAX_HONORAIRES_LINE_AMOUNT = 1_000_000.0
 
 
-def _field_was_explicitly_provided(item: Any, field_name: str) -> bool:
-    fields_set = getattr(item, "model_fields_set", None)
-    if fields_set is None:
-        return True
-    return field_name in fields_set
-
-
 def validate_honoraires_document_data(data: Any) -> Any:
-    """Fail closed before PDF generation/archive for P4 financial documents."""
+    """Fail closed before PDF generation/archive for invariant P4 line data.
+
+    Payment-method validation deliberately stays out of this pre-PDF layer because
+    an EN_ATTENTE note has no collection yet. The request/persistence boundaries
+    require an explicit method only when payment_status is PAYE.
+    """
     payments = list(getattr(data, "payments", []) or [])
     if not payments:
         raise ValueError("Une note d'honoraires doit contenir au moins un acte.")
@@ -35,12 +33,5 @@ def validate_honoraires_document_data(data: Any) -> Any:
             raise ValueError(f"Acte #{index} : le montant doit être strictement positif.")
         if amount > MAX_HONORAIRES_LINE_AMOUNT:
             raise ValueError(f"Acte #{index} : le montant dépasse la limite autorisée.")
-
-        # PaymentItem historically defaulted to Espèces. The field-set check makes
-        # an omitted method distinguishable from an explicit practitioner choice.
-        if not _field_was_explicitly_provided(item, "mode_reglement"):
-            raise ValueError(f"Acte #{index} : le mode de règlement doit être choisi explicitement.")
-        if not str(getattr(item, "mode_reglement", "") or "").strip():
-            raise ValueError(f"Acte #{index} : le mode de règlement est requis.")
 
     return data
