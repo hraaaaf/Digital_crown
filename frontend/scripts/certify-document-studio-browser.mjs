@@ -6,13 +6,13 @@ const outDir = path.resolve('../artifacts/t2-browser');
 fs.mkdirSync(outDir, { recursive: true });
 
 const studioPages = [
-  { slug: 'ordonnance', label: 'Ordonnance' },
-  { slug: 'certificat', label: 'Certificat' },
-  { slug: 'devis', label: 'Devis' },
-  { slug: 'honoraires', label: 'Note Honoraires' },
-  { slug: 'echeancier', label: 'Suivi Paiement' },
-  { slug: 'libre', label: 'Document Libre' },
-  { slug: 'plan', label: 'Compagnon Diagnostique' },
+  { slug: 'ordonnance', label: 'Ordonnance', tourId: 'tab-ordonnance' },
+  { slug: 'certificat', label: 'Certificat', tourId: 'tab-certificat' },
+  { slug: 'devis', label: 'Devis', tourId: 'tab-devis' },
+  { slug: 'honoraires', label: 'Note Honoraires', tourId: 'tab-honoraires' },
+  { slug: 'echeancier', label: 'Suivi Paiement', tourId: 'tab-suivi' },
+  { slug: 'libre', label: 'Document Libre', tourId: 'tab-libre' },
+  { slug: 'plan', label: 'Compagnon Diagnostique', tourId: 'tab-strategie' },
 ];
 
 const viewports = [
@@ -104,6 +104,9 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
       await dialog.waitFor({ state: 'visible', timeout: 30000 });
       await page.keyboard.press('Escape');
       await dialog.waitFor({ state: 'hidden', timeout: 10000 });
+      // The dialog can be logically hidden before its exit transition is visually finished.
+      // Wait one transition budget so screenshots represent the stable post-Escape state.
+      await page.waitForTimeout(400);
       preview.score = 10;
       preview.escapeClosed = true;
     } catch {
@@ -171,48 +174,73 @@ for (const viewport of viewports) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const page = await context.newPage();
   await seedAuth(page);
-  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
-
-  const editable = page.locator('textarea').first();
-  const edited = (await editable.count()) > 0;
-  if (edited) {
-    await editable.fill('Certification T2 — modification rapide');
-    await editable.fill('Certification T2 — modification rapide 2');
-  }
-
+  let edited = false;
   let dirtyGuardObserved = false;
   let completedTransitions = 0;
   const transitionSequence = [...studioPages, ...studioPages].slice(0, 10);
 
-  for (const studioPage of transitionSequence) {
-    const tab = page.getByText(studioPage.label, { exact: true }).first();
-    await tab.click();
+  try {
+    await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
 
-    const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
-    if (await discardDialog.isVisible({ timeout: 750 }).catch(() => false)) {
-      dirtyGuardObserved = true;
-      await discardDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
+    const editable = page.locator('textarea').first();
+    edited = (await editable.count()) > 0;
+    if (edited) {
+      await editable.fill('Certification T2 — modification rapide');
+      await editable.fill('Certification T2 — modification rapide 2');
     }
 
-    await page.waitForFunction(
-      (slug) => new URLSearchParams(window.location.search).get('documentTab') === slug,
-      studioPage.slug,
-      { timeout: 10000 },
-    );
-    completedTransitions += 1;
-    await page.waitForTimeout(80);
+    for (const studioPage of transitionSequence) {
+      const tab = page.locator(`[data-tour="${studioPage.tourId}"]`);
+      await tab.waitFor({ state: 'visible', timeout: 10000 });
+
+      // StudioTabs is intentionally horizontally scrollable. Move only that carousel,
+      // then perform a genuine pointer click on the now-visible tab.
+      await tab.evaluate((element) => {
+        const container = element.parentElement;
+        if (!container) return;
+        const targetLeft = element.offsetLeft - (container.clientWidth - element.clientWidth) / 2;
+        container.scrollTo({ left: Math.max(0, targetLeft), behavior: 'instant' });
+      });
+      await page.waitForTimeout(100);
+      await tab.click();
+
+      const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
+      if (await discardDialog.isVisible({ timeout: 750 }).catch(() => false)) {
+        dirtyGuardObserved = true;
+        await discardDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
+      }
+
+      await page.waitForFunction(
+        (slug) => new URLSearchParams(window.location.search).get('documentTab') === slug,
+        studioPage.slug,
+        { timeout: 10000 },
+      );
+      completedTransitions += 1;
+      await page.waitForTimeout(80);
+    }
+
+    stressEvidence = {
+      edited,
+      dirtyGuardObserved,
+      completedTransitions,
+      expectedTransitions: transitionSequence.length,
+      pass: edited && dirtyGuardObserved && completedTransitions === transitionSequence.length,
+      screenshot: 't2-rapid-navigation-stress.png',
+    };
+  } catch (error) {
+    stressEvidence = {
+      edited,
+      dirtyGuardObserved,
+      completedTransitions,
+      expectedTransitions: transitionSequence.length,
+      pass: false,
+      error: String(error),
+      screenshot: 't2-rapid-navigation-stress.png',
+    };
   }
 
-  await page.screenshot({ path: path.join(outDir, 't2-rapid-navigation-stress.png'), fullPage: true });
-  stressEvidence = {
-    edited,
-    dirtyGuardObserved,
-    completedTransitions,
-    expectedTransitions: transitionSequence.length,
-    pass: edited && dirtyGuardObserved && completedTransitions === transitionSequence.length,
-    screenshot: 't2-rapid-navigation-stress.png',
-  };
+  await page.screenshot({ path: path.join(outDir, 't2-rapid-navigation-stress.png'), fullPage: true }).catch(() => {});
   if (!stressEvidence.pass) console.error('T2_STRESS_RED', JSON.stringify(stressEvidence));
   await context.close();
 }
