@@ -134,7 +134,7 @@ export const Dashboard: React.FC = () => {
       <MarketplaceCard visible={canReadPatients} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges} />
+        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
         <WaitingRoom
           visible={canUseAgenda}
           appointments={appointments}
