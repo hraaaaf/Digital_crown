@@ -67,4 +67,38 @@ describe('P3-B odontogram row metadata', () => {
       odontogramNotes: 'Note mise à jour',
     });
   });
+
+  it('preserves archived metadata when a partial edit omits surfaces and notes', () => {
+    const existing = [{
+      id: 42,
+      description: 'Composite 2 faces',
+      dent: '16',
+      price: 650,
+      category: 'CONSERVATRICE',
+      toothNumbers: [16],
+      _odontogramKey: '16::comp-2',
+      odontogramSurfaces: ['M', 'O'],
+      odontogramNotes: 'Carie profonde',
+      odontogramTreatmentCode: 'COMP2',
+    }];
+
+    const rows = replaceOdontogramToothSelections(existing, 16, [
+      {
+        toothNumber: 16,
+        treatmentId: 'comp-2',
+        name: 'Composite 2 faces',
+        price: 800,
+        category: 'CONSERVATRICE',
+      },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: 42,
+      price: 800,
+      odontogramSurfaces: ['M', 'O'],
+      odontogramNotes: 'Carie profonde',
+      odontogramTreatmentCode: 'COMP2',
+    });
+  });
 });
