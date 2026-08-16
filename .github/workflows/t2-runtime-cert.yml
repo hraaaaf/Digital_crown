@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      ENVIRONMENT: cabinet
+      ENVIRONMENT: test
       SECRET_KEY: t2-runtime-certification-secret-key-000001
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       TELEMETRY_ENABLED: "false"
