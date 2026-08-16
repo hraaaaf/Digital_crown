@@ -1,6 +1,6 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TreatmentPlanStudio, { buildTreatmentPlanSafetyWarnings } from './TreatmentPlanStudio';
 
 const mocks = vi.hoisted(() => ({
@@ -17,14 +17,8 @@ vi.mock('../Settings/hooks/useSettingsStore', () => ({
 
 describe('P7-A TreatmentPlanStudio safety boundary', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     mocks.get.mockReset();
     mocks.get.mockResolvedValue({ data: { antecedents_medicaux: '' } });
-  });
-
-  afterEach(() => {
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
   });
 
   it('signals medication context without substituting the proposed therapy', () => {
@@ -54,11 +48,10 @@ describe('P7-A TreatmentPlanStudio safety boundary', () => {
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/patients/1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Contrôle de routine / Tartre' }));
-    act(() => vi.advanceTimersByTime(450));
-    fireEvent.click(screen.getByRole('button', { name: 'Visite de contrôle annuelle' }));
-    act(() => vi.advanceTimersByTime(450));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Visite de contrôle annuelle' })).toBeInTheDocument());
 
-    expect(screen.getByText('Diagnostic Établi')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Visite de contrôle annuelle' }));
+    await waitFor(() => expect(screen.getByText('Diagnostic Établi')).toBeInTheDocument());
     expect(screen.getByText('Bilan bucco-dentaire de routine')).toBeInTheDocument();
 
     rerender(<TreatmentPlanStudio patientId={2} />);
