@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from '../../../../utils/cn';
+import { api } from '../../../../services/api';
 
 import type { ValidationError } from '../useDocumentGenerator';
 import { isLibreDirty, setLibreDirty } from '../LibreDirtyState';
@@ -36,13 +37,45 @@ export const LibreForm: React.FC<LibreFormProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    // L'ouverture/réouverture d'un Document Libre établit une baseline propre.
+    // Les mutations utilisateur appellent ensuite markDirty().
+    setLibreDirty(false);
+
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isLibreDirty()) return;
       event.preventDefault();
       event.returnValue = '';
     };
+
+    // Un archivage Libre n'est considéré comme sauvegardé qu'après une réponse
+    // backend réussie contenant un nouveau PDF. Un échec/409 conserve le dirty state.
+    const responseInterceptor = api.interceptors.response.use((response: any) => {
+      const url = String(response?.config?.url || '');
+      const method = String(response?.config?.method || '').toLowerCase();
+      if (method !== 'post' || !url.includes('/documents/generate') || !url.includes('archive=true')) {
+        return response;
+      }
+
+      let payload = response?.config?.data;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          payload = null;
+        }
+      }
+
+      if (payload?.type === 'libre' && response?.data?.pdf_url) {
+        setLibreDirty(false);
+      }
+      return response;
+    });
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      api.interceptors.response.eject(responseInterceptor);
+    };
   }, []);
 
   const markDirty = () => setLibreDirty(true);
