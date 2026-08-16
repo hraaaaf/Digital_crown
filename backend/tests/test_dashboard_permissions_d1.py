@@ -1,4 +1,4 @@
-"""D1 Dashboard — matrice RBAC canonique et endpoints financiers fail-closed."""
+"""D1 Dashboard — matrice RBAC canonique et endpoints sensibles fail-closed."""
 from types import SimpleNamespace
 
 from backend import models
@@ -78,7 +78,7 @@ def test_permission_matrix_d1_is_fail_closed():
     assert has_permission(unknown, "accounting") is False
 
 
-def test_legacy_employee_cannot_read_financial_dashboard_endpoints(client, db):
+def test_legacy_employee_can_read_patient_dashboard_but_not_finance(client, db):
     owner = _db_user(db, "owner-d1@test.ma", licensed=True)
     employee = _db_user(
         db,
@@ -89,14 +89,18 @@ def test_legacy_employee_cannot_read_financial_dashboard_endpoints(client, db):
     )
     headers = _headers(client, employee)
 
+    dashboard = client.get("/api/admin/dashboard/stats", headers=headers)
     financial = client.get("/api/stats/financial", headers=headers)
     forecast = client.get("/api/intelligence/forecast-semaine", headers=headers)
 
+    assert dashboard.status_code == 200, dashboard.text
+    assert dashboard.json()["pending_team_requests"] == 0
+    assert dashboard.json()["team_quota"] is None
     assert financial.status_code == 403, financial.text
     assert forecast.status_code == 403, forecast.text
 
 
-def test_explicit_accounting_permission_unlocks_financial_dashboard_endpoints(client, db):
+def test_explicit_accounting_permission_unlocks_finance_but_not_patient_dashboard(client, db):
     owner = _db_user(db, "owner-accounting-d1@test.ma", licensed=True)
     employee = _db_user(
         db,
@@ -107,8 +111,25 @@ def test_explicit_accounting_permission_unlocks_financial_dashboard_endpoints(cl
     )
     headers = _headers(client, employee)
 
+    dashboard = client.get("/api/admin/dashboard/stats", headers=headers)
     financial = client.get("/api/stats/financial", headers=headers)
     forecast = client.get("/api/intelligence/forecast-semaine", headers=headers)
 
+    assert dashboard.status_code == 403, dashboard.text
     assert financial.status_code == 200, financial.text
     assert forecast.status_code == 200, forecast.text
+
+
+def test_explicit_patient_denial_blocks_patient_dashboard(client, db):
+    owner = _db_user(db, "owner-deny-patients-d1@test.ma", licensed=True)
+    employee = _db_user(
+        db,
+        "employee-deny-patients-d1@test.ma",
+        employer_id=owner.id,
+        permissions={"patients": False},
+        licensed=True,
+    )
+    headers = _headers(client, employee)
+
+    response = client.get("/api/admin/dashboard/stats", headers=headers)
+    assert response.status_code == 403, response.text
