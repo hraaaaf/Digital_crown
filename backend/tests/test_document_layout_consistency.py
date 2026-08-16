@@ -187,7 +187,7 @@ class TestOtherGeneratorsAgeFix:
         patient = _make_patient(nom="AIT EL BOUKHAR ALAOUI", prenom="Mohammed")
         data = SimpleNamespace(
             doc_date=date.today(),
-            reason="Présence au cabinet",
+            reason="Certificat de Présence",
             days=0,
             is_ortho=False,
         )
