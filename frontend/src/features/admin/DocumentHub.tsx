@@ -65,12 +65,12 @@ interface PatientDetails {
   genre?: string;
 }
 
-export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
+export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre';
 
 type TabChangeSource = 'ui' | 'url';
 
 const isHubDocumentType = (value: string | null): value is HubDocumentType =>
-  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
+  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre'].includes(value || '');
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
@@ -83,7 +83,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
-  // --- ÉTATS IA ---
+  // --- SUGGESTIONS PRESCRIPTION ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
   // --- ÉTATS FORMULAIRES ---
@@ -240,11 +240,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
-    items,
-    // EN_ATTENTE n'encaisse rien. La valeur de transport évite de rendre le mode obligatoire
-    // dans l'ancien validateur frontend ; pour PAYE, le store reste vide tant que le praticien
-    // n'a pas explicitement choisi un mode.
-    paymentMode: paymentStatus === 'PAYE' ? paymentMode : 'Espèces' as const,
+    items, paymentMode,
     libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote,
@@ -398,8 +394,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               onConvertToQuote={(allActs) => {
                 const newItems = convertPlanActsToQuoteItems(allActs);
                 setItems(prev => [...prev, ...newItems]);
-                setActiveTab('devis');
-                syncDocumentTab('devis');
+                setP7Dirty(false);
+                commitTabChange('devis', 'ui');
               }}
             />
           )}
@@ -416,6 +412,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 )}
                 role="switch"
                 aria-checked={showLegalAnnotations}
+                aria-label="Afficher les mentions légales de radioprotection"
               >
                 <span className={cn(
                   "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200",
@@ -499,9 +496,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
           onSavePreference={() => generator.handleSavePreference(smartSuggestion, drugs)}
-          aiReport={generator.aiReport}
-          onGenerateAI={generator.handleGenerateAI}
-          loadingAi={generator.loadingAi}
           total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
@@ -512,11 +506,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {pendingTab && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={cancelPendingTab} />
-          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+          <div
+            className="relative bg-white dark:bg-slate-950 rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-navigation-warning-title"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
+                <h3 id="document-navigation-warning-title" className="text-sm font-black text-slate-800 dark:text-white">Document en cours</h3>
                 <p className="text-xs text-slate-400 font-bold mt-0.5">Le brouillon non enregistré sera abandonné.</p>
               </div>
             </div>
@@ -524,7 +523,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               <button
                 type="button"
                 onClick={cancelPendingTab}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
               >Annuler</button>
               <button
                 type="button"
@@ -541,11 +540,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {generator.showDuplicateModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={generator.cancelDuplicate} />
-          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+          <div
+            className="relative bg-white dark:bg-slate-950 rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-duplicate-warning-title"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 text-lg">⚠️</div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Doublon détecté</h3>
+                <h3 id="document-duplicate-warning-title" className="text-sm font-black text-slate-800 dark:text-white">Doublon détecté</h3>
                 <p className="text-xs text-slate-400 font-bold mt-0.5">Un document similaire existe déjà pour ce patient.</p>
               </div>
             </div>
@@ -553,7 +557,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               <button
                 type="button"
                 onClick={generator.cancelDuplicate}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
+                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
               >Annuler</button>
               <button
                 type="button"
@@ -586,8 +590,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
                 'echeancier': 'Échéancier',
-                'libre': 'Document Libre',
-                'ai': 'Assistant IA'
+                'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />
           </motion.div>
