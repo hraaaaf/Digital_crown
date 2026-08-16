@@ -13,6 +13,7 @@ from backend.services.template_engine import TemplateEngine
 from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 from backend.services.generators.certificat_gen import CertificatGenerator
 from backend.services.generators.accounting_gen import AccountingGenerator
+from backend.services.generators.honoraires_gen import HonorairesGenerator
 from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
@@ -37,6 +38,7 @@ class DocumentFactory:
         self.ord_gen = OrdonnanceGenerator(self.output_dir)
         self.cert_gen = CertificatGenerator(self.output_dir)
         self.acc_gen = AccountingGenerator(self.output_dir)
+        self.honoraires_gen = HonorairesGenerator(self.output_dir)
         self.libre_gen = LibreGenerator(self.output_dir)
         self.ceph_gen = BilanOrthoPDFGenerator(self.output_dir)
     
@@ -115,7 +117,7 @@ class DocumentFactory:
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
         facture_seq = getattr(data, 'facture_numero', None)
-        return self.acc_gen.generate_note(patient, data, facture_number=facture_seq, db=db, user_id=user_id)
+        return self.honoraires_gen.generate_note(patient, data, facture_number=facture_seq, db=db, user_id=user_id)
     
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         devis_seq = getattr(data, 'devis_numero', None)
