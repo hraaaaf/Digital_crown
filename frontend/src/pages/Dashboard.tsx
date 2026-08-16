@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { BarChart2, ChevronRight, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -32,6 +32,7 @@ export const Dashboard: React.FC = () => {
   const showPatientBadges = useSettingsStore(state => state.profile.show_patient_badges);
   const { user, isLoading: authLoading } = useAuthStore();
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [showManagement, setShowManagement] = useState(false);
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{ nom: string; prenom: string } | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
 
@@ -106,7 +107,7 @@ export const Dashboard: React.FC = () => {
       variants={dashboardContainerVariants}
       initial="hidden"
       animate="visible"
-      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12"
+      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-10"
     >
       <DayOneTour />
 
@@ -131,10 +132,8 @@ export const Dashboard: React.FC = () => {
       />
 
       <QuickActions canReadPatients={canReadPatients} canUseAgenda={canUseAgenda} />
-      <MarketplaceCard visible={canReadPatients} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <WaitingRoom
           visible={canUseAgenda}
           appointments={appointments}
@@ -142,28 +141,76 @@ export const Dashboard: React.FC = () => {
           onRefresh={() => { void refreshAppointments(); }}
           onStatusChange={(appointmentId, status) => { void updateAppointmentStatus(appointmentId, status); }}
         />
-        <WeeklyPerformance visible={canReadAccounting && canReadPatients} stats={stats} />
-        <FinanceSummary visible={canReadAccounting} finance={financeToday} />
-        <CabinetHealth visible={canAdmin} healthState={cabinetHealthState} />
-        <IntelligenceAlerts
-          forecast={forecast}
-          alerts={alerts}
-          showForecast={canReadAccounting}
-          showAlerts={canReadPatients}
-          onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
-          onSnooze={alertId => { void snooze(alertId); }}
-          onMarkRead={alertId => { void markRead(alertId); }}
-        />
-        <BusinessInsights
-          visible={canReadAccounting}
-          conversion={conversion}
-          projection={projection}
-          latentCash={latentCash}
-          onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
-        />
+        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
       </div>
 
-      {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
+      <IntelligenceAlerts
+        forecast={null}
+        alerts={alerts}
+        showForecast={false}
+        showAlerts={canReadPatients}
+        onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+        onSnooze={alertId => { void snooze(alertId); }}
+        onMarkRead={alertId => { void markRead(alertId); }}
+      />
+
+      {canReadAccounting && (
+        <motion.section data-tour="dashboard-stats" className="rounded-elite-lg border border-border-main bg-card-bg/60 shadow-elite overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowManagement(value => !value)}
+            className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-primary/5 transition-colors"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">
+                <BarChart2 size={19} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-primary font-outfit">Pilotage du cabinet</span>
+                <span className="block text-xs font-medium text-text-muted mt-0.5">Finances, performance et projections</span>
+              </span>
+            </span>
+            <ChevronRight size={18} className={cn('text-text-muted transition-transform', showManagement && 'rotate-90')} />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {showManagement && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-border-main px-6 py-6 space-y-8">
+                  <FinanceSummary visible finance={financeToday} />
+                  <WeeklyPerformance visible={canReadPatients} stats={stats} />
+                  <IntelligenceAlerts
+                    forecast={forecast}
+                    alerts={[]}
+                    showForecast
+                    showAlerts={false}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                    onSnooze={() => undefined}
+                    onMarkRead={() => undefined}
+                  />
+                  <BusinessInsights
+                    visible
+                    conversion={conversion}
+                    projection={projection}
+                    latentCash={latentCash}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+      )}
+
+      <CabinetHealth visible={canAdmin} healthState={cabinetHealthState} />
+      <MarketplaceCard visible={canReadPatients} />
+
       <AnimatePresence>
         {canUseAgenda && ghostSecretariatPatient && (
           <motion.div
@@ -188,74 +235,32 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={ghostChecklist.encaisser}
-                  onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
-                />
-                <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-slate-500 line-through' : 'text-slate-200')}>
-                  Encaisser les soins du jour
-                </span>
+                <input type="checkbox" checked={ghostChecklist.encaisser} onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-slate-500 line-through' : 'text-slate-200')}>Encaisser les soins du jour</span>
               </label>
               <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={ghostChecklist.ordonnance}
-                  onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
-                />
-                <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-slate-500 line-through' : 'text-slate-200')}>
-                  Remettre l'ordonnance
-                </span>
+                <input type="checkbox" checked={ghostChecklist.ordonnance} onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-slate-500 line-through' : 'text-slate-200')}>Remettre l'ordonnance</span>
               </label>
               <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={ghostChecklist.rdv}
-                  onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
-                />
-                <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-slate-500 line-through' : 'text-slate-200')}>
-                  Fixer le RDV de contrôle
-                </span>
+                <input type="checkbox" checked={ghostChecklist.rdv} onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+                <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-slate-500 line-through' : 'text-slate-200')}>Fixer le RDV de contrôle</span>
               </label>
             </div>
             {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">
-                Action terminée !
-              </motion.div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">Action terminée !</motion.div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mobile Security Modal */}
       <AnimatePresence>
         {canAdmin && isMobileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
-            >
-              <button
-                onClick={() => setIsMobileModalOpen(false)}
-                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
-              >
-                <X size={24} />
-              </button>
-              <div className="p-8 overflow-y-auto">
-                <MobileSecurity />
-              </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10">
+              <button onClick={() => setIsMobileModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"><X size={24} /></button>
+              <div className="p-8 overflow-y-auto"><MobileSecurity /></div>
             </motion.div>
           </div>
         )}
