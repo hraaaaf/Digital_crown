@@ -38,8 +38,28 @@ describe('LivePreview R7', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Fermer' }))
+    fireEvent.click(screen.getByRole('button', { name: /Fermer/ }))
     expect(onRefresh).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('expose la preview non-inline comme une modale et ferme avec Escape', () => {
+    const onClose = vi.fn()
+    render(
+      <LivePreview
+        pdfUrl={null}
+        loading={false}
+        onClose={onClose}
+        onRefresh={vi.fn()}
+        title="Document Libre"
+      />,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Document Libre' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('button', { name: /Fermer l’aperçu/ })).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
