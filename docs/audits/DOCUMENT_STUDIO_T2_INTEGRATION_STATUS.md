@@ -3,7 +3,7 @@
 Date: 2026-08-16
 Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
 Current canonical PR: #105 (`agent/t2-f-global-recertification`).
-Current engineering HEAD: `e982a2a06324e2d288841581998fa4c55ed3cb4e`.
+Current engineering HEAD: `c1406648054f5fd9aca2c2708289877968202243`.
 
 Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta (initial close focus + labelled dialog + Escape regression test) has been migrated to #105 before closure.
 
@@ -41,7 +41,7 @@ Verified on current #105 head:
 - deterministic `documentPreviewFingerprint()` covers active page, patient/date, prescription, certificate, financial state, installments, selected teeth, every Document Libre custom/page/alignment field, legal annotations, P5 payload and `isAccounted`;
 - fingerprint source previously compiled with `tsc --strict` in the available Linux environment;
 - local isolated fingerprint contract previously passed **13/13 assertions**;
-- `DocumentHub` now passes the explicit fingerprint to `DocumentHubPreview`;
+- `DocumentHub` passes the explicit fingerprint to `DocumentHubPreview`;
 - `DocumentHubPreview` delegates regeneration to `useDocumentPreviewController()`;
 - the controller regenerates only on an enabled fingerprint change and forgets freshness when preview closes;
 - a visible PDF is explicitly marked stale when the fingerprint changes or refresh starts;
@@ -55,7 +55,7 @@ Still open:
 
 ## T2-C — Shell decomposition
 
-**State: ENGINEERING BOUNDARIES EXTRACTED — EXACT-HEAD TEST/RUNTIME OPEN**
+**State: ENGINEERING BOUNDARIES EXTRACTED / TEST PRÉPARÉ — EXACT-HEAD EXECUTION OPEN**
 
 Verified extraction on current #105 head:
 - router/navigation boundary: `useDocumentHubNavigation` owns canonical URL parsing/sync, dirty transition guards, discard confirmation state, P3→P4 financial reset routing and `beforeunload` protection;
@@ -72,8 +72,13 @@ Behavior deliberately preserved during extraction:
 - P7→P3 conversion still passes through `convertPlanActsToQuoteItems()`;
 - legal-annotation accessibility semantics remain in the ordonnance studio boundary.
 
+Regression proof prepared:
+- `DocumentHubDecomposition.t2c.test.ts` asserts root-shell imports and absence of direct navigation/patient plumbing;
+- it asserts the navigation, patient, content, preview and dialogs boundaries contain their expected responsibilities;
+- `scripts/certify_document_studio_t2.sh` now includes this T2-C source gate in the targeted frontend regression set.
+
 Still open:
-- exact-head TypeScript/Vitest execution;
+- exact-head TypeScript/Vitest/harness execution;
 - authenticated navigation/dirty-guard/browser regression.
 
 No certification claim is made from source decomposition alone.
@@ -118,15 +123,15 @@ Open:
 
 ## T2-F — Global recertification
 
-**State: HARNESS PREPARED, NOT EXECUTED ON CURRENT HEAD**
+**State: HARNESS UPDATED / NOT EXECUTED ON CURRENT HEAD**
 
-`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness. No PASS is claimed merely because the harness exists.
+`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness and now includes the T2-C decomposition source gate. No PASS is claimed merely because the harness exists.
 
 Previously obtained targeted local evidence on 2026-08-16:
 - preview fingerprint source: `tsc --strict` PASS;
 - preview fingerprint contract: 13/13 isolated assertions PASS.
 
-These results predate the current shell-decomposition HEAD and therefore do not certify `e982a2a0…`.
+These results predate the current shell-decomposition HEAD and therefore do not certify `c1406648…`.
 
 ## Infrastructure evidence
 
@@ -135,7 +140,7 @@ The previously fully inspected GitHub Actions failure class was a runner-allocat
 - runner allocation did not begin;
 - GitHub annotation identified account Billing / spending-limit as the blocker.
 
-For current HEAD `e982a2a0…`, CI run **#590** was observed once in `queued` state. No conclusion is inferred from a queued run and no repeated polling is performed.
+For engineering HEAD `e982a2a0…`, CI run **#590** was observed once in `queued` state. No conclusion is inferred from a queued run and no repeated polling is performed.
 
 Local fallback remains partial: the available shell does not have an authenticated full private-repository checkout/dependency tree.
 
