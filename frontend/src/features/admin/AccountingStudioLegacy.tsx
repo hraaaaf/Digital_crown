@@ -86,6 +86,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       name: act.name,
       category: s.name,
       base_price: act.base_price,
+      code: act.code,
     })));
   }, [specialties]);
 
@@ -131,18 +132,21 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     toothNumber: number,
     treatments: ToothTreatment[],
     surfaces: ToothSurface[],
+    notes: string,
   ) => {
-    const dentLabel = surfaces.length > 0 ? toothNumber.toString() + ` (${surfaces.join('')})` : undefined;
     setItems((prev: PriceItem[]) => replaceOdontogramToothSelections(
       prev,
       toothNumber,
       treatments.map(treatment => ({
         toothNumber,
         treatmentId: treatment.id,
+        treatmentCode: treatment.code,
         name: treatment.name,
         price: treatment.price,
         category: treatment.category,
-        dent: dentLabel,
+        dent: String(toothNumber),
+        surfaces,
+        notes,
       })),
     ));
   }, [setItems]);
@@ -153,15 +157,28 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     if (!activeTooth) return [];
     const prefix = `${activeTooth}::`;
     return items.flatMap(item => {
-      if (!item._odontogramKey?.startsWith(prefix) || !item.category) return [];
+      if (!item._odontogramKey?.startsWith(prefix)) return [];
+      const catalogMatch = TREATMENT_TEMPLATES.find(template => template.name.toLocaleLowerCase() === item.description.toLocaleLowerCase());
+      const category = item.category || catalogMatch?.category;
+      if (!category) return [];
       return [{
         id: item._odontogramKey.slice(prefix.length),
+        code: item.odontogramTreatmentCode || catalogMatch?.code,
         name: item.description,
         price: Number(item.price) || 0,
-        category: item.category as ToothTreatment['category'],
+        category: category as ToothTreatment['category'],
         scope: 'UNITAIRE' as const,
       }];
     });
+  }, [activeTooth, items, TREATMENT_TEMPLATES]);
+
+  const activeToothMetadata = React.useMemo(() => {
+    if (!activeTooth) return { surfaces: [] as ToothSurface[], notes: '' };
+    const prefix = `${activeTooth}::`;
+    const toothItems = items.filter(item => item._odontogramKey?.startsWith(prefix));
+    const surfaces = [...new Set(toothItems.flatMap(item => item.odontogramSurfaces || []))] as ToothSurface[];
+    const notes = [...new Set(toothItems.map(item => (item.odontogramNotes || '').trim()).filter(Boolean))].join('\n');
+    return { surfaces, notes };
   }, [activeTooth, items]);
 
   const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
@@ -631,9 +648,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <TreatmentSelector
                             toothNumber={activeTooth as any}
                             currentTreatments={activeToothTreatments}
+                            currentSurfaces={activeToothMetadata.surfaces}
+                            currentNotes={activeToothMetadata.notes}
                             allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
-                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces);
+                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces, notes);
                               treatments.forEach(t => {
                                 if (t.price && t.price > 0) {
                                   PriceBrain.recordAct(t.name, t.price, t.category, t.id);
@@ -736,7 +755,13 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         <td className="px-8 py-4">
                           <input
                             type="text"
-                            className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all"
+                            readOnly={Boolean(item.toothNumbers?.length)}
+                            aria-readonly={Boolean(item.toothNumbers?.length)}
+                            title={item.toothNumbers?.length ? 'Dent issue de l’odontogramme : modifiez la sélection depuis le plan de soins.' : undefined}
+                            className={cn(
+                              "w-full bg-slate-50/50 border border-transparent rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all",
+                              item.toothNumbers?.length ? "cursor-not-allowed opacity-70" : "focus:border-slate-200"
+                            )}
                             value={item.dent}
                             onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
                             placeholder="--"
