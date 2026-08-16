@@ -3,14 +3,14 @@
 Date: 2026-08-16
 Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
 Current canonical PR: #105 (`agent/t2-f-global-recertification`).
-Current engineering HEAD: `c1406648054f5fd9aca2c2708289877968202243`.
+Last code-bearing candidate HEAD inspected: `76675e9ed86f5dcaffd01c83963450b2478a24f7`.
 
 Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta (initial close focus + labelled dialog + Escape regression test) has been migrated to #105 before closure.
 
 ## Proof contract
 
 - **CODE VÉRIFIÉ**: demonstrated by inspected source/diff.
-- **TEST PRÉPARÉ**: test/harness exists but has not executed on the exact head.
+- **TEST PRÉPARÉ**: test/harness exists but has not executed on the exact code-bearing head.
 - **TEST EXÉCUTÉ**: only a real repository run counts.
 - **RUNTIME / VISUEL**: only authenticated/browser evidence counts.
 - **CERTIFICATION**: separate final gate; never inferred from code presence.
@@ -19,7 +19,7 @@ Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview ac
 
 **State: CODE VÉRIFIÉ — RUNTIME OPEN**
 
-Verified on current #105 head:
+Verified:
 - one canonical P1→P7 vocabulary;
 - canonical ordered certifiable tab list and parser;
 - `HubDocumentType` is the canonical certifiable tab type;
@@ -35,12 +35,10 @@ Open:
 
 ## T2-B — Preview truth / freshness
 
-**State: CODE VÉRIFIÉ / LOCAL CONTRACT PASS — BROWSER OPEN**
+**State: CODE VÉRIFIÉ / PRIOR LOCAL CONTRACT PASS — BROWSER + EXACT-HEAD EXECUTION OPEN**
 
-Verified on current #105 head:
+Verified:
 - deterministic `documentPreviewFingerprint()` covers active page, patient/date, prescription, certificate, financial state, installments, selected teeth, every Document Libre custom/page/alignment field, legal annotations, P5 payload and `isAccounted`;
-- fingerprint source previously compiled with `tsc --strict` in the available Linux environment;
-- local isolated fingerprint contract previously passed **13/13 assertions**;
 - `DocumentHub` passes the explicit fingerprint to `DocumentHubPreview`;
 - `DocumentHubPreview` delegates regeneration to `useDocumentPreviewController()`;
 - the controller regenerates only on an enabled fingerprint change and forgets freshness when preview closes;
@@ -49,15 +47,19 @@ Verified on current #105 head:
 - synthetic `Espèces` transport for `EN_ATTENTE` is removed;
 - Honoraires emits `mode_reglement` only when `paymentStatus === 'PAYE'`.
 
+Prior local evidence, not exact-head certification:
+- fingerprint source previously compiled with `tsc --strict`;
+- isolated fingerprint contract previously passed **13/13 assertions**.
+
 Still open:
-- exact-head repository execution of the relevant frontend/type/test harness;
+- exact-head repository execution of frontend/type/test harness;
 - authenticated browser verification of rapid edits / tab switches / preview-close-reopen behavior.
 
 ## T2-C — Shell decomposition
 
 **State: ENGINEERING BOUNDARIES EXTRACTED / TEST PRÉPARÉ — EXACT-HEAD EXECUTION OPEN**
 
-Verified extraction on current #105 head:
+Verified extraction:
 - router/navigation boundary: `useDocumentHubNavigation` owns canonical URL parsing/sync, dirty transition guards, discard confirmation state, P3→P4 financial reset routing and `beforeunload` protection;
 - patient/session boundary: `useDocumentHubPatient` owns patient fetch/reset/error handling;
 - preview boundary: `DocumentHubPreview` owns stale-PDF state and preview-controller integration;
@@ -74,8 +76,8 @@ Behavior deliberately preserved during extraction:
 
 Regression proof prepared:
 - `DocumentHubDecomposition.t2c.test.ts` asserts root-shell imports and absence of direct navigation/patient plumbing;
-- it asserts the navigation, patient, content, preview and dialogs boundaries contain their expected responsibilities;
-- `scripts/certify_document_studio_t2.sh` now includes this T2-C source gate in the targeted frontend regression set.
+- it asserts navigation, patient, content, preview and dialogs boundaries contain their expected responsibilities;
+- `scripts/certify_document_studio_t2.sh` includes this T2-C source gate in the targeted frontend regression set.
 
 Still open:
 - exact-head TypeScript/Vitest/harness execution;
@@ -105,7 +107,7 @@ No full Vitest PASS is claimed until a repository execution path runs it.
 
 ## T2-E — Product polish
 
-**State: CODE VÉRIFIÉ, RUNTIME/VISUAL OPEN**
+**State: CODE VÉRIFIÉ — RUNTIME/VISUAL OPEN**
 
 Implemented:
 - compact patient identity remains visible as `Patient actif`;
@@ -123,32 +125,31 @@ Open:
 
 ## T2-F — Global recertification
 
-**State: HARNESS UPDATED / NOT EXECUTED ON CURRENT HEAD**
+**State: HARNESS UPDATED / EXECUTION BLOCKED BY INFRASTRUCTURE**
 
-`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness and now includes the T2-C decomposition source gate. No PASS is claimed merely because the harness exists.
+`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness and includes the T2-C decomposition source gate. No PASS is claimed merely because the harness exists.
 
-Previously obtained targeted local evidence on 2026-08-16:
-- preview fingerprint source: `tsc --strict` PASS;
-- preview fingerprint contract: 13/13 isolated assertions PASS.
+## Infrastructure evidence — exact-head CI #595
 
-These results predate the current shell-decomposition HEAD and therefore do not certify `c1406648…`.
+CI run **#595** targeted code-bearing HEAD `76675e9ed86f5dcaffd01c83963450b2478a24f7` and completed with three failed jobs:
+- `Frontend (tests & build)`;
+- `Tests & durcissement`;
+- `Garde production (négatif)`.
 
-## Infrastructure evidence
-
-The previously fully inspected GitHub Actions failure class was a runner-allocation failure before repository execution:
-- jobs exposed no repository steps;
-- runner allocation did not begin;
-- GitHub annotation identified account Billing / spending-limit as the blocker.
-
-For engineering HEAD `e982a2a0…`, CI run **#590** was observed once in `queued` state. No conclusion is inferred from a queued run and no repeated polling is performed.
+This failure is **infrastructure-only evidence**:
+- all three jobs expose zero repository steps;
+- GitHub job logs are unavailable because runners never started;
+- GitHub annotations state that recent account payments failed or the spending limit must be increased;
+- therefore #595 is neither evidence of an application-code failure nor a PASS.
 
 Local fallback remains partial: the available shell does not have an authenticated full private-repository checkout/dependency tree.
 
 ## Current critical path
 
-1. execute exact-head frontend TypeScript/Vitest/certification harness when a repository runner or authenticated checkout is actually available;
-2. run authenticated browser matrices for navigation/dirty guards, preview freshness, keyboard/focus and 390/430/768/1280 visual/dark-mode behavior;
-3. fix any evidence-backed regressions;
-4. update final roadmap/status and only then consider ready/merge/global certification.
+1. restore an executable GitHub Actions runner or obtain an authenticated full checkout;
+2. execute exact-head frontend TypeScript/Vitest/certification harness;
+3. run authenticated browser matrices for navigation/dirty guards, preview freshness, keyboard/focus and 390/430/768/1280 visual/dark-mode behavior;
+4. fix any evidence-backed regressions;
+5. update final roadmap/status and only then consider ready/merge/global certification.
 
 No percentage is assigned because the canonical roadmap still has no validated weighting model.
