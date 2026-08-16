@@ -29,12 +29,13 @@ import { PriceBrain } from '../../components/odontogram/PriceBrain';
 import { useAccountingStore, type PriceItem, type InstallmentItem } from './store/useAccountingStore';
 import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 import { AccountingQuickActions } from './DocumentStudio/AccountingQuickActions';
-import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePolicy';
+import { groupAccountingItemsByPhase, isAccountingPhaseSeparator } from './DocumentStudio/AccountingPhasePolicy';
 import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
 import { odontogramGroupSelection, odontogramQuickGroupKeys } from './DocumentStudio/AccountingOdontogramModePolicy';
 import { resolveAccountingBundles, type ResolvedAccountingBundle } from './DocumentStudio/AccountingBundlePolicy';
 import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
+import { resolveNamedDevisActPrice } from './DocumentStudio/AccountingNamedActPricePolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -183,7 +184,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     ).map((t: any) => ({ 
       id: `template_${t.id}`, 
       name: t.name,
-      base_price: 0,
+      base_price: t.base_price,
       category: t.category,
       isLocal: true,
       is_habit: false
@@ -206,14 +207,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   };
 
   const applyActSuggestion = (itemId: number, act: any) => {
+    const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
     setItems(items.map(i => i.id === itemId ? {
       ...i,
       description: act.name,
-      price: act.base_price || 0,
-      category: act.category
+      price: resolved.price,
+      category: resolved.category || act.category
     } : i));
     setActSuggestions([]);
     setActiveActSearchId(null);
+    if (resolved.source === 'UNRESOLVED') {
+      toast.error('Tarif catalogue absent : renseignez le prix avant archivage.');
+    }
   };
 
   const handlePhaseSequencing = () => {
@@ -239,25 +244,35 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   const fetchQuickActs = async () => {
     try {
       const res = await api.get('/accounting/frequent-acts');
-      if (res.data && res.data.length > 0) {
-        setQuickActs(res.data);
-      } else {
-        const top = PriceBrain.getTopFrequent(4);
-        setQuickActs(top.length > 0 ? top.map(t => ({ name: t.name, price: t.price || 0, category: t.category })) : [
-          { name: 'Consultation', price: 300, category: 'CONSERVATRICE' },
-          { name: 'Détartrage', price: 500, category: 'PREVENTION' },
-          { name: 'Composite 1 face', price: 400, category: 'CONSERVATRICE' },
-          { name: 'Extraction simple', price: 600, category: 'CHIRURGIE' },
-        ]);
-      }
+      const source = Array.isArray(res.data) && res.data.length > 0
+        ? res.data
+        : TREATMENT_TEMPLATES.slice(0, 8).map(t => ({ name: t.name, category: t.category }));
+      const repriced = source
+        .map((act: any) => {
+          const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
+          return {
+            name: act.name,
+            price: resolved.price,
+            category: resolved.category || act.category || 'CONSERVATRICE',
+          };
+        })
+        .filter((act: any) => act.price > 0)
+        .slice(0, 4);
+      setQuickActs(repriced);
     } catch (err) {
       console.error("Erreur habitudes acts:", err);
+      setQuickActs(
+        TREATMENT_TEMPLATES
+          .map(t => ({ name: t.name, price: Number(t.base_price) || 0, category: t.category }))
+          .filter(t => t.price > 0)
+          .slice(0, 4)
+      );
     }
   };
 
   useEffect(() => {
-    fetchQuickActs();
-  }, []);
+    if (TREATMENT_TEMPLATES.length > 0) fetchQuickActs();
+  }, [TREATMENT_TEMPLATES]);
 
   useEffect(() => {
     const lastItem = items[items.length - 1];
@@ -334,7 +349,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
             {suggestedBundles.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                animate={{ height: 'auto', opacity: 1 }}
                 exit={{ opacity: 0, height: 0 }}
                 className="pt-4 border-t border-slate-100 flex items-center justify-between"
               >
@@ -471,33 +486,45 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             </div>
                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                               {[
-                                {name: 'Détartrage & Polissage', price: 400, category: 'PREVENTION'},
-                                {name: 'Surfaçage Radiculaire (par secteur)', price: 1500, category: 'PARO'},
-                                {name: 'Bilan Parodontal Complet', price: 600, category: 'PARO'},
-                                {name: 'Blanchiment Dentaire', price: 2500, category: 'ESTHETIQUE'},
-                                {name: 'Fluorisation', price: 300, category: 'PREVENTION'},
-                                {name: 'Gouttière de Bruxisme', price: 1500, category: 'PROTHESE'},
-                                {name: 'Semestre ODF', price: 4500, category: 'ORTHO'},
-                                {name: 'Consultation Standard', price: 300, category: 'CONSERVATRICE'},
-                                {name: 'Aéropolissage', price: 350, category: 'PREVENTION'},
-                                {name: 'Traitement Parodontal (Séance)', price: 800, category: 'PARO'},
-                              ].map(act => (
-                                <button
-                                  key={act.name}
-                                  type="button"
-                                  onClick={() => {
-                                    const price = PriceBrain.suggestPrice(act.name) || act.price;
-                                    setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
-                                    toast.success(`Ajouté : ${act.name}`, {
-                                      style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
-                                    });
-                                  }}
-                                  className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
-                                >
-                                  <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
-                                  <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">{PriceBrain.suggestPrice(act.name) || act.price} MAD</span>
-                                </button>
-                              ))}
+                                {name: 'Détartrage & Polissage', category: 'PREVENTION'},
+                                {name: 'Surfaçage Radiculaire (par secteur)', category: 'PARO'},
+                                {name: 'Bilan Parodontal Complet', category: 'PARO'},
+                                {name: 'Blanchiment Dentaire', category: 'ESTHETIQUE'},
+                                {name: 'Fluorisation', category: 'PREVENTION'},
+                                {name: 'Gouttière de Bruxisme', category: 'PROTHESE'},
+                                {name: 'Semestre ODF', category: 'ORTHO'},
+                                {name: 'Consultation Standard', category: 'CONSERVATRICE'},
+                                {name: 'Aéropolissage', category: 'PREVENTION'},
+                                {name: 'Traitement Parodontal (Séance)', category: 'PARO'},
+                              ].map(act => {
+                                const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
+                                return (
+                                  <button
+                                    key={act.name}
+                                    type="button"
+                                    onClick={() => {
+                                      setItems([...items, {
+                                        id: Date.now() + Math.random(),
+                                        description: act.name,
+                                        dent: 'Global',
+                                        price: resolved.price,
+                                        category: resolved.category || act.category,
+                                      }]);
+                                      if (resolved.source === 'UNRESOLVED') {
+                                        toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
+                                      } else {
+                                        toast.success(`Ajouté : ${act.name}`);
+                                      }
+                                    }}
+                                    className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
+                                  >
+                                    <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
+                                    <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">
+                                      {resolved.source === 'CATALOG' ? `${resolved.price} MAD` : 'Prix catalogue requis'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
                             <button
                               type="button"
@@ -580,16 +607,23 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                         key={act}
                                         type="button"
                                         onClick={() => {
-                                          const suggestedPrice = PriceBrain.suggestPrice(act);
+                                          const resolved = resolveNamedDevisActPrice(act, TREATMENT_TEMPLATES);
                                           setGroupTreatmentName(act);
-                                          if (!suggestedPrice || suggestedPrice <= 0) {
+                                          if (resolved.source === 'UNRESOLVED') {
                                             setGroupTreatmentPrice('');
-                                            toast.error('Prix inconnu : renseignez un prix avant d’ajouter cet acte groupé.');
+                                            toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
                                             return;
                                           }
-                                          setGroupTreatmentPrice(suggestedPrice);
+                                          setGroupTreatmentPrice(resolved.price);
                                           const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                          setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: suggestedPrice, toothNumbers: sorted }]);
+                                          setItems([...items, {
+                                            id: Date.now() + Math.random(),
+                                            description: act,
+                                            dent: sorted.join('-'),
+                                            price: resolved.price,
+                                            toothNumbers: sorted,
+                                            category: resolved.category,
+                                          }]);
                                           selectTeethGroup('none');
                                           setGroupTreatmentName('');
                                           setGroupTreatmentPrice('');
@@ -696,101 +730,115 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   <AnimatePresence mode="popLayout">
-                    {items.map((item, idx) => (
-                      <motion.tr
-                        key={item.id}
-                        layout
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="group hover:bg-slate-50/50 transition-colors"
-                      >
-                        <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
-                        <td className="px-8 py-4 relative">
-                          <div className="relative group/search">
+                    {items.map((item, idx) => {
+                      const isPhaseSeparator = isAccountingPhaseSeparator(item.description);
+                      return (
+                        <motion.tr
+                          key={item.id}
+                          layout
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className={cn(
+                            "group transition-colors",
+                            isPhaseSeparator ? "bg-indigo-50/70" : "hover:bg-slate-50/50"
+                          )}
+                        >
+                          <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
+                          <td className="px-8 py-4 relative">
+                            <div className="relative group/search">
+                              <input
+                                type="text"
+                                disabled={isPhaseSeparator}
+                                className={cn(
+                                  "w-full border rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all",
+                                  isPhaseSeparator
+                                    ? "bg-transparent border-transparent text-indigo-600 cursor-default"
+                                    : "bg-white border-slate-100 focus:border-primary/50 text-slate-800"
+                                )}
+                                value={item.description}
+                                onChange={(e) => handleActSearch(e.target.value, item.id)}
+                                onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
+                                placeholder="Rechercher ou saisir un acte..."
+                              />
+                              {!isPhaseSeparator && activeActSearchId === item.id && actSuggestions.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                  {actSuggestions.map((act) => (
+                                    <button
+                                      key={act.id}
+                                      type="button"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => applyActSuggestion(item.id, act)}
+                                      className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
+                                    >
+                                      <div>
+                                        <p className="font-bold text-sm text-slate-800">{act.name}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
+                                      </div>
+                                      <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-8 py-4">
                             <input
                               type="text"
-                              className="w-full bg-white border border-slate-100 focus:border-primary/50 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-all"
-                              value={item.description}
-                              onChange={(e) => handleActSearch(e.target.value, item.id)}
-                              onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
-                              placeholder="Rechercher ou saisir un acte..."
+                              disabled={isPhaseSeparator}
+                              className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                              value={item.dent}
+                              onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
+                              placeholder="--"
                             />
-                            {activeActSearchId === item.id && actSuggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                {actSuggestions.map((act) => (
-                                  <button
-                                    key={act.id}
-                                    type="button"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => applyActSuggestion(item.id, act)}
-                                    className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
-                                  >
-                                    <div>
-                                      <p className="font-bold text-sm text-slate-800">{act.name}</p>
-                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
-                                    </div>
-                                    <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-8 py-4">
-                          <input
-                            type="text"
-                            className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all"
-                            value={item.dent}
-                            onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
-                            placeholder="--"
-                          />
-                        </td>
-                        <td className="px-8 py-4">
-                          <div className="relative">
-                            <input
-                              type="number"
-                              className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all"
-                              style={{ color: 'var(--primary)' }}
-                              value={item.price || ''}
-                              onFocus={e => e.target.select()}
-                              onChange={(e) => updateItem(item.id, 'price', e.target.value)}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-8 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={() => moveItem(item.id, 'UP')}
-                              disabled={idx === 0}
-                              aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
-                              className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
-                            >
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveItem(item.id, 'DOWN')}
-                              disabled={idx === items.length - 1}
-                              aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
-                              className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
-                            >
-                              <ArrowDown size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
-                              className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
+                          </td>
+                          <td className="px-8 py-4">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                disabled={isPhaseSeparator}
+                                className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                                style={{ color: 'var(--primary)' }}
+                                value={item.price || ''}
+                                onFocus={e => e.target.select()}
+                                onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-8 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => moveItem(item.id, 'UP')}
+                                disabled={idx === 0}
+                                aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                              >
+                                <ArrowUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(item.id, 'DOWN')}
+                                disabled={idx === items.length - 1}
+                                aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                              >
+                                <ArrowDown size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.id)}
+                                aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
                   </AnimatePresence>
                 </tbody>
               </table>
