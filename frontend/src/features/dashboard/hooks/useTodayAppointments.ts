@@ -61,10 +61,10 @@ export const useTodayAppointments = ({
 
     try {
       await api.put(`/appointments/${appointmentId}`, { status: newStatus });
-      await refreshAppointments();
+      void refreshAppointments();
 
       if (canReadPatients) {
-        await onStatsRefresh();
+        void onStatsRefresh();
       }
 
       if (newStatus === 'TERMINÉ') {
