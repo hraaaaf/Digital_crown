@@ -23,19 +23,20 @@ export const WaitingRoom = ({
   return (
     <motion.section variants={dashboardItemVariants} className="space-y-5">
       <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
-        <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
+        <span className="flex items-center gap-2"><Clock size={16} aria-hidden="true" /> File d'attente & Arrivées du Jour</span>
         <button
+          type="button"
           onClick={onRefresh}
-          className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
+          aria-label="Actualiser la file d'attente"
+          className="min-h-11 text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-3 rounded-full border border-primary/10 transition-all"
         >
-          {loading ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
+          {loading ? <Loader2 className="animate-spin" size={12} aria-hidden="true" /> : 'Actualiser'}
         </button>
       </h2>
 
       <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
-        {/* Contenu principal défilable */}
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
           {appointments.length > 0 ? (
             [...appointments]
@@ -55,8 +56,9 @@ export const WaitingRoom = ({
                   statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse';
                   actionButton = (
                     <button
+                      type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
-                      className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Installer au Fauteuil
                     </button>
@@ -66,8 +68,9 @@ export const WaitingRoom = ({
                   statusColor = 'bg-blue-500/10 text-blue-500 border-blue-500/20';
                   actionButton = (
                     <button
+                      type="button"
                       onClick={() => onStatusChange(appointment.id, 'TERMINÉ')}
-                      className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                      className="min-h-11 px-3 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
                     >
                       Terminer la Séance
                     </button>
@@ -81,8 +84,9 @@ export const WaitingRoom = ({
                 } else {
                   actionButton = (
                     <button
+                      type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_S_ATTENTE')}
-                      className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="min-h-11 px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Marquer Arrivé
                     </button>
@@ -120,7 +124,7 @@ export const WaitingRoom = ({
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                <Calendar size={28} className="text-emerald-500" />
+                <Calendar size={28} className="text-emerald-500" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
@@ -130,7 +134,7 @@ export const WaitingRoom = ({
               </div>
               <Link
                 to="/agenda"
-                className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                className="min-h-11 mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all inline-flex items-center"
               >
                 Ouvrir l'agenda
               </Link>
@@ -138,10 +142,9 @@ export const WaitingRoom = ({
           )}
         </div>
 
-        {/* Statistiques rapides en bas */}
         <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
           <span className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
             En Salle d'Attente : {appointments.filter(item => item.status === 'EN_S_ATTENTE').length}
           </span>
           <span>Au Fauteuil : {appointments.filter(item => item.status === 'EN_FAUTEUIL').length}</span>
