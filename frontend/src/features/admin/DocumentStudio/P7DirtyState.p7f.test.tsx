@@ -1,0 +1,65 @@
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { StudioTabs } from './StudioTabs';
+import TreatmentPlanStudio from './TreatmentPlanStudio';
+import { isP7Dirty, setP7Dirty } from './P7DirtyState';
+
+const mocks = vi.hoisted(() => ({
+  get: vi.fn(),
+}));
+
+vi.mock('../../../services/api', () => ({
+  api: { get: mocks.get },
+}));
+
+describe('P7-F dirty-state boundary', () => {
+  beforeEach(() => {
+    setP7Dirty(false);
+    mocks.get.mockReset();
+    mocks.get.mockResolvedValue({ data: { antecedents_medicaux: '' } });
+    vi.restoreAllMocks();
+  });
+
+  it('blocks tab change until dirty proposal abandonment is confirmed', () => {
+    const onTabChange = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(<StudioTabs activeTab="plan" onTabChange={onTabChange} />);
+
+    setP7Dirty(true);
+    confirmSpy.mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Devis' }));
+
+    expect(onTabChange).not.toHaveBeenCalled();
+    expect(isP7Dirty()).toBe(true);
+
+    confirmSpy.mockReturnValueOnce(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Devis' }));
+
+    expect(onTabChange).toHaveBeenCalledWith('devis');
+    expect(isP7Dirty()).toBe(false);
+  });
+
+  it('marks P7 dirty after interaction and clears it on explicit reset', async () => {
+    render(<TreatmentPlanStudio patientId={1} />);
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/patients/1'));
+
+    expect(isP7Dirty()).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Contrôle de routine / Tartre' }));
+    expect(isP7Dirty()).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recommencer' }));
+    expect(isP7Dirty()).toBe(false);
+  });
+
+  it('prevents unload while a P7 proposal is dirty', async () => {
+    render(<TreatmentPlanStudio patientId={1} />);
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/patients/1'));
+
+    setP7Dirty(true);
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
