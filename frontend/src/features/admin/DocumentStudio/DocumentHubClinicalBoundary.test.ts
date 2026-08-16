@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const documentHubSource = readFileSync(new URL('../DocumentHub.tsx', import.meta.url), 'utf8');
-const studioFooterSource = readFileSync(new URL('./StudioFooter.tsx', import.meta.url), 'utf8');
+const documentStudioDir = resolve(process.cwd(), 'src/features/admin/DocumentStudio');
+const documentHubSource = readFileSync(resolve(documentStudioDir, '../DocumentHub.tsx'), 'utf8');
+const studioHeaderSource = readFileSync(resolve(documentStudioDir, 'StudioHeader.tsx'), 'utf8');
+const studioFooterSource = readFileSync(resolve(documentStudioDir, 'StudioFooter.tsx'), 'utf8');
 
 describe('DocumentHub clinical inference boundary', () => {
   it('does not derive treatment, imaging or medication advice from free-text antecedents or financial labels', () => {
@@ -17,10 +20,13 @@ describe('DocumentHub clinical inference boundary', () => {
     expect(documentHubSource).not.toContain("api.post('/prescriptions/safety/check'");
   });
 
-  it('does not expose the uncertified ai-diagnostic executor in the Document Studio footer', () => {
-    expect(studioFooterSource).not.toContain('Lancer Analyse IA');
-    expect(studioFooterSource).not.toContain('Régénérer Analyse');
-    expect(studioFooterSource).not.toContain('onClick={onGenerateAI}');
-    expect(studioFooterSource).toContain('Fonction clinique désactivée');
+  it('does not expose or type the uncertified ai-diagnostic executor in the Document Studio shell', () => {
+    for (const source of [studioHeaderSource, studioFooterSource]) {
+      expect(source).not.toContain('Lancer Analyse IA');
+      expect(source).not.toContain('Régénérer Analyse');
+      expect(source).not.toContain('onGenerateAI');
+      expect(source).not.toContain("| 'ai'");
+      expect(source).not.toContain("activeTab === 'ai'");
+    }
   });
 });
