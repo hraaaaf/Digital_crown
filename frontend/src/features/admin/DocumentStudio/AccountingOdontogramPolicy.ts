@@ -89,12 +89,16 @@ export function replaceOdontogramToothSelections(
       return {
         ...existing,
         description: normalizedSelection.name,
-        dent: normalizedSelection.dent ?? String(toothNumber),
+        dent: normalizedSelection.dent ?? existing.dent ?? String(toothNumber),
         price: Number(normalizedSelection.price) || 0,
         category: normalizedSelection.category,
         toothNumbers: [toothNumber],
-        odontogramSurfaces: [...new Set(normalizedSelection.surfaces || [])],
-        odontogramNotes: normalizedSelection.notes || '',
+        odontogramSurfaces: normalizedSelection.surfaces === undefined
+          ? existing.odontogramSurfaces
+          : [...new Set(normalizedSelection.surfaces)],
+        odontogramNotes: normalizedSelection.notes === undefined
+          ? (existing.odontogramNotes ?? '')
+          : normalizedSelection.notes,
         odontogramTreatmentCode: normalizedSelection.treatmentCode || existing.odontogramTreatmentCode || 'ACT',
       };
     }
