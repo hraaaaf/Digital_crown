@@ -9,6 +9,7 @@ const source = (file: string) => readFileSync(
 const header = source('StudioHeader.tsx');
 const tabs = source('StudioTabs.tsx');
 const footer = source('StudioFooter.tsx');
+const preview = source('DocumentHubPreview.tsx');
 
 describe('Document Studio T2-E product polish', () => {
   it('keeps patient identity and current document visible in the shell header', () => {
@@ -29,5 +30,12 @@ describe('Document Studio T2-E product polish', () => {
     expect(footer).toContain('Enregistrer');
     expect(footer).toContain('Imprimer');
     expect(footer).toContain('dark:bg-slate-950/85');
+  });
+
+  it('closes the open preview with Escape and unregisters the keyboard handler', () => {
+    expect(preview).toContain("event.key !== 'Escape'");
+    expect(preview).toContain('onClose();');
+    expect(preview).toContain("window.addEventListener('keydown', handleKeyDown)");
+    expect(preview).toContain("window.removeEventListener('keydown', handleKeyDown)");
   });
 });
