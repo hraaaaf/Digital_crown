@@ -3,7 +3,7 @@ import { cn } from '../../../../utils/cn';
 import { api } from '../../../../services/api';
 
 import type { ValidationError } from '../useDocumentGenerator';
-import { isLibreDirty, setLibreDirty } from '../LibreDirtyState';
+import { isLibreDirty, isSuccessfulLibreArchiveResponse, setLibreDirty } from '../LibreDirtyState';
 import { AlertCircle, Bold, Italic, Underline, Table, Type } from 'lucide-react';
 
 interface LibreFormProps {
@@ -50,22 +50,7 @@ export const LibreForm: React.FC<LibreFormProps> = ({
     // Un archivage Libre n'est considéré comme sauvegardé qu'après une réponse
     // backend réussie contenant un nouveau PDF. Un échec/409 conserve le dirty state.
     const responseInterceptor = api.interceptors.response.use((response: any) => {
-      const url = String(response?.config?.url || '');
-      const method = String(response?.config?.method || '').toLowerCase();
-      if (method !== 'post' || !url.includes('/documents/generate') || !url.includes('archive=true')) {
-        return response;
-      }
-
-      let payload = response?.config?.data;
-      if (typeof payload === 'string') {
-        try {
-          payload = JSON.parse(payload);
-        } catch {
-          payload = null;
-        }
-      }
-
-      if (payload?.type === 'libre' && response?.data?.pdf_url) {
+      if (isSuccessfulLibreArchiveResponse(response)) {
         setLibreDirty(false);
       }
       return response;
