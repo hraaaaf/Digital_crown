@@ -1,4 +1,4 @@
-"""Tests routers/installments.py — instalment plans CRUD."""
+"""Tests routers/installments.py — installment plans CRUD."""
 from datetime import datetime, timedelta
 
 
@@ -20,12 +20,14 @@ def _make_patient(db, dentiste, nom="INSTPAT"):
 
 def _plan_payload(patient_id, n_installments=2):
     due = (datetime.now() + timedelta(days=30)).isoformat()
+    total = 60000.0
+    amount = total / n_installments
     return {
         "patient_id": patient_id,
         "title": "Plan Orthodontie",
-        "total_amount": 60000.0,
+        "total_amount": total,
         "installments": [
-            {"label": f"Semestre {i+1}", "amount": 30000.0, "due_date": due}
+            {"label": f"Semestre {i+1}", "amount": amount, "due_date": due}
             for i in range(n_installments)
         ],
     }
@@ -46,6 +48,19 @@ class TestGetInstallmentPlans:
         r = client.get("/api/installments/patient/999999", headers=auth_headers)
         assert r.status_code in (403, 404)
 
+    def test_latest_is_explicit_and_deterministic(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "LATESTPLAN")
+        first = _plan_payload(pat.id)
+        first["title"] = "Premier"
+        second = _plan_payload(pat.id)
+        second["title"] = "Dernier"
+        client.post("/api/installments/", json=first, headers=auth_headers)
+        client.post("/api/installments/", json=second, headers=auth_headers)
+
+        r = client.get(f"/api/installments/patient/{pat.id}/latest", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["title"] == "Dernier"
+
 
 class TestCreateInstallmentPlan:
     def test_requires_auth(self, client):
@@ -64,6 +79,17 @@ class TestCreateInstallmentPlan:
         assert body["title"] == "Plan Orthodontie"
         assert body["total_amount"] == 60000.0
         assert len(body["installments"]) == 2
+
+    def test_rejects_unbalanced_plan_before_write(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "UNBALANCED")
+        payload = _plan_payload(pat.id)
+        payload["installments"][0]["amount"] = 1
+        r = client.post("/api/installments/", json=payload, headers=auth_headers)
+        assert r.status_code == 422
+
+        listed = client.get(f"/api/installments/patient/{pat.id}", headers=auth_headers)
+        assert listed.status_code == 200
+        assert listed.json() == []
 
     def test_list_returns_created_plan(self, client, db, auth_headers, dentiste):
         pat = _make_patient(db, dentiste, "LISTPLAN")
@@ -112,7 +138,7 @@ class TestUpdateInstallment:
     def test_update_nonexistent_returns_404(self, client, auth_headers):
         r = client.put(
             "/api/installments/999999",
-            json={"status": "PAYE"},
+            json={"status": "PAYE", "payment_method": "ESPECES"},
             headers=auth_headers,
         )
         assert r.status_code == 404
@@ -131,9 +157,28 @@ class TestDeleteInstallmentPlan:
         r = client.delete(f"/api/installments/plan/{plan_id}", headers=auth_headers)
         assert r.status_code == 204
 
-        # Confirm deletion
         list_r = client.get(f"/api/installments/patient/{pat.id}", headers=auth_headers)
         assert list_r.json() == []
+
+    def test_paid_plan_cannot_be_deleted_without_reversal(self, client, db, auth_headers, dentiste):
+        pat = _make_patient(db, dentiste, "PAIDDEL")
+        create_r = client.post(
+            "/api/installments/",
+            json=_plan_payload(pat.id, n_installments=1),
+            headers=auth_headers,
+        )
+        body = create_r.json()
+        plan_id = body["id"]
+        inst_id = body["installments"][0]["id"]
+        pay_r = client.put(
+            f"/api/installments/{inst_id}",
+            json={"status": "PAYE", "payment_method": "CARTE"},
+            headers=auth_headers,
+        )
+        assert pay_r.status_code == 200
+
+        r = client.delete(f"/api/installments/plan/{plan_id}", headers=auth_headers)
+        assert r.status_code == 409
 
     def test_delete_nonexistent_returns_404(self, client, auth_headers):
         r = client.delete("/api/installments/plan/999999", headers=auth_headers)
