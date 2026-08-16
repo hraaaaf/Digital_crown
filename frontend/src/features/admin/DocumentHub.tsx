@@ -18,7 +18,6 @@ import { InstallmentStudio } from './DocumentStudio/Forms/InstallmentStudio';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
-import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
@@ -64,8 +63,6 @@ interface PatientDetails {
   prenom: string;
   date_naissance?: string;
   genre?: string;
-  antecedents_medicaux?: string;
-  assurance?: string;
 }
 
 export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
@@ -116,7 +113,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [libreHideHeader, setLibreHideHeader] = useState(false);
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
-  const [insights, setInsights] = useState<Insight[]>([]);
 
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
@@ -260,125 +256,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     installments, isAccounted, paymentStatus, isGlobalNote, showLegalAnnotations, echeancierPayload,
   ]);
 
-  // --- INTELLIGENCE SCOPE ---
-  const isSurgical = useMemo(() => items.some(i =>
-    i.description.toLowerCase().includes('extraction') ||
-    i.description.toLowerCase().includes('implant') ||
-    i.description.toLowerCase().includes('chirurgie')
-  ), [items]);
-
-  const hasDrugs = useMemo(() => drugs.length > 0, [drugs]);
-
-  // --- BRAIN ENGINE : INTELLIGENCE PROACTIVE ---
-  useEffect(() => {
-    // Les bundles Devis sont gérés uniquement par AccountingStudio avec tarif catalogue autoritatif.
-    // Ne pas dupliquer ici une seconde suggestion qui pourrait diverger en prix et court-circuiter cet effect.
-
-    // 2. Intelligence Elite : Détection des Protocoles Oubliés
-    if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
-      setInsights(prev => [{
-        id: 'ins-missing-protocol',
-        type: 'safety',
-        title: 'Protocole Post-Op Manquant',
-        content: "Détection d'un acte chirurgical sans ordonnance associée. Souhaitez-vous générer un protocole antalgique/antibiotique ?",
-        actionLabel: 'Générer Protocole',
-        onAction: () => { setActiveTab('ordonnance'); }
-      }, ...prev]);
-    }
-
-    // 4. GHOST COMPLICATIONS (Bouclier de Sécurité Médicolégal)
-    if (patientDetails?.antecedents_medicaux) {
-      const ant = patientDetails.antecedents_medicaux.toLowerCase();
-      const currentActNames = items.map(i => i.description.toLowerCase());
-      const hasSurgery = currentActNames.some(a => a.includes('extraction') || a.includes('implant') || a.includes('chirurgie') || a.includes('lambeau'));
-      const hasRadio = currentActNames.some(a => a.includes('radio') || a.includes('panoramique') || a.includes('cbct') || a.includes('cone beam'));
-
-      const complications: any[] = [];
-
-      if (hasSurgery && (ant.includes('sintrom') || ant.includes('anticoagulant') || ant.includes('kardegic') || ant.includes('aspirine'))) {
-        complications.push({
-          id: 'ghost-comp-bleeding', type: 'safety', title: '⚠️ Risque Hémorragique',
-          content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
-        });
-      }
-
-      if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
-        complications.push({
-          id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
-          content: "Risque accru d'infection et de retard de cicatrisation osseuse. Couverture antibiotique stricte recommandée."
-        });
-      }
-
-      if (hasSurgery && (ant.includes('bisphosphonate') || ant.includes('prolia') || ant.includes('xgeva'))) {
-        complications.push({
-          id: 'ghost-comp-mronj', type: 'safety', title: '🚨 DANGER : Ostéochimionécrose',
-          content: "Antécédent de bisphosphonates. Risque majeur d'ostéochimionécrose des mâchoires (MRONJ). Prudence extrême."
-        });
-      }
-
-      if (hasRadio && (ant.includes('enceinte') || ant.includes('grossesse'))) {
-        complications.push({
-          id: 'ghost-comp-pregnancy', type: 'safety', title: '⚠️ Grossesse',
-          content: "Radiographies contre-indiquées (surtout T1). Utiliser un tablier de plomb si urgence absolue."
-        });
-      }
-
-      complications.forEach(comp => {
-        if (!insights.find(ins => ins.id === comp.id)) {
-          setInsights(prev => [comp, ...prev]);
-        }
-      });
-    }
-
-    // 5. GHOST MUTUELLE (Optimiseur de Plafond Fin d'Année)
-    if (patientDetails?.assurance && patientDetails.assurance !== 'AUCUNE') {
-      const currentMonth = new Date().getMonth();
-      const isEndOfYear = currentMonth >= 9;
-      const currentActNames = items.map(i => i.description.toLowerCase());
-      const hasProsthesis = currentActNames.some(a => a.includes('couronne') || a.includes('bridge') || a.includes('inlay') || a.includes('prothèse') || a.includes('facette'));
-      const totalAmount = accountingDocumentTotal(items);
-
-      if (isEndOfYear && hasProsthesis && totalAmount >= 3000) {
-        if (!insights.find(ins => ins.id === 'ghost-mutuelle-plafond')) {
-          setInsights(prev => [{
-            id: 'ghost-mutuelle-plafond',
-            type: 'habit',
-            title: '💡 Ghost Mutuelle : Optimisation',
-            content: `Le plafond prothétique de la ${patientDetails.assurance} se renouvelle bientôt. Séparer ce devis de ${totalAmount} MAD (Décembre / Janvier) maximisera le remboursement du patient !`,
-          }, ...prev]);
-        }
-      }
-    }
-
-    // 6. Sécurité Clinique Médicamenteuse : Double-contrôle CRE, DDI et Omissions
-    const drugNames = drugs.map(d => d.name).filter(Boolean);
-    if (drugNames.length > 0 && patientId) {
-      const timer = setTimeout(() => {
-        api.post('/prescriptions/safety/check', { patient_id: patientId, drug_names: drugNames })
-          .then(res => {
-            const warnings = res.data as { type: string; severity: string; message: string; drug: string }[];
-            warnings.forEach(w => {
-              const id = `safety-${w.drug}`;
-              if (!insights.find(ins => ins.id === id)) {
-                setInsights(prev => [{
-                  id: id,
-                  type: w.type === 'omission' ? 'suggestion' : 'safety',
-                  title: w.type === 'coherence' ? 'Incohérence Clinique' :
-                         w.type === 'omission' ? 'Prévention' :
-                         w.type === 'ddi' ? 'Interaction Médicamenteuse' : 'Contre-indication',
-                  content: w.message,
-                  source_type: 'DETERMINISTIC'
-                }, ...prev]);
-              }
-            });
-          })
-          .catch(console.error);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, drugs, patientDetails, insights, patientId]);
-
   const generator = useDocumentGenerator(generatorParams);
 
   // --- HYDRATATION ---
@@ -426,10 +303,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    if (!patientId) return;
+    if (!patientId) {
+      setPatientDetails(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPatientDetails(null);
+
     api.get(`/patients/${patientId}`)
-      .then(res => setPatientDetails(res.data))
+      .then(res => {
+        if (!cancelled) setPatientDetails(res.data);
+      })
       .catch((err) => {
+        if (cancelled) return;
         console.error('DocumentHub: patient fetch failed', err);
         const status = err.response?.status;
         if (status === 403 || status === 404) {
@@ -437,11 +324,30 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           toast.error("Dossier patient introuvable ou accès non autorisé.");
         }
       });
-    if (activeTab === 'ordonnance') {
-      api.get(`/prescriptions/smart-suggest/${patientId}`)
-        .then(res => setSmartSuggestion(res.data))
-        .catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId]);
+
+  useEffect(() => {
+    if (!patientId || activeTab !== 'ordonnance') {
+      setSmartSuggestion(null);
+      return;
     }
+
+    let cancelled = false;
+    api.get(`/prescriptions/smart-suggest/${patientId}`)
+      .then(res => {
+        if (!cancelled) setSmartSuggestion(res.data);
+      })
+      .catch(err => {
+        if (!cancelled) console.error(err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [patientId, activeTab]);
 
   useEffect(() => {
