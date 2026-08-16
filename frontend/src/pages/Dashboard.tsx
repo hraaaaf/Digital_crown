@@ -549,52 +549,23 @@ export const Dashboard: React.FC = () => {
       )}
 
       {hasAccess('patients') && (
-        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
+        <motion.section variants={itemVariants}>
           <Link
             to="/approvisionnement"
-            className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
+            className="group flex items-center justify-between gap-5 rounded-elite-lg border border-border-main bg-card-bg px-6 py-5 shadow-elite hover:shadow-elite-hover transition-elite"
           >
-            <div className="p-8 md:p-9 flex items-center justify-between gap-6">
-              <div className="flex items-center gap-4 min-w-0">
-                <div
-                  className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
-                  style={{
-                    backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
-                    borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
-                    color: 'var(--primary, #0f766e)',
-                  }}
-                >
-                  <ShoppingCart size={28} />
-                </div>
-                <div className="min-w-0">
-                  <p
-                    className="text-[10px] uppercase tracking-widest font-black mb-2"
-                    style={{ color: 'var(--text-muted, #64748b)' }}
-                  >
-                    Approvisionnement
-                  </p>
-                  <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
-                    Marketplace
-                  </h2>
-                </div>
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">
+                <ShoppingCart size={22} />
               </div>
-              <Store
-                size={18}
-                className="shrink-0 transition-transform group-hover:translate-x-1"
-                style={{ color: 'var(--primary, #0f766e)' }}
-              />
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest font-black text-text-muted">Approvisionnement</p>
+                <h2 className="text-lg font-black tracking-tight font-outfit text-main" style={{ color: 'var(--text-main)' }}>Marketplace</h2>
+                <p className="text-xs font-medium text-text-muted mt-0.5">Commander les consommables et fournitures du cabinet</p>
+              </div>
             </div>
+            <Store size={18} className="shrink-0 text-primary transition-transform group-hover:translate-x-1" />
           </Link>
-
-          <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
-            <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
-            <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
-              <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
-              <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
-              <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
-            </div>
-          </div>
         </motion.section>
       )}
 
@@ -677,7 +648,6 @@ export const Dashboard: React.FC = () => {
             <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
-              {/* Contenu principal défilable */}
               <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
                 {todayAppointments && todayAppointments.length > 0 ? (
                   [...todayAppointments]
@@ -780,7 +750,6 @@ export const Dashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Statistiques rapides en bas */}
               <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -794,7 +763,6 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* Performance Hebdomadaire — accordéon, réservé aux rôles avec accès compta. */}
         {hasAccess('accounting') && hasAccess('patients') && (
           <motion.section variants={itemVariants} className="lg:col-span-2 space-y-5">
             <button
@@ -817,7 +785,6 @@ export const Dashboard: React.FC = () => {
                     <div className="p-8 h-[410px] flex flex-col justify-between relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
-                      {/* Header statistics inside the widget */}
                       <div className="relative z-10 flex items-center justify-between border-b border-border-main pb-4">
                         <div>
                           <p className="font-black text-[9px] uppercase tracking-[0.2em] text-text-muted">Intelligence Analytique</p>
@@ -839,9 +806,7 @@ export const Dashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* The Interactive Chart Area */}
                       <div className="relative z-10 flex-1 flex items-end justify-between gap-3 pt-8 pb-4 h-[220px]">
-                        {/* Grid Lines background */}
                         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
                           {[1, 2, 3, 4].map((_, i) => (
                             <div key={i} className="w-full border-t border-dashed border-text-muted/40" />
@@ -849,7 +814,6 @@ export const Dashboard: React.FC = () => {
                         </div>
 
                         {stats?.weekly_activity && stats.weekly_activity.map((val, idx) => {
-                          // Generate past 7 days short labels dynamically
                           const getPast7DaysLabels = () => {
                             const labels = [];
                             const today = new Date();
@@ -863,14 +827,10 @@ export const Dashboard: React.FC = () => {
 
                           const labels = getPast7DaysLabels();
                           const label = labels[idx] ? labels[idx].charAt(0).toUpperCase() + labels[idx].slice(1) : '';
-                          // Compte réel exposé par le backend (weekly_patient_counts) — jamais
-                          // ré-inféré depuis val (pourcentage normalisé pour la hauteur de la barre).
                           const pCount = stats?.weekly_patient_counts?.[idx];
 
                           return (
                             <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar relative z-10 h-full justify-end">
-
-                              {/* Hover tooltip card */}
                               {pCount !== undefined && (
                                 <div className="absolute bottom-[calc(100%-10px)] left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none bg-slate-900/95 dark:bg-black/90 border border-border-main text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black shadow-xl whitespace-nowrap mb-2 z-[20]">
                                   <div className="text-[7px] text-white/70 uppercase tracking-widest">Nouveaux dossiers</div>
@@ -878,7 +838,6 @@ export const Dashboard: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Bar container */}
                               <div className="w-full relative rounded-t-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-transparent group-hover/bar:border-primary/20 transition-all h-full flex items-end">
                                 <motion.div
                                   initial={{ height: 0 }}
@@ -886,14 +845,12 @@ export const Dashboard: React.FC = () => {
                                   transition={{ duration: 0.8, ease: "easeOut", delay: idx * 0.05 }}
                                   className="w-full rounded-t-xl bg-gradient-to-t from-primary/30 to-primary relative group-hover/bar:from-primary/50 group-hover/bar:to-primary/90 transition-all"
                                 >
-                                  {/* Glow indicator at the top of active bar */}
                                   {val > 5 && (
                                     <div className="absolute top-0 left-0 right-0 h-1 bg-white/40 shadow-[0_0_10px_#fff]" />
                                   )}
                                 </motion.div>
                               </div>
 
-                              {/* Day label */}
                               <span className="text-[9px] font-black text-text-muted uppercase tracking-wider group-hover/bar:text-primary transition-colors">
                                 {label}
                               </span>
@@ -902,7 +859,6 @@ export const Dashboard: React.FC = () => {
                         })}
                       </div>
 
-                      {/* Bottom summary note */}
                       <div className="relative z-10 border-t border-border-main pt-4 flex items-center justify-between text-[9px] font-bold text-text-muted uppercase tracking-wider">
                         <span className="flex items-center gap-1.5">
                           <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Nouveaux dossiers / 7 jours
@@ -917,7 +873,6 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* FINANCES DU CABINET — CA Jour / Mois en cours / Impayés */}
         {hasAccess('accounting') && financeToday && (
           <motion.section variants={itemVariants}>
             <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
@@ -975,7 +930,6 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* Santé cabinet non vérifiée — ne jamais masquer une absence de preuve. */}
         {hasAccess('admin') && cabinetHealthState.status === 'unverified' && (
           <motion.section variants={itemVariants}>
             <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
@@ -993,7 +947,6 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* Widget santé cabinet — propriétaire/admin uniquement, après preuve réelle */}
         {hasAccess('admin') && cabinetHealthState.status === 'ready' && cabinetHealth && (
           <motion.section variants={itemVariants}>
             <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
@@ -1098,10 +1051,8 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* C1 — Forecast Semaine + E4 — Alertes du Jour */}
         {((hasAccess('accounting') && forecast) || (hasAccess('patients') && proactiveAlerts.length > 0)) && (
           <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* C1 — Forecast Semaine */}
             {hasAccess('accounting') && forecast && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center gap-3 mb-5">
@@ -1125,7 +1076,6 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* E4 — Alertes du Jour */}
             {hasAccess('patients') && proactiveAlerts.length > 0 && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center justify-between mb-5">
@@ -1184,11 +1134,8 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* C4 — Taux Conversion + C5 — Projection Mensuelle + Ghost Re-Call */}
         {hasAccess('accounting') && (conversion || projection || latentCash) && (
           <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-            {/* C4 — Taux de Conversion Devis */}
             {conversion && conversion.devis_count > 0 && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center gap-3 mb-5">
@@ -1219,7 +1166,6 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* C5 — Projection Mensuelle */}
             {projection && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center gap-3 mb-5">
@@ -1250,7 +1196,6 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* GHOST RE-CALL : Cash Latent */}
             {latentCash && latentCash.total_opportunites > 0 && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center justify-between mb-5">
@@ -1293,7 +1238,6 @@ export const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
       <AnimatePresence>
         {hasAccess('agenda') && ghostSecretariatPatient && (
           <motion.div
@@ -1335,7 +1279,6 @@ export const Dashboard: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Mobile Security Modal */}
       <AnimatePresence>
         {hasAccess('admin') && isMobileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
