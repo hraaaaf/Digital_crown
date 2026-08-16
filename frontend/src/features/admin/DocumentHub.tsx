@@ -24,6 +24,12 @@ import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
+import { isPrescriptionDirty, setPrescriptionDirty } from './DocumentStudio/PrescriptionDirtyState';
+import { isCertificateDirty, setCertificateDirty } from './DocumentStudio/CertificateDirtyState';
+import { isInstallmentDirty, setInstallmentDirty } from './DocumentStudio/InstallmentDirtyState';
+import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
+import { isP7Dirty, setP7Dirty } from './DocumentStudio/P7DirtyState';
+import { shouldGuardDocumentTabTransition } from './DocumentStudio/DocumentTabNavigationPolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -64,12 +70,14 @@ interface PatientDetails {
 
 export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
 
+type TabChangeSource = 'ui' | 'url';
+
 const isHubDocumentType = (value: string | null): value is HubDocumentType =>
   ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedDocumentTab = searchParams.get('documentTab');
   const [activeTab, setActiveTab] = useState<HubDocumentType>(() =>
     isHubDocumentType(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
@@ -80,13 +88,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
-
-  useEffect(() => {
-    const nextTab = searchParams.get('documentTab');
-    if (isHubDocumentType(nextTab)) {
-      setActiveTab(nextTab);
-    }
-  }, [searchParams]);
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
@@ -119,6 +120,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
+  const [pendingTabSource, setPendingTabSource] = useState<TabChangeSource>('ui');
 
   const resetHonorairesFinancialDraft = () => {
     setPaymentMode('');
@@ -127,28 +129,103 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     setInstallments([]);
   };
 
-  // Garde sur changement d'onglet (1.3)
-  const handleTabChange = (newTab: HubDocumentType) => {
-    // P3 → P4 conserve les actes mais repart d'un contexte financier neutre.
-    if (activeTab === 'devis' && newTab === 'honoraires') {
-      resetHonorairesFinancialDraft();
-      setActiveTab(newTab);
-      return;
-    }
+  const dirtySnapshot = () => ({
+    prescription: isPrescriptionDirty(),
+    certificate: isCertificateDirty(),
+    accounting: items.some(item => item.description.trim()),
+    installment: isInstallmentDirty(),
+    libre: isLibreDirty(),
+    plan: isP7Dirty(),
+  });
 
-    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire d'actes).
-    const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      (newTab === 'devis' || newTab === 'honoraires');
-    const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      items.some(i => i.description.trim()) && newTab !== activeTab && !isAccountingSwitch;
-    if (hasUnsaved) {
-      setPendingTab(newTab);
-    } else {
-      setActiveTab(newTab);
+  const clearDirtyForTab = (tab: HubDocumentType) => {
+    switch (tab) {
+      case 'ordonnance':
+        setPrescriptionDirty(false);
+        break;
+      case 'certificat':
+        setCertificateDirty(false);
+        break;
+      case 'devis':
+      case 'honoraires':
+        useAccountingStore.getState().reset();
+        break;
+      case 'echeancier':
+        setInstallmentDirty(false);
+        break;
+      case 'libre':
+        setLibreDirty(false);
+        break;
+      case 'plan':
+        setP7Dirty(false);
+        break;
+      default:
+        break;
     }
   };
 
-  // Garde fermeture navigateur (1.6)
+  const syncDocumentTab = (tab: HubDocumentType) => {
+    if (searchParams.get('documentTab') === tab) return;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('documentTab', tab);
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const commitTabChange = (newTab: HubDocumentType, source: TabChangeSource) => {
+    setActiveTab(newTab);
+    if (source === 'ui') syncDocumentTab(newTab);
+  };
+
+  const handleTabChange = (newTab: HubDocumentType, source: TabChangeSource = 'ui') => {
+    if (newTab === activeTab) return;
+
+    // P3 → P4 conserve les actes mais repart d'un contexte financier neutre.
+    if (activeTab === 'devis' && newTab === 'honoraires') {
+      resetHonorairesFinancialDraft();
+      commitTabChange(newTab, source);
+      return;
+    }
+
+    if (shouldGuardDocumentTabTransition(activeTab, newTab, dirtySnapshot())) {
+      setPendingTab(newTab);
+      setPendingTabSource(source);
+      return;
+    }
+
+    commitTabChange(newTab, source);
+  };
+
+  useEffect(() => {
+    const nextTab = searchParams.get('documentTab');
+    if (isHubDocumentType(nextTab) && nextTab !== activeTab) {
+      handleTabChange(nextTab, 'url');
+    }
+  // Deliberately reacts only to URL/search changes; current dirty state is read at transition time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const cancelPendingTab = () => {
+    if (pendingTabSource === 'url') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('documentTab', activeTab);
+      setSearchParams(nextParams, { replace: true });
+    }
+    setPendingTab(null);
+    setPendingTabSource('ui');
+  };
+
+  const confirmPendingTab = () => {
+    if (!pendingTab) return;
+    const nextTab = pendingTab;
+    const source = pendingTabSource;
+    clearDirtyForTab(activeTab);
+    setPendingTab(null);
+    setPendingTabSource('ui');
+    commitTabChange(nextTab, source);
+  };
+
+  // Garde fermeture navigateur pour P3/P4 ; les autres pages publient aussi leur dirty-state
+  // au niveau de la frontière patient T1.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if ((activeTab === 'devis' || activeTab === 'honoraires') && items.some(i => i.description.trim())) {
@@ -416,6 +493,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 const newItems = convertPlanActsToQuoteItems(allActs);
                 setItems(prev => [...prev, ...newItems]);
                 setActiveTab('devis');
+                syncDocumentTab('devis');
               }}
             />
           )}
@@ -524,36 +602,27 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         />
       </div>
 
-      {/* MODALE — Garde changement d'onglet (1.3) */}
+      {/* MODALE — Garde changement d'onglet */}
       {pendingTab && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPendingTab(null)} />
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={cancelPendingTab} />
           <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
               <div>
                 <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Les actes saisis seront effacés.</p>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Le brouillon non enregistré sera abandonné.</p>
               </div>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setPendingTab(null)}
+                type="button"
+                onClick={cancelPendingTab}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
               >Annuler</button>
               <button
-                onClick={() => {
-                  const accounting = useAccountingStore.getState();
-                  accounting.setItems([]);
-                  accounting.setGroupSelectedTeeth([]);
-                  accounting.setOdontogramMode('individual');
-                  accounting.setPaymentMode('');
-                  accounting.setPaymentStatus('EN_ATTENTE');
-                  accounting.setIsGlobalNote(false);
-                  accounting.setInstallments([]);
-                  setActiveTab(pendingTab);
-                  setPendingTab(null);
-                }}
+                type="button"
+                onClick={confirmPendingTab}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-primary transition-all"
                 style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
               >Continuer</button>
@@ -576,10 +645,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             </div>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={generator.cancelDuplicate}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
               >Annuler</button>
               <button
+                type="button"
                 onClick={generator.confirmDuplicate}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-orange-500 text-white hover:bg-orange-600 transition-all"
               >Forcer</button>
