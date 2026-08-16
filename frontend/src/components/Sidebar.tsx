@@ -17,6 +17,7 @@ import {
   Construction
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { hasAccess as userHasAccess } from '../utils/accessControl';
 import { api } from '../services/api';
 import { authService } from '../services/auth';
 import { ClinicalTipBubble } from '../features/clinical_tips/components/ClinicalTipBubble';
@@ -37,38 +38,14 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { user } = useAuthStore();
   const location = useLocation();
 
-  const hasAccess = (permission: string) => {
-    if (!user) return true;
-    if (user.role === 'ADMIN') return true;
-    if (user.is_superadmin) return true;
-    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
-
-    if (user.permissions && typeof user.permissions === 'object') {
-      return user.permissions[permission] ?? false;
-    }
-    
-    if (user.role === 'SECRETAIRE') {
-      const defaults: Record<string, boolean> = {
-        agenda: true,
-        patients: true,
-        prescriptions: false,
-        accounting: false,
-        payments: false,
-        panoramic: false,
-        cephalo: false,
-        settings: false
-      };
-      return defaults[permission] ?? false;
-    }
-    if (user.role === 'DENTISTE') {
-      return true; // Fallback pour ancien sous-dentiste
-    }
-    return true;
-  };
+  const hasAccess = (permission: string) => userHasAccess(user, permission);
 
   const [alertCount, setAlertCount] = useState(0);
   useEffect(() => {
-    if (!hasAccess('patients')) return;
+    if (!hasAccess('patients')) {
+      setAlertCount(0);
+      return;
+    }
     const fetchCount = () => api.get('/intelligence/alerts/today')
       .then(res => setAlertCount(res.data.total || 0))
       .catch(() => {});
@@ -250,7 +227,7 @@ export const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
           )}
 
           {/* ACTIVE PATIENT NAVIGATION */}
-          {currentPatientId && (
+          {hasAccess('patients') && currentPatientId && (
             <div className="mt-8 animate-in fade-in slide-in-from-left-4 duration-500">
               <div 
                 className="text-[10px] font-black uppercase tracking-widest mx-2 mb-3 shadow-sm flex items-center gap-2 py-2.5 px-4 rounded-elite-sm border transition-elite"
