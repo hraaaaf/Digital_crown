@@ -48,7 +48,6 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
   const [allergyWarning, setAllergyWarning] = useState<string | null>(null);
 
   React.useEffect(() => {
-    // Patient boundary: no diagnostic, proposed act or warning may survive a patient change.
     let cancelled = false;
     setP7Dirty(false);
     setCurrentState('MOTIF');
@@ -149,7 +148,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     switch (currentState) {
       case 'MOTIF':
         return (
-          <div className="flex flex-wrap gap-2 justify-end">
+          <div className="flex w-full flex-wrap gap-2 sm:justify-end">
             <OptionButton text="Urgence / Douleur aiguë" onClick={() => handleAnswer("Urgence / Douleur aiguë", 'URGENCE_DOULEUR')} />
             <OptionButton text="Motif Esthétique" onClick={() => handleAnswer("Motif Esthétique", 'ESTHETIQUE')} />
             <OptionButton text="Problème Prothétique / Fonctionnel" onClick={() => handleAnswer("Problème Prothétique / Fonctionnel", 'PROTHESE_FONCTION')} />
@@ -176,10 +175,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                 { phase: 'INITIALE', act: 'Prescription antalgique (Palier 2)' }
               ])}
             />
-            <OptionButton
-              text="Non, douleur localisée à la mastication"
-              onClick={() => handleAnswer("Non, localisée à la mastication", 'PERCUSSION')}
-            />
+            <OptionButton text="Non, douleur localisée à la mastication" onClick={() => handleAnswer("Non, localisée à la mastication", 'PERCUSSION')} />
           </>
         );
       case 'PERCUSSION':
@@ -357,23 +353,23 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-slate-50/50 rounded-[2rem] border border-slate-200 overflow-hidden relative backdrop-blur-xl">
-      <div className="bg-white/80 backdrop-blur-md px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+    <div className="flex h-[70vh] min-h-[520px] max-h-[700px] flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50/50 backdrop-blur-xl sm:h-[600px] sm:rounded-[2rem]">
+      <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur-md sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
             <Brain size={20} />
           </div>
-          <div>
-            <h3 className="font-black text-slate-800 leading-none tracking-tight">Compagnon Diagnostique</h3>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Aide structurée à confirmer</p>
+          <div className="min-w-0">
+            <h3 className="truncate font-black leading-none tracking-tight text-slate-800">Compagnon Diagnostique</h3>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Aide structurée à confirmer</p>
           </div>
         </div>
-        <button onClick={resetDiagnostic} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-colors border border-transparent hover:border-slate-200" title="Recommencer">
-          <RefreshCw size={14} />
+        <button type="button" onClick={resetDiagnostic} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-colors hover:border-slate-200 hover:bg-slate-100 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Recommencer le compagnon diagnostique" title="Recommencer">
+          <RefreshCw size={16} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-white">
+      <div className="custom-scrollbar-white flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
         {history.map((msg, idx) => (
           <motion.div
             key={idx}
@@ -382,10 +378,10 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
             className={cn("flex w-full", msg.role === 'user' ? "justify-end" : "justify-start")}
           >
             <div className={cn(
-              "max-w-[80%] px-4 py-3 text-sm font-medium",
+              "max-w-[92%] break-words px-4 py-3 text-sm font-medium sm:max-w-[80%]",
               msg.role === 'user'
-                ? "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md"
-                : "bg-white border border-slate-200 text-slate-700 shadow-sm rounded-2xl rounded-tl-sm"
+                ? "rounded-2xl rounded-tr-sm bg-primary text-white shadow-md"
+                : "rounded-2xl rounded-tl-sm border border-slate-200 bg-white text-slate-700 shadow-sm"
             )}>
               {msg.text}
             </div>
@@ -393,7 +389,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
         ))}
 
         {currentState !== 'RESULT' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-end gap-2 mt-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full flex-col items-stretch gap-2 sm:items-end">
             {renderOptions()}
           </motion.div>
         )}
@@ -402,42 +398,39 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden"
+            className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50"
+            aria-live="polite"
           >
-            <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center gap-3">
-              <CheckCircle2 size={24} className="text-primary" />
-              <div>
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-0.5">Hypothèse à confirmer</span>
-                <h4 className="text-lg font-black text-slate-800 tracking-tight">{finalDiagnosis}</h4>
+            <div className="flex items-start gap-3 border-b border-primary/10 bg-primary/5 px-4 py-4 sm:px-6">
+              <CheckCircle2 size={24} className="mt-0.5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <span className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-primary">Hypothèse à confirmer</span>
+                <h4 className="break-words text-lg font-black tracking-tight text-slate-800">{finalDiagnosis}</h4>
                 <p className="mt-1 text-[11px] font-semibold text-slate-500">Sortie logicielle déterministe, non équivalente à un diagnostic clinique validé.</p>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {allergyWarning && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3"
-                >
-                  <ShieldCheck size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5" role="alert">
+                  <ShieldCheck size={18} className="mt-0.5 shrink-0 text-rose-600" />
                   <div>
-                    <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Vérification ATCD requise</h5>
-                    <p className="text-xs font-bold text-rose-700 leading-snug">{allergyWarning}</p>
+                    <h5 className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-rose-600">Vérification ATCD requise</h5>
+                    <p className="text-xs font-bold leading-snug text-rose-700">{allergyWarning}</p>
                   </div>
                 </motion.div>
               )}
 
-              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <h5 className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <FileText size={14} /> Proposition de prise en charge à valider
               </h5>
 
-              <div className="space-y-2 mb-6">
+              <div className="mb-6 space-y-2">
                 {proposedActs.map((act) => (
-                  <div key={act.id} className="flex items-center justify-between p-3 bg-slate-50/80 rounded-xl border border-slate-100 group transition-colors hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
+                  <div key={act.id} className="group flex items-start justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3 transition-colors hover:bg-slate-50 sm:items-center">
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <span className={cn(
-                        "text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md",
+                        "shrink-0 rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-wider",
                         act.phase === 'URGENCE' ? "bg-red-100 text-red-700" :
                         act.phase === 'INITIALE' ? "bg-amber-100 text-amber-700" :
                         act.phase === 'CONSERVATRICE' ? "bg-emerald-100 text-emerald-700" :
@@ -445,20 +438,21 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                       )}>
                         {act.phase}
                       </span>
-                      <span className="text-sm font-bold text-slate-700">{act.act}</span>
+                      <span className="break-words text-sm font-bold text-slate-700">{act.act}</span>
                     </div>
-                    <button onClick={() => removeAct(act.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1 border border-slate-200 hover:border-red-200">
+                    <button type="button" onClick={() => removeAct(act.id)} aria-label={`Supprimer ${act.act}`} className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-400 opacity-100 transition-all hover:border-red-200 hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 sm:p-1 sm:opacity-0 sm:group-hover:opacity-100">
                       <X size={14} />
                     </button>
                   </div>
                 ))}
               </div>
 
-              <div className="flex gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+              <div className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2 sm:flex-row sm:items-center">
                 <select
                   value={newActPhase}
                   onChange={(e) => setNewActPhase(e.target.value)}
-                  className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg px-3 py-2 outline-none focus:border-primary shadow-sm"
+                  aria-label="Phase de l'acte proposé"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 sm:w-auto"
                 >
                   <option value="URGENCE">Urgence</option>
                   <option value="INITIALE">Initiale</option>
@@ -470,11 +464,12 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                   type="text"
                   value={newActText}
                   onChange={(e) => setNewActText(e.target.value)}
+                  aria-label="Acte à ajouter à la proposition"
                   placeholder="Ajouter un acte à valider..."
-                  className="flex-1 bg-white border border-slate-200 text-sm font-bold text-slate-700 rounded-lg px-4 py-2 outline-none focus:border-primary transition-all shadow-sm"
+                  className="w-full flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   onKeyDown={(e) => e.key === 'Enter' && addCustomAct()}
                 />
-                <button onClick={addCustomAct} className="w-10 h-10 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md shadow-primary/20">
+                <button type="button" onClick={addCustomAct} aria-label="Ajouter l'acte à la proposition" className="flex h-10 w-full items-center justify-center rounded-lg bg-primary text-white shadow-md shadow-primary/20 transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-10">
                   <Plus size={18} />
                 </button>
               </div>
@@ -483,9 +478,9 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                 <button
                   type="button"
                   onClick={convertToQuote}
-                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-[0.99]"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-center text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.99] sm:px-5"
                 >
-                  Préparer le devis à partir de cette proposition <ArrowRight size={16} />
+                  Préparer le devis à partir de cette proposition <ArrowRight size={16} className="shrink-0" />
                 </button>
               )}
 
@@ -502,11 +497,12 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
 const OptionButton: React.FC<{ text: string; onClick: () => void }> = ({ text, onClick }) => (
   <button
+    type="button"
     onClick={onClick}
-    className="px-5 py-2.5 bg-white border border-slate-200 text-primary text-sm font-black rounded-2xl shadow-sm hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center gap-2 group hover:-translate-y-0.5"
+    className="group flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-left text-sm font-black text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-auto sm:justify-center sm:text-center"
   >
-    {text}
-    <ArrowRight size={14} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all text-primary/70" />
+    <span>{text}</span>
+    <ArrowRight size={14} className="shrink-0 text-primary/70 transition-all sm:-ml-2 sm:opacity-0 sm:group-hover:ml-0 sm:group-hover:opacity-100 sm:group-focus-visible:ml-0 sm:group-focus-visible:opacity-100" />
   </button>
 );
 
