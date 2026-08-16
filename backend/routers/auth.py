@@ -115,17 +115,56 @@ async def get_current_user_optional(
         return None
 
 
+_SECRETARY_LEGACY_DEFAULTS = {
+    "agenda": True,
+    "patients": True,
+    "prescriptions": False,
+    "accounting": False,
+    "payments": False,
+    "panoramic": False,
+    "cephalo": False,
+    "settings": False,
+    "admin": False,
+}
+
+_DENTIST_EMPLOYEE_LEGACY_DEFAULTS = {
+    "agenda": True,
+    "patients": True,
+    "prescriptions": True,
+    "accounting": False,
+    "payments": False,
+    "panoramic": True,
+    "cephalo": True,
+    "settings": False,
+    "admin": False,
+}
+
+
 def has_permission(current_user: models.User, permission_name: Union[str, List[str]]) -> bool:
-    """Valide une permission en tenant compte des sous-comptes du cabinet."""
+    """Politique backend canonique, fail-closed, des permissions cabinet."""
     if is_superadmin_user(current_user):
         return True
+
     role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role in ("ADMIN", "DENTISTE") and current_user.employer_id is None:
+    if role == "ADMIN":
+        return True
+    if role == "DENTISTE" and current_user.employer_id is None:
         return True
 
     perms = current_user.permissions or {}
     perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
-    return any(perms.get(p, False) for p in perms_to_check)
+
+    # Une matrice non vide est explicite et fait autorité. Un dict vide correspond
+    # aux comptes legacy créés avant la granularité des permissions.
+    if isinstance(perms, dict) and len(perms) > 0:
+        return any(perms.get(p) is True for p in perms_to_check)
+
+    if role == "SECRETAIRE":
+        return any(_SECRETARY_LEGACY_DEFAULTS.get(p, False) for p in perms_to_check)
+    if role == "DENTISTE" and current_user.employer_id is not None:
+        return any(_DENTIST_EMPLOYEE_LEGACY_DEFAULTS.get(p, False) for p in perms_to_check)
+
+    return False
 
 
 def require_permission(permission_name: Union[str, List[str]]):
@@ -133,18 +172,15 @@ def require_permission(permission_name: Union[str, List[str]]):
     def dependency(current_user: models.User = Depends(get_current_user)):
         if has_permission(current_user, permission_name):
             return current_user
-        perms = current_user.permissions or {}
-        
+
         perms_to_check = [permission_name] if isinstance(permission_name, str) else permission_name
-        
-        if not any(perms.get(p, False) for p in perms_to_check):
-            perms_str = "' ou '".join(perms_to_check)
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Accès refusé. Vous n'avez pas la permission '{perms_str}'."
-            )
-        return current_user
+        perms_str = "' ou '".join(perms_to_check)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Accès refusé. Vous n'avez pas la permission '{perms_str}'."
+        )
     return dependency
+
 
 def require_superadmin(current_user: models.User = Depends(get_current_user)):
     if is_superadmin_user(current_user):
@@ -445,7 +481,7 @@ async def signup_client(
         action="SIGNUP_SUCCESS",
         resource_type="User",
         resource_id=new_user.email,
-        severity="INFO",
+        severity="WARNING",
         details="Nouveau client inscrit. CGU et politique de confidentialite acceptees. En attente de validation."
     )
 
