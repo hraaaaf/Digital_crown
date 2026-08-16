@@ -109,6 +109,14 @@ export interface ArchivedToothData {
   notes?: string | null;
 }
 
+export interface ArchivedDevisItem {
+  acte?: string;
+  dent?: string;
+  montant?: number;
+  prix_unitaire?: number;
+  dents?: Array<number | string>;
+}
+
 export function hydrateAccountingItemsFromTeethData<T extends AccountingOdontogramSourceItem>(
   items: T[],
   teethData: ArchivedToothData[] | undefined,
@@ -142,4 +150,28 @@ export function hydrateAccountingItemsFromTeethData<T extends AccountingOdontogr
   });
 
   return normalizeStructuredAccountingItems(hydrated);
+}
+
+/**
+ * Rebuild Document Studio accounting rows from archived Devis clinical_data,
+ * then reattach odontogram metadata stored separately in teeth_data.
+ */
+export function hydrateArchivedDevisRows(
+  archivedItems: ArchivedDevisItem[],
+  teethData: ArchivedToothData[] | undefined,
+  idFactory: (index: number) => number = index => Date.now() + index,
+): AccountingOdontogramSourceItem[] {
+  const rows: AccountingOdontogramSourceItem[] = archivedItems.map((item, index) => ({
+    id: idFactory(index),
+    description: String(item.acte || ''),
+    dent: String(item.dent || '0'),
+    price: Number(item.montant ?? item.prix_unitaire ?? 0),
+    toothNumbers: uniqueToothNumbers(
+      (item.dents || [])
+        .map(value => Number(value))
+        .filter(value => Number.isInteger(value) && value > 0),
+    ),
+  }));
+
+  return hydrateAccountingItemsFromTeethData(rows, teethData);
 }
