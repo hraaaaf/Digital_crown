@@ -4,15 +4,6 @@ import { api } from '../../../services/api';
 import { hasAccess } from '../../../utils/accessControl';
 import type { DashboardStats, DataState } from '../types';
 
-const EMPTY_STATS: DashboardStats = {
-  total_patients: 0,
-  total_analyses: 0,
-  in_waiting: 0,
-  weekly_activity: [0, 0, 0, 0, 0, 0, 0],
-  weekly_patient_counts: [0, 0, 0, 0, 0, 0, 0],
-  recent_patients: [],
-};
-
 export const useDashboardStats = (
   user: AppUser | null,
   authLoading: boolean,
@@ -36,8 +27,8 @@ export const useDashboardStats = (
       setStats(response.data);
       setStatsState('ready');
     } catch (error) {
-      console.warn('Route API manquante ou invalide, injection des données de secours.', error);
-      setStats(EMPTY_STATS);
+      console.warn('Statistiques Dashboard indisponibles.', error);
+      setStats(null);
       setStatsState('error');
     }
   }, [canReadPatients, user]);
