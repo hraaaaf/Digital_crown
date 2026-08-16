@@ -104,8 +104,6 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
       await dialog.waitFor({ state: 'visible', timeout: 30000 });
       await page.keyboard.press('Escape');
       await dialog.waitFor({ state: 'hidden', timeout: 10000 });
-      // The dialog can be logically hidden before its exit transition is visually finished.
-      // Wait one transition budget so screenshots represent the stable post-Escape state.
       await page.waitForTimeout(400);
       preview.score = 10;
       preview.escapeClosed = true;
@@ -155,7 +153,6 @@ for (const viewport of viewports) {
   await context.close();
 }
 
-// Double-check dark mode on the desktop reference viewport for all seven pages.
 {
   const viewport = { width: 1280, height: 900 };
   const context = await browser.newContext({ viewport, colorScheme: 'dark' });
@@ -168,8 +165,6 @@ for (const viewport of viewports) {
   await context.close();
 }
 
-// Rapid navigation/edit stress on Document Libre. A dirty draft must raise the guard;
-// the test explicitly confirms it before continuing the transition sequence.
 {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const page = await context.newPage();
@@ -194,8 +189,6 @@ for (const viewport of viewports) {
       const tab = page.locator(`[data-tour="${studioPage.tourId}"]`);
       await tab.waitFor({ state: 'visible', timeout: 10000 });
 
-      // StudioTabs is intentionally horizontally scrollable. Move only that carousel,
-      // then perform a genuine pointer click on the now-visible tab.
       await tab.evaluate((element) => {
         const container = element.parentElement;
         if (!container) return;
@@ -203,7 +196,26 @@ for (const viewport of viewports) {
         container.scrollTo({ left: Math.max(0, targetLeft), behavior: 'instant' });
       });
       await page.waitForTimeout(100);
-      await tab.click();
+
+      const hitTarget = await tab.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const top = document.elementFromPoint(centerX, centerY);
+        const sidebar = document.querySelector('aside.bg-sidebar');
+        const sidebarRect = sidebar?.getBoundingClientRect();
+        return {
+          centerX,
+          centerY,
+          insideViewport: centerX >= 0 && centerX <= innerWidth && centerY >= 0 && centerY <= innerHeight,
+          targetIsTab: top === element || element.contains(top),
+          sidebarOverlap: Boolean(sidebarRect && centerX >= sidebarRect.left && centerX <= sidebarRect.right && centerY >= sidebarRect.top && centerY <= sidebarRect.bottom),
+        };
+      });
+      if (!hitTarget.insideViewport || !hitTarget.targetIsTab || hitTarget.sidebarOverlap) {
+        throw new Error(`T2 tab hit target invalid for ${studioPage.slug}: ${JSON.stringify(hitTarget)}`);
+      }
+      await page.mouse.click(hitTarget.centerX, hitTarget.centerY);
 
       const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
       if (await discardDialog.isVisible({ timeout: 750 }).catch(() => false)) {
