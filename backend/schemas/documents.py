@@ -183,10 +183,12 @@ class DocumentRequest(BaseModel):
                     "honoraires_invalid_amount",
                     f"Acte #{index} : le montant doit être fini, strictement positif et ≤ 1 000 000 MAD.",
                 )
-            if "mode_reglement" not in payment or not str(payment.get("mode_reglement") or "").strip():
+            if self.payment_status == "PAYE" and (
+                "mode_reglement" not in payment or not str(payment.get("mode_reglement") or "").strip()
+            ):
                 raise PydanticCustomError(
                     "honoraires_payment_method_required",
-                    f"Acte #{index} : le mode de règlement doit être choisi explicitement.",
+                    f"Acte #{index} : le mode de règlement doit être choisi explicitement pour un encaissement.",
                 )
         return self
 
