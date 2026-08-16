@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, FileText, Plus, Trash2 } from 'lucide-react';
+import { DollarSign, FileText, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
@@ -33,6 +33,8 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
   const [monthlyAmount, setMonthlyAmount] = useState<number>(0);
   const [items, setItems] = useState<DraftInstallmentItem[]>([]);
   const [patientPhone, setPatientPhone] = useState<string>('');
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [trackingRevision, setTrackingRevision] = useState(0);
 
   useEffect(() => {
     if (!patientId || patientId === '0') {
@@ -152,10 +154,48 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
 
   const plannedTotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const isBalanced = totalAmount > 0 && Math.abs(plannedTotal - totalAmount) < 0.005;
+  const draftIsValid = Boolean(
+    patientId
+    && patientId !== '0'
+    && title.trim()
+    && totalAmount > 0
+    && items.length > 0
+    && isBalanced
+    && items.every(item => item.label.trim() && Number.isFinite(item.amount) && item.amount > 0 && item.dueDate),
+  );
+
+  const savePlan = async () => {
+    if (!draftIsValid || savingPlan) {
+      toast.error('Le plan doit être complet, positif et exactement équilibré avant enregistrement.');
+      return;
+    }
+    setSavingPlan(true);
+    try {
+      await api.post('/installments/', {
+        patient_id: Number(patientId),
+        title: title.trim(),
+        total_amount: totalAmount,
+        installments: items.map(item => ({
+          label: item.label.trim(),
+          amount: item.amount,
+          due_date: `${item.dueDate}T00:00:00`,
+          status: 'EN_ATTENTE',
+        })),
+      });
+      toast.success('Plan de paiement enregistré.');
+      resetDraft();
+      setTrackingRevision(value => value + 1);
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      toast.error(typeof detail === 'string' ? detail : "Le plan de paiement n'a pas été enregistré.");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto" id="installment-studio-container">
-      <InstallmentTrackingPanel patientId={patientId} patientPhone={patientPhone} />
+      <InstallmentTrackingPanel key={trackingRevision} patientId={patientId} patientPhone={patientPhone} />
 
       <section className="flex flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-sm" aria-labelledby="new-installment-plan-title">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -339,13 +379,24 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           </table>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm text-slate-500">Total planifié : <b className="text-slate-900">{plannedTotal.toFixed(2)} MAD</b></span>
-          {totalAmount > 0 && (
-            <span className={isBalanced ? 'font-medium text-emerald-600' : 'font-medium text-amber-600'} role="status">
-              {isBalanced ? 'Total équilibré' : 'Le total planifié diffère du total prévu'}
-            </span>
-          )}
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+            <span className="text-sm text-slate-500">Total planifié : <b className="text-slate-900">{plannedTotal.toFixed(2)} MAD</b></span>
+            {totalAmount > 0 && (
+              <span className={isBalanced ? 'font-medium text-emerald-600' : 'font-medium text-amber-600'} role="status">
+                {isBalanced ? 'Total équilibré' : 'Le total planifié diffère du total prévu'}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={savePlan}
+            disabled={!draftIsValid || savingPlan}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Save className="h-4 w-4" />
+            {savingPlan ? 'Enregistrement…' : 'Enregistrer le nouveau plan'}
+          </button>
         </div>
       </section>
     </div>
