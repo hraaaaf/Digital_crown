@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { api } from '../../../../services/api';
 import { CertificateForm as CertificateFormInner } from './CertificateFormInner';
 import { isCertificateDirty, setCertificateDirty } from '../CertificateDirtyState';
 
@@ -18,14 +19,26 @@ interface CertificateFormProps {
 export const CertificateForm: React.FC<CertificateFormProps> = props => {
   useEffect(() => {
     setCertificateDirty(false);
+
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!isCertificateDirty()) return;
       event.preventDefault();
       event.returnValue = '';
     };
+
+    const responseInterceptor = api.interceptors.response.use(response => {
+      const url = response.config?.url || '';
+      const archivedCertificate = url.includes('/documents/generate')
+        && url.includes('archive=true')
+        && !url.includes('preview=true');
+      if (archivedCertificate) setCertificateDirty(false);
+      return response;
+    });
+
     window.addEventListener('beforeunload', beforeUnload);
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
+      api.interceptors.response.eject(responseInterceptor);
       setCertificateDirty(false);
     };
   }, [props.patientId]);
