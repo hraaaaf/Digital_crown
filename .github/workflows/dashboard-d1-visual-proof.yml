@@ -1,0 +1,157 @@
+name: Dashboard D1 Visual Proof
+
+on:
+  push:
+    branches:
+      - agent/dashboard-d1-visual-proof
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend + Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start mock API
+        run: |
+          cat > /tmp/mock_api.py <<'PY'
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          import json
+          from urllib.parse import urlparse
+
+          USER = {
+              "id": 1,
+              "email": "achraf@example.test",
+              "nom_complet": "Dr Achraf Benmoussa",
+              "role": "DENTISTE",
+              "employer_id": None,
+              "permissions": {},
+              "is_superadmin": False,
+          }
+
+          def payload(path):
+              p = urlparse(path).path
+              if p == "/health": return {"status": "ok"}
+              if p == "/api/auth/me": return USER
+              if p == "/api/clinics/init-status": return {"is_initialized": True}
+              if p == "/api/admin/cabinet/me": return {"header_lines_fr": ["Dr Achraf Benmoussa"]}
+              if p == "/api/admin/dashboard/stats": return {
+                  "total_patients": 1248,
+                  "total_analyses": 318,
+                  "in_waiting": 2,
+                  "weekly_activity": [12, 15, 10, 18, 16, 5, 0],
+                  "weekly_patient_counts": [9, 12, 8, 14, 13, 4, 0],
+                  "weekly_patients": 60,
+                  "recent_patients": [
+                      {"id": 1, "nom": "EL ALAMI", "prenom": "Youssef", "acte": "Consultation", "time": "10:30", "type": "CONSULTATION"},
+                      {"id": 2, "nom": "BENNANI", "prenom": "Salma", "acte": "Détartrage", "time": "09:45", "type": "SOINS"},
+                  ],
+              }
+              if p == "/api/appointments/": return [
+                  {"id": 11, "start_time": "2026-08-16T11:00:00", "status": "EN_ATTENTE", "patient": {"id": 3, "nom": "TAZI", "prenom": "Amine"}},
+                  {"id": 12, "start_time": "2026-08-16T14:30:00", "status": "CONFIRME", "patient": {"id": 4, "nom": "IDRISSI", "prenom": "Nadia"}},
+              ]
+              if p == "/api/intelligence/alerts/today": return {"alerts": []}
+              if p == "/api/intelligence/forecast-semaine": return {"week_start":"2026-08-16","week_end":"2026-08-22","rdv_count":31,"forecast_revenue":28400,"avg_per_rdv":916}
+              if p == "/api/intelligence/taux-conversion": return {"devis_count":18,"converted_count":13,"taux":72.2,"avg_days":4.2}
+              if p == "/api/intelligence/projection-mensuelle": return {"historical":[],"projections":[],"avg_monthly":112000}
+              if p == "/api/intelligence/latent-cash": return {"total_opportunites":7,"valeur_totale_latente":18600,"opportunites":[]}
+              if p == "/api/stats/financial": return {"today_revenue":4200,"month_revenue":68400,"total_debt":12900}
+              if p == "/api/admin/cabinet-health": return {
+                  "database":{"status":"ok","detail":None},
+                  "disk":{"status":"ok","free_gb":182.4,"total_gb":476.8},
+                  "backup_local":{"status":"ok","overall_status":"SUCCESS","age_hours":2.1,"run_id":"visual-proof"},
+                  "offsite":{"status":"NOT_CONFIGURED","offsite_status":None,"db_copied":None,"media_copied":None},
+                  "overall_severity":"ok"
+              }
+              if p.startswith("/api/patients/"): return []
+              if "unread" in p: return {"count": 0}
+              return {}
+
+          class H(BaseHTTPRequestHandler):
+              def _send(self, obj, status=200):
+                  data=json.dumps(obj).encode()
+                  self.send_response(status)
+                  self.send_header("Content-Type","application/json")
+                  self.send_header("Access-Control-Allow-Origin","http://127.0.0.1:4173")
+                  self.send_header("Access-Control-Allow-Credentials","true")
+                  self.send_header("Access-Control-Allow-Headers","*")
+                  self.send_header("Access-Control-Allow-Methods","GET,POST,PUT,PATCH,DELETE,OPTIONS")
+                  self.send_header("Content-Length",str(len(data)))
+                  self.end_headers(); self.wfile.write(data)
+              def do_OPTIONS(self): self._send({})
+              def do_GET(self): self._send(payload(self.path))
+              def do_POST(self): self._send({})
+              def do_PUT(self): self._send({})
+              def do_PATCH(self): self._send({})
+              def log_message(self, *args): pass
+          HTTPServer(("127.0.0.1",8005),H).serve_forever()
+          PY
+          python /tmp/mock_api.py >/tmp/mock-api.log 2>&1 &
+          echo $! >/tmp/mock-api.pid
+
+      - name: Start Vite
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/vite.log 2>&1 &
+          echo $! >/tmp/vite.pid
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:4173 >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/vite.log
+          exit 1
+
+      - name: Capture D1 dashboard
+        working-directory: frontend
+        run: |
+          mkdir -p visual-proof
+          cat > capture-d1.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({headless:true});
+          const viewports = [
+            {name:'desktop-1280', width:1280, height:900},
+            {name:'tablet-768', width:768, height:1024},
+            {name:'mobile-430', width:430, height:932},
+            {name:'mobile-390', width:390, height:844},
+          ];
+          for (const vp of viewports) {
+            const context = await browser.newContext({ viewport: {width:vp.width,height:vp.height} });
+            const page = await context.newPage();
+            page.on('console', msg => console.log(`[browser:${vp.name}]`, msg.type(), msg.text()));
+            await page.addInitScript(() => {
+              const payload = btoa(JSON.stringify({exp: 4102444800})).replaceAll('=','');
+              localStorage.setItem('token', `e30.${payload}.x`);
+              localStorage.setItem('digital_crown_tour_completed','true');
+              localStorage.setItem('appMode','prod');
+            });
+            await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle', timeout:60000});
+            await page.waitForFunction(() => document.body.innerText.includes('Bonjour'), null, {timeout:30000});
+            await page.screenshot({path:`visual-proof/d1-${vp.name}.png`, fullPage:true});
+            console.log(vp.name, await page.title(), (await page.locator('body').innerText()).slice(0,500));
+            await context.close();
+          }
+          await browser.close();
+          JS
+          node capture-d1.mjs
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-d1-visual-proof
+          path: frontend/visual-proof/*.png
+          if-no-files-found: error
+          retention-days: 7
