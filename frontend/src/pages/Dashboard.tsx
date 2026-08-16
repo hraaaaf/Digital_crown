@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+import { hasAccess as userHasAccess } from '../utils/accessControl';
 import { api } from '../services/api';
 import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
@@ -119,7 +120,7 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [praticienName, setPraticienName] = useState('Praticien');
   const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
-  const { user } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuthStore();
 
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
   const [loadingAppts, setLoadingAppts] = useState(false);
@@ -147,6 +148,8 @@ export const Dashboard: React.FC = () => {
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const hasAccess = (permission: string) => userHasAccess(user, permission);
+
   useEffect(() => {
     if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
       setTimeout(() => {
@@ -156,40 +159,15 @@ export const Dashboard: React.FC = () => {
     }
   }, [ghostChecklist]);
 
-  // TODO(dette P1-ITEM2): hasAccess() dupliqué avec Sidebar.tsx, diverge sur le
-  // fallback secrétaire ('payments' absent ici, présent dans Sidebar.tsx) —
-  // factoriser dans un hook partagé ultérieurement. Non corrigé dans ce P1.
-  const hasAccess = (permission: string) => {
-    if (!user) return true;
-    if (user.role === 'ADMIN') return true;
-    if (user.is_superadmin) return true;
-    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
-
-    if (user.permissions && typeof user.permissions === 'object') {
-      return user.permissions[permission] ?? false;
-    }
-    
-    if (user.role === 'SECRETAIRE') {
-      const defaults: Record<string, boolean> = {
-        agenda: true,
-        patients: true,
-        prescriptions: false,
-        accounting: false,
-        panoramic: false,
-        cephalo: false,
-        settings: false
-      };
-      return defaults[permission] ?? false;
-    }
-    if (user.role === 'DENTISTE') {
-      return true; // Fallback pour ancien sous-dentiste
-    }
-    return true;
-  };
-
   const displayName = user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : praticienName);
 
   const fetchTodayAppointments = async () => {
+    if (!hasAccess('agenda')) {
+      setTodayAppointments([]);
+      setLoadingAppts(false);
+      return;
+    }
+
     setLoadingAppts(true);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -205,13 +183,18 @@ export const Dashboard: React.FC = () => {
   };
 
   const updateAppointmentStatus = async (apptId: number, newStatus: string) => {
+    if (!hasAccess('agenda')) return;
+
     try {
       await api.put(`/appointments/${apptId}`, { status: newStatus });
       fetchTodayAppointments();
       
-      // Mettre aussi à jour les stats pour répercuter le in_waiting
-      const response = await api.get('/admin/dashboard/stats');
-      setStats(response.data);
+      // Mettre aussi à jour les stats pour répercuter le in_waiting si le rôle
+      // a le droit de charger les données patients.
+      if (hasAccess('patients')) {
+        const response = await api.get('/admin/dashboard/stats');
+        setStats(response.data);
+      }
 
       if (newStatus === 'TERMINÉ') {
         const appt = todayAppointments.find(a => a.id === apptId);
@@ -234,6 +217,33 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
+    const clearPatientData = () => {
+      setStats(null);
+      setProactiveAlerts([]);
+      setSearchResults([]);
+      setSearchQuery('');
+      setIsSearchExpanded(false);
+    };
+
+    const clearAccountingData = () => {
+      setForecast(null);
+      setConversion(null);
+      setProjection(null);
+      setLatentCash(null);
+      setFinanceToday(null);
+    };
+
+    if (!user) {
+      clearPatientData();
+      clearAccountingData();
+      setTodayAppointments([]);
+      setCabinetHealth(null);
+      setLoading(false);
+      return;
+    }
+
     const fetchStats = async () => {
       try {
         const response = await api.get('/admin/dashboard/stats');
@@ -265,34 +275,62 @@ export const Dashboard: React.FC = () => {
       }
     };
 
-    fetchStats();
     fetchConfig();
-    fetchTodayAppointments();
-    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(err => console.warn("Erreur alerts", err));
-    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(err => console.warn("Erreur forecast", err));
-    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
-    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
-    api.get('/intelligence/latent-cash').then(res => setLatentCash(res.data)).catch(err => console.warn("Erreur latent cash", err));
-    api.get('/stats/financial').then(res => setFinanceToday({
-      today_revenue: res.data.today_revenue ?? 0,
-      month_revenue: res.data.month_revenue ?? 0,
-      total_debt: res.data.total_debt ?? 0,
-    })).catch(err => console.warn("Erreur finance today", err));
-  }, []);
+
+    if (hasAccess('patients')) {
+      setLoading(true);
+      fetchStats();
+      api.get('/intelligence/alerts/today')
+        .then(res => setProactiveAlerts(res.data.alerts || []))
+        .catch(err => console.warn("Erreur alerts", err));
+    } else {
+      clearPatientData();
+      setLoading(false);
+    }
+
+    if (hasAccess('agenda')) {
+      fetchTodayAppointments();
+    } else {
+      setTodayAppointments([]);
+      setGhostSecretariatPatient(null);
+    }
+
+    if (hasAccess('accounting')) {
+      api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(err => console.warn("Erreur forecast", err));
+      api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
+      api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
+      api.get('/intelligence/latent-cash').then(res => setLatentCash(res.data)).catch(err => console.warn("Erreur latent cash", err));
+      api.get('/stats/financial').then(res => setFinanceToday({
+        today_revenue: res.data.today_revenue ?? 0,
+        month_revenue: res.data.month_revenue ?? 0,
+        total_debt: res.data.total_debt ?? 0,
+      })).catch(err => console.warn("Erreur finance today", err));
+    } else {
+      clearAccountingData();
+    }
+    // hasAccess est une vue pure de user ; le rerun dépend donc uniquement de
+    // l'identité résolue et de l'état d'hydratation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern
   // que le badge d'alertes non lues de Sidebar.tsx).
   useEffect(() => {
-    if (!hasAccess('admin')) return;
+    if (authLoading || !hasAccess('admin')) {
+      setCabinetHealth(null);
+      return;
+    }
     const fetchHealth = () => api.get('/admin/cabinet-health')
       .then(res => setCabinetHealth(res.data))
       .catch(() => {});
     fetchHealth();
     const interval = setInterval(fetchHealth, 120000);
     return () => clearInterval(interval);
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   const markAlertRead = async (alertId: number) => {
+    if (!hasAccess('patients')) return;
     try {
       await api.patch(`/intelligence/alerts/${alertId}/read`);
       setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
@@ -302,6 +340,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const snoozeAlert = async (alertId: number) => {
+    if (!hasAccess('patients')) return;
     try {
       await api.patch(`/intelligence/alerts/${alertId}/snooze`);
       setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
@@ -311,6 +350,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleSearchChange = (value: string) => {
+    if (!hasAccess('patients')) return;
     setSearchQuery(value);
     if (!value.trim()) { setSearchResults([]); return; }
     setSearchLoading(true);
@@ -333,7 +373,7 @@ export const Dashboard: React.FC = () => {
     setSearchResults([]);
   };
 
-  if (loading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
+  if (loading || authLoading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
 
   return (
     <motion.div 
@@ -355,106 +395,116 @@ export const Dashboard: React.FC = () => {
         <div className="flex items-center gap-4">
           
           {/* Barre de Recherche rapide */}
-          <div className="relative flex items-center">
-            {isSearchExpanded ? (
-              <div className="absolute right-0 z-30 animate-in fade-in slide-in-from-right-4">
-                <div className="flex items-center bg-white dark:bg-slate-800 border border-border-main rounded-full px-2 py-1 shadow-elite w-72">
-                  {searchLoading
-                    ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" />
-                    : <Search size={18} className="text-text-muted ml-2 flex-shrink-0" />
-                  }
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Nom, prénom ou n° de dossier..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onBlur={() => { if (!searchQuery) handleSearchClose(); }}
-                    className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm px-2 py-1.5"
-                  />
-                  <button type="button" onClick={handleSearchClose} className="text-text-muted hover:text-red-500 mr-2 flex-shrink-0">
-                    <X size={16} />
-                  </button>
+          {hasAccess('patients') && (
+            <div className="relative flex items-center">
+              {isSearchExpanded ? (
+                <div className="absolute right-0 z-30 animate-in fade-in slide-in-from-right-4">
+                  <div className="flex items-center bg-white dark:bg-slate-800 border border-border-main rounded-full px-2 py-1 shadow-elite w-72">
+                    {searchLoading
+                      ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" />
+                      : <Search size={18} className="text-text-muted ml-2 flex-shrink-0" />
+                    }
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Nom, prénom ou n° de dossier..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      onBlur={() => { if (!searchQuery) handleSearchClose(); }}
+                      className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm px-2 py-1.5"
+                    />
+                    <button type="button" onClick={handleSearchClose} className="text-text-muted hover:text-red-500 mr-2 flex-shrink-0">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {searchResults.length > 0 && (
+                    <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-2xl overflow-hidden">
+                      {searchResults.map((p) => (
+                        <button
+                          key={p.id}
+                          onMouseDown={() => { navigate(`/patients/${p.id}`); handleSearchClose(); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 transition-colors text-left border-b border-border-main last:border-0"
+                        >
+                          <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
+                            {(p.nom || '?').charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-sm text-primary truncate">{(p.nom || '').toUpperCase()} {p.prenom || ''}</p>
+                            <p className="text-[10px] text-text-muted font-medium">{p.numero_dossier || `#${p.id}`}</p>
+                          </div>
+                          <ChevronRight size={14} className="text-text-muted ml-auto flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
+                    <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-xl px-4 py-3 text-sm text-text-muted font-medium text-center">
+                      Aucun patient trouvé
+                    </div>
+                  )}
                 </div>
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-2xl overflow-hidden">
-                    {searchResults.map((p) => (
-                      <button
-                        key={p.id}
-                        onMouseDown={() => { navigate(`/patients/${p.id}`); handleSearchClose(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 transition-colors text-left border-b border-border-main last:border-0"
-                      >
-                        <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
-                          {(p.nom || '?').charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-sm text-primary truncate">{(p.nom || '').toUpperCase()} {p.prenom || ''}</p>
-                          <p className="text-[10px] text-text-muted font-medium">{p.numero_dossier || `#${p.id}`}</p>
-                        </div>
-                        <ChevronRight size={14} className="text-text-muted ml-auto flex-shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
-                  <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-xl px-4 py-3 text-sm text-text-muted font-medium text-center">
-                    Aucun patient trouvé
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsSearchExpanded(true)}
-                className="p-3 bg-white dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
-                title="Chercher un patient"
-              >
-                <Search size={20} />
-              </button>
-            )}
-          </div>
+              ) : (
+                <button
+                  onClick={() => setIsSearchExpanded(true)}
+                  className="p-3 bg-white dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
+                  title="Chercher un patient"
+                >
+                  <Search size={20} />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Bouton d'ajout rapide (+) */}
-          <div className="relative">
-            <button
-              onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-              className="p-3 bg-primary text-white hover:bg-primary/90 rounded-full shadow-md transition-all flex items-center justify-center"
-              title="Ajout Rapide"
-            >
-              <Plus size={20} />
-            </button>
-            {isAddMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsAddMenuOpen(false)}></div>
-                <div className="absolute top-14 right-0 bg-white dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95">
-                  <Link
-                    to="/patients/new"
-                    onClick={() => setIsAddMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
-                  >
-                    <UserPlus size={16} className="text-primary" />
-                    Nouveau Patient
-                  </Link>
-                  <Link
-                    to="/agenda"
-                    onClick={() => setIsAddMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
-                  >
-                    <Calendar size={16} className="text-emerald-500" />
-                    Nouveau RDV
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
+          {(hasAccess('patients') || hasAccess('agenda')) && (
+            <div className="relative">
+              <button
+                onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                className="p-3 bg-primary text-white hover:bg-primary/90 rounded-full shadow-md transition-all flex items-center justify-center"
+                title="Ajout Rapide"
+              >
+                <Plus size={20} />
+              </button>
+              {isAddMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsAddMenuOpen(false)}></div>
+                  <div className="absolute top-14 right-0 bg-white dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95">
+                    {hasAccess('patients') && (
+                      <Link
+                        to="/patients/new"
+                        onClick={() => setIsAddMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                      >
+                        <UserPlus size={16} className="text-primary" />
+                        Nouveau Patient
+                      </Link>
+                    )}
+                    {hasAccess('agenda') && (
+                      <Link
+                        to="/agenda"
+                        onClick={() => setIsAddMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                      >
+                        <Calendar size={16} className="text-emerald-500" />
+                        Nouveau RDV
+                      </Link>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
-          <button
-            onClick={() => setIsMobileModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
-            title="Appairer le téléphone"
-          >
-            <Smartphone size={20} />
-            <span className="hidden md:inline">Mobile</span>
-          </button>
+          {hasAccess('admin') && (
+            <button
+              onClick={() => setIsMobileModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
+              title="Appairer le téléphone"
+            >
+              <Smartphone size={20} />
+              <span className="hidden md:inline">Mobile</span>
+            </button>
+          )}
           
           <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
             <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
@@ -477,286 +527,297 @@ export const Dashboard: React.FC = () => {
         </div>
       </motion.header>
 
-      <motion.section variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <motion.div variants={itemVariants}>
-          <Link to="/patients/new" data-tour="quick-action-new-patient" className="group block p-8 rounded-elite-lg shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full" style={{ backgroundImage: 'linear-gradient(135deg, var(--primary), var(--secondary, #1e3a8a))' }}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-elite duration-700" />
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-elite-sm flex items-center justify-center mb-8 border border-white/30 group-hover:rotate-12 transition-elite">
-                <UserPlus className="text-white" size={32} />
-              </div>
-              <h3 className="text-2xl font-black text-white leading-none font-outfit">Nouveau Patient</h3>
-              <p className="text-white/70 mt-2 font-medium">Ouvrir un dossier clinique complet</p>
-            </div>
-          </Link>
-        </motion.div>
+      {(hasAccess('patients') || hasAccess('agenda')) && (
+        <motion.section variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {hasAccess('patients') && (
+            <motion.div variants={itemVariants}>
+              <Link to="/patients/new" data-tour="quick-action-new-patient" className="group block p-8 rounded-elite-lg shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full" style={{ backgroundImage: 'linear-gradient(135deg, var(--primary), var(--secondary, #1e3a8a))' }}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-elite duration-700" />
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-elite-sm flex items-center justify-center mb-8 border border-white/30 group-hover:rotate-12 transition-elite">
+                    <UserPlus className="text-white" size={32} />
+                  </div>
+                  <h3 className="text-2xl font-black text-white leading-none font-outfit">Nouveau Patient</h3>
+                  <p className="text-white/70 mt-2 font-medium">Ouvrir un dossier clinique complet</p>
+                </div>
+              </Link>
+            </motion.div>
+          )}
 
-        <motion.div variants={itemVariants}>
-          <Link to="/patients" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
-            <div className="w-14 h-14 bg-primary/5 rounded-elite-sm flex items-center justify-center mb-6 border border-primary/10 group-hover:bg-primary group-hover:text-white transition-elite text-primary">
-              <Users size={28} />
-            </div>
-            <h3 className="text-xl font-black tracking-tight font-outfit text-primary">Dossiers Patients</h3>
-            <p className="text-text-muted mt-1 font-medium italic">Gestion de la patientèle</p>
-          </Link>
-        </motion.div>
+          {hasAccess('patients') && (
+            <motion.div variants={itemVariants}>
+              <Link to="/patients" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
+                <div className="w-14 h-14 bg-primary/5 rounded-elite-sm flex items-center justify-center mb-6 border border-primary/10 group-hover:bg-primary group-hover:text-white transition-elite text-primary">
+                  <Users size={28} />
+                </div>
+                <h3 className="text-xl font-black tracking-tight font-outfit text-primary">Dossiers Patients</h3>
+                <p className="text-text-muted mt-1 font-medium italic">Gestion de la patientèle</p>
+              </Link>
+            </motion.div>
+          )}
 
-        <motion.div variants={itemVariants}>
-          <Link to="/agenda" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
-            <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-elite-sm flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-elite">
-              <Calendar size={28} />
-            </div>
-            <h3 className="text-xl font-black text-main tracking-tight font-outfit" style={{ color: 'var(--text-main)' }}>Agenda Clinique</h3>
-            <p className="text-text-muted mt-1 font-medium italic">Suivi des rendez-vous</p>
-          </Link>
-        </motion.div>
-      </motion.section>
+          {hasAccess('agenda') && (
+            <motion.div variants={itemVariants}>
+              <Link to="/agenda" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
+                <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-elite-sm flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-elite">
+                  <Calendar size={28} />
+                </div>
+                <h3 className="text-xl font-black text-main tracking-tight font-outfit" style={{ color: 'var(--text-main)' }}>Agenda Clinique</h3>
+                <p className="text-text-muted mt-1 font-medium italic">Suivi des rendez-vous</p>
+              </Link>
+            </motion.div>
+          )}
+        </motion.section>
+      )}
 
-      <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
-        <Link
-          to="/approvisionnement"
-          className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
-        >
-          <div className="p-8 md:p-9 flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4 min-w-0">
-              <div
-                className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
-                style={{
-                  backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
-                  borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
-                  color: 'var(--primary, #0f766e)',
-                }}
-              >
-                <ShoppingCart size={28} />
-              </div>
-              <div className="min-w-0">
-                <p
-                  className="text-[10px] uppercase tracking-widest font-black mb-2"
-                  style={{ color: 'var(--text-muted, #64748b)' }}
+      {hasAccess('patients') && (
+        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
+          <Link
+            to="/approvisionnement"
+            className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
+          >
+            <div className="p-8 md:p-9 flex items-center justify-between gap-6">
+              <div className="flex items-center gap-4 min-w-0">
+                <div
+                  className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
+                    color: 'var(--primary, #0f766e)',
+                  }}
                 >
-                  Approvisionnement
-                </p>
-                <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
-                  Marketplace
-                </h2>
+                  <ShoppingCart size={28} />
+                </div>
+                <div className="min-w-0">
+                  <p
+                    className="text-[10px] uppercase tracking-widest font-black mb-2"
+                    style={{ color: 'var(--text-muted, #64748b)' }}
+                  >
+                    Approvisionnement
+                  </p>
+                  <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
+                    Marketplace
+                  </h2>
+                </div>
               </div>
+              <Store
+                size={18}
+                className="shrink-0 transition-transform group-hover:translate-x-1"
+                style={{ color: 'var(--primary, #0f766e)' }}
+              />
             </div>
-            <Store
-              size={18}
-              className="shrink-0 transition-transform group-hover:translate-x-1"
-              style={{ color: 'var(--primary, #0f766e)' }}
-            />
-          </div>
-        </Link>
+          </Link>
 
-        <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
-          <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
-          <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
-            <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
-            <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
-            <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
+          <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
+            <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
+            <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
+              <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
+              <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
+              <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
+            </div>
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <motion.section variants={itemVariants} data-tour="dashboard-agenda" className="space-y-5">
-          <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
-            <Clock size={16} /> Activité Récente
-          </h2>
-          <div data-tour="dashboard-activity" className="bg-card-bg/80 backdrop-blur-xl border border-border-main rounded-elite-lg p-4 shadow-elite">
-            {stats?.recent_patients && stats.recent_patients.length > 0 ? (
-              stats.recent_patients.map((patient, index) => {
-                if (!patient || !patient.nom) return null;
-                return (
+        {hasAccess('patients') && (
+          <motion.section variants={itemVariants} data-tour="dashboard-agenda" className="space-y-5">
+            <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
+              <Clock size={16} /> Activité Récente
+            </h2>
+            <div data-tour="dashboard-activity" className="bg-card-bg/80 backdrop-blur-xl border border-border-main rounded-elite-lg p-4 shadow-elite">
+              {stats?.recent_patients && stats.recent_patients.length > 0 ? (
+                stats.recent_patients.map((patient, index) => {
+                  if (!patient || !patient.nom) return null;
+                  return (
+                    <Link 
+                      key={patient.id} 
+                      to={`/patients/${patient.id}`}
+                      className={cn(
+                        "flex items-center justify-between p-4 hover:bg-primary/5 rounded-elite-sm transition-elite group",
+                        index !== (stats.recent_patients.length - 1) && "border-b border-border-main"
+                      )}
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-primary/10 text-primary rounded-elite-sm flex items-center justify-center font-black text-xl border border-primary/20 group-hover:bg-primary group-hover:text-white transition-elite shadow-sm">
+                          {(patient.nom || '?').charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-black text-primary text-lg leading-none font-outfit">
+                              {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
+                            </h4>
+                            {show_patient_badges && <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />}
+                          </div>
+                          <p className="text-xs font-bold text-text-muted mt-2 flex items-center gap-2">
+                            <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}
+                            <span className="text-border-main">·</span>
+                            <span>{patient.time || 'Récemment'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <ChevronRight size={18} className="text-text-muted group-hover:text-primary transition-elite group-hover:translate-x-1" />
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="py-14 flex flex-col items-center justify-center text-center">
+                  <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
+                    <UserPlus className="text-primary w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-black text-primary font-outfit mb-2">Bienvenue dans Digital Crown</h3>
+                  <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
+                    Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
+                  </p>
                   <Link 
-                    key={patient.id} 
-                    to={`/patients/${patient.id}`}
-                    className={cn(
-                      "flex items-center justify-between p-4 hover:bg-primary/5 rounded-elite-sm transition-elite group",
-                      index !== (stats.recent_patients.length - 1) && "border-b border-border-main"
-                    )}
+                    to="/patients/new" 
+                    className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-primary/10 text-primary rounded-elite-sm flex items-center justify-center font-black text-xl border border-primary/20 group-hover:bg-primary group-hover:text-white transition-elite shadow-sm">
-                        {(patient.nom || '?').charAt(0)}
+                    Créer mon 1er patient <ChevronRight size={14} />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </motion.section>
+        )}
+
+        {hasAccess('agenda') && (
+          <motion.section variants={itemVariants} className="space-y-5">
+              <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
+                <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
+                <button
+                  onClick={fetchTodayAppointments}
+                  className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
+                >
+                  {loadingAppts ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
+                </button>
+              </h2>
+
+              <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+                
+                {/* Contenu principal défilable */}
+                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                  {todayAppointments && todayAppointments.length > 0 ? (
+                    [...todayAppointments]
+                      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                      .map((appt) => {
+                        const apptTime = new Date(appt.start_time).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                        
+                        let statusLabel = "Prévu";
+                        let statusColor = "bg-slate-100 text-slate-600 border-slate-200";
+                        let actionButton = null;
+
+                        if (appt.status === 'EN_S_ATTENTE') {
+                          statusLabel = "Salle d'attente";
+                          statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse";
+                          actionButton = (
+                            <button
+                              onClick={() => updateAppointmentStatus(appt.id, 'EN_FAUTEUIL')}
+                              className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                            >
+                              Installer au Fauteuil
+                            </button>
+                          );
+                        } else if (appt.status === 'EN_FAUTEUIL') {
+                          statusLabel = "Au Fauteuil";
+                          statusColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+                          actionButton = (
+                            <button
+                              onClick={() => updateAppointmentStatus(appt.id, 'TERMINÉ')}
+                              className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                            >
+                              Terminer la Séance
+                            </button>
+                          );
+                        } else if (appt.status === 'TERMINÉ') {
+                          statusLabel = "Terminé";
+                          statusColor = "bg-slate-500/10 text-slate-400 border-slate-500/10";
+                        } else if (appt.status === 'ANNULÉ') {
+                          statusLabel = "Annulé";
+                          statusColor = "bg-rose-500/10 text-rose-500 border-rose-500/20";
+                        } else {
+                          actionButton = (
+                            <button
+                              onClick={() => updateAppointmentStatus(appt.id, 'EN_S_ATTENTE')}
+                              className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                            >
+                              Marquer Arrivé
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <div 
+                            key={appt.id}
+                            className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                                {apptTime}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-black text-primary font-outfit">
+                                  {appt.patient ? `${appt.patient.nom.toUpperCase()} ${appt.patient.prenom}` : 'Patient non spécifié'}
+                                </h4>
+                                <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
+                                  {appt.description || 'Consultation clinique'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className={cn("text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider", statusColor)}>
+                                {statusLabel}
+                              </span>
+                              {actionButton}
+                            </div>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
+                        <Calendar size={28} className="text-emerald-500" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-3">
-                          <h4 className="font-black text-primary text-lg leading-none font-outfit">
-                            {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
-                          </h4>
-                          {show_patient_badges && <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />}
-                        </div>
-                        <p className="text-xs font-bold text-text-muted mt-2 flex items-center gap-2">
-                          <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}
-                          <span className="text-border-main">·</span>
-                          <span>{patient.time || 'Récemment'}</span>
+                        <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
+                        <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
+                          Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
                         </p>
                       </div>
+                      <Link 
+                        to="/agenda" 
+                        className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                      >
+                        Ouvrir l'agenda
+                      </Link>
                     </div>
-                    <div className="flex items-center">
-                      <ChevronRight size={18} className="text-text-muted group-hover:text-primary transition-elite group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="py-14 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
-                  <UserPlus className="text-primary w-10 h-10" />
+                  )}
                 </div>
-                <h3 className="text-xl font-black text-primary font-outfit mb-2">Bienvenue dans Digital Crown</h3>
-                <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
-                  Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
-                </p>
-                <Link 
-                  to="/patients/new" 
-                  className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
-                >
-                  Créer mon 1er patient <ChevronRight size={14} />
-                </Link>
+
+                {/* Statistiques rapides en bas */}
+                <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    En Salle d'Attente : {todayAppointments.filter(a => a.status === 'EN_S_ATTENTE').length}
+                  </span>
+                  <span>
+                    Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-        </motion.section>
+          </motion.section>
+        )}
 
-        <motion.section variants={itemVariants} className="space-y-5">
-            <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
-              <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
-              <button
-                onClick={fetchTodayAppointments}
-                className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
-              >
-                {loadingAppts ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
-              </button>
-            </h2>
-
-            <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-              
-              {/* Contenu principal défilable */}
-              <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                {todayAppointments && todayAppointments.length > 0 ? (
-                  [...todayAppointments]
-                    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-                    .map((appt) => {
-                      const apptTime = new Date(appt.start_time).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      });
-                      
-                      let statusLabel = "Prévu";
-                      let statusColor = "bg-slate-100 text-slate-600 border-slate-200";
-                      let actionButton = null;
-
-                      if (appt.status === 'EN_S_ATTENTE') {
-                        statusLabel = "Salle d'attente";
-                        statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse";
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'EN_FAUTEUIL')}
-                            className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                          >
-                            Installer au Fauteuil
-                          </button>
-                        );
-                      } else if (appt.status === 'EN_FAUTEUIL') {
-                        statusLabel = "Au Fauteuil";
-                        statusColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'TERMINÉ')}
-                            className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
-                          >
-                            Terminer la Séance
-                          </button>
-                        );
-                      } else if (appt.status === 'TERMINÉ') {
-                        statusLabel = "Terminé";
-                        statusColor = "bg-slate-500/10 text-slate-400 border-slate-500/10";
-                      } else if (appt.status === 'ANNULÉ') {
-                        statusLabel = "Annulé";
-                        statusColor = "bg-rose-500/10 text-rose-500 border-rose-500/20";
-                      } else {
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'EN_S_ATTENTE')}
-                            className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                          >
-                            Marquer Arrivé
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <div 
-                          key={appt.id}
-                          className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-                              {apptTime}
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-black text-primary font-outfit">
-                                {appt.patient ? `${appt.patient.nom.toUpperCase()} ${appt.patient.prenom}` : 'Patient non spécifié'}
-                              </h4>
-                              <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
-                                {appt.description || 'Consultation clinique'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <span className={cn("text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider", statusColor)}>
-                              {statusLabel}
-                            </span>
-                            {actionButton}
-                          </div>
-                        </div>
-                      );
-                    })
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                      <Calendar size={28} className="text-emerald-500" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
-                      <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
-                        Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/agenda" 
-                      className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                    >
-                      Ouvrir l'agenda
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Statistiques rapides en bas */}
-              <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
-                <span className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  En Salle d'Attente : {todayAppointments.filter(a => a.status === 'EN_S_ATTENTE').length}
-                </span>
-                <span>
-                  Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
-                </span>
-              </div>
-            </div>
-        </motion.section>
-
-        {/* Performance Hebdomadaire — accordéon, réservé aux rôles avec accès compta.
-            Le wrapper data-tour="dashboard-stats" reste toujours monté (jamais démonté
-            conditionnellement) car il est la cible d'une étape du tour d'onboarding
-            (DayOneTour.tsx / tourConfig.ts) — seul le contenu interne est animé. */}
-        {hasAccess('accounting') && (
+        {/* Performance Hebdomadaire — accordéon, réservé aux rôles avec accès compta. */}
+        {hasAccess('accounting') && hasAccess('patients') && (
           <motion.section variants={itemVariants} className="lg:col-span-2 space-y-5">
             <button
               onClick={() => setShowWeeklyChart(v => !v)}
@@ -879,7 +940,7 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* FINANCES DU CABINET — CA Jour / Mois en cours / Impayés */}
-        {financeToday && (
+        {hasAccess('accounting') && financeToday && (
           <motion.section variants={itemVariants}>
             <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
               Finances du Cabinet — Aujourd'hui
@@ -1042,10 +1103,10 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* C1 — Forecast Semaine + E4 — Alertes du Jour */}
-        {(forecast || proactiveAlerts.length > 0) && (
+        {((hasAccess('accounting') && forecast) || (hasAccess('patients') && proactiveAlerts.length > 0)) && (
           <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* C1 — Forecast Semaine */}
-            {forecast && (
+            {hasAccess('accounting') && forecast && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-9 h-9 bg-emerald-500/10 rounded-elite-sm flex items-center justify-center border border-emerald-500/20">
@@ -1069,7 +1130,7 @@ export const Dashboard: React.FC = () => {
             )}
 
             {/* E4 — Alertes du Jour */}
-            {proactiveAlerts.length > 0 && (
+            {hasAccess('patients') && proactiveAlerts.length > 0 && (
               <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
@@ -1128,7 +1189,7 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* C4 — Taux Conversion + C5 — Projection Mensuelle + Ghost Re-Call */}
-        {(conversion || projection || latentCash) && (
+        {hasAccess('accounting') && (conversion || projection || latentCash) && (
           <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
             {/* C4 — Taux de Conversion Devis */}
@@ -1238,7 +1299,7 @@ export const Dashboard: React.FC = () => {
 
       {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
       <AnimatePresence>
-        {ghostSecretariatPatient && (
+        {hasAccess('agenda') && ghostSecretariatPatient && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1280,7 +1341,7 @@ export const Dashboard: React.FC = () => {
       
       {/* Mobile Security Modal */}
       <AnimatePresence>
-        {isMobileModalOpen && (
+        {hasAccess('admin') && isMobileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}

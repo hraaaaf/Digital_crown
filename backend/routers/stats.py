@@ -5,12 +5,12 @@ from datetime import datetime, timedelta, time as dt_time, date as date_type
 from typing import Dict, Any
 
 from backend import models, database
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 
 router = APIRouter(tags=["Statistiques"])
 
 @router.get("/financial")
-def get_financial_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_financial_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("accounting"))):
     """
     Récupère le chiffre d'affaires du mois, la trésorerie latente, et les KPIs financiers J+0.
     """

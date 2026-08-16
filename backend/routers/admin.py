@@ -9,7 +9,7 @@ import subprocess
 import logging
 
 from backend import models, schemas, database
-from backend.routers.auth import get_current_user, require_permission
+from backend.routers.auth import get_current_user, has_permission, require_permission
 from backend.services.zka_service import zka_service
 from backend.services.sync_manager import sync_manager
 from backend.services.qr_service import QRService
@@ -80,7 +80,7 @@ def get_audit_logs(
 
 
 @router.get("/dashboard/stats")
-def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
     emp_id = current_user.get_employer_id()
     
     total_p = db.query(models.Patient).filter(models.Patient.employer_id == emp_id).count()
@@ -130,29 +130,31 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
         models.Patient.created_at >= seven_days_ago
     ).count()
 
-    # Pending team approval requests (only relevant for employer accounts)
-    pending_team = db.query(models.User).filter(
-        models.User.employer_id == emp_id,
-        models.User.approval_status == "pending",
-    ).count()
-
-    # Team quota snapshot for dashboard notifications
-    from backend.routers.team import PLAN_QUOTAS, _get_plan, _count_team
-    owner = db.query(models.User).filter(models.User.id == emp_id).first()
+    # Les informations d'équipe/quota sont administratives : ne jamais les joindre
+    # à une réponse patient destinée à un collaborateur non-admin.
+    pending_team = 0
     team_quota = None
-    if owner:
-        plan = _get_plan(owner)
-        limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
-        counts = _count_team(db, emp_id)
-        dentistes_used = counts["dentistes"] + 1
-        team_quota = {
-            "plan": plan,
-            "dentistes_used": dentistes_used,
-            "dentistes_max": limits["dentistes"],
-            "secretaires_used": counts["secretaires"],
-            "secretaires_max": limits["secretaires"],
-            "upgrade_required": dentistes_used >= limits["dentistes"] or counts["secretaires"] >= limits["secretaires"],
-        }
+    if has_permission(current_user, "admin"):
+        pending_team = db.query(models.User).filter(
+            models.User.employer_id == emp_id,
+            models.User.approval_status == "pending",
+        ).count()
+
+        from backend.routers.team import PLAN_QUOTAS, _get_plan, _count_team
+        owner = db.query(models.User).filter(models.User.id == emp_id).first()
+        if owner:
+            plan = _get_plan(owner)
+            limits = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["GOLD"])
+            counts = _count_team(db, emp_id)
+            dentistes_used = counts["dentistes"] + 1
+            team_quota = {
+                "plan": plan,
+                "dentistes_used": dentistes_used,
+                "dentistes_max": limits["dentistes"],
+                "secretaires_used": counts["secretaires"],
+                "secretaires_max": limits["secretaires"],
+                "upgrade_required": dentistes_used >= limits["dentistes"] or counts["secretaires"] >= limits["secretaires"],
+            }
 
     return {
         "total_patients": total_p,

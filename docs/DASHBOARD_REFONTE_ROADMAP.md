@@ -32,6 +32,10 @@
 
 **Gate D1 :** aucune donnée ou action sensible rendue sans permission explicite.
 
+**Validation Linux ciblée — 2026-08-16 : PASS sur `1f32b67683c14cfaab0a1a569ca9231aa231a5a4`.**  
+Preuves exécutées : backend RBAC 6/6 PASS, compilation TypeScript de la policy frontend PASS, assertions frontend PASS, `py_compile` PASS, invariants fail-closed PASS. Les guards du HEAD exact ont été revérifiés : `/stats/financial` et les endpoints d'intelligence financière exigent `accounting`; les alertes/patient restent sous `patients`.  
+**Limite :** le sandbox Linux ne peut pas résoudre `github.com`, donc le repo privé complet n'a pas pu être cloné et la suite/build complets n'ont pas été exécutés. GitHub Actions est par ailleurs bloqué avant démarrage des jobs par la facturation/plafond du compte. D1 reste donc **non fermé** jusqu'à une exécution complète du repo ou une décision explicite de considérer cette certification ciblée suffisante.
+
 ### D2 — Vérité du statut système — P0
 
 **But :** rendre le statut système factuel et non trompeur.
@@ -153,7 +157,7 @@ D1/D2 sont prioritaires car ils concernent la vérité des permissions et de l'�
 
 ## Avancement canonique
 
-- D1 : 0 %
+- D1 : validation ciblée Linux PASS, fermeture bloquée par absence d'exécution complète du repo
 - D2 : 0 %
 - D3 : 0 %
 - D4 : 0 %

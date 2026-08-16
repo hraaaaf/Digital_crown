@@ -31,7 +31,7 @@ async def get_patient_intelligence(
     assert_patient_access(patient_id, current_user, db)
     return await elite_manager.get_comprehensive_intelligence(
         db, 
-        patient_id, 
+        patient_id,
         doctor_id=current_user.id
     )
 
@@ -71,7 +71,7 @@ async def get_treatment_plan(
 @router.get("/briefing-j1")
 def get_briefing_j1(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """C2 — Briefing financier J-1 : patients de demain avec leurs soldes impayés."""
     employer_id = current_user.get_employer_id()
@@ -124,7 +124,7 @@ def get_briefing_j1(
 @router.get("/briefing-today")
 def get_briefing_today(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """Briefing financier d'aujourd'hui : patients du jour avec leurs soldes impayés."""
     employer_id = current_user.get_employer_id()
@@ -179,7 +179,7 @@ def get_briefing_today(
 @router.get("/forecast-semaine")
 def get_forecast_semaine(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """C1 — Forecast financier de la semaine courante."""
     employer_id = current_user.get_employer_id()
@@ -317,7 +317,7 @@ async def get_patient_nba(
 @router.get("/taux-conversion")
 def get_taux_conversion(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """C4 — Taux de conversion devis → actes (% devis suivis d'un acte dans 90j)."""
     employer_id = current_user.get_employer_id()
@@ -385,7 +385,7 @@ def get_taux_conversion(
 @router.get("/latent-cash")
 def get_latent_cash(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """Ghost Re-Call: Trouve le cash latent (Devis non convertis depuis > 15j et échéances en retard)."""
     employer_id = current_user.get_employer_id()
@@ -442,7 +442,7 @@ def get_latent_cash(
 @router.get("/projection-mensuelle")
 def get_projection_mensuelle(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """C5 — Projection mensuelle des revenus (3 mois historique + 6 mois forecast avec WMA)."""
     employer_id = current_user.get_employer_id()
@@ -557,7 +557,7 @@ async def get_upcoming_prescription(
 @router.get("/distribution-assurances")
 def get_distribution_assurances(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("accounting"))
 ):
     """C6 — Répartition des honoraires par assurance (chiffre d'affaires total)."""
     employer_id = current_user.get_employer_id()
