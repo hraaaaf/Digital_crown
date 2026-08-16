@@ -64,8 +64,9 @@ export function buildTeethDataFromAccountingItems(items: AccountingOdontogramSou
 
   items.forEach(item => {
     if (!item._odontogramKey) return;
-    const toothNumber = toothNumberFromKey(item._odontogramKey);
-    if (!toothNumber) return;
+    const canonicalTeeth = canonicalToothNumbers(item);
+    if (canonicalTeeth.length !== 1) return;
+    const toothNumber = canonicalTeeth[0];
 
     const current = byTooth.get(toothNumber) || {
       tooth_number: toothNumber,
