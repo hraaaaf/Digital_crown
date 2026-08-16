@@ -10,6 +10,7 @@ import {
   certificateRequiresDuration,
   normalizeCertificateSelection,
 } from '../CertificatePolicy';
+import { setCertificateDirty } from '../CertificateDirtyState';
 
 interface CertificateFormProps {
   patientId: string;
@@ -39,6 +40,10 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
   const [suggestion, setSuggestion] = React.useState<any>(null);
 
   React.useEffect(() => {
+    setCertificateDirty(false);
+  }, []);
+
+  React.useEffect(() => {
     if (!patientId) return;
     const fetchSuggestion = async () => {
       try {
@@ -57,6 +62,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     if (normalized.content !== certifCustomMotif) setCertifCustomMotif(normalized.content);
   }, [certifType, certifCustomMotif, setCertifType, setCertifCustomMotif]);
 
+  const markDirty = () => setCertificateDirty(true);
   const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
   const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
   const freeContentMissing = certifType === CERTIFICATE_TYPE_FREE && !certifCustomMotif.trim();
@@ -113,7 +119,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                 <div key={type.id} className="flex flex-col items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setCertifType(type.id)}
+                    onClick={() => { markDirty(); setCertifType(type.id); }}
                     className={cn(
                       "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm min-w-[180px]",
                       certifType === type.id
@@ -151,7 +157,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                   )}
                   placeholder="Rédigez librement le contenu certifié par le praticien..."
                   value={certifCustomMotif}
-                  onChange={(e) => setCertifCustomMotif(e.target.value)}
+                  onChange={(e) => { markDirty(); setCertifCustomMotif(e.target.value); }}
                   autoFocus
                   rows={6}
                   required
@@ -187,7 +193,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     id="certificate-rest-start"
                     type="date"
                     value={certifStartDate || docDate}
-                    onChange={(e) => setCertifStartDate(e.target.value)}
+                    onChange={(e) => { markDirty(); setCertifStartDate(e.target.value); }}
                     className="w-full rounded-xl border border-slate-100 bg-white/70 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/5"
                   />
                 </div>
@@ -204,6 +210,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                   value={certifDays > 0 ? certifDays : ''}
                   placeholder="Saisir la durée"
                   onChange={(e) => {
+                    markDirty();
                     const raw = e.target.value;
                     setCertifDays(raw === '' ? 0 : Number.parseInt(raw, 10));
                   }}
