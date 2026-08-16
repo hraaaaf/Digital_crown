@@ -108,10 +108,10 @@ No PASS is claimed merely because the harness exists.
 
 ## Infrastructure evidence
 
-Latest checked T2-A head: `d68dce3a4a77322bb432de661d2d81cc4bd0846a`.
-GitHub Actions run #538 / `31947036071` concluded failure before repository execution: all three jobs reported `steps:null`.
+Exact checked T2-F head before this documentation-only update: `60b1bafb17e3bb7894086e977f203eac3c9b4875`.
+GitHub Actions run #549 / `31947379642` concluded failure before repository execution: all three jobs (`Garde production (négatif)`, `Frontend (tests & build)`, `Tests & durcissement`) reported `steps:null`.
 
-Therefore the run is neither a code failure nor a PASS.
+This is the same external runner/allocation failure class observed on earlier T1/T2 heads. The run is neither evidence of a code failure nor a PASS.
 
 Local fallback is also unavailable in the current execution environment: no authenticated GitHub CLI/network checkout path was available, and connected Replit/Vercel tools did not expose an executable clone/build environment for this private repository.
 
