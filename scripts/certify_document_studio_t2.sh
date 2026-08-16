@@ -50,6 +50,7 @@ printf '\n[2/7] Targeted T1/T2 frontend regression\n'
   npm test -- \
     src/features/admin/DocumentStudio/DocumentStudioVocabulary.t2a.test.ts \
     src/features/admin/DocumentStudio/DocumentPreviewFingerprint.t2b.test.ts \
+    src/features/admin/DocumentStudio/DocumentHubDecomposition.t2c.test.ts \
     src/features/admin/DocumentStudio/DocumentStudioProductPolish.t2e.test.ts \
     src/features/admin/DocumentStudio/DocumentStudioShellA11y.test.ts \
     src/features/admin/DocumentStudio/DocumentHubClinicalBoundary.test.ts \
@@ -97,13 +98,13 @@ else
 fi
 
 printf '\nAUTOMATED DOCUMENT STUDIO T2 ENGINEERING GATES PASSED for %s\n' "$HEAD_SHA"
-printf 'REMAINING NON-AUTOMATED / ARCHITECTURAL GATES:\n'
-printf '  - T2-A: remove dormant ai route/dead AI generator plumbing and formalize committed P7→P3 transition\n'
-printf '  - T2-B: wire preview fingerprint/controller and remove synthetic EN_ATTENTE payment transport\n'
-printf '  - T2-C: decompose DocumentHub router/session/preview boundaries with regression proof\n'
-printf '  - T2-D: close residual DocumentHub dialog/switch accessibility and browser keyboard checks\n'
-printf '  - authenticated patient A→B and dirty navigation matrix\n'
-printf '  - real PDF/preview/print checks and 390/430/768/1280 browser matrix\n'
+printf 'REMAINING NON-AUTOMATED / RUNTIME GATES:\n'
+printf '  - T2-A: authenticated canonical URL/navigation verification\n'
+printf '  - T2-B: authenticated rapid-edit / tab-switch / preview-close-reopen verification\n'
+printf '  - T2-C: authenticated dirty-navigation/browser regression of extracted boundaries\n'
+printf '  - T2-D: authenticated keyboard/focus/Escape matrix\n'
+printf '  - T2-E: real 390/430/768/1280 responsive, overflow and dark-mode review\n'
+printf '  - real PDF/preview/print checks\n'
 printf '  - financial P3/P4/P5 persisted reconciliation review\n'
 printf '  - separate human clinical/pharmacological/regulatory certification where required\n'
 printf 'NO production-ready, merge-ready or global certification claim is implied until those gates pass.\n'
