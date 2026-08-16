@@ -83,10 +83,10 @@ interface PatientDetails {
   assurance?: string;
 }
 
-export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
+export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre';
 
 const isHubDocumentType = (value: string | null): value is HubDocumentType =>
-  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
+  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre'].includes(value || '');
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
@@ -556,9 +556,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
           onSavePreference={() => generator.handleSavePreference(smartSuggestion, drugs)}
-          aiReport={generator.aiReport}
-          onGenerateAI={generator.handleGenerateAI}
-          loadingAi={generator.loadingAi}
           total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
@@ -601,7 +598,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         </div>
       )}
 
-      {/* MODALE — Doublon détecté (remplace window.confirm) */}
+      {/* MODALE — Doublon détecté */}
       {generator.showDuplicateModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={generator.cancelDuplicate} />
@@ -644,14 +641,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               onClose={() => setSideStudioType('NONE')}
               onRefresh={() => handleGenerate(false, false, true)}
               title={{
-                'plan': 'Stratégie Clinique',
+                'plan': 'Compagnon Diagnostique',
                 'ordonnance': 'Ordonnance',
                 'certificat': 'Certificat',
                 'devis': 'Devis Quantitatif',
                 'honoraires': 'Note d\'Honoraires',
                 'echeancier': 'Échéancier',
-                'libre': 'Document Libre',
-                'ai': 'Assistant IA'
+                'libre': 'Document Libre'
               }[activeTab] || activeTab.toUpperCase()}
             />
           </motion.div>
