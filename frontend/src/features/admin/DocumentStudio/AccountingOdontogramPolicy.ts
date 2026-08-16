@@ -5,6 +5,9 @@ export interface OdontogramTreatmentSelection {
   price: number;
   category?: string;
   dent?: string;
+  surfaces?: string[];
+  notes?: string;
+  treatmentCode?: string;
 }
 
 export interface OdontogramAccountingItem {
@@ -15,6 +18,9 @@ export interface OdontogramAccountingItem {
   category?: string;
   toothNumbers?: number[];
   _odontogramKey?: string;
+  odontogramSurfaces?: string[];
+  odontogramNotes?: string;
+  odontogramTreatmentCode?: string;
 }
 
 export function odontogramTreatmentKey(toothNumber: number, treatmentId: string | number): string {
@@ -33,6 +39,9 @@ function itemFromSelection(
     category: selection.category,
     toothNumbers: [selection.toothNumber],
     _odontogramKey: odontogramTreatmentKey(selection.toothNumber, selection.treatmentId),
+    odontogramSurfaces: [...new Set(selection.surfaces || [])],
+    odontogramNotes: selection.notes || '',
+    odontogramTreatmentCode: selection.treatmentCode || 'ACT',
   };
 }
 
@@ -80,10 +89,13 @@ export function replaceOdontogramToothSelections(
       return {
         ...existing,
         description: normalizedSelection.name,
-        dent: normalizedSelection.dent ?? existing.dent,
+        dent: normalizedSelection.dent ?? String(toothNumber),
         price: Number(normalizedSelection.price) || 0,
         category: normalizedSelection.category,
         toothNumbers: [toothNumber],
+        odontogramSurfaces: [...new Set(normalizedSelection.surfaces || [])],
+        odontogramNotes: normalizedSelection.notes || '',
+        odontogramTreatmentCode: normalizedSelection.treatmentCode || existing.odontogramTreatmentCode || 'ACT',
       };
     }
     return itemFromSelection(normalizedSelection, idFactory());
