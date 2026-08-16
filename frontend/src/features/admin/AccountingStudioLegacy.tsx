@@ -270,12 +270,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     }
   }, [items]);
 
-  const saveActAsHabit = async (name: string, price: number, category?: string) => {
-    try {
-      PriceBrain.recordAct(name, price, category || 'CONSERVATRICE');
-      await api.post('/accounting/record-act', { name, price, category });
-      fetchQuickActs();
-    } catch (err) { console.error(err); }
+  const rememberActPrice = (name: string, price: number, category?: string) => {
+    if (!name.trim() || !Number.isFinite(price) || price <= 0) return;
+    PriceBrain.recordAct(name, price, category || 'CONSERVATRICE');
   };
 
   useEffect(() => {
@@ -317,7 +314,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 ...items.filter(it => it.description.trim()),
                 { id: Date.now() + Math.random(), description: act.name, price: act.price, dent: '-', category: act.category },
               ]);
-              saveActAsHabit(act.name, act.price, act.category);
+              rememberActPrice(act.name, act.price, act.category);
             }}
             onAddManual={addEmptyRow}
           />
