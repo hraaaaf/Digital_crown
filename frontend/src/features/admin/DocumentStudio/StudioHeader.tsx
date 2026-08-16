@@ -22,10 +22,6 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   activeTab,
   showOdontoPanoramique,
   onToggleOdonto,
-  onGenerate,
-  loading,
-  sideStudioType,
-  onTogglePreview
 }) => {
   return (
     <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-2 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-xl border border-white/50 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0 transition-all duration-300 shadow-sm">
@@ -42,15 +38,16 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           </p>
         </div>
       </div>
-      
+
       <div className="flex flex-wrap items-center gap-2">
         {(activeTab === 'honoraires' || activeTab === 'devis') && (
           <button
+            type="button"
             onClick={onToggleOdonto}
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-              showOdontoPanoramique 
-                ? "bg-primary text-white shadow-lg shadow-primary/30" 
+              showOdontoPanoramique
+                ? "bg-primary text-white shadow-lg shadow-primary/30"
                 : "bg-white text-primary border border-primary/20 hover:bg-primary/5"
             )}
             style={showOdontoPanoramique ? { backgroundColor: 'var(--primary)' } : { color: 'var(--primary)', borderColor: 'var(--primary)' }}
@@ -59,34 +56,33 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           </button>
         )}
 
-        {activeTab !== 'ai' && (
-          <div className="flex items-center gap-2">
-
-
-            <button 
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-3 py-2 bg-white text-slate-400 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
-            >
-              Actualiser
-            </button>
-            <button 
-              onClick={() => window.history.back()}
-              className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
-            >
-              Quitter
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-3 py-2 bg-white text-slate-400 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
+          >
+            Actualiser
+          </button>
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+          >
+            Quitter
+          </button>
+        </div>
 
         <div className="bg-white/80 dark:bg-slate-900/50 p-2.5 rounded-2xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col items-start gap-1 min-w-[130px]">
-          <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
+          <label htmlFor="document-studio-date" className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
             <CalendarIcon size={10} /> Date d'émission
           </label>
-          <input 
-            type="date" 
-            className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer h-5" 
-            value={docDate} 
-            onChange={(e) => onDateChange(e.target.value)} 
+          <input
+            id="document-studio-date"
+            type="date"
+            className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer h-5"
+            value={docDate}
+            onChange={(e) => onDateChange(e.target.value)}
           />
         </div>
       </div>
