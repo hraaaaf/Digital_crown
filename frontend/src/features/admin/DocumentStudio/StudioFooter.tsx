@@ -6,15 +6,12 @@ import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 interface StudioFooterProps {
   loading: boolean;
-  activeTab: CertifiableDocumentStudioTab | 'ai';
+  activeTab: CertifiableDocumentStudioTab;
   onGenerate: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
   showPrintWarning: boolean;
   onCloseWarning: () => void;
   hasChanges: boolean;
   onSavePreference?: () => void;
-  aiReport?: string | null;
-  onGenerateAI?: () => void;
-  loadingAi?: boolean;
   total?: number;
   sideStudioType: 'NONE' | 'PREVIEW';
   onTogglePreview: () => void;
@@ -31,24 +28,6 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   onTogglePreview
 }) => {
   if (activeTab === 'plan') return null;
-
-  if (activeTab === 'ai') {
-    return (
-      <div
-        className="flex items-center gap-3 rounded-2xl border border-amber-200 dark:border-amber-400/20 bg-amber-50/90 dark:bg-amber-950/30 p-4 text-amber-800 dark:text-amber-200"
-        role="status"
-        aria-live="polite"
-      >
-        <AlertTriangle size={18} className="shrink-0" />
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-widest">Fonction clinique désactivée</div>
-          <p className="mt-1 text-xs font-semibold">
-            L’analyse clinique automatisée n’est pas disponible dans le Document Studio certifiable. Une validation scientifique dédiée est requise avant toute réactivation.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const preparesFreshPdf = activeTab === 'certificat' || activeTab === 'libre';
 
