@@ -81,6 +81,17 @@ Le chemin clinique courant doit conserver la séparation suivante : **assistance
 - Rapports céphalométriques et panoramiques
 - Archivage, versioning et génération PDF
 
+#### Document Studio — état de chantier
+
+Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
+
+Au 16 août 2026 :
+- **P3 Devis** : chantier **clos/pausé jusqu'à nouvel ordre** après durcissement P3-A→P3-G et recertification locale Linux P3-H ; full-app/authenticated/browser gates différés et non revendiqués ; PR #77 conservée open + draft ;
+- preuves locales P3 principales : backend **26/26 PASS**, frontend policies **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS** ;
+- **P4 Note Honoraires** : **page active suivante**.
+
+Le statut détaillé P3 est conservé dans `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
+
 ### Comptabilité
 
 - Actes
@@ -227,8 +238,9 @@ Ce README décrit l'architecture et les invariants, pas le statut de certificati
 Pour reprendre le projet ou décider du prochain lot, lire dans cet ordre :
 
 1. `STATE.md`
-2. `AGENTS.md` ou `CLAUDE.md` selon l'agent utilisé
-3. la règle/`SKILL.md` correspondant au domaine modifié
-4. les fichiers scientifiques ou runbooks référencés par ce skill
+2. `DOCUMENT_STUDIO_ROADMAP.md` si le chantier concerne le Studio documentaire
+3. `AGENTS.md` ou `CLAUDE.md` selon l'agent utilisé
+4. la règle/`SKILL.md` correspondant au domaine modifié
+5. les fichiers scientifiques ou runbooks référencés par ce skill
 
-**Dernière révision canonique : 13 août 2026.**
+**Dernière révision canonique : 16 août 2026.**
