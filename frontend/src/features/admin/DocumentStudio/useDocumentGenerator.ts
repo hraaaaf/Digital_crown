@@ -3,19 +3,14 @@ import toast from 'react-hot-toast';
 import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
-import { useAccountingStore } from '../store/useAccountingStore';
+import { useAccountingStore, type PriceItem } from '../store/useAccountingStore';
 import { buildCertificatePayload, certificateRequiresDuration, validateCertificateReason } from './CertificatePolicy';
 import { setLibreDirty } from './LibreDirtyState';
-
-interface PriceItem {
-  id: number;
-  description: string;
-  dent: string;
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
+import {
+  buildTeethDataFromAccountingItems,
+  canonicalDentLabel,
+  canonicalToothNumbers,
+} from './AccountingOdontogramSourcePolicy';
 
 interface PatientDetails {
   id: number;
@@ -293,7 +288,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     const {
       patientId, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
-      librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
+      librePageSize, libreAlignment, docDate, patientDetails,
       installments, isAccounted, paymentStatus, isGlobalNote,
     } = params;
 
@@ -345,17 +340,15 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       const commonItems = items
         .filter(i => i.description.trim() !== '')
         .map(i => ({
-          acte: i.description, dent: i.dent || '0', dents: i.toothNumbers || [],
+          acte: i.description,
+          dent: canonicalDentLabel(i) || '0',
+          dents: canonicalToothNumbers(i),
           prix_unitaire: parseFloat(i.price.toString()),
           montant: parseFloat(i.price.toString()),
-          date: docDate, mode_reglement: paymentMode,
+          date: docDate,
+          mode_reglement: paymentMode,
         }));
-      const robustTeethData = selectedTeethFromOdontogram.map(t => ({
-        tooth_number: t.toothNumber,
-        treatments: t.treatments.map(tr => ({ code: tr.code || 'ACT', name: tr.name, price: tr.price || 0 })),
-        surfaces: t.surface ? [t.surface as string] : [],
-        notes: '',
-      }));
+      const robustTeethData = buildTeethDataFromAccountingItems(items);
       payload.data = activeTab === 'devis'
         ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote }
         : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote };
@@ -367,7 +360,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     params.certifStartDate, params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
     params.libreContent, params.libreCustomPatient, params.libreCustomDate,
     params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
-    params.patientDetails, params.selectedTeethFromOdontogram, params.installments,
+    params.patientDetails, params.installments,
     params.isAccounted, params.paymentStatus, params.isGlobalNote, params.showLegalAnnotations,
   ]);
 
