@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { resolveNamedDevisActPrice } from './AccountingNamedActPricePolicy';
 
 const source = readFileSync(
   resolve(process.cwd(), 'src/features/admin/AccountingStudioLegacy.tsx'),
@@ -26,10 +27,21 @@ describe('AccountingStudio P2-D wiring', () => {
     expect(memoIndex).toBeGreaterThan(stateIndex);
   });
 
-  it('ne valide plus silencieusement un prix groupé inconnu à 0 MAD', () => {
+  it('fail-close les prix nommés absents du catalogue et exige un prix groupé positif', () => {
     expect(source).not.toContain('const price = PriceBrain.suggestPrice(act) || 0;');
-    expect(source).toContain('Prix inconnu : renseignez un prix avant d’ajouter cet acte groupé.');
+    expect(source).toContain('resolveNamedDevisActPrice');
+    expect(source).toContain("resolved.source === 'UNRESOLVED'");
+    expect(source).toContain('Tarif catalogue absent : renseignez le prix avant archivage.');
     expect(source).toContain('Renseignez un prix positif avant d’ajouter cet acte groupé.');
+
+    expect(resolveNamedDevisActPrice('Acte connu', [
+      { name: 'Acte connu', base_price: 450, category: 'CONSERVATRICE' },
+    ])).toEqual({ price: 450, category: 'CONSERVATRICE', source: 'CATALOG' });
+    expect(resolveNamedDevisActPrice('Acte absent', [])).toEqual({
+      price: 0,
+      category: undefined,
+      source: 'UNRESOLVED',
+    });
   });
 
   it('ne remplace pas un libellé de surface existant par défaut quand aucune surface n’est renvoyée', () => {
