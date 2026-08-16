@@ -2,124 +2,207 @@
 
 Date: 2026-08-16
 Baseline code: `0a720dace83613cfc9fb0e0ae1c754e19c447c28` (P7-G head)
+Corrective stack: PR #88 → #89 → #91 → #92 → #93 → #94
 Scope: shared Document Studio boundaries after P1–P7 engineering work.
 
 ## 1. Proof contract
 
 This audit separates:
-- **CODE VÉRIFIÉ**: statically inspected source on the exact baseline above.
+- **CODE VÉRIFIÉ**: statically inspected source/diff on the referenced branch/head.
+- **TEST PRÉPARÉ**: automated test or harness exists but no execution result is inferred.
 - **TEST EXÉCUTÉ**: only when an actual test run is observed.
 - **INTERACTION RUNTIME**: only when reproduced in the authenticated product.
 - **CERTIFICATION**: only after the required runtime/CI/manual gates pass.
 
-No current CI PASS or runtime certification is inferred from historical runs.
+A GitHub Actions job that fails before any step is neither a code failure nor a PASS.
 
-## 2. Real shared architecture
+## 2. Baseline shared architecture and defects
 
-- `/patients/:id` renders `PatientDetails`.
-- The admin tab renders `<DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />` without a React `key` bound to the patient id.
-- `DocumentHub` owns local drafts/previews for prescription, certificate, libre, plan and shared intelligence state.
-- P3/P4 financial drafts live in the global Zustand `useAccountingStore`; the store exposes `reset()` but `DocumentHub` / `AccountingStudio` do not reset it on patient change.
-- `DocumentHub` fetches patient details asynchronously and writes them directly into shared state.
-- URL-driven `documentTab` changes call `setActiveTab` directly rather than the canonical guarded tab-change path.
-- Cross-page “intelligence” derives safety/clinical recommendations from free-text patient antecedents and from financial act labels.
+The T1 baseline demonstrated:
+- `/patients/:id` could reuse the same `PatientDetails` tree while the patient id changed;
+- P3/P4 patient-sensitive financial drafts lived in global `useAccountingStore` state without a patient-boundary reset;
+- `DocumentHub` patient fetches could apply stale responses;
+- URL-driven `documentTab` transitions bypassed the interactive dirty guard;
+- dirty-state coverage was fragmented across P1–P7;
+- shared “Ghost” logic derived clinical/radiological/therapeutic recommendations from free-text antecedents and financial act labels;
+- a direct `documentTab=ai` path could expose a deterministic therapeutic-strategy generator under an “IA” label;
+- shell truth/a11y/responsive invariants were not centrally gated.
 
-## 3. Matrix
+These statements describe the **baseline**, not the post-correction state.
 
-### GARDER
+## 3. Baseline severity matrix
 
-- Patient header in `PatientDetails` remains the primary visible patient identity.
-- P1/P6/P7 already have dedicated dirty-state work that T1 should unify rather than replace.
-- P3/P4 share one explicit accounting store and already expose a reset primitive.
-- Deterministic prescription safety endpoint remains distinct from UI-only free-text heuristics.
+### P0
 
-### CORRIGER — P0
+#### T1-P0-1 — Cross-patient financial/editor state persistence
 
-#### T1-P0-1 — Cross-patient financial draft persistence
+A patient A draft could survive into patient B through shared global state and archived edit state.
 
-**CODE VÉRIFIÉ**
+**Required target:** patient identity is a hard isolation boundary.
 
-`PatientDetails` can keep the same component tree while the `/patients/:id` route parameter changes. `DocumentHub` is rendered without `key={id}`. `useAccountingStore` is global and contains patient-sensitive items, payment mode/status, installments, odontogram selections and suggestions. Its `reset()` is not called on `patientId` change by the inspected shared components.
+#### T1-P0-2 — Stale patient-details response
 
-**Risk:** a draft created for patient A can remain in the shared financial store when the UI is now on patient B.
+A late patient A response could overwrite the current B context.
 
-**Required target:** patient identity is an isolation boundary. Financial/editor state must never cross it. Reset must be deterministic and tested.
+**Required target:** stale responses are ignored and old context is cleared at identity change.
 
-#### T1-P0-2 — Stale patient-details response can overwrite current patient context
+#### T1-P0-3 — Free-text / financial-label clinical inference
 
-**CODE VÉRIFIÉ**
+Unstructured antecedents and financial descriptions could create prescriptive medication/imaging/treatment statements.
 
-The `DocumentHub` patient-details effect starts `api.get(/patients/{patientId})` and applies `setPatientDetails(res.data)` without an effect-local cancellation/sequence guard.
+**Required target:** no clinical recommendation from those non-authoritative inputs in the certifiable shared path.
 
-**Risk:** after rapid A→B navigation, a late A response can overwrite B's context and feed shared intelligence/generation state.
+#### T1-P0-4 — Programmatic navigation bypass
 
-**Required target:** stale responses are ignored; patient context is cleared/reset immediately at boundary change.
+`documentTab` synchronization could call `setActiveTab` outside the dirty-aware transition contract.
 
-#### T1-P0-3 — Free-text antecedents generate prescriptive/clinical recommendations
+**Required target:** manual and URL-driven transitions share one guard.
 
-**CODE VÉRIFIÉ**
+### P1
 
-“Ghost Complications” substring-matches `antecedents_medicaux` and emits statements such as strict antibiotic coverage or radiography contraindication. Another shared heuristic offers generation of an analgesic/antibiotic protocol from financial surgical-act labels.
-
-**Risk:** unstructured text and financial labels are not authoritative clinical facts and must not directly create prescriptive recommendations.
-
-**Required target:** free-text/financial detections may only surface a neutral verification warning. Medication, imaging or treatment advice requires an authoritative validated clinical rule/data path.
-
-#### T1-P0-4 — Programmatic tab changes bypass dirty guards
-
-**CODE VÉRIFIÉ**
-
-`documentTab` search-param synchronization calls `setActiveTab` directly. This bypasses the `handleTabChange` dirty guard used by interactive tabs.
-
-**Risk:** URL/event-driven navigation can discard unsaved content even when manual navigation is protected.
-
-**Required target:** every tab transition uses one guarded transition contract, with an explicit internal force path only after discard/commit.
-
-### AMÉLIORER / P1
-
-- Unify dirty-state reporting for all P1–P7 editors instead of page-specific partial guards.
-- Remove static “server OK” or capability claims not backed by live state/proof.
-- Remove unsupported preview claims such as generic “standards professionnels” / “signature numérique intégrée” unless the exact feature is evidenced.
-- Make preview width responsive; avoid fixed desktop assumptions around side preview.
-- Ensure all icon-only controls and tab controls have keyboard/focus/accessible names.
-- Preserve visible patient identity in compact/mobile Document Studio states.
-- Reset page-specific local previews, suggestions and archived edit hydration when patient changes.
-
-### SIMPLIFIER / SUPPRIMER
-
-- Do not maintain multiple independent tab-transition mechanisms.
-- Do not keep “Ghost” marketing terminology for clinical safety logic in the certified path.
-- Do not duplicate prescription suggestions from accounting context when a validated prescription safety engine already exists.
+- dirty-state parity across P1–P7;
+- truthful capability/status messaging;
+- responsive preview and compact shell;
+- explicit keyboard/focus/accessible-state semantics;
+- stale preview/suggestion/edit hydration invalidation at patient boundaries.
 
 ## 4. Target transversal contract
 
-1. **Patient boundary:** patient id change invalidates every patient-scoped draft, preview, suggestion and async response from the old patient.
-2. **Navigation boundary:** all tab transitions go through one dirty-aware transition function.
-3. **Clinical boundary:** free-text antecedents and financial descriptions can flag “à vérifier”, never prescribe or infer contraindications/treatment by themselves.
-4. **Truthful UI:** health/capability/status badges reflect real state or are removed.
-5. **Responsive/a11y:** core authoring and preview are usable at 390/430/1280 widths with keyboard-visible controls.
-6. **Proof:** T1 is not certified until targeted tests + full frontend build/tests + authenticated runtime cross-patient/navigation checks pass.
+1. **Patient boundary:** patient id change invalidates patient-scoped shared document/edit state and stale async responses.
+2. **Navigation boundary:** manual and URL-driven tab transitions use one dirty-aware decision path.
+3. **Clinical boundary:** free-text antecedents and financial descriptions never prescribe/infer treatment, imaging or medication in the shared certifiable path.
+4. **Truthful UI:** capability/status claims are evidenced or absent; uncertified clinical features are explicitly unavailable.
+5. **Responsive/a11y:** core shell controls expose labels/state/focus semantics and remain usable on narrow screens.
+6. **Proof:** T1 remains uncertified until executable harness + authenticated runtime/browser gates pass on the exact final head.
 
-## 5. Corrective lots — critical path
+## 5. Corrective execution status
 
-- **T1-A Patient isolation:** reset patient-scoped local/Zustand state, stale-response guard, cross-patient regression tests.
-- **T1-B Unified navigation guard:** route URL/custom-event/manual transitions through one dirty-aware contract.
-- **T1-C Clinical inference boundary:** neutralize free-text/financial prescriptive heuristics; keep only verification warnings.
-- **T1-D Truthful status/preview:** remove or wire static server/capability claims.
-- **T1-E Responsive/a11y:** responsive preview, focus/labels, compact patient identity.
-- **T1-F Final transversal recertification:** targeted harness + full frontend suite/build + authenticated runtime matrix.
+### T1-A — Patient isolation — CODE VÉRIFIÉ
 
-## 6. Runtime gates still open
+PR #88.
+
+Implemented:
+- route-level `PatientDetails` wrapper remounts the patient workspace with `key={id}`;
+- patient-boundary reset clears `useAccountingStore` and archived `editingDoc` state before the new patient tree renders;
+- patient-boundary regression test verifies financial/store/edit reset;
+- subsequent T1-C hardening makes `DocumentHub` patient and smart-suggestion fetches cancellation-safe and clears stale context before replacement.
+
+**Engineering finding:** the baseline cross-patient shared-state path is closed statically.
+
+**Not yet runtime-certified:** rapid authenticated A→B switch with delayed A network response.
+
+### T1-B — Unified navigation guard — CODE VÉRIFIÉ
+
+PR #89.
+
+Implemented:
+- one `DocumentTabNavigationPolicy` covers P1/P2/P3/P4/P5/P6/P7;
+- P1/P6/P7 existing dirty-state primitives are retained;
+- P2 gets explicit certificate dirty-state publication;
+- P5 gets explicit unsaved-plan dirty-state publication without treating server hydration as user editing;
+- P3/P4 shared accounting drafts are evaluated through the same central transition decision;
+- `DocumentHub` is the authoritative transition orchestrator for both UI clicks and URL `documentTab` changes;
+- URL cancellation restores the current tab rather than silently discarding the draft;
+- unguarded reload/back controls were removed from the Studio header;
+- patient boundary reset also clears document dirty-state modules.
+
+**Engineering finding:** the baseline manual/programmatic dirty-guard split is closed statically.
+
+**Not yet runtime-certified:** authenticated manual + URL-driven abandon/cancel matrix across all pages.
+
+### T1-C — Clinical inference boundary — CODE VÉRIFIÉ
+
+PR #91.
+
+Implemented:
+- removed the shared `Insight` side channel from `DocumentHub`;
+- removed Ghost Complications, Ghost Mutuelle and missing-post-op protocol suggestions from the active shared hub;
+- removed shared financial/free-text inference statements for anticoagulation, diabetes, bisphosphonates, pregnancy, antibiotics and radiography;
+- dedicated deterministic prescription safety remains in the prescription-specific path rather than being duplicated in the shared financial/document hub;
+- patient/smart-suggestion requests are cancellation-safe;
+- the direct `documentTab=ai` footer executor no longer calls `/patients/{id}/ai-diagnostic`; it exposes an explicit unavailable state instead;
+- source gates forbid reintroduction of the removed inference strings and AI launch control.
+
+**Engineering finding:** no baseline free-text/financial-label prescriptive side channel remains in the inspected certifiable shared path.
+
+**Important scope:** the historical backend deterministic `ai-diagnostic` engine is not certified by T1 and was not deleted; T1 only removes its executable Document Studio entry point.
+
+### T1-D — UI truth — CODE VÉRIFIÉ
+
+PR #92.
+
+Inspected active shell surfaces:
+- `StudioHeader.tsx`;
+- `StudioTabs.tsx`;
+- `StudioFooter.tsx`;
+- `LivePreview.tsx`.
+
+Result after T1-C:
+- no additional active static “Moteur Local Actif”, “Lancer Analyse IA”, “Régénérer Analyse” or “IA certifiée” claim was demonstrated;
+- anti-regression source gate added;
+- uncertified clinical path must remain visibly unavailable pending separate scientific validation.
+
+### T1-E — Responsive / accessibility shell — CODE VÉRIFIÉ
+
+PR #93.
+
+Implemented:
+- explicit document-date `label`/`id` association;
+- `aria-pressed` for odontogram, active document tabs and preview state;
+- primary shell controls raised to touch-friendly minimum heights and given visible keyboard focus rings;
+- print confirmation declared as an accessible modal dialog;
+- PDF preview declared as a dialog when overlaid and region when inline;
+- PDF preview closes on Escape;
+- iframe keeps an explicit title;
+- narrow-screen footer spacing/text sizing hardened;
+- source-level accessibility invariants added.
+
+**Not yet visually/runtime-certified:** real browser checks at 390/430/1280 and full keyboard/focus smoke test.
+
+### T1-F — Final transversal recertification — TEST PRÉPARÉ, NOT EXECUTED
+
+PR #94.
+
+Added `scripts/certify_document_studio_t1.sh`:
+1. targeted T1 transversal regression;
+2. full frontend test suite;
+3. frontend production build.
+
+The harness requires Node 20 and a clean worktree and prints the exact candidate HEAD.
+
+**No PASS is claimed merely because the harness exists.**
+
+## 6. CI observation
+
+On the observed T1-C exact head, GitHub Actions run #503 (`31941504118`) concluded failure before executing repository steps: jobs reported `runner_id=0` and empty `steps`.
+
+Therefore:
+- this is **not evidence of a code-test failure**;
+- this is **not a PASS**;
+- no repeated polling is useful until runner execution is restored.
+
+The T1-F harness is the canonical executable gate to run once infrastructure permits.
+
+## 7. Runtime gates still open
 
 Required before final T1 certification:
-- A→B patient switch while P3/P4 draft is populated: no old item/payment/installment survives.
-- A→B switch with delayed A patient response: B context remains authoritative.
-- Dirty P1/P3/P4/P6/P7 + manual and programmatic tab changes: same discard/continue behavior.
-- No free-text antecedent can directly generate medication/imaging/treatment advice.
-- 390/430/1280 responsive matrix.
-- Keyboard/focus smoke check.
-- Full frontend test suite and production build on the exact final head.
+- authenticated A→B patient switch with populated P3/P4 draft: zero old item/payment/installment/edit state survives;
+- authenticated A→B with intentionally delayed A response: B remains authoritative;
+- dirty P1/P2/P3/P4/P5/P6/P7: manual and URL-driven transitions show equivalent cancel/discard behavior;
+- no Document Studio route can execute the uncertified `ai-diagnostic` clinical-strategy path;
+- real 390 px / 430 px / 1280 px responsive matrix;
+- keyboard/focus smoke check, including dialogs and PDF preview Escape close;
+- real preview/print interaction check;
+- targeted T1 harness + full frontend suite + production build on the exact final head.
 
-## 7. Current status
+Clinical, pharmacological, financial and regulatory certifications remain separate wherever applicable.
 
-Audit baseline only. Findings above are **CODE VÉRIFIÉ** unless explicitly labelled otherwise. No T1 runtime PASS or certification is claimed.
+## 8. Current status
+
+**Engineering A→E: statically converged on the stacked T1 branches.**
+
+**T1-F automation: prepared, not executed.**
+
+**Runtime / CI / visual certification: OPEN.**
+
+Consequently, T1 must not be labelled “certified”, “production ready” or fully closed. The next technically valid transition is execution of the exact-head T1 harness when runners are available, followed by authenticated/browser runtime checks and only then final certification/merge closeout.
