@@ -63,7 +63,6 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           paid: inst.status === 'PAYE',
           sendReminder: false,
           persisted: true,
-          paymentMethod: 'ESPECES' as PaymentMethod,
         })));
       })
       .catch((error: any) => {
@@ -168,7 +167,8 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
   const persistEditableField = async (item: InstallmentItem, field: 'label' | 'due_date', value: string) => {
     if (!item.persisted || item.paid) return;
     try {
-      await api.put(`/installments/${item.id}`, { [field]: value });
+      const persistedValue = field === 'due_date' ? `${value}T00:00:00` : value;
+      await api.put(`/installments/${item.id}`, { [field]: persistedValue });
     } catch (error: any) {
       toast.error(error?.response?.data?.detail || 'Modification non enregistrée');
     }
@@ -186,7 +186,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         status: 'PAYE',
         payment_method: item.paymentMethod,
       });
-      setItems(current => current.map(row => row.id === item.id ? { ...row, paid: res.data.status === 'PAYE' } : row));
+      setItems(current => current.map(row => row.id === item.id ? { ...row, paid: res.data.status === 'PAYE', paymentMethod: undefined } : row));
       toast.success('Paiement enregistré');
     } catch (error: any) {
       toast.error(error?.response?.data?.detail || 'Encaissement refusé');
@@ -219,7 +219,7 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         installments: items.map(item => ({
           label: item.label.trim(),
           amount: item.amount,
-          due_date: item.dueDate,
+          due_date: `${item.dueDate}T00:00:00`,
           status: 'EN_ATTENTE',
         })),
       });
@@ -232,7 +232,6 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
         paid: inst.status === 'PAYE',
         sendReminder: false,
         persisted: true,
-        paymentMethod: 'ESPECES' as PaymentMethod,
       })));
       toast.success('Plan enregistré');
     } catch (error: any) {
@@ -321,13 +320,22 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
           <tbody className="divide-y divide-slate-100">
             {items.map(item => (
               <tr key={item.id} className={item.paid ? 'bg-emerald-50/60' : ''}>
-                <td className="px-3 py-2 min-w-[210px]">
+                <td className="px-3 py-2 min-w-[230px]">
                   {item.paid ? <span className="font-semibold text-emerald-600">PAYÉ</span> : item.persisted ? (
                     <div className="flex items-center gap-2">
-                      <select value={item.paymentMethod || 'ESPECES'} onChange={e => updateItem(item.id, 'paymentMethod', e.target.value as PaymentMethod)} className="border border-slate-200 rounded-lg px-2 py-1 text-xs">
-                        <option value="ESPECES">Espèces</option><option value="CARTE">Carte</option><option value="CHEQUE">Chèque</option><option value="VIREMENT">Virement</option>
+                      <select
+                        aria-label={`Mode de règlement ${item.label}`}
+                        value={item.paymentMethod || ''}
+                        onChange={e => updateItem(item.id, 'paymentMethod', e.target.value as PaymentMethod)}
+                        className="border border-slate-200 rounded-lg px-2 py-1 text-xs"
+                      >
+                        <option value="" disabled>Mode…</option>
+                        <option value="ESPECES">Espèces</option>
+                        <option value="CARTE">Carte</option>
+                        <option value="CHEQUE">Chèque</option>
+                        <option value="VIREMENT">Virement</option>
                       </select>
-                      <button type="button" onClick={() => collectInstallment(item)} disabled={collectingId === item.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"><Banknote size={14} />Encaisser</button>
+                      <button type="button" onClick={() => collectInstallment(item)} disabled={collectingId === item.id || !item.paymentMethod} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"><Banknote size={14} />Encaisser</button>
                     </div>
                   ) : <span className="text-xs text-slate-500">Brouillon non encaissable</span>}
                 </td>
