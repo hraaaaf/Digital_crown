@@ -26,7 +26,10 @@ export const IntelligenceAlerts = ({
   if (!hasForecast && !hasAlerts) return null;
 
   return (
-    <motion.section variants={dashboardItemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <motion.section
+      variants={dashboardItemVariants}
+      className={cn('grid grid-cols-1 gap-8', hasForecast && hasAlerts && 'lg:grid-cols-2')}
+    >
       {hasForecast && forecast && (
         <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -58,7 +61,7 @@ export const IntelligenceAlerts = ({
                 <Bell size={18} className="text-amber-400" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Alertes du Jour</h3>
+                <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Alertes à traiter</h3>
                 <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
                   {alerts.length} alerte{alerts.length > 1 ? 's' : ''} active{alerts.length > 1 ? 's' : ''}
                 </p>
