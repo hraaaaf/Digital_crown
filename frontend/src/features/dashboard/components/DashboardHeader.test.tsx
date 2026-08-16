@@ -42,9 +42,9 @@ describe('DashboardHeader — accessibilité clavier D6', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('button', { name: 'Chercher un patient' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ajout rapide' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Appairer le téléphone mobile' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chercher un patient' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ajout rapide' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Appairer le téléphone mobile' })).toBeTruthy();
   });
 
   it('ouvre le menu rapide, Escape le ferme et rend le focus au déclencheur', async () => {
@@ -68,12 +68,12 @@ describe('DashboardHeader — accessibilité clavier D6', () => {
 
     const trigger = screen.getByRole('button', { name: 'Ajout rapide' });
     await user.click(trigger);
-    expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('menu')).toBeTruthy();
 
     await user.keyboard('{Escape}');
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(trigger).toHaveFocus();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('Escape ferme la recherche et un résultat patient est activable au clavier', async () => {
@@ -127,7 +127,7 @@ describe('DashboardHeader — accessibilité clavier D6', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByText('Statut système')).not.toBeInTheDocument();
-    expect(screen.queryByText('Système opérationnel')).not.toBeInTheDocument();
+    expect(screen.queryByText('Statut système')).toBeNull();
+    expect(screen.queryByText('Système opérationnel')).toBeNull();
   });
 });
