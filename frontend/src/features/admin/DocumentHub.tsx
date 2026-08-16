@@ -232,13 +232,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [activeTab, accountingDirty, commitTabChange, syncDocumentTabParam]);
 
-  // Les changements de query param empruntent exactement la même garde que les clics UI.
+  // Les changements externes du query param empruntent la même garde que les clics UI.
+  // Le changement d'activeTab seul ne doit jamais rejouer une ancienne valeur de l'URL.
   useEffect(() => {
     const nextTab = searchParams.get('documentTab');
     if (isHubDocumentType(nextTab) && nextTab !== activeTab) {
       handleTabChange(nextTab);
     }
-  }, [searchParams, activeTab, handleTabChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleDocDateChange = useCallback((nextDate: string) => {
     if (nextDate === docDate) return;
