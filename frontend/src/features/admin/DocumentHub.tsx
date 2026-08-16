@@ -10,6 +10,11 @@ import { StudioHeader } from './DocumentStudio/StudioHeader';
 import { StudioTabs } from './DocumentStudio/StudioTabs';
 import { StudioFooter } from './DocumentStudio/StudioFooter';
 import { LivePreview } from './DocumentStudio/LivePreview';
+import {
+  DOCUMENT_STUDIO_PREVIEW_TITLES,
+  isCertifiableDocumentStudioTab,
+  type CertifiableDocumentStudioTab,
+} from './DocumentStudio/DocumentStudioVocabulary';
 
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
@@ -65,12 +70,12 @@ interface PatientDetails {
   genre?: string;
 }
 
-export type HubDocumentType = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
+export type HubDocumentType = CertifiableDocumentStudioTab;
 
 type TabChangeSource = 'ui' | 'url';
 
 const isHubDocumentType = (value: string | null): value is HubDocumentType =>
-  ['plan', 'ordonnance', 'certificat', 'devis', 'honoraires', 'echeancier', 'libre', 'ai'].includes(value || '');
+  isCertifiableDocumentStudioTab(value);
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
@@ -241,10 +246,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items,
-    // EN_ATTENTE n'encaisse rien. La valeur de transport évite de rendre le mode obligatoire
-    // dans l'ancien validateur frontend ; pour PAYE, le store reste vide tant que le praticien
-    // n'a pas explicitement choisi un mode.
-    paymentMode: paymentStatus === 'PAYE' ? paymentMode : 'Espèces' as const,
+    paymentMode,
     libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote,
@@ -416,13 +418,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                 )}
                 role="switch"
                 aria-checked={showLegalAnnotations}
+                aria-labelledby="document-studio-legal-annotations-label"
               >
                 <span className={cn(
                   "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200",
                   showLegalAnnotations ? "translate-x-4" : "translate-x-0"
                 )} />
               </button>
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+              <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                 Mentions légales (Radioprotection)
               </span>
             </div>
@@ -512,11 +515,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {pendingTab && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={cancelPendingTab} />
-          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+          <div
+            className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-studio-discard-dialog-title"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
+                <h3 id="document-studio-discard-dialog-title" className="text-sm font-black text-slate-800">Document en cours</h3>
                 <p className="text-xs text-slate-400 font-bold mt-0.5">Le brouillon non enregistré sera abandonné.</p>
               </div>
             </div>
@@ -541,11 +549,16 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {generator.showDuplicateModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={generator.cancelDuplicate} />
-          <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5">
+          <div
+            className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-studio-duplicate-dialog-title"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 text-lg">⚠️</div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Doublon détecté</h3>
+                <h3 id="document-studio-duplicate-dialog-title" className="text-sm font-black text-slate-800">Doublon détecté</h3>
                 <p className="text-xs text-slate-400 font-bold mt-0.5">Un document similaire existe déjà pour ce patient.</p>
               </div>
             </div>
@@ -579,16 +592,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
               onRefresh={() => generator.handleGenerate(false, false, true)}
-              title={{
-                'plan': 'Stratégie Clinique',
-                'ordonnance': 'Ordonnance',
-                'certificat': 'Certificat',
-                'devis': 'Devis Quantitatif',
-                'honoraires': 'Note d\'Honoraires',
-                'echeancier': 'Échéancier',
-                'libre': 'Document Libre',
-                'ai': 'Assistant IA'
-              }[activeTab] || activeTab.toUpperCase()}
+              title={DOCUMENT_STUDIO_PREVIEW_TITLES[activeTab]}
             />
           </motion.div>
         )}
