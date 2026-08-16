@@ -42,7 +42,7 @@ export const WeeklyPerformance = ({
         <span className="flex items-center gap-2"><TrendingUp size={16} aria-hidden="true" /> Performance Hebdomadaire</span>
         <ChevronRight size={14} className={cn('transition-transform', expanded && 'rotate-90')} aria-hidden="true" />
       </button>
-      <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main shadow-elite relative overflow-hidden">
+      <div data-tour="dashboard-stats" className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main shadow-elite relative overflow-hidden">
         <AnimatePresence initial={false}>
           {expanded && (
             <motion.div
