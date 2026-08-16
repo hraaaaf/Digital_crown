@@ -7,7 +7,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-os.environ["ENVIRONMENT"] = "cabinet"
+# Runtime CI volontairement isolé : SQLite jetable, aucune donnée cabinet réelle.
+# Le mode "cabinet" reste fail-closed sur SQLCipher dans le produit normal.
+os.environ["ENVIRONMENT"] = "test"
 os.environ["SECRET_KEY"] = "t2-runtime-certification-secret-key-000001"
 os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
 os.environ["TELEMETRY_ENABLED"] = "false"
