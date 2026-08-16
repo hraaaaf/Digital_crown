@@ -44,6 +44,19 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
     }
   }, [pdfUrl]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   const generatePreview = useCallback(() => {
     setStale(true);
     void onGeneratePreview();
