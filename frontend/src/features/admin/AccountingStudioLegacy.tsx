@@ -12,6 +12,8 @@ import {
   History,
   LayoutGrid,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Sparkles,
   Wand2
 } from 'lucide-react';
@@ -31,6 +33,8 @@ import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePol
 import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
 import { odontogramGroupSelection, odontogramQuickGroupKeys } from './DocumentStudio/AccountingOdontogramModePolicy';
 import { resolveAccountingBundles, type ResolvedAccountingBundle } from './DocumentStudio/AccountingBundlePolicy';
+import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
+import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -157,6 +161,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
   const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
   const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
+  const moveItem = (id: number, direction: 'UP' | 'DOWN') => setItems((prev: PriceItem[]) => moveAccountingLine(prev, id, direction));
   
   const updateItem = (id: number, f: string, v: string | number) => {
     const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
@@ -686,7 +691,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description de l'acte</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-center">Dent</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44 text-right">Honoraires (MAD)</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24"></th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -758,7 +763,26 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
+                              onClick={() => moveItem(item.id, 'UP')}
+                              disabled={idx === 0}
+                              aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
+                              className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveItem(item.id, 'DOWN')}
+                              disabled={idx === items.length - 1}
+                              aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
+                              className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => removeItem(item.id)}
+                              aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
                               className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                             >
                               <Trash2 size={16} />
@@ -775,7 +799,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
             <div className="px-10 py-6 border-t border-slate-50 bg-slate-50/30 flex flex-col items-end gap-4">
               <div className="flex items-center justify-between w-full">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total</span>
-                <span className="text-xl font-black text-primary">{items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)} MAD</span>
+                <span className="text-xl font-black text-primary">{accountingDocumentTotal(items)} MAD</span>
               </div>
               {!isDevis && (
                 <button 
@@ -947,7 +971,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           </div>
                           <div className="w-full sm:col-span-3 relative">
                             <input 
-                              type="number" 
+                              type="number"
                               className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
                               value={inst.amount}
                               onFocus={e => e.target.select()}
