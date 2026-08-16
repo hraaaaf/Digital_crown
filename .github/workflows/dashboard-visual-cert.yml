@@ -115,6 +115,7 @@ jobs:
 
           cat > visual-cert.mjs <<'EOF'
           import { chromium } from 'playwright';
+          import { createServer } from 'vite';
           import fs from 'node:fs/promises';
 
           const output = process.env.OUTPUT_DIR || 'visual-artifacts';
@@ -178,71 +179,67 @@ jobs:
             { id: 203, start_time: '2026-08-16T14:00:00', status: 'PLANIFIÉ', description: 'Détartrage', patient: { nom: 'TAZI', prenom: 'Meryem' } },
           ];
 
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
           const browser = await chromium.launch();
-          for (const scenario of [
-            { role: 'admin', width: 1440, height: 1200 },
-            { role: 'admin', width: 1024, height: 1200 },
-            { role: 'secretary', width: 1440, height: 1200 },
-            { role: 'secretary', width: 1024, height: 1200 },
-          ]) {
-            const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height } });
-            const page = await context.newPage();
+          try {
+            for (const scenario of [
+              { role: 'admin', width: 1440, height: 1200 },
+              { role: 'admin', width: 1024, height: 1200 },
+              { role: 'secretary', width: 1440, height: 1200 },
+              { role: 'secretary', width: 1024, height: 1200 },
+            ]) {
+              const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height } });
+              const page = await context.newPage();
 
-            await page.route('**/*', async route => {
-              const request = route.request();
-              const url = new URL(request.url());
-              if (url.port !== '8005' || !url.pathname.startsWith('/api/')) {
-                return route.continue();
-              }
+              await page.route('**/*', async route => {
+                const request = route.request();
+                const url = new URL(request.url());
+                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) {
+                  return route.continue();
+                }
 
-              if (url.pathname === '/api/appointments/') {
-                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appointments) });
-              }
-              if (url.pathname === '/api/patients/') {
-                return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-              }
-              if (request.method() !== 'GET') {
-                return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-              }
+                if (url.pathname === '/api/appointments/') {
+                  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appointments) });
+                }
+                if (url.pathname === '/api/patients/') {
+                  return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+                }
+                if (request.method() !== 'GET') {
+                  return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+                }
 
-              const body = fixtures[url.pathname] ?? {};
-              return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-            });
+                const body = fixtures[url.pathname] ?? {};
+                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+              });
 
-            const errors = [];
-            page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
-            page.on('console', message => {
-              if (message.type() === 'error') errors.push(`console: ${message.text()}`);
-            });
+              const errors = [];
+              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+              page.on('console', message => {
+                if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+              });
 
-            await page.goto(`http://127.0.0.1:4177/visual-cert.html?role=${scenario.role}`, { waitUntil: 'networkidle' });
-            await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
-            await page.screenshot({
-              path: `${output}/${scenario.role}-${scenario.width}x${scenario.height}.png`,
-              fullPage: true,
-            });
-            await fs.writeFile(
-              `${output}/${scenario.role}-${scenario.width}x${scenario.height}.errors.txt`,
-              errors.join('\n'),
-            );
-            await context.close();
+              await page.goto(`http://127.0.0.1:4177/visual-cert.html?role=${scenario.role}`, { waitUntil: 'networkidle' });
+              await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
+              await page.screenshot({
+                path: `${output}/${scenario.role}-${scenario.width}x${scenario.height}.png`,
+                fullPage: true,
+              });
+              await fs.writeFile(
+                `${output}/${scenario.role}-${scenario.width}x${scenario.height}.errors.txt`,
+                errors.join('\n'),
+              );
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+            await server.close();
           }
-          await browser.close();
           EOF
-
-      - name: Start isolated Vite harness
-        working-directory: frontend
-        run: |
-          npm run dev -- --port 4177 > /tmp/dashboard-visual-vite.log 2>&1 &
-          echo $! > /tmp/dashboard-visual-vite.pid
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:4177/visual-cert.html >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/dashboard-visual-vite.log
-          exit 1
 
       - name: Capture deterministic viewports
         working-directory: frontend
