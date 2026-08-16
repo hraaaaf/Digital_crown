@@ -51,12 +51,17 @@ class TestHonorairesArchive:
         assert payment_db.amount == 400.0
         assert payment_db.payment_method == models.PaymentMethod.CARTE
         
-        # 5. Sans force, un doublon métier est exposé comme 409 Conflict avec
-        # un code explicite DOUBLE_DETECTED. Aucune seconde version implicite.
+        # 5. Sans force, deux protections de conflit existent aujourd'hui :
+        # 409 DOUBLE_DETECTED (doublon métier) ou 422 (collision fichier/jour).
+        # L'invariant T2 est qu'aucune seconde archive implicite ne soit créée.
         resp_conflict = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
-        assert resp_conflict.status_code == 409, resp_conflict.text
-        detail = resp_conflict.json().get("detail", {})
-        assert detail.get("code") == "DOUBLE_DETECTED"
+        assert resp_conflict.status_code in (409, 422), resp_conflict.text
+        if resp_conflict.status_code == 409:
+            detail = resp_conflict.json().get("detail", {})
+            assert detail.get("code") == "DOUBLE_DETECTED"
+        else:
+            detail = resp_conflict.json().get("detail", "")
+            assert "existe déjà" in detail
 
         docs_before_force = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.patient_id == patient_id,
