@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BarChart2, ChevronRight, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -27,6 +27,16 @@ import { usePatientSearch } from '../features/dashboard/hooks/usePatientSearch';
 import { useProactiveAlerts } from '../features/dashboard/hooks/useProactiveAlerts';
 import { useTodayAppointments } from '../features/dashboard/hooks/useTodayAppointments';
 
+const MANAGEMENT_PANEL_ID = 'dashboard-management-panel';
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const showPatientBadges = useSettingsStore(state => state.profile.show_patient_badges);
@@ -35,6 +45,8 @@ export const Dashboard: React.FC = () => {
   const [showManagement, setShowManagement] = useState(false);
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{ nom: string; prenom: string } | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
+  const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDialogRef = useRef<HTMLDivElement>(null);
 
   const canReadPatients = hasAccess(user, 'patients');
   const canUseAgenda = hasAccess(user, 'agenda');
@@ -56,6 +68,32 @@ export const Dashboard: React.FC = () => {
     setGhostSecretariatPatient(patient);
     setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
   }, []);
+
+  const closeMobileModal = useCallback(() => {
+    setIsMobileModalOpen(false);
+    window.setTimeout(() => mobileButtonRef.current?.focus(), 0);
+  }, []);
+
+  const handleMobileDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      mobileDialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [],
+    ).filter(element => !element.hasAttribute('disabled'));
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const {
     appointments,
@@ -87,6 +125,18 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!canUseAgenda) setGhostSecretariatPatient(null);
   }, [canUseAgenda]);
+
+  useEffect(() => {
+    if (!isMobileModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMobileModal();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closeMobileModal, isMobileModalOpen]);
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -129,6 +179,7 @@ export const Dashboard: React.FC = () => {
         }}
         onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
         onOpenMobile={() => setIsMobileModalOpen(true)}
+        mobileButtonRef={mobileButtonRef}
       />
 
       <QuickActions canReadPatients={canReadPatients} canUseAgenda={canUseAgenda} />
@@ -159,10 +210,12 @@ export const Dashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowManagement(value => !value)}
-            className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-primary/5 transition-colors"
+            aria-expanded={showManagement}
+            aria-controls={MANAGEMENT_PANEL_ID}
+            className="min-h-11 w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-primary/5 transition-colors"
           >
             <span className="flex items-center gap-3 min-w-0">
-              <span className="w-10 h-10 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">
+              <span className="w-10 h-10 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0" aria-hidden="true">
                 <BarChart2 size={19} />
               </span>
               <span className="min-w-0">
@@ -170,12 +223,13 @@ export const Dashboard: React.FC = () => {
                 <span className="block text-xs font-medium text-text-muted mt-0.5">Finances, performance et projections</span>
               </span>
             </span>
-            <ChevronRight size={18} className={cn('text-text-muted transition-transform', showManagement && 'rotate-90')} />
+            <ChevronRight size={18} className={cn('text-text-muted transition-transform', showManagement && 'rotate-90')} aria-hidden="true" />
           </button>
 
           <AnimatePresence initial={false}>
             {showManagement && (
               <motion.div
+                id={MANAGEMENT_PANEL_ID}
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -223,32 +277,54 @@ export const Dashboard: React.FC = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1">
-                  <Sparkles size={10} /> Ghost Action
+                  <Sparkles size={10} aria-hidden="true" /> Ghost Action
                 </p>
                 <h3 className="text-sm font-black text-white truncate max-w-[200px]">
                   Patient Sortant : {ghostSecretariatPatient.nom.toUpperCase()} {ghostSecretariatPatient.prenom}
                 </h3>
               </div>
-              <button onClick={() => setGhostSecretariatPatient(null)} className="text-slate-400 hover:text-white transition-colors">
-                <X size={16} />
+              <button
+                type="button"
+                onClick={() => setGhostSecretariatPatient(null)}
+                aria-label="Fermer les actions de sortie patient"
+                className="min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-white transition-colors rounded-full"
+              >
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.encaisser} onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.encaisser}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
                 <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-slate-500 line-through' : 'text-slate-200')}>Encaisser les soins du jour</span>
               </label>
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.ordonnance} onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.ordonnance}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
                 <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-slate-500 line-through' : 'text-slate-200')}>Remettre l'ordonnance</span>
               </label>
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.rdv} onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.rdv}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
                 <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-slate-500 line-through' : 'text-slate-200')}>Fixer le RDV de contrôle</span>
               </label>
             </div>
             {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">Action terminée !</motion.div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-center text-[10px] font-black uppercase text-emerald-400">
+                Action terminée !
+              </motion.div>
             )}
           </motion.div>
         )}
@@ -257,10 +333,37 @@ export const Dashboard: React.FC = () => {
       <AnimatePresence>
         {canAdmin && isMobileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10">
-              <button onClick={() => setIsMobileModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"><X size={24} /></button>
-              <div className="p-8 overflow-y-auto"><MobileSecurity /></div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeMobileModal}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            <motion.div
+              ref={mobileDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Sécurité mobile"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onKeyDown={handleMobileDialogKeyDown}
+              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
+            >
+              <button
+                type="button"
+                autoFocus
+                onClick={closeMobileModal}
+                aria-label="Fermer la fenêtre de sécurité mobile"
+                className="absolute top-6 right-6 min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
+              >
+                <X size={24} aria-hidden="true" />
+              </button>
+              <div className="p-8 overflow-y-auto">
+                <MobileSecurity />
+              </div>
             </motion.div>
           </div>
         )}
