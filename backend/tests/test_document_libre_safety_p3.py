@@ -49,10 +49,15 @@ def test_blank_title_or_content_is_rejected():
         _normalize_and_validate_libre_data(_libre(contenu="\n  \t"))
 
 
-@pytest.mark.parametrize("page_size", ["A3", "Letter", ""])
+@pytest.mark.parametrize("page_size", ["A3", "Letter"])
 def test_unknown_page_size_is_rejected(page_size):
     with pytest.raises(ValueError, match="A4 ou A5"):
         _normalize_and_validate_libre_data(_libre(page_size=page_size))
+
+
+def test_blank_page_size_normalizes_to_safe_a5_default():
+    normalized = _normalize_and_validate_libre_data(_libre(page_size=""))
+    assert normalized.page_size == "A5"
 
 
 @pytest.mark.parametrize("alignment", ["middle", "auto", "diagonal"])
