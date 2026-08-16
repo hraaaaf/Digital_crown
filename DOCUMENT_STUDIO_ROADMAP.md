@@ -35,8 +35,6 @@ Aucun pourcentage global n’est déduit de cette roadmap : aucune pondération 
 
 Rapport : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
 
-Acquis principaux : contrats/safety, persistance habitudes/protocoles, dirty-state, fast prescription, contexte patient, preview responsive, recertification 1440/768/390.
-
 Gates séparés : interaction authentifiée finale et validation clinique/pharmacologique humaine.
 
 ---
@@ -45,11 +43,9 @@ Gates séparés : interaction authentifiée finale et validation clinique/pharma
 
 **État : ✅ engineering convergé ; ⏳ runtime/PDF final différé.**
 
-Rapport historique : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md` (ancien identifiant conservé pour traçabilité).
+Rapport historique : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
 
-Acquis : nature/date/durée explicites, certificat libre praticien, contrat backend fail-closed, signature dentiste, impression fraîche, PDF/identité/QR sécurisés.
-
-Gates différés : checkout complet, runtime authentifié, inspection PDF finale, validation réglementaire/clinique si requise.
+T1 a rétabli un dirty-state Certificat explicite et intégré la date commune à la protection de brouillon.
 
 ---
 
@@ -61,11 +57,9 @@ Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_AUDIT.md`
 - `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`
 
-PR d’intégration : **#77**, conservée **open + draft**.
+PR : **#77**, open + draft.
 
-Preuves locales P3-H conservées : backend **26/26 PASS**, frontend policies `tsc --strict` PASS, frontend ciblé **39/39 PASS**, PDF long lisible avec floor >=7 pt.
-
-Gates différés uniquement si P3 est rouvert : full build/tests, smoke authentifié adulte/pédiatrique, archive/reopen réel, PDF cabinet, responsive/browser, merge/post-merge.
+Preuves locales P3-H conservées : backend **26/26 PASS**, frontend policies `tsc --strict` PASS, frontend ciblé **39/39 PASS**, PDF long lisible floor >=7 pt.
 
 ---
 
@@ -76,11 +70,7 @@ Gates différés uniquement si P3 est rouvert : full build/tests, smoke authenti
 Rapport : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`.
 PR : **#90**, draft.
 
-Acquis : contrat financier fail-closed, isolation échéanciers, séparation impayé/encaissement, round-trip odontogramme, PDF multipage sûr, sémantique financière et accessibilité renforcées.
-
-Preuves locales : backend **13/13 PASS**, policy échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long **36/36 lignes / 6 pages / header 6/6 / floor 7 pt**.
-
-Gates différés : React/Vite full-project, smoke authentifié, PDF cabinet, responsive/browser, merge/post-merge.
+Preuves locales : backend **13/13 PASS**, échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long **36/36 lignes / 6 pages / header 6/6 / floor 7 pt**.
 
 ---
 
@@ -92,11 +82,12 @@ Rapport : `docs/audits/DOCUMENT_STUDIO_P5_SUIVI_PAIEMENT_AUDIT.md`.
 Handover : `docs/audits/DOCUMENT_STUDIO_P5_HANDOVER_2026-08-16.md`.
 PR : **#95**, draft.
 
-Acquis : création de plan fail-closed et somme exacte, édition conciliée, historique de paiement protégé, suivi backend-authoritative, règlement réel explicite, sauvegarde dédiée et faux états locaux supprimés.
+Preuves locales : backend **15/15 PASS**, summary **4/4 PASS**, create payload `tsc --strict` + **8/8 PASS**.
 
-Preuves locales : backend **15/15 PASS**, summary policy **4/4 PASS**, create-payload policy `tsc --strict` + **8/8 PASS**.
-
-Gates différés : build/tests full-project, création/reload/paiement authentifiés, vraie ligne `Payment`, responsive/browser, WhatsApp réel.
+T1 a en plus :
+- rendu le contrat d’impression explicite : PDF brouillon ≠ sauvegarde ;
+- supprimé le stale-print P5 en armant l’impression seulement après nouveau `pdf_url` ;
+- désactivé le vieux second moteur `/documents/generate` pour `echeancier`.
 
 ---
 
@@ -107,13 +98,9 @@ Gates différés : build/tests full-project, création/reload/paiement authentif
 Rapport : `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md`.
 PR : **#96**, draft.
 
-Socle vérifié : contrat fail-closed, A4/A5, alignements, markup sûr, archive après génération, protection brouillon.
+Preuve P6-R1 : `tsc --strict` PASS + **11/11 assertions PASS**.
 
-Correction P6-R1 : un archivage Libre ne nettoie le dirty-state qu’après réponse backend réussie avec `pdf_url`; preview, échec, 409/doublon, autre type ou PDF absent conservent l’état sale.
-
-Preuve locale P6-R1 : `tsc --strict` PASS + **11/11 assertions PASS**.
-
-Gates différés : full React/Vite, runtime, archive/reopen/409, impression, PDF cabinet multipage, responsive/browser, merge/post-merge.
+T1 a centralisé son dirty-state dans le lifecycle partagé et n’autorise le nettoyage qu’après un vrai signal d’archive réussie.
 
 ---
 
@@ -124,51 +111,58 @@ Gates différés : full React/Vite, runtime, archive/reopen/409, impression, PDF
 Rapport : `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md`.
 PR : **#97**, draft.
 
-### Findings fermés
-- ancien arbre symptomatique supprimé comme source de `Diagnostic Établi` ;
-- substitutions automatiques antibiotique/AINS depuis texte libre supprimées ;
-- plans thérapeutiques et conseils médicaux spécifiques hardcodés supprimés ;
-- plus aucun acte clinique prérempli automatiquement ;
-- contexte patient en lecture seule, sans interprétation lexicale ;
-- acte transférable uniquement s’il est saisi manuellement par le praticien ;
-- confirmation explicite du praticien obligatoire ;
-- P7→P3 garde prix **0**, aucune dent inventée et filtre les instructions médicamenteuses/non financières ;
-- aucun chemin automatique P7→Ordonnance ;
-- dirty-state des actes praticien protégé sur changement d’onglet et fermeture navigateur.
-
-### Preuves locales
-- policy P7 : `tsc --strict` PASS + **8/8 assertions PASS** ;
-- chaîne P7→P3 + dirty : `tsc --strict` PASS + **12/12 assertions PASS**.
-
-### Gates différés
-- vrai `npm test` / `npm run build` full-project ;
-- runtime authentifié avec patient réel ;
-- test réel P7→P3 ;
-- browser 390/768/desktop + clavier/touch ;
-- validation clinique/scientifique humaine de toute future orientation plus spécifique ;
-- analyse réglementaire applicable au produit final ;
-- ready review / merge / post-merge.
+Preuves locales : policy P7 `tsc --strict` + **8/8 PASS** ; chaîne P7→P3 + dirty `tsc --strict` + **12/12 PASS**.
 
 ---
 
 ## T1 — Audit transversal premium
 
-**État : 🟡 ACTIVE — audit partagé Document Studio à exécuter maintenant.**
+**État : ✅ engineering transversal local convergé ; ⏳ full-app/browser différés.**
 
-Chemin critique :
-- [ ] navigation et bypass des dirty-state, y compris changements par URL/query params ;
-- [ ] harmonisation lifecycle preview/archive/print/duplicate ;
-- [ ] cohérence des registres dirty-state entre pages ;
-- [ ] permissions et contrats backend partagés ;
-- [ ] responsive/accessibilité des composants communs ;
-- [ ] callbacks/branches mortes et duplication de logique ;
-- [ ] nomenclature et messages transactionnels ;
-- [ ] régression ciblée des transitions inter-pages.
+Rapport : `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_AUDIT.md`.
+PR : **#101**, draft.
+
+### Fermetures T1
+
+- navigation clic/query-param/programmée centralisée ;
+- dirty-state Certificat rétabli ;
+- date commune intégrée aux dirty-state concernés ;
+- archive-success rendu explicite, sans déduction via simple changement de `pdfUrl` ;
+- preview/erreur/409 ne nettoient plus les brouillons ;
+- P5 impression non persistante rendue explicite et stale-print supprimé ;
+- branche ghost `ai` retirée du Document Studio et appel `/ai-diagnostic` supprimé du hook ;
+- ancien `/documents/generate` `echeancier` désactivé ;
+- header partagé nettoyé : branche AI morte, boutons `type=button`, label date ;
+- permissions partagées relues et accès patient conservé.
+
+### Preuves T1
+
+- `DocumentNavigationPolicy` : `tsc --strict` PASS + **10/10 assertions PASS** ;
+- contrat legacy échéancier : **4/4 PASS** sous Linux ;
+- tests `DocumentRequest` versionnés ;
+- inspection statique des composants/routeurs partagés.
+
+### Gates différés
+
+- vrai `npm test` / `npm run build` full-project ;
+- suite backend full-repo ;
+- runtime authentifié navigation/dirty/archive/preview/409/print ;
+- browser 390/768/desktop ;
+- PDF cabinet ;
+- merge/post-merge.
 
 ---
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après T1.**
+**État : 🟡 ACTIVE — closeout final engineering + préparation de la recertification.**
 
-Objectif : corriger les points transversaux retenus, exécuter la régression globale Document Studio, fermer les gates runtime/PDF/browser disponibles et produire le closeout final sans sur-certification.
+Chemin critique :
+- [ ] supprimer/neutraliser les restes legacy devenus inatteignables ;
+- [ ] réduire les listeners/props/callbacks partagés redondants sans casser les protections ;
+- [ ] compléter l’accessibilité des modales partagées ;
+- [ ] produire un harness de certification Document Studio unique et fail-closed ;
+- [ ] vérifier la cohérence des PR stackées et des audits canoniques ;
+- [ ] exécuter tout test local réellement disponible ;
+- [ ] documenter précisément les gates full-app/runtime/PDF/browser encore externes ;
+- [ ] ne pas merger/ready les PR tant que les gates requis ne sont pas réellement exécutés.
