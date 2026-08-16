@@ -168,6 +168,43 @@ class DevisData(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def require_consistent_teeth_data(self):
+        if not self.teeth_data:
+            return self
+
+        item_pairs = {}
+        for item in self.items:
+            normalized_name = item.acte.strip().casefold()
+            for tooth in item.dents:
+                item_pairs[(tooth, normalized_name)] = float(item.prix_unitaire)
+
+        for tooth_data in self.teeth_data:
+            if tooth_data.tooth_number not in _VALID_DEVIS_FDI:
+                raise PydanticCustomError(
+                    "devis_invalid_teeth_data_tooth",
+                    f"teeth_data contient un numéro FDI invalide : {tooth_data.tooth_number}.",
+                )
+            if not tooth_data.treatments:
+                raise PydanticCustomError(
+                    "devis_orphan_teeth_data",
+                    f"teeth_data pour la dent {tooth_data.tooth_number} ne contient aucun acte du devis.",
+                )
+            for treatment in tooth_data.treatments:
+                normalized_name = treatment.name.strip().casefold()
+                key = (tooth_data.tooth_number, normalized_name)
+                if not normalized_name or key not in item_pairs:
+                    raise PydanticCustomError(
+                        "devis_orphan_teeth_data",
+                        f"teeth_data ne correspond à aucune ligne du devis : dent {tooth_data.tooth_number}, acte '{treatment.name}'.",
+                    )
+                if abs(float(treatment.price) - item_pairs[key]) > 0.01:
+                    raise PydanticCustomError(
+                        "devis_teeth_data_price_mismatch",
+                        f"Prix incohérent entre items et teeth_data pour la dent {tooth_data.tooth_number}, acte '{treatment.name}'.",
+                    )
+        return self
+
 
 class PaymentItem(BaseModel):
     date: Optional[datetime.date] = None
