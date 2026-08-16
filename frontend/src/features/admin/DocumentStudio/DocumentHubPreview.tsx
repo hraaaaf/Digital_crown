@@ -1,0 +1,70 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { LivePreview } from './LivePreview';
+import { useDocumentPreviewController } from './useDocumentPreviewController';
+
+interface DocumentHubPreviewProps {
+  open: boolean;
+  fingerprint: string;
+  pdfUrl: string | null;
+  loading: boolean;
+  title: string;
+  onClose: () => void;
+  onGeneratePreview: () => Promise<void> | void;
+}
+
+export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
+  open,
+  fingerprint,
+  pdfUrl,
+  loading,
+  title,
+  onClose,
+  onGeneratePreview,
+}) => {
+  const [stale, setStale] = useState(false);
+  const previousPdfUrl = useRef<string | null>(pdfUrl);
+
+  useEffect(() => {
+    if (open && pdfUrl) setStale(true);
+  }, [open]);
+
+  useEffect(() => {
+    if (pdfUrl !== previousPdfUrl.current) {
+      previousPdfUrl.current = pdfUrl;
+      setStale(false);
+    }
+  }, [pdfUrl]);
+
+  const generatePreview = useCallback(() => {
+    setStale(true);
+    void onGeneratePreview();
+  }, [onGeneratePreview]);
+
+  useDocumentPreviewController({
+    enabled: open,
+    fingerprint,
+    onGeneratePreview: generatePreview,
+  });
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ x: 600, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 600, opacity: 0 }}
+          className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
+        >
+          <LivePreview
+            pdfUrl={stale ? null : pdfUrl}
+            loading={loading || stale}
+            onClose={onClose}
+            onRefresh={generatePreview}
+            title={title}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
