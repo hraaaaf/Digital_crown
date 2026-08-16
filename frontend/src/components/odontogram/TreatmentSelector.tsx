@@ -15,7 +15,7 @@ import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogS
 import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/AccountingTreatmentPricePolicy';
 
 interface TreatmentSelectorProps {
-  toothNumber: ToothNumberFDI | PediatricToothNumber;
+  toothNumber: number;
   currentTreatments: ToothTreatment[];
   onConfirm: (treatments: ToothTreatment[], surfaces: ToothSurface[], notes: string) => void;
   onCancel: () => void;
