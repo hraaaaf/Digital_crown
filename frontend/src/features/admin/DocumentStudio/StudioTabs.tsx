@@ -1,9 +1,13 @@
 import React from 'react';
 import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useAccountingStore } from '../store/useAccountingStore';
 import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
+import { isCertificateDirty, setCertificateDirty } from './CertificateDirtyState';
+import { isInstallmentDirty, setInstallmentDirty } from './InstallmentDirtyState';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
 import { isP7Dirty, setP7Dirty } from './P7DirtyState';
+import { shouldGuardDocumentTabTransition } from './DocumentTabNavigationPolicy';
 
 interface StudioTabsProps {
   activeTab: import('../DocumentHub').HubDocumentType;
@@ -11,30 +15,62 @@ interface StudioTabsProps {
   'data-tour'?: string;
 }
 
+const discardMessage: Partial<Record<import('../DocumentHub').HubDocumentType, string>> = {
+  ordonnance: 'Des modifications non enregistrées sont présentes dans l’ordonnance. Quitter cet onglet et les abandonner ?',
+  certificat: 'Des modifications non enregistrées sont présentes dans le certificat. Quitter cet onglet et les abandonner ?',
+  devis: 'Des actes non enregistrés sont présents dans le devis. Quitter cet espace et les abandonner ?',
+  honoraires: 'Des actes non enregistrés sont présents dans la note d’honoraires. Quitter cet espace et les abandonner ?',
+  echeancier: 'Un échéancier non enregistré contient des modifications. Quitter cet onglet et les abandonner ?',
+  libre: 'Des modifications non enregistrées sont présentes dans le document libre. Quitter cet onglet et les abandonner ?',
+  plan: 'Une proposition diagnostique non convertie contient des modifications. Quitter cet onglet et les abandonner ?',
+};
+
 export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 'data-tour': dataTour }) => {
+  const accountingItems = useAccountingStore(state => state.items);
+  const resetAccounting = useAccountingStore(state => state.reset);
+
   const requestTabChange = (tab: import('../DocumentHub').HubDocumentType) => {
-    if (tab === activeTab) return;
-    if (activeTab === 'ordonnance' && isPrescriptionDirty()) {
-      const confirmed = window.confirm(
-        'Des modifications non enregistrées sont présentes dans l’ordonnance. Quitter cet onglet et les abandonner ?',
-      );
-      if (!confirmed) return;
-      setPrescriptionDirty(false);
+    const dirty = {
+      prescription: isPrescriptionDirty(),
+      certificate: isCertificateDirty(),
+      accounting: accountingItems.some(item => item.description.trim()),
+      installment: isInstallmentDirty(),
+      libre: isLibreDirty(),
+      plan: isP7Dirty(),
+    };
+
+    if (!shouldGuardDocumentTabTransition(activeTab, tab, dirty)) {
+      onTabChange(tab);
+      return;
     }
-    if (activeTab === 'libre' && isLibreDirty()) {
-      const confirmed = window.confirm(
-        'Des modifications non enregistrées sont présentes dans le document libre. Quitter cet onglet et les abandonner ?',
-      );
-      if (!confirmed) return;
-      setLibreDirty(false);
+
+    const confirmed = window.confirm(discardMessage[activeTab] || 'Abandonner les modifications non enregistrées ?');
+    if (!confirmed) return;
+
+    switch (activeTab) {
+      case 'ordonnance':
+        setPrescriptionDirty(false);
+        break;
+      case 'certificat':
+        setCertificateDirty(false);
+        break;
+      case 'devis':
+      case 'honoraires':
+        resetAccounting();
+        break;
+      case 'echeancier':
+        setInstallmentDirty(false);
+        break;
+      case 'libre':
+        setLibreDirty(false);
+        break;
+      case 'plan':
+        setP7Dirty(false);
+        break;
+      default:
+        break;
     }
-    if (activeTab === 'plan' && isP7Dirty()) {
-      const confirmed = window.confirm(
-        'Une proposition diagnostique non convertie contient des modifications. Quitter cet onglet et les abandonner ?',
-      );
-      if (!confirmed) return;
-      setP7Dirty(false);
-    }
+
     onTabChange(tab);
   };
 
@@ -53,6 +89,7 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
 
 const TabButton = ({ active, onClick, icon, label, tourId }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, tourId?: string }) => (
   <button
+    type="button"
     onClick={onClick}
     data-tour={tourId}
     className={cn(
