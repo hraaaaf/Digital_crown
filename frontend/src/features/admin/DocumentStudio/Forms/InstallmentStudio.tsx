@@ -30,7 +30,8 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = props => {
       event.returnValue = '';
     };
 
-    const responseInterceptor = api.interceptors.response.use(response => {
+    const responseInterceptors = api.interceptors?.response;
+    const responseInterceptor = responseInterceptors?.use(response => {
       const method = response.config?.method?.toLowerCase();
       const url = response.config?.url || '';
       if (method === 'post' && url === '/installments/') {
@@ -42,7 +43,9 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = props => {
     window.addEventListener('beforeunload', beforeUnload);
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
-      api.interceptors.response.eject(responseInterceptor);
+      if (responseInterceptor !== undefined) {
+        responseInterceptors?.eject(responseInterceptor);
+      }
       setInstallmentDirty(false);
     };
   }, []);
