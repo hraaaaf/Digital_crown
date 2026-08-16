@@ -3,6 +3,7 @@ import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react'
 import { cn } from '../../../utils/cn';
 import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
+import { isDiagnosticCompanionDirty, setDiagnosticCompanionDirty } from './DiagnosticCompanionDirtyState';
 import { requiresDevisToHonorairesConfirmation } from './AccountingDocumentTransitionPolicy';
 
 interface StudioTabsProps {
@@ -34,6 +35,13 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
       if (!confirmed) return;
       setLibreDirty(false);
     }
+    if (activeTab === 'plan' && isDiagnosticCompanionDirty()) {
+      const confirmed = window.confirm(
+        'Des actes saisis par le praticien n’ont pas encore été transférés. Quitter le compagnon et les abandonner ?',
+      );
+      if (!confirmed) return;
+      setDiagnosticCompanionDirty(false);
+    }
     onTabChange(tab);
   };
 
@@ -52,6 +60,7 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
 
 const TabButton = ({ active, onClick, icon, label, tourId }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, tourId?: string }) => (
   <button
+    type="button"
     onClick={onClick}
     data-tour={tourId}
     className={cn(
