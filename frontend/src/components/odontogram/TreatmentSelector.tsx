@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Check, Clock, Search, Plus, Star } from 'lucide-react';
+import { X, Check, Search, Plus, Star } from 'lucide-react';
 import type { ToothNumberFDI, PediatricToothNumber, ToothTreatment, ToothSurface } from './types';
 import { TOOTH_NAMES, PEDIATRIC_TOOTH_NAMES } from './types';
 import { PriceBrain, type ActHistory } from './PriceBrain';
@@ -42,13 +42,13 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
 };
 
 const getFallbackSuggestions = (): TreatmentTemplate[] => [
-  { id: 'prev-det', name: 'Détartrage complet', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
-  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 20 },
-  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 30 },
-  { id: 'endo-mono', name: 'Traitement canalaire mono', category: 'ENDODONTIE', scope: 'UNITAIRE', duration: 45 },
-  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
+  { id: 'prev-det', name: 'Détartrage complet', category: 'PREVENTION', scope: 'GLOBAL' },
+  { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE' },
+  { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE' },
+  { id: 'comp-2', name: 'Composite 2 faces', category: 'CONSERVATRICE', scope: 'UNITAIRE' },
+  { id: 'endo-mono', name: 'Traitement canalaire mono', category: 'ENDODONTIE', scope: 'UNITAIRE' },
+  { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE' },
+  { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE' },
 ];
 
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
@@ -251,7 +251,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                     <tr className="bg-slate-50 border-b border-slate-100">
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-12 text-center">État</th>
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-auto">Acte</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24 text-center">Durée</th>
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-right">Prix</th>
                     </tr>
                   </thead>
@@ -299,14 +298,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                                 </div>
                                 {activeCategory === 'FREQUENTS' && <Star size={12} className="text-amber-400 fill-amber-400" />}
                               </div>
-                            </td>
-                            <td className="px-6 py-3.5">
-                              {template.duration ? (
-                                <div className={cn("flex items-center gap-1.5 text-xs font-bold", embedded ? "text-white/40" : "text-slate-500")}>
-                                  <Clock size={12} className={embedded ? "text-white/20" : "text-slate-300"} />
-                                  {template.duration} min
-                                </div>
-                              ) : <span className="text-slate-300">-</span>}
                             </td>
                             <td className="px-6 py-3.5 text-right">
                               {isSelected ? (
