@@ -59,18 +59,22 @@ export const useTodayAppointments = ({
   ) => {
     if (!canUseAgenda) return;
 
-    await api.put(`/appointments/${appointmentId}`, { status: newStatus });
-    await refreshAppointments();
+    try {
+      await api.put(`/appointments/${appointmentId}`, { status: newStatus });
+      await refreshAppointments();
 
-    if (canReadPatients) {
-      await onStatsRefresh();
-    }
-
-    if (newStatus === 'TERMINÉ') {
-      const appointment = appointments.find(item => item.id === appointmentId);
-      if (appointment?.patient) {
-        onCompleted(appointment.patient);
+      if (canReadPatients) {
+        await onStatsRefresh();
       }
+
+      if (newStatus === 'TERMINÉ') {
+        const appointment = appointments.find(item => item.id === appointmentId);
+        if (appointment?.patient) {
+          onCompleted(appointment.patient);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur changement de statut du rendez-vous', error);
     }
   }, [appointments, canReadPatients, canUseAgenda, onCompleted, onStatsRefresh, refreshAppointments]);
 
