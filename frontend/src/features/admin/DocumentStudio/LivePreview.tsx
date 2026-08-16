@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
 
@@ -20,13 +20,25 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   inline = false,
 }) => {
   const [iframeReady, setIframeReady] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIframeReady(false);
   }, [pdfUrl]);
 
+  useEffect(() => {
+    if (inline) return;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inline, onClose]);
+
   const showSkeleton = loading || Boolean(pdfUrl && !iframeReady);
+  const titleId = 'document-studio-live-preview-title';
 
   const containerContent = (
     <div className="relative flex h-full w-full flex-col bg-white">
@@ -37,7 +49,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           </div>
           <div className="min-w-0">
             <span className="mb-1 block text-[10px] font-black uppercase leading-none tracking-widest text-slate-400">Aperçu document</span>
-            <span className="block truncate text-base font-black tracking-tight text-slate-800">{title}</span>
+            <span id={titleId} className="block truncate text-base font-black tracking-tight text-slate-800">{title}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -53,8 +65,10 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
             </button>
           )}
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
+            aria-label="Fermer l’aperçu du document"
             className="flex min-h-10 items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 shadow-sm transition-all hover:bg-red-600 hover:text-white sm:text-[11px]"
           >
             <X size={16} />
@@ -65,7 +79,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
       <div className="relative flex-1 overflow-hidden bg-slate-900/5">
         {showSkeleton && (
-          <div className="absolute inset-0 z-10 flex flex-col gap-4 bg-white p-5 animate-in fade-in duration-200 sm:p-8">
+          <div className="absolute inset-0 z-10 flex flex-col gap-4 bg-white p-5 animate-in fade-in duration-200 sm:p-8" role="status" aria-live="polite">
             <div className="h-12 w-full animate-pulse rounded-2xl bg-slate-100" />
             <div className="h-6 w-3/4 animate-pulse rounded-xl bg-slate-100" />
             <div className="my-4 h-px w-full bg-slate-200" />
@@ -151,6 +165,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         }
       `}</style>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="document-studio-live-preview fixed inset-x-3 bottom-3 top-3 z-[20000] flex flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-[0_32px_64px_rgba(0,0,0,0.2)] ring-1 ring-black/5 animate-in slide-in-from-right-12 duration-500 sm:inset-y-4 sm:left-auto sm:right-4 sm:w-[min(600px,calc(100vw-2rem))] sm:rounded-[3rem]"
         style={{ pointerEvents: 'auto' }}
       >
