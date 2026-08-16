@@ -3,6 +3,7 @@ import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react'
 import { cn } from '../../../utils/cn';
 import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
+import { isP7Dirty, setP7Dirty } from './P7DirtyState';
 
 interface StudioTabsProps {
   activeTab: import('../DocumentHub').HubDocumentType;
@@ -26,6 +27,13 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
       );
       if (!confirmed) return;
       setLibreDirty(false);
+    }
+    if (activeTab === 'plan' && isP7Dirty()) {
+      const confirmed = window.confirm(
+        'Une proposition diagnostique non convertie contient des modifications. Quitter cet onglet et les abandonner ?',
+      );
+      if (!confirmed) return;
+      setP7Dirty(false);
     }
     onTabChange(tab);
   };
