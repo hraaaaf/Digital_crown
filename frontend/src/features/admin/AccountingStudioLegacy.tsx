@@ -676,6 +676,13 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <TreatmentSelector
                             toothNumber={activeTooth}
                             currentTreatments={activeToothTreatments}
+                            initialSurfaces={[...new Set(items
+                              .filter(item => item._odontogramKey?.startsWith(`${activeTooth}::`))
+                              .flatMap(item => item.odontogramSurfaces || []))] as ToothSurface[]}
+                            initialNotes={[...new Set(items
+                              .filter(item => item._odontogramKey?.startsWith(`${activeTooth}::`))
+                              .map(item => (item.odontogramNotes || '').trim())
+                              .filter(Boolean))].join('\n')}
                             allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
                               replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces, notes);
