@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const read = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+const documentStudioDir = resolve(process.cwd(), 'src/features/admin/DocumentStudio');
+const read = (file: string) => readFileSync(resolve(documentStudioDir, file), 'utf8');
 
 const activeShellSource = [
-  read('./StudioHeader.tsx'),
-  read('./StudioTabs.tsx'),
-  read('./StudioFooter.tsx'),
-  read('./LivePreview.tsx'),
+  read('StudioHeader.tsx'),
+  read('StudioTabs.tsx'),
+  read('StudioFooter.tsx'),
+  read('LivePreview.tsx'),
 ].join('\n');
 
 describe('Document Studio UI truth boundary', () => {
@@ -18,8 +20,10 @@ describe('Document Studio UI truth boundary', () => {
     expect(activeShellSource).not.toMatch(/IA certifi[ée]e?/i);
   });
 
-  it('keeps the uncertified clinical path explicitly unavailable', () => {
-    expect(activeShellSource).toContain('Fonction clinique désactivée');
-    expect(activeShellSource).toContain('validation scientifique dédiée');
+  it('removes the uncertified clinical route instead of exposing a ghost disabled state', () => {
+    expect(activeShellSource).not.toContain("| 'ai'");
+    expect(activeShellSource).not.toContain("activeTab === 'ai'");
+    expect(activeShellSource).not.toContain('Fonction clinique désactivée');
+    expect(activeShellSource).not.toContain('validation scientifique dédiée');
   });
 });
