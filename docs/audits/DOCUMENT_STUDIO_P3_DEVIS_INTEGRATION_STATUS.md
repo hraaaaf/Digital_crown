@@ -135,7 +135,7 @@ This is an isolated rendering proof, **not** a cabinet-branded runtime PDF/signa
 
 ## GitHub Actions status
 
-GitHub Actions is no longer treated as the P3-H execution path. The latest Actions run failed before runner allocation; that infrastructure result is irrelevant to the local functional evidence above and is not used as a code verdict.
+GitHub Actions is **not part of the active P3-H path**. Its runner-allocation problem is recorded only as infrastructure history and is not treated as a blocker or code verdict for this chantier.
 
 ## Remaining P3-H gates
 
