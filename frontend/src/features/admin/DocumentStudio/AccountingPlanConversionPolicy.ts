@@ -9,13 +9,38 @@ export interface PlanActForQuote {
   phase?: string;
 }
 
+const NON_FINANCIAL_PLAN_PATTERNS = [
+  /\bprescription\b/i,
+  /\bordonnance\b/i,
+  /antibiot/i,
+  /antalg/i,
+  /anti[-\s]?inflamm/i,
+  /corticost/i,
+  /\bm[ée]dicament/i,
+  /\bposologie\b/i,
+  /\bsurveillance\b/i,
+  /\benseignement\b/i,
+];
+
 /**
- * Convert a treatment-plan proposal into neutral Devis rows.
+ * A P7 treatment-plan proposal may contain clinical guidance in addition to
+ * billable procedures. Clinical medication/follow-up instructions must never
+ * become financial Devis rows automatically.
+ */
+export function isPlanProposalQuoteEligible(act: PlanActForQuote): boolean {
+  const description = String(act.suggested_act ?? act.act ?? '').trim();
+  if (!description) return false;
+  return !NON_FINANCIAL_PLAN_PATTERNS.some(pattern => pattern.test(description));
+}
+
+/**
+ * Convert eligible treatment-plan proposals into neutral Devis rows.
  * A plan may suggest WHAT to do, but it must not invent a financial amount.
  * Pricing is resolved later by the authoritative catalog / practitioner input.
  */
 export function convertPlanActsToQuoteItems(acts: PlanActForQuote[]): PriceItem[] {
   return acts
+    .filter(isPlanProposalQuoteEligible)
     .map((act, index) => {
       const description = String(act.suggested_act ?? act.act ?? '').trim();
       const rawTooth = act.fdi ?? act.toothNumber;
@@ -30,6 +55,5 @@ export function convertPlanActsToQuoteItems(acts: PlanActForQuote[]): PriceItem[
         toothNumbers: toothNumber ? [toothNumber] : [],
         category: act.phase,
       } satisfies PriceItem;
-    })
-    .filter(item => item.description.length > 0);
+    });
 }
