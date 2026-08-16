@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const hub = readFileSync(new URL('../DocumentHub.tsx', import.meta.url), 'utf8');
-const navigation = readFileSync(new URL('./useDocumentHubNavigation.ts', import.meta.url), 'utf8');
-const patient = readFileSync(new URL('./useDocumentHubPatient.ts', import.meta.url), 'utf8');
-const content = readFileSync(new URL('./DocumentHubContent.tsx', import.meta.url), 'utf8');
-const preview = readFileSync(new URL('./DocumentHubPreview.tsx', import.meta.url), 'utf8');
-const dialogs = readFileSync(new URL('./DocumentHubDialogs.tsx', import.meta.url), 'utf8');
+const documentStudioDir = resolve(process.cwd(), 'src/features/admin/DocumentStudio');
+const hub = readFileSync(resolve(documentStudioDir, '../DocumentHub.tsx'), 'utf8');
+const navigation = readFileSync(resolve(documentStudioDir, 'useDocumentHubNavigation.ts'), 'utf8');
+const patient = readFileSync(resolve(documentStudioDir, 'useDocumentHubPatient.ts'), 'utf8');
+const content = readFileSync(resolve(documentStudioDir, 'DocumentHubContent.tsx'), 'utf8');
+const preview = readFileSync(resolve(documentStudioDir, 'DocumentHubPreview.tsx'), 'utf8');
+const dialogs = readFileSync(resolve(documentStudioDir, 'DocumentHubDialogs.tsx'), 'utf8');
 
 describe('Document Studio T2-C shell decomposition', () => {
   it('keeps DocumentHub as orchestration and shell composition instead of owning navigation plumbing', () => {
