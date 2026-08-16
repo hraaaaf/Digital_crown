@@ -7,7 +7,7 @@ from typing import List, Union
 from pydantic import BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
 
-from backend.utils.document_installment_contract import normalize_document_installment_plan_id
+from backend.utils.document_installment_contract import assert_document_installment_path_is_disabled
 from backend.utils.installment_reconciliation import validate_installments
 from .documents import (
     DocumentRequest as LegacyDocumentRequest,
@@ -177,32 +177,24 @@ class HonorairesData(BaseModel):
 class DocumentRequest(LegacyDocumentRequest):
     """Document request with fail-closed shared financial semantics.
 
-    - Unique Honoraires notes must not inherit an installment plan previously
-      loaded in the shared frontend store.
-    - A collection method is meaningful only for PAYE.
-    - Document Studio may render an existing installment plan by `plan_id`, but
-      raw plan creation must go through the dedicated strict installment API.
+    Unique Honoraires notes must not inherit an installment plan previously
+    loaded in the shared frontend store. A collection method is meaningful only
+    for PAYE. Installment plans use their dedicated P5 API exclusively.
     """
 
     @model_validator(mode="before")
     @classmethod
-    def require_authoritative_installment_plan(cls, value):
-        if not isinstance(value, dict) or value.get("type") != "echeancier":
+    def reject_legacy_installment_document_path(cls, value):
+        if not isinstance(value, dict):
             return value
-        sanitized_request = dict(value)
-        sanitized_data = dict(value.get("data") or {})
         try:
-            sanitized_data["plan_id"] = normalize_document_installment_plan_id(
-                "echeancier",
-                sanitized_data,
-            )
+            assert_document_installment_path_is_disabled(value.get("type", ""))
         except ValueError as exc:
             raise PydanticCustomError(
-                "installment_document_requires_saved_plan",
-                "Un échéancier persistant doit être créé via /installments/ avant génération Document Studio.",
+                "installment_document_path_disabled",
+                "Le flux échéancier /documents/generate est désactivé. Utilisez les endpoints /installments dédiés.",
             ) from exc
-        sanitized_request["data"] = sanitized_data
-        return sanitized_request
+        return value
 
     @model_validator(mode="before")
     @classmethod
