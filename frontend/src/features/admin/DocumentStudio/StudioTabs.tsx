@@ -4,7 +4,7 @@ import { cn } from '../../../utils/cn';
 import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 interface StudioTabsProps {
-  activeTab: CertifiableDocumentStudioTab | 'ai';
+  activeTab: CertifiableDocumentStudioTab;
   onTabChange: (tab: CertifiableDocumentStudioTab) => void;
   'data-tour'?: string;
 }
