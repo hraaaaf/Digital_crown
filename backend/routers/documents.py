@@ -276,16 +276,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         if should_offer_financial_rdv_suggestion(req.type):
             rdv_suggestion = None
 
-        # D3: Suggestion ordonnance radio post-prothèse
+        # Financial documents are not a clinical indication for radiography.
         suggest_radio = False
-        _PROTHESE_KEYWORDS = ['couronne', 'prothèse', 'prothese', 'bridge', 'implant', 'facette', 'inlay', 'onlay']
-        if req.type in ["honoraires", "note"] and not preview:
-            items = req.data.get('payments', req.data.get('items', []))
-            for item in items:
-                act_name = (item.get('acte') or item.get('description') or '').lower()
-                if any(k in act_name for k in _PROTHESE_KEYWORDS):
-                    suggest_radio = True
-                    break
 
         if not preview:
             audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {should_archive}")
@@ -712,8 +704,7 @@ async def upload_rvg(
         action="RVG_UPLOAD",
         resource_type="RADIOGRAPHIE",
         resource_id=str(patient_id),
-        severity="INFO",
-        details=f"RVG téléchargée pour le patient {patient_id} : {file.filename}",
+        severity="INFO", details=f"RVG téléchargée pour le patient {patient_id} : {file.filename}",
     )
 
     db.commit()
