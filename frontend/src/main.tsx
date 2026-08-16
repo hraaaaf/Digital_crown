@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import './index.css' // <--- VERIFIE BIEN CETTE LIGNE
-import './sidebar-interaction.css'
 import * as Sentry from "@sentry/react";
 
 if (import.meta.env.VITE_SENTRY_DSN) {
