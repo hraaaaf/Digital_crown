@@ -57,7 +57,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
 
-  const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&doc=${studioPage.slug}`;
+  const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=${studioPage.slug}`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByText('Documents A5', { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText(studioPage.label, { exact: true }).first().waitFor({ timeout: 30000 });
@@ -74,7 +74,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
     const headings = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].filter(visible);
     return {
       activePath: location.pathname + location.search,
-      slugInUrl: new URLSearchParams(location.search).get('doc') === slug,
+      slugInUrl: new URLSearchParams(location.search).get('documentTab') === slug,
       scrollWidth: doc.scrollWidth,
       clientWidth: doc.clientWidth,
       noHorizontalOverflow: doc.scrollWidth <= doc.clientWidth + 2,
@@ -171,7 +171,7 @@ for (const viewport of viewports) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const page = await context.newPage();
   await seedAuth(page);
-  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&doc=libre`, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
 
   const editable = page.locator('textarea').first();
