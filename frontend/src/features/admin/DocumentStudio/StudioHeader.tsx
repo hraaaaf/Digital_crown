@@ -7,7 +7,7 @@ interface StudioHeaderProps {
   patientName: string;
   docDate: string;
   onDateChange: (date: string) => void;
-  activeTab: CertifiableDocumentStudioTab | 'ai';
+  activeTab: CertifiableDocumentStudioTab;
   showOdontoPanoramique: boolean;
   onToggleOdonto: () => void;
   onGenerate?: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
@@ -24,7 +24,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   showOdontoPanoramique,
   onToggleOdonto,
 }) => {
-  const documentLabel = activeTab === 'ai' ? 'Fonction désactivée' : DOCUMENT_STUDIO_LABELS[activeTab];
+  const documentLabel = DOCUMENT_STUDIO_LABELS[activeTab];
 
   return (
     <div className="sticky top-0 z-[60] -mt-1 -mx-1 mb-2 p-2.5 sm:p-3 bg-white/85 dark:bg-slate-950/80 backdrop-blur-3xl rounded-2xl border border-slate-200/70 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 transition-all duration-300 shadow-sm">
