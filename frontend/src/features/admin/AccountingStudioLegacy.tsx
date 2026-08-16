@@ -127,8 +127,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     toothNumber: number,
     treatments: ToothTreatment[],
     surfaces: ToothSurface[],
+    notes: string,
   ) => {
     const dentLabel = surfaces.length > 0 ? toothNumber.toString() + ` (${surfaces.join('')})` : undefined;
+    const normalizedNotes = notes.trim();
     setItems((prev: PriceItem[]) => replaceOdontogramToothSelections(
       prev,
       toothNumber,
@@ -139,6 +141,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         price: treatment.price,
         category: treatment.category,
         dent: dentLabel,
+        surfaces: surfaces.length > 0 ? surfaces : undefined,
+        notes: normalizedNotes || undefined,
+        treatmentCode: treatment.code,
       })),
     ));
   }, [setItems]);
@@ -152,9 +157,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       if (!item._odontogramKey?.startsWith(prefix) || !item.category) return [];
       return [{
         id: item._odontogramKey.slice(prefix.length),
+        code: item.odontogramTreatmentCode,
         name: item.description,
         price: Number(item.price) || 0,
         category: item.category as ToothTreatment['category'],
+        surfaces: item.odontogramSurfaces as ToothSurface[] | undefined,
         scope: 'UNITAIRE' as const,
       }];
     });
@@ -671,7 +678,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             currentTreatments={activeToothTreatments}
                             allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
-                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces);
+                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces, notes);
                               treatments.forEach(t => {
                                 if (t.price && t.price > 0) {
                                   PriceBrain.recordAct(t.name, t.price, t.category, t.id);
