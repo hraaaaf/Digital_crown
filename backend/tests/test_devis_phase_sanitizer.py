@@ -20,3 +20,26 @@ def test_strips_phase_rows_without_mutating_real_quote_rows():
 
     assert strip_devis_phase_presentation_rows(rows) == [real_row]
     assert rows[1] is real_row
+
+
+def test_canonicalizes_structured_dents_without_mutating_input():
+    real_row = {
+        "acte": "Bridge",
+        "dent": "16-14",
+        "dents": [16, "14", 16],
+        "prix_unitaire": 9000,
+    }
+
+    result = strip_devis_phase_presentation_rows([real_row])
+
+    assert result[0]["dents"] == [14, 16]
+    assert real_row["dents"] == [16, "14", 16]
+    assert result[0] is not real_row
+
+
+def test_keeps_already_canonical_structured_row_referentially_stable():
+    real_row = {"acte": "Composite", "dents": [14, 16], "prix_unitaire": 700}
+
+    result = strip_devis_phase_presentation_rows([real_row])
+
+    assert result[0] is real_row
