@@ -1,4 +1,4 @@
-import { Calendar, Clock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '../../../utils/cn';
@@ -13,12 +13,15 @@ export const WaitingRoom = ({
   onStatusChange,
 }: {
   visible: boolean;
-  appointments: DashboardAppointment[];
+  appointments: DashboardAppointment[] | null;
   loading: boolean;
   onRefresh: () => void;
   onStatusChange: (appointmentId: number, status: string) => void;
 }) => {
   if (!visible) return null;
+
+  const isUnavailable = appointments === null;
+  const safeAppointments = appointments ?? [];
 
   return (
     <motion.section variants={dashboardItemVariants} className="space-y-5">
@@ -38,8 +41,27 @@ export const WaitingRoom = ({
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-          {appointments.length > 0 ? (
-            [...appointments]
+          {isUnavailable ? (
+            <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/15">
+                <AlertTriangle size={28} className="text-amber-500" aria-hidden="true" />
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-primary font-outfit mb-2">Rendez-vous indisponibles</h4>
+                <p className="text-text-muted text-xs font-medium mt-1 max-w-[280px] mx-auto leading-relaxed">
+                  La file d'attente n'a pas pu être vérifiée. Aucun état vide n'est supposé.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="min-h-11 mt-4 px-5 py-2.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all"
+              >
+                Réessayer
+              </button>
+            </div>
+          ) : safeAppointments.length > 0 ? (
+            [...safeAppointments]
               .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
               .map(appointment => {
                 const appointmentTime = new Date(appointment.start_time).toLocaleTimeString('fr-FR', {
@@ -143,11 +165,17 @@ export const WaitingRoom = ({
         </div>
 
         <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
-            En Salle d'Attente : {appointments.filter(item => item.status === 'EN_S_ATTENTE').length}
-          </span>
-          <span>Au Fauteuil : {appointments.filter(item => item.status === 'EN_FAUTEUIL').length}</span>
+          {isUnavailable ? (
+            <span className="text-amber-600 dark:text-amber-300">État non vérifié</span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+                En Salle d'Attente : {safeAppointments.filter(item => item.status === 'EN_S_ATTENTE').length}
+              </span>
+              <span>Au Fauteuil : {safeAppointments.filter(item => item.status === 'EN_FAUTEUIL').length}</span>
+            </>
+          )}
         </div>
       </div>
     </motion.section>
