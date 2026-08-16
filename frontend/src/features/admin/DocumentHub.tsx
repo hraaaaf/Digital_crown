@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -9,7 +8,7 @@ import { cn } from '../../utils/cn';
 import { StudioHeader } from './DocumentStudio/StudioHeader';
 import { StudioTabs } from './DocumentStudio/StudioTabs';
 import { StudioFooter } from './DocumentStudio/StudioFooter';
-import { LivePreview } from './DocumentStudio/LivePreview';
+import { DocumentHubPreview } from './DocumentStudio/DocumentHubPreview';
 import {
   DOCUMENT_STUDIO_PREVIEW_TITLES,
   isCertifiableDocumentStudioTab,
@@ -35,7 +34,6 @@ import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
 import { isP7Dirty, setP7Dirty } from './DocumentStudio/P7DirtyState';
 import { shouldGuardDocumentTabTransition } from './DocumentStudio/DocumentTabNavigationPolicy';
 import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
-import { useDocumentPreviewController } from './DocumentStudio/useDocumentPreviewController';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -302,14 +300,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   ]);
 
   const generatePreview = useCallback(() => {
-    void generator.handleGenerate(false, false, true);
+    return generator.handleGenerate(false, false, true);
   }, [generator.handleGenerate]);
-
-  useDocumentPreviewController({
-    enabled: sideStudioType === 'PREVIEW',
-    fingerprint: previewFingerprint,
-    onGeneratePreview: generatePreview,
-  });
 
   // --- HYDRATATION ---
   useEffect(() => {
@@ -615,25 +607,15 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         </div>
       )}
 
-      {/* APERÇU RESPONSIVE */}
-      <AnimatePresence>
-        {sideStudioType === 'PREVIEW' && (
-          <motion.div
-            initial={{ x: 600, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 600, opacity: 0 }}
-            className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
-          >
-            <LivePreview
-              pdfUrl={generator.pdfUrl}
-              loading={generator.loading}
-              onClose={() => setSideStudioType('NONE')}
-              onRefresh={() => generator.handleGenerate(false, false, true)}
-              title={DOCUMENT_STUDIO_PREVIEW_TITLES[activeTab]}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DocumentHubPreview
+        open={sideStudioType === 'PREVIEW'}
+        fingerprint={previewFingerprint}
+        pdfUrl={generator.pdfUrl}
+        loading={generator.loading}
+        onClose={() => setSideStudioType('NONE')}
+        onGeneratePreview={generatePreview}
+        title={DOCUMENT_STUDIO_PREVIEW_TITLES[activeTab]}
+      />
     </div>
   );
 };
