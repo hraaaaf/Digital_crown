@@ -59,12 +59,33 @@ class InstallmentCreate(InstallmentBase):
 
 class InstallmentUpdate(BaseModel):
     label: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(default=None, gt=0, le=MAX_FINANCIAL_AMOUNT)
     due_date: Optional[datetime] = None
-    paid_date: Optional[datetime] = None
-    status: Optional[str] = None
+    paid_date: None = None
+    status: Optional[Literal["EN_ATTENTE", "PAYE"]] = None
     notes: Optional[str] = None
-    payment_method: Optional[Literal["ESPECES", "CARTE", "CHEQUE", "VIREMENT"]] = None
+    payment_method: Optional[Literal["ESPECES", "CARTE", "TPE", "CHEQUE", "VIREMENT"]] = None
+
+    @model_validator(mode="after")
+    def validate_installment_update(self):
+        if self.label is not None:
+            self.label = self.label.strip()
+            if not self.label:
+                raise PydanticCustomError(
+                    "installment_empty_label",
+                    "Le libellé d'une échéance ne peut pas être vide.",
+                )
+        if self.amount is not None and not math.isfinite(float(self.amount)):
+            raise PydanticCustomError(
+                "installment_invalid_amount",
+                "Le montant d'une échéance doit être fini.",
+            )
+        if self.payment_method is not None and self.status != "PAYE":
+            raise PydanticCustomError(
+                "installment_payment_method_without_payment",
+                "Un mode de paiement ne peut être fourni que lors du règlement de l'échéance.",
+            )
+        return self
 
 
 class InstallmentResponse(InstallmentBase):
