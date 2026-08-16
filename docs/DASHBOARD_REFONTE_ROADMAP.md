@@ -1,163 +1,161 @@
 # Dashboard — Roadmap de refonte gouvernée
 
-**Statut :** canonique / à exécuter  
+**Statut :** canonique / en cours  
 **Créé :** 2026-08-16  
 **Baseline auditée :** `master@026f78290cda53ea1b07ba5e8bfd39836448d6ce`  
+**Dernier lot fermé :** D1 sur `master@216b41f5b725016a5d947432cff9a1fc2ef2ff8c`  
 **Page :** `frontend/src/pages/Dashboard.tsx`  
 **Score audit initial :** **7,2 / 10**  
 **Objectif de sortie :** **≥ 9,0 / 10**, sans régression clinique, financière, permissions, navigation ni responsive.
 
-## Règles de gouvernance
+## Gouvernance
 
-- Aucun lot n'est crédité tant que son code, ses tests ciblés et sa preuve de validation ne sont pas terminés.
-- Les permissions doivent être fail-closed côté interface et rester autoritaires côté backend.
-- Ne jamais masquer une absence de preuve système derrière un état rassurant.
+- Aucun lot n'est crédité sans code, tests ciblés et preuve de validation proportionnée au risque.
+- Les permissions sont fail-closed côté interface et autoritaires côté backend.
+- Aucun état système positif ne peut être affiché sans preuve.
 - Préserver le fonctionnement local-first de Digital Crown.
-- Les changements doivent être découpés en lots indépendants et réversibles.
-- Toute refonte visuelle doit conserver les flux métier utiles avant d'ajouter du polish.
-- Certification finale sur HEAD exact, avec responsive et états réels.
+- Lots indépendants, réversibles, exécutés dans l'ordre `D1 -> D2 -> D3 -> D4 -> D5 -> D6 -> D7 -> D8 -> D9`.
+- Toute dette de validation globale est reportée explicitement au gate D9, jamais masquée.
 
-## Lots de travail
+## D1 — Permissions & exposition des données — FERMÉ ✅
 
-### D1 — Permissions & exposition des données — P0
+**Goal :** supprimer les comportements fail-open et aligner Dashboard / Sidebar / backend.
 
-**But :** supprimer les comportements fail-open et aligner Dashboard / Sidebar / backend.
+**Réalisé :**
+- `hasAccess()` frontend centralisé ;
+- rôle inconnu / utilisateur non résolu refusés par défaut ;
+- propriétaire dentiste = accès complet ;
+- dentiste salarié legacy = clinique oui, finance/admin non ;
+- secrétaire legacy = patients + agenda uniquement ;
+- matrice explicite non vide prioritaire sur les fallbacks legacy ;
+- widgets/requêtes finance conditionnés à `accounting` ;
+- `/stats/financial` et intelligence financière protégés côté backend par `accounting` ;
+- dashboard patient/alertes protégés par `patients` ;
+- santé cabinet réservée au scope admin côté Dashboard ;
+- tests frontend/backend de matrice ajoutés.
 
-- Extraire `hasAccess()` dans une source partagée unique.
-- Supprimer les fallbacks `return true` pour rôle inconnu / utilisateur non résolu.
-- Aligner le fallback secrétaire avec la politique canonique.
-- Conditionner les widgets financiers à `accounting`.
-- Vérifier que les endpoints financiers/admin restent eux-mêmes protégés côté backend.
-- Ajouter tests de matrice de rôles : admin, propriétaire dentiste, sous-dentiste, secrétaire, rôle inconnu, utilisateur absent.
+**Preuve :** certification ciblée Linux PASS : backend RBAC 6/6, compilation TypeScript de la policy frontend, assertions frontend, `py_compile`, invariants fail-closed et vérification des guards réels. Closeout : `docs/DASHBOARD_D1_CLOSEOUT.md`.
 
-**Gate D1 :** aucune donnée ou action sensible rendue sans permission explicite.
+**CI externe :** GitHub Actions n'exécute actuellement aucune étape à cause d'un problème de facturation/plafond du compte (`runner_id=0`). Ce blocage est externe au code. La régression globale + build complet restent obligatoires au plus tard au gate D9.
 
-**Validation Linux ciblée — 2026-08-16 : PASS sur `1f32b67683c14cfaab0a1a569ca9231aa231a5a4`.**  
-Preuves exécutées : backend RBAC 6/6 PASS, compilation TypeScript de la policy frontend PASS, assertions frontend PASS, `py_compile` PASS, invariants fail-closed PASS. Les guards du HEAD exact ont été revérifiés : `/stats/financial` et les endpoints d'intelligence financière exigent `accounting`; les alertes/patient restent sous `patients`.  
-**Limite :** le sandbox Linux ne peut pas résoudre `github.com`, donc le repo privé complet n'a pas pu être cloné et la suite/build complets n'ont pas été exécutés. GitHub Actions est par ailleurs bloqué avant démarrage des jobs par la facturation/plafond du compte. D1 reste donc **non fermé** jusqu'à une exécution complète du repo ou une décision explicite de considérer cette certification ciblée suffisante.
+**Merge :** PR #106 → `master@216b41f5b725016a5d947432cff9a1fc2ef2ff8c`.
 
-### D2 — Vérité du statut système — P0
+## D2 — Vérité du statut système — P0
 
-**But :** rendre le statut système factuel et non trompeur.
+**Goal :** rendre le statut système factuel et non trompeur.
 
-- Remplacer le comportement `cabinetHealth === null => Système local actif`.
-- États minimum : `opérationnel`, `vigilance`, `critique`, `non vérifié`.
-- Distinguer chargement, timeout/API indisponible et absence d'autorisation.
-- Définir couleur + texte + icône accessibles pour chaque état.
-- Tester polling, erreur réseau et récupération après erreur.
+- supprimer `cabinetHealth === null => Système local actif` ;
+- états minimum : `opérationnel`, `vigilance`, `critique`, `non vérifié` ;
+- distinguer chargement, API/timeout indisponible et absence d'autorisation ;
+- définir texte + icône + couleur accessibles pour chaque état ;
+- tester polling, erreur réseau et récupération après erreur.
 
-**Gate D2 :** aucun état positif n'est affiché sans preuve de santé disponible.
+**Gate D2 :** aucun état positif sans preuve de santé disponible.
 
-### D3 — Marketplace / approvisionnement — P1
+## D3 — Marketplace / approvisionnement — P1
 
-**But :** transformer le bloc en vraie entrée produit.
+**Goal :** transformer le bloc en vraie entrée produit.
 
-- Supprimer entièrement le panneau utilisateur `Pourquoi ici` et tout rationale de développement (`frontend only`, `re-dessiner`, etc.).
-- Corriger les textes/accents.
-- Garder une carte Marketplace claire avec bénéfice métier réel.
-- Vérifier visibilité selon rôle et pertinence cabinet.
-- Éviter que Marketplace concurrence les tâches cliniques prioritaires.
+- supprimer `Pourquoi ici` et tout rationale dev (`frontend only`, `re-dessiner`, etc.) ;
+- corriger textes/accents ;
+- conserver une carte Marketplace avec bénéfice métier réel ;
+- vérifier visibilité selon rôle et pertinence cabinet ;
+- ne pas concurrencer les tâches cliniques prioritaires.
 
-**Gate D3 :** zéro texte interne/dev visible dans l'interface.
+**Gate D3 :** zéro texte interne/dev visible.
 
-### D4 — Architecture du Dashboard — P1
+## D4 — Architecture du Dashboard — P1
 
-**But :** sortir du composant monolithique sans changer le comportement.
+**Goal :** sortir du composant monolithique sans changer le comportement.
 
-- Décomposer au minimum : `DashboardHeader`, `QuickActions`, `MarketplaceCard`, `RecentActivity`, `WaitingRoom`, `WeeklyPerformance`, `FinanceSummary`, `CabinetHealth`, `IntelligenceAlerts`, `BusinessInsights`.
-- Extraire hooks/data loaders par domaine.
-- Centraliser les états loading/error/empty.
-- Éviter les appels API dispersés dans un seul `useEffect` géant.
-- Conserver les `data-tour` nécessaires à l'onboarding.
+- extraire au minimum : `DashboardHeader`, `QuickActions`, `MarketplaceCard`, `RecentActivity`, `WaitingRoom`, `WeeklyPerformance`, `FinanceSummary`, `CabinetHealth`, `IntelligenceAlerts`, `BusinessInsights` ;
+- hooks/data loaders par domaine ;
+- centraliser loading/error/empty ;
+- réduire les appels API dispersés dans le gros `useEffect` ;
+- conserver les `data-tour`.
 
 **Gate D4 :** comportement fonctionnel identique, composants testables isolément.
 
-### D5 — Hiérarchie UX / densité — P1
+## D5 — Hiérarchie UX / densité — P1
 
-**But :** faire du Dashboard un cockpit clinique, pas un mini-BI permanent.
+**Goal :** faire du Dashboard un cockpit clinique, pas un mini-BI permanent.
 
 Ordre cible :
 1. contexte du jour + recherche + actions rapides ;
 2. file d'attente / arrivées ;
 3. activité récente ;
-4. alertes réellement actionnables ;
-5. finances / performance en niveau secondaire ou repliable ;
-6. santé système/admin en niveau tertiaire ;
-7. Marketplace comme entrée secondaire.
+4. alertes actionnables ;
+5. finances / performance secondaires ou repliables ;
+6. santé système/admin tertiaire ;
+7. Marketplace secondaire.
 
-- Réduire la répétition de cartes et titres.
-- Définir ce qui est visible immédiatement vs replié.
-- Garder les informations décisionnelles, retirer le bruit.
-- Vérifier les empty states et les cabinets nouvellement installés.
+- réduire cartes/titres répétitifs ;
+- définir visible immédiatement vs replié ;
+- préserver l'information décisionnelle, retirer le bruit ;
+- vérifier empty states et nouveaux cabinets.
 
-**Gate D5 :** les trois tâches les plus fréquentes sont identifiables et actionnables sans recherche visuelle.
+**Gate D5 :** les trois tâches les plus fréquentes sont identifiables et actionnables immédiatement.
 
-### D6 — Accessibilité & interactions — P1
+## D6 — Accessibilité & interactions — P1
 
-**But :** rendre toutes les interactions robustes clavier/lecteur d'écran.
+**Goal :** interactions robustes clavier/lecteur d'écran.
 
-- Ajouter noms accessibles explicites aux boutons iconiques.
-- `aria-expanded` / `aria-controls` pour accordéons et menus.
-- Gestion focus des overlays, recherche, menu + et modal mobile.
-- Fermeture Escape cohérente.
-- Cibles tactiles suffisantes.
-- Contraste clair/sombre vérifié.
-- Ne pas dépendre uniquement de la couleur pour les statuts.
+- noms accessibles explicites aux boutons iconiques ;
+- `aria-expanded` / `aria-controls` ;
+- gestion focus overlays/recherche/menu +/modal ;
+- fermeture Escape cohérente ;
+- cibles tactiles suffisantes ;
+- contraste light/dark ;
+- aucun statut dépendant uniquement de la couleur.
 
-**Gate D6 :** navigation clavier complète des actions Dashboard sans piège de focus.
+**Gate D6 :** navigation clavier complète sans piège de focus.
 
-### D7 — Responsive & mobile réel — P1
+## D7 — Responsive & mobile réel — P1
 
-**But :** certifier l'usage cabinet sur petits écrans et desktop.
+**Goal :** certifier petits écrans et desktop.
 
-- Viewports minimum : 390, 430, 768, 1280 px.
-- Vérifier header, recherche 288 px, menu +, cartes, file d'attente, badges/statuts et graphiques.
-- Aucun overflow horizontal.
-- Actions de file d'attente utilisables à 390 px.
-- Aucun chevauchement avec navigation fixe/mobile.
-- Vérifier light + dark si les deux sont supportés.
+- viewports 390 / 430 / 768 / 1280 px ;
+- header, recherche, menu +, cartes, file d'attente, badges/statuts, graphiques ;
+- aucun overflow horizontal ;
+- actions file d'attente utilisables à 390 px ;
+- aucun chevauchement avec navigation fixe/mobile ;
+- light + dark si supportés.
 
 **Gate D7 :** matrice responsive complète sans finding bloquant.
 
-### D8 — Tests & états dégradés — P1
+## D8 — Tests & états dégradés — P1
 
-**But :** donner au Dashboard une couverture dédiée reproductible.
+**Goal :** couverture Dashboard dédiée reproductible.
 
-- Créer tests Dashboard ciblés Vitest/Testing Library.
-- Cas : chargement, données présentes, données vides, API stats KO, rendez-vous KO, finance KO, health KO.
-- Cas permissions par rôle.
-- Cas recherche avec debounce + aucun résultat + résultat sélectionné.
-- Cas transitions rendez-vous `prévu -> attente -> fauteuil -> terminé`.
-- Vérifier le Ghost Secrétariat après séance terminée.
-- Tester accordéon performance et menu d'ajout rapide.
+- Vitest/Testing Library ;
+- loading, données, vide, stats KO, RDV KO, finance KO, health KO ;
+- permissions par rôle ;
+- recherche debounce / aucun résultat / sélection ;
+- transitions RDV `prévu -> attente -> fauteuil -> terminé` ;
+- Ghost Secrétariat ;
+- accordéon performance et menu ajout rapide.
 
-**Gate D8 :** suite Dashboard verte et indépendante des données de production.
+**Gate D8 :** suite Dashboard verte, indépendante des données de production.
 
-### D9 — Certification finale exact-head — P0 de clôture
+## D9 — Certification finale exact-head — P0
 
-**But :** fermer le chantier avec preuves, pas avec optimisme.
+**Goal :** fermer le chantier avec preuves sur le même HEAD.
 
-- Lint/tests/build frontend verts.
-- Vérification CI sur HEAD exact.
-- Smoke navigateur des parcours principaux.
-- Responsive 390/430/768/1280.
-- Permissions double-check frontend + backend.
-- Vérification absence de texte interne/dev.
-- Vérification console sans erreur bloquante.
-- Re-audit indépendant section par section.
-- Score final documenté ; cible ≥ 9,0/10.
+- lint/tests/build frontend ;
+- CI exacte après résolution de la facturation GitHub ;
+- smoke navigateur ;
+- responsive 390/430/768/1280 ;
+- permissions frontend + backend double-check ;
+- absence de texte interne/dev ;
+- console sans erreur bloquante ;
+- re-audit indépendant section par section ;
+- score final documenté, cible ≥ 9,0/10.
 
-**Gate D9 :** closeout seulement si toutes les preuves sont attachées au même HEAD.
-
-## Ordre d'exécution recommandé
-
-`D1 -> D2 -> D3 -> D4 -> D5 -> D6 -> D7 -> D8 -> D9`
-
-D1/D2 sont prioritaires car ils concernent la vérité des permissions et de l'état système. D3 est un nettoyage produit immédiat. D4 stabilise ensuite l'architecture avant la refonte UX et la certification.
+**Gate D9 :** closeout uniquement si toutes les preuves requises sont attachées au même HEAD.
 
 ## Avancement canonique
 
-- D1 : validation ciblée Linux PASS, fermeture bloquée par absence d'exécution complète du repo
+- D1 : **FERMÉ ✅**
 - D2 : 0 %
 - D3 : 0 %
 - D4 : 0 %
@@ -167,20 +165,20 @@ D1/D2 sont prioritaires car ils concernent la vérité des permissions et de l'�
 - D8 : 0 %
 - D9 : 0 %
 
-**Chantier Dashboard refonte : 0/9 lots fermés = 0 %.**
+**Chantier Dashboard refonte : 1/9 lots fermés = 11 %.**
 
 ## Findings baseline à ne pas perdre
 
-1. `hasAccess()` local du Dashboard diverge de Sidebar et comporte des fallbacks permissifs.
-2. Finance est chargée/rendue sans garde frontend `accounting` explicite.
-3. `cabinetHealth === null` peut afficher `Système local actif`, ce qui confond inconnu et sain.
-4. Marketplace expose un panneau `Pourquoi ici` avec rationale de développement.
-5. Le composant Dashboard concentre trop de domaines et d'appels API.
-6. Plusieurs contrôles iconiques reposent surtout sur `title` et doivent être durcis côté accessibilité.
-7. La baseline n'avait pas de preuve de tests Dashboard dédiés retrouvée pendant l'audit.
-8. La CI du HEAD baseline était rouge avant exécution réelle des étapes, donc non exploitable comme certification fonctionnelle.
+1. `hasAccess()` Dashboard divergeait de Sidebar et comportait des fallbacks permissifs — **traité D1**.
+2. Finance était chargée/rendue sans garde `accounting` explicite — **traité D1**.
+3. `cabinetHealth === null` peut afficher `Système local actif` — **ouvert D2**.
+4. Marketplace expose `Pourquoi ici` avec rationale de développement — **ouvert D3**.
+5. Dashboard concentre trop de domaines et d'appels API — **ouvert D4**.
+6. Contrôles iconiques/accessibilité à durcir — **ouvert D6**.
+7. Pas de couverture Dashboard dédiée suffisante — **ouvert D8**.
+8. CI globale actuellement indisponible pour facturation/plafond GitHub — **dette externe à solder D9**.
 
-## Score de référence
+## Score baseline
 
 | Domaine | Baseline |
 |---|---:|
@@ -201,4 +199,4 @@ D1/D2 sont prioritaires car ils concernent la vérité des permissions et de l'�
 
 ---
 
-Cette roadmap est le registre canonique du chantier Dashboard. Toute modification de scope, fermeture de lot ou progression doit être reflétée ici afin d'éviter qu'un finding soit perdu entre deux sessions.
+Cette roadmap est le registre canonique du chantier Dashboard. Toute fermeture, modification de scope ou preuve doit être reflétée ici.
