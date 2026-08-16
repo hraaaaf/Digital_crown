@@ -1,11 +1,11 @@
 import React from 'react';
 import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { DOCUMENT_STUDIO_LABELS } from './DocumentStudioVocabulary';
+import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 interface StudioTabsProps {
-  activeTab: import('../DocumentHub').HubDocumentType;
-  onTabChange: (tab: import('../DocumentHub').HubDocumentType) => void;
+  activeTab: CertifiableDocumentStudioTab;
+  onTabChange: (tab: CertifiableDocumentStudioTab) => void;
   'data-tour'?: string;
 }
 
