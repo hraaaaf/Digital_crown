@@ -22,7 +22,7 @@ interface PatientDetails {
   genre?: string;
 }
 
-type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
+type PaymentMode = '' | 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 import type { HubDocumentType } from '../DocumentHub';
 
 interface UseDocumentGeneratorParams {
@@ -51,7 +51,6 @@ interface UseDocumentGeneratorParams {
   echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
   paymentStatus?: string;
   isGlobalNote?: boolean;
-  onSuggestRadio?: () => void;
   showLegalAnnotations?: boolean;
 }
 
@@ -118,8 +117,8 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
         errors.push({ field: `item_price_${i}`, message: `Acte "${item.description}" : montant (${price} MAD) dépasse la limite autorisée.` });
       }
     });
-    if (activeTab === 'honoraires' && !params.paymentMode) {
-      errors.push({ field: 'paymentMode', message: 'Le mode de règlement est requis pour une Note d\'Honoraires.' });
+    if (activeTab === 'honoraires' && params.paymentStatus === 'PAYE' && !params.paymentMode) {
+      errors.push({ field: 'paymentMode', message: 'Le mode de règlement est requis pour enregistrer une Note d\'Honoraires réglée.' });
     }
   }
 
@@ -154,9 +153,9 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
   const { activeTab, drugs, items } = params;
 
   if (activeTab === 'ordonnance') {
-    const namedDrugs = drugs.filter(d => 
-      d.name.trim() && 
-      d.type !== 'EXAMEN' && 
+    const namedDrugs = drugs.filter(d =>
+      d.name.trim() &&
+      d.type !== 'EXAMEN' &&
       !/radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name)
     );
     const hasMissingDosage = namedDrugs.some(d => !d.dosage.trim());
@@ -172,15 +171,15 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
 
     const ains = namedDrugs.filter(d => /ibuprofène|ibuprofene|antadys|nurofen|ketoprofène|biprofenid|diclofenac|voltarène/i.test(d.name));
     const corticos = namedDrugs.filter(d => /solupred|prednisolone|cortancyl|celestene/i.test(d.name));
-    
+
     if (ains.length > 0 && corticos.length > 0) {
       warnings.push({ level: 'warning', message: `Association AINS et Corticoïdes détectée (${ains[0].name} + ${corticos[0].name}). Risque ulcérogène accru.` });
     }
-    
+
     if (ains.length > 1) {
       warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
     }
-    
+
     const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
     if (paracetamol.length > 1) {
       warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
@@ -229,7 +228,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   // Impression automatique après génération PDF
   useEffect(() => {
     if (!pendingPrint || !pdfUrl) return;
-    
+
     const printTimer = setTimeout(async () => {
       try {
         const fetchUrl = pdfUrl.split('#')[0];
@@ -246,7 +245,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         printFrame.style.border = 'none';
         printFrame.src = localBlobUrl;
         document.body.appendChild(printFrame);
-        
+
         printFrame.onload = () => {
           try {
             if (printFrame.contentWindow) {
@@ -273,7 +272,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         toast('Impression lancée dans un nouvel onglet.', { icon: '🖨️' });
       }
     }, 500);
-    
+
     return () => clearTimeout(printTimer);
   }, [pdfUrl, pendingPrint, activeTab]);
 
@@ -509,10 +508,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           duration: 8000,
           icon: '📅',
         });
-      }
-
-      if (res.data.suggest_radio && !isPreview && params.onSuggestRadio) {
-        params.onSuggestRadio();
       }
     } catch (e: any) {
       if (print) setPendingPrint(false);
