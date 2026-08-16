@@ -24,6 +24,7 @@ const baseInput = (): DocumentPreviewFingerprintInput => ({
     pageSize: 'A5',
     alignment: 'justify',
   },
+  isAccounted: true,
   showLegalAnnotations: true,
   installmentPayload: null,
 });
@@ -54,6 +55,7 @@ describe('Document preview fingerprint', () => {
     ['global note flag', (input: DocumentPreviewFingerprintInput) => { input.accounting!.isGlobalNote = true; }],
     ['installments', (input: DocumentPreviewFingerprintInput) => { input.accounting!.installments = [{ amount: 100 }]; }],
     ['selected teeth', (input: DocumentPreviewFingerprintInput) => { input.accounting!.selectedTeeth = [{ tooth: 11 }]; }],
+    ['accounted flag', (input: DocumentPreviewFingerprintInput) => { input.isAccounted = false; }],
     ['legal annotations', (input: DocumentPreviewFingerprintInput) => { input.showLegalAnnotations = false; }],
     ['installment payload', (input: DocumentPreviewFingerprintInput) => { input.installmentPayload = { title: 'Plan' }; }],
   ])('changes when %s changes', (_label, mutate) => {
