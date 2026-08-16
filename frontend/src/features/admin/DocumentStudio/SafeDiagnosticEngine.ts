@@ -12,10 +12,31 @@ export interface SafeDiagnosisInput {
 
 const containsAny = (text: string, values: string[]) => values.some(value => text.includes(value));
 
+const LEGACY_FALLBACK_TITLE = 'Consultation Standard';
+const LEGACY_FALLBACK_DESCRIPTION = 'Examen clinique normal. Aucun traitement urgent requis.';
+
 export function evaluateDiagnosisWithoutAutomaticSubstitution(params: SafeDiagnosisInput) {
   // Deliberately keep the legacy diagnostic rule evaluation separated from the
   // free-text medical history so that it cannot rewrite a therapeutic protocol.
-  const result = evaluateDiagnosis({ ...params, medicalHistory: '' });
+  const legacyResult = evaluateDiagnosis({ ...params, medicalHistory: '' });
+
+  // Fail closed: the legacy engine used to manufacture a reassuring diagnosis,
+  // paracetamol and scaling when no rule matched. A no-match is uncertainty,
+  // not evidence of a normal examination or an indication for treatment.
+  const isLegacyFallback =
+    legacyResult.title === LEGACY_FALLBACK_TITLE &&
+    legacyResult.description === LEGACY_FALLBACK_DESCRIPTION;
+
+  if (isLegacyFallback) {
+    return {
+      title: 'Données insuffisantes / règle non couverte',
+      description: 'Aucune règle diagnostique validée ne correspond aux données saisies. Poursuivre l’évaluation clinique avant toute proposition thérapeutique.',
+      protocol: [],
+      treatmentPlan: [],
+      warnings: ['Aucune proposition diagnostique ou thérapeutique générée : validation du praticien requise.'],
+    };
+  }
+
   const history = params.medicalHistory.toLowerCase();
 
   const hasPenicillinSignal = containsAny(history, [
@@ -25,8 +46,8 @@ export function evaluateDiagnosisWithoutAutomaticSubstitution(params: SafeDiagno
     'ains', 'ibuprofène', 'ibuprofene', 'anti-inflammatoire',
   ]);
 
-  const protocolText = result.protocol.join(' ').toLowerCase();
-  const warnings = [...result.warnings];
+  const protocolText = legacyResult.protocol.join(' ').toLowerCase();
+  const warnings = [...legacyResult.warnings];
 
   if (hasPenicillinSignal && protocolText.includes('amoxicilline')) {
     warnings.push(
@@ -40,5 +61,5 @@ export function evaluateDiagnosisWithoutAutomaticSubstitution(params: SafeDiagno
     );
   }
 
-  return { ...result, warnings };
+  return { ...legacyResult, warnings };
 }
