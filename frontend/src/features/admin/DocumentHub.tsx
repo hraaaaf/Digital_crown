@@ -21,8 +21,9 @@ import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
-import { PriceBrain } from '../../components/odontogram/PriceBrain';
-import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
+import { useAccountingStore } from './store/useAccountingStore';
+import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
+import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -86,8 +87,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       setActiveTab(nextTab);
     }
   }, [searchParams]);
-
-
 
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
@@ -212,38 +211,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- BRAIN ENGINE : INTELLIGENCE PROACTIVE ---
   useEffect(() => {
-    // 1. Détection des actes pour suggestions croisées (Bundles)
-    const currentActNames = items.map(i => i.description).filter(Boolean);
-    if (currentActNames.length > 0) {
-      const timer = setTimeout(() => {
-        api.post('/actes/catalog/bundles', { act_names: currentActNames })
-          .then(res => {
-            const bundles = res.data as { name: string; price: number; category: string }[];
-            bundles.forEach(b => {
-              const id = `bundle-${b.name}`;
-              if (!insights.find(ins => ins.id === id)) {
-                setInsights(prev => [{
-                  id: id,
-                  type: 'suggestion',
-                  title: 'Acte Complémentaire',
-                  content: `Pour un traitement complet, l'assistant suggère d'ajouter : ${b.name}.`,
-                  actionLabel: `Ajouter (+${b.price} MAD)`,
-                  onAction: () => {
-                    setItems(prev => [...prev, { id: Date.now(), description: b.name, price: b.price, dent: '0', category: b.category }]);
-                    setInsights(prev => prev.filter(i => i.id !== id));
-                  }
-                }, ...prev]);
-              }
-            });
-          })
-          .catch(console.error);
-      }, 500); // Debounce pour éviter trop d'appels
-      return () => clearTimeout(timer);
-    }
+    // Les bundles Devis sont gérés uniquement par AccountingStudio avec tarif catalogue autoritatif.
+    // Ne pas dupliquer ici une seconde suggestion qui pourrait diverger en prix et court-circuiter cet effect.
 
     // 2. Intelligence Elite : Détection des Protocoles Oubliés
     if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
-       
       setInsights(prev => [{
         id: 'ins-missing-protocol',
         type: 'safety',
@@ -299,15 +271,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
 
     // 5. GHOST MUTUELLE (Optimiseur de Plafond Fin d'Année)
-    // Les mutuelles privées ont un plafond annuel. CNSS/CNOPS ont un plafond prothèse (3000 MAD/2 ans).
     if (patientDetails?.assurance && patientDetails.assurance !== 'AUCUNE') {
-      const currentMonth = new Date().getMonth(); // 0 = Jan, 11 = Dec
-      const isEndOfYear = currentMonth >= 9; // Octobre à Décembre
+      const currentMonth = new Date().getMonth();
+      const isEndOfYear = currentMonth >= 9;
       const currentActNames = items.map(i => i.description.toLowerCase());
       const hasProsthesis = currentActNames.some(a => a.includes('couronne') || a.includes('bridge') || a.includes('inlay') || a.includes('prothèse') || a.includes('facette'));
-      const totalAmount = items.reduce((sum, item: any) => sum + ((item.price || item.montant || 0) * (item.toothNumbers?.length || item.dents?.length || 1)), 0);
+      const totalAmount = accountingDocumentTotal(items);
 
-      // Si le montant global est lourd et contient de la prothèse
       if (isEndOfYear && hasProsthesis && totalAmount >= 3000) {
         if (!insights.find(ins => ins.id === 'ghost-mutuelle-plafond')) {
           setInsights(prev => [{
@@ -357,7 +327,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
-         
         setActiveTab('ordonnance');
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
@@ -395,8 +364,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [editData]);
 
-
-
   // --- DATA FETCHING ---
   useEffect(() => {
     if (!patientId) return;
@@ -425,12 +392,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [
     sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
     libreTitle, libreContent, docDate, activeTab,
-    generator.handleGenerate // Seule la fonction stable est nécessaire
+    generator.handleGenerate
   ]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
-       
       setSideStudioType('PREVIEW');
     }
   }, [activeTab]);
@@ -440,8 +406,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
       {/* ESPACE DE TRAVAIL */}
       <div className={cn(
-        "flex-1 h-full flex flex-col px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
-        sideStudioType === 'PREVIEW' ? "pr-[570px]" : ""
+        "flex-1 h-full flex flex-col px-4 sm:px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        sideStudioType === 'PREVIEW' ? "xl:pr-[570px]" : ""
       )}>
 
         <StudioHeader
@@ -464,13 +430,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <TreatmentPlanStudio 
               patientId={Number(patientId)} 
               onConvertToQuote={(allActs) => {
-                const newItems: PriceItem[] = allActs.map((act: any) => ({
-                  id: Date.now() + Math.random(),
-                  description: act.suggested_act,
-                  dent: act.fdi,
-                  price: 0, // À remplir par le praticien ou le catalogue
-                  toothNumbers: act.fdi !== 'Global' ? [Number(act.fdi)] : []
-                }));
+                const newItems = convertPlanActsToQuoteItems(allActs);
                 setItems(prev => [...prev, ...newItems]);
                 setActiveTab('devis');
               }}
@@ -575,7 +535,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           aiReport={generator.aiReport}
           onGenerateAI={generator.handleGenerateAI}
           loadingAi={generator.loadingAi}
-          total={items.reduce((acc, i) => acc + (Number(i.price) || 0), 0)}
+          total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
@@ -600,7 +560,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               >Annuler</button>
               <button
                 onClick={() => {
-                  // Effacement réel des actes avant de changer d'onglet
                   useAccountingStore.getState().setItems([]);
                   useAccountingStore.getState().setGroupSelectedTeeth([]);
                   useAccountingStore.getState().setOdontogramMode('individual');
@@ -641,14 +600,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         </div>
       )}
 
-      {/* APERÇU LATÉRAL */}
+      {/* APERÇU RESPONSIVE */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
           <motion.div 
             initial={{ x: 600, opacity: 0 }} 
             animate={{ x: 0, opacity: 1 }} 
             exit={{ x: 600, opacity: 0 }} 
-            className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
+            className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
           >
             <LivePreview
               pdfUrl={generator.pdfUrl}
