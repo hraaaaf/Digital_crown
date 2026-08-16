@@ -51,11 +51,10 @@ class TestHonorairesArchive:
         assert payment_db.amount == 400.0
         assert payment_db.payment_method == models.PaymentMethod.CARTE
         
-        # 5. Sans force, le conflit nom/jour actuel est exposé comme 422.
-        # Le contrat HTTP 409 peut être normalisé dans un lot API séparé ; ici
-        # l'invariant certifié est surtout l'absence de seconde version implicite.
+        # 5. Sans force, le doublon est un conflit métier HTTP 409.
+        # L'invariant certifié est l'absence de seconde version implicite.
         resp_conflict = client.post("/api/documents/generate", json=req_data, headers=auth_headers)
-        assert resp_conflict.status_code == 422, resp_conflict.text
+        assert resp_conflict.status_code == 409, resp_conflict.text
 
         docs_before_force = db.query(models.DocumentArchive).filter(
             models.DocumentArchive.patient_id == patient_id,
