@@ -1,12 +1,12 @@
 # Dashboard refonte — closeout D1→D9
 
-Date de closeout candidate : 2026-08-17.
+Date de closeout : 2026-08-17.
 
 ## Goal
 
 Fermer la roadmap Dashboard D1→D9 par une certification globale sur le head réellement candidat, sans déploiement Vercel.
 
-## État vérifié avant D9
+## État final
 
 - D1 — permissions/exposition : CLOSED.
 - D2 — vérité système : CLOSED.
@@ -16,7 +16,7 @@ Fermer la roadmap Dashboard D1→D9 par une certification globale sur le head r�
 - D6 — accessibilité clavier/focus : CLOSED.
 - D7 — vérité locale + états dégradés : CLOSED.
 - D8 — responsive 390/430/768 : CLOSED.
-- D9 — certification globale : ACTIVE jusqu'à certification du head documentaire final puis merge.
+- D9 — certification globale : CLOSED.
 
 ## Preuves canoniques D1→D8
 
@@ -29,35 +29,24 @@ Fermer la roadmap Dashboard D1→D9 par une certification globale sur le head r�
 - D7 PR #121, head `a131b5cbac1ff10f5907aea489403a1fdd21ece6`, merge `f0fcc9bc542559c5aa447c4683fddff55fb08b06`, CI #702 SUCCESS, visuel #15 SUCCESS, score 9,8/10.
 - D8 PR #122, head `9f07c5952841270fce1080e4268cd2497cf588fa`, merge `f04b8987615f2020521b319bd946204d2dc58563`, CI #707 SUCCESS, visuel #19 SUCCESS, score 9,9/10.
 
-## D9 — pré-certification vérifiée
+## D9 — certification globale finale
 
-Sur le head `97ed17a33cc8c4854bb0995c6d1197d01b7917c4` :
-
-- PR #123 ouverte depuis `master@f04b8987615f2020521b319bd946204d2dc58563`.
-- Diff strictement documentaire/certification : `.github/workflows/dashboard-visual-cert.yml` + ce fichier ; aucun code produit modifié.
-- CI #709 : frontend tests/build SUCCESS ; garde production négative SUCCESS ; backend tests/durcissement encore en cours au moment de cette écriture.
-- Dashboard Visual Certification #20 : `Capture d9` SUCCESS.
-- Artefact D9 id `9271973250`.
-- Digest : `sha256:66759f7db07d2bc2de07e77fa5b1c36308f8aa3ab52c50819aa02c72da0f5f05`.
-- Metadata artefact : `label=d9`, `ref=97ed17a33cc8c4854bb0995c6d1197d01b7917c4`.
+- PR #123 — MERGED.
+- Head exact certifié : `79e82e8d2055db44ddbb7887dcf063ba5328399b`.
+- CI #710 : backend tests/durcissement SUCCESS ; frontend tests/build SUCCESS ; garde production négative SUCCESS.
+- Dashboard Visual Certification #21 : `Capture d9` SUCCESS sur le head exact.
+- Un 404 console générique isolé a été observé sur l'artefact initial SECRETAIRE 1440 ; un rerun ciblé sur le même head exact n'a pas reproduit l'anomalie.
+- Artefact rerun D9 : id `9272046028`.
+- Digest : `sha256:06949d5f7cf5155f1dd0df098c844d00c6d798c2408804f2acfa6e305f837ffc`.
+- Metadata : `ref=79e82e8d2055db44ddbb7887dcf063ba5328399b`.
 - Viewports : 390 / 430 / 768 / 1024 / 1440 × 1200.
 - Rôles : ADMIN + SECRETAIRE.
-- 10/10 fichiers `.errors.txt` : 0 octet.
-- Inspection visuelle finale : pas d'overflow mobile observé, hiérarchie/glassmorphisme conservés, statut système absent côté SECRETAIRE.
-- Score visuel candidat D9 : 9,9/10.
+- Rerun : 10/10 fichiers `.errors.txt` à 0 octet.
+- Inspection visuelle : pas d'overflow mobile observé ; hiérarchie/glassmorphisme conservés ; statut système absent côté SECRETAIRE ; responsive conforme.
+- Score visuel final D9 : 9,9/10.
+- Merge D9 : `48f8ee3ebb18a7a73c5d9abd97f1af6f5fc42979`.
 - `vercel.json` conserve `git.deploymentEnabled=false` ; aucun déploiement Vercel lancé.
 
-## D9 — critères de fermeture
+## Statut
 
-D9 n'est fermé que si, sur le head exact final de la PR D9 :
-
-1. CI complète SUCCESS : backend tests/durcissement, frontend tests/build, garde production négative.
-2. Dashboard Visual Certification SUCCESS sur ADMIN et SECRETAIRE aux viewports 390, 430, 768, 1024 et 1440 px.
-3. Aucun fichier `.errors.txt` de l'artefact D9 ne contient d'erreur navigateur.
-4. Les captures finales sont inspectées et restent conformes à la hiérarchie/glassmorphisme/accessibilité/responsive des lots précédents.
-5. Aucun déploiement Vercel n'est lancé ; `git.deploymentEnabled=false` reste la doctrine.
-6. La PR D9 est mergée sur le head exact certifié.
-
-## État de ce document
-
-Ce fichier consigne la pré-certification du head `97ed17a33cc8c4854bb0995c6d1197d01b7917c4`. Sa propre mise à jour crée un nouveau head documentaire qui doit être recertifié intégralement avant de pouvoir déclarer D9 CLOSED.
+Roadmap Dashboard D1→D9 : CLOSED.
