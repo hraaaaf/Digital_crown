@@ -105,7 +105,9 @@ Les lots récents ont rencontré un blocage GitHub Actions **avant exécution de
 
 ## P3 — Devis
 
-**État : 🟡 PROCHAINE PAGE ACTIVE.**
+**État : 🔴 audit statique exhaustif consolidé ; lots correctifs actifs ; runtime/PDF final non fermé.**
+
+Rapport canonique : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_AUDIT.md`.
 
 Historique technique partagé avec Note Honoraires : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
 
@@ -117,24 +119,54 @@ Historique technique partagé avec Note Honoraires : `docs/audits/DOCUMENT_STUDI
 - ancien **P2-D** : odontogramme / déduplication / prix groupe, PR #47, CI `31902205419` 3/3 SUCCESS, merge `021ee425a532bb83ae9669ab4c449522258bdcc6` ;
 - ancien **P2-E** : réconciliation totale/échéances partagée, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd`.
 
-### Audit page-par-page à exécuter maintenant
-- [ ] état initial Devis ;
-- [ ] actes rapides / recherche catalogue ;
-- [ ] odontogramme : clic dent, modal, surfaces, traitements ;
-- [ ] modes Soins ciblés / Bridge & Prothèses / Soins généraux ;
-- [ ] sélection Q1-Q4 / S1-S6 ;
-- [ ] prix connu / prix inconnu / modification manuelle ;
-- [ ] bundles / suggestions complémentaires ;
-- [ ] organisation par phases ;
-- [ ] lignes manuelles, suppression et réorganisation ;
-- [ ] totaux ;
-- [ ] preview ;
-- [ ] sauvegarde / archivage ;
-- [ ] impression ;
-- [ ] erreurs / états vides / navigation dirty-state ;
-- [ ] responsive et accessibilité ;
-- [ ] verdict UX puis lots correctifs ;
+### Audit P3 — baseline statique du 16 août 2026
+- [x] état initial et architecture réelle — **CODE VÉRIFIÉ** ;
+- [x] actes rapides / recherche catalogue — **CODE VÉRIFIÉ** ;
+- [x] odontogramme : clic dent, modal, surfaces, traitements, notes — **CODE VÉRIFIÉ** ;
+- [x] modes Soins ciblés / Bridge & Prothèses / Soins généraux — **CODE VÉRIFIÉ** ;
+- [x] sélection Q1-Q4 / S1-S6 et denture enfant — **CODE VÉRIFIÉ** ;
+- [x] prix connu / prix inconnu / modification manuelle — **CODE VÉRIFIÉ** ;
+- [x] bundles / suggestions complémentaires — **CODE VÉRIFIÉ** ;
+- [x] organisation par phases — **CODE VÉRIFIÉ** ;
+- [x] tableau généré : lignes, dents, suppression, total et sources de vérité — **CODE VÉRIFIÉ** ;
+- [x] preview / payload / PDF — **CODE VÉRIFIÉ** ;
+- [x] sauvegarde / archivage / round-trip — **CODE VÉRIFIÉ** ;
+- [x] impression et structure PDF — **CODE VÉRIFIÉ** ;
+- [x] erreurs / états vides / navigation dirty-state — **CODE VÉRIFIÉ statiquement** ;
+- [x] responsive et accessibilité — **risques CODE VÉRIFIÉ**, interaction visuelle restant ouverte ;
+- [x] connexions P3↔P4, P5→P3, P7→P3, P3→suivi — **CODE VÉRIFIÉ** ;
+- [x] verdict produit `GARDER / AMÉLIORER / CORRIGER / SIMPLIFIER / SUPPRIMER` — **consolidé** ;
+- [ ] interaction authentifiée dans l’application réelle ;
+- [ ] inspection visuelle 1440 / 768 / 390 ;
+- [ ] inspection de PDF réels courts/longs ;
 - [ ] recertification finale de la page.
+
+### Défauts prioritaires confirmés
+- **P0** : dernier échéancier P5 chargé globalement puis injecté dans un nouveau Devis P3 et rendu dans le PDF ;
+- **P0** : colonne `Dent` éditable pouvant diverger de `toothNumbers`, alors que le PDF privilégie la structure ;
+- **P1** : round-trip odontogramme incomplet (`teeth_data`, `_odontogramKey`, catégories, surfaces/notes) ;
+- **P1** : prix catalogue perdu dans la modale `TreatmentSelector` au profit de `PriceBrain`/0 ;
+- **P1** : mode Enfant partiellement cosmétique, raccourcis groupes adultes ;
+- **P1** : phases matérialisées par de fausses lignes financières à 0 MAD ;
+- **P1** : apprentissage des actes déclenché avant archive puis répété après archive ;
+- **P1** : suggestion de RDV ortho à 4 semaines codée en dur sur document financier ;
+- **P1** : contrat backend Devis trop permissif ;
+- **P1** : PDF A5 pouvant réduire toute la table jusqu’à 2 pt ;
+- **P1** : callback P7 → P3 fourni mais non utilisé ;
+- **P1** : preview fixe 550 px / réserve 570 px sans breakpoint dans le shell ;
+- **P1** : odontogramme cliquable non opérable au clavier.
+
+### Lots correctifs canoniques
+1. **P3-A — Isolation financière Devis** : stopper contamination P5, interdire échéances implicites, renforcer contrat backend.
+2. **P3-B — Source de vérité odontogramme/table** : dents, `teeth_data`, surfaces, notes, hydration/round-trip.
+3. **P3-C — Prix/catalogue + modes odontogramme** : prix cohérents dans toutes les entrées, pédiatrique réel, groupes/secteurs.
+4. **P3-D — Phases / bundles / apprentissage** : phases non financières, un seul bundle engine, apprentissage unique après archive.
+5. **P3-E — Connexions inter-pages** : P3↔P4 explicite, neutralisation RDV automatique, contrat P7→P3 préparé sans prix inventé.
+6. **P3-F — PDF professionnel** : lisibilité devis longs, numérotation contractuelle, signature réellement branchée si retenue, cohérence écran/PDF.
+7. **P3-G — UX / responsive / accessibilité** : tactile, clavier, preview 1440/768/390, dirty-state et actions globales.
+8. **P3-H — Recertification finale** : tests ciblés + régression, runtime authentifié, PDF réels inspectés, preuves séparées.
+
+Aucune pondération artificielle des lots n'est utilisée pour produire un pourcentage tant que les gates runtime et les critères finaux ne sont pas fermés.
 
 ---
 
@@ -294,7 +326,7 @@ Les PR, commits, noms de branches et fichiers d’audit historiques **ne sont pa
 
 1. **P1 Ordonnance** : engineering + visuel fermés ; gates authentifiés/cliniques séparés.
 2. **P2 Certificat** : engineering convergé ; certification finale runtime/PDF encore ouverte.
-3. **P3 Devis** : **prochaine page active à décortiquer intégralement**.
+3. **P3 Devis** : **audit statique exhaustif consolidé ; P3-A est le prochain lot correctif**.
 4. **P4 Note Honoraires** : après P3.
 5. **P5 Suivi Paiement** : après P4.
 6. **P6 Document Libre** : engineering convergé ; runtime/PDF final à recertifier dans son tour de page.
