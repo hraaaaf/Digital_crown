@@ -1,9 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StudioTabs } from './StudioTabs';
 import TreatmentPlanStudio from './TreatmentPlanStudio';
 import { isP7Dirty, setP7Dirty } from './P7DirtyState';
+import { shouldGuardDocumentTabTransition } from './DocumentTabNavigationPolicy';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -21,23 +21,21 @@ describe('P7-F dirty-state boundary', () => {
     vi.restoreAllMocks();
   });
 
-  it('blocks tab change until dirty proposal abandonment is confirmed', () => {
-    const onTabChange = vi.fn();
-    const confirmSpy = vi.spyOn(window, 'confirm');
-    render(<StudioTabs activeTab="plan" onTabChange={onTabChange} />);
-
+  it('guards leaving P7 while the proposal is dirty', () => {
     setP7Dirty(true);
-    confirmSpy.mockReturnValueOnce(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Devis' }));
+    const dirty = {
+      prescription: false,
+      certificate: false,
+      accounting: false,
+      installment: false,
+      libre: false,
+      plan: isP7Dirty(),
+    };
 
-    expect(onTabChange).not.toHaveBeenCalled();
-    expect(isP7Dirty()).toBe(true);
+    expect(shouldGuardDocumentTabTransition('plan', 'devis', dirty)).toBe(true);
 
-    confirmSpy.mockReturnValueOnce(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Devis' }));
-
-    expect(onTabChange).toHaveBeenCalledWith('devis');
-    expect(isP7Dirty()).toBe(false);
+    setP7Dirty(false);
+    expect(shouldGuardDocumentTabTransition('plan', 'devis', { ...dirty, plan: isP7Dirty() })).toBe(false);
   });
 
   it('marks P7 dirty after interaction and clears it on explicit reset', async () => {
@@ -48,7 +46,7 @@ describe('P7-F dirty-state boundary', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Contrôle de routine / Tartre' }));
     expect(isP7Dirty()).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Recommencer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Recommencer le compagnon diagnostique' }));
     expect(isP7Dirty()).toBe(false);
   });
 
