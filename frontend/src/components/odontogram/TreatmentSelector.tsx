@@ -17,6 +17,8 @@ import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/
 interface TreatmentSelectorProps {
   toothNumber: ToothNumberFDI | PediatricToothNumber;
   currentTreatments: ToothTreatment[];
+  initialSurfaces?: ToothSurface[];
+  initialNotes?: string;
   onConfirm: (treatments: ToothTreatment[], surfaces: ToothSurface[], notes: string) => void;
   onCancel: () => void;
   embedded?: boolean;
@@ -52,6 +54,8 @@ const getFallbackSuggestions = (): TreatmentTemplate[] => [
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   toothNumber,
   currentTreatments,
+  initialSurfaces = [],
+  initialNotes = '',
   onConfirm,
   onCancel,
   embedded = false,
@@ -59,9 +63,9 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 }) => {
   const [selectedTreatments, setSelectedTreatments] = useState<ToothTreatment[]>(currentTreatments);
   const [treatmentPrices, setTreatmentPrices] = useState<Record<string, number>>({});
-  const [selectedSurfaces] = useState<ToothSurface[]>([]);
+  const [selectedSurfaces] = useState<ToothSurface[]>(() => [...new Set(initialSurfaces)]);
   const [activeCategory, setActiveCategory] = useState<string>('FREQUENTS');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(initialNotes);
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
   const [showAddAct, setShowAddAct] = useState(false);
