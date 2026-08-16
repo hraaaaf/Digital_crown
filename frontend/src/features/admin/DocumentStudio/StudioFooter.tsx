@@ -2,10 +2,11 @@ import React from 'react';
 import { AlertTriangle, Eye, Archive, Printer } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { createPortal } from 'react-dom';
+import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 interface StudioFooterProps {
   loading: boolean;
-  activeTab: import('../DocumentHub').HubDocumentType;
+  activeTab: CertifiableDocumentStudioTab | 'ai';
   onGenerate: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
   showPrintWarning: boolean;
   onCloseWarning: () => void;
