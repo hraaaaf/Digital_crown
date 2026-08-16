@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AppUser } from '../../../types';
 import { api } from '../../../services/api';
 import { hasAccess } from '../../../utils/accessControl';
+import { getLocalDayBounds } from '../localDate';
 import type { DashboardAppointment, DataState } from '../types';
 
 export const useTodayAppointments = ({
@@ -15,7 +16,7 @@ export const useTodayAppointments = ({
   onStatsRefresh: () => Promise<void>;
   onCompleted: (patient: { nom: string; prenom: string }) => void;
 }) => {
-  const [appointments, setAppointments] = useState<DashboardAppointment[]>([]);
+  const [appointments, setAppointments] = useState<DashboardAppointment[] | null>([]);
   const [appointmentsState, setAppointmentsState] = useState<DataState>('idle');
 
   const canUseAgenda = hasAccess(user, 'agenda');
@@ -30,15 +31,13 @@ export const useTodayAppointments = ({
 
     setAppointmentsState('loading');
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const start = `${todayStr}T00:00:00`;
-      const end = `${todayStr}T23:59:59`;
+      const { start, end } = getLocalDayBounds();
       const response = await api.get(`/appointments/?start_date=${start}&end_date=${end}`);
       setAppointments(response.data);
       setAppointmentsState('ready');
     } catch (error) {
       console.error('Erreur chargement rendez-vous du jour', error);
-      setAppointments([]);
+      setAppointments(null);
       setAppointmentsState('error');
     }
   }, [canUseAgenda, user]);
@@ -68,7 +67,7 @@ export const useTodayAppointments = ({
       }
 
       if (newStatus === 'TERMINÉ') {
-        const appointment = appointments.find(item => item.id === appointmentId);
+        const appointment = appointments?.find(item => item.id === appointmentId);
         if (appointment?.patient) {
           onCompleted(appointment.patient);
         }
