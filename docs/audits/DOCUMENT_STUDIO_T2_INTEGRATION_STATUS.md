@@ -3,121 +3,92 @@
 Date: 2026-08-16
 Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
 Current canonical PR: #105 (`agent/t2-f-global-recertification`).
-Last code-bearing candidate HEAD inspected: `76675e9ed86f5dcaffd01c83963450b2478a24f7`.
+Last code-bearing candidate HEAD certified by CI: `4d5ce377079f0304323e0aa9c2abf16824f7ceb0`.
+Certified PR merge ref: `a851cc56c16ccfb49eecb3f5af87b719800ed567`.
+Exact automated evidence: CI #628 / run `31957613657` — SUCCESS.
 
-Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta (initial close focus + labelled dialog + Escape regression test) has been migrated to #105 before closure.
+Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta was migrated to #105 before closure.
 
 ## Proof contract
 
 - **CODE VÉRIFIÉ**: demonstrated by inspected source/diff.
-- **TEST PRÉPARÉ**: test/harness exists but has not executed on the exact code-bearing head.
-- **TEST EXÉCUTÉ**: only a real repository run counts.
-- **RUNTIME / VISUEL**: only authenticated/browser evidence counts.
-- **CERTIFICATION**: separate final gate; never inferred from code presence.
+- **TEST EXÉCUTÉ**: demonstrated by a real repository run.
+- **RUNTIME / VISUEL**: requires authenticated/browser evidence.
+- **CERTIFICATION AUTOMATISÉE**: exact code-bearing head passes repository CI/tests/build.
+- **CERTIFICATION FINALE**: additionally requires the remaining runtime/browser/PDF/financial gates below.
 
 ## T2-A — Information architecture
 
-**State: CODE VÉRIFIÉ — RUNTIME OPEN**
+**State: CODE + AUTOMATED TESTS VERIFIED — AUTHENTICATED RUNTIME OPEN**
 
 Verified:
-- one canonical P1→P7 vocabulary;
-- canonical ordered certifiable tab list and parser;
-- `HubDocumentType` is the canonical certifiable tab type;
-- the URL parser rejects dormant `ai`;
-- `useDocumentGenerator` exposes no `aiReport`, `loadingAi`, `handleGenerateAI` or `/ai-diagnostic` execution path;
-- canonical P5/P7 preview labels;
-- StudioTabs/Header/Footer presentation components are decoupled from the DocumentHub type import;
-- navigation emits only P1→P7 tab events;
-- P7→P3 transfer remains explicit and filtered through `convertPlanActsToQuoteItems()`.
+- one canonical P1→P7 vocabulary/parser;
+- dormant `ai` removed from certifiable tab types and rejected by URL parsing;
+- no AI execution plumbing in `useDocumentGenerator`;
+- P7→P3 transfer remains explicit and filtered through `convertPlanActsToQuoteItems()`;
+- navigation dirty-state policy tests pass in CI #628.
 
 Open:
-- authenticated runtime verification of URL/navigation behavior.
+- authenticated browser URL/navigation verification.
 
 ## T2-B — Preview truth / freshness
 
-**State: CODE VÉRIFIÉ / PRIOR LOCAL CONTRACT PASS — BROWSER + EXACT-HEAD EXECUTION OPEN**
+**State: CODE + AUTOMATED CONTRACTS VERIFIED — BROWSER OPEN**
 
 Verified:
-- deterministic `documentPreviewFingerprint()` covers active page, patient/date, prescription, certificate, financial state, installments, selected teeth, every Document Libre custom/page/alignment field, legal annotations, P5 payload and `isAccounted`;
-- `DocumentHub` passes the explicit fingerprint to `DocumentHubPreview`;
-- `DocumentHubPreview` delegates regeneration to `useDocumentPreviewController()`;
-- the controller regenerates only on an enabled fingerprint change and forgets freshness when preview closes;
-- a visible PDF is explicitly marked stale when the fingerprint changes or refresh starts;
-- stale PDF content is hidden (`pdfUrl={null}`) and loading state remains visible until a new PDF URL arrives;
-- synthetic `Espèces` transport for `EN_ATTENTE` is removed;
-- Honoraires emits `mode_reglement` only when `paymentStatus === 'PAYE'`.
+- deterministic `documentPreviewFingerprint()` covers document-domain state;
+- visible stale PDF is suppressed while regeneration is pending;
+- preview freshness resets correctly on close/reopen contract;
+- synthetic `Espèces` for `EN_ATTENTE` is removed;
+- Honoraires emits `mode_reglement` only for `PAYE`;
+- fingerprint/controller regression tests pass in CI #628.
 
-Prior local evidence, not exact-head certification:
-- fingerprint source previously compiled with `tsc --strict`;
-- isolated fingerprint contract previously passed **13/13 assertions**.
-
-Still open:
-- exact-head repository execution of frontend/type/test harness;
-- authenticated browser verification of rapid edits / tab switches / preview-close-reopen behavior.
+Open:
+- authenticated browser rapid edits / tab switches / preview close-reopen / stale-PDF verification.
 
 ## T2-C — Shell decomposition
 
-**State: ENGINEERING BOUNDARIES EXTRACTED / TEST PRÉPARÉ — EXACT-HEAD EXECUTION OPEN**
+**State: ENGINEERING BOUNDARIES VERIFIED + AUTOMATED REGRESSION PASS**
 
-Verified extraction:
-- router/navigation boundary: `useDocumentHubNavigation` owns canonical URL parsing/sync, dirty transition guards, discard confirmation state, P3→P4 financial reset routing and `beforeunload` protection;
-- patient/session boundary: `useDocumentHubPatient` owns patient fetch/reset/error handling;
-- preview boundary: `DocumentHubPreview` owns stale-PDF state and preview-controller integration;
-- dialogs boundary: `DocumentHubDialogs` owns discard/duplicate modal presentation;
-- domain/page boundary: `DocumentHubContent` owns the P1→P7 page-studio rendering and page-local interactions;
-- root `DocumentHub` is reduced to orchestration/state assembly plus Header/Tabs/Content/Footer/Dialogs/Preview composition.
+Verified boundaries:
+- `useDocumentHubNavigation`: URL sync, dirty guards, discard flow, `beforeunload`, P3→P4 reset routing;
+- `useDocumentHubPatient`: patient/session boundary;
+- `DocumentHubPreview`: preview freshness boundary;
+- `DocumentHubDialogs`: modal boundary;
+- `DocumentHubContent`: P1→P7 page-studio rendering boundary;
+- root `DocumentHub`: orchestration/shell composition.
 
-Behavior deliberately preserved during extraction:
-- P3→P4 keeps acts while resetting financial context;
-- dirty-state guards remain tab-specific;
-- URL-origin cancellation restores the active canonical tab;
-- P7→P3 conversion still passes through `convertPlanActsToQuoteItems()`;
-- legal-annotation accessibility semantics remain in the ordonnance studio boundary.
+`DocumentHubDecomposition.t2c.test.ts` passes in CI #628.
 
-Regression proof prepared:
-- `DocumentHubDecomposition.t2c.test.ts` asserts root-shell imports and absence of direct navigation/patient plumbing;
-- it asserts navigation, patient, content, preview and dialogs boundaries contain their expected responsibilities;
-- `scripts/certify_document_studio_t2.sh` includes this T2-C source gate in the targeted frontend regression set.
-
-Still open:
-- exact-head TypeScript/Vitest/harness execution;
-- authenticated navigation/dirty-guard/browser regression.
-
-No certification claim is made from source decomposition alone.
+Open:
+- authenticated navigation/browser regression.
 
 ## T2-D — Accessibility residual closeout
 
-**State: CODE VÉRIFIÉ / TEST PRÉPARÉ — BROWSER OPEN**
+**State: CODE + AUTOMATED TESTS VERIFIED — BROWSER KEYBOARD MATRIX OPEN**
 
-Closed in current code:
-- non-inline `LivePreview` exposes `role="dialog"` + `aria-modal`;
-- dialog is labelled by its visible document title;
-- focus moves initially to `Fermer`;
-- Escape closes the preview;
-- loading state is announced via `role="status"` / `aria-live`;
-- discard-draft dialog exposes `role="dialog"`, `aria-modal` and a labelled visible title;
-- duplicate dialog exposes `role="dialog"`, `aria-modal` and a labelled visible title;
-- legal-annotation control exposes `role="switch"`, `aria-checked` and an explicit labelled relationship;
-- Vitest regression remains versioned for LivePreview dialog semantics, initial focus and Escape.
+Verified:
+- LivePreview labelled dialog semantics;
+- initial close focus;
+- Escape close;
+- loading announcement;
+- discard/duplicate modal semantics;
+- legal annotation switch semantics;
+- relevant accessibility regressions pass in CI #628.
 
-Still open:
-- authenticated browser keyboard/focus/escape matrix.
-
-No full Vitest PASS is claimed until a repository execution path runs it.
+Open:
+- authenticated browser keyboard/focus/Escape matrix.
 
 ## T2-E — Product polish
 
-**State: CODE VÉRIFIÉ — RUNTIME/VISUAL OPEN**
+**State: CODE + AUTOMATED SOURCE GATES VERIFIED — VISUAL MATRIX OPEN**
 
-Implemented:
-- compact patient identity remains visible as `Patient actif`;
-- current document label comes from canonical T2-A vocabulary;
-- header/tabs/footer dark-mode contrast hardened;
-- active tabs visually clarified without changing labels;
-- financial total separated from action controls;
-- action hierarchy remains preview → archive → print/preparation;
-- touch/focus invariants preserved;
-- source gates added.
+Verified:
+- canonical patient/document labels;
+- dark-mode contrast/source polish retained;
+- explicit `Préparer impression` label;
+- touch/focus source invariants;
+- product-polish source tests pass in CI #628.
 
 Open:
 - browser visual review at 390/430/768/1280;
@@ -125,31 +96,37 @@ Open:
 
 ## T2-F — Global recertification
 
-**State: HARNESS UPDATED / EXECUTION BLOCKED BY INFRASTRUCTURE**
+**State: AUTOMATED EXACT-HEAD CODE CERTIFICATION PASS — FINAL RUNTIME GATES OPEN**
 
-`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness and includes the T2-C decomposition source gate. No PASS is claimed merely because the harness exists.
+CI #628 / run `31957613657` completed SUCCESS on the code-bearing candidate:
 
-## Infrastructure evidence — exact-head CI #595
+- Frontend: **69/69 test files PASS**;
+- Frontend: **296/296 tests PASS**;
+- Frontend production build: **PASS**;
+- Backend: **2635 passed / 7 skipped**;
+- Backend warnings: **4 SQLAlchemy warnings**, non-failing and unrelated to T2 Document Studio;
+- Prod safety check: **PASS** in CI development environment;
+- Negative production guard: **PASS**.
 
-CI run **#595** targeted code-bearing HEAD `76675e9ed86f5dcaffd01c83963450b2478a24f7` and completed with three failed jobs:
-- `Frontend (tests & build)`;
-- `Tests & durcissement`;
-- `Garde production (négatif)`.
+This proves repository-level automated source/test/build compatibility for the code-bearing candidate. It does **not** prove authenticated browser behavior, real print output, persisted financial reconciliation, or clinical/regulatory human certification.
 
-This failure is **infrastructure-only evidence**:
-- all three jobs expose zero repository steps;
-- GitHub job logs are unavailable because runners never started;
-- GitHub annotations state that recent account payments failed or the spending limit must be increased;
-- therefore #595 is neither evidence of an application-code failure nor a PASS.
+## Independent anomalies / non-T2 blockers
 
-Local fallback remains partial: the available shell does not have an authenticated full private-repository checkout/dependency tree.
+- CI dependency install force-pins `httpx==0.27.2` after dependencies requiring 0.28.x; CI still passes, but dependency hygiene remains a separate issue.
+- npm install reports dependency vulnerabilities; no security certification is inferred from CI success.
+- GitHub Actions warns that Node 20-based action runtimes are deprecated/forced onto Node 24.
+- No Playwright/Cypress/Puppeteer harness exists in the repository.
+- The connected Vercel account exposes no Digital Crown project, so no authenticated browser certification path is available through that connector.
 
-## Current critical path
+## Remaining critical path
 
-1. restore an executable GitHub Actions runner or obtain an authenticated full checkout;
-2. execute exact-head frontend TypeScript/Vitest/certification harness;
-3. run authenticated browser matrices for navigation/dirty guards, preview freshness, keyboard/focus and 390/430/768/1280 visual/dark-mode behavior;
-4. fix any evidence-backed regressions;
-5. update final roadmap/status and only then consider ready/merge/global certification.
+1. authenticated runtime/browser access for navigation, dirty guards, preview freshness and keyboard/focus;
+2. responsive/dark-mode matrix at 390/430/768/1280 using before/mockup/after evidence where visual changes are evaluated;
+3. real PDF/print evidence;
+4. persisted P3/P4/P5 financial reconciliation evidence;
+5. separate clinical/regulatory human certification where required;
+6. only after these gates: final ready/merge decision.
+
+PR #105 remains draft. No production-ready, merge-ready, or final T2 certification claim is made.
 
 No percentage is assigned because the canonical roadmap still has no validated weighting model.
