@@ -17,6 +17,7 @@ from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
 from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
+from backend.services.honoraires_contract import validate_honoraires_document_data
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,7 @@ class DocumentFactory:
         self.output_dir = output_dir
         self.static_dir = static_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        
-        # Nouveau moteur de templates SaaS
         self.template_engine = TemplateEngine(static_dir=static_dir)
-        
-        # Anciens générateurs (fallback et documents complexes)
         self.ord_gen = OrdonnanceGenerator(self.output_dir)
         self.cert_gen = CertificatGenerator(self.output_dir)
         self.acc_gen = AccountingGenerator(self.output_dir)
@@ -52,23 +49,17 @@ class DocumentFactory:
             'cephalo': models.DocumentType.RAPPORT_CEPHALO
         }
         actual_type = enum_map.get(doc_type.lower(), models.DocumentType.AUTRE)
-        
-        # 1. Chercher template perso par défaut
         template = db.query(models.DocumentTemplate).filter(
             models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.user_id == user_id,
             models.DocumentTemplate.is_default == True
         ).first()
-        
         if template: return template
-        
-        # 2. Chercher template système par défaut
         template = db.query(models.DocumentTemplate).filter(
             models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.is_system == True,
             models.DocumentTemplate.is_default == True
         ).first()
-        
         return template or db.query(models.DocumentTemplate).filter(
             models.DocumentTemplate.type == actual_type,
             models.DocumentTemplate.is_system == True
@@ -100,10 +91,6 @@ class DocumentFactory:
         birth = born.date() if hasattr(born, 'date') else born
         return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
     
-    # ==========================================================================
-    # MÉTHODES PUBLIQUES
-    # ==========================================================================
-    
     def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None, custom_config: dict = None):
         """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
         return self.ord_gen.generate(patient, data, db=db, user_id=user_id, custom_config=custom_config)
@@ -114,8 +101,9 @@ class DocumentFactory:
         return self.cert_gen.generate(patient, validated_data, db=db, user_id=user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
-        facture_seq = getattr(data, 'facture_numero', None)
-        return self.acc_gen.generate_note(patient, data, facture_number=facture_seq, db=db, user_id=user_id)
+        validated_data = validate_honoraires_document_data(data)
+        facture_seq = getattr(validated_data, 'facture_numero', None)
+        return self.acc_gen.generate_note(patient, validated_data, facture_number=facture_seq, db=db, user_id=user_id)
     
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         devis_seq = getattr(data, 'devis_numero', None)
@@ -133,8 +121,6 @@ class DocumentFactory:
 
             results_dict = analysis.results if hasattr(analysis, 'results') else analysis.get('results', analysis)
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
-
-            # Lire les flags de pré-bilan et avertissements
             is_pre_bilan = analysis.get("_is_pre_bilan", False) if isinstance(analysis, dict) else False
             validation_warnings = analysis.get("_validation_warnings", []) if isinstance(analysis, dict) else []
 
@@ -188,7 +174,6 @@ class DocumentFactory:
                 "filename": os.path.basename(filepath)
             }
         
-        # Archiver uniquement hors preview.
         archive_obj = models.DocumentArchive(
             patient_id=patient.id,
             clinic_id=clinic.id,
