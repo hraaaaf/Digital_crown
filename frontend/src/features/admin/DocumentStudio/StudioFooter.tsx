@@ -80,7 +80,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           className="min-h-11 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-wider whitespace-nowrap hover:bg-black dark:hover:bg-slate-100 transition-all shadow-md active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
         >
           <Printer size={14} className="shrink-0" />
-          <span>{preparesFreshPdf ? 'Préparer' : 'Imprimer'}</span>
+          <span>{preparesFreshPdf ? 'Préparer impression' : 'Imprimer'}</span>
         </button>
       </div>
 
