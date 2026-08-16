@@ -232,7 +232,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [activeTab]);
 
-  const handleConvertPlanToQuote = useCallback<React.ComponentProps<typeof DocumentHubContent>['onConvertPlanToQuote']>((allActs) => {
+  const handleConvertPlanToQuote = useCallback((allActs: any[]) => {
     const newItems = convertPlanActsToQuoteItems(allActs);
     setItems(previous => [...previous, ...newItems]);
     setActiveTab('devis');
