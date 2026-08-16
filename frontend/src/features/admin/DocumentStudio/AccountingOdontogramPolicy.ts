@@ -93,8 +93,12 @@ export function replaceOdontogramToothSelections(
         price: Number(normalizedSelection.price) || 0,
         category: normalizedSelection.category,
         toothNumbers: [toothNumber],
-        odontogramSurfaces: [...new Set(normalizedSelection.surfaces || [])],
-        odontogramNotes: normalizedSelection.notes || '',
+        odontogramSurfaces: normalizedSelection.surfaces !== undefined
+          ? [...new Set(normalizedSelection.surfaces)]
+          : [...(existing.odontogramSurfaces || [])],
+        odontogramNotes: normalizedSelection.notes !== undefined
+          ? normalizedSelection.notes
+          : (existing.odontogramNotes || ''),
         odontogramTreatmentCode: normalizedSelection.treatmentCode || existing.odontogramTreatmentCode || 'ACT',
       };
     }
