@@ -3,235 +3,235 @@
 Date: 2026-08-16
 Branch: `agent/p4-note-honoraires-audit`
 Base: P3 closeout branch `agent/p3d-devis-phases-learning` at `603c5a7e5d7a909e8a32a31cd75fa4f8f52e32c5`
+PR: `#90` (stacked, draft)
 
-## Status of proof
+## Current verdict
 
-- **CODE VÉRIFIÉ**: yes, for the findings below.
-- **TESTS EXÉCUTÉS P4**: not yet for the new findings in this audit baseline.
-- **INTERACTION RUNTIME**: not executed.
-- **CERTIFICATION FINANCIÈRE / PRODUCTION**: not claimed.
+**P4-A → P4-F: engineering remediated with targeted local execution evidence.**
 
-Historical shared engineering remains relevant from `DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`, notably:
-- PARTIEL fail-closed;
-- exact installment reconciliation for global Honoraires;
-- exact PAYE allocation per Acte;
-- shared catalog/odontogram/accounting policies.
+**P4-G: static accessibility/responsive hardening applied; real browser/runtime smoke not executed.**
 
-This P4 audit is intentionally based on the current stacked P3 closeout branch because P3 changed shared accounting and DocumentHub code.
+**P4-H: not certified / not merge-ready.**
+
+No financial, production or full-app certification is inferred from isolated tests.
 
 ---
 
-## P0-1 — Honoraires backend contract is permissive enough to persist invalid financial lines
+## Initial findings and remediation
 
-### Verified code path
+### P0-1 — permissive Honoraires backend contract — ✅ REMEDIATED
 
-`HonorairesData` currently uses a permissive `PaymentItem`:
-- empty `acte` allowed;
-- `montant` has no lower/upper bound;
-- structured `dents` has no FDI validation or canonicalization;
-- `payments` may be empty;
-- `teeth_data` has no consistency check against real payment lines.
+Historical `PaymentItem/HonorairesData` could accept blank acts, invalid/negative amounts, invalid FDI and inconsistent `teeth_data`, while `persist_honoraires_lines()` could stage Acte rows from raw request items.
 
-`DocumentRequest.data` is a generic dict. On archive, `persist_honoraires_lines()` reads the raw items and:
-- substitutes blank acts with the generic label `Acte`;
-- casts `montant` to float without enforcing non-negative/bounded billing;
-- creates an `Acte` for every supplied line;
-- when status is PAYE, skips the linked `Payment` for amounts `<= 0`, which can leave an invalid billed Acte without matching collection.
+Correction:
+- dedicated `backend/schemas/honoraires.py` fail-closed contract;
+- non-empty real act required; presentation phase rows refused;
+- finite `0 <= montant <= 1_000_000`;
+- adult + pediatric FDI validation, sorted/deduplicated structured teeth and canonical `dent`;
+- at least one Honoraires line;
+- `teeth_data` must match real tooth + act + price;
+- payment methods normalized and unknown values rejected;
+- strict P4 `PaymentItem`, `HonorairesData`, `DocumentRequest` re-exported last from `backend.schemas` so `/documents/generate` validates before PDF/archive.
 
-### Risk
+Important transaction finding retained: `archive_document()` commits the archive before `persist_honoraires_lines()`, therefore validation **must** occur before archive. P4 now does so through the request/schema boundary.
 
-A direct or malformed API client can bypass frontend validation and create financially inconsistent Acte rows.
-
-### Required correction
-
-Fail closed in the backend schema/service before any archive/accounting write:
-- real non-empty act required;
-- finite amount `0 <= montant <= 1_000_000`;
-- adult/pediatric FDI validation + canonical structured dent label;
-- at least one real Honoraires line;
-- `teeth_data` consistency where present;
-- phase/presentation rows never persist as billable acts;
-- payment method validation only when a real collection is being recorded.
-
-**Priority: P0.**
+Evidence: targeted backend contract execution **13/13 PASS** after P4-C.
 
 ---
 
-## P0-2 — stale installment plan can contaminate a new unique Honoraires PDF/archive
+### P0-2 — stale installment plan contaminating a new Unique note — ✅ REMEDIATED
 
-### Verified code path
+Historical flow:
+- `DocumentHub` loads the latest patient installment plan into the shared accounting store;
+- Honoraires payload previously carried store installments regardless of new-note intent;
+- historical PDF rendered any non-empty installment list.
 
-`DocumentHub` automatically fetches the latest patient installment plan on patient load and stores its installments in the shared accounting store.
+Corrections:
+- P4 `DocumentRequest` strips installments from every non-global Honoraires request **before inherited validators, rendering and archive**;
+- typed `HonorairesData.is_global_note` added;
+- Unique `HonorairesData` strips installments independently;
+- Global notes preserve installments only when explicitly global and reconcile them exactly to the billed total;
+- frontend `AccountingHonorairesInstallmentPolicy` clears inherited installments on the explicit `Unique → Global` transition, preventing silent reuse of the previously loaded patient plan;
+- an existing in-progress global draft remains stable.
 
-`useDocumentGenerator.buildPayload()` sends `installments` in every Honoraires payload, regardless of `isGlobalNote`.
-
-`AccountingGenerator.generate_note()` renders an installment table whenever `data.installments` is non-empty; it does not require global-note semantics before showing `SUIVI DES RÈGLEMENTS`.
-
-The raw request data is also archived as clinical data, so stale installments can be preserved with the new document even when no new plan is intended.
-
-### Risk
-
-A previous patient's payment schedule can appear on a new Note Honoraires configured as `Unique`, producing an inaccurate financial document.
-
-### Required correction
-
-- Only include installments in the Honoraires document payload when `isGlobalNote === true`.
-- Rendering must independently fail closed: no installment table unless the document is explicitly global/planned.
-- Do not reuse a previously persisted plan as draft input for a new Note Honoraires unless the user explicitly chooses to import it.
-
-**Priority: P0.**
+Evidence:
+- backend included in **13/13 PASS**;
+- frontend installment policy **4/4 PASS** locally.
 
 ---
 
-## P1-1 — pending Honoraires can display a payment method as if collection occurred
+### P1-1 — pending note displaying a collection method — ✅ REMEDIATED
 
-### Verified code path
+Historical default `paymentStatus=EN_ATTENTE` + `paymentMode=Espèces` could cause the PDF to visually state cash even when no collection occurred.
 
-The accounting store defaults to:
-- `paymentStatus = EN_ATTENTE`;
-- `paymentMode = Espèces`.
+Corrections:
+- P4 request sanitizer rewrites each non-PAYE line to `mode_reglement = EN ATTENTE` before rendering/archive;
+- PAYE preserves/normalizes the real collection method;
+- persistence still creates `Payment` rows only for PAYE;
+- payment-method controls are disabled in the P4 modal until status is `PAYE`.
 
-Every Honoraires line payload carries `mode_reglement`, even when status is `EN_ATTENTE`.
+Compatibility verified against persistence aliases:
+- `Espèces` → `ESPECES`;
+- `TPE` → `CARTE`;
+- `Chèque` → `CHEQUE`;
+- `Virement` → `VIREMENT`.
 
-The PDF table always renders a `PAIEMENT` column from `mode_reglement`; it does not receive/display the document-level `payment_status` in a way that distinguishes unpaid from collected.
-
-### Risk
-
-A non-collected Note Honoraires can visually state `Espèces`, which is misleading financial semantics.
-
-### Required correction
-
-Separate billing status from collection method:
-- pending line/document: display `EN ATTENTE` / no collection method;
-- paid: display normalized collection method;
-- never infer cash from a default when no payment occurred.
-
-**Priority: P1.**
+Evidence: included in backend **13/13 PASS**.
 
 ---
 
-## P1-2 — global/planned flag is not part of `HonorairesData` used by the PDF generator
+### P1-2 — `is_global_note` lost before PDF generation — ✅ REMEDIATED
 
-### Verified code path
+Historical typed `HonorairesData` did not declare `is_global_note`, so the raw persistence flow and typed PDF model could disagree.
 
-Frontend sends `is_global_note` in the raw Honoraires data.
+Correction:
+- `is_global_note: bool` is now part of the strict typed P4 Honoraires model;
+- safe Honoraires renderer uses that field for the global title and installment section;
+- installment section renders only when the typed note is explicitly global.
 
-Backend persistence reads the raw request dict and can create a payment plan from it.
-
-But `HonorairesData` does not declare `is_global_note`. Under the current Pydantic behavior, the extra field is ignored when constructing `HonorairesData`; therefore `generate_note()` sees `getattr(data, 'is_global_note', False)` as false.
-
-### Risk
-
-A planned/global Honoraires flow can create installment persistence while the PDF title remains ordinary `NOTE D'HONORAIRES` instead of the intended global/planned variant.
-
-### Required correction
-
-Declare and validate global-note semantics in the typed Honoraires payload used by both persistence and PDF rendering.
-
-**Priority: P1.**
+Versioned PDF regression tests cover global title/section and Unique isolation.
 
 ---
 
-## P1-3 — archived Honoraires reopen drops odontogram metadata
+### P1-3 — archive → reopen loses odontogram metadata — ✅ REMEDIATED
 
-### Verified code path
+Historical Honoraires reopen used a raw payment mapper that lost `_odontogramKey`, treatment code, surfaces and notes.
 
-Devis reopening uses `hydrateArchivedDevisRows(items, teeth_data)`.
+Correction:
+- `DocumentHub` now uses the existing canonical `hydrateArchivedDevisRows(srcItems, d.teeth_data)` path for both Devis and Honoraires-shaped archived rows;
+- the helper already accepts `montant` as the Honoraires amount source;
+- no financial row is invented.
 
-Honoraires reopening maps raw `payments` only and restores:
-- description;
-- dent;
-- price;
-- toothNumbers.
+Diff verification on commit `dedcb46a…`: only the lossy Honoraires mapping was replaced by the canonical hydration call.
 
-It does not rehydrate:
-- odontogram treatment key/code;
-- surfaces;
-- notes.
-
-### Risk
-
-Round-trip is lossy and subsequent edit/rearchive can silently discard structured clinical metadata.
-
-### Required correction
-
-Introduce an Honoraires archive hydration path equivalent in integrity to Devis, without inventing financial rows.
-
-**Priority: P1.**
+Evidence: Honoraires-shaped archive hydration **1/1 PASS** locally.
 
 ---
 
-## P1-4 — Honoraires PDF still uses uniform shrinking down to 2 pt
+### P1-4 — Honoraires PDF could shrink to 2 pt / multipage rebuild risk — ✅ REMEDIATED FOR P4
 
-### Verified code path
+Two defects were verified:
+1. historical `generate_note()` derived one uniform table font with `min_fs=2.0` and NBSP act labels;
+2. shared historical `_build_pdf()` attempts to rebuild the same flowable list to force one page. Direct ReportLab execution proved that `SimpleDocTemplate.build(flowables)` consumes that list (`20 → 0`), so a retry could overwrite a valid multipage output with an empty/partial build.
 
-`generate_note()` computes one `min_fs` across all act/dent/payment/amount cells using `get_adaptive_style(..., min_fs=2.0)`, then applies that smallest font uniformly to the whole table.
+Correction is deliberately **P4-only** so paused P3 behavior is not changed:
+- new `backend/services/generators/honoraires_gen.py::HonorairesGenerator`;
+- `DocumentFactory.create_note_honoraires()` uses this generator;
+- Devis still uses historical `AccountingGenerator`;
+- Honoraires builds **exactly once** and allows natural multipage flow;
+- table `repeatRows=1`;
+- normal spaces allow act wrapping;
+- central readable floor >= 7 pt for table and installment values;
+- no uniform 2 pt shrink;
+- closure uses normal wrapping at 9.5 pt;
+- installment table is rendered only for typed global notes.
 
-This is the exact class of readability defect already removed from Devis P3-F.
+Targeted Linux rendering evidence using the same P4-E table widths/adaptive algorithm:
+- **36/36 long rows preserved**;
+- **6 pages**;
+- table header **6/6 pages**;
+- `TOTAL GÉNÉRAL` present;
+- `EN ATTENTE` present;
+- minimum observed style **7.5 pt**;
+- configured floor **7.0 pt**;
+- one ReportLab build only;
+- PDF size 9027 bytes.
 
-### Risk
+Versioned regression file: `backend/tests/test_honoraires_pdf_safety.py`.
 
-A long Honoraires line can shrink the full financial table below the central readable floor.
-
-### Required correction
-
-Adopt the Devis P3-F strategy:
-- central readable floor >= 7 pt;
-- wrapping for long act labels;
-- adaptive narrow cells without uniform whole-table shrink;
-- multipage header repeat where needed.
-
-**Priority: P1.**
+Caveat: the isolated Linux runtime lacks `arabic_reshaper/python-bidi` and the complete application dependency tree, so the versioned full-module PDF test has not been represented as a full-repo test execution.
 
 ---
 
-## P1-5 — `Confirmer l'Encaissement` does not perform an encaissement
+### P1-5 — treasury modal claimed to perform collection — ✅ REMEDIATED
 
-### Verified code path
+Historical button `Confirmer l'Encaissement` only closed the modal; the financial transaction boundary remained document archive.
 
-In the Honoraires treasury modal, `Confirmer l'Encaissement` only executes `setIsTreasuryModalOpen(false)`.
+Correction keeps one transaction boundary and fixes the language:
+- `Procéder à l'Encaissement` → `Paramètres de règlement`;
+- modal title → `Paramètres de règlement`;
+- `Mode d'Encaissement` → `Mode de règlement (si réglé)`;
+- `Confirmer l'Encaissement` → `Appliquer les paramètres`.
 
-No financial write happens at this button. Persistence occurs later only when the document generation/archive flow runs.
+Commit `db659980…` was diff-verified: only those four strings changed.
 
-### Risk
+Post-archive behavior was reviewed: successful Honoraires archive intentionally resets the draft to a blank line. This is retained as duplicate-prevention/new-document behavior, not classified as a defect.
 
-The UI claims a financial action that has not happened yet. A user may reasonably believe cash/card/cheque collection has been recorded after clicking it.
+---
 
-### Required correction
+## P4-G — static responsive/accessibility hardening
 
-Either:
-- rename the action to accurately describe configuration, e.g. `Appliquer les paramètres de règlement`; or
-- make it the explicit transactional save action with clear success/failure semantics.
+Applied in the financial modal:
+- launcher exposes dialog state;
+- modal has `role=dialog`, `aria-modal`, labelled title;
+- icon-only close button has an accessible label;
+- `Comptabiliser CA` uses switch semantics with `aria-checked`;
+- payment status buttons expose `aria-pressed`;
+- dead `PARTIEL` action removed from this modal because the store intentionally refuses partial payment here; partial collection remains a dedicated payment-flow concern;
+- payment-method buttons are disabled until `PAYE` and expose pressed state;
+- Unique/Global buttons expose pressed state;
+- installment delete button has an accessible label;
+- existing row move/delete controls remain touch-visible and labelled;
+- inherited P3 preview contract remains overlay below XL / side panel on XL.
 
-Recommendation: keep document archive as the single transaction boundary and **rename the modal/action**, avoiding a second write path.
+Commit `c57eed14…` was diff-verified for these accessibility/financial-control changes only.
 
-**Priority: P1.**
+### Still unexecuted P4-G gates
+- real React mount/build;
+- browser 390 / 768 / desktop;
+- keyboard focus/focus trap/escape behavior of the modal;
+- real touch interaction;
+- authenticated patient workflow.
 
 ---
 
 ## Historical strengths retained
 
-The following prior fixes remain valuable and must not regress:
-- `PARTIEL` refused unless a real collected amount is supplied through the dedicated payment flow;
-- unknown payment methods fail closed in actual payment persistence;
+The following prior safeguards remain relevant and must not regress:
+- `PARTIEL` is fail-closed outside its dedicated payment flow;
 - global installment totals reconcile exactly before DB write;
-- `PAYE` creates one exact linked Payment per Acte instead of a global orphan payment;
+- `PAYE` creates one exact linked Payment per Acte rather than an orphan global payment;
 - fresh-PDF print protection;
 - accounting dirty-state protections;
-- catalog-authoritative pricing and shared deterministic totals.
+- catalog-authoritative pricing and deterministic totals;
+- P3 shared odontogram metadata preservation.
 
 ---
 
-## P4 correction order
+## P4 execution evidence summary
 
-1. **P4-A — Honoraires backend financial contract** — P0.
-2. **P4-B — installment isolation / global-note typed contract** — P0.
-3. **P4-C — payment status vs collection method semantics** — P1.
-4. **P4-D — archive/reopen structured metadata round-trip** — P1.
-5. **P4-E — professional PDF readability** — P1.
-6. **P4-F — treasury modal semantics + post-archive UX** — P1.
-7. **P4-G — responsive/accessibility/runtime smoke**.
-8. **P4-H — final recertification/closeout**.
+- P4 backend financial contract/status/global semantics: **13/13 PASS** targeted local execution.
+- Inherited-installment frontend policy: **4/4 PASS**.
+- Honoraires archive hydration: **1/1 PASS**.
+- P4-E targeted long PDF: **PASS**, 36 rows / 6 pages / header 6/6 / floor >= 7 pt.
+- Four treasury copy changes: diff-verified.
+- P4-G accessibility changes: diff-verified.
+- Full React/Vite build: **NOT EXECUTED**.
+- Authenticated runtime/browser smoke: **NOT EXECUTED**.
+- Cabinet-branded/signature PDF: **NOT EXECUTED**.
+
+---
+
+## P4 correction roadmap status
+
+1. **P4-A — Honoraires backend financial contract** — ✅ local targeted PASS.
+2. **P4-B — installment isolation / global-note typed contract** — ✅ local targeted PASS.
+3. **P4-C — payment status vs collection method semantics** — ✅ local targeted PASS.
+4. **P4-D — archive/reopen structured metadata round-trip** — ✅ local targeted PASS.
+5. **P4-E — professional PDF readability/integrity** — ✅ targeted rendering PASS; full cabinet renderer not yet certified.
+6. **P4-F — treasury modal semantics + post-archive UX** — ✅ code/diff verified.
+7. **P4-G — responsive/accessibility/runtime smoke** — 🟡 static hardening done; browser/runtime pending.
+8. **P4-H — final recertification/closeout** — ⬜ pending full-app gates.
+
+## Exact resume gate
+
+To close P4-H without fiction:
+1. complete checkout with real frontend dependencies;
+2. execute real frontend tests/build;
+3. authenticated Note Honoraires smoke: Unique pending, Unique PAYE for every method, Global planned, archive, reopen, duplicate, print;
+4. real PDF cabinet branding/signature + short/long/global fixtures;
+5. browser 390 / 768 / desktop, keyboard/touch/modal behavior;
+6. only after PASS: ready review, merge stack in correct order, canonical post-merge closeout.
 
 ## Progress rule
 
