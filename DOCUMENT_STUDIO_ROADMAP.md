@@ -147,35 +147,43 @@ Ces éléments **ne sont pas revendiqués comme exécutés** et doivent être re
 
 ## P4 — Note Honoraires
 
-**État : 🟡 PAGE ACTIVE — audit page-par-page à démarrer maintenant.**
+**État : ✅ engineering local convergé ; ⏳ full-app/browser/PDF cabinet différés.**
 
-Historique technique partagé : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
+Rapport canonique : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`.
+PR stackée : **#90**, conservée draft jusqu’aux gates full-app.
 
-### Socle engineering déjà acquis
-- ancien **P2-B** : `PARTIEL` fail-closed cohérent UI/backend, PR #29, CI `31884437013`, merge `6543c3dad146bdbe055117fe0302b3fbe9cbda07` ;
-- ancien **P2-E** : totaux/payload/échéances, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd` ;
-- ancien **P2-F** : allocation `PAYE` exacte par Acte, PR #36, CI `31886400223`, merge `5916216ae6b3ebe6cf3609ff652ee09cc549391f` ;
-- les socles actes rapides / odontogramme communs issus des anciens P2-C/P2-D sont également présents ;
-- l’audit P4 doit intégrer les changements partagés introduits par la branche P3 avant de conclure sur l’état courant.
+### Acquis / corrections P4
+- **P4-A** : contrat backend financier fail-closed — acte réel, montant fini/borné, FDI adulte+pédiatrique, dents canoniques, `teeth_data` cohérent ;
+- **P4-B** : isolation des échéanciers hérités, `is_global_note` typé, réconciliation globale exacte, transition Unique→Global nettoyée ;
+- **P4-C** : séparation statut d’impayé / mode d’encaissement ; une note EN_ATTENTE n’affiche plus `Espèces` par défaut ;
+- **P4-D** : archive→réouverture réhydrate code/surfaces/notes/dents via le helper canonique ;
+- **P4-E** : générateur Honoraires dédié, multipage naturel en une passe, `repeatRows=1`, floor typographique >=7 pt ;
+- **P4-F** : modale renommée en paramètres de règlement, sans prétendre effectuer un encaissement ;
+- **P4-G statique** : sémantique dialog/switch/pressed, mode désactivé hors PAYE, action PARTIEL morte retirée de cette modale, labels accessibles.
 
-### À auditer
-- [ ] état initial Note Honoraires ;
-- [ ] reprise des actes / panier ;
-- [ ] statut de paiement ;
-- [ ] modes de règlement ;
-- [ ] cohérence Acte ↔ Payment ;
-- [ ] totaux et reste dû ;
-- [ ] preview / archive / impression ;
-- [ ] comportement après archivage ;
-- [ ] erreurs et dirty-state ;
-- [ ] responsive / accessibilité ;
-- [ ] verdict UX et recertification.
+### Preuves locales P4
+- backend financier/global/status : **13/13 PASS** ;
+- policy échéancier hérité : **4/4 PASS** ;
+- archive hydration Honoraires : **1/1 PASS** ;
+- PDF long ciblé : **36/36 lignes**, **6 pages**, header **6/6**, minimum observé **7,5 pt**, floor **7,0 pt**, total présent ;
+- diff P4-F limité aux quatre libellés transactionnels ;
+- diff P4-G limité aux contrôles d’accessibilité/états financiers attendus.
+
+### Gates P4 volontairement différés
+- vrai checkout complet + dépendances frontend ;
+- vrai build/tests React/Vite intégrés ;
+- smoke authentifié Unique EN_ATTENTE / PAYE chaque mode / Global planifié / archive / reopen / duplicate / print ;
+- PDF cabinet branding/signature court/long/global ;
+- browser 390 / 768 / desktop + clavier/touch/focus modal ;
+- ready review / merge / post-merge recertification.
+
+**Verdict : aucun P0/P1 engineering connu ne reste exécutable dans l’environnement local actuel ; certification full-app non revendiquée.**
 
 ---
 
 ## P5 — Suivi Paiement
 
-**État : 🟡 engineering financier critique partiellement fermé ; audit runtime page complet restant.**
+**État : 🟡 PAGE ACTIVE — audit page-par-page à démarrer maintenant.**
 
 ### Acquis historiques
 - ancien **P4-A** : répartition exacte des échéances, PR #41, CI `31896494441`, merge `989b819fe9f38ea616a48bf34e59263f7bcab82b` ;
@@ -302,9 +310,9 @@ Les PR, commits, noms de branches et fichiers d’audit historiques **ne sont pa
 
 1. **P1 Ordonnance** : engineering + visuel fermés ; gates authentifiés/cliniques séparés.
 2. **P2 Certificat** : engineering convergé ; certification finale runtime/PDF encore ouverte.
-3. **P3 Devis** : **clos/pausé jusqu’à nouvel ordre** ; full-app gates différés et documentés ; PR #77 conservée draft.
-4. **P4 Note Honoraires** : **PAGE ACTIVE**.
-5. **P5 Suivi Paiement** : après P4.
+3. **P3 Devis** : clos/pausé jusqu’à nouvel ordre ; full-app gates différés ; PR #77 draft.
+4. **P4 Note Honoraires** : engineering local convergé ; full-app/browser/PDF cabinet différés ; PR #90 draft.
+5. **P5 Suivi Paiement** : **PAGE ACTIVE**.
 6. **P6 Document Libre** : engineering convergé ; runtime/PDF final à recertifier dans son tour de page.
 7. **P7 Compagnon Diagnostique** : après P6.
 8. **T1** puis **T2** : transversal et closeout global.
