@@ -17,6 +17,7 @@ export interface PriceItem {
 }
 
 export interface InstallmentItem {
+  [key: string]: unknown;
   id: number;
   date: string;
   amount: number;
