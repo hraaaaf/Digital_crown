@@ -4,6 +4,7 @@ import datetime
 from typing import Optional, Dict, List, Literal, Any, Union
 
 from .base import DocumentType, DocumentStatus, ConflictResolution
+from backend.utils.devis_phase_sanitizer import strip_devis_phase_presentation_rows
 from backend.utils.installment_reconciliation import validate_installments
 
 
@@ -106,6 +107,15 @@ class DevisData(BaseModel):
     age: Optional[int] = None
     gender: Optional[str] = None
     installments: List[InstallmentItem] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def strip_phase_presentation_rows(cls, value):
+        if not isinstance(value, dict):
+            return value
+        sanitized = dict(value)
+        sanitized["items"] = strip_devis_phase_presentation_rows(value.get("items"))
+        return sanitized
 
 
 class PaymentItem(BaseModel):
