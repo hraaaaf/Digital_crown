@@ -10,6 +10,10 @@ from backend.schemas import installments as schemas
 from backend.routers.auth import require_permission
 from backend.utils.access_control import assert_patient_access
 from backend.core.paths import AppPaths
+from backend.services.installment_integrity import (
+    ensure_installment_plan_deletable,
+    validate_updated_installment_amounts,
+)
 
 MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
 DOCS_DIR = str(MEDIA_DIR / "documents")
@@ -50,8 +54,8 @@ def create_installment_plan(
                 label=inst.label,
                 amount=inst.amount,
                 due_date=inst.due_date,
-                paid_date=inst.paid_date,
-                status=inst.status,
+                paid_date=None,
+                status="EN_ATTENTE",
                 notes=inst.notes,
             ))
 
@@ -93,6 +97,17 @@ def update_installment(
                 detail="Le montant d'une échéance déjà payée ne peut pas être modifié sans contrepassation comptable.",
             )
 
+    if req.amount is not None and inst.status != "PAYE":
+        try:
+            validate_updated_installment_amounts(
+                plan.total_amount,
+                plan.installments,
+                inst.id,
+                req.amount,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     transitioning_to_paid = req.status == "PAYE" and inst.status != "PAYE"
     if transitioning_to_paid and req.payment_method is None:
         raise HTTPException(
@@ -112,10 +127,17 @@ def update_installment(
         inst.notes = req.notes
 
     if transitioning_to_paid:
-        paid_at = req.paid_date or datetime.now()
+        paid_at = datetime.now()
         inst.paid_date = paid_at
         inst.status = "PAYE"
-        payment_method = getattr(models.PaymentMethod, req.payment_method)
+        method_map = {
+            "ESPECES": models.PaymentMethod.ESPECES,
+            "CARTE": models.PaymentMethod.CARTE,
+            "TPE": models.PaymentMethod.CARTE,
+            "CHEQUE": models.PaymentMethod.CHEQUE,
+            "VIREMENT": models.PaymentMethod.VIREMENT,
+        }
+        payment_method = method_map[req.payment_method]
         db.add(models.Payment(
             patient_id=plan.patient_id,
             amount=inst.amount,
@@ -125,11 +147,8 @@ def update_installment(
             notes=f"Paiement échéance: {inst.label} ({plan.title})",
             validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",
         ))
-    else:
-        if req.status is not None:
-            inst.status = req.status
-        if req.paid_date is not None:
-            inst.paid_date = req.paid_date
+    elif req.status is not None:
+        inst.status = req.status
 
     try:
         db.commit()
@@ -184,6 +203,22 @@ def delete_installment_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Plan introuvable")
     assert_patient_access(plan.patient_id, current_user, db)
+
+    installment_ids = [installment.id for installment in plan.installments]
+    linked_payment_count = 0
+    if installment_ids:
+        linked_payment_count = db.query(models.Payment).filter(
+            models.Payment.installment_id.in_(installment_ids)
+        ).count()
+
+    try:
+        ensure_installment_plan_deletable(
+            [installment.status for installment in plan.installments],
+            linked_payment_count,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     db.delete(plan)
     db.commit()
     return None
