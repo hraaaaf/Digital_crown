@@ -8,148 +8,103 @@ Base : T1 Audit transversal premium
 
 **Engineering local Document Studio convergé sur P1→P7 + T1/T2. Certification full-app / production NON revendiquée.**
 
-Le closeout final automatique reste conditionné au harness full-repository et aux gates runtime/PDF/browser/humaines listées ci-dessous.
+Source de statut détaillée : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_STATUS.md`.
 
-## T2-A — simplification des autorités de lifecycle
+## T2-A — harness final fail-closed
 
-### Document Libre
+`scripts/certify_document_studio.sh` est le certificateur automatisé unique du chantier Document Studio.
 
-Le formulaire Libre possédait encore :
-- son propre `beforeunload` ;
-- un interceptor Axios chargé de déduire qu'une archive Libre avait réussi.
+Il couvre :
+1. Python >=3.12, Node >=20, git/npm présents, worktree propre ;
+2. prod-safety positive en environnement de développement ;
+3. régression backend ciblée P1→P7 ;
+4. suite backend complète ;
+5. tests frontend ciblés `src/features/admin/DocumentStudio` ;
+6. suite frontend complète ;
+7. build frontend production ;
+8. invariants source anti-ghost AI / diagnostic autonome ;
+9. prod-safety négative.
 
-Depuis T1, ces responsabilités appartiennent au `DocumentHub` et à `ArchiveSuccessSignal`.
+Preuve réellement exécutée dans le Linux de cette session :
+- `bash -n` : **PASS** ;
+- Python 3.13.5 ; Node 22.16.0 ; npm 10.9.2.
 
-Correction T2 :
-- suppression du listener `beforeunload` local Libre ;
-- suppression de l'interceptor Axios local ;
-- conservation du registre `LibreDirtyState` comme état métier ;
-- ouverture/réouverture établit une baseline propre ;
-- navigation, abandon, beforeunload et archive-success restent centralisés au Hub.
+Le dépôt complet et ses dépendances ne sont pas montés dans ce Linux : le harness complet n'est **pas** revendiqué PASS.
 
-Cela réduit le risque de doubles autorités et de nettoyages contradictoires.
+## T2-B — tests critiques versionnés
 
-## T2-B — harness final fail-closed
+Tests ajoutés/conservés dans le futur `npm test` full-project :
+- `DocumentNavigationPolicy.test.ts` ;
+- `DiagnosticCompanionPolicy.test.ts` ;
+- `LivePreview.r7.test.tsx` étendu pour dialog / focus initial / Escape.
 
-Nouveau script :
+Dernière preuve réellement exécutée pour la navigation T1 : `tsc --strict` + **9/9 scénarios PASS** dans le harness Linux isolé.
 
-`scripts/certify_document_studio.sh`
+Les nouveaux tests Vitest T2 sont versionnés mais non exécutés dans un checkout frontend complet ici.
 
-Le harness :
-1. réutilise `scripts/certify_p3_devis.sh`, qui porte déjà les contrôles exacts de toolchain/worktree, les tests P3, la suite backend complète, `npm test`, `npm run build` et la prod-safety ;
-2. rejoue les frontières backend T1 de l'Échéancier ;
-3. vérifie des invariants source Document Studio (ghost `/ai-diagnostic`, route AI, retour de `Diagnostic Établi`) ;
-4. n'imprime `AUTOMATED_DOCUMENT_STUDIO_GATES_PASS` qu'après tous les gates automatisables ;
-5. rappelle explicitement que clinical judgment, PDF cabinet, runtime/browser et merge/post-merge restent séparés.
+## T2-C — accessibilité LivePreview
 
-Preuve disponible ici : **`bash -n scripts/certify_document_studio.sh` équivalent local = PASS**.
+La preview non-inline est désormais exposée comme une vraie modale :
+- `role="dialog"` ;
+- `aria-modal="true"` ;
+- titre relié par `aria-labelledby` ;
+- focus initial sur Fermer ;
+- fermeture Escape ;
+- label accessible du bouton Fermer ;
+- statut de chargement annoncé via `aria-live`.
 
-Le harness complet n'est pas exécuté dans le container courant : absence de checkout full-repository exact et environnement déjà connu comme différent de Python 3.12 / Node 20. Aucun PASS full-project n'est inventé.
+## T2-D — legacy cleanup fail-closed
 
-## T2-C — tests frontend critiques versionnés
+Plusieurs gros fichiers historiques semblent potentiellement orphelins (`EliteAssistant`, `EliteDock`, `DiagnosticEngine`, etc.), mais l'API de recherche a retourné `incomplete_results=true`.
 
-Ajoutés pour entrer dans le futur `npm test` full-project :
+Décision : **aucune suppression sans preuve exhaustive d'absence de référence**.
 
-- `DocumentNavigationPolicy.test.ts`
-  - même onglet ;
-  - navigation propre ;
-  - dirty Ordonnance ;
-  - dirty Certificat ;
-  - dirty Libre ;
-  - dirty P7 ;
-  - dirty accounting ;
-  - Devis→Honoraires confirmation ;
-  - switch accounting sans discard ;
-  - Honoraires→Devis.
-
-- `DiagnosticCompanionPolicy.test.ts`
-  - normalisation acte praticien ;
-  - zéro transfert sans confirmation ;
-  - transfert manuel confirmé seulement ;
-  - aucune copie `Diagnostic Établi`/antibiothérapie automatique dans les orientations ;
-  - prix Devis neutre ;
-  - instructions médicamenteuses filtrées ;
-  - ligne mixte acte + médicament filtrée fail-closed.
-
-Ces tests sont **versionnés mais leur exécution Vitest full-project n'est pas revendiquée dans cet environnement**.
+Même doctrine pour `DocumentFactory.create_installment_plan()` : le chemin public `/documents/generate` avec `type=echeancier` est déjà refusé par le `DocumentRequest` réellement exporté, mais la méthode legacy n'est pas supprimée sans scan complet fiable.
 
 ## État final des pages
 
 - P1 Ordonnance : engineering fermé ; gates clinique/runtime séparés.
-- P2 Certificat : engineering convergé ; dirty-state rétabli par T1 ; runtime/PDF final différé.
+- P2 Certificat : engineering convergé ; runtime/PDF final différé.
 - P3 Devis : CLOSED / PAUSED par décision produit ; PR #77 draft.
 - P4 Note Honoraires : engineering local convergé ; PR #90 draft.
 - P5 Suivi Paiement : engineering local convergé ; PR #95 draft.
 - P6 Document Libre : engineering local convergé ; PR #96 draft.
 - P7 Compagnon Diagnostique : engineering safety local convergé ; PR #97 draft.
 - T1 Transversal : engineering transversal local convergé ; PR #101 draft.
-- T2 : engineering closeout local convergé ; full recertification externe restante.
+- T2 : engineering closeout local convergé ; PR #102 draft.
 
-## Restes legacy non bloquants
+## Preuves locales consolidées
 
-- `DocumentFactory.create_installment_plan()` reste du code legacy interne mais le `DocumentRequest` public bloque désormais tout `type=echeancier` sous `/documents/generate` ; suppression physique possible ultérieurement après full-reference scan.
-- certains registres dirty historiques restent séparés par module, mais leur orchestration est centralisée au Hub ;
-- quelques props/callbacks UI historiques peuvent encore être nettoyés sans impact métier ;
-- accessibilité de la modale doublon peut être alignée encore davantage avec la modale navigation.
+- P3 : backend 26/26 PASS ; frontend ciblé 39/39 PASS ; PDF multipage ciblé PASS.
+- P4 : backend 13/13 PASS ; échéancier 4/4 ; hydration 1/1 ; PDF long 36/36 lignes / 6 pages.
+- P5 : backend 15/15 PASS ; summary 4/4 ; create payload `tsc --strict` + 8/8.
+- P6 : dirty/archive `tsc --strict` + 11/11.
+- P7 : safety `tsc --strict` + 8/8 ; P7→P3 + dirty `tsc --strict` + 12/12.
+- T1 : navigation dernier rerun `tsc --strict` + 9/9 ; contrat legacy échéancier helper 4/4.
+- T2 : `bash -n scripts/certify_document_studio.sh` équivalent local PASS.
 
-Aucun de ces points n'est utilisé pour revendiquer une certification finale.
+## Gates indispensables avant certification complète
 
-## Gates indispensables avant certification finale
-
-### Automated full repository
-
-Exécuter sur le **head candidat exact**, checkout propre, Python 3.12 / Node 20, dépendances installées :
+Sur checkout propre du **head candidat exact**, dépendances installées :
 
 ```bash
 bash scripts/certify_document_studio.sh
 ```
 
-Attendre uniquement le marqueur réel :
-
-`AUTOMATED_DOCUMENT_STUDIO_GATES_PASS`
-
-### Runtime authentifié
-
-Smoke P1→P7 avec patient réel :
-- navigation clic + query-param et abandon brouillon ;
-- preview ;
-- archive ;
-- reopen ;
-- duplicate 409 + cancel/force ;
-- impression fraîche ;
-- P5 création/reload/paiement ;
-- P7→P3 confirmé.
-
-### PDF cabinet
-
-Inspection réelle :
-- Ordonnance ;
-- Certificat ;
-- Devis ;
-- Honoraires court/long/global ;
-- Échéancier ;
-- Document Libre A4/A5 multi-page ;
-- branding/signature/header/footer lisibles.
-
-### Browser / responsive
-
-Au minimum : 390 / 768 / desktop, clavier/touch/focus/dialogs.
-
-### Validation humaine séparée
-
-- clinique/pharmacologique Ordonnance ;
-- scientifique/clinique pour toute future orientation P7 plus spécifique ;
-- réglementaire si applicable au produit final ;
-- financière pour flux d'encaissement si exigée par le processus de release.
-
-### Git / release
-
-Seulement après PASS des gates applicables :
-- passer les PR requises en ready ;
-- fusionner dans l'ordre de dépendance ;
-- mettre à jour les canoniques master ;
-- exécuter post-merge recertification.
+Puis :
+1. runtime authentifié P1→P7 ;
+2. navigation + abandon brouillon ;
+3. preview/archive/reopen/duplicate cancel+force ;
+4. impression fraîche ;
+5. P5 création/reload/paiement ;
+6. P7→P3 confirmé ;
+7. PDF cabinet court/long/A4/A5/branding/signature ;
+8. browser 390 / 768 / desktop + clavier/touch/focus ;
+9. validations humaines clinique/scientifique/réglementaire/financière applicables ;
+10. ready/merge ordonné puis post-merge recertification.
 
 ## Conclusion
 
-T2 clôt l'engineering local connu du Document Studio. Le prochain verrou n'est plus une correction de code connue : c'est l'exécution du harness full-repository et des certifications runtime/PDF/browser/humaines. Aucun merge ou statut production-ready n'est autorisé avant ces preuves.
+T2 clôt l'engineering local connu du Document Studio. Le verrou restant est l'exécution des certifications full-app et humaines, pas un P0/P1 engineering actuellement identifié.
+
+Aucune pondération officielle n'existe : **pourcentage global indéterminé**.
