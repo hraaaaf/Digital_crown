@@ -14,13 +14,72 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply exact patch and self-clean
+      - name: Apply asserted D2 transforms and self-clean
         run: |
-          git apply --check .github/patches/dashboard-d2.patch
-          git apply .github/patches/dashboard-d2.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('frontend/src/pages/Dashboard.tsx')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              assert count == 1, f'{label}: expected 1 anchor, found {count}'
+              s = s.replace(old, new, 1)
+
+          replace_once(
+              "import { DayOneTour } from '../components/DayOneTour';\n",
+              "import { DayOneTour } from '../components/DayOneTour';\nimport { getCabinetHealthDisplayState, useCabinetHealth } from '../hooks/useCabinetHealth';\n",
+              'health hook import',
+          )
+
+          replace_once(
+              """interface CabinetHealth {\n  database: { status: 'ok' | 'error'; detail: string | null };\n  disk: { status: 'ok' | 'warning' | 'critical' | 'unknown'; free_gb: number | null; total_gb: number | null };\n  backup_local: { status: 'ok' | 'warning' | 'critical' | 'none'; overall_status: string | null; age_hours: number | null; run_id: string | null };\n  offsite: { status: 'NOT_CONFIGURED' | 'ok' | 'warning'; offsite_status: string | null; db_copied: boolean | null; media_copied: boolean | null };\n  overall_severity: 'ok' | 'warning' | 'critical';\n}\n\n""",
+              "",
+              'legacy CabinetHealth interface',
+          )
+
+          replace_once(
+              "  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);\n",
+              "",
+              'legacy cabinet health state',
+          )
+
+          replace_once(
+              "  const hasAccess = (permission: string) => userHasAccess(user, permission);\n",
+              """  const hasAccess = (permission: string) => userHasAccess(user, permission);\n  const cabinetHealthState = useCabinetHealth({\n    enabled: hasAccess('admin'),\n    authLoading,\n  });\n  const cabinetHealth = cabinetHealthState.status === 'ready' ? cabinetHealthState.data : null;\n  const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);\n""",
+              'health state machine hookup',
+          )
+
+          replace_once(
+              "      setTodayAppointments([]);\n      setCabinetHealth(null);\n      setLoading(false);\n",
+              "      setTodayAppointments([]);\n      setLoading(false);\n",
+              'legacy user clear health',
+          )
+
+          replace_once(
+              """  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern\n  // que le badge d'alertes non lues de Sidebar.tsx).\n  useEffect(() => {\n    if (authLoading || !hasAccess('admin')) {\n      setCabinetHealth(null);\n      return;\n    }\n    const fetchHealth = () => api.get('/admin/cabinet-health')\n      .then(res => setCabinetHealth(res.data))\n      .catch(() => {});\n    fetchHealth();\n    const interval = setInterval(fetchHealth, 120000);\n    return () => clearInterval(interval);\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [user, authLoading]);\n\n""",
+              "",
+              'legacy health polling effect',
+          )
+
+          replace_once(
+              """          \n          <div className=\"flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60\">\n            <div className=\"px-6 py-3 rounded-elite-sm flex flex-col items-end\">\n              <span className=\"text-[10px] font-black text-text-muted uppercase tracking-widest mb-1\">Status Système</span>\n              <div className=\"flex items-center gap-2\">\n                <div className={cn(\n                  \"w-2 h-2 rounded-full\",\n                  !cabinetHealth ? \"bg-slate-400\" :\n                  cabinetHealth.overall_severity === \"ok\" ? \"bg-emerald-500 animate-pulse\" :\n                  cabinetHealth.overall_severity === \"warning\" ? \"bg-amber-500\" : \"bg-red-500\"\n                )} />\n                <span className=\"text-sm font-black text-main uppercase tracking-tighter\" style={{ color: 'var(--text-main)' }}>\n                  {!cabinetHealth ? \"Système local actif\" :\n                    cabinetHealth.overall_severity === \"ok\" ? \"Système local actif\" :\n                    cabinetHealth.overall_severity === \"warning\" ? \"Vigilance requise\" : \"Problème détecté\"}\n                </span>\n              </div>\n            </div>\n          </div>\n""",
+              """\n          {hasAccess('admin') && (\n            <div className=\"flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60\">\n              <div className=\"px-6 py-3 rounded-elite-sm flex flex-col items-end\">\n                <span className=\"text-[10px] font-black text-text-muted uppercase tracking-widest mb-1\">Statut système</span>\n                <div className=\"flex items-center gap-2\" role=\"status\" aria-live=\"polite\">\n                  {systemStatus.isLoading ? (\n                    <Loader2 size={12} className=\"text-slate-400 animate-spin\" aria-hidden=\"true\" />\n                  ) : (\n                    <div className={cn(\"w-2 h-2 rounded-full\", systemStatus.dotClassName)} aria-hidden=\"true\" />\n                  )}\n                  <span className=\"text-sm font-black text-main uppercase tracking-tighter\" style={{ color: 'var(--text-main)' }}>\n                    {systemStatus.label}\n                  </span>\n                </div>\n              </div>\n            </div>\n          )}\n""",
+              'header system status',
+          )
+
+          assert 'Système local actif' not in s, 'false positive system label survived'
+          assert "api.get('/admin/cabinet-health')" not in s, 'legacy direct health fetch survived'
+          p.write_text(s)
+          PY
+
           rm -f .github/patches/dashboard-d2.patch
           rm -f .github/workflows/dashboard-d2-apply.yml
           rm -f .github/workflows/dashboard-d2-apply-v2.yml
+
+          git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
