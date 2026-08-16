@@ -17,7 +17,11 @@ def _honoraires_request(installment_amounts):
             ],
             "is_global_note": True,
             "installments": [
-                {"label": f"Versement {index + 1}", "amount": amount}
+                {
+                    "label": f"Versement {index + 1}",
+                    "amount": amount,
+                    "date": f"2026-{9 + index:02d}-01",
+                }
                 for index, amount in enumerate(installment_amounts)
             ],
         },
