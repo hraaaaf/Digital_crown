@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
 import datetime
+import math
 from typing import Optional, Dict, List, Literal, Any, Union
 
 from .base import DocumentType, DocumentStatus, ConflictResolution
@@ -207,17 +208,11 @@ class DocumentRequest(BaseModel):
     patient_id: int
     data: Dict
     is_accounted: bool = True
-    payment_status: Optional[str] = "EN_ATTENTE" # EN_ATTENTE, PAYE, PARTIEL
+    payment_status: Optional[Literal["EN_ATTENTE", "PAYE", "PARTIEL"]] = "EN_ATTENTE"
 
     @model_validator(mode="after")
     def reject_implicit_partial_payment(self):
-        """Fail closed: this document flow has no explicit amount-paid field.
-
-        A PARTIEL status used to synthesize a Payment equal to 50% of the billed
-        total. Until the caller supplies an explicit collected amount through the
-        dedicated accounting payment flow, partial payment must not create any
-        financial write from this document request.
-        """
+        """This document flow has no explicit amount-paid field for PARTIEL."""
         if self.payment_status == "PARTIEL":
             raise PydanticCustomError(
                 "partial_payment_requires_explicit_amount",
@@ -226,12 +221,40 @@ class DocumentRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def reconcile_global_honoraires_installments(self):
-        """Reject a persisted global honoraires plan whose installments do not match billing.
+    def validate_honoraires_financial_contract(self):
+        if self.type not in {"note", "honoraires"}:
+            return self
+        payments = (self.data or {}).get("payments") or []
+        if not payments:
+            raise PydanticCustomError(
+                "honoraires_empty",
+                "Une note d'honoraires doit contenir au moins un acte.",
+            )
+        for index, payment in enumerate(payments, start=1):
+            if not isinstance(payment, dict):
+                raise PydanticCustomError("honoraires_invalid_item", f"Acte #{index} invalide.")
+            if not str(payment.get("acte") or "").strip():
+                raise PydanticCustomError("honoraires_empty_label", f"Acte #{index} : la description est requise.")
+            try:
+                amount = float(payment.get("montant"))
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError("honoraires_invalid_amount", f"Acte #{index} : montant non numérique.") from exc
+            if not math.isfinite(amount) or amount <= 0 or amount > 1_000_000:
+                raise PydanticCustomError(
+                    "honoraires_invalid_amount",
+                    f"Acte #{index} : le montant doit être fini, strictement positif et ≤ 1 000 000 MAD.",
+                )
+            if self.payment_status == "PAYE" and (
+                "mode_reglement" not in payment or not str(payment.get("mode_reglement") or "").strip()
+            ):
+                raise PydanticCustomError(
+                    "honoraires_payment_method_required",
+                    f"Acte #{index} : le mode de règlement doit être choisi explicitement pour un encaissement.",
+                )
+        return self
 
-        The route creates InstallmentPlan/Installment rows from raw request data.
-        Validate the exact monetary reconciliation before any database write.
-        """
+    @model_validator(mode="after")
+    def reconcile_global_honoraires_installments(self):
         if self.type not in {"note", "honoraires"}:
             return self
         data = self.data or {}
@@ -246,10 +269,50 @@ class DocumentRequest(BaseModel):
         try:
             validate_installments(sum(billed_amounts), installment_amounts)
         except (TypeError, ValueError) as exc:
-            raise PydanticCustomError(
-                "installment_total_mismatch",
-                str(exc),
-            ) from exc
+            raise PydanticCustomError("installment_total_mismatch", str(exc)) from exc
+        return self
+
+    @model_validator(mode="after")
+    def validate_direct_echeancier_contract(self):
+        if self.type != "echeancier":
+            return self
+        data = self.data or {}
+        if data.get("plan_id"):
+            return self
+
+        title = str(data.get("title") or "").strip()
+        if not title:
+            raise PydanticCustomError("installment_title_required", "Le titre du plan de paiement est requis.")
+        try:
+            total = float(data.get("totalAmount"))
+        except (TypeError, ValueError) as exc:
+            raise PydanticCustomError("installment_total_invalid", "Le total du plan est invalide.") from exc
+        if not math.isfinite(total) or total <= 0 or total > 10_000_000:
+            raise PydanticCustomError("installment_total_invalid", "Le total du plan doit être fini et strictement positif.")
+
+        items = data.get("items") or []
+        if not items:
+            raise PydanticCustomError("installment_items_required", "Le plan doit contenir au moins une échéance.")
+        amounts = []
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                raise PydanticCustomError("installment_item_invalid", f"Échéance #{index} invalide.")
+            if not str(item.get("label") or "").strip():
+                raise PydanticCustomError("installment_label_required", f"Échéance #{index} : libellé requis.")
+            if not item.get("dueDate"):
+                raise PydanticCustomError("installment_date_required", f"Échéance #{index} : date explicite requise.")
+            try:
+                datetime.date.fromisoformat(str(item.get("dueDate")).split("T")[0])
+                amount = float(item.get("amount"))
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError("installment_item_invalid", f"Échéance #{index} invalide.") from exc
+            if not math.isfinite(amount) or amount <= 0 or amount > 1_000_000:
+                raise PydanticCustomError("installment_amount_invalid", f"Échéance #{index} : montant invalide.")
+            amounts.append(amount)
+        try:
+            validate_installments(total, amounts)
+        except (TypeError, ValueError) as exc:
+            raise PydanticCustomError("installment_total_mismatch", str(exc)) from exc
         return self
 
 
