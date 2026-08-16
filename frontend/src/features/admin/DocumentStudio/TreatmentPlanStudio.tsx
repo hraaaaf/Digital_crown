@@ -18,7 +18,7 @@ interface ProposedAct {
   act: string;
 }
 
-export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote: _onConvertToQuote }) => {
+export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote }) => {
   const [currentState, setCurrentState] = useState<DiagnosticState>('MOTIF');
   const [history, setHistory] = useState<ChatMessage[]>([
     { role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }
@@ -476,6 +476,20 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                   <Plus size={18} />
                 </button>
               </div>
+
+              {onConvertToQuote && proposedActs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onConvertToQuote(proposedActs.map(act => ({
+                    suggested_act: act.act,
+                    fdi: 'Global',
+                    phase: act.phase,
+                  })))}
+                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-[0.99]"
+                >
+                  Créer le devis <ArrowRight size={16} />
+                </button>
+              )}
 
               {clinicalTipsEnabled && (
                 <motion.div 
