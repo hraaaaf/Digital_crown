@@ -6,12 +6,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Check, Clock, Zap, Search, Plus, Star } from 'lucide-react';
+import { X, Check, Clock, Search, Plus, Star } from 'lucide-react';
 import type { ToothNumberFDI, ToothTreatment, ToothSurface } from './types';
 import { TOOTH_NAMES } from './types';
 import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
 import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
+import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/AccountingTreatmentPricePolicy';
 
 interface TreatmentSelectorProps {
   toothNumber: ToothNumberFDI;
@@ -21,6 +22,11 @@ interface TreatmentSelectorProps {
   embedded?: boolean;
   allowEmptyConfirm?: boolean;
 }
+
+type TreatmentTemplate = Omit<ToothTreatment, 'price'> & {
+  catalogPrice?: number;
+  isCatalogAct?: boolean;
+};
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
   CONSERVATRICE: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
@@ -33,7 +39,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   ORTHODONTIE: { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700', dot: 'bg-sky-500' },
 };
 
-const getFallbackSuggestions = (): Omit<ToothTreatment, 'price'>[] => [
+const getFallbackSuggestions = (): TreatmentTemplate[] => [
   { id: 'prev-det', name: 'Détartrage complet', category: 'PREVENTION', scope: 'GLOBAL', duration: 30 },
   { id: 'chir-ext-s', name: 'Extraction simple', category: 'CHIRURGIE', scope: 'UNITAIRE', duration: 20 },
   { id: 'comp-1', name: 'Composite 1 face', category: 'CONSERVATRICE', scope: 'UNITAIRE', duration: 20 },
@@ -41,14 +47,6 @@ const getFallbackSuggestions = (): Omit<ToothTreatment, 'price'>[] => [
   { id: 'endo-mono', name: 'Traitement canalaire mono', category: 'ENDODONTIE', scope: 'UNITAIRE', duration: 45 },
   { id: 'prost-cm', name: 'Couronne Céramo-métallique', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
   { id: 'prost-zirc', name: 'Couronne Zircone Premium', category: 'PROTHESE', scope: 'UNITAIRE', duration: 60 },
-];
-
-const SURFACES: { code: ToothSurface; label: string }[] = [
-  { code: 'M', label: 'Mésiale' },
-  { code: 'O', label: 'Occlusale' },
-  { code: 'D', label: 'Distale' },
-  { code: 'V', label: 'Vestibulaire' },
-  { code: 'P', label: 'Palatine/Linguale' },
 ];
 
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
@@ -61,7 +59,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 }) => {
   const [selectedTreatments, setSelectedTreatments] = useState<ToothTreatment[]>(currentTreatments);
   const [treatmentPrices, setTreatmentPrices] = useState<Record<string, number>>({});
-  const [selectedSurfaces, setSelectedSurfaces] = useState<ToothSurface[]>([]);
+  const [selectedSurfaces] = useState<ToothSurface[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('FREQUENTS');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +70,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   const [addingAct, setAddingAct] = useState(false);
   const { specialties, fetchCatalog, createAct } = useCatalogStore();
 
-
   const CATEGORY_LABELS = useMemo(() => {
     const labels: Record<string, string> = {};
     specialties.forEach(s => {
@@ -82,15 +79,16 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   }, [specialties]);
 
   const TREATMENTS_BY_CATEGORY = useMemo(() => {
-    const treatments: Record<string, Omit<ToothTreatment, 'price'>[]> = {};
+    const treatments: Record<string, TreatmentTemplate[]> = {};
     specialties.forEach(s => {
       treatments[s.name] = s.acts.map(act => ({
         id: `act_${act.id}`,
         name: act.name,
-        category: s.name as any,
+        category: s.name as ToothTreatment['category'],
         scope: 'UNITAIRE',
-        duration: 30,
         code: act.code,
+        catalogPrice: Number(act.base_price) || 0,
+        isCatalogAct: true,
       }));
     });
     return treatments;
@@ -107,7 +105,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   }, [fetchCatalog, specialties.length]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     if (!embedded) {
       document.body.style.overflow = 'hidden';
@@ -118,21 +115,31 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   }, [embedded]);
 
   const toothName = TOOTH_NAMES[toothNumber];
-  
+
   const frequentActs = useMemo(() => {
     const top = PriceBrain.getTopFrequent(7);
     return top.length > 0 ? top : getFallbackSuggestions();
   }, []);
 
-  const toggleTreatment = (template: any) => {
+  const resolveInitialPrice = (template: TreatmentTemplate | ActHistory, id: string): number => {
+    const isCatalogAct = 'isCatalogAct' in template && template.isCatalogAct === true;
+    return resolveDevisTreatmentPrice({
+      isCatalogAct,
+      catalogPrice: isCatalogAct && 'catalogPrice' in template ? template.catalogPrice : undefined,
+      practitionerPrice: treatmentPrices[id],
+      rememberedPrice: isCatalogAct ? undefined : PriceBrain.suggestPrice(template.name),
+    }).price;
+  };
+
+  const toggleTreatment = (template: TreatmentTemplate | ActHistory) => {
     const id = template.id || `brain_${template.name}`;
     const exists = selectedTreatments.find(t => (t.id === id) || (t.name === template.name));
-    
+
     if (exists) {
       setSelectedTreatments(prev => prev.filter(t => (t.id !== id) && (t.name !== template.name)));
     } else {
-      const price = treatmentPrices[id] || PriceBrain.suggestPrice(template.name) || 0;
-      setSelectedTreatments(prev => [...prev, { ...template, id, price }]);
+      const price = resolveInitialPrice(template, id);
+      setSelectedTreatments(prev => [...prev, { ...template, id, price } as ToothTreatment]);
     }
   };
 
@@ -143,17 +150,11 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     if (treatment) PriceBrain.recordAct(treatment.name, price, treatment.category, id);
   };
 
-  const toggleSurface = (code: ToothSurface) => {
-    setSelectedSurfaces(prev => 
-      prev.includes(code) ? prev.filter(s => s !== code) : [...prev, code]
-    );
-  };
-
-  const totalPrice = useMemo(() => 
+  const totalPrice = useMemo(() =>
     selectedTreatments.reduce((sum, t) => sum + (t.price || 0), 0)
   , [selectedTreatments]);
 
-  const containerClasses = embedded 
+  const containerClasses = embedded
     ? "w-full h-full flex flex-col overflow-hidden bg-slate-900"
     : "fixed inset-0 z-[100000] flex items-center justify-center p-4 md:p-10 bg-slate-800/40 backdrop-blur-md";
 
@@ -169,7 +170,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
         exit={embedded ? { opacity: 0, x: 20 } : { opacity: 0, scale: 0.9, y: 40 }}
         className={modalClasses}
       >
-        {/* Elite Header */}
         <div className="bg-slate-900 px-8 py-6 flex items-center justify-between shrink-0 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
           <div className="flex items-center gap-6 relative z-10">
@@ -180,7 +180,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               <h2 className="text-xl font-black text-white tracking-tighter">Dent {toothNumber}</h2>
               <p className="text-slate-400 font-bold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                {toothName} • Assistant Intelligence
+                {toothName} • Sélection d'actes
               </p>
             </div>
           </div>
@@ -189,12 +189,8 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* Left: Table Area */}
           <div className={cn("flex-1 flex flex-col min-w-0", embedded ? "bg-white/5" : "bg-slate-50/30")}>
-            
-            {/* Toolbar */}
             <div className="p-6 pb-0 shrink-0 flex flex-col gap-4 mb-4">
               <div className="relative w-full group">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -213,36 +209,35 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   )}
                 />
               </div>
-              
+
               <div className="flex flex-wrap bg-slate-200/50 p-1.5 rounded-2xl gap-1">
+                <button
+                  onClick={() => { setActiveCategory('FREQUENTS'); setSearchQuery(''); }}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    activeCategory === 'FREQUENTS' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >Favoris</button>
+                <button
+                  onClick={() => { setActiveCategory('ALL'); setSearchQuery(''); }}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    activeCategory === 'ALL' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >Tous les actes</button>
+                {Object.keys(TREATMENTS_BY_CATEGORY).map(cat => (
                   <button
-                    onClick={() => { setActiveCategory('FREQUENTS'); setSearchQuery(''); }}
+                    key={cat}
+                    onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
                     className={cn(
                       "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      activeCategory === 'FREQUENTS' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      activeCategory === cat ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
-                  >Favoris</button>
-                  <button
-                    onClick={() => { setActiveCategory('ALL'); setSearchQuery(''); }}
-                    className={cn(
-                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      activeCategory === 'ALL' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >Tous les actes</button>
-                  {Object.keys(TREATMENTS_BY_CATEGORY).map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-                      className={cn(
-                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        activeCategory === cat ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                      )}
-                    >{CATEGORY_LABELS[cat]}</button>
-                  ))}
-                </div>
+                  >{CATEGORY_LABELS[cat]}</button>
+                ))}
+              </div>
             </div>
 
-            {/* Elite Data Table */}
             <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
               <div className={cn("rounded-3xl border shadow-sm overflow-hidden", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-200")}>
                 <table className="w-full text-left border-collapse">
@@ -256,20 +251,22 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {(() => {
-                      let items = [];
+                      let items: Array<TreatmentTemplate | ActHistory> = [];
                       if (activeCategory === 'SEARCH') items = TREATMENT_TEMPLATES.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
                       else if (activeCategory === 'FREQUENTS') items = frequentActs;
                       else if (activeCategory === 'ALL') items = TREATMENT_TEMPLATES;
                       else items = TREATMENTS_BY_CATEGORY[activeCategory] || [];
 
-                      return (items as (ActHistory | Omit<ToothTreatment, 'price'>)[]).map(template => {
+                      return items.map(template => {
                         const id = template.id || `brain_${template.name}`;
-                        const isSelected = selectedTreatments.some(t => t.id === id || t.name === template.name);
-                        const currentPrice = treatmentPrices[id] || PriceBrain.suggestPrice(template.name) || 0;
+                        const selectedTreatment = selectedTreatments.find(t => t.id === id || t.name === template.name);
+                        const isSelected = Boolean(selectedTreatment);
+                        const initialPrice = resolveInitialPrice(template, id);
+                        const currentPrice = selectedTreatment?.price ?? initialPrice;
                         const colors = CATEGORY_COLORS[template.category] || CATEGORY_COLORS.CONSERVATRICE;
 
                         return (
-                          <tr 
+                          <tr
                             key={id}
                             onClick={() => toggleTreatment(template)}
                             className={cn(
@@ -289,7 +286,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                               <div className="flex items-center gap-3">
                                 <span className={cn("w-2 h-2 rounded-full shrink-0", colors.dot)} />
                                 <div>
-                                                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-slate-800")}>{template.name}</p>
+                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-slate-800")}>{template.name}</p>
                                   <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter mt-0.5">
                                     {CATEGORY_LABELS[template.category] || template.category}
                                   </p>
@@ -310,6 +307,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                                 <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                                   <input
                                     type="number"
+                                    min="0"
                                     value={currentPrice || ''}
                                     onChange={(e) => updateTreatmentPrice(id, Number(e.target.value))}
                                     className="w-24 px-3 py-2 bg-white border-2 border-primary/20 rounded-xl text-right font-black text-primary text-sm outline-none focus:border-primary transition-all"
@@ -328,18 +326,17 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                   </tbody>
                 </table>
                 {activeCategory === 'SEARCH' && searchQuery.length > 2 && (
-                   <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-center">
-                     <button
-                        onClick={() => toggleTreatment({ id: `custom_${Date.now()}`, name: searchQuery, category: 'CONSERVATRICE', scope: 'UNITAIRE' })}
-                        className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-500 hover:text-primary hover:border-primary transition-all shadow-sm group"
-                     >
-                       <Plus size={16} className="group-hover:rotate-90 transition-transform" />
-                       Créer l'acte "{searchQuery}"
-                     </button>
-                   </div>
+                  <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-center">
+                    <button
+                      onClick={() => toggleTreatment({ id: `custom_${Date.now()}`, name: searchQuery, category: 'CONSERVATRICE', scope: 'UNITAIRE' })}
+                      className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-500 hover:text-primary hover:border-primary transition-all shadow-sm group"
+                    >
+                      <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+                      Créer l'acte "{searchQuery}"
+                    </button>
+                  </div>
                 )}
 
-                {/* Add act inline — visible when on a specific specialty tab */}
                 {!['FREQUENTS', 'ALL', 'SEARCH'].includes(activeCategory) && (() => {
                   const spec = specialties.find(s => s.name === activeCategory);
                   if (!spec) return null;
@@ -365,6 +362,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                           />
                           <input
                             type="number"
+                            min="0"
                             placeholder="Prix MAD"
                             value={newActPrice}
                             onChange={e => setNewActPrice(e.target.value)}
@@ -402,7 +400,6 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
             </div>
           </div>
 
-          {/* Right: Elite Panel */}
           <div className={cn("w-full lg:w-[18rem] border-l p-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-100")}>
             <div className="mb-10 flex-1">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Notes Cliniques</h3>
@@ -420,8 +417,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               <div className="flex items-center justify-between mb-8">
                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Devis</span>
                 <div className="text-right">
-                                    <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-slate-900")}>{totalPrice}</span>
-
+                  <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-slate-900")}>{totalPrice}</span>
                   <span className="text-xs font-black text-slate-400 ml-2">MAD</span>
                 </div>
               </div>
