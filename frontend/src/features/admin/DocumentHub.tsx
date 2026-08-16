@@ -34,6 +34,7 @@ import {
   type ArchivedToothData,
 } from './DocumentStudio/AccountingOdontogramSourcePolicy';
 import { isPrescriptionDirty, setPrescriptionDirty } from './DocumentStudio/PrescriptionDirtyState';
+import { isCertificateDirty, setCertificateDirty } from './DocumentStudio/CertificateDirtyState';
 import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
 import {
   isDiagnosticCompanionDirty,
@@ -89,7 +90,7 @@ const isHubDocumentType = (value: string | null): value is HubDocumentType =>
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedDocumentTab = searchParams.get('documentTab');
   const [activeTab, setActiveTab] = useState<HubDocumentType>(() =>
     isHubDocumentType(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
@@ -147,8 +148,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   // --- DIRTY STATE COMPTABLE ---
   const [accountingBaselineFingerprint, setAccountingBaselineFingerprint] = useState<string | null>(null);
-  const pendingAccountingArchiveRef = useRef(false);
-  const pendingAccountingArchivePdfUrlRef = useRef<string | null>(null);
+  const pendingArchiveTabRef = useRef<HubDocumentType | null>(null);
+  const pendingArchivePdfUrlRef = useRef<string | null>(null);
   const accountingTab: AccountingDirtyTab | null = activeTab === 'devis' || activeTab === 'honoraires' ? activeTab : null;
   const accountingDirty = accountingTab
     ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint, docDate)
@@ -157,6 +158,12 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- GARDES NAVIGATION CENTRALISÉES ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
   const [pendingDiscardSource, setPendingDiscardSource] = useState<DocumentDirtySource | null>(null);
+
+  const syncDocumentTabParam = useCallback((tab: HubDocumentType) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('documentTab', tab);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const clearDirtySource = useCallback((source: DocumentDirtySource) => {
     if (source === 'accounting') {
@@ -168,6 +175,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
     if (source === 'prescription') {
       setPrescriptionDirty(false);
+      return;
+    }
+    if (source === 'certificate') {
+      setCertificateDirty(false);
       return;
     }
     if (source === 'libre') {
@@ -182,12 +193,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       setAccountingBaselineFingerprint(null);
     }
     setActiveTab(newTab);
-  }, [accountingTab]);
+    syncDocumentTabParam(newTab);
+  }, [accountingTab, syncDocumentTabParam]);
+
+  const cancelPendingNavigation = useCallback(() => {
+    setPendingTab(null);
+    setPendingDiscardSource(null);
+    syncDocumentTabParam(activeTab);
+  }, [activeTab, syncDocumentTabParam]);
 
   const handleTabChange = useCallback((newTab: HubDocumentType) => {
     const decision = resolveDocumentNavigation(activeTab, newTab, {
       accountingDirty,
       prescriptionDirty: isPrescriptionDirty(),
+      certificateDirty: isCertificateDirty(),
       libreDirty: isLibreDirty(),
       diagnosticDirty: isDiagnosticCompanionDirty(),
     });
@@ -196,7 +215,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const confirmed = window.confirm(
         'Convertir ce devis en Note d\'Honoraires ? Les actes et montants seront conservés. Aucun paiement n\'est enregistré par ce changement d\'onglet.',
       );
-      if (!confirmed) return;
+      if (!confirmed) {
+        syncDocumentTabParam(activeTab);
+        return;
+      }
     }
 
     if (decision.discardSource) {
@@ -208,7 +230,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     if (decision.allow) {
       commitTabChange(newTab);
     }
-  }, [activeTab, accountingDirty, commitTabChange]);
+  }, [activeTab, accountingDirty, commitTabChange, syncDocumentTabParam]);
 
   // Les changements de query param empruntent exactement la même garde que les clics UI.
   useEffect(() => {
@@ -218,12 +240,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [searchParams, activeTab, handleTabChange]);
 
-  // Garde fermeture navigateur : centralise la frontière commune, les listeners
-  // historiques des formulaires restant compatibles pendant la migration T1.
+  const handleDocDateChange = useCallback((nextDate: string) => {
+    if (nextDate === docDate) return;
+    if (activeTab === 'ordonnance') setPrescriptionDirty(true);
+    if (activeTab === 'certificat') setCertificateDirty(true);
+    if (activeTab === 'libre') setLibreDirty(true);
+    setDocDate(nextDate);
+  }, [activeTab, docDate]);
+
+  // Garde fermeture navigateur commune à toutes les pages qui portent un brouillon.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       const hasUnsaved = accountingDirty
         || isPrescriptionDirty()
+        || isCertificateDirty()
         || isLibreDirty()
         || isDiagnosticCompanionDirty();
       if (hasUnsaved) {
@@ -282,25 +312,34 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     isPreview = false,
     force = false,
   ) => {
-    if (accountingTab) {
-      if (archive && !isPreview) {
-        pendingAccountingArchiveRef.current = true;
-        pendingAccountingArchivePdfUrlRef.current = generator.pdfUrl;
-      } else {
-        pendingAccountingArchiveRef.current = false;
-        pendingAccountingArchivePdfUrlRef.current = null;
-      }
+    if (archive && !isPreview) {
+      pendingArchiveTabRef.current = activeTab;
+      pendingArchivePdfUrlRef.current = generator.pdfUrl;
+    } else {
+      pendingArchiveTabRef.current = null;
+      pendingArchivePdfUrlRef.current = null;
     }
     return generator.handleGenerate(archive, print, isPreview, force);
-  }, [accountingTab, generator.handleGenerate, generator.pdfUrl]);
+  }, [activeTab, generator.handleGenerate, generator.pdfUrl]);
 
   useEffect(() => {
-    if (!pendingAccountingArchiveRef.current || !generator.pdfUrl || !accountingTab) return;
-    if (generator.pdfUrl === pendingAccountingArchivePdfUrlRef.current) return;
-    setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items, docDate));
-    pendingAccountingArchiveRef.current = false;
-    pendingAccountingArchivePdfUrlRef.current = null;
-  }, [generator.pdfUrl, accountingTab, items, docDate]);
+    const archivedTab = pendingArchiveTabRef.current;
+    if (!archivedTab || !generator.pdfUrl) return;
+    if (generator.pdfUrl === pendingArchivePdfUrlRef.current) return;
+
+    if (archivedTab === 'devis' || archivedTab === 'honoraires') {
+      setAccountingBaselineFingerprint(accountingDocumentFingerprint(archivedTab, items, docDate));
+    } else if (archivedTab === 'ordonnance') {
+      setPrescriptionDirty(false);
+    } else if (archivedTab === 'certificat') {
+      setCertificateDirty(false);
+    } else if (archivedTab === 'libre') {
+      setLibreDirty(false);
+    }
+
+    pendingArchiveTabRef.current = null;
+    pendingArchivePdfUrlRef.current = null;
+  }, [generator.pdfUrl, items, docDate]);
 
   // --- HYDRATATION ---
   useEffect(() => {
@@ -309,6 +348,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
         setActiveTab('ordonnance');
+        setPrescriptionDirty(false);
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
           forme: m.forme || 'Sachets', posologie: m.posologie || '',
@@ -316,6 +356,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         })));
       } else if (type === 'certificat') {
         setActiveTab('certificat');
+        setCertificateDirty(false);
         setCertifType(d.reason || 'Arrêt de travail');
         setCertifDays(d.days ?? 0);
         setCertifStartDate(d.start_date || '');
@@ -323,6 +364,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         if (!d.doc_date && d.start_date) setDocDate(d.start_date);
       } else if (type === 'libre' || type === 'lettre') {
         setActiveTab('libre');
+        setLibreDirty(false);
         setLibreTitle(d.title || 'Note Médicale');
         setLibreContent(d.content || '');
         setLibreCustomPatient(d.custom_patient || '');
@@ -392,7 +434,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         <StudioHeader
           patientName={patientName}
           docDate={docDate}
-          onDateChange={setDocDate}
+          onDateChange={handleDocDateChange}
           activeTab={activeTab}
           showOdontoPanoramique={useAccountingStore(s => s.showOdontoPanoramique)}
           onToggleOdonto={() => useAccountingStore.getState().setShowOdontoPanoramique(v => !v)}
@@ -422,7 +464,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <div className="flex items-center gap-2 mb-3 px-1">
               <button
                 type="button"
-                onClick={() => setShowLegalAnnotations(v => !v)}
+                onClick={() => { setPrescriptionDirty(true); setShowLegalAnnotations(v => !v); }}
                 className={cn(
                   "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none",
                   showLegalAnnotations ? "bg-primary" : "bg-slate-200"
@@ -524,7 +566,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {/* MODALE — garde d'abandon centralisée */}
       {pendingTab && pendingDiscardSource && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => { setPendingTab(null); setPendingDiscardSource(null); }} />
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={cancelPendingNavigation} />
           <div className="relative bg-white rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5" role="dialog" aria-modal="true" aria-labelledby="document-navigation-warning-title">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
@@ -536,7 +578,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setPendingTab(null); setPendingDiscardSource(null); }}
+                onClick={cancelPendingNavigation}
                 className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
               >Annuler</button>
               <button
