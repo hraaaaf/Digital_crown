@@ -20,6 +20,7 @@ import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
 import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
+import { hydrateAccountingItemsFromTeethData, type ArchivedToothData } from './DocumentStudio/AccountingOdontogramSourcePolicy';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { PriceBrain } from '../../components/odontogram/PriceBrain';
 import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
@@ -48,6 +49,7 @@ interface GenericClinicalData {
   alignment?: 'left' | 'center' | 'right' | 'justify';
   items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
   payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  teeth_data?: ArchivedToothData[];
   doc_date?: string;
 }
 
@@ -383,13 +385,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       } else {
         setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
-        setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, 
-          description: i.acte || '', 
+        const financialItems: PriceItem[] = srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
+          id: Date.now() + idx,
+          description: i.acte || '',
           dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0, 
+          price: i.montant ?? i.prix_unitaire ?? 0,
           toothNumbers: i.dents || [],
-        })));
+        }));
+        setItems(type === 'devis' ? hydrateAccountingItemsFromTeethData(financialItems, d.teeth_data) : financialItems);
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
