@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb, ShieldCheck } from 'lucide-react';
+import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { cn } from '../../../utils/cn';
-import { safeStorage } from '../../../hooks/useLocalStorage';
-import { useSettingsStore } from '../Settings/hooks/useSettingsStore';
 
 type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'PEDIATRIE' | 'RESULT';
 
@@ -80,31 +78,6 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
     };
   }, [patientId]);
 
-  const { profile } = useSettingsStore();
-  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false';
-
-  const getClinicalTip = (diagnosis: string) => {
-    if (diagnosis.includes('Pulpite Irréversible')) return "Rappel scientifique: Le succès d'une pulpectomie d'urgence dépend d'un parage canalaire minimal d'au moins le tiers cervical pour éliminer le maximum de charge bactérienne aiguë.";
-    if (diagnosis.includes('Parodontite Apicale')) return "Évidence Clinique: La mise en sous-occlusion de la dent causale réduit significativement la symptomatologie douloureuse dans les 24h, indépendamment de l'antibiothérapie.";
-    if (diagnosis.includes('Syndrome du septum')) return "Conseil: La prescription d'antalgiques est inutile si le point de contact n'est pas restauré et le bourrage alimentaire persistant.";
-    if (diagnosis.includes('Hyperhémie Pulpaire')) return "Recommandation: L'utilisation d'une base de silicate de calcium (MTA/Biodentine) améliore de 65% la réparation dentinaire comparé à l'hydroxyde de calcium classique.";
-    if (diagnosis.includes('Abcès Sous-Muqueux')) return "Guidance: Un drainage sans incision large et sans lavage à la chlorhexidine 0.2% augmente le risque de diffusion cellulaire de 40%.";
-    if (diagnosis.includes('Cellulite')) return "Alerte: La prescription d'AINS est formellement contre-indiquée en première intention sans une couverture antibiotique adaptée (ex: Amoxicilline 2g/j).";
-    if (diagnosis.includes('Dyschromie dentaire')) return "Esthétique: Un éclaircissement interne est indiqué avant toute facette si la dent est dépulpée et fortement dyschromiée.";
-    if (diagnosis.includes('Malocclusion')) return "Orthodontie: L'évaluation de la classe squelettique et de la DDM est préalable à tout plan de traitement par aligneurs.";
-    if (diagnosis.includes('Usure dentaire')) return "Prothèse: La perte de dimension verticale doit être évaluée; une réhabilitation globale par onlays/overlays peut être nécessaire.";
-    if (diagnosis.includes('Édendement')) return "Implantologie: Prévoir un CBCT pour évaluer le volume osseux résiduel avant de proposer une solution implantaire.";
-    if (diagnosis.includes('Descellement prothétique')) return "Prothèse: Vérifier l'absence de reprise carieuse sous-jacente et l'adaptation marginale avant le rescellement.";
-    if (diagnosis.includes('Trouble ATM')) return "ATM: La prescription d'une gouttière de reconditionnement musculaire (gouttière occlusale) est le traitement de première intention.";
-    if (diagnosis.includes('Fracture corono-radiculaire')) return "Traumatologie: Une radiographie rétro-alvéolaire est indispensable. Si la fracture s'étend sous la crête osseuse, l'extraction peut être envisagée.";
-    if (diagnosis.includes('Subluxation')) return "Traumatologie: Tester la vitalité pulpaire (au froid) immédiatement puis à 2, 4 et 12 semaines post-traumatisme.";
-    if (diagnosis.includes('Avulsion traumatique')) return "Urgence: La réimplantation doit idéalement être réalisée dans les 60 minutes. Prescrire antibiotiques (Amoxicilline) et vérifier le statut tétanique.";
-    if (diagnosis.includes('Gingivite') || diagnosis.includes('Parodontite')) return "Parodontie: Le sondage parodontal (charting) est indispensable pour objectiver la perte d'attache avant le surfaçage radiculaire.";
-    if (diagnosis.includes('Pulpite / Nécrose sur dent temporaire')) return "Pédodontie: L'utilisation du MTA ou de la Biodentine pour les pulpotomies offre un taux de succès clinique supérieur au formocrésol.";
-    if (diagnosis.includes('Prévention carieuse pédiatrique')) return "Prévention: Le scellement des puits et fissures est indiqué dès l'éruption complète des premières molaires permanentes (vers 6 ans).";
-    return "Optimisation: Vérifiez toujours les antécédents médicaux avant d'initier la phase thérapeutique.";
-  };
-
   const handleAnswer = (answerText: string, nextState: DiagnosticState, diagnosis?: string, acts?: Omit<ProposedAct, 'id'>[]) => {
     setHistory(prev => [...prev, { role: 'user', text: answerText }]);
 
@@ -149,7 +122,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
           nextQuestion = 'Quel est le problème dentaire de l\'enfant ?';
           break;
         case 'RESULT':
-          nextQuestion = 'Diagnostic établi. Voici le plan de traitement scientifique recommandé :';
+          nextQuestion = 'Hypothèse générée à partir des réponses saisies. Voici une proposition de prise en charge à confirmer par le praticien :';
           break;
       }
       if (nextQuestion) {
@@ -359,7 +332,6 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
   return (
     <div className="flex flex-col h-[600px] bg-slate-50/50 rounded-[2rem] border border-slate-200 overflow-hidden relative backdrop-blur-xl">
-      {/* Header */}
       <div className="bg-white/80 backdrop-blur-md px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
@@ -367,7 +339,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
           </div>
           <div>
             <h3 className="font-black text-slate-800 leading-none tracking-tight">Compagnon Diagnostique</h3>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">State Machine Clinique</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Aide structurée à confirmer</p>
           </div>
         </div>
         <button onClick={resetDiagnostic} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-colors border border-transparent hover:border-slate-200" title="Recommencer">
@@ -375,17 +347,13 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
         </button>
       </div>
 
-      {/* Chat History Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-white">
         {history.map((msg, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              "flex w-full",
-              msg.role === 'user' ? "justify-end" : "justify-start"
-            )}
+            className={cn("flex w-full", msg.role === 'user' ? "justify-end" : "justify-start")}
           >
             <div className={cn(
               "max-w-[80%] px-4 py-3 text-sm font-medium",
@@ -399,16 +367,11 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
         ))}
 
         {currentState !== 'RESULT' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-end gap-2 mt-4"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-end gap-2 mt-4">
             {renderOptions()}
           </motion.div>
         )}
 
-        {/* Result Area */}
         {currentState === 'RESULT' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -418,13 +381,13 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
             <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center gap-3">
               <CheckCircle2 size={24} className="text-primary" />
               <div>
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-0.5">Diagnostic Établi</span>
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-0.5">Hypothèse à confirmer</span>
                 <h4 className="text-lg font-black text-slate-800 tracking-tight">{finalDiagnosis}</h4>
+                <p className="mt-1 text-[11px] font-semibold text-slate-500">Sortie logicielle déterministe, non équivalente à un diagnostic clinique validé.</p>
               </div>
             </div>
 
             <div className="p-6">
-              {/* Warning-only pharmacovigilance boundary. */}
               {allergyWarning && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -440,7 +403,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
               )}
 
               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <FileText size={14} /> Plan de Traitement Scientifique
+                <FileText size={14} /> Proposition de prise en charge à valider
               </h5>
 
               <div className="space-y-2 mb-6">
@@ -465,7 +428,6 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                 ))}
               </div>
 
-              {/* Add Custom Act */}
               <div className="flex gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100">
                 <select
                   value={newActPhase}
@@ -482,7 +444,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                   type="text"
                   value={newActText}
                   onChange={(e) => setNewActText(e.target.value)}
-                  placeholder="Ajouter un acte clinique scientifique..."
+                  placeholder="Ajouter un acte à valider..."
                   className="flex-1 bg-white border border-slate-200 text-sm font-bold text-slate-700 rounded-lg px-4 py-2 outline-none focus:border-primary transition-all shadow-sm"
                   onKeyDown={(e) => e.key === 'Enter' && addCustomAct()}
                 />
@@ -501,28 +463,13 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                   })))}
                   className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-[0.99]"
                 >
-                  Créer le devis <ArrowRight size={16} />
+                  Préparer le devis à partir de cette proposition <ArrowRight size={16} />
                 </button>
               )}
 
-              {clinicalTipsEnabled && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-3"
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0">
-                    <Lightbulb size={16} />
-                  </div>
-                  <div>
-                    <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">Intelligence Clinique Proactive</h5>
-                    <p className="text-xs text-blue-800 font-medium leading-relaxed">
-                      {getClinicalTip(finalDiagnosis)}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
+              <p className="mt-4 text-[11px] font-semibold leading-relaxed text-slate-500">
+                Les repères cliniques non sourcés/versionnés sont masqués jusqu’à validation scientifique dédiée. La validation du praticien reste requise avant toute utilisation clinique ou conversion documentaire.
+              </p>
             </div>
           </motion.div>
         )}
