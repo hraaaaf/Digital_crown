@@ -46,6 +46,7 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   }
 
   const preparesFreshPdf = activeTab === 'certificat' || activeTab === 'libre';
+  const hasGlobalArchiveAction = activeTab !== 'echeancier';
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 p-3 bg-slate-50/80 backdrop-blur-xl rounded-[1.5rem] border border-slate-100 mt-2 shadow-sm relative overflow-hidden w-full shrink-0">
@@ -60,7 +61,10 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-3 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto min-w-0">
+      <div className={cn(
+        'grid items-stretch gap-1.5 sm:flex sm:items-center sm:gap-3 w-full sm:w-auto min-w-0',
+        hasGlobalArchiveAction ? 'grid-cols-3' : 'grid-cols-2'
+      )}>
         {onTogglePreview && (
           <button onClick={onTogglePreview} className={cn(
             'min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-5 py-3 rounded-xl font-black uppercase text-[8px] sm:text-[10px] tracking-normal sm:tracking-widest whitespace-nowrap transition-all active:scale-95 border',
@@ -70,9 +74,11 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
           </button>
         )}
 
-        <button onClick={() => onGenerate(true, false, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md">
-          <Archive size={14} className="shrink-0" /> <span>Enregistrer</span>
-        </button>
+        {hasGlobalArchiveAction && (
+          <button onClick={() => onGenerate(true, false, false, false)} disabled={loading} className="min-w-0 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest whitespace-nowrap hover:border-primary hover:text-primary transition-all active:scale-95 disabled:opacity-50 shadow-sm hover:shadow-md">
+            <Archive size={14} className="shrink-0" /> <span>Enregistrer</span>
+          </button>
+        )}
 
         <button
           onClick={() => preparesFreshPdf
