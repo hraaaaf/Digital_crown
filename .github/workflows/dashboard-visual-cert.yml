@@ -26,7 +26,9 @@ jobs:
             ref: 6da2844dab59b8dc4b5989b3deaa204501ca57f9
           - label: d3
             ref: 13f4cf119c3a75c9c2014071797ecd5c2be57dec
-          - label: d4
+          - label: d7
+            ref: f0fcc9bc542559c5aa447c4683fddff55fb08b06
+          - label: d8
             ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
@@ -187,53 +189,53 @@ jobs:
 
           const browser = await chromium.launch();
           try {
-            for (const scenario of [
-              { role: 'admin', width: 1440, height: 1200 },
-              { role: 'admin', width: 1024, height: 1200 },
-              { role: 'secretary', width: 1440, height: 1200 },
-              { role: 'secretary', width: 1024, height: 1200 },
-            ]) {
-              const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height } });
-              const page = await context.newPage();
+            const widths = [1440, 1024, 768, 430, 390];
+            for (const role of ['admin', 'secretary']) {
+              for (const width of widths) {
+                const height = 1200;
+                const context = await browser.newContext({ viewport: { width, height } });
+                const page = await context.newPage();
 
-              await page.route('**/*', async route => {
-                const request = route.request();
-                const url = new URL(request.url());
-                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) {
-                  return route.continue();
-                }
+                await page.route('**/*', async route => {
+                  const request = route.request();
+                  const url = new URL(request.url());
+                  if (url.port !== '8005' || !url.pathname.startsWith('/api/')) {
+                    return route.continue();
+                  }
 
-                if (url.pathname === '/api/appointments/') {
-                  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appointments) });
-                }
-                if (url.pathname === '/api/patients/') {
-                  return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-                }
-                if (request.method() !== 'GET') {
-                  return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-                }
+                  if (url.pathname === '/api/appointments/') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appointments) });
+                  }
+                  if (url.pathname === '/api/patients/') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+                  }
+                  if (request.method() !== 'GET') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+                  }
 
-                const body = fixtures[url.pathname] ?? {};
-                return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-              });
+                  const body = fixtures[url.pathname] ?? {};
+                  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+                });
 
-              const errors = [];
-              page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
-              page.on('console', message => {
-                if (message.type() === 'error') errors.push(`console: ${message.text()}`);
-              });
+                const errors = [];
+                page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+                page.on('console', message => {
+                  if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+                });
 
-              await page.goto(`http://127.0.0.1:4177/visual-cert.html?role=${scenario.role}`, { waitUntil: 'networkidle' });
-              await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
-              await page.screenshot({
-                path: `${output}/${scenario.role}-${scenario.width}x${scenario.height}.png`,
-                fullPage: true,
-              });
-              await fs.writeFile(
-                `${output}/${scenario.role}-${scenario.width}x${scenario.height}.errors.txt`,
-                errors.join('\n'),
-              );
-              await context.close();
+                await page.goto(`http://127.0.0.1:4177/visual-cert.html?role=${role}`, { waitUntil: 'networkidle' });
+                await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
+                await page.screenshot({
+                  path: `${output}/${role}-${width}x${height}.png`,
+                  fullPage: true,
+                  animations: 'disabled',
+                });
+                await fs.writeFile(
+                  `${output}/${role}-${width}x${height}.errors.txt`,
+                  errors.join('\n'),
+                );
+                await context.close();
+              }
             }
           } finally {
             await browser.close();
@@ -257,7 +259,7 @@ jobs:
           label=${TARGET_LABEL}
           ref=${TARGET_REF}
           goal=Comparer le Dashboard sur données identiques et mêmes viewports sans backend réel ni déploiement.
-          viewports=1440x1200,1024x1200
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
           roles=ADMIN,SECRETAIRE
           EOF
 

@@ -24,23 +24,23 @@ export const WaitingRoom = ({
   const safeAppointments = appointments ?? [];
 
   return (
-    <motion.section variants={dashboardItemVariants} className="space-y-5">
-      <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
-        <span className="flex items-center gap-2"><Clock size={16} aria-hidden="true" /> File d'attente & Arrivées du Jour</span>
+    <motion.section variants={dashboardItemVariants} className="space-y-5 min-w-0">
+      <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-2 sm:px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <span className="flex items-center gap-2 min-w-0"><Clock size={16} className="shrink-0" aria-hidden="true" /> File d'attente & Arrivées du Jour</span>
         <button
           type="button"
           onClick={onRefresh}
           aria-label="Actualiser la file d'attente"
-          className="min-h-11 text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-3 rounded-full border border-primary/10 transition-all"
+          className="min-h-11 self-start sm:self-auto text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-3 rounded-full border border-primary/10 transition-all"
         >
           {loading ? <Loader2 className="animate-spin" size={12} aria-hidden="true" /> : 'Actualiser'}
         </button>
       </h2>
 
-      <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
+      <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-4 sm:p-6 min-h-[410px] sm:h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
-        <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+        <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 min-w-0">
           {isUnavailable ? (
             <div role="status" className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
               <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/15">
@@ -80,7 +80,7 @@ export const WaitingRoom = ({
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_FAUTEUIL')}
-                      className="min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Installer au Fauteuil
                     </button>
@@ -92,7 +92,7 @@ export const WaitingRoom = ({
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'TERMINÉ')}
-                      className="min-h-11 px-3 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
                     >
                       Terminer la Séance
                     </button>
@@ -108,7 +108,7 @@ export const WaitingRoom = ({
                     <button
                       type="button"
                       onClick={() => onStatusChange(appointment.id, 'EN_S_ATTENTE')}
-                      className="min-h-11 px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                      className="w-full sm:w-auto min-h-11 px-3 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                     >
                       Marquer Arrivé
                     </button>
@@ -118,27 +118,27 @@ export const WaitingRoom = ({
                 return (
                   <div
                     key={appointment.id}
-                    className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-3 sm:gap-4 min-w-0"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
+                      <div className="shrink-0 text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
                         {appointmentTime}
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black text-primary font-outfit">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-primary font-outfit break-words">
                           {appointment.patient ? `${appointment.patient.nom.toUpperCase()} ${appointment.patient.prenom}` : 'Patient non spécifié'}
                         </h4>
-                        <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
+                        <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide break-words">
                           {appointment.description || 'Consultation clinique'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className={cn('text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider', statusColor)}>
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+                      <span className={cn('shrink-0 text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider', statusColor)}>
                         {statusLabel}
                       </span>
-                      {actionButton}
+                      <div className="w-full sm:w-auto">{actionButton}</div>
                     </div>
                   </div>
                 );
@@ -164,7 +164,7 @@ export const WaitingRoom = ({
           )}
         </div>
 
-        <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
+        <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[9px] font-black text-text-muted uppercase tracking-wider">
           {isUnavailable ? (
             <span className="text-amber-600 dark:text-amber-300">État non vérifié</span>
           ) : (
