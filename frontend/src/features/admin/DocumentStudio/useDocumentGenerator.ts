@@ -43,7 +43,7 @@ interface UseDocumentGeneratorParams {
   libreAlignment: 'left' | 'center' | 'right' | 'justify';
   docDate: string;
   selectedTeethFromOdontogram: SelectedSurfaceData[];
-  smartSuggestion: any;
+  smartSuggestion: any[] | any;
   installments: any[];
   isAccounted?: boolean;
   echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
@@ -70,7 +70,7 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
   if (activeTab === 'ordonnance') {
     const validDrugs = drugs.filter(d => d.name.trim());
     if (validDrugs.length === 0) {
-      errors.push({ field: 'drugs', message: "L'ordonnance ne contient aucun médicament. Ajoutez au moins un médicament avant de générer." });
+      errors.push({ field: 'items', message: "L'ordonnance ne contient aucun médicament. Ajoutez au moins un médicament avant de générer." });
     }
     drugs.forEach((d, i) => {
       const isExamen = d.type === 'EXAMEN' || /radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name);
@@ -350,7 +350,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         }));
       const robustTeethData = buildTeethDataFromAccountingItems(items);
       payload.data = activeTab === 'devis'
-        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote }
+        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData }
         : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote };
     }
 
@@ -499,24 +499,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
 
-        // --- Apprentissage automatique des Actes (Phase 2) ---
+        // Les actes financiers sont appris côté backend après génération/archivage réussi.
+        // Le frontend ne doit pas les incrémenter une seconde fois.
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
-          try {
-            useAccountingStore.getState().setGroupSelectedTeeth([]);
-            useAccountingStore.getState().setOdontogramMode('individual');
-            const { items } = params;
-            for (const item of items) {
-              if (item.description.trim()) {
-                await api.post('/accounting/record-act', {
-                  name: item.description,
-                  price: item.price,
-                  category: item.category
-                });
-              }
-            }
-          } catch (e) {
-            console.warn("Échec de l'apprentissage des actes (silencieux)", e);
-          }
+          useAccountingStore.getState().setGroupSelectedTeeth([]);
+          useAccountingStore.getState().setOdontogramMode('individual');
 
           if (activeTab === 'honoraires') {
             useAccountingStore.getState().setItems([{ id: Date.now(), description: '', dent: '0', price: 0 }]);
