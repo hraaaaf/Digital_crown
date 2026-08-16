@@ -78,6 +78,9 @@ describe('AccountingOdontogramPolicy P2-D', () => {
         category: undefined,
         toothNumbers: [16],
         _odontogramKey: '16::crown',
+        odontogramSurfaces: [],
+        odontogramNotes: '',
+        odontogramTreatmentCode: 'ACT',
       },
     ]);
   });
@@ -101,7 +104,15 @@ describe('AccountingOdontogramPolicy P2-D', () => {
 
   it('préserve le libellé de surface existant si aucune nouvelle surface n’est fournie', () => {
     const current = [
-      { id: 9, description: 'Composite', dent: '16 (MOD)', price: 500, _odontogramKey: '16::comp' },
+      {
+        id: 9,
+        description: 'Composite',
+        dent: '16 (MOD)',
+        price: 500,
+        _odontogramKey: '16::comp',
+        odontogramSurfaces: ['M', 'O', 'D'],
+        odontogramNotes: 'ancien contexte',
+      },
     ];
 
     const next = replaceOdontogramToothSelections(
@@ -112,5 +123,7 @@ describe('AccountingOdontogramPolicy P2-D', () => {
     );
 
     expect(next[0].dent).toBe('16 (MOD)');
+    expect(next[0].odontogramSurfaces).toEqual(['M', 'O', 'D']);
+    expect(next[0].odontogramNotes).toBe('ancien contexte');
   });
 });
