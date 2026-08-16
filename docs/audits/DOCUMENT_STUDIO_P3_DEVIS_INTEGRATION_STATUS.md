@@ -2,152 +2,169 @@
 
 Date: 2026-08-16
 Branch: `agent/p3d-devis-phases-learning`
-Latest functional head with targeted local execution: `475b2955ea4393f5e2720a86ae9c96ba763c6f6f`
-Latest additional functional head statically reviewed: `0cd472a10124dcba74debd1dee06eeff7e9554f1`
-Full-repository certification harness commit: `f2c02697f84b06a008fa986c81361aa68bdd231d`
+Functional code head locally re-executed: `e25c01f63fbe4e1625f2b53751efedd57d9cefd9`
+Full-repository certification harness: `scripts/certify_p3_devis.sh`
 
 ## Scope integrated
 
-This branch carries P3-A through P3-G plus defects found during P3-H review. P3-H has substantial targeted execution evidence, but the complete integrated application is still not certified because the repository CI runner/full authenticated runtime is unavailable.
+P3-A through P3-G are integrated on the branch, including defects found during P3-H review. P3-H now has substantial **local Linux execution evidence** independent of GitHub Actions. The full authenticated React application is still not certified because this runtime does not contain the complete checkout/frontend dependency tree.
 
 ### P3-A — financial isolation / backend contract
-- Devis payload excludes installments and global-note semantics.
+- Devis excludes inherited installments/global-note semantics.
 - Backend rejects non-empty Devis installments.
-- Devis requires at least one real item after phase-row sanitization.
-- Empty acts, negative/excessive amounts and invalid adult/pediatric FDI numbers are rejected.
+- At least one real item is required after phase sanitization.
+- Amount limits and adult/pediatric FDI validation are enforced.
 - Structured `dents` is canonical over free-text `dent`.
-- Devis generation no longer archives implicitly; archive must be requested.
+- Devis archive remains explicit.
 
 ### P3-B — odontogram source of truth
-- Accounting rows are the canonical tooth/document source.
-- Multi-tooth labels use the same UI/backend/PDF representation (`14, 15, 16`).
-- `teeth_data` derives from canonical `toothNumbers`, never a stale `_odontogramKey`.
-- Backend rejects orphan/inconsistent `teeth_data`: same tooth, act and price must exist in a real Devis item.
+- Structured accounting rows are the canonical tooth/document source.
+- Multi-tooth labels use the same comma-separated representation as backend/PDF.
+- `teeth_data` derives from canonical `toothNumbers`, not stale `_odontogramKey` values.
+- Backend rejects orphan/inconsistent tooth/act/price combinations.
 - Treatment code, surfaces and notes persist on quote rows.
-- Archived Devis reopening rehydrates `items + teeth_data` into structured accounting rows.
-- Archived notes/surfaces are surfaced back into `TreatmentSelector` and preserved if unchanged.
+- Archived Devis reopening rehydrates `items + teeth_data` without inventing financial rows.
+- Notes/surfaces are re-injected into `TreatmentSelector` and preserved on partial edits.
+- Structured FDI lists are sorted/deduplicated before schema validation without mutating the caller row.
 
-### P3-C — catalog pricing / dentition modes
-- Managed catalog price is authoritative.
-- Missing catalog price fails closed to unresolved/zero rather than stale remembered price.
-- Adult and pediatric quick groups are separated.
-- Pediatric teeth are accepted by the selector.
-- Named/global/group shortcuts are repriced through the managed catalog.
+### P3-C — catalog pricing / dentition
+- Managed catalog is authoritative for catalog acts.
+- Missing catalog tariff stays unresolved/zero instead of silently using memory.
+- Adult/pediatric dentition modes and quick groups are separated.
+- Named/global/group/bundle prices resolve through the catalog.
+- Non-authoritative fallback durations were removed.
 
 ### P3-D — phases / bundles / learning
-- Phase separators are presentation-only and stripped before Devis validation/PDF.
-- Phase rows are non-financial in validation, totals, payload and UI editing.
-- Reorder is locked when phase separators exist so acts cannot cross phase boundaries accidentally.
-- AccountingStudio is the single visible Devis bundle surface.
-- Bundle prices resolve through the catalog; unresolved amounts stay explicit.
+- Phase separators are presentation-only and stripped from financial validation/payload/PDF.
+- Phase separators cannot be deleted or reordered; manual reorder is locked once phases exist.
+- Duplicate/fantom bundle surface in `DocumentHub` removed.
 - Frontend duplicate learning writes removed.
-- `PriceBrain.recordAct` keeps `usageCount` unchanged before archive.
-- Financial act learning occurs only after real archive.
-- Backend learning rejects blank and phase-separator pseudo-acts.
+- `PriceBrain.recordAct` does not increment usage before archive.
+- Backend learning ignores blank/phase pseudo-acts and learns only after real archive.
 
 ### P3-E — connections / lifecycle
-- Treatment-plan result can explicitly create a neutral Devis.
-- Non-financial plan proposals such as prescriptions, antibiotics, surveillance and education are excluded from automatic P7→P3 financial conversion.
-- Plan conversion does not invent prices.
-- Devis→Honoraires requires explicit confirmation and states that no payment is created by tab switching.
-- Manual lines can be moved on non-phased Devis.
-- Total uses one phase-aware policy.
-- Printing is armed only after a fresh PDF is returned, preventing stale-preview printing after conflicts.
-- Generic financial-document RDV suggestion with hard-coded 4-week interval removed.
+- P7→P3 conversion is explicit, neutral-priced and excludes medication/prescription/surveillance/education guidance.
+- P3→Honoraires requires explicit confirmation and creates no payment by tab switching.
+- Line order and totals are deterministic.
+- Printing is armed only after a fresh PDF, preventing stale-preview print after conflict.
+- Generic `+4 weeks` financial RDV suggestion removed.
 
-### P3-F — professional PDF
-- Long act labels wrap instead of forcing a 2 pt uniform font.
-- Central readable typography floor is enforced (>= 7 pt).
-- Table headers repeat across pages.
-- Closure text can wrap without all-NBSP shrinking.
+### P3-F — PDF
+- Long act labels wrap instead of shrinking the whole table to 2 pt.
+- Central readable floor >= 7 pt.
+- Table header repeats across pages.
+- Closure can wrap normally.
 
 ### P3-G — UX / responsive / accessibility
-- Row move/delete controls are visible on touch-sized layouts.
-- Direct odontogram tooth selection supports keyboard Enter/Space, labels, pressed state and focus indication.
-- Preview becomes full-overlay below XL and fixed 550 px side pane on XL desktop.
-- Non-authoritative fallback treatment durations and the misleading duration column were removed at `0cd472a1…`.
+- Touch-visible row actions.
+- Keyboard tooth selection with Enter/Space, accessible labels/pressed state/focus.
+- Preview overlay below XL, 550 px side pane on XL.
+- Dirty-state fingerprints content, order, odontogram metadata, document type and date.
+- Dirty baseline is refreshed only after a genuinely new PDF following archive.
 
-## Executed P3-H evidence
+## P3-H — local Linux execution evidence
 
-These are real local executions reconstructed from connected GitHub source. They do not replace a complete repository run or authenticated browser smoke.
+Environment actually used:
+- Python `3.13.5`
+- Node `22.16.0`
+- TypeScript compiler available globally
+- ReportLab `4.4.9`, pypdf `5.9.0`, pytest `9.0.2`
+- Chromium + Python Playwright present
+- React/Vite/Vitest/jsdom/testing-library packages **not installed** in this runtime
+- no Digital Crown app listening on 8005/8006/5173/3000
 
-### Backend targeted execution
-- Latest targeted suite: **19 passed**, 1 unrelated existing Pydantic class-based Config deprecation warning on `DocumentArchiveOut`.
-- Covered explicit archive, archive-only learning, no generic financial RDV, phase sanitization, installment rejection, amount limits, FDI validation, canonical structured teeth, matching `items ↔ teeth_data`, orphan/mismatched teeth-data rejection and backward-compatible empty installments.
-- Additional isolated learning guard: **PASS** for blank/phase pseudo-act rejection while real act learning still writes normally.
+### Backend contract execution
+A Devis-relevant package was reconstructed from the current branch source and the P3 contract tests were materialized locally.
 
-### Frontend pure-policy execution
-- Pure policy modules compile with `tsc --strict` in the isolated harness.
-- Pricing/bundles/order/total/plan-conversion/learning: **22/22 assertion groups passed**.
-- Odontogram source/mode/metadata/round-trip: **10/10 groups passed**.
-- Canonical-teeth-data regression: **5/5 assertions passed**, including stale `_odontogramKey=21` with canonical `toothNumbers=[16]` producing tooth 16 metadata.
-- `PriceBrain`: **1/1 passed**; repeated price edits leave `usageCount` unchanged before archive.
-- The later `0cd472a1…` duration-removal commit was statically reviewed as a single-file deletion-only UX cleanup; it has not been represented as a new runtime/build PASS.
+Result: **26/26 tests PASS**.
+
+Covered:
+- explicit archive lifecycle;
+- archive-only learning and no generic financial RDV;
+- phase sanitization;
+- installment rejection;
+- amount limits;
+- adult/pediatric FDI validation;
+- sorted/deduplicated structured teeth;
+- free-text `dent` canonicalization;
+- matching `items ↔ teeth_data`;
+- orphan tooth/act rejection;
+- price mismatch rejection;
+- empty `teeth_data.treatments` rejection;
+- backward-compatible empty installments.
+
+Additional isolated backend learning guard: **PASS**.
+- blank/phase pseudo-act: zero query/add/commit;
+- real act: one normal learning write/commit.
+
+### Frontend policy execution
+Production policy sources were materialized from the current branch and compile with **`tsc --strict` PASS**.
+
+A minimal local Vitest-compatible orchestration shim was used only because the Vitest package is absent; it supplies `describe/it/expect/beforeEach/vi` while executing the P3 policy code itself.
+
+Result: **39/39 test cases PASS**.
+
+Covered:
+- catalog pricing and unresolved semantics;
+- named act pricing;
+- bundle repricing/deduplication;
+- phase-aware total;
+- line reorder and phase lock;
+- dirty-state/date/type transitions;
+- explicit Devis→Honoraires confirmation policy;
+- P7→P3 filtering;
+- odontogram metadata preservation;
+- archive→reopen round-trip;
+- canonical multi-tooth labels;
+- stale odontogram key rejection in favor of `toothNumbers`;
+- PriceBrain pre-archive `usageCount=0`.
+
+One TypeScript diagnostic occurred only in a reconstructed **test** because of inferred union narrowing around `_odontogramKey`; production sources still passed strict compilation. The emitted test was executed successfully. This is a harness limitation, not represented as an application PASS or failure.
 
 ### P3-F isolated rendering execution
-- A5 fixture with 36 long treatment lines rendered to **3 pages**.
-- Table header detected on **3/3 pages**.
-- Minimum observed paragraph font size: **7.5 pt**.
-- Adaptive floor requested: **7.0 pt**.
-- Long labels and `TOTAL GÉNÉRAL` present in extracted PDF text.
+Using the current P3 readability floor and the actual `BaseTemplate.get_adaptive_font_size/get_adaptive_style` algorithm:
+- 36 long treatment lines → **3 pages**;
+- table header visible **3/3 pages**;
+- minimum observed table/body style: **7.5 pt**;
+- configured readability floor: **7.0 pt**;
+- multi-tooth labels remain readable;
+- total `31500.00 MAD` remains on one line after adaptive sizing;
+- visual inspection of all generated pages showed no table overflow in the isolated fixture.
 
-## Full-repository certification harness
+This is an isolated rendering proof, **not** a cabinet-branded runtime PDF/signature certification.
 
-`scripts/certify_p3_devis.sh` is the canonical P3-H resume path. It fails closed and mirrors repository CI: clean worktree, Python 3.12, Node 20, positive safety gate, targeted P3 regressions, full backend suite, `npm test`, `npm run build`, negative safety gate and exact SHA output. It does not imply merge readiness while manual gates remain open.
+## GitHub Actions status
 
-`bash -n` passed in the isolated runtime. That runtime is Python 3.13 / Node 22, so the full harness correctly refuses to impersonate CI and has not been executed there.
+GitHub Actions is no longer treated as the P3-H execution path. The latest Actions run failed before runner allocation; that infrastructure result is irrelevant to the local functional evidence above and is not used as a code verdict.
 
-## Current GitHub CI blocker
+## Remaining P3-H gates
 
-- Repeated P3 runs fail before runner execution with `steps: null` and no job logs.
-- Latest previously inspected run: **31923726341** (#415), all 3 jobs `steps:null`.
-- GitHub connector lacks Actions-admin/Billing scopes.
-- Replit fallback unavailable without active subscription/runtime agent.
-- Vercel exposes no Digital Crown runtime.
-- Local container cannot clone GitHub because outbound DNS to `github.com` is unavailable.
+### Full application build/runtime
+Still required:
+- complete Digital Crown checkout with real frontend dependencies;
+- real `npm test` / `npm run build` or equivalent full-project execution;
+- authenticated Devis runtime.
 
-This is infrastructure evidence, not an application test result.
+### Authenticated smoke
+- adult Devis create/catalog/odontogram/edit/reorder/delete/preview;
+- pediatric Q5-Q8 path;
+- explicit archive and archive reopen;
+- notes/surfaces/code/multi-dent round-trip;
+- phased Devis behavior;
+- P7→P3 filtered conversion;
+- P3→Honoraires explicit conversion;
+- duplicate conflict + stale print prevention.
 
-## P3-H manual gates still required
-
-After `bash scripts/certify_p3_devis.sh` passes on the exact candidate head:
-
-### Runtime authenticated smoke
-- adult Devis: create, catalog select/unresolved price, odontogram edit, line edit/reorder/delete, preview;
-- pediatric Devis: create, Q5-Q8 groups, odontogram edit, preview;
-- archived reopen: treatment code, surfaces, notes and teeth round-trip intact;
-- phased Devis: separators presentation-only and reorder cannot cross phases;
-- P7→P3: non-financial clinical recommendations do not become financial rows;
-- P3→Honoraires: explicit confirmation, no implicit payment;
-- explicit archive only;
-- duplicate conflict never prints stale preview;
-- print uses newly generated PDF;
-- no generic 4-week RDV;
-- no inherited P5 installments/global-note state in Devis.
-
-### Cabinet PDF visual smoke
-- short and long/multipage Devis;
-- signature present/absent;
-- adult and pediatric teeth;
-- multi-tooth UI/PDF label equality;
-- no text below readability floor.
-
-### Responsive/accessibility smoke
-- 390 px, 768 px, desktop/XL;
-- move/delete usable on touch;
-- odontogram tooth usable by Enter/Space;
-- preview overlay/pane matches breakpoint contract.
-
-## Exact resume sequence
-
-1. Restore a real runner or open a complete local clone.
-2. Run `bash scripts/certify_p3_devis.sh`.
-3. On failure: diagnose → fix → smallest relevant gate → full harness.
-4. Execute authenticated runtime/PDF/responsive smoke.
-5. Only after all PASS: mark PR ready, reconcile/merge to current master, update ROADMAP/SESSION/STATUS/CHANGELOG as applicable, then post-merge certification.
+### Cabinet PDF / responsive
+- real cabinet branding + signature fixture;
+- short and long adult/pediatric Devis;
+- 390 / 768 / desktop browser inspection;
+- touch controls and odontogram keyboard interaction.
 
 ## Certification status
 
-**NOT CERTIFIED / NOT MERGE-READY.**
+**P3-A→P3-G: substantially hardened with current local execution evidence.**
 
-P3-A→P3-G and the defects found during P3-H are substantially hardened with targeted execution evidence. The remaining blocker is integrated full-repository/runtime certification, not a known unaddressed P3 logic defect.
+**P3-H: NOT YET FULL-APP CERTIFIED / NOT YET MERGE-READY.**
+
+The remaining gap is the complete authenticated React application/build and cabinet/browser smoke, not a currently known unaddressed P3 policy/backend/PDF logic defect.
