@@ -1,15 +1,28 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useAccountingStore } from '../admin/store/useAccountingStore';
+import { setPrescriptionDirty } from '../admin/DocumentStudio/PrescriptionDirtyState';
+import { setCertificateDirty } from '../admin/DocumentStudio/CertificateDirtyState';
+import { setInstallmentDirty } from '../admin/DocumentStudio/InstallmentDirtyState';
+import { setLibreDirty } from '../admin/DocumentStudio/LibreDirtyState';
+import { setP7Dirty } from '../admin/DocumentStudio/P7DirtyState';
 import { usePatientStore } from '../../stores/usePatientStore';
-import { resetPatientDocumentBoundary } from './patientDocumentBoundary';
+import {
+  hasUnsavedPatientDocumentDraft,
+  resetPatientDocumentBoundary,
+} from './patientDocumentBoundary';
 
 describe('resetPatientDocumentBoundary', () => {
   beforeEach(() => {
-    useAccountingStore.getState().reset();
-    usePatientStore.getState().setEditingDoc(null);
+    resetPatientDocumentBoundary();
   });
 
-  it('clears patient-scoped accounting and archive-edit state', () => {
+  it('detects and clears every patient-scoped document dirty source', () => {
+    setPrescriptionDirty(true);
+    setCertificateDirty(true);
+    setInstallmentDirty(true);
+    setLibreDirty(true);
+    setP7Dirty(true);
+
     const accounting = useAccountingStore.getState();
     accounting.setItems([{ id: 1, description: 'Acte patient A', dent: '11', price: 900 }]);
     accounting.setPaymentMode('Virement');
@@ -20,9 +33,12 @@ describe('resetPatientDocumentBoundary', () => {
     accounting.setActSuggestions([{ id: 'a', name: 'Suggestion A' }]);
     usePatientStore.getState().setEditingDoc({ id: 44, patient_id: 1, type: 'devis' });
 
+    expect(hasUnsavedPatientDocumentDraft()).toBe(true);
+
     resetPatientDocumentBoundary();
 
     const resetAccounting = useAccountingStore.getState();
+    expect(hasUnsavedPatientDocumentDraft()).toBe(false);
     expect(resetAccounting.items).toEqual([]);
     expect(resetAccounting.paymentMode).toBe('');
     expect(resetAccounting.installments).toEqual([]);
