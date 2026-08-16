@@ -8,163 +8,138 @@ Base : P7 Compagnon Diagnostique
 
 **Engineering transversal local convergé sur les défauts critiques identifiés. Full build/runtime/browser non revendiqués.**
 
-T1 a audité les mécanismes partagés entre P1→P7 : navigation, dirty-state, preview/archive/print, permissions/contrats backend, branches mortes et accessibilité commune.
+T1 couvre les mécanismes partagés P1→P7 : navigation, dirty-state, preview/archive/print, contrats financiers partagés, branches mortes et UI commune.
 
 ## T1-A — navigation et dirty-state centralisés
 
-### Findings
+### Findings corrigés
 
-- `documentTab` dans l'URL pouvait appeler `setActiveTab()` directement et contourner les gardes de brouillon de `StudioTabs`.
-- Certificat n'avait plus de dirty-state courant malgré son ancien closeout.
-- la date commune du Header pouvait modifier Ordonnance/Certificat/Libre sans marquer leur brouillon sale.
+- `documentTab` URL pouvait appeler `setActiveTab()` directement et contourner les gardes ;
+- Certificat n'avait pas de dirty-state partagé ;
+- la date commune pouvait changer Ordonnance/Certificat/Libre sans dirty-state ;
 - les gardes étaient fragmentées entre Hub, Tabs et formulaires.
 
 ### Corrections
 
-- nouveau `DocumentNavigationPolicy.ts` ;
-- `DocumentHub` devient l'autorité de navigation pour clics, changements query-param et transitions programmatiques ;
-- URL `documentTab` synchronisée uniquement après navigation validée ;
-- annulation d'une navigation restaure l'URL sur l'onglet courant ;
-- nouveau `CertificateDirtyState.ts` ;
-- dirty sources communes : accounting / prescription / certificate / libre / diagnostic ;
-- garde `beforeunload` commune au Hub ;
-- date commune marque Ordonnance/Certificat/Libre dirty ; accounting reste couvert par son fingerprint ;
-- `StudioTabs` est réduit à un déclencheur de navigation.
+- `DocumentNavigationPolicy.ts` devient la décision commune clic/query-param ;
+- `StudioTabs` devient un déclencheur pur ;
+- dirty sources : accounting / prescription / certificate / libre / diagnostic ;
+- Devis→Honoraires conserve sa confirmation explicite ;
+- query param synchronisé après navigation validée et restauré après annulation ;
+- `CertificateDirtyState.ts` ajouté ;
+- date d'émission marque Ordonnance/Certificat/Libre dirty ;
+- `beforeunload` commun au Hub.
 
-### Preuve locale
+### Preuve locale rejouée
 
-`DocumentNavigationPolicy` : **`tsc --strict` PASS + 10/10 assertions PASS**.
+- `tsc --strict` : PASS ;
+- navigation policy : **9/9 PASS**.
 
-## T1-B — contrat impression + suppression ghost AI
+## T1-B — archive-success explicite
 
-### P5 Suivi Paiement
+### Finding corrigé
 
-Finding : la modale d'impression promettait un archivage alors que le flux P5 utilise seulement `/installments/generate-preview`.
-
-Correction :
-- texte explicite : impression = PDF du brouillon, **sans enregistrement du plan** ;
-- sauvegarde réelle reste exclusivement `POST /installments/` via le bouton P5 dédié ;
-- le footer P5 n'affiche pas de faux bouton global d'archive.
-
-### Ghost AI Document Studio
-
-Finding : une branche cachée `ai` restait accessible via query param, avec UI `Lancer Analyse IA` et appel `/patients/{id}/ai-diagnostic` dans le hook.
-
-Correction :
-- `ai` supprimé de `HubDocumentType` et des valeurs `documentTab` admises ;
-- UI AI retirée du footer ;
-- `aiReport`, `loadingAi`, `handleGenerateAI` et événements `ai-generation-*` retirés ;
-- appel `/ai-diagnostic` retiré ;
-- les vérifications restantes dans `useDocumentGenerator` sont explicitement déterministes.
-
-Aucune certification full-repo ZERO LLM n'est déduite de ce lot ; seule la branche Document Studio inspectée est couverte.
-
-## T1-C — archive-success explicite
-
-### Finding
-
-Le Hub pouvait déduire qu'une archive avait réussi à partir d'un simple changement de `pdfUrl`. Après un 409 annulé, une preview ultérieure pouvait donc théoriquement nettoyer à tort un brouillon.
+Un simple changement de `pdfUrl` n'est pas une preuve d'archive et pouvait théoriquement nettoyer un brouillon après un 409 puis une preview.
 
 ### Correction
 
-`useDocumentGenerator` émet désormais `ArchiveSuccessSignal` seulement si :
-- la requête backend réussit ;
-- `pdf_url` est présent ;
+`useDocumentGenerator` émet `ArchiveSuccessSignal` uniquement après :
+- réponse backend réussie ;
+- `pdf_url` présent ;
 - `archive=true` ;
 - `preview=false`.
 
-`DocumentHub` nettoie les dirty-state uniquement depuis ce signal :
+`DocumentHub` nettoie alors uniquement la source concernée :
 - Devis/Honoraires : nouvelle baseline accounting ;
 - Ordonnance : dirty false ;
 - Certificat : dirty false ;
 - Document Libre : dirty false.
 
-Preview, erreur, 409 annulé ou P5 preview-only n'émettent aucun signal d'archive.
+Preview, erreur, 409 annulé et P5 preview-only n'émettent aucun signal d'archive.
 
-## T1-D — suppression du second moteur Échéancier
+## T1-C — P5 impression / stale print
 
-### Finding
+### Findings corrigés
 
-Le backend `/documents/generate` possédait encore un chemin historique `echeancier` capable de construire/persister un plan à partir d'un dictionnaire brut, contournant le contrat P5 strict. Le générateur legacy référençait en outre une architecture obsolète et constituait une seconde autorité financière inutile.
+- la modale P5 promettait un archivage alors que le flux utilise `/installments/generate-preview` ;
+- `pendingPrint` pouvait être armé avant le nouveau PDF et imprimer un aperçu précédent.
+
+### Corrections
+
+- texte explicite : impression P5 = PDF du brouillon, sans enregistrement du plan ;
+- sauvegarde réelle uniquement via `POST /installments/` ;
+- confirmation P5 appelle `archive=false` ;
+- `pendingPrint` est remis à false avant génération puis armé seulement après réception du nouveau `pdf_url` ;
+- erreur ou absence de PDF = aucune impression.
+
+## T1-D — second moteur Échéancier désactivé
+
+### Finding corrigé
+
+`/documents/generate` gardait un chemin historique `echeancier` capable de construire/persister un plan depuis un dictionnaire brut, en parallèle du contrat P5.
 
 ### Correction
 
-Le `DocumentRequest` réellement exporté par `backend.schemas` bloque désormais **tout** `type=echeancier` sous `/documents/generate`.
+Le `DocumentRequest` réellement exporté par `backend.schemas` hérite du contrat P4 durci et appelle `assert_document_installment_path_is_disabled()` avant validation. `type=echeancier` est donc refusé sur `/documents/generate`.
 
-Les trois chemins P5 autoritaires sont :
-- `POST /installments/` : création persistante ;
+Chemins P5 autoritaires :
+- `POST /installments/` : persistance ;
 - `POST /installments/generate-preview` : PDF brouillon ;
-- `/installments/...` : suivi et encaissement.
+- `/installments/...` : suivi / encaissement.
 
-### Preuves
+### Preuve locale rejouée
 
-- helper `assert_document_installment_path_is_disabled` : **4/4 PASS** sous Linux ;
-- test d'intégration du `backend.schemas.DocumentRequest` versionné pour vérifier le rejet du chemin legacy, y compris avec `plan_id`.
+Helper de désactivation : **4/4 PASS**.
 
-## T1-E — UI partagée
+## T1-E — suppression ghost AI Document Studio
 
-`StudioHeader` :
-- branche morte `activeTab !== 'ai'` retirée ;
-- boutons communs explicitement `type="button"` ;
-- label de date lié à son input ;
-- odonto toggle explicitement button.
+### Finding corrigé
 
-`StudioFooter` :
-- modale impression porte une sémantique `dialog` ;
-- message P5 transactionnel corrigé.
-
-`LivePreview` :
-- layout déjà responsive en drawer mobile/tablette et panneau desktop ;
-- iframe titrée ;
-- boutons refresh/close explicites.
-
-## T1-F — stale print P5
-
-### Finding
-
-Le flux P5 armait `pendingPrint` avant le retour du nouveau PDF. Avec un aperçu précédent déjà présent, l'effet d'impression pouvait imprimer le PDF précédent.
+Le Studio conservait une branche cachée `ai`, une UI `Lancer Analyse IA` et l'appel `/patients/{id}/ai-diagnostic`.
 
 ### Correction
 
-- `pendingPrint` est neutralisé avant génération P5 ;
-- il n'est armé qu'après réception du **nouveau `pdf_url`** ;
-- une erreur remet explicitement le flag à false ;
-- absence de `pdf_url` = aucune impression.
+- `ai` retiré de `HubDocumentType` et des valeurs URL admises ;
+- états/callbacks AI retirés du footer/hook ;
+- appel `ai-diagnostic` et événements `ai-generation-*` retirés du Document Studio.
 
-Le comportement suit désormais la même règle de fraîcheur que les autres documents.
+Cette correction aligne ce périmètre avec la doctrine ZERO LLM. Elle ne constitue pas à elle seule une recertification full-repo ZERO LLM.
+
+## T1-F — bypass Header supprimés
+
+### Finding corrigé
+
+Les boutons `Actualiser` et `Quitter` appelaient directement `window.location.reload()` / `window.history.back()` et contournaient le Hub.
+
+### Correction
+
+- suppression des deux raccourcis internes ;
+- le navigateur reste disponible et passe par le `beforeunload` commun en présence d'un brouillon ;
+- toggle odontogramme : `type="button"` + `aria-pressed`.
 
 ## Permissions backend vérifiées
 
-Le routeur partagé mappe actuellement :
-- Ordonnance → `prescriptions` ;
-- Certificat → `patients` ;
-- Devis/Honoraires/Échéancier → `accounting` ;
-- Libre/Lettre → `clinical` ;
-- autres documents patient → `patients`.
+Le routeur partagé applique une permission par type puis `assert_patient_access()` avant génération. Aucun contournement backend partagé n'a été démontré dans le périmètre T1.
 
-`generate_document` applique aussi `assert_patient_access()`.
+## Dette non bloquante pour T2
 
-Aucun autre trou de permission partagé n'a été démontré dans le périmètre inspecté.
-
-## Anomalies non bloquantes consignées pour T2
-
-- code legacy interne `DocumentFactory.create_installment_plan()` devenu inatteignable par le `DocumentRequest` public : suppression physique à considérer ;
-- listeners `beforeunload` locaux historiques dans certains formulaires encore redondants avec le Hub ;
+- listeners/interceptors locaux Ordonnance/Libre encore redondants avec la frontière centrale ; ils restent fail-closed actuellement ;
+- `DocumentFactory.create_installment_plan()` legacy est devenu inatteignable par le `DocumentRequest` public et peut être supprimé physiquement ;
 - quelques props historiques du footer restent inutilisées ;
-- la modale doublon du Hub pourrait recevoir une sémantique ARIA aussi explicite que la modale de navigation ;
-- full responsive/browser n'a pas été réexécuté après les refactors T1.
+- LivePreview peut recevoir une sémantique modal/focus encore plus explicite ;
+- full responsive/browser non rejoué après T1.
 
 ## Gates différés
 
 Non exécutés et non revendiqués :
 - vrai `npm test` / `npm run build` full-project ;
 - suite backend full-repo ;
-- navigation réelle clic + query-param avec brouillons P1/P2/P3/P4/P6/P7 ;
-- archive/preview/409/print sur l'application authentifiée ;
+- navigation réelle multi-pages avec brouillons ;
+- archive/preview/409/print authentifiés ;
 - browser 390 / 768 / desktop ;
 - PDF cabinet réels ;
-- merge / post-merge.
+- merge / post-merge des PR stackées.
 
 ## Conclusion
 
-Aucun P0/P1 transversal **connu et immédiatement exécutable dans cet environnement** ne reste après T1-F. Les restes identifiés sont reportés à T2 comme nettoyage/refonte finale ou gates runtime.
+Aucun P0/P1 transversal **connu et immédiatement exécutable dans l'environnement actuel** ne reste après T1. T2 peut commencer sur ce head pour nettoyage final et recertification globale disponible.
