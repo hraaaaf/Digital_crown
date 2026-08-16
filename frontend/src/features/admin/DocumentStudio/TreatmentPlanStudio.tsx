@@ -1,530 +1,297 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, ArrowRight, Plus, RefreshCw, X, FileText, CheckCircle2, Lightbulb, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Brain,
+  ClipboardCheck,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
+
+import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
-import { safeStorage } from '../../../hooks/useLocalStorage';
-import { useSettingsStore } from '../Settings/hooks/useSettingsStore';
+import {
+  buildQuoteTransferPayload,
+  canTransferPractitionerActs,
+  getCompanionOrientation,
+  normalizePractitionerAct,
+  type CompanionTopic,
+  type PractitionerAct,
+} from './DiagnosticCompanionPolicy';
 
-type DiagnosticState = 'MOTIF' | 'URGENCE_DOULEUR' | 'DOULEUR_SPONTANEE' | 'DOULEUR_PROVOQUEE' | 'PERCUSSION' | 'ABCES' | 'ESTHETIQUE' | 'PROTHESE_FONCTION' | 'TRAUMATISME' | 'CONTROLE' | 'PEDIATRIE' | 'RESULT';
-
-interface ChatMessage {
-  role: 'bot' | 'user';
-  text: string;
+interface TreatmentPlanStudioProps {
+  patientId: number;
+  onConvertToQuote?: (acts: Array<{ suggested_act: string; fdi: 'Global'; phase: string }>) => void;
 }
 
-interface ProposedAct {
-  id: string;
-  phase: string;
-  act: string;
-}
+const TOPICS: Array<{ id: CompanionTopic; label: string }> = [
+  { id: 'PAIN', label: 'Douleur / urgence' },
+  { id: 'AESTHETIC', label: 'Demande esthétique' },
+  { id: 'FUNCTION', label: 'Prothèse / fonction' },
+  { id: 'TRAUMA', label: 'Traumatisme' },
+  { id: 'CHECKUP', label: 'Contrôle / prévention' },
+  { id: 'PEDIATRIC', label: 'Contexte pédiatrique' },
+];
 
-export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote }) => {
-  const [currentState, setCurrentState] = useState<DiagnosticState>('MOTIF');
-  const [history, setHistory] = useState<ChatMessage[]>([
-    { role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }
-  ]);
-  const [finalDiagnosis, setFinalDiagnosis] = useState('');
-  const [proposedActs, setProposedActs] = useState<ProposedAct[]>([]);
+export const TreatmentPlanStudio: React.FC<TreatmentPlanStudioProps> = ({ patientId, onConvertToQuote }) => {
+  const [topic, setTopic] = useState<CompanionTopic | null>(null);
+  const [practitionerActs, setPractitionerActs] = useState<PractitionerAct[]>([]);
   const [newActText, setNewActText] = useState('');
-  const [newActPhase, setNewActPhase] = useState('CONSERVATRICE');
-  const [medicalHistory, setMedicalHistory] = useState('');
-  const [allergyWarning, setAllergyWarning] = useState<string | null>(null);
+  const [newActPhase, setNewActPhase] = useState('INITIALE');
+  const [practitionerConfirmed, setPractitionerConfirmed] = useState(false);
+  const [medicalHistory, setMedicalHistory] = useState<string | null>(null);
+  const [patientContextError, setPatientContextError] = useState(false);
 
-  React.useEffect(() => {
-    // Fetch patient data for active pharmacovigilance
-    const fetchPatient = async () => {
-      try {
-        // Assuming api.get exists and is imported from '../../../services/api'
-        // If api is not imported in this file, we should import it.
-        const { api } = await import('../../../services/api');
-        const response = await api.get(`/patients/${patientId}`);
-        setMedicalHistory(response.data.antecedents_medicaux || '');
-      } catch (err) {
-        console.error("Failed to fetch patient history for pharmacovigilance", err);
-      }
-    };
-    if (patientId) fetchPatient();
-  }, [patientId]);
+  useEffect(() => {
+    let cancelled = false;
+    setMedicalHistory(null);
+    setPatientContextError(false);
 
-  const { profile } = useSettingsStore();
-  const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinicalTipsEnabled') !== 'false';
+    if (!patientId) return () => { cancelled = true; };
 
-  const getClinicalTip = (diagnosis: string) => {
-    if (diagnosis.includes('Pulpite Irréversible')) return "Rappel scientifique: Le succès d'une pulpectomie d'urgence dépend d'un parage canalaire minimal d'au moins le tiers cervical pour éliminer le maximum de charge bactérienne aiguë.";
-    if (diagnosis.includes('Parodontite Apicale')) return "Évidence Clinique: La mise en sous-occlusion de la dent causale réduit significativement la symptomatologie douloureuse dans les 24h, indépendamment de l'antibiothérapie.";
-    if (diagnosis.includes('Syndrome du septum')) return "Conseil: La prescription d'antalgiques est inutile si le point de contact n'est pas restauré et le bourrage alimentaire persistant.";
-    if (diagnosis.includes('Hyperhémie Pulpaire')) return "Recommandation: L'utilisation d'une base de silicate de calcium (MTA/Biodentine) améliore de 65% la réparation dentinaire comparé à l'hydroxyde de calcium classique.";
-    if (diagnosis.includes('Abcès Sous-Muqueux')) return "Guidance: Un drainage sans incision large et sans lavage à la chlorhexidine 0.2% augmente le risque de diffusion cellulaire de 40%.";
-    if (diagnosis.includes('Cellulite')) return "Alerte: La prescription d'AINS est formellement contre-indiquée en première intention sans une couverture antibiotique adaptée (ex: Amoxicilline 2g/j).";
-    if (diagnosis.includes('Dyschromie dentaire')) return "Esthétique: Un éclaircissement interne est indiqué avant toute facette si la dent est dépulpée et fortement dyschromiée.";
-    if (diagnosis.includes('Malocclusion')) return "Orthodontie: L'évaluation de la classe squelettique et de la DDM est préalable à tout plan de traitement par aligneurs.";
-    if (diagnosis.includes('Usure dentaire')) return "Prothèse: La perte de dimension verticale doit être évaluée; une réhabilitation globale par onlays/overlays peut être nécessaire.";
-    if (diagnosis.includes('Édendement')) return "Implantologie: Prévoir un CBCT pour évaluer le volume osseux résiduel avant de proposer une solution implantaire.";
-    if (diagnosis.includes('Descellement prothétique')) return "Prothèse: Vérifier l'absence de reprise carieuse sous-jacente et l'adaptation marginale avant le rescellement.";
-    if (diagnosis.includes('Trouble ATM')) return "ATM: La prescription d'une gouttière de reconditionnement musculaire (gouttière occlusale) est le traitement de première intention.";
-    if (diagnosis.includes('Fracture corono-radiculaire')) return "Traumatologie: Une radiographie rétro-alvéolaire est indispensable. Si la fracture s'étend sous la crête osseuse, l'extraction peut être envisagée.";
-    if (diagnosis.includes('Subluxation')) return "Traumatologie: Tester la vitalité pulpaire (au froid) immédiatement puis à 2, 4 et 12 semaines post-traumatisme.";
-    if (diagnosis.includes('Avulsion traumatique')) return "Urgence: La réimplantation doit idéalement être réalisée dans les 60 minutes. Prescrire antibiotiques (Amoxicilline) et vérifier le statut tétanique.";
-    if (diagnosis.includes('Gingivite') || diagnosis.includes('Parodontite')) return "Parodontie: Le sondage parodontal (charting) est indispensable pour objectiver la perte d'attache avant le surfaçage radiculaire.";
-    if (diagnosis.includes('Pulpite / Nécrose sur dent temporaire')) return "Pédodontie: L'utilisation du MTA ou de la Biodentine pour les pulpotomies offre un taux de succès clinique supérieur au formocrésol.";
-    if (diagnosis.includes('Prévention carieuse pédiatrique')) return "Prévention: Le scellement des puits et fissures est indiqué dès l'éruption complète des premières molaires permanentes (vers 6 ans).";
-    return "Optimisation: Vérifiez toujours les antécédents médicaux avant d'initier la phase thérapeutique.";
-  };
-
-  const handleAnswer = (answerText: string, nextState: DiagnosticState, diagnosis?: string, acts?: Omit<ProposedAct, 'id'>[]) => {
-    setHistory(prev => [...prev, { role: 'user', text: answerText }]);
-    
-    if (diagnosis && acts) {
-      let finalActs = [...acts];
-      let warning: string | null = null;
-      
-      // ACTIVE PHARMACOVIGILANCE INTERCEPTION
-      const atcd = medicalHistory.toLowerCase();
-      const hasPenicillinAllergy = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
-      const hasAinsAllergy = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
-      
-      finalActs = finalActs.map(act => {
-        let modifiedAct = act.act;
-        if (hasPenicillinAllergy && modifiedAct.toLowerCase().includes('antibiothérapie')) {
-          modifiedAct = modifiedAct.replace('Antibiothérapie', 'Antibiothérapie (Clindamycine/Macrolide - ⚠️ Allergie Pénicilline adapt.)');
-          warning = "⚠️ Allergie à la Pénicilline détectée dans les ATCD. Le protocole antibiotique a été automatiquement basculé sur macrolides/lincosamides.";
-        }
-        if (hasAinsAllergy && modifiedAct.toLowerCase().includes('anti-inflammatoire')) {
-          modifiedAct = modifiedAct.replace('anti-inflammatoires', 'corticostéroïdes (⚠️ Allergie AINS adapt.)');
-          if (!warning) warning = "⚠️ Allergie aux AINS détectée. Protocole anti-inflammatoire modifié.";
-        }
-        return { ...act, act: modifiedAct };
+    api.get(`/patients/${patientId}`)
+      .then((response: any) => {
+        if (cancelled) return;
+        const history = String(response?.data?.antecedents_medicaux || '').trim();
+        setMedicalHistory(history || 'Non renseignés dans le dossier.');
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.error('P7: patient context unavailable', error);
+        setPatientContextError(true);
+        setMedicalHistory(null);
       });
 
-      setFinalDiagnosis(diagnosis);
-      setProposedActs(finalActs.map((a, i) => ({ ...a, id: `act-${Date.now()}-${i}` })));
-      if (warning) setAllergyWarning(warning);
-    }
+    return () => { cancelled = true; };
+  }, [patientId]);
 
-    setTimeout(() => {
-      let nextQuestion = '';
-      switch (nextState) {
-        case 'URGENCE_DOULEUR':
-          nextQuestion = 'Quel est le caractère principal de la douleur ?';
-          break;
-        case 'DOULEUR_SPONTANEE':
-          nextQuestion = 'La douleur vous réveille-t-elle la nuit (caractère pulsatile) ?';
-          break;
-        case 'DOULEUR_PROVOQUEE':
-          nextQuestion = 'La douleur disparaît-elle rapidement après l\'arrêt du stimulus (froid) ?';
-          break;
-        case 'PERCUSSION':
-          nextQuestion = 'La dent est-elle douloureuse à la percussion axiale ?';
-          break;
-        case 'ABCES':
-          nextQuestion = 'Y a-t-il une fluctuation palpable au fond du vestibule ?';
-          break;
-        case 'ESTHETIQUE':
-          nextQuestion = 'Quelle est la principale demande esthétique du patient ?';
-          break;
-        case 'PROTHESE_FONCTION':
-          nextQuestion = 'Quel est le problème fonctionnel ou prothétique rencontré ?';
-          break;
-        case 'TRAUMATISME':
-          nextQuestion = 'Quelle est la nature du traumatisme subi ?';
-          break;
-        case 'CONTROLE':
-          nextQuestion = 'Quel est le type de contrôle souhaité ?';
-          break;
-        case 'PEDIATRIE':
-          nextQuestion = 'Quel est le problème dentaire de l\'enfant ?';
-          break;
-        case 'RESULT':
-          nextQuestion = 'Diagnostic établi. Voici le plan de traitement scientifique recommandé :';
-          break;
-      }
-      if (nextQuestion) {
-        setHistory(prev => [...prev, { role: 'bot', text: nextQuestion }]);
-      }
-      setCurrentState(nextState);
-    }, 400);
+  const selectTopic = (nextTopic: CompanionTopic) => {
+    setTopic(nextTopic);
+    setPractitionerConfirmed(false);
   };
 
-  const renderOptions = () => {
-    switch (currentState) {
-      case 'MOTIF':
-        return (
-          <div className="flex flex-wrap gap-2 justify-end">
-            <OptionButton text="Urgence / Douleur aiguë" onClick={() => handleAnswer("Urgence / Douleur aiguë", 'URGENCE_DOULEUR')} />
-            <OptionButton text="Motif Esthétique" onClick={() => handleAnswer("Motif Esthétique", 'ESTHETIQUE')} />
-            <OptionButton text="Problème Prothétique / Fonctionnel" onClick={() => handleAnswer("Problème Prothétique / Fonctionnel", 'PROTHESE_FONCTION')} />
-            <OptionButton text="Traumatisme" onClick={() => handleAnswer("Traumatisme Dentaire", 'TRAUMATISME')} />
-            <OptionButton text="Contrôle de routine / Tartre" onClick={() => handleAnswer("Contrôle de routine / Tartre", 'CONTROLE')} />
-            <OptionButton text="Soins Pédiatriques (Enfant)" onClick={() => handleAnswer("Soins Pédiatriques", 'PEDIATRIE')} />
-          </div>
-        );
-      case 'URGENCE_DOULEUR':
-        return (
-          <>
-            <OptionButton text="Douleur spontanée aiguë" onClick={() => handleAnswer("Douleur spontanée", 'DOULEUR_SPONTANEE')} />
-            <OptionButton text="Douleur provoquée (Froid/Chaud)" onClick={() => handleAnswer("Douleur provoquée", 'DOULEUR_PROVOQUEE')} />
-            <OptionButton text="Abcès ou Gonflement" onClick={() => handleAnswer("Abcès/Gonflement", 'ABCES')} />
-          </>
-        );
-      case 'DOULEUR_SPONTANEE':
-        return (
-          <>
-            <OptionButton 
-              text="Oui, avec irradiation (réveille la nuit)" 
-              onClick={() => handleAnswer("Oui, avec irradiation", 'RESULT', 'Pulpite Irréversible', [
-                { phase: 'URGENCE', act: 'Pulpectomie et parage canalaire' },
-                { phase: 'INITIALE', act: 'Prescription antalgique (Palier 2)' }
-              ])} 
-            />
-            <OptionButton 
-              text="Non, douleur localisée à la mastication" 
-              onClick={() => handleAnswer("Non, localisée à la mastication", 'PERCUSSION')} 
-            />
-          </>
-        );
-      case 'PERCUSSION':
-        return (
-          <>
-            <OptionButton 
-              text="Oui, très douloureuse" 
-              onClick={() => handleAnswer("Oui, très douloureuse", 'RESULT', 'Parodontite Apicale Aiguë', [
-                { phase: 'URGENCE', act: 'Ouverture camérale, drainage et mise en sous-occlusion' },
-                { phase: 'INITIALE', act: 'Antibiothérapie et antalgiques' }
-              ])} 
-            />
-            <OptionButton 
-              text="Non ou très peu" 
-              onClick={() => handleAnswer("Non ou très peu", 'RESULT', 'Syndrome du septum', [
-                { phase: 'INITIALE', act: 'Nettoyage des espaces interdentaires et contrôle de l\'occlusion' }
-              ])} 
-            />
-          </>
-        );
-      case 'DOULEUR_PROVOQUEE':
-        return (
-          <>
-            <OptionButton 
-              text="Oui (disparaît en quelques secondes)" 
-              onClick={() => handleAnswer("Oui (quelques secondes)", 'RESULT', 'Hyperhémie Pulpaire / Pulpite Réversible', [
-                { phase: 'CONSERVATRICE', act: 'Coiffage pulpaire indirect et restauration coronaire' }
-              ])} 
-            />
-            <OptionButton 
-              text="Non, elle persiste plusieurs minutes" 
-              onClick={() => handleAnswer("Non, persiste plusieurs minutes", 'RESULT', 'Pulpite Irréversible', [
-                { phase: 'URGENCE', act: 'Pulpectomie immédiate' }
-              ])} 
-            />
-          </>
-        );
-      case 'ABCES':
-        return (
-          <>
-            <OptionButton 
-              text="Oui, fluctuation évidente" 
-              onClick={() => handleAnswer("Oui, fluctuation évidente", 'RESULT', 'Abcès Sous-Muqueux', [
-                { phase: 'URGENCE', act: 'Incision, drainage et lavage' },
-                { phase: 'INITIALE', act: 'Antibiothérapie de couverture et antalgiques' }
-              ])} 
-            />
-            <OptionButton 
-              text="Non, douleur sourde diffuse (pas de fluctuation)" 
-              onClick={() => handleAnswer("Non, pas de fluctuation", 'RESULT', 'Cellulite (Stade séreux)', [
-                { phase: 'INITIALE', act: 'Antibiothérapie et anti-inflammatoires stéroïdiens' },
-                { phase: 'URGENCE', act: 'Traitement endodontique de la dent causale' }
-              ])} 
-            />
-          </>
-        );
-      case 'ESTHETIQUE':
-        return (
-          <>
-            <OptionButton text="Coloration / Taches" onClick={() => handleAnswer("Coloration ou Taches", 'RESULT', 'Dyschromie dentaire', [
-              { phase: 'INITIALE', act: 'Photographies et prise de teinte initiale' },
-              { phase: 'CONSERVATRICE', act: 'Éclaircissement dentaire (Blanchiment interne/externe)' },
-              { phase: 'REHABILITATION', act: 'Facettes céramiques si dyschromie sévère' }
-            ])} />
-            <OptionButton text="Dents mal alignées" onClick={() => handleAnswer("Dents mal alignées", 'RESULT', 'Malocclusion / Encombrement', [
-              { phase: 'INITIALE', act: 'Bilan orthodontique (Moulages, Photos, Céphalo)' },
-              { phase: 'REHABILITATION', act: 'Traitement par Aligneurs transparents ou Multi-attaches' }
-            ])} />
-            <OptionButton text="Dents usées ou cassées" onClick={() => handleAnswer("Usure/Casse esthétique", 'RESULT', 'Usure dentaire / Attrition', [
-              { phase: 'INITIALE', act: 'Analyse occlusale et dimension verticale' },
-              { phase: 'REHABILITATION', act: 'Facettes, Onlays ou Reconstitution au composite' }
-            ])} />
-          </>
-        );
-      case 'PROTHESE_FONCTION':
-        return (
-          <>
-            <OptionButton text="Dent(s) manquante(s)" onClick={() => handleAnswer("Dent manquante", 'RESULT', 'Édendement partiel/total', [
-              { phase: 'INITIALE', act: 'Examen radiologique 3D (CBCT)' },
-              { phase: 'CHIRURGIE', act: 'Pose d\'implant(s) ou chirurgie pré-implantaire' },
-              { phase: 'REHABILITATION', act: 'Prothèse sur implant ou Bridge conventionnel' }
-            ])} />
-            <OptionButton text="Couronne/Bridge cassé ou descellé" onClick={() => handleAnswer("Problème prothétique existant", 'RESULT', 'Descellement prothétique', [
-              { phase: 'URGENCE', act: 'Nettoyage et essai de repositionnement' },
-              { phase: 'REHABILITATION', act: 'Rescellement ou réalisation d\'une nouvelle empreinte' }
-            ])} />
-            <OptionButton text="Difficulté à mastiquer / Douleur ATM" onClick={() => handleAnswer("Douleur à la mastication (ATM)", 'RESULT', 'Trouble ATM / Perte de DVO', [
-              { phase: 'INITIALE', act: 'Examen palpation ATM et muscles masticateurs' },
-              { phase: 'CONSERVATRICE', act: 'Gouttière de reconditionnement occlusal' }
-            ])} />
-          </>
-        );
-      case 'TRAUMATISME':
-        return (
-          <>
-            <OptionButton text="Choc avec dent cassée" onClick={() => handleAnswer("Choc / Dent cassée", 'RESULT', 'Fracture corono-radiculaire', [
-              { phase: 'URGENCE', act: 'Bilan radiographique (Rétro-alvéolaire)' },
-              { phase: 'CONSERVATRICE', act: 'Reconstitution composite ou Traitement Endodontique si pulpe exposée' }
-            ])} />
-            <OptionButton text="Dent mobile après un choc" onClick={() => handleAnswer("Mobilité dentaire post-traumatique", 'RESULT', 'Subluxation / Luxation', [
-              { phase: 'URGENCE', act: 'Contention semi-rigide (composite/fil) pour 2 à 4 semaines' },
-              { phase: 'INITIALE', act: 'Surveillance régulières de la vitalité pulpaire' }
-            ])} />
-            <OptionButton text="Dent complètement expulsée" onClick={() => handleAnswer("Dent expulsée", 'RESULT', 'Avulsion traumatique', [
-              { phase: 'URGENCE', act: 'Réimplantation immédiate si < 60 min, sinon conditionnement' },
-              { phase: 'CHIRURGIE', act: 'Contention flexible et antibiothérapie prophylactique' },
-              { phase: 'CONSERVATRICE', act: 'Traitement endodontique différé (7-10 jours)' }
-            ])} />
-          </>
-        );
-      case 'CONTROLE':
-        return (
-          <>
-            <OptionButton text="Visite de contrôle annuelle" onClick={() => handleAnswer("Contrôle annuel", 'RESULT', 'Bilan bucco-dentaire de routine', [
-              { phase: 'INITIALE', act: 'Examen clinique complet et radiographies (Bite-wing)' },
-              { phase: 'CONSERVATRICE', act: 'Détartrage, polissage et prophylaxie' }
-            ])} />
-            <OptionButton text="Gencives qui saignent (Tartre)" onClick={() => handleAnswer("Saignement gingival", 'RESULT', 'Gingivite / Parodontite', [
-              { phase: 'INITIALE', act: 'Sondage parodontal et bilan radiographique long cône' },
-              { phase: 'CONSERVATRICE', act: 'Surfaçage radiculaire (Assainissement parodontal)' },
-              { phase: 'INITIALE', act: 'Enseignement à l\'hygiène orale' }
-            ])} />
-          </>
-        );
-      case 'PEDIATRIE':
-        return (
-          <>
-            <OptionButton text="Carie profonde avec douleur (Dent de lait)" onClick={() => handleAnswer("Carie profonde avec douleur", 'RESULT', 'Pulpite / Nécrose sur dent temporaire', [
-              { phase: 'URGENCE', act: 'Pulpotomie ou Pulpectomie temporaire' },
-              { phase: 'REHABILITATION', act: 'Coiffe pédodontique préformée' }
-            ])} />
-            <OptionButton text="Carie débutante (sans douleur)" onClick={() => handleAnswer("Carie débutante", 'RESULT', 'Carie dentine superficielle (Dent temporaire)', [
-              { phase: 'CONSERVATRICE', act: 'Éviction carieuse et restauration Verre Ionomère (CVI)' }
-            ])} />
-            <OptionButton text="Prévention / Scellement" onClick={() => handleAnswer("Prévention", 'RESULT', 'Prévention carieuse pédiatrique', [
-              { phase: 'CONSERVATRICE', act: 'Scellement des sillons (Sealants)' },
-              { phase: 'INITIALE', act: 'Application topique de vernis fluoré' }
-            ])} />
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const addCustomAct = () => {
-    if (!newActText.trim()) return;
-    setProposedActs(prev => [...prev, { id: `custom-${Date.now()}`, phase: newActPhase, act: newActText }]);
+  const addPractitionerAct = () => {
+    const act = normalizePractitionerAct(newActText);
+    if (!act) return;
+    setPractitionerActs(prev => [
+      ...prev,
+      { id: `practitioner-${Date.now()}`, phase: newActPhase, act },
+    ]);
     setNewActText('');
+    setPractitionerConfirmed(false);
   };
 
-  const removeAct = (id: string) => {
-    setProposedActs(prev => prev.filter(a => a.id !== id));
+  const removePractitionerAct = (id: string) => {
+    setPractitionerActs(prev => prev.filter(item => item.id !== id));
+    setPractitionerConfirmed(false);
   };
 
-  const resetDiagnostic = () => {
-    setCurrentState('MOTIF');
-    setHistory([{ role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }]);
-    setFinalDiagnosis('');
-    setProposedActs([]);
-    setAllergyWarning(null);
+  const resetCompanion = () => {
+    setTopic(null);
+    setPractitionerActs([]);
+    setNewActText('');
+    setNewActPhase('INITIALE');
+    setPractitionerConfirmed(false);
   };
+
+  const transferToQuote = () => {
+    if (!onConvertToQuote) return;
+    const payload = buildQuoteTransferPayload(practitionerActs, practitionerConfirmed);
+    if (payload.length === 0) return;
+    onConvertToQuote(payload);
+    setPractitionerConfirmed(false);
+  };
+
+  const orientation = topic ? getCompanionOrientation(topic) : null;
+  const canTransfer = canTransferPractitionerActs(practitionerActs, practitionerConfirmed);
 
   return (
-    <div className="flex flex-col h-[600px] bg-slate-50/50 rounded-[2rem] border border-slate-200 overflow-hidden relative backdrop-blur-xl">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
-            <Brain size={20} />
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 rounded-[2rem] border border-slate-200 bg-slate-50/60 p-4 shadow-sm backdrop-blur-xl sm:p-6">
+      <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+            <Brain size={21} />
           </div>
           <div>
-            <h3 className="font-black text-slate-800 leading-none tracking-tight">Compagnon Diagnostique</h3>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">State Machine Clinique</p>
+            <h3 className="font-black tracking-tight text-slate-900">Compagnon d’orientation clinique</h3>
+            <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-slate-500">
+              Aide structurée à la consultation. Cet outil ne pose pas de diagnostic, ne prescrit pas et ne remplace pas le jugement du praticien.
+            </p>
           </div>
         </div>
-        <button onClick={resetDiagnostic} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-colors border border-transparent hover:border-slate-200" title="Recommencer">
-          <RefreshCw size={14} />
+        <button
+          type="button"
+          onClick={resetCompanion}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-50"
+        >
+          <RefreshCw size={14} /> Recommencer
         </button>
-      </div>
+      </header>
 
-      {/* Chat History Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-white">
-        {history.map((msg, idx) => (
-          <motion.div 
-            key={idx}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              "flex w-full",
-              msg.role === 'user' ? "justify-end" : "justify-start"
-            )}
-          >
-            <div className={cn(
-              "max-w-[80%] px-4 py-3 text-sm font-medium",
-              msg.role === 'user' 
-                ? "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md" 
-                : "bg-white border border-slate-200 text-slate-700 shadow-sm rounded-2xl rounded-tl-sm"
-            )}>
-              {msg.text}
-            </div>
-          </motion.div>
-        ))}
+      <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4" aria-label="Limites du compagnon diagnostique">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-amber-800">Frontière clinique</h4>
+            <p className="mt-1 text-xs leading-relaxed text-amber-800">
+              Aucun diagnostic, médicament, posologie, substitution thérapeutique ou plan de traitement n’est généré automatiquement. Les actes transférables sont uniquement ceux saisis puis confirmés par le praticien.
+            </p>
+          </div>
+        </div>
+      </section>
 
-        {currentState !== 'RESULT' && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-end gap-2 mt-4"
-          >
-            {renderOptions()}
-          </motion.div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="p7-patient-context">
+        <h4 id="p7-patient-context" className="text-xs font-black uppercase tracking-wider text-slate-500">Contexte patient — lecture seule</h4>
+        {patientContextError ? (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Antécédents indisponibles. Aucune conclusion automatisée n’est produite à partir d’un contexte incomplet.</span>
+          </div>
+        ) : (
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+            {medicalHistory ?? 'Chargement des antécédents…'}
+          </p>
         )}
+        <p className="mt-2 text-[11px] text-slate-400">Les antécédents sont affichés pour revue humaine uniquement. Aucune adaptation médicamenteuse automatique n’est effectuée.</p>
+      </section>
 
-        {/* Result Area */}
-        {currentState === 'RESULT' && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden"
-          >
-            <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center gap-3">
-              <CheckCircle2 size={24} className="text-primary" />
-              <div>
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-0.5">Diagnostic Établi</span>
-                <h4 className="text-lg font-black text-slate-800 tracking-tight">{finalDiagnosis}</h4>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {/* Active Pharmacovigilance Warning Banner */}
-              {allergyWarning && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3"
-                >
-                  <ShieldCheck size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Pharmacovigilance Active</h5>
-                    <p className="text-xs font-bold text-rose-700 leading-snug">{allergyWarning}</p>
-                  </div>
-                </motion.div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="p7-motif-title">
+        <h4 id="p7-motif-title" className="text-xs font-black uppercase tracking-wider text-slate-500">1. Motif à structurer</h4>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {TOPICS.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => selectTopic(item.id)}
+              aria-pressed={topic === item.id}
+              className={cn(
+                'rounded-xl border px-4 py-2.5 text-sm font-bold transition',
+                topic === item.id
+                  ? 'border-primary bg-primary text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:bg-primary/5 hover:text-primary',
               )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
-              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <FileText size={14} /> Plan de Traitement Scientifique
-              </h5>
-              
-              <div className="space-y-2 mb-6">
-                {proposedActs.map((act) => (
-                  <div key={act.id} className="flex items-center justify-between p-3 bg-slate-50/80 rounded-xl border border-slate-100 group transition-colors hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <span className={cn(
-                        "text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md",
-                        act.phase === 'URGENCE' ? "bg-red-100 text-red-700" :
-                        act.phase === 'INITIALE' ? "bg-amber-100 text-amber-700" :
-                        act.phase === 'CONSERVATRICE' ? "bg-emerald-100 text-emerald-700" :
-                        "bg-blue-100 text-blue-700"
-                      )}>
-                        {act.phase}
-                      </span>
-                      <span className="text-sm font-bold text-slate-700">{act.act}</span>
-                    </div>
-                    <button onClick={() => removeAct(act.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1 border border-slate-200 hover:border-red-200">
-                      <X size={14} />
-                    </button>
-                  </div>
+      {orientation && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5"
+          aria-labelledby="p7-orientation-title"
+        >
+          <div className="flex items-start gap-3">
+            <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+            <div className="flex-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">Orientation de consultation — à confirmer</span>
+              <h4 id="p7-orientation-title" className="mt-1 font-black text-slate-900">{orientation.title}</h4>
+              <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                {orientation.checklist.map(item => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                    <span>{item}</span>
+                  </li>
                 ))}
-              </div>
-
-              {/* Add Custom Act */}
-              <div className="flex gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100">
-                <select 
-                  value={newActPhase} 
-                  onChange={(e) => setNewActPhase(e.target.value)}
-                  className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg px-3 py-2 outline-none focus:border-primary shadow-sm"
-                >
-                  <option value="URGENCE">Urgence</option>
-                  <option value="INITIALE">Initiale</option>
-                  <option value="CONSERVATRICE">Conservatrice</option>
-                  <option value="CHIRURGIE">Chirurgie</option>
-                  <option value="REHABILITATION">Réhabilitation</option>
-                </select>
-                <input 
-                  type="text" 
-                  value={newActText}
-                  onChange={(e) => setNewActText(e.target.value)}
-                  placeholder="Ajouter un acte clinique scientifique..."
-                  className="flex-1 bg-white border border-slate-200 text-sm font-bold text-slate-700 rounded-lg px-4 py-2 outline-none focus:border-primary transition-all shadow-sm"
-                  onKeyDown={(e) => e.key === 'Enter' && addCustomAct()}
-                />
-                <button onClick={addCustomAct} className="w-10 h-10 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md shadow-primary/20">
-                  <Plus size={18} />
-                </button>
-              </div>
-
-              {onConvertToQuote && proposedActs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => onConvertToQuote(proposedActs.map(act => ({
-                    suggested_act: act.act,
-                    fdi: 'Global',
-                    phase: act.phase,
-                  })))}
-                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-[0.99]"
-                >
-                  Créer le devis <ArrowRight size={16} />
-                </button>
-              )}
-
-              {clinicalTipsEnabled && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-3"
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0">
-                    <Lightbulb size={16} />
-                  </div>
-                  <div>
-                    <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">Intelligence Clinique Proactive</h5>
-                    <p className="text-xs text-blue-800 font-medium leading-relaxed">
-                      {getClinicalTip(finalDiagnosis)}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
+              </ul>
             </div>
-          </motion.div>
+          </div>
+        </motion.section>
+      )}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="p7-practitioner-acts">
+        <div>
+          <h4 id="p7-practitioner-acts" className="text-xs font-black uppercase tracking-wider text-slate-500">2. Actes décidés par le praticien</h4>
+          <p className="mt-1 text-xs text-slate-400">Aucun acte n’est prérempli par le compagnon. Ajoutez uniquement les actes que vous retenez après examen.</p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <select
+            value={newActPhase}
+            onChange={event => { setNewActPhase(event.target.value); setPractitionerConfirmed(false); }}
+            aria-label="Phase de l'acte"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-600"
+          >
+            <option value="URGENCE">Urgence</option>
+            <option value="INITIALE">Initiale</option>
+            <option value="CONSERVATRICE">Conservatrice</option>
+            <option value="CHIRURGIE">Chirurgie</option>
+            <option value="REHABILITATION">Réhabilitation</option>
+          </select>
+          <input
+            type="text"
+            value={newActText}
+            onChange={event => { setNewActText(event.target.value); setPractitionerConfirmed(false); }}
+            onKeyDown={event => { if (event.key === 'Enter') addPractitionerAct(); }}
+            placeholder="Acte retenu par le praticien"
+            aria-label="Acte retenu par le praticien"
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+          />
+          <button
+            type="button"
+            onClick={addPractitionerAct}
+            disabled={!normalizePractitionerAct(newActText)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={16} /> Ajouter
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {practitionerActs.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">Aucun acte praticien saisi.</div>
+          )}
+          {practitionerActs.map(item => (
+            <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="min-w-0">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{item.phase}</span>
+                <p className="truncate text-sm font-bold text-slate-700">{item.act}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removePractitionerAct(item.id)}
+                aria-label={`Supprimer ${item.act}`}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {practitionerActs.length > 0 && (
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={practitionerConfirmed}
+              onChange={event => setPractitionerConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-primary"
+            />
+            <span className="text-xs font-semibold leading-relaxed text-slate-600">
+              Je confirme que les actes ci-dessus correspondent à ma décision clinique après examen du patient. Le compagnon ne les a ni diagnostiqués ni prescrits automatiquement.
+            </span>
+          </label>
         )}
-      </div>
+
+        {onConvertToQuote && practitionerActs.length > 0 && (
+          <button
+            type="button"
+            onClick={transferToQuote}
+            disabled={!canTransfer}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+          >
+            Transférer les actes confirmés vers Devis <ArrowRight size={16} />
+          </button>
+        )}
+      </section>
     </div>
   );
 };
-
-const OptionButton: React.FC<{ text: string; onClick: () => void }> = ({ text, onClick }) => (
-  <button 
-    onClick={onClick}
-    className="px-5 py-2.5 bg-white border border-slate-200 text-primary text-sm font-black rounded-2xl shadow-sm hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center gap-2 group hover:-translate-y-0.5"
-  >
-    {text}
-    <ArrowRight size={14} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all text-primary/70" />
-  </button>
-);
 
 export default TreatmentPlanStudio;
