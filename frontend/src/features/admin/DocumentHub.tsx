@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -23,6 +23,11 @@ import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
+import {
+  accountingDocumentFingerprint,
+  isAccountingDocumentDirty,
+  type AccountingDirtyTab,
+} from './DocumentStudio/AccountingDirtyStatePolicy';
 import {
   hydrateArchivedDevisRows,
   type ArchivedDevisItem,
@@ -137,16 +142,26 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
 
+  // --- DIRTY STATE COMPTABLE ---
+  const [accountingBaselineFingerprint, setAccountingBaselineFingerprint] = useState<string | null>(null);
+  const pendingAccountingArchiveRef = useRef(false);
+  const accountingTab: AccountingDirtyTab | null = activeTab === 'devis' || activeTab === 'honoraires' ? activeTab : null;
+  const accountingDirty = accountingTab
+    ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint)
+    : false;
+
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
 
   // Garde sur changement d'onglet (1.3)
   const handleTabChange = (newTab: HubDocumentType) => {
-    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire)
+    // Le duo devis/honoraires partage les lignes, mais la conversion P3→P4 est confirmée dans StudioTabs.
     const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
       (newTab === 'devis' || newTab === 'honoraires');
-    const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      items.some(i => i.description.trim()) && newTab !== activeTab && !isAccountingSwitch;
+    if (!accountingTab && (newTab === 'devis' || newTab === 'honoraires')) {
+      setAccountingBaselineFingerprint(null);
+    }
+    const hasUnsaved = accountingDirty && newTab !== activeTab && !isAccountingSwitch;
     if (hasUnsaved) {
       setPendingTab(newTab);
     } else {
@@ -157,14 +172,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // Garde fermeture navigateur (1.6)
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if ((activeTab === 'devis' || activeTab === 'honoraires') && items.some(i => i.description.trim())) {
+      if (accountingDirty) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [activeTab, items]);
+  }, [accountingDirty]);
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
@@ -206,6 +221,25 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   const generator = useDocumentGenerator(generatorParams);
 
+  const handleGenerate = useCallback((
+    archive = false,
+    print = false,
+    isPreview = false,
+    force = false,
+  ) => {
+    if (accountingTab) {
+      if (archive && !isPreview) pendingAccountingArchiveRef.current = true;
+      else pendingAccountingArchiveRef.current = false;
+    }
+    return generator.handleGenerate(archive, print, isPreview, force);
+  }, [accountingTab, generator.handleGenerate]);
+
+  useEffect(() => {
+    if (!pendingAccountingArchiveRef.current || !generator.pdfUrl || !accountingTab) return;
+    setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items));
+    pendingAccountingArchiveRef.current = false;
+  }, [generator.pdfUrl, accountingTab, items]);
+
   // --- HYDRATATION ---
   useEffect(() => {
     if (editData?.clinical_data) {
@@ -236,19 +270,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setLibreAlignment(d.alignment || 'justify');
       } else {
         const isDevisEdit = type === 'devis';
-        setActiveTab(isDevisEdit ? 'devis' : 'honoraires');
+        const nextAccountingTab: AccountingDirtyTab = isDevisEdit ? 'devis' : 'honoraires';
+        setActiveTab(nextAccountingTab);
         const srcItems = d.items || d.payments || [];
-        if (isDevisEdit) {
-          setItems(hydrateArchivedDevisRows(srcItems, d.teeth_data));
-        } else {
-          setItems(srcItems.map((i, idx) => ({
-            id: Date.now() + idx,
-            description: i.acte || '',
-            dent: i.dent || '0',
-            price: i.montant ?? i.prix_unitaire ?? 0,
-            toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
-          })));
-        }
+        const hydratedRows = isDevisEdit
+          ? hydrateArchivedDevisRows(srcItems, d.teeth_data)
+          : srcItems.map((i, idx) => ({
+              id: Date.now() + idx,
+              description: i.acte || '',
+              dent: i.dent || '0',
+              price: i.montant ?? i.prix_unitaire ?? 0,
+              toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
+            }));
+        setItems(hydratedRows);
+        setAccountingBaselineFingerprint(accountingDocumentFingerprint(nextAccountingTab, hydratedRows));
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
@@ -276,13 +311,13 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   useEffect(() => {
     if (sideStudioType !== 'PREVIEW') return;
-    const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
+    const timer = setTimeout(() => handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
     libreTitle, libreContent, docDate, activeTab,
-    generator.handleGenerate
+    handleGenerate
   ]);
 
   useEffect(() => {
@@ -307,7 +342,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           activeTab={activeTab}
           showOdontoPanoramique={useAccountingStore(s => s.showOdontoPanoramique)}
           onToggleOdonto={() => useAccountingStore.getState().setShowOdontoPanoramique(v => !v)}
-          onGenerate={generator.handleGenerate}
+          onGenerate={handleGenerate}
           loading={generator.loading}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
@@ -321,6 +356,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               patientId={Number(patientId)}
               onConvertToQuote={(allActs) => {
                 const newItems = convertPlanActsToQuoteItems(allActs);
+                setAccountingBaselineFingerprint(null);
                 setItems(prev => [...prev, ...newItems]);
                 setActiveTab('devis');
               }}
@@ -417,7 +453,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         <StudioFooter
           loading={generator.loading}
           activeTab={activeTab}
-          onGenerate={generator.handleGenerate}
+          onGenerate={handleGenerate}
           showPrintWarning={generator.showPrintWarning}
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
@@ -440,7 +476,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
               <div>
                 <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Les actes saisis seront effacés.</p>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Les modifications non archivées seront abandonnées.</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -453,6 +489,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
                   useAccountingStore.getState().setItems([]);
                   useAccountingStore.getState().setGroupSelectedTeeth([]);
                   useAccountingStore.getState().setOdontogramMode('individual');
+                  setAccountingBaselineFingerprint(null);
                   setActiveTab(pendingTab);
                   setPendingTab(null);
                 }}
@@ -503,7 +540,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
-              onRefresh={() => generator.handleGenerate(false, false, true)}
+              onRefresh={() => handleGenerate(false, false, true)}
               title={{
                 'plan': 'Stratégie Clinique',
                 'ordonnance': 'Ordonnance',
