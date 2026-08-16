@@ -15,7 +15,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./t2-runtime-cert.db"
 os.environ["TELEMETRY_ENABLED"] = "false"
 os.environ["CLOUD_AI_ENABLED"] = "false"
 os.environ["DEBUG"] = "false"
-os.environ["ALLOWED_ORIGINS"] = '["http://127.0.0.1:5173","http://localhost:5173"]'
+os.environ["ALLOWED_ORIGINS"] = "http://127.0.0.1:5173,http://localhost:5173"
 
 from backend import database, models
 from backend.security import get_password_hash
