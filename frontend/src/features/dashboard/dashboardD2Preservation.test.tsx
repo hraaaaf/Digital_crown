@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -23,6 +24,7 @@ const renderHeader = (canAdmin: boolean) => render(
       }}
       onNavigatePatient={vi.fn()}
       onOpenMobile={vi.fn()}
+      mobileButtonRef={createRef<HTMLButtonElement>()}
     />
   </MemoryRouter>,
 );
