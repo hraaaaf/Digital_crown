@@ -2,7 +2,7 @@
 
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
-# État canonique manuel — 2026-08-14
+# État canonique manuel — 2026-08-16
 
 ## Baseline vérifiée
 
@@ -220,135 +220,45 @@ Quarantainer/supprimer les anciens moteurs non utilisés.
 
 ---
 
-## Document Studio — chantier actif — 2026-08-15
+## Document Studio — reprise canonique — 2026-08-16
 
-Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
+Roadmap : `DOCUMENT_STUDIO_ROADMAP.md`.
 
-### R1 — P0 Cohérence médicament / Maroc-first — CLOSED ✅
-- PR `#17` — MERGED.
-- Head certifié : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
-- CI : run `31852032393` — SUCCESS.
-- Merge : `e32ab311f72980e0797b93a306c3616a4ff66042`.
+### P1 — Ordonnance
+- Engineering + recertification visuelle fermés.
+- Gates authentifiés/cliniques restent séparés.
 
-### R2 — P0 Persistance protocoles/habitudes — CLOSED ✅
-- PR `#19` — MERGED.
-- Head certifié : `ba66457e5f65917f71670e151826062442525200`.
-- CI : run `31852827218` — SUCCESS.
-- Merge : `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`.
+### P2 — Certificat
+- Engineering convergé.
+- Runtime/PDF final non fermé.
 
-### R3 — P0 Safety orchestration — CLOSED ✅
-- PR `#20` — MERGED.
-- Head certifié : `becadcafb4ba0e6a5f4fda10a0053bb92c96fe1e`.
-- CI : run `31853962025` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge squash : `75e4693dc983ba1708914d16432504bea8f0cd8c`.
-- Le Studio n'affiche plus d'état safety vérifié avant succès réel du backend ; états explicites `unchecked/checking/verified/error`.
-- Dette R3 non bloquante : appel safety read-only parallèle encore présent dans `DocumentHub`, à dédupliquer lors du prochain lot pertinent.
-- Aucune certification clinique/scientifique humaine revendiquée.
+### P3 — Devis — CLOSED / PAUSED ⏸
+- Décision produit : chantier clos jusqu'à nouvel ordre.
+- PR `#77` conservée open + draft comme restart point.
+- Preuves locales : backend **26/26 PASS**, policies frontend **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS**.
+- Full-app/authenticated/browser/cabinet PDF différés et non revendiqués.
+- Détail : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
 
-### R4 — P0 Dirty-state & actions — CLOSED ✅
-- PR `#21` — MERGED.
-- Head certifié : `cdaf28874bc9155d115108bba7548470300c5ca1`.
-- CI : run `31855874418` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge : `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`.
-- Dirty-state dérivé du fingerprint ordonnance complet ; garde onglet/navigateur ; reset après archivage ; actualisation contexte explicite.
-- Le fallback source `forme: d.forme || 'Sachets'` existe encore dans le legacy, mais son effet caché est neutralisé à la frontière transport et la forme manquante est explicitée dans l’UI.
-- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+### P4 — Note Honoraires — ENGINEERING LOCAL CONVERGÉ ✅
+- PR stackée `#90`, draft.
+- Audit : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`.
+- P4-A→P4-F corrigés : contrat financier fail-closed, isolation échéancier/global, statut vs mode, archive hydration, générateur PDF multipage sûr, sémantique modale de règlement.
+- P4-G : accessibilité statique renforcée ; browser/runtime non exécuté.
+- Preuves locales : backend **13/13 PASS**, policy échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long **36/36 lignes / 6 pages / header 6/6 / floor >=7 pt**.
+- Full React/Vite build, smoke authentifié, PDF cabinet/signature et browser 390/768/desktop restent différés ; aucune certification production/financière complète revendiquée.
 
-### R5 — P1 Fast Prescription UX — CLOSED ✅
-- PR `#22` — MERGED.
-- Head certifié : `6de453962668e66be9e26978ec07fc9082afacb7`.
-- CI : run `31878337816` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge : `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`.
-- Quick-picks praticien issus des habitudes réelles : récents + fréquents. Aucun favori étoilé explicite inventé.
-- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+### P5 — Suivi Paiement — PAGE ACTIVE 🟡
+- Socle historique : allocation échéances exacte (ancien P4-A / PR #41) et paiement d'échéance fail-closed (ancien P4-B / PR #42).
+- Prochaine action exacte : créer l'audit P5 sur le head P4 courant, vérifier chargement plan, calculs, paiement/non-paiement, méthodes, reste dû, rappels, sauvegarde et accessibilité ; corriger les P0/P1 avant toute certification runtime.
 
-### R6 — P1 Protocoles + Référentiel — CLOSED ✅
-- PR `#23` — MERGED.
-- Head certifié : `10751078601c3aa5be728bc263e25a58e856c676`.
-- CI : run `31879112143` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge : `6f2b8a22f9cdca25cafe228f266ed46deee8281b`.
-- Référentiel search-first, ajout manuel replié, contexte âge/poids visible, `Mes protocoles` réversible après masquage.
-- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+### P6 — Document Libre
+- Engineering convergé ; runtime/PDF final à recertifier dans son tour.
 
-### R7 — P1 Contexte + Preview premium — CLOSED ✅
-- PR finale `#26` — MERGED.
-- Head certifié : `9a39ecc4d415e59c5457a58638a48ba0c22f81fd`.
-- CI : run `31879649826` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge squash : `2596da527fdd1bee5c6746f645e995f682ca3189`.
-- PR intermédiaires `#24` et `#25` fermées sans merge car remplacées par le candidat consolidé sur baseline post-R6.
-- Contexte patient et preview utilisent une terminologie déterministe ; preview responsive ; test backend prouve qu’une ordonnance `preview=true&archive=true` ne crée ni archive, ni audit, ni paiement, ni acte.
-- Aucune certification UX runtime ni clinique/scientifique humaine revendiquée.
+### P7 — Compagnon Diagnostique
+- Frontière safety partiellement fermée ; audit complet après P6.
 
-### P1 Ordonnance — ENGINEERING CLOSED ✅
-- R1→R7 fermés et fusionnés.
-- Roadmap canonique synchronisée.
-- Interaction runtime et recertification UX/clinique restent des gates séparés et ne sont pas revendiqués.
-
-### P2 Devis + Honoraires — ACTIVE 🟡
-- Audit canonique : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
-
-#### P2-A — Prix catalogue local conservé — CLOSED ✅
-- PR `#27` — MERGED.
-- Head certifié : `7289d0bf64c8139838470923622f8c0b588206e1`.
-- CI : run `31882328096` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
-- Le wrapper répare uniquement les suggestions locales dont le prix catalogue existe ; aucun prix absent n’est inventé.
-
-#### P2-B — PARTIEL fail-closed cohérent UI/backend — CLOSED ✅
-- PR `#29` — MERGED.
-- Head certifié : `d60a99c290e0e27c84d73fb95d947fa111461f7a`.
-- CI finale : run `31884437013` — SUCCESS.
-- Frontend tests/build : SUCCESS.
-- Backend tests/durcissement : SUCCESS.
-- Garde production négative : SUCCESS.
-- Merge squash : `6543c3dad146bdbe055117fe0302b3fbe9cbda07`.
-- Premier head `1005f2281868f435b8fb2f56066bc920b3151df5` : frontend/build + garde production verts, backend rouge uniquement parce qu’un `ValueError` Pydantic restait non sérialisable dans le contexte du handler JSON ; corrigé avec `PydanticCustomError`.
-- `PARTIEL` ne peut plus devenir l’état du document dans ce flux ; aucun montant partiel n’est inféré.
-- `PaymentCreate.amount` est strictement positif et les méthodes connues sont normalisées explicitement.
-
-#### P2-E — Échéances/réconciliation financière exacte — ACTIVE 🟡
-- Défaut confirmé : Honoraires global peut créer un plan dont la somme des échéances diffère du total facturé.
-- Préparation P2-E : réconciliation exacte au centime frontend/backend + tests ; PR draft `#30` 3/3 verte sur ancienne baseline.
-- #30 ne doit pas être mergée : reconstruction obligatoire sur baseline post-P2-B.
-
-#### P2-F — Allocation PAYE exacte par Acte — PREPARED
-- Défaut confirmé : Honoraires PAYE crée des Acte marqués PAYE mais un Payment global sans `acte_id`, ce qui peut diverger de la vue `actes-billing`.
-- Helper/test d’allocation exacte préparés sur PR draft `#31`; intégration route à faire après P2-E.
-
-#### Préparation UX suivante
-- P2-C : quick actions tactiles + phases déterministes sans durée clinique estimée, PR draft `#32`.
-- P2-D : handler legacy de déduplication odontogramme confirmé orphelin ; policy `dent::traitement`, PR draft `#33`.
-
-#### Pré-audits isolés pendant les CI
-- P3 : `work-20260815-p3-static-audit` — non fusionné.
-- P4 : `work-20260815-p4-static-audit` — non fusionné.
-- P5 : `work-20260815-p5-static-audit` — non fusionné.
-- P6 : `work-20260815-p6-static-audit` — non fusionné.
-
-#### P5-P0 clinique découvert — NON CORRIGÉ 🔴
-- `HouseWizard` est atteignable via `Mode Expert`.
-- `DiagnosticEngine` produit diagnostic/protocole/plan de traitement et substitue actuellement automatiquement des classes thérapeutiques à partir d’une détection textuelle d’allergie.
-- Exemple source vérifié : pénicilline → remplacement `AMOXICILLINE` par `CLINDAMYCINE/MACROLIDE`; AINS → remplacement par `CORTICOSTÉROÏDES`.
-- `Appliquer` transforme le résultat en insight `DETERMINISTIC` et positionne le score d’intelligence à 100 ; il ne persiste pas directement le treatment plan dans la DB au point inspecté.
-- Branche de sécurité `work-20260815-p5p0-no-auto-substitution` : test de frontière ajouté, correctif applicatif non encore fusionné.
-- Priorité : aucune substitution thérapeutique automatique ; exposer une alerte à validation praticien.
-
-Aucune certification financière production, UX runtime ou clinique/scientifique humaine n’est revendiquée pour les lots actifs/pré-audits.
+### Règle de reprise Document Studio
+- Ne pas rouvrir P3/P4 full-app uniquement pour satisfaire une CI externe indisponible.
+- Continuer le travail indépendant page par page.
+- Aucun `%` n'est calculé : la roadmap n'a pas de pondération validée.
+- Tests ciblés ≠ certification production/clinique/financière.
