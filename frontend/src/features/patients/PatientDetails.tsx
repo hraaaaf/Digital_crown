@@ -1,8 +1,13 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DigitalCrownLoader } from '../../components/DigitalCrownLoader';
 import { PatientDetails as PatientDetailsInner } from './PatientDetailsInner';
-import { resetPatientDocumentBoundary } from './patientDocumentBoundary';
+import {
+  clearPatientDocumentDraftBoundary,
+  hasUnsavedPatientDocumentDraft,
+  resetPatientDocumentBoundary,
+} from './patientDocumentBoundary';
+import { isSamePatientDocumentTabNavigation } from './patientDocumentHistoryGuard';
 
 /**
  * Route-level patient isolation boundary.
@@ -21,6 +26,49 @@ export const PatientDetails = () => {
 
     return () => {
       resetPatientDocumentBoundary();
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+
+    const shouldProceed = (url?: string | URL | null) => {
+      if (!isSamePatientDocumentTabNavigation(window.location.href, url, id)) return true;
+      if (!hasUnsavedPatientDocumentDraft()) return true;
+
+      const confirmed = window.confirm(
+        'Des modifications non enregistrées sont présentes dans le Studio documentaire. Changer de document et les abandonner ?',
+      );
+      if (!confirmed) return false;
+
+      clearPatientDocumentDraftBoundary();
+      return true;
+    };
+
+    window.history.pushState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (!shouldProceed(url)) return;
+      originalPushState(data, unused, url);
+    }) as History['pushState'];
+
+    window.history.replaceState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (!shouldProceed(url)) return;
+      originalReplaceState(data, unused, url);
+    }) as History['replaceState'];
+
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedPatientDocumentDraft()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('beforeunload', beforeUnload);
     };
   }, [id]);
 
