@@ -1,7 +1,9 @@
 # Document Studio — T2 Integration Status
 
 Date: 2026-08-16
-Stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F current branch.
+Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
+
+Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta (initial close focus + labelled dialog + Escape regression test) has been migrated to #105 before closure.
 
 ## Proof contract
 
@@ -29,7 +31,7 @@ Open:
 - remove dead `aiReport` / `loadingAi` / `handleGenerateAI` generator plumbing;
 - formalize committed P7→P3 transition inside the hub.
 
-Reason still open: those changes require a large-monolith edit while no build/test runner currently executes repository steps.
+Reason still open: these changes touch the large DocumentHub/generator orchestration surface while no repository runner currently executes code.
 
 ## T2-B — Preview truth / freshness
 
@@ -60,15 +62,23 @@ No extraction is claimed yet.
 
 ## T2-D — Accessibility residual closeout
 
-**State: OPEN**
+**State: PARTIAL — CODE VÉRIFIÉ / TEST PRÉPARÉ**
 
-Verified residuals:
-- DocumentHub discard-draft dialog needs dialog labelling/semantics;
-- duplicate dialog needs dialog labelling/semantics;
-- legal-annotation switch needs an explicit accessible name/relationship;
-- browser keyboard/focus/escape matrix remains required.
+Closed on #105:
+- non-inline `LivePreview` exposes `role="dialog"` + `aria-modal`;
+- dialog is labelled by its visible document title;
+- focus moves initially to `Fermer`;
+- Escape closes the preview;
+- loading state is announced via `role="status"` / `aria-live`;
+- Vitest regression is versioned for dialog semantics, initial focus and Escape.
 
-T1-E shell-level accessibility improvements remain preserved.
+Still open:
+- DocumentHub discard-draft dialog labelling/semantics;
+- duplicate dialog labelling/semantics;
+- legal-annotation switch explicit accessible name/relationship;
+- authenticated browser keyboard/focus/escape matrix.
+
+No Vitest PASS is claimed for the new LivePreview regression until a repository execution path runs it.
 
 ## T2-E — Product polish
 
@@ -106,23 +116,30 @@ Open:
 
 No PASS is claimed merely because the harness exists.
 
-## Infrastructure evidence
+## Infrastructure evidence — exact cause verified
 
-Exact checked T2-F head before this documentation-only update: `60b1bafb17e3bb7894086e977f203eac3c9b4875`.
-GitHub Actions run #549 / `31947379642` concluded failure before repository execution: all three jobs (`Garde production (négatif)`, `Frontend (tests & build)`, `Tests & durcissement`) reported `steps:null`.
+Latest fully inspected T2-F workflow evidence before the LivePreview migration:
+- head: `4af8b9a4eb11e3a1a0fa2f2830133cd96ae5a032`;
+- CI run #552 / `31947430902`;
+- jobs: backend, frontend and negative production guard all completed `failure` with no repository step exposed;
+- backend job `95165565692`: `runner_id=0`, empty runner name, `steps=[]`;
+- GitHub check annotation: `The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings`.
 
-This is the same external runner/allocation failure class observed on earlier T1/T2 heads. The run is neither evidence of a code failure nor a PASS.
+Therefore the current Actions failure is an **account Billing / spending-limit runner allocation gate**, not evidence of application-code failure. No repository test executed in that run.
 
-Local fallback is also unavailable in the current execution environment: no authenticated GitHub CLI/network checkout path was available, and connected Replit/Vercel tools did not expose an executable clone/build environment for this private repository.
+LivePreview accessibility code candidate immediately before this documentation-only update: `8ce37bf15f78ebfd100b9dad2c50227f76e47580`. Its new Vitest regression is versioned but not executed yet.
+
+Local fallback remains unavailable in this execution environment: `git` exists but `gh` is not installed and no `GH_*` / `GITHUB_*` credential is exposed to the local shell; the private repository is therefore not available as an authenticated local checkout.
 
 ## Current critical path
 
-1. restore any real exact-head execution path and run `scripts/certify_document_studio_t2.sh`;
-2. with build proof available, finish T2-A monolith cleanup;
-3. wire T2-B preview freshness and remove synthetic payment transport;
-4. perform T2-C decomposition with regression gates;
-5. close T2-D residual accessibility;
-6. run authenticated/browser/PDF/financial matrices;
-7. update final roadmap/status and only then consider merge/global certification.
+1. fix GitHub Billing / Actions spending limit, then run the exact current #105 head once;
+2. if the runner executes, diagnose any real logs before changing code;
+3. finish T2-A monolith cleanup;
+4. wire T2-B preview freshness and remove synthetic payment transport;
+5. perform T2-C decomposition with regression gates;
+6. close remaining T2-D DocumentHub accessibility;
+7. run authenticated/browser/PDF/financial matrices;
+8. update final roadmap/status and only then consider merge/global certification.
 
 No percentage is assigned because the canonical roadmap still has no validated weighting model.
