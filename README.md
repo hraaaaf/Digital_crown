@@ -86,13 +86,23 @@ Le chemin clinique courant doit conserver la séparation suivante : **assistance
 Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 
 Au 16 août 2026 :
-- **P3 Devis** : chantier **clos/pausé jusqu'à nouvel ordre** ; preuves locales principales : backend **26/26 PASS**, frontend policies **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS** ; full-app/authenticated/browser gates différés ; PR #77 conservée draft ;
-- **P4 Note Honoraires** : engineering local **convergé** après fermeture des P0/P1 de l'audit ; preuves principales : backend financier/global/status **13/13 PASS**, isolation échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long ciblé **36/36 lignes sur 6 pages, header 6/6, floor >=7 pt** ; full-app/browser/PDF cabinet différés ; PR #90 conservée draft ;
-- **P5 Suivi Paiement** : **page active suivante**.
+- **P3 Devis** : **clos/pausé jusqu'à nouvel ordre**, PR #77 draft ;
+- **P4 Note Honoraires** : engineering local convergé, PR #90 draft ;
+- **P5 Suivi Paiement** : engineering local convergé, PR #95 draft ;
+- **P6 Document Libre** : engineering local convergé, PR #96 draft ;
+- **P7 Compagnon Diagnostique** : frontière non-prescriptive engineering convergée, PR #97 draft ;
+- **T1 Audit transversal premium** : engineering local convergé, PR #101 draft ;
+- **T2 Refonte finale / recertification globale** : engineering local convergé, PR #102 draft.
+
+Le certificateur unifié est `scripts/certify_document_studio.sh`. Sa **syntaxe Bash a été vérifiée localement**, mais son exécution full-repository n'est pas revendiquée dans l'environnement courant. Les gates runtime authentifié, PDF cabinet, browser 390/768/desktop, validations humaines applicables, merge et post-merge restent séparés.
 
 Statuts détaillés :
-- P3 : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`
-- P4 : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`
+- roadmap : `DOCUMENT_STUDIO_ROADMAP.md`
+- T2 : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_STATUS.md`
+- recertification : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_RECERTIFICATION.md`
+- handover : `docs/audits/DOCUMENT_STUDIO_T2_HANDOVER_2026-08-16.md`
+
+Aucune pondération officielle n'existe pour ce chantier : **pourcentage global indéterminé**.
 
 ### Comptabilité
 
@@ -204,6 +214,12 @@ python scripts/prod_safety_check.py
 # Frontend
 npm --prefix frontend test
 npm --prefix frontend run build
+```
+
+Pour le Document Studio :
+
+```bash
+bash scripts/certify_document_studio.sh
 ```
 
 Pour un changement sur un chemin API ou un générateur PDF, une validation live/rehearsal adaptée au risque est requise en plus des tests unitaires.
