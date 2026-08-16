@@ -145,6 +145,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- DIRTY STATE COMPTABLE ---
   const [accountingBaselineFingerprint, setAccountingBaselineFingerprint] = useState<string | null>(null);
   const pendingAccountingArchiveRef = useRef(false);
+  const pendingAccountingArchivePdfUrlRef = useRef<string | null>(null);
   const accountingTab: AccountingDirtyTab | null = activeTab === 'devis' || activeTab === 'honoraires' ? activeTab : null;
   const accountingDirty = accountingTab
     ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint, docDate)
@@ -228,16 +229,23 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     force = false,
   ) => {
     if (accountingTab) {
-      if (archive && !isPreview) pendingAccountingArchiveRef.current = true;
-      else pendingAccountingArchiveRef.current = false;
+      if (archive && !isPreview) {
+        pendingAccountingArchiveRef.current = true;
+        pendingAccountingArchivePdfUrlRef.current = generator.pdfUrl;
+      } else {
+        pendingAccountingArchiveRef.current = false;
+        pendingAccountingArchivePdfUrlRef.current = null;
+      }
     }
     return generator.handleGenerate(archive, print, isPreview, force);
-  }, [accountingTab, generator.handleGenerate]);
+  }, [accountingTab, generator.handleGenerate, generator.pdfUrl]);
 
   useEffect(() => {
     if (!pendingAccountingArchiveRef.current || !generator.pdfUrl || !accountingTab) return;
+    if (generator.pdfUrl === pendingAccountingArchivePdfUrlRef.current) return;
     setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items, docDate));
     pendingAccountingArchiveRef.current = false;
+    pendingAccountingArchivePdfUrlRef.current = null;
   }, [generator.pdfUrl, accountingTab, items, docDate]);
 
   // --- HYDRATATION ---
