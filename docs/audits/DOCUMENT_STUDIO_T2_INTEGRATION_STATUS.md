@@ -15,37 +15,39 @@ Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview ac
 
 ## T2-A — Information architecture
 
-**State: PARTIAL — CODE VÉRIFIÉ**
+**State: CODE VÉRIFIÉ — RUNTIME OPEN**
 
-Implemented:
+Verified on current #105 head:
 - one canonical P1→P7 vocabulary;
 - canonical ordered certifiable tab list and parser;
-- parser rejects dormant `ai` as certifiable tab;
+- `HubDocumentType` is now the canonical certifiable tab type;
+- the URL parser rejects dormant `ai`;
+- `useDocumentGenerator` exposes no `aiReport`, `loadingAi`, `handleGenerateAI` or `/ai-diagnostic` execution path;
 - canonical P5/P7 preview labels;
 - StudioTabs/Header/Footer presentation components decoupled from the DocumentHub type import;
 - shell navigation emits only P1→P7 tab events;
-- regression source gates added.
+- P7→P3 transfer remains explicit and filtered through `convertPlanActsToQuoteItems()`.
 
 Open:
-- remove `ai` from the DocumentHub monolith type/URL parser/preview map;
-- remove dead `aiReport` / `loadingAi` / `handleGenerateAI` generator plumbing;
-- formalize committed P7→P3 transition inside the hub.
-
-Reason still open: these changes touch the large DocumentHub/generator orchestration surface while no repository runner currently executes code.
+- authenticated runtime verification of URL/navigation behavior.
 
 ## T2-B — Preview truth / freshness
 
-**State: FOUNDATION IMPLEMENTED — TEST PRÉPARÉ**
+**State: CODE VÉRIFIÉ / LOCAL CONTRACT PASS — EXPLICIT CONTROLLER INTEGRATION OPEN**
 
-Implemented:
-- deterministic `documentPreviewFingerprint()` covering active page, patient/date, prescription, certificate, financial state, installments, selected teeth, every Document Libre custom/page/alignment field, legal annotations and P5 payload;
+Verified on current #105 head:
+- deterministic `documentPreviewFingerprint()` covers active page, patient/date, prescription, certificate, financial state, installments, selected teeth, every Document Libre custom/page/alignment field, legal annotations, P5 payload and `isAccounted`;
+- fingerprint source compiles with `tsc --strict` in the available Linux environment;
+- local isolated fingerprint contract: **13/13 assertions PASS**;
 - `useDocumentPreviewController()` regenerates only on an enabled fingerprint change and forgets freshness when preview closes;
-- regression tests cover previously omitted Libre/financial/selected-teeth/legal/P5 inputs.
+- current runtime debounce still depends on `generator.handleGenerate`; that callback depends on the complete memoized generator params, so all current payload-relevant fields invalidate the preview generation callback;
+- synthetic `Espèces` transport for `EN_ATTENTE` is removed;
+- Honoraires emits `mode_reglement` only when `paymentStatus === 'PAYE'`.
 
-Open:
-- wire fingerprint/controller into DocumentHub;
-- invalidate/mark stale visible PDF immediately on fingerprint change;
-- remove synthetic `Espèces` transport for EN_ATTENTE.
+Still open:
+- replace the indirect callback-identity freshness mechanism with the explicit fingerprint/controller in `DocumentHub`;
+- explicitly mark/hide a visible PDF as stale while a new fingerprint is waiting for regeneration;
+- authenticated browser verification of rapid edits / tab switches / preview-close-reopen behavior.
 
 ## T2-C — Shell decomposition
 
@@ -58,27 +60,27 @@ Target remains:
 - domain-local page studios;
 - shell-only header/tabs/footer/dialog composition.
 
-No extraction is claimed yet.
+No extraction is claimed yet. This is now the main remaining engineering refactor.
 
 ## T2-D — Accessibility residual closeout
 
-**State: PARTIAL — CODE VÉRIFIÉ / TEST PRÉPARÉ**
+**State: CODE VÉRIFIÉ / TEST PRÉPARÉ — BROWSER OPEN**
 
-Closed on #105:
+Closed in current code:
 - non-inline `LivePreview` exposes `role="dialog"` + `aria-modal`;
 - dialog is labelled by its visible document title;
 - focus moves initially to `Fermer`;
 - Escape closes the preview;
 - loading state is announced via `role="status"` / `aria-live`;
-- Vitest regression is versioned for dialog semantics, initial focus and Escape.
+- discard-draft dialog exposes `role="dialog"`, `aria-modal` and a labelled visible title;
+- duplicate dialog exposes `role="dialog"`, `aria-modal` and a labelled visible title;
+- legal-annotation control exposes `role="switch"`, `aria-checked` and an explicit labelled relationship;
+- Vitest regression remains versioned for LivePreview dialog semantics, initial focus and Escape.
 
 Still open:
-- DocumentHub discard-draft dialog labelling/semantics;
-- duplicate dialog labelling/semantics;
-- legal-annotation switch explicit accessible name/relationship;
 - authenticated browser keyboard/focus/escape matrix.
 
-No Vitest PASS is claimed for the new LivePreview regression until a repository execution path runs it.
+No full Vitest PASS is claimed until a repository execution path runs it.
 
 ## T2-E — Product polish
 
@@ -102,44 +104,29 @@ Open:
 
 **State: HARNESS PREPARED, NOT EXECUTED**
 
-`scripts/certify_document_studio_t2.sh` requires:
-- Python 3.12;
-- Node 20;
-- clean exact-head worktree;
-- positive production-safety gate;
-- targeted T1/T2 regression;
-- full backend suite;
-- full frontend suite;
-- frontend production build;
-- prerequisite P3→P7/T1 harness presence;
-- negative production-safety gate.
+`scripts/certify_document_studio_t2.sh` remains the fail-closed exact-head harness. No PASS is claimed merely because the harness exists.
 
-No PASS is claimed merely because the harness exists.
+Local targeted evidence added on 2026-08-16:
+- preview fingerprint source: `tsc --strict` PASS;
+- preview fingerprint contract: 13/13 isolated assertions PASS.
 
 ## Infrastructure evidence — exact cause verified
 
-Latest fully inspected T2-F workflow evidence before the LivePreview migration:
-- head: `4af8b9a4eb11e3a1a0fa2f2830133cd96ae5a032`;
-- CI run #552 / `31947430902`;
-- jobs: backend, frontend and negative production guard all completed `failure` with no repository step exposed;
-- backend job `95165565692`: `runner_id=0`, empty runner name, `steps=[]`;
-- GitHub check annotation: `The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings`.
+Latest fully inspected GitHub Actions class remains a runner-allocation failure before repository execution:
+- jobs expose no repository steps;
+- runner allocation did not begin;
+- GitHub annotation identifies account Billing / spending-limit as the blocker.
 
-Therefore the current Actions failure is an **account Billing / spending-limit runner allocation gate**, not evidence of application-code failure. No repository test executed in that run.
+This is not evidence of application-code failure and is not a PASS.
 
-LivePreview accessibility code candidate immediately before this documentation-only update: `8ce37bf15f78ebfd100b9dad2c50227f76e47580`. Its new Vitest regression is versioned but not executed yet.
-
-Local fallback remains unavailable in this execution environment: `git` exists but `gh` is not installed and no `GH_*` / `GITHUB_*` credential is exposed to the local shell; the private repository is therefore not available as an authenticated local checkout.
+Local fallback remains partial: Linux execution is available for reconstructed targeted policies, but no authenticated full private-repository checkout/dependency tree is available in the current shell.
 
 ## Current critical path
 
-1. fix GitHub Billing / Actions spending limit, then run the exact current #105 head once;
-2. if the runner executes, diagnose any real logs before changing code;
-3. finish T2-A monolith cleanup;
-4. wire T2-B preview freshness and remove synthetic payment transport;
-5. perform T2-C decomposition with regression gates;
-6. close remaining T2-D DocumentHub accessibility;
-7. run authenticated/browser/PDF/financial matrices;
-8. update final roadmap/status and only then consider merge/global certification.
+1. T2-C: decompose the `DocumentHub` shell with regression-preserving boundaries;
+2. T2-B: replace indirect preview invalidation with the explicit fingerprint/controller + stale-visible-PDF state;
+3. run exact-head repository harness when a real checkout/runner is available;
+4. run authenticated browser/PDF/financial matrices;
+5. update final roadmap/status and only then consider ready/merge/global certification.
 
 No percentage is assigned because the canonical roadmap still has no validated weighting model.
