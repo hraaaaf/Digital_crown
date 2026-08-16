@@ -32,7 +32,7 @@ def main() -> None:
             fail("login response missing access_token")
         headers = {"Authorization": f"Bearer {token}"}
 
-        patients = client.get("/api/patients", headers=headers)
+        patients = client.get("/api/patients/", headers=headers)
         if patients.status_code != 200:
             fail(f"patients={patients.status_code}: {patients.text[:300]}")
         patient = next((p for p in patients.json() if p.get("numero_dossier") == "T2-0001"), None)
