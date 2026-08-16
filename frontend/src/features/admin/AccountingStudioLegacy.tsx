@@ -869,6 +869,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 <button 
                   type="button"
                   onClick={() => setIsTreasuryModalOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={isTreasuryModalOpen}
                   className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex justify-center items-center gap-2"
                 >
                   <Banknote size={20} /> Paramètres de règlement
@@ -883,6 +885,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         {!isDevis && isTreasuryModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div 
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="honoraires-treasury-title"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -891,6 +896,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               <button 
                 type="button"
                 onClick={() => setIsTreasuryModalOpen(false)}
+                aria-label="Fermer les paramètres de règlement"
                 className="absolute top-6 right-6 w-10 h-10 bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all z-20"
               >
                 <Plus size={24} className="rotate-45" />
@@ -904,7 +910,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <Banknote size={28} />
                   </div>
                   <div>
-                    <h4 className="text-lg font-black text-slate-800 tracking-tight uppercase">Paramètres de règlement</h4>
+                    <h4 id="honoraires-treasury-title" className="text-lg font-black text-slate-800 tracking-tight uppercase">Paramètres de règlement</h4>
                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Règlement et échéances</p>
                   </div>
                 </div>
@@ -914,6 +920,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Comptabiliser CA</span>
                     <button 
                       type="button"
+                      role="switch"
+                      aria-checked={isAccounted}
+                      aria-label="Comptabiliser dans le chiffre d'affaires"
                       onClick={() => setIsAccounted(!isAccounted)}
                       className={cn(
                         "relative w-14 h-7 rounded-full transition-all duration-500",
@@ -935,12 +944,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
                     {[
                       { id: 'EN_ATTENTE', label: 'Attente', color: 'text-amber-600 bg-white shadow-sm border border-slate-100' },
-                      { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600 bg-white shadow-sm border border-slate-100' },
                       { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600 bg-white shadow-sm border border-slate-100' }
                     ].map((s) => (
                       <button
                         key={s.id}
                         type="button"
+                        aria-pressed={paymentStatus === s.id}
                         onClick={() => setPaymentStatus(s.id)}
                         className={cn(
                           "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
@@ -960,10 +969,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       <button
                         key={m}
                         type="button"
+                        disabled={paymentStatus !== 'PAYE'}
+                        aria-pressed={paymentStatus === 'PAYE' && paymentMode === m}
                         onClick={() => setPaymentMode(m as any)}
                         className={cn(
-                          "flex-1 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                          paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                          "flex-1 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed",
+                          paymentStatus === 'PAYE' && paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                         )}
                       >
                         {m === 'Espèces' ? 'Cash' : m}
@@ -977,6 +988,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
                     <button
                       type="button"
+                      aria-pressed={!isGlobalNote}
                       onClick={() => setIsGlobalNote(false)}
                       className={cn(
                         "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
@@ -985,6 +997,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     >Unique</button>
                     <button
                       type="button"
+                      aria-pressed={isGlobalNote}
                       onClick={() => setIsGlobalNote(true)}
                       className={cn(
                         "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
@@ -1046,6 +1059,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <div className="w-full sm:col-span-1 flex justify-end sm:justify-center">
                             <button 
                               type="button"
+                              aria-label={`Supprimer l'échéance ${inst.label}`}
                               onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
                               className="p-3 text-slate-300 hover:text-rose-400 transition-all bg-rose-50 sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
                             >
