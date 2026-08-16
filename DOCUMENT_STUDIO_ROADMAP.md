@@ -1,332 +1,310 @@
-# Document Studio — cartographie exhaustive & refonte intelligente
+# Document Studio — roadmap canonique page par page
 
 ## Objectif
-Cartographier puis refondre intelligemment tout le module documentaire de Digital Crown sans perdre les fonctionnalités utiles ni le positionnement premium.
 
-L’audit doit descendre au niveau **interaction par interaction** : clic, touche clavier, état avant/après, panneau/modal/table affiché, position, contenu, données utilisées, backend appelé, calculs, erreurs, transitions entre pages et effets secondaires.
+Auditer, corriger et recertifier le Studio documentaire de Digital Crown **page par page, dans l’ordre visuel réel de l’interface**, sans perdre les preuves techniques déjà acquises.
+
+L’ordre canonique est celui de `frontend/src/features/admin/DocumentStudio/StudioTabs.tsx`.
+
+## Règle de numérotation canonique — depuis le 16 août 2026
+
+1. **P1 — Ordonnance**
+2. **P2 — Certificat**
+3. **P3 — Devis**
+4. **P4 — Note Honoraires**
+5. **P5 — Suivi Paiement**
+6. **P6 — Document Libre**
+7. **P7 — Compagnon Diagnostique**
+
+Les anciens identifiants techniques comme `P2-A`, `P2-B`, `P3-C`, `P4-A` ou `P5-P0` sont **conservés comme références historiques de PR/commits**. Ils ne définissent plus le numéro de page.
+
+Les anciens chantiers transversaux deviennent :
+- **T1 — Audit transversal premium** ;
+- **T2 — Refonte intelligente finale / recertification globale**.
 
 ## Règle de preuve
-Pour chaque comportement, distinguer explicitement :
-- **CODE VÉRIFIÉ** : comportement démontré par le code source.
-- **TEST IDENTIFIÉ** : comportement couvert par un test source inspecté ; ne signifie pas que le test a été exécuté dans cette session.
-- **INTERACTION EXÉCUTÉE** : comportement observé dans l’application réelle.
 
-Ne jamais assimiler une lecture de code ou la présence d’un test à un test UX réel.
+Pour chaque page et chaque interaction :
+- **CODE VÉRIFIÉ** : comportement démontré par le code source ;
+- **TEST EXÉCUTÉ** : test réellement exécuté avec résultat observé ;
+- **INTERACTION EXÉCUTÉE** : comportement observé dans l’application réelle ;
+- **CERTIFICATION CLINIQUE / FINANCIÈRE / PRODUCTION** : séparée de l’engineering et jamais déduite d’une CI verte.
 
-## Format d’audit de chaque interaction
-**Interaction → déclencheur → état avant → action → état après → élément affiché → position → contenu → données utilisées → backend/calcul → erreurs/edge cases → valeur UX → décision refonte.**
+Une page n’est pas déclarée totalement certifiée tant que ses gates applicables ne sont pas réellement fermés.
 
-## Roadmap
+---
 
-### P1 — Ordonnance
-Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`
+## P1 — Ordonnance
 
-- [x] Saisie rapide, clavier et comportement de `Enter` — **code cartographié**
-- [x] Autocomplétion et sélection — **code cartographié**
-- [x] Presets intégrés — **inventaire/code cartographié**
-- [x] Presets personnels / favoris — **code cartographié**
-- [x] Habitudes apprises / suggestions — **code cartographié**
-- [x] Bibliothèque médicaments — **code cartographié**
-- [x] Recherche et filtres bibliothèque — **code cartographié**
-- [x] Ajout/suppression/réorganisation d’un médicament — **code cartographié**
-- [x] Posologies et chemins d’hydratation — **code cartographié**
-- [x] Adaptation âge / poids / contexte patient — **code cartographié**
-- [x] Validations médicament / dosage / alertes — **code cartographié**
-- [x] Conseils patient — **code cartographié**
-- [x] États vides, erreurs et fallback — **code cartographié**
-- [x] Preview / sauvegarde / impression / sortie — **code cartographié**
-- [x] Cartographie des appels backend et dépendances principales — **code cartographié**
-- [x] Verdict UX et lots de refonte — **audit statique consolidé**
-- [ ] **Interaction réelle exécutée/certifiée dans l’application**
-- [x] **Recertification visuelle après refonte** — PR #43 mergée `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8` ; captures 1440/768/390 inspectées ; CI PR `31898122575` SUCCESS. Interaction authentifiée locale reste séparée.
+**État : ✅ engineering fermé + recertification visuelle réalisée.**
 
-#### P1 — lots d’audit
-- **P1-L1 — Saisie rapide & clavier** : ✅ code cartographié. Score statique **8.1/10**.
-- **P1-L2 — Ligne médicament** : ✅ code cartographié. Score statique **7.9/10**.
-- **P1-L3 — Protocoles & habitudes** : ✅ code cartographié. Score statique **7.5/10**.
-- **P1-L4 — Référentiel médicaments** : ✅ code cartographié. Score statique **8.0/10**.
-- **P1-L5 — Âge / poids / dosage pédiatrique** : ✅ code cartographié. Score statique **7.0/10**.
-- **P1-L6 — Sécurité & validation** : ✅ code cartographié. Score statique **6.8/10**.
-- **P1-L7 — Contexte patient & conseils** : ✅ code cartographié. Score statique **6.8/10**.
-- **P1-L8 — Sauvegarde / preview / impression / sortie** : ✅ code cartographié. Score statique **7.2/10**.
-- **P1-L9 — Synthèse UX premium & plan d’implémentation** : ✅ consolidé. Score statique global P1 **7.4/10**.
+Rapport canonique : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
 
-#### P1 — lots de refonte planifiés
-- **R1 — P0 Cohérence médicament / Maroc-first** : ✅ **engineering fermé**. Pipeline unique quick/ligne/protocole/bibliothèque/assessment ; aucune estimation pédiatrique de poids ; aucune substitution thérapeutique silencieuse ; identité molécule via dictionnaire ; règles source-backed ; gate Maroc explicite ; sources internationales restent support et non recommandation marocaine.
-- **R2 — P0 Persistance protocoles/habitudes** : ✅ **engineering fermé**. Source de vérité unique `DoctorPrescriptionPreference` ; save/load/delete déterministes ; code acte normalisé ; suppression absente = 404 ; erreurs DB rollback + propagation ; local-first conservé.
-- **R3 — P0 Safety orchestration** : ✅ **engineering fermé**. Le Studio exécute le moteur safety backend, expose un état explicite `unchecked/checking/verified/error`, invalide la vérification sur changement patient/médicaments et n’affiche plus de validation verte avant succès du backend.
-- **R4 — P0 Dirty-state & actions** : ✅ **engineering fermé**. Toutes mutations ordonnance dérivées du fingerprint complet, garde onglet/navigateur, reset après génération archivée, refresh contexte réellement relancé, fallback caché `forme='Sachets'` neutralisé avant transport backend et forme manquante exposée dans l’UI.
-- **R5 — P1 Fast Prescription UX** : ✅ **engineering fermé**. Saisie rapide primaire, anti-double-submit, quick-picks récents/fréquents issus des habitudes praticien, ligne progressive et typographie renforcée.
-- **R6 — P1 Protocoles + Référentiel** : ✅ **engineering fermé**. Référentiel search-first, contexte âge/poids visible, ajout manuel replié, `Mes protocoles` réversible après `Masquer`.
-- **R7 — P1 Contexte + Preview premium** : ✅ **engineering fermé**. Terminologie déterministe, contexte patient compact, preview responsive, shell rigide neutralisé sur viewport étroit et preview ordonnance prouvée read-only par test backend.
+### Acquis
+- audit interactionnel/statique détaillé ;
+- R1 à R7 engineering fermés et fusionnés ;
+- cohérence médicament / Maroc-first ;
+- persistance protocoles/habitudes ;
+- orchestration safety fail-closed ;
+- dirty-state et protections navigation ;
+- fast prescription UX ;
+- référentiel/protocoles ;
+- contexte patient + preview responsive ;
+- recertification visuelle 1440 / 768 / 390.
 
-#### R1 — preuve engineering exécutée
-- PR `#17` — **MERGED**.
-- Head final certifié : `8063b11b061ea6d1912e1b4e1a0ab8ef1fcb649a`.
-- CI exacte du head final : run `31852032393` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge squash sur `master` : `e32ab311f72980e0797b93a306c3616a4ff66042`.
-- La preuve précédente `109/109` correspondait à un head fonctionnel antérieur ; la fermeture R1 repose sur le run final exact ci-dessus et n’invente pas de compteur de tests non relu dans ses logs.
-- **Aucune certification clinique humaine n’est revendiquée.** La validation par un reviewer marocain qualifié en pharmacologie/dentisterie reste un gate clinique séparé.
+### Preuves principales
+- R1 : PR #17, CI `31852032393`, merge `e32ab311f72980e0797b93a306c3616a4ff66042` ;
+- R2 : PR #19, CI `31852827218`, merge `432a95eca05d1d7b9781d2d8e81077f0dcb589f2` ;
+- R3 : PR #20, CI `31853962025`, merge `75e4693dc983ba1708914d16432504bea8f0cd8c` ;
+- R4 : PR #21, CI `31855874418`, merge `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8` ;
+- R5 : PR #22, CI `31878337816`, merge `8957635e1bd50d8f44fbcef38c529b3c27f8fb32` ;
+- R6 : PR #23, CI `31879112143`, merge `6f2b8a22f9cdca25cafe228f266ed46deee8281b` ;
+- R7 : PR #26, CI `31879649826`, merge `2596da527fdd1bee5c6746f645e995f682ca3189` ;
+- closeout visuel : PR #43, CI `31898122575`, merge `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`, recapture `31898157179`, post-merge `31898590067`.
 
-#### R2 — preuve engineering exécutée
-- PR `#19` — **MERGED**.
-- Head final certifié : `ba66457e5f65917f71670e151826062442525200`.
-- CI exacte du head final : run `31852827218` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge sur `master` : `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`.
-- Tests R2 ciblés couvrent save → list → delete, 404 absent, rollback et propagation des erreurs DB.
+### Gate séparé restant
+- interaction authentifiée dans l’application locale réelle ;
+- certification clinique/pharmacologique humaine.
 
-#### R3 — preuve engineering exécutée
-- PR `#20` — **MERGED**.
-- Head final certifié : `becadcafb4ba0e6a5f4fda10a0053bb92c96fe1e`.
-- CI exacte du head final : run `31853962025` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge squash sur `master` : `75e4693dc983ba1708914d16432504bea8f0cd8c`.
-- État safety explicite : `unchecked | checking | verified | error`; aucun état `verified` avant réponse backend réussie.
-- Dette non bloquante identifiée avant R4 : le parent `DocumentHub` possède encore un appel safety read-only parallèle ; déduplication à traiter sans modifier la sémantique fail-closed.
-- **Aucune certification clinique/scientifique humaine n’est revendiquée.**
+---
 
-#### R4 — preuve engineering exécutée
-- PR `#21` — **MERGED**.
-- Head final certifié : `cdaf28874bc9155d115108bba7548470300c5ca1`.
-- CI exacte du head final : run `31855874418` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge sur `master` : `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`.
-- Dirty-state ordonnance dérivé d’un fingerprint complet ; protections tab + `beforeunload` ; actualisation contexte explicite ; transport conserve la forme visible au praticien sans inférence `Sachets` cachée.
-- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+## P2 — Certificat
 
-#### R5 — preuve engineering exécutée
-- PR `#22` — **MERGED**.
-- Head final certifié : `6de453962668e66be9e26978ec07fc9082afacb7`.
-- CI exacte du head final : run `31878337816` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge sur `master` : `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`.
-- Quick-picks praticien réutilisent `DoctorMedicationHabit.last_used/usage_count` ; aucun second silo de préférences n’a été créé.
-- Aucun favori étoilé explicite n’a été inventé : l’UX expose les récents/fréquents réellement disponibles.
-- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+**État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
 
-#### R6 — preuve engineering exécutée
-- PR `#23` — **MERGED**.
-- Head final certifié : `10751078601c3aa5be728bc263e25a58e856c676`.
-- CI exacte du head final : run `31879112143` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge squash sur `master` : `6f2b8a22f9cdca25cafe228f266ed46deee8281b`.
-- Le premier run R6 a échoué uniquement sur une assertion de compteur de rendu trop stricte dans le test wrapper ; le test a été corrigé pour mesurer l’augmentation après remount, puis le head final ci-dessus a passé la CI complète.
-- Référentiel search-first + ajout manuel replié + contexte âge/poids visible ; `Mes protocoles` restaure la barre legacy après masquage par remount contrôlé.
-- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+Rapport historique/canonique actuel : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
 
-#### R7 — preuve engineering exécutée
-- PR `#26` — **MERGED**.
-- Head final certifié : `9a39ecc4d415e59c5457a58638a48ba0c22f81fd`.
-- CI exacte du head final : run `31879649826` — **SUCCESS**.
-- Job **Frontend (tests & build)** : ✅ SUCCESS.
-- Job **Tests & durcissement** : ✅ SUCCESS.
-- Job **Garde production (négatif)** : ✅ SUCCESS.
-- Merge squash sur `master` : `2596da527fdd1bee5c6746f645e995f682ca3189`.
-- Le candidat final consolide les anciens sous-lots #24/#25 devenus obsolètes après R6 : contexte patient déterministe, preview responsive et preuve DB read-only ordonnance.
-- **Aucune certification UX runtime ni clinique/scientifique humaine n’est revendiquée.**
+> Le nom du fichier d’audit conserve l’ancien identifiant `P3` pour traçabilité. La page est désormais **P2** dans la roadmap canonique.
 
+### Acquis engineering Certificat
+- nature du document explicite ;
+- dates + durée séparées ;
+- aucun type/durée clinique prérempli sur un nouveau certificat ;
+- certificat médical libre 100 % praticien ;
+- suggestions contextuelles non prescriptives ;
+- contrat backend fail-closed ;
+- validation UX praticien ;
+- signature manuscrite, signataire `DENTISTE` uniquement ;
+- impression fraîche et sûre ;
+- intégrité PDF / identité datée ;
+- QR validation neutralisé sans contrat valide ;
+- routage PDF, noms de fichiers et texte libre long sécurisés.
 
-#### P1 — closeout runtime visuel / glass
-- PR `#43` — **MERGED**.
-- Head final PR : `9a00f07c4b1dc98776cf03bc17b27c23b50d7a81` ; CI exacte run `31898122575` — **SUCCESS**.
-- Merge `master` : `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`.
-- Baseline visuelle pré-R1 auditée via run `31897932430` — SUCCESS.
-- Recapture finale glass 1440 / 768 / 390 via run `31898157179` — **SUCCESS** ; artifact `9250378182` ; inspection visuelle propre.
-- Le glassmorphisme historique n'a pas été supprimé ; le correctif final regroupe contexte, sécurité, actions et alerte forme dans une hiérarchie glass cohérente sans retirer les gardes de sécurité.
-- **Non couvert par cette preuve :** interaction authentifiée dans l'application locale réelle et certification clinique/pharmacologique.
-- CI push post-merge : run `31898590067` — **SUCCESS**.
+### Preuves / historique
+PR Certificat fusionnées notamment : #48, #49, #52, #53, #54, #55, #56, #57, #58, #59, #60, #61, #63.
 
-### P2 — Devis + Honoraires
-Rapport canonique en cours : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`
+Les lots récents ont rencontré un blocage GitHub Actions **avant exécution des steps** ; aucune CI verte récente n’est inventée.
 
-- [x] Actes rapides / recherche catalogue — **P2-A prix catalogue local + P2-C tactile/terminologie fermés**
-- [ ] Odontogramme : chaque interaction dent/groupe/schéma
-- [ ] Déclenchement du tableau/panneau associé
-- [ ] Position, contenu, sélection et validation de ce tableau
-- [ ] Modes individuel / groupe / général
-- [ ] Tarification et habitudes tarifaires
-- [ ] Bundles / propositions complémentaires
-- [x] Organisation par phases — **P2-C regroupement déterministe fermé ; runtime reste ouvert**
-- [x] Totaux et cohérence — **P2-E réconciliation Honoraires globale fermée ; flux direct échéancier reste P4**
-- [x] Honoraires : contrat PARTIEL/modes de règlement — **P2-B et P2-F fermés**
-- [ ] États vides, erreurs, sauvegarde, preview, impression
-- [ ] Verdict UX
+### Gate séparé restant
+- régression réelle du `master` final ;
+- runtime authentifié des parcours Certificat ;
+- inspection visuelle des PDF finaux ;
+- certification réglementaire/clinique indépendante si requise.
 
-#### P2 — lots de refonte
-- **P2-A — Prix catalogue local conservé** : ✅ **engineering fermé**.
-  - PR `#27` — MERGED.
-  - Head final certifié : `7289d0bf64c8139838470923622f8c0b588206e1`.
-  - CI exacte : run `31882328096` — SUCCESS.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge squash : `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`.
-  - Aucun prix n’est inventé : seul un `base_price` local déjà présent dans le catalogue peut remplacer le zéro legacy.
-- **P2-B — PARTIEL fail-closed cohérent UI/backend** : ✅ **engineering fermé**.
-  - PR `#29` — MERGED.
-  - Head final certifié : `d60a99c290e0e27c84d73fb95d947fa111461f7a`.
-  - CI exacte : run `31884437013` — SUCCESS.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge squash : `6543c3dad146bdbe055117fe0302b3fbe9cbda07`.
-  - Premier head `1005f228…` : backend rouge uniquement à cause d’un `ValueError` Pydantic non sérialisable par le handler JSON ; corrigé avec `PydanticCustomError` sur le head final.
-- **P2-E — Totaux/payload/échéances** : ✅ **engineering fermé**.
-  - PR `#34` — MERGED.
-  - Head final certifié : `97c3f43019b5eee781da220ef27ef14053593311`.
-  - CI exacte : run `31885119569` — SUCCESS.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge squash : `cb265a8070307d3e3be2e76b239af7762254dddd`.
-  - Honoraires global : échéances strictement positives et somme exacte au centime avant persistance.
-- **P2-F — Allocation PAYE exacte par Acte** : ✅ **engineering fermé**.
-  - PR `#36` — MERGED.
-  - Head final certifié : `63c636266242b5884ec0f21d9cea28611d13c473`.
-  - CI exacte du head final : run `31886400223` — SUCCESS.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge squash : `5916216ae6b3ebe6cf3609ff652ee09cc549391f`.
-  - Le banc préparatoire `31885269345` avait reproduit le défaut : 2 Acte PAYE mais 1 seul Payment global sans `acte_id`.
-  - Le flux final crée un paiement exact positif par Acte PAYE et lie chaque Payment à son `acte_id`; aucun paiement global orphelin n’est créé.
-- **P2-C — Actes rapides tactile + terminologie déterministe + phases neutres** : ✅ **engineering fermé**.
-  - PR finale `#46` — MERGED ; ancienne PR préparatoire `#32` fermée sans merge.
-  - Head final certifié : `0a5b7dc50fd452c8950c42043340ad9cbea44106`.
-  - CI exacte : run `31900572795` — **3/3 SUCCESS**.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge `master` : `967f56ed10d61b373bcd3c75e6a737a49bd7349a`.
-  - `AccountingQuickActions` est branché au legacy actif ; le regroupement par phases utilise `AccountingPhasePolicy`; les faux labels IA et la durée fixe de cicatrisation non sourcée sont retirés de ce flux.
-- **P2-D — Odontogramme/déduplication/prix groupe** : ✅ **engineering fermé**.
-  - PR finale `#47` — MERGED ; ancienne PR préparatoire `#33` fermée sans merge.
-  - Head final certifié : `2698f3d508c57ca07a410706d05855adba3bc392`.
-  - CI exacte : run `31902205419` — **3/3 SUCCESS**.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge `master` : `021ee425a532bb83ae9669ab4c449522258bdcc6`.
-  - Le flux actif remplace idempotemment les traitements par dent via une clé stable `dent::traitement`, préserve les autres dents et les lignes manuelles, autorise la suppression du dernier traitement d’une dent déjà renseignée, conserve le libellé de surface existant si aucune nouvelle surface n’est fournie et refuse l’ajout silencieux d’un acte groupé à `0 MAD`.
-  - **Aucune interaction authentifiée runtime, certification clinique ou certification financière production n’est revendiquée.**
+---
 
-### P3 — Certificat + Document Libre
-Rapport canonique détaillé : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`
+## P3 — Devis
 
-- [ ] Types de certificats et transitions — **engineering Certificat convergé ; runtime authentifié ouvert**
-- [ ] Durée / slider / motif — **choix/durée explicites et backend fail-closed ; runtime ouvert**
-- [ ] Suggestions et mutations automatiques — **aucune mutation automatique type/durée ; runtime ouvert**
-- [ ] Preview / sauvegarde / impression — **Certificat + Libre durcis ; runtime ouvert**
-- [ ] Document Libre : toolbar, formatage, tableaux, contenu brut/rendu — **P3-C/D engineering fermés ; runtime visuel ouvert**
-- [ ] Templates / réutilisation — **réutilisation archive vérifiée statiquement ; templates Libre dédiés absents ; runtime ouvert**
-- [ ] États vides / erreurs / protection saisie — **P3-C/F/G engineering fermés ; runtime ouvert**
-- [ ] Verdict UX — **audit statique consolidé ; runtime final ouvert**
+**État : 🟡 PROCHAINE PAGE ACTIVE.**
 
-#### P3 — lots engineering fermés
-- **P3-A — Suggestions de certificat non mutantes** : ✅ **engineering fermé**. PR `#37`, head final `6b88c0aebed8ba95dc248a743f9e82cf62c511e1`, CI exacte `31887555410` — 3/3 SUCCESS, merge `52d58f0efc94e68ef45fc12fa7912d15c2830e64`. Les suggestions ne modifient plus automatiquement type ou durée.
-- **P3-B — Motif personnalisé obligatoire pour certificat “Autre”** : ✅ **engineering fermé**. PR `#39`, head final `5eacafb57f5d76f9fddd748e468b4828b5d31834`, CI exacte `31894899652` — 3/3 SUCCESS, merge `2c677f229a25732c2895615261f9205d2a227e52`. Le fallback silencieux `Autre → Repos Post-Opératoire` est supprimé ; un motif personnalisé vide échoue explicitement.
-- **P3-C — Validation visuelle du Document Libre** : ✅ **engineering fermé**. PR `#40`, head final `7c1793f2331ff5e726f9f964d941dc1e96c56f5f`, CI exacte `31895447932` — 3/3 SUCCESS, merge `a7f81ed332ab2a3774382ace3db2446cd6d447d1`. Les erreurs `libreTitle`/`libreContent` sont reliées aux champs canoniques et les actions de formatage ne soumettent pas le formulaire.
-- **P3-CERT — Convergence Certificat** : ✅ **code convergé**. PR `#48/#49/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61/#63` fusionnées ; nature/durée explicites, présence fondée sur preuve réelle, backend fail-closed, signature `DENTISTE` manuscrite, assertions PDF non vérifiées supprimées, QR validation neutralisé, impression finale fraîche. **Aucune CI finale verte ni runtime authentifié n’est revendiqué pour cette convergence.**
-- **P3-D — Document Libre contrat + PDF sûr** : ✅ **engineering mergé**. PR `#64`, merge `3d9bcd29330fbb1f8be51b53b77718fda88d5d49`. Validation fail-closed, markup allowlist/échappement, multi-page lisible, branding employeur, âge daté, nom de fichier sûr. Run `31914469209` : jobs non exécutés (`steps=[]`).
-- **P3-E — Document Libre impression sûre** : ✅ **engineering mergé**. PR `#65`, merge `b8e0480b6bdfc6c4c61d4ef31c7ea42b75a59a5c`. `Préparer impression` génère un PDF frais ; autres documents hors scope inchangés. Run `31914543653` : jobs non exécutés.
-- **P3-F — Document Libre auto-preview invalide** : ✅ **engineering mergé**. PR `#66`, merge `cf805726553431849b514575c79f4648f6b552e0`. Aucun appel backend/toast pendant un auto-preview Libre encore invalide ; validation finale inchangée. Run `31914693644` : jobs non exécutés.
-- **P3-G — Document Libre protection brouillon** : ✅ **engineering mergé**. PR `#67`, merge `7ec3f6777b5af22d6cc5c4af286d0d6da9d76918`. Dirty-state sur toutes mutations Libre, garde changement d’onglet + `beforeunload`, reset uniquement après archivage réussi. Run préparatoire `31914866255` : jobs non exécutés avant réalignement final.
-- **P3-H — Permission clinique d’émission Document Libre/Lettre** : ✅ **engineering mergé**. PR `#70`, merge `23bc6ddf9ae5e2988a077d25e5e4de45e3cd381e`. `libre`, `lettre`, `lettre_medicale`, `document_libre` exigent désormais `clinical` au lieu de `patients` ; secrétaire standard refusée, dentiste et délégation clinique explicite autorisés. Routeur limité à +4/-4 et tests RBAC ciblés ajoutés. Run `31915467184` : jobs non exécutés avant steps.
+Historique technique partagé avec Note Honoraires : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
 
-Les cases P3 ci-dessus restent ouvertes tant que **la régression réellement exécutée et la certification UX/runtime correspondante** ne sont pas fermées. **Aucune certification clinique/scientifique, réglementaire ou UX runtime n’est revendiquée par les lots engineering récents.**
+> Les anciens lots `P2-*` restent des identifiants historiques. Ils alimentent désormais P3 Devis et P4 Note Honoraires selon leur portée réelle.
 
-### P4 — Suivi Paiement / Échéancier
-- [ ] Chargement plan existant
-- [ ] Total / avance / nombre d’échéances
-- [ ] Génération des lignes
-- [x] Arrondis et réconciliation exacte — **P4-A engineering fermé**
-- [ ] Modification manuelle
-- [x] Statut payé / non payé — **P4-B intégrité backend fail-closed fermée ; UX runtime reste ouverte**
-- [ ] Rappels / WhatsApp
-- [ ] Résumé payé / restant / prochaine échéance
-- [ ] États vides, erreurs, sauvegarde
-- [ ] Verdict UX
+### Socle engineering déjà acquis
+- ancien **P2-A** : prix catalogue local conservé, PR #27, CI `31882328096`, merge `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc` ;
+- ancien **P2-C** : actes rapides tactiles + terminologie déterministe + phases neutres, PR #46, CI `31900572795` 3/3 SUCCESS, merge `967f56ed10d61b373bcd3c75e6a737a49bd7349a` ;
+- ancien **P2-D** : odontogramme / déduplication / prix groupe, PR #47, CI `31902205419` 3/3 SUCCESS, merge `021ee425a532bb83ae9669ab4c449522258bdcc6` ;
+- ancien **P2-E** : réconciliation totale/échéances partagée, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd`.
 
-#### P4 — lots engineering fermés
-- **P4-A — Répartition exacte des échéances** : ✅ **engineering fermé**. PR `#41`, head final `7a715bdd79c9579329bcdd496807f72ed8f69d9a`, CI exacte `31896494441` — 3/3 SUCCESS, merge `989b819fe9f38ea616a48bf34e59263f7bcab82b`. La répartition réconcilie exactement le total au centime et l’auto-application de valeurs financières `PriceBrain` est supprimée ; l’apprentissage ne survient qu’après génération explicite.
-- **P4-B — Paiement d’échéance fail-closed** : ✅ **engineering fermé**. PR `#42`, head final rebasé `d75b132a3d9ef705f6dc27eb4de8d44ca1eebe53`, CI exacte `31897537545` — 3/3 SUCCESS, merge `365a8cd9f1e9543898a70e060fd3e6890f647d66`. Création plan+échéances atomique, méthode de paiement explicite obligatoire au premier passage PAYE, `Payment.amount` basé sur le montant final, et une échéance déjà payée ne peut plus être rouverte ou repricée silencieusement.
+### Audit page-par-page à exécuter maintenant
+- [ ] état initial Devis ;
+- [ ] actes rapides / recherche catalogue ;
+- [ ] odontogramme : clic dent, modal, surfaces, traitements ;
+- [ ] modes Soins ciblés / Bridge & Prothèses / Soins généraux ;
+- [ ] sélection Q1-Q4 / S1-S6 ;
+- [ ] prix connu / prix inconnu / modification manuelle ;
+- [ ] bundles / suggestions complémentaires ;
+- [ ] organisation par phases ;
+- [ ] lignes manuelles, suppression et réorganisation ;
+- [ ] totaux ;
+- [ ] preview ;
+- [ ] sauvegarde / archivage ;
+- [ ] impression ;
+- [ ] erreurs / états vides / navigation dirty-state ;
+- [ ] responsive et accessibilité ;
+- [ ] verdict UX puis lots correctifs ;
+- [ ] recertification finale de la page.
 
-Les autres comportements P4 restent à auditer/exécuter dans l’application réelle. **Aucune certification financière runtime n’est revendiquée.**
+---
 
-### P5 — Compagnon diagnostique + interactions inter-pages
-- [ ] Arbre complet des états/questions
-- [ ] Contexte patient utilisé
-- [ ] Sorties diagnostic / actes proposés
-- [x] Validation praticien — **P5-P0 supprime les substitutions thérapeutiques automatiques dérivées du texte d’allergie**
-- [ ] Passage Compagnon → Devis
-- [ ] Passage vers Ordonnance / autres documents si prévu
-- [ ] Conservation/perte d’état lors des changements d’onglet
-- [ ] Fonctionnalités orphelines / callbacks non utilisés
-- [ ] Verdict UX et positionnement dans le produit
+## P4 — Note Honoraires
 
-- **P5-P0 — frontière pharmacovigilance / substitution** : ✅ **engineering fermé**.
-  - PR `#38` — MERGED.
-  - Head final certifié : `66cc5e125c6e37c558d097e3b497a16a58d09edc`.
-  - CI exacte : run `31886995993` — SUCCESS.
-  - Frontend tests/build : ✅ SUCCESS.
-  - Backend tests/durcissement : ✅ SUCCESS.
-  - Garde production négative : ✅ SUCCESS.
-  - Merge squash : `46d9388e80e3334230f8bea1356e4e38951408ca`.
-  - `HouseWizard` passe par `SafeDiagnosticEngine`; les signaux textuels d’allergie produisent des warnings et ne réécrivent plus automatiquement le protocole thérapeutique.
-  - **Cette fermeture ne valide pas scientifiquement les règles diagnostiques ou protocoles médicamenteux legacy.**
+**État : 🟡 socle engineering partiellement fermé ; audit page-par-page à faire après P3.**
 
-Pré-audit statique P5 reste actif pour le reste du compagnon diagnostique et ses interactions inter-pages.
+Historique technique partagé : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
 
-### P6 — Audit transversal premium
-- [ ] Navigation globale et ordre des onglets
-- [ ] Header / Footer et actions globales
-- [ ] Dirty state / autosave / protections navigation
-- [ ] Preview responsive / split view / plein écran
-- [ ] Responsive multi-format
-- [ ] Typographie / tailles minimales / contraste
-- [ ] Dark mode
-- [ ] Raccourcis clavier
-- [ ] Cohérence labels / terminologie / faux labels IA
-- [ ] États loading / empty / error / success
-- [ ] Accessibilité
-- [ ] Cohérence clinique/financière/documentaire
+### Socle engineering déjà acquis
+- ancien **P2-B** : `PARTIEL` fail-closed cohérent UI/backend, PR #29, CI `31884437013`, merge `6543c3dad146bdbe055117fe0302b3fbe9cbda07` ;
+- ancien **P2-E** : totaux/payload/échéances, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd` ;
+- ancien **P2-F** : allocation `PAYE` exacte par Acte, PR #36, CI `31886400223`, merge `5916216ae6b3ebe6cf3609ff652ee09cc549391f` ;
+- les socles actes rapides / odontogramme communs issus des anciens P2-C/P2-D sont également présents.
 
-Pré-audit statique isolé sur `work-20260815-p6-static-audit` : micro-typographie 9–10 px, sémantique d’onglets incomplète, sortie/reload à centraliser dans le dirty-state et terminologie autoritative identifiés. **Non fusionné, non certifié.**
+### À auditer
+- [ ] état initial Note Honoraires ;
+- [ ] reprise des actes / panier ;
+- [ ] statut de paiement ;
+- [ ] modes de règlement ;
+- [ ] cohérence Acte ↔ Payment ;
+- [ ] totaux et reste dû ;
+- [ ] preview / archive / impression ;
+- [ ] comportement après archivage ;
+- [ ] erreurs et dirty-state ;
+- [ ] responsive / accessibilité ;
+- [ ] verdict UX et recertification.
 
-### P7 — Refonte intelligente finale
-- [ ] Cartographie consolidée du module
-- [ ] Matrice **GARDER / AMÉLIORER / FUSIONNER / CACHER / SUPPRIMER / REFAIRE**
-- [ ] Nouvelle architecture de navigation
-- [ ] Hiérarchie de ce qui doit être visible en premier
-- [ ] Priorités P0/P1/P2 de refonte
-- [ ] Plan d’implémentation par lots réversibles
-- [ ] Critères de validation UX/fonctionnels
-- [ ] Recertification finale du Studio documentaire
+---
 
-## État courant
-- **P1 Ordonnance : ✅ R1 à R7 engineering fermés et fusionnés. Audit statique détaillé terminé. Interaction runtime et recertification clinique/UX restent des gates séparés, non revendiqués.**
-- **P2 : 🟡 ACTIVE** — P2-A/B/C/D/E/F engineering fermés et fusionnés ; audit runtime interaction-par-interaction non exécuté.
-- **P3 : 🟡 ACTIVE** — Certificat + Document Libre convergés côté code ; P3-A/B/C/D/E/F/G/H engineering mergés ; régression réellement exécutée et certification UX/runtime restent ouvertes.
-- **P4 : 🟡 ACTIVE** — P4-A/B engineering fermés et fusionnés ; autres comportements et certification financière/UX runtime restent ouverts.
-- **P5 : 🟡 ACTIVE** — P5-P0 clinique fermé et fusionné ; reste du compagnon diagnostique/inter-pages à auditer/refondre.
-- **P6 : 🟡 pré-audit statique isolé, non fusionné.**
-- P7 : ⬜
+## P5 — Suivi Paiement
 
-Le précédent audit statique général sert uniquement de pré-analyse. Aucun sous-P n’est déclaré certifié runtime sans interaction réelle ou test exécuté correspondant.
+**État : 🟡 engineering financier critique partiellement fermé ; audit runtime page complet restant.**
 
-## Baseline
-Audit P1 basé sur la branche `master` et l’état applicatif parent `c740b6644b4b85363438998dcf34284054122464`. R1 a ensuite été fusionné via `e32ab311f72980e0797b93a306c3616a4ff66042`; R2 via `432a95eca05d1d7b9781d2d8e81077f0dcb589f2`; R3 via `75e4693dc983ba1708914d16432504bea8f0cd8c`; R4 via `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8`; R5 via `8957635e1bd50d8f44fbcef38c529b3c27f8fb32`; R6 via `6f2b8a22f9cdca25cafe228f266ed46deee8281b`; R7 via `2596da527fdd1bee5c6746f645e995f682ca3189`; P2-A via `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc`; P2-B via `6543c3dad146bdbe055117fe0302b3fbe9cbda07`; P2-E via `cb265a8070307d3e3be2e76b239af7762254dddd`; P2-F via `5916216ae6b3ebe6cf3609ff652ee09cc549391f`; P2-C via `967f56ed10d61b373bcd3c75e6a737a49bd7349a`; P2-D via `021ee425a532bb83ae9669ab4c449522258bdcc6`; P3-A via `52d58f0efc94e68ef45fc12fa7912d15c2830e64`; P3-B via `2c677f229a25732c2895615261f9205d2a227e52`; P3-C via `a7f81ed332ab2a3774382ace3db2446cd6d447d1`; P3-D via `3d9bcd29330fbb1f8be51b53b77718fda88d5d49`; P3-E via `b8e0480b6bdfc6c4c61d4ef31c7ea42b75a59a5c`; P3-F via `cf805726553431849b514575c79f4648f6b552e0`; P3-G via `7ec3f6777b5af22d6cc5c4af286d0d6da9d76918`; P3-H via `23bc6ddf9ae5e2988a077d25e5e4de45e3cd381e`; P4-A via `989b819fe9f38ea616a48bf34e59263f7bcab82b`; P4-B via `365a8cd9f1e9543898a70e060fd3e6890f647d66`; P5-P0 via `46d9388e80e3334230f8bea1356e4e38951408ca`. Les autres lots actifs doivent repartir de cette baseline fonctionnelle après rebase exact.
+### Acquis historiques
+- ancien **P4-A** : répartition exacte des échéances, PR #41, CI `31896494441`, merge `989b819fe9f38ea616a48bf34e59263f7bcab82b` ;
+- ancien **P4-B** : paiement d’échéance fail-closed, PR #42, CI `31897537545`, merge `365a8cd9f1e9543898a70e060fd3e6890f647d66`.
+
+### À auditer
+- [ ] chargement plan existant ;
+- [ ] total / avance / nombre d’échéances ;
+- [ ] génération des lignes ;
+- [ ] modification manuelle ;
+- [ ] passage payé / non payé ;
+- [ ] méthode de paiement ;
+- [ ] résumé payé / restant / prochaine échéance ;
+- [ ] rappels / WhatsApp si réellement branchés ;
+- [ ] erreurs / sauvegarde ;
+- [ ] responsive / accessibilité ;
+- [ ] certification financière runtime séparée.
+
+---
+
+## P6 — Document Libre
+
+**État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
+
+Rapport historique/canonique actuel : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
+
+> Le rapport conserve l’ancien regroupement `P3 Certificat + Document Libre` pour traçabilité. Document Libre est désormais **P6**.
+
+### Acquis engineering
+- ancien P3-C / PR #40 : validation champs + toolbar non-submit ;
+- ancien P3-D / PR #64 : contrat + PDF sûr ;
+- ancien P3-E / PR #65 : impression sûre ;
+- ancien P3-F / PR #66 : auto-preview invalide silencieux ;
+- ancien P3-G / PR #67 : protection des brouillons ;
+- ancien P3-H / PR #70 : permission clinique d’émission.
+
+### Gate séparé restant
+- régression réelle frontend/backend/PDF ;
+- runtime authentifié saisie, toolbar, tableau, A4/A5, alignement, preview, archive, réouverture, abandon protégé et impression ;
+- inspection visuelle PDF multi-page ;
+- amélioration WYSIWYG éventuelle classée produit, non sécurité.
+
+---
+
+## P7 — Compagnon Diagnostique
+
+**État : 🟡 frontière safety partiellement fermée ; audit complet restant.**
+
+### Acquis historique
+- ancien **P5-P0** : frontière pharmacovigilance / substitution, PR #38, CI `31886995993`, merge `46d9388e80e3334230f8bea1356e4e38951408ca` ;
+- les signaux textuels d’allergie produisent des warnings et ne substituent plus automatiquement un protocole thérapeutique.
+
+### À auditer
+- [ ] arbre complet des états/questions ;
+- [ ] contexte patient réellement utilisé ;
+- [ ] sorties diagnostiques / actes proposés ;
+- [ ] validation praticien ;
+- [ ] passage Compagnon → Devis ;
+- [ ] passage vers Ordonnance / autres documents ;
+- [ ] conservation/perte d’état inter-pages ;
+- [ ] callbacks orphelins ;
+- [ ] valeur clinique et UX ;
+- [ ] validation scientifique humaine séparée.
+
+---
+
+## T1 — Audit transversal premium
+
+**État : ⬜ à traiter après les pages P1 à P7 ou lorsqu’un défaut transversal bloque plusieurs pages.**
+
+- [ ] navigation globale et ordre des onglets ;
+- [ ] header / footer / actions globales ;
+- [ ] dirty-state / protections navigation ;
+- [ ] preview responsive / split view / plein écran ;
+- [ ] responsive multi-format ;
+- [ ] typographie / tailles minimales / contraste ;
+- [ ] dark mode ;
+- [ ] raccourcis clavier ;
+- [ ] cohérence labels / terminologie ;
+- [ ] loading / empty / error / success ;
+- [ ] accessibilité ;
+- [ ] cohérence clinique, financière et documentaire.
+
+Ancien pré-audit `P6` conservé comme historique, mais **T1** est désormais l’identifiant canonique transversal.
+
+---
+
+## T2 — Refonte intelligente finale / recertification globale
+
+**État : ⬜ après convergence P1 à P7 + T1.**
+
+- [ ] cartographie consolidée du module ;
+- [ ] matrice `GARDER / AMÉLIORER / FUSIONNER / CACHER / SUPPRIMER / REFAIRE` ;
+- [ ] architecture finale de navigation ;
+- [ ] hiérarchie de l’information ;
+- [ ] priorités P0/P1/P2 ;
+- [ ] critères de validation UX/fonctionnels ;
+- [ ] régression globale ;
+- [ ] recertification finale du Studio documentaire.
+
+Ancien chantier `P7 Refonte intelligente finale` renommé **T2** afin de réserver P7 à la vraie septième page du Studio.
+
+---
+
+## Table de migration des anciens identifiants
+
+| Ancien identifiant | Portée historique | Nouvelle page canonique |
+|---|---|---|
+| P1 / R1-R7 | Ordonnance | **P1 Ordonnance** |
+| P2-A, P2-C, P2-D | Devis / socle comptable partagé | **P3 Devis** principalement |
+| P2-B, P2-E, P2-F | Honoraires / contrats comptables partagés | **P4 Note Honoraires** principalement |
+| P3 Certificat | Certificat | **P2 Certificat** |
+| P3-C à P3-H Document Libre | Document Libre | **P6 Document Libre** |
+| P4-A / P4-B | Échéancier / paiements | **P5 Suivi Paiement** |
+| P5-P0 | Compagnon / safety | **P7 Compagnon Diagnostique** |
+| ancien P6 | Audit transversal | **T1** |
+| ancien P7 | Refonte finale | **T2** |
+
+Les PR, commits, noms de branches et fichiers d’audit historiques **ne sont pas renommés rétroactivement**.
+
+---
+
+## État courant / chemin critique
+
+1. **P1 Ordonnance** : engineering + visuel fermés ; gates authentifiés/cliniques séparés.
+2. **P2 Certificat** : engineering convergé ; certification finale runtime/PDF encore ouverte.
+3. **P3 Devis** : **prochaine page active à décortiquer intégralement**.
+4. **P4 Note Honoraires** : après P3.
+5. **P5 Suivi Paiement** : après P4.
+6. **P6 Document Libre** : engineering convergé ; runtime/PDF final à recertifier dans son tour de page.
+7. **P7 Compagnon Diagnostique** : après P6.
+8. **T1** puis **T2** : transversal et closeout global.
+
+## Règle de progression
+
+Pour chaque page :
+
+**audit interaction par interaction → défauts classés → correctifs réversibles → tests ciblés → CI si disponible → runtime/visuel selon le risque → mise à jour audit canonique → mise à jour roadmap → page suivante.**
+
+Un blocage d’infrastructure externe non spécifique à la page (ex. runner CI indisponible) doit être consigné mais ne doit pas empêcher de poursuivre le travail indépendant autorisé. Aucune réussite de test n’est revendiquée si le test n’a pas réellement été exécuté.
