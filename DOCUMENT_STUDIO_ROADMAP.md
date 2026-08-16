@@ -84,18 +84,19 @@ Rapports :
 - note/acte vide refusés ; montants finis, >0, ≤ 1 000 000 MAD ;
 - validation request + pré-PDF + persistance ;
 - `PAYE` exige un mode de règlement choisi explicitement ;
-- `EN_ATTENTE` n’exige aucun mode puisqu’aucun Payment n’est créé ;
+- `EN_ATTENTE` n’exige, ne sérialise et ne conserve aucun mode de règlement ;
 - aucun fallback silencieux vers Espèces à la persistance ;
 - allocation exacte `Acte ↔ Payment` conservée ;
 - note globale réconciliée au centime ;
+- échéances d’une note exigeant un plan datées explicitement avant PDF/archive : aucune date financière synthétisée ;
 - Devis → Honoraires conserve les actes mais réinitialise statut/mode/plan/échéances ;
 - aucun historique P5 injecté dans le store P3/P4 ;
-- suggestion radio financière supprimée du parcours frontend ;
-- tests request, pré-PDF, persistance et store ajoutés.
+- suggestions radio/RDV non contractuelles retirées du parcours financier ;
+- tests request, pré-PDF, persistance, absence d’inférence clinique et store ajoutés.
 
 ### Reste
 
-- full-suite/build réel sur le stack P3→P4/P5 ;
+- exécution réelle du harness/full-suite/build sur le stack P3→P6 ;
 - runtime authentifié EN_ATTENTE/PAYE, archive/doublon/impression ;
 - rapprochement `Acte ↔ Payment` dans le dossier patient ;
 - PDF réel et responsive/accessibilité ;
@@ -130,7 +131,7 @@ Rapports :
 
 ### Reste
 
-- full-suite/build ;
+- exécution réelle full-suite/build ;
 - runtime authentifié création/sauvegarde/encaissement ;
 - rapprochement `Payment ↔ installment` ;
 - scénario de contrepassation à définir/certifier séparément ;
@@ -141,7 +142,7 @@ Rapports :
 
 ## P6 — Document Libre
 
-**État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
+**État : ✅ engineering convergé + matrice de certification automatisée préparée ; ⏳ exécution/runtime/PDF visuel non fermés.**
 
 Rapports :
 - `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md` ;
@@ -150,9 +151,13 @@ Rapports :
 
 Acquis : validation titre/contenu, toolbar non-submit, contrat/PDF sûr, allowlist markup, document long/multipage, impression fraîche, auto-preview invalide silencieux, dirty-state, permission clinique, archive/réouverture.
 
+Couverture automatisée existante/ajoutée : sécurité markup, permissions, caractères spéciaux, multipage lisible, A4/A5 sur dimensions PDF, destinataire/date personnalisés et tableau Markdown.
+
+Harness stack : `scripts/certify_document_studio_p3_p6.sh` regroupe régression ciblée P3→P6, full backend, frontend ciblé/full, build et prod-safety fail-closed.
+
 Aucun nouveau P0 statique démontré dans le chantier actuel.
 
-Reste : régression frontend/backend/PDF réelle, runtime authentifié, inspection A4/A5/multipage/tableaux/caractères spéciaux, responsive/accessibilité. WYSIWYG/templates = amélioration produit, pas gate sécurité.
+Reste : exécuter réellement le harness sur le head final, runtime authentifié, inspection A4/A5/multipage/tableaux/caractères spéciaux, responsive/accessibilité. WYSIWYG/templates = amélioration produit, pas gate sécurité.
 
 ---
 
@@ -201,14 +206,16 @@ Reste : arbre d’états, contexte patient, sorties diagnostiques, validation pr
 ## Chemin critique courant
 
 1. **P3 PR #77** : conserver comme base ordonnée et fermer les gates full-repo/runtime quand l’infrastructure permet une exécution réelle.
-2. **Stack P4/P5 après P3** : ouvrir une PR dédiée vers la branche P3, vérifier le diff, CI une fois, puis exécuter toute validation indépendante disponible.
-3. **Ordre de merge** : P3 d’abord ; ensuite rebase/retarget du stack P4/P5 vers `master`, recertification et merge seulement avec preuves suffisantes.
-4. **P6** : recertification runtime/PDF sur la baseline convergée.
+2. **Stack P4/P5/P6 PR #80** : vérifier le diff final et exécuter `scripts/certify_document_studio_p3_p6.sh` sur le head exact dès qu’un runner réel est disponible.
+3. **Ordre de merge** : P3 d’abord ; ensuite retarget/rebase du stack P4/P5/P6 vers `master`, recertification et merge seulement avec preuves suffisantes.
+4. **Gates manuels P4→P6** : runtime authentifié, PDF cabinet réel, responsive/accessibilité, rapprochement financier.
 5. **P7**, puis **T1**, puis **T2**.
 
 ## Infrastructure CI
 
-Sur les heads récents P3/P4/P5, GitHub Actions a déjà échoué avant exécution des steps (`steps=null`). Ce blocage runner/billing est externe : il ne justifie ni PASS ni échec applicatif et ne bloque pas le travail indépendant.
+Sur les heads récents P3/P4/P5, GitHub Actions a déjà pu échouer avant exécution des steps (`steps=null`). Ce blocage runner/billing est externe : il ne justifie ni PASS ni échec applicatif et ne bloque pas le travail indépendant.
+
+Le harness P3→P6 est désormais prêt, mais aucun PASS n’est revendiqué tant qu’il n’a pas été réellement exécuté sur un head exact.
 
 ## Règle de progression
 
