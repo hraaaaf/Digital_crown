@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DOCUMENT_STUDIO_LABELS,
@@ -7,9 +8,14 @@ import {
   isCertifiableDocumentStudioTab,
 } from './DocumentStudioVocabulary';
 
-const tabsSource = readFileSync(new URL('./StudioTabs.tsx', import.meta.url), 'utf8');
-const headerSource = readFileSync(new URL('./StudioHeader.tsx', import.meta.url), 'utf8');
-const footerSource = readFileSync(new URL('./StudioFooter.tsx', import.meta.url), 'utf8');
+const source = (file: string) => readFileSync(
+  resolve(process.cwd(), 'src/features/admin/DocumentStudio', file),
+  'utf8',
+);
+const tabsSource = source('StudioTabs.tsx');
+const headerSource = source('StudioHeader.tsx');
+const footerSource = source('StudioFooter.tsx');
+const navigationPolicySource = source('DocumentTabNavigationPolicy.ts');
 
 describe('Document Studio canonical product vocabulary', () => {
   it('exposes exactly the seven certifiable P1→P7 surfaces', () => {
@@ -39,10 +45,14 @@ describe('Document Studio canonical product vocabulary', () => {
     expect(DOCUMENT_STUDIO_PREVIEW_TITLES).not.toHaveProperty('ai');
   });
 
-  it('keeps presentation shell components decoupled from the DocumentHub monolith', () => {
-    for (const source of [tabsSource, headerSource, footerSource]) {
-      expect(source).not.toContain("import('../DocumentHub').HubDocumentType");
-      expect(source).toContain('DocumentStudioVocabulary');
+  it('keeps presentation and navigation types on the canonical P1→P7 vocabulary', () => {
+    for (const shellSource of [tabsSource, headerSource, footerSource]) {
+      expect(shellSource).not.toContain("import('../DocumentHub').HubDocumentType");
+      expect(shellSource).toContain('DocumentStudioVocabulary');
     }
+    expect(headerSource).not.toContain("| 'ai'");
+    expect(headerSource).not.toContain("activeTab === 'ai'");
+    expect(navigationPolicySource).toContain('CertifiableDocumentStudioTab');
+    expect(navigationPolicySource).not.toContain("| 'ai'");
   });
 });
