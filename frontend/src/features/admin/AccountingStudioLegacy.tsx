@@ -29,6 +29,7 @@ import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 import { AccountingQuickActions } from './DocumentStudio/AccountingQuickActions';
 import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePolicy';
 import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
+import { odontogramGroupSelection, odontogramQuickGroupKeys } from './DocumentStudio/AccountingOdontogramModePolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -90,27 +91,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   }, [specialties]);
 
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
-  
+
+  const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
+  const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
+
   const selectTeethGroup = (g: string) => {
-    const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
-    const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
-    const regions: Record<string, number[]> = {
-      'all': [...max, ...mand],
-      'maxillaire': max,
-      'mandibule': mand,
-      'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
-      'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
-      'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
-      'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
-      'S1': [14, 15, 16, 17, 18],
-      'S2': [13, 12, 11, 21, 22, 23],
-      'S3': [24, 25, 26, 27, 28],
-      'S4': [34, 35, 36, 37, 38],
-      'S5': [33, 32, 31, 41, 42, 43],
-      'S6': [44, 45, 46, 47, 48]
-    };
-    if (regions[g]) setGroupSelectedTeeth(regions[g]);
-    else setGroupSelectedTeeth([]);
+    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, g));
   };
 
   const applyGroupTreatment = () => {
@@ -239,13 +229,6 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     setItems(newItems);
     toast.success('Organisation par phases appliquée au devis.');
   };
-
-  const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
-  const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
-  const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
-  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   
   const fetchQuickActs = async () => {
     try {
@@ -419,7 +402,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <button
                             key={type}
                             type="button"
-                            onClick={() => setOdontogramType(type)}
+                            onClick={() => {
+                              setOdontogramType(type);
+                              setGroupSelectedTeeth([]);
+                              setActiveTooth(null);
+                            }}
                             className={cn(
                               "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                               odontogramType === type ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
@@ -543,15 +530,17 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                     <Sparkles className="w-4 h-4 text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Sélection Rapide</span>
                                   </div>
                                   <div className="grid grid-cols-4 gap-2">
-                                    {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
-                                      <button key={q} type="button" onClick={() => selectTeethGroup(q as any)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{q}</button>
+                                    {odontogramQuickGroupKeys(odontogramType).slice(0, 4).map(group => (
+                                      <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{group}</button>
                                     ))}
                                   </div>
-                                  <div className="grid grid-cols-6 gap-2">
-                                    {['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(s => (
-                                      <button key={s} type="button" onClick={() => selectTeethGroup(s as any)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{s}</button>
-                                    ))}
-                                  </div>
+                                  {odontogramType === 'ADULT' && (
+                                    <div className="grid grid-cols-6 gap-2">
+                                      {odontogramQuickGroupKeys(odontogramType).slice(4).map(group => (
+                                        <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{group}</button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <>
@@ -629,7 +618,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       <AnimatePresence>
                         {activeTooth && (
                           <TreatmentSelector
-                            toothNumber={activeTooth as any}
+                            toothNumber={activeTooth}
                             currentTreatments={activeToothTreatments}
                             allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
