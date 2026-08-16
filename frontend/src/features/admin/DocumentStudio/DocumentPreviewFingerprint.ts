@@ -28,6 +28,7 @@ export interface DocumentPreviewFingerprintInput {
     pageSize: 'A4' | 'A5';
     alignment: 'left' | 'center' | 'right' | 'justify';
   };
+  isAccounted?: boolean;
   showLegalAnnotations?: boolean;
   installmentPayload?: unknown;
 }
