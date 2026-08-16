@@ -62,6 +62,9 @@ jobs:
           cat /tmp/t2-backend.log
           exit 1
 
+      - name: Certify strict runtime PDF
+        run: python scripts/t2_runtime_pdf_probe.py
+
       - name: Start frontend
         working-directory: frontend
         run: |
