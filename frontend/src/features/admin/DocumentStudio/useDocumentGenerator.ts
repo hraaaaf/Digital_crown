@@ -54,6 +54,11 @@ interface UseDocumentGeneratorParams {
   showLegalAnnotations?: boolean;
 }
 
+export interface ArchiveSuccessSignal {
+  revision: number;
+  tab: HubDocumentType;
+}
+
 // --- Validation stricte (Phase 3) ---
 export interface ValidationError {
   field: string;
@@ -211,6 +216,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [coherenceWarnings, setCoherenceWarnings] = useState<CoherenceWarning[]>([]);
   const [duplicateArgs, setDuplicateArgs] = useState<{ archive: boolean; print: boolean } | null>(null);
+  const [archiveSuccess, setArchiveSuccess] = useState<ArchiveSuccessSignal | null>(null);
 
   const { patientId, activeTab, drugs, smartSuggestion } = params;
 
@@ -455,6 +461,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           setPdfUrl(finalUrl);
         }
 
+        if (archive && !isPreview) {
+          setArchiveSuccess(previous => ({
+            revision: (previous?.revision ?? 0) + 1,
+            tab: activeTab,
+          }));
+          toast.success('Document archivé dans le dossier patient.');
+        }
+
         // N'armer l'impression qu'après réception du nouveau PDF.
         if (print) {
           setPendingPrint(true);
@@ -497,9 +511,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
       }
-      if (archive && !isPreview) {
-        toast.success('Document archivé dans le dossier patient.');
-      }
+
       if (res.data.rdv_suggestion && !isPreview) {
         toast(`📅 ${res.data.rdv_suggestion.message} — Proposé : ${res.data.rdv_suggestion.suggested_date}`, {
           duration: 8000,
@@ -563,6 +575,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     setHasChanges,
     validationErrors,
     coherenceWarnings,
+    archiveSuccess,
     showDuplicateModal: duplicateArgs !== null,
     confirmDuplicate,
     cancelDuplicate: () => setDuplicateArgs(null),
