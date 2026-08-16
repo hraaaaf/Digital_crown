@@ -551,52 +551,23 @@ export const Dashboard: React.FC = () => {
       )}
 
       {hasAccess('patients') && (
-        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
+        <motion.section variants={itemVariants}>
           <Link
             to="/approvisionnement"
-            className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
+            className="group flex items-center justify-between gap-5 rounded-elite-lg border border-border-main bg-card-bg px-6 py-5 shadow-elite hover:shadow-elite-hover transition-elite"
           >
-            <div className="p-8 md:p-9 flex items-center justify-between gap-6">
-              <div className="flex items-center gap-4 min-w-0">
-                <div
-                  className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
-                  style={{
-                    backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
-                    borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
-                    color: 'var(--primary, #0f766e)',
-                  }}
-                >
-                  <ShoppingCart size={28} />
-                </div>
-                <div className="min-w-0">
-                  <p
-                    className="text-[10px] uppercase tracking-widest font-black mb-2"
-                    style={{ color: 'var(--text-muted, #64748b)' }}
-                  >
-                    Approvisionnement
-                  </p>
-                  <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
-                    Marketplace
-                  </h2>
-                </div>
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-12 h-12 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">
+                <ShoppingCart size={22} />
               </div>
-              <Store
-                size={18}
-                className="shrink-0 transition-transform group-hover:translate-x-1"
-                style={{ color: 'var(--primary, #0f766e)' }}
-              />
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest font-black text-text-muted">Approvisionnement</p>
+                <h2 className="text-lg font-black tracking-tight font-outfit text-main" style={{ color: 'var(--text-main)' }}>Marketplace</h2>
+                <p className="text-xs font-medium text-text-muted mt-0.5">Commander les consommables et fournitures du cabinet</p>
+              </div>
             </div>
+            <Store size={18} className="shrink-0 text-primary transition-transform group-hover:translate-x-1" />
           </Link>
-
-          <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
-            <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
-            <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
-              <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
-              <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
-              <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
-            </div>
-          </div>
         </motion.section>
       )}
 
