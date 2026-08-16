@@ -24,6 +24,11 @@ import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
+import {
+  hydrateArchivedDevisRows,
+  type ArchivedDevisItem,
+  type ArchivedToothData,
+} from './DocumentStudio/AccountingOdontogramSourcePolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -47,8 +52,9 @@ interface GenericClinicalData {
   hide_patient_header?: boolean;
   page_size?: 'A5' | 'A4';
   alignment?: 'left' | 'center' | 'right' | 'justify';
-  items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
-  payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  items?: ArchivedDevisItem[];
+  payments?: ArchivedDevisItem[];
+  teeth_data?: ArchivedToothData[];
   doc_date?: string;
 }
 
@@ -95,9 +101,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [certifDays, setCertifDays] = useState(0);
   const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const { 
-    items, setItems, paymentMode, installments, setInstallments, 
-    isAccounted, paymentStatus, isGlobalNote 
+  const {
+    items, setItems, paymentMode, installments, setInstallments,
+    isAccounted, paymentStatus, isGlobalNote
   } = useAccountingStore();
 
   // --- PERSISTENCE ECHEANCES ---
@@ -201,9 +207,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   ]);
 
   // --- INTELLIGENCE SCOPE ---
-  const isSurgical = useMemo(() => items.some(i => 
-    i.description.toLowerCase().includes('extraction') || 
-    i.description.toLowerCase().includes('implant') || 
+  const isSurgical = useMemo(() => items.some(i =>
+    i.description.toLowerCase().includes('extraction') ||
+    i.description.toLowerCase().includes('implant') ||
     i.description.toLowerCase().includes('chirurgie')
   ), [items]);
 
@@ -241,7 +247,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
         });
       }
-      
+
       if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
         complications.push({
           id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
@@ -350,15 +356,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setLibrePageSize(d.page_size || 'A5');
         setLibreAlignment(d.alignment || 'justify');
       } else {
-        setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
+        const isDevisEdit = type === 'devis';
+        setActiveTab(isDevisEdit ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
-        setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, 
-          description: i.acte || '', 
-          dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0, 
-          toothNumbers: i.dents || [],
-        })));
+        if (isDevisEdit) {
+          setItems(hydrateArchivedDevisRows(srcItems, d.teeth_data));
+        } else {
+          setItems(srcItems.map((i, idx) => ({
+            id: Date.now() + idx,
+            description: i.acte || '',
+            dent: i.dent || '0',
+            price: i.montant ?? i.prix_unitaire ?? 0,
+            toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
+          })));
+        }
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
@@ -427,8 +438,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
-            <TreatmentPlanStudio 
-              patientId={Number(patientId)} 
+            <TreatmentPlanStudio
+              patientId={Number(patientId)}
               onConvertToQuote={(allActs) => {
                 const newItems = convertPlanActsToQuoteItems(allActs);
                 setItems(prev => [...prev, ...newItems]);
@@ -493,7 +504,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {activeTab === 'libre' && (
             <LibreForm
-              title={libreTitle} 
+              title={libreTitle}
               setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
@@ -504,7 +515,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
-          
+
           {activeTab === 'echeancier' && (
             <InstallmentStudio
               patientId={patientId || '0'}
@@ -603,10 +614,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {/* APERÇU RESPONSIVE */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
-          <motion.div 
-            initial={{ x: 600, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            exit={{ x: 600, opacity: 0 }} 
+          <motion.div
+            initial={{ x: 600, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 600, opacity: 0 }}
             className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
           >
             <LivePreview
