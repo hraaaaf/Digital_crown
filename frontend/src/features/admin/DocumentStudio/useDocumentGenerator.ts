@@ -145,6 +145,17 @@ export function shouldSkipInvalidLibrePreview(params: UseDocumentGeneratorParams
   return params.activeTab === 'libre' && validatePayload(params).length > 0;
 }
 
+export function buildAccountingFinancialFields(
+  activeTab: HubDocumentType,
+  installments: any[],
+  isGlobalNote?: boolean,
+): { installments: any[]; is_global_note: boolean | undefined } {
+  if (activeTab === 'devis') {
+    return { installments: [], is_global_note: false };
+  }
+  return { installments, is_global_note: isGlobalNote };
+}
+
 // --- Analyse de cohérence IA (Phase 4) ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
@@ -356,9 +367,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         surfaces: t.surface ? [t.surface as string] : [],
         notes: '',
       }));
+      const financialFields = buildAccountingFinancialFields(activeTab, installments, isGlobalNote);
       payload.data = activeTab === 'devis'
-        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote }
-        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote };
+        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, ...financialFields }
+        : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, ...financialFields };
     }
 
     return payload;
