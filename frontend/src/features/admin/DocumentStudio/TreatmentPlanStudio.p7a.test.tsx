@@ -51,13 +51,13 @@ describe('P7-A TreatmentPlanStudio safety boundary', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Visite de contrôle annuelle' })).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Visite de contrôle annuelle' }));
-    await waitFor(() => expect(screen.getByText('Diagnostic Établi')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Hypothèse à confirmer')).toBeInTheDocument());
     expect(screen.getByText('Bilan bucco-dentaire de routine')).toBeInTheDocument();
 
     rerender(<TreatmentPlanStudio patientId={2} />);
 
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/patients/2'));
-    expect(screen.queryByText('Diagnostic Établi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Hypothèse à confirmer')).not.toBeInTheDocument();
     expect(screen.queryByText('Bilan bucco-dentaire de routine')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Urgence / Douleur aiguë' })).toBeInTheDocument();
   });
