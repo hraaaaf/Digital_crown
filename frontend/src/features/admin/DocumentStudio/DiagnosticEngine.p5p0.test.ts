@@ -35,4 +35,23 @@ describe('P5-P0 DiagnosticEngine pharmacovigilance boundary', () => {
     expect(result.warnings.some((line: string) => /allergie.*ains/i.test(line))).toBe(true);
     expect(result.warnings.some((line: string) => /validation.*praticien|aucune substitution/i.test(line))).toBe(true);
   });
+
+  it('échoue fermé lorsqu’aucune règle diagnostique ne correspond', () => {
+    const result = evaluateDiagnosisWithoutAutomaticSubstitution({
+      motif: 'MOTIF_INCONNU',
+      vitality: '',
+      percussion: '',
+      palpation: '',
+      radiology: '',
+      lesionDuration: '',
+      medicalHistory: '',
+    });
+
+    expect(result.title).toMatch(/données insuffisantes|règle non couverte/i);
+    expect(result.description).not.toMatch(/examen clinique normal/i);
+    expect(result.protocol).toEqual([]);
+    expect(result.treatmentPlan).toEqual([]);
+    expect(result.warnings.some((line: string) => /aucune proposition|validation du praticien/i.test(line))).toBe(true);
+    expect(JSON.stringify(result)).not.toMatch(/paracetamol|détartrage/i);
+  });
 });
