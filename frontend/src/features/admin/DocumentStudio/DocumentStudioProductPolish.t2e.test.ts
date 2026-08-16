@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const header = readFileSync(new URL('./StudioHeader.tsx', import.meta.url), 'utf8');
-const tabs = readFileSync(new URL('./StudioTabs.tsx', import.meta.url), 'utf8');
-const footer = readFileSync(new URL('./StudioFooter.tsx', import.meta.url), 'utf8');
+const source = (file: string) => readFileSync(
+  resolve(process.cwd(), 'src/features/admin/DocumentStudio', file),
+  'utf8',
+);
+const header = source('StudioHeader.tsx');
+const tabs = source('StudioTabs.tsx');
+const footer = source('StudioFooter.tsx');
 
 describe('Document Studio T2-E product polish', () => {
   it('keeps patient identity and current document visible in the shell header', () => {
