@@ -26,7 +26,8 @@ export const CertificateForm: React.FC<CertificateFormProps> = props => {
       event.returnValue = '';
     };
 
-    const responseInterceptor = api.interceptors.response.use(response => {
+    const responseInterceptors = api.interceptors?.response;
+    const responseInterceptor = responseInterceptors?.use(response => {
       const url = response.config?.url || '';
       const archivedCertificate = url.includes('/documents/generate')
         && url.includes('archive=true')
@@ -38,7 +39,9 @@ export const CertificateForm: React.FC<CertificateFormProps> = props => {
     window.addEventListener('beforeunload', beforeUnload);
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
-      api.interceptors.response.eject(responseInterceptor);
+      if (responseInterceptor !== undefined) {
+        responseInterceptors?.eject(responseInterceptor);
+      }
       setCertificateDirty(false);
     };
   }, [props.patientId]);
