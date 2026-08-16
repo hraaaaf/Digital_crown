@@ -220,16 +220,19 @@ Quarantainer/supprimer les anciens moteurs non utilisés.
 
 ---
 
-## Document Studio — reprise canonique — 2026-08-16
+## Document Studio — closeout engineering canonique — 2026-08-16
 
 Roadmap : `DOCUMENT_STUDIO_ROADMAP.md`.
+Statut T2 : `docs/audits/DOCUMENT_STUDIO_T2_FINAL_STATUS.md`.
+Handover : `docs/audits/DOCUMENT_STUDIO_T2_HANDOVER_2026-08-16.md`.
 
 ### P1 — Ordonnance
-- Engineering + recertification visuelle fermés.
+- Engineering fermé + recertification visuelle historique réalisée.
 - Gates authentifiés/cliniques restent séparés.
 
 ### P2 — Certificat
 - Engineering convergé.
+- Dirty-state transversal rétabli par T1.
 - Runtime/PDF final non fermé.
 
 ### P3 — Devis — CLOSED / PAUSED ⏸
@@ -237,28 +240,51 @@ Roadmap : `DOCUMENT_STUDIO_ROADMAP.md`.
 - PR `#77` conservée open + draft comme restart point.
 - Preuves locales : backend **26/26 PASS**, policies frontend **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS**.
 - Full-app/authenticated/browser/cabinet PDF différés et non revendiqués.
-- Détail : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
 
 ### P4 — Note Honoraires — ENGINEERING LOCAL CONVERGÉ ✅
-- PR stackée `#90`, draft.
-- Audit : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`.
-- P4-A→P4-F corrigés : contrat financier fail-closed, isolation échéancier/global, statut vs mode, archive hydration, générateur PDF multipage sûr, sémantique modale de règlement.
-- P4-G : accessibilité statique renforcée ; browser/runtime non exécuté.
+- PR `#90`, draft.
 - Preuves locales : backend **13/13 PASS**, policy échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long **36/36 lignes / 6 pages / header 6/6 / floor >=7 pt**.
-- Full React/Vite build, smoke authentifié, PDF cabinet/signature et browser 390/768/desktop restent différés ; aucune certification production/financière complète revendiquée.
 
-### P5 — Suivi Paiement — PAGE ACTIVE 🟡
-- Socle historique : allocation échéances exacte (ancien P4-A / PR #41) et paiement d'échéance fail-closed (ancien P4-B / PR #42).
-- Prochaine action exacte : créer l'audit P5 sur le head P4 courant, vérifier chargement plan, calculs, paiement/non-paiement, méthodes, reste dû, rappels, sauvegarde et accessibilité ; corriger les P0/P1 avant toute certification runtime.
+### P5 — Suivi Paiement — ENGINEERING LOCAL CONVERGÉ ✅
+- PR `#95`, draft.
+- Preuves locales : backend **15/15 PASS**, summary **4/4 PASS**, create payload **`tsc --strict` + 8/8 PASS**.
+- T1 : impression brouillon ≠ sauvegarde, stale-print supprimé, second moteur `/documents/generate` `echeancier` désactivé.
 
-### P6 — Document Libre
-- Engineering convergé ; runtime/PDF final à recertifier dans son tour.
+### P6 — Document Libre — ENGINEERING LOCAL CONVERGÉ ✅
+- PR `#96`, draft.
+- Preuve dirty/archive : **`tsc --strict` + 11/11 PASS**.
+- Les listeners locaux historiques encore présents sont redondants mais fail-closed ; T2 ne revendique pas leur suppression.
 
-### P7 — Compagnon Diagnostique
-- Frontière safety partiellement fermée ; audit complet après P6.
+### P7 — Compagnon Diagnostique — ENGINEERING SAFETY LOCAL CONVERGÉ ✅
+- PR `#97`, draft.
+- Plus de diagnostic autonome ni substitution thérapeutique automatique dans le chemin produit audité.
+- Preuves : safety **`tsc --strict` + 8/8 PASS** ; P7→P3 + dirty **`tsc --strict` + 12/12 PASS**.
+
+### T1 — Audit transversal premium — ENGINEERING LOCAL CONVERGÉ ✅
+- PR `#101`, draft.
+- Navigation/dirty/archive/print partagés durcis ; ghost AI Document Studio retiré ; header bypass supprimés.
+- Dernier rerun navigation : **`tsc --strict` + 9/9 PASS**.
+- Contrat legacy échéancier : **4/4 PASS**.
+
+### T2 — Refonte finale / recertification globale — ENGINEERING LOCAL CONVERGÉ ✅
+- PR `#102`, draft.
+- Harness final : `scripts/certify_document_studio.sh`.
+- Syntaxe du harness vérifiée sous Linux : **PASS** (`bash -n`).
+- Environnement local observé : Python **3.13.5**, Node **22.16.0**, npm **10.9.2**.
+- LivePreview non-inline durci : dialog ARIA, focus initial, Escape, loading `aria-live` ; test versionné mais non exécuté full-project ici.
+- Aucun fichier legacy potentiellement orphelin n'est supprimé sans scan complet fiable des références.
+
+### Gates restants avant certification complète
+- exécuter `bash scripts/certify_document_studio.sh` sur checkout complet du head candidat exact avec dépendances ;
+- runtime authentifié P1→P7 ;
+- archive/reopen/duplicate/print/payment réels ;
+- PDF cabinet branding/signature/long/multipage ;
+- browser 390 / 768 / desktop + clavier/touch/focus ;
+- validations humaines clinique/scientifique/réglementaire/financière applicables ;
+- ready/merge ordonné des PR stackées puis post-merge recertification.
 
 ### Règle de reprise Document Studio
-- Ne pas rouvrir P3/P4 full-app uniquement pour satisfaire une CI externe indisponible.
-- Continuer le travail indépendant page par page.
+- Ne pas rouvrir P3 sans décision produit explicite.
+- Ne pas merger/ready les PR stackées avant les gates applicables.
 - Aucun `%` n'est calculé : la roadmap n'a pas de pondération validée.
 - Tests ciblés ≠ certification production/clinique/financière.
