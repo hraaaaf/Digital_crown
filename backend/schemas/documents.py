@@ -176,7 +176,7 @@ class PaymentItem(BaseModel):
     dent: str = "-"
     dents: List[Union[int, str]] = []
     montant: float = 0.0
-    mode_reglement: str = "Espèces"
+    mode_reglement: str = ""
 
 
 class HonorairesData(BaseModel):
@@ -251,6 +251,8 @@ class DocumentRequest(BaseModel):
                     "honoraires_payment_method_required",
                     f"Acte #{index} : le mode de règlement doit être choisi explicitement pour un encaissement.",
                 )
+            if self.payment_status != "PAYE":
+                payment.pop("mode_reglement", None)
         return self
 
     @model_validator(mode="after")
