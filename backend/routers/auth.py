@@ -481,7 +481,7 @@ async def signup_client(
         action="SIGNUP_SUCCESS",
         resource_type="User",
         resource_id=new_user.email,
-        severity="WARNING",
+        severity="INFO",
         details="Nouveau client inscrit. CGU et politique de confidentialite acceptees. En attente de validation."
     )
 
