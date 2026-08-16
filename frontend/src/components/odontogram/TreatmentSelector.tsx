@@ -7,15 +7,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Check, Clock, Search, Plus, Star } from 'lucide-react';
-import type { ToothNumberFDI, ToothTreatment, ToothSurface } from './types';
-import { TOOTH_NAMES } from './types';
+import type { ToothNumberFDI, PediatricToothNumber, ToothTreatment, ToothSurface } from './types';
+import { TOOTH_NAMES, PEDIATRIC_TOOTH_NAMES } from './types';
 import { PriceBrain, type ActHistory } from './PriceBrain';
 import { cn } from '../../utils/cn';
 import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogStore';
 import { resolveDevisTreatmentPrice } from '../../features/admin/DocumentStudio/AccountingTreatmentPricePolicy';
 
 interface TreatmentSelectorProps {
-  toothNumber: ToothNumberFDI;
+  toothNumber: ToothNumberFDI | PediatricToothNumber;
   currentTreatments: ToothTreatment[];
   onConfirm: (treatments: ToothTreatment[], surfaces: ToothSurface[], notes: string) => void;
   onCancel: () => void;
@@ -114,7 +114,9 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
     }
   }, [embedded]);
 
-  const toothName = TOOTH_NAMES[toothNumber];
+  const toothName = toothNumber >= 50
+    ? PEDIATRIC_TOOTH_NAMES[toothNumber as PediatricToothNumber]
+    : TOOTH_NAMES[toothNumber as ToothNumberFDI];
 
   const frequentActs = useMemo(() => {
     const top = PriceBrain.getTopFrequent(7);
