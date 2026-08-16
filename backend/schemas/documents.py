@@ -165,6 +165,24 @@ class DocumentRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def strip_implicit_devis_installments(self):
+        """A Devis must not inherit a patient installment plan implicitly.
+
+        Document Studio currently loads the patient's latest installment plan in
+        shared accounting state, while the Devis UI exposes no explicit schedule
+        editor/consent. Strip that shared state before PDF generation and archive
+        persistence. Re-enable installments only when Devis owns an explicit,
+        document-scoped schedule workflow.
+        """
+        if self.type != "devis":
+            return self
+        data = dict(self.data or {})
+        data["installments"] = []
+        data["is_global_note"] = False
+        self.data = data
+        return self
+
+    @model_validator(mode="after")
     def reconcile_global_honoraires_installments(self):
         """Reject a persisted global honoraires plan whose installments do not match billing.
 
