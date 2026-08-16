@@ -39,6 +39,7 @@ if (!patient) throw new Error('T2 certification patient not found');
 const browser = await chromium.launch({ headless: true });
 const evidence = [];
 const pageScores = Object.fromEntries(studioPages.map(({ slug, label }) => [slug, { label, runs: [] }]));
+let stressEvidence = null;
 
 function scoreFromBool(value) {
   return value ? 10 : 0;
@@ -164,24 +165,55 @@ for (const viewport of viewports) {
   await context.close();
 }
 
-// Rapid navigation/edit stress on Document Libre, including preview close/reopen if available.
+// Rapid navigation/edit stress on Document Libre. A dirty draft must raise the guard;
+// the test explicitly confirms it before continuing the transition sequence.
 {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const page = await context.newPage();
   await seedAuth(page);
   await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&doc=libre`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
+
   const editable = page.locator('textarea').first();
-  if (await editable.count()) {
+  const edited = (await editable.count()) > 0;
+  if (edited) {
     await editable.fill('Certification T2 — modification rapide');
     await editable.fill('Certification T2 — modification rapide 2');
   }
-  for (const studioPage of [...studioPages, ...studioPages].slice(0, 10)) {
+
+  let dirtyGuardObserved = false;
+  let completedTransitions = 0;
+  const transitionSequence = [...studioPages, ...studioPages].slice(0, 10);
+
+  for (const studioPage of transitionSequence) {
     const tab = page.getByText(studioPage.label, { exact: true }).first();
     await tab.click();
+
+    const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
+    if (await discardDialog.isVisible({ timeout: 750 }).catch(() => false)) {
+      dirtyGuardObserved = true;
+      await discardDialog.getByRole('button', { name: 'Continuer', exact: true }).click();
+    }
+
+    await page.waitForFunction(
+      (slug) => new URLSearchParams(window.location.search).get('documentTab') === slug,
+      studioPage.slug,
+      { timeout: 10000 },
+    );
+    completedTransitions += 1;
     await page.waitForTimeout(80);
   }
+
   await page.screenshot({ path: path.join(outDir, 't2-rapid-navigation-stress.png'), fullPage: true });
+  stressEvidence = {
+    edited,
+    dirtyGuardObserved,
+    completedTransitions,
+    expectedTransitions: transitionSequence.length,
+    pass: edited && dirtyGuardObserved && completedTransitions === transitionSequence.length,
+    screenshot: 't2-rapid-navigation-stress.png',
+  };
+  if (!stressEvidence.pass) console.error('T2_STRESS_RED', JSON.stringify(stressEvidence));
   await context.close();
 }
 
@@ -208,13 +240,15 @@ for (const studioPage of studioPages) {
 }
 
 const greenPages = Object.values(summary).filter((item) => item.green).length;
+const reportPass = greenPages === studioPages.length && stressEvidence?.pass === true;
 const report = {
-  status: greenPages === studioPages.length ? 'PASS' : 'FAIL',
+  status: reportPass ? 'PASS' : 'FAIL',
   patientId: patient.id,
   greenPages,
   totalPages: studioPages.length,
   viewports: viewports.map((v) => `${v.width}x${v.height}`),
   darkModeDoubleCheck: true,
+  stress: stressEvidence,
   summary,
   evidence,
 };
@@ -223,5 +257,5 @@ fs.writeFileSync(path.join(outDir, 'scores.json'), JSON.stringify(summary, null,
 
 await browser.close();
 await api.dispose();
-console.log(JSON.stringify({ status: report.status, greenPages, totalPages: studioPages.length, summary }, null, 2));
+console.log(JSON.stringify({ status: report.status, greenPages, totalPages: studioPages.length, stress: stressEvidence, summary }, null, 2));
 if (report.status !== 'PASS') process.exit(1);
