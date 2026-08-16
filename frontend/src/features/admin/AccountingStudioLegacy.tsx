@@ -871,7 +871,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   onClick={() => setIsTreasuryModalOpen(true)}
                   className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex justify-center items-center gap-2"
                 >
-                  <Banknote size={20} /> Procéder à l'Encaissement
+                  <Banknote size={20} /> Paramètres de règlement
                 </button>
               )}
             </div>
@@ -904,7 +904,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <Banknote size={28} />
                   </div>
                   <div>
-                    <h4 className="text-lg font-black text-slate-800 tracking-tight uppercase">Encaissement</h4>
+                    <h4 className="text-lg font-black text-slate-800 tracking-tight uppercase">Paramètres de règlement</h4>
                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Règlement et échéances</p>
                   </div>
                 </div>
@@ -954,7 +954,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  <label className={cn(labelClass, "text-slate-400")}>Mode d'Encaissement</label>
+                  <label className={cn(labelClass, "text-slate-400")}>Mode de règlement (si réglé)</label>
                   <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1 overflow-x-auto no-scrollbar">
                     {['Espèces', 'Chèque', 'TPE', 'Virement'].map((m) => (
                       <button
@@ -1069,7 +1069,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   type="button"
                   onClick={() => setIsTreasuryModalOpen(false)}
                   className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-xs"
-                >Confirmer l'Encaissement</button>
+                >Appliquer les paramètres</button>
               </div>
             </motion.div>
           </div>
