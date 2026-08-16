@@ -28,7 +28,7 @@ jobs:
             ref: 13f4cf119c3a75c9c2014071797ecd5c2be57dec
           - label: d7
             ref: f0fcc9bc542559c5aa447c4683fddff55fb08b06
-          - label: d8
+          - label: d9
             ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
@@ -258,7 +258,7 @@ jobs:
           cat > visual-artifacts/metadata.txt <<EOF
           label=${TARGET_LABEL}
           ref=${TARGET_REF}
-          goal=Comparer le Dashboard sur données identiques et mêmes viewports sans backend réel ni déploiement.
+          goal=Certification finale Dashboard D1-D9 sur données identiques, multi-rôles et multi-viewports, sans backend réel ni déploiement.
           viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
           roles=ADMIN,SECRETAIRE
           EOF
