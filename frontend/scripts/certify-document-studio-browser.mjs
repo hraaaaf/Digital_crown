@@ -198,24 +198,58 @@ for (const viewport of viewports) {
       const tab = page.locator(`[data-tour="${studioPage.tourId}"]`);
       await tab.waitFor({ state: 'visible', timeout: 10000 });
 
-      // Align the tab inside the actually clickable viewport, not via offsetLeft.
-      // A fixed desktop sidebar occupies part of the viewport and is intentionally excluded.
+      // Let the browser reveal the target through its true scrollable ancestor first,
+      // then move that ancestor directly if the fixed desktop sidebar still covers it.
       await tab.evaluate((element) => {
-        const container = element.parentElement;
-        if (!container) return;
-        const containerRect = container.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
+        element.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
+
+        let scroller = element.parentElement;
+        while (scroller && scroller !== document.body && scroller !== document.documentElement) {
+          if (scroller.scrollWidth > scroller.clientWidth + 1) break;
+          scroller = scroller.parentElement;
+        }
+        if (!scroller || scroller === document.body || scroller === document.documentElement) return;
+
         const sidebar = document.querySelector('aside.bg-sidebar');
         const sidebarRect = sidebar?.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
         const sidebarRight = sidebarRect && sidebarRect.right > 0 ? sidebarRect.right : 0;
-        const safeLeft = Math.max(containerRect.left + 12, sidebarRight + 12);
-        const safeRight = containerRect.right - 12;
-        let delta = 0;
-        if (elementRect.left < safeLeft) delta = elementRect.left - safeLeft;
-        else if (elementRect.right > safeRight) delta = elementRect.right - safeRight;
-        if (delta !== 0) container.scrollBy({ left: delta, behavior: 'instant' });
+        const safeLeft = Math.max(scrollerRect.left + 12, sidebarRight + 12, 12);
+        const safeRight = Math.min(scrollerRect.right - 12, innerWidth - 12);
+        const targetCenter = Math.max(
+          safeLeft + elementRect.width / 2,
+          Math.min((safeLeft + safeRight) / 2, safeRight - elementRect.width / 2),
+        );
+        const currentCenter = elementRect.left + elementRect.width / 2;
+        const desiredScrollLeft = scroller.scrollLeft + (currentCenter - targetCenter);
+        const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+        scroller.scrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredScrollLeft));
       });
-      await page.waitForTimeout(120);
+
+      await page.waitForFunction(
+        ({ tourId }) => {
+          const element = document.querySelector(`[data-tour="${tourId}"]`);
+          if (!element) return false;
+          const rect = element.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const sidebar = document.querySelector('aside.bg-sidebar');
+          const sidebarRect = sidebar?.getBoundingClientRect();
+          const insideViewport = centerX >= 0 && centerX <= innerWidth && centerY >= 0 && centerY <= innerHeight;
+          const sidebarOverlap = Boolean(
+            sidebarRect
+            && centerX >= sidebarRect.left
+            && centerX <= sidebarRect.right
+            && centerY >= sidebarRect.top
+            && centerY <= sidebarRect.bottom
+          );
+          const top = insideViewport ? document.elementFromPoint(centerX, centerY) : null;
+          return insideViewport && !sidebarOverlap && (top === element || element.contains(top));
+        },
+        { tourId: studioPage.tourId },
+        { timeout: 10000 },
+      );
 
       const hitTarget = await tab.evaluate((element) => {
         const rect = element.getBoundingClientRect();
