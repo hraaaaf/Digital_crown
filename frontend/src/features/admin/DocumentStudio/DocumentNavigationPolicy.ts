@@ -1,11 +1,12 @@
 import type { HubDocumentType } from '../DocumentHub';
 import { requiresDevisToHonorairesConfirmation } from './AccountingDocumentTransitionPolicy';
 
-export type DocumentDirtySource = 'accounting' | 'prescription' | 'libre' | 'diagnostic';
+export type DocumentDirtySource = 'accounting' | 'prescription' | 'certificate' | 'libre' | 'diagnostic';
 
 export interface DocumentDirtyStateSnapshot {
   accountingDirty: boolean;
   prescriptionDirty: boolean;
+  certificateDirty: boolean;
   libreDirty: boolean;
   diagnosticDirty: boolean;
 }
@@ -32,6 +33,9 @@ export function resolveDocumentNavigation(
 
   if (activeTab === 'ordonnance' && dirty.prescriptionDirty) {
     return { allow: false, requiresTransitionConfirmation, discardSource: 'prescription' };
+  }
+  if (activeTab === 'certificat' && dirty.certificateDirty) {
+    return { allow: false, requiresTransitionConfirmation, discardSource: 'certificate' };
   }
   if (activeTab === 'libre' && dirty.libreDirty) {
     return { allow: false, requiresTransitionConfirmation, discardSource: 'libre' };
