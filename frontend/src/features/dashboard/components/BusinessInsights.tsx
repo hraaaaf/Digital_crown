@@ -123,15 +123,13 @@ export const BusinessInsights = ({
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-purple-600">{opportunity.montant.toLocaleString('fr-FR')} <span className="text-[9px] text-purple-400">MAD</span></p>
-                    {opportunity.telephone && (
-                      <a
-                        href={`tel:${opportunity.telephone}`}
-                        onClick={event => event.stopPropagation()}
-                        className="text-[10px] text-emerald-500 hover:text-emerald-600 font-bold flex items-center gap-1 justify-end mt-0.5"
-                      >
-                        <Phone size={10} /> Appeler
-                      </a>
-                    )}
+                    <a
+                      href={`tel:${opportunity.telephone}`}
+                      onClick={event => event.stopPropagation()}
+                      className="text-[10px] text-emerald-500 hover:text-emerald-600 font-bold flex items-center gap-1 justify-end mt-0.5"
+                    >
+                      <Phone size={10} /> Appeler
+                    </a>
                   </div>
                 </div>
               ))}
