@@ -2,10 +2,11 @@
 
 Date: 2026-08-16
 Branch: `agent/p3d-devis-phases-learning`
+Current verified head before this documentation-only commit: `e8320b30987cb4088af7e0ec1fcb1902c1a21d70`
 
 ## Scope integrated
 
-This branch now carries the implementation work for P3-A through P3-G that can be verified statically without a runnable CI/runtime environment.
+This branch carries the implementation work for P3-A through P3-G that can be verified statically without a runnable CI/runtime environment.
 
 ### P3-A — financial isolation / backend contract
 - Devis payload excludes installments and global-note semantics.
@@ -33,6 +34,7 @@ This branch now carries the implementation work for P3-A through P3-G that can b
 - Duplicate DocumentHub bundle engine removed; AccountingStudio is the single visible Devis bundle surface.
 - Bundle prices resolve through the managed catalog; unresolved amounts remain explicit.
 - Frontend `/accounting/record-act` duplicate writes removed.
+- `PriceBrain.recordAct` keeps `usageCount` unchanged and is only a local price memory.
 - Financial act learning occurs only after real archive.
 
 ### P3-E — connections / lifecycle
@@ -58,9 +60,16 @@ This branch now carries the implementation work for P3-A through P3-G that can b
 - Targeted code diffs inspected after every large-file replacement.
 - Dedicated frontend/backend unit tests committed for new policies/contracts.
 - P3-F was integrated into this branch via exact verified Git blobs and a fast-forward commit.
+- Transient frontend RDV guard and test were removed after the lifecycle rule was centralized in the backend.
+
+## Current CI blocker
+- Current-head CI run checked once: **31922731006** (run #385).
+- Result: `failure`, but all three jobs (`Frontend (tests & build)`, `Garde production (négatif)`, `Tests & durcissement`) returned `steps: null`.
+- Therefore no backend test, frontend test or build actually started.
+- This is consistent with the previously identified GitHub Billing/spending-limit runner-allocation blocker; it is not evidence of a code test failure.
 
 ## Not certified / still required for P3-H
-- GitHub-hosted tests/build have not produced a runnable job while account billing/spending allocation blocks runners (`steps: []`, `runner_id: 0` on previous P3 runs).
+- No runnable CI result exists on the integrated head.
 - No authenticated runtime/PDF visual regression has been executed on this integrated head.
 - No production-readiness claim is made.
 
