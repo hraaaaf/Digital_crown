@@ -19,7 +19,7 @@ diff --git a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
 -}
 -
  export const Dashboard: React.FC = () => {
-@@ -134,3 +127,2 @@
+@@ -134,4 +127,3 @@
      total_debt: number;
    } | null>(null);
 -  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);
@@ -34,7 +34,7 @@ diff --git a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
 +  });
 +  const cabinetHealth = cabinetHealthState.status === 'ready' ? cabinetHealthState.data : null;
 +  const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);
-@@ -239,7 +237,6 @@
+@@ -239,8 +237,7 @@
      if (!user) {
        clearPatientData();
        clearAccountingData();
@@ -61,7 +61,7 @@ diff --git a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
 -  }, [user, authLoading]);
 -
    const markAlertRead = async (alertId: number) => {
-@@ -504,20 +485,19 @@
+@@ -504,21 +485,19 @@
            )}
 -          
 -          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
