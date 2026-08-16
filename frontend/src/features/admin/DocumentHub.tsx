@@ -8,20 +8,14 @@ import { StudioTabs } from './DocumentStudio/StudioTabs';
 import { StudioFooter } from './DocumentStudio/StudioFooter';
 import { DocumentHubPreview } from './DocumentStudio/DocumentHubPreview';
 import { DocumentHubDialogs } from './DocumentStudio/DocumentHubDialogs';
+import { DocumentHubContent } from './DocumentStudio/DocumentHubContent';
 import {
   DOCUMENT_STUDIO_PREVIEW_TITLES,
   type CertifiableDocumentStudioTab,
 } from './DocumentStudio/DocumentStudioVocabulary';
 import { useDocumentHubNavigation } from './DocumentStudio/useDocumentHubNavigation';
 import { useDocumentHubPatient } from './DocumentStudio/useDocumentHubPatient';
-
-// Formulaires
-import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
-import { CertificateForm } from './DocumentStudio/Forms/CertificateForm';
-import { InstallmentStudio } from './DocumentStudio/Forms/InstallmentStudio';
-import { LibreForm } from './DocumentStudio/Forms/LibreForm';
-import { AccountingStudio } from './AccountingStudio';
-import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
+import { type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
@@ -59,14 +53,10 @@ interface GenericClinicalData {
 export type HubDocumentType = CertifiableDocumentStudioTab;
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
-  // --- ÉTATS GÉNÉRAUX ---
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
-
-  // --- ÉTATS IA ---
   const [smartSuggestion, setSmartSuggestion] = useState<{ rationale: string; drugs: DrugItem[] } | null>(null);
 
-  // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
   const [certifType, setCertifType] = useState('');
@@ -82,10 +72,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     isGlobalNote, setIsGlobalNote,
   } = useAccountingStore();
 
-  // P5 charge désormais son plan via son endpoint /latest dans InstallmentStudio.
-  // Aucun plan historique P5 n'est injecté dans le brouillon financier P3/P4.
-
-  // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
   const [libreContent, setLibreContent] = useState('');
   const [libreCustomPatient, setLibreCustomPatient] = useState('');
@@ -115,12 +101,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   });
 
   const patientDetails = useDocumentHubPatient(patientId);
-
-  // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
   const [echeancierPayload, setEcheancierPayload] = useState<any>(null);
 
-  // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items,
@@ -181,7 +164,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     return generator.handleGenerate(false, false, true);
   }, [generator.handleGenerate]);
 
-  // --- HYDRATATION ---
   useEffect(() => {
     if (editData?.clinical_data) {
       const type = editData.type.toLowerCase();
@@ -250,15 +232,19 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [activeTab]);
 
+  const handleConvertPlanToQuote = useCallback<React.ComponentProps<typeof DocumentHubContent>['onConvertPlanToQuote']>((allActs) => {
+    const newItems = convertPlanActsToQuoteItems(allActs);
+    setItems(previous => [...previous, ...newItems]);
+    setActiveTab('devis');
+    syncDocumentTab('devis');
+  }, [setItems, setActiveTab, syncDocumentTab]);
+
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
-
-      {/* ESPACE DE TRAVAIL */}
       <div className={cn(
         "flex-1 h-full flex flex-col px-4 sm:px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
         sideStudioType === 'PREVIEW' ? "xl:pr-[570px]" : ""
       )}>
-
         <StudioHeader
           patientName={patientName}
           docDate={docDate}
@@ -274,106 +260,41 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <StudioTabs data-tour="document-tabs" activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
-          {activeTab === 'plan' && (
-            <TreatmentPlanStudio
-              patientId={Number(patientId)}
-              onConvertToQuote={(allActs) => {
-                const newItems = convertPlanActsToQuoteItems(allActs);
-                setItems(prev => [...prev, ...newItems]);
-                setActiveTab('devis');
-                syncDocumentTab('devis');
-              }}
-            />
-          )}
-
-          {activeTab === 'ordonnance' && (
-            <>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <button
-                type="button"
-                onClick={() => setShowLegalAnnotations(v => !v)}
-                className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none",
-                  showLegalAnnotations ? "bg-primary" : "bg-slate-200"
-                )}
-                role="switch"
-                aria-checked={showLegalAnnotations}
-                aria-labelledby="document-studio-legal-annotations-label"
-              >
-                <span className={cn(
-                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200",
-                  showLegalAnnotations ? "translate-x-4" : "translate-x-0"
-                )} />
-              </button>
-              <span id="document-studio-legal-annotations-label" className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                Mentions légales (Radioprotection)
-              </span>
-            </div>
-            <PrescriptionAgenticStudio
-              patientId={patientId || '0'}
-              drugs={drugs}
-              setDrugs={setDrugs}
-              onUpdateDrug={(id, field, val) => {
-                setDrugs(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
-                generator.setHasChanges(true);
-              }}
-              onRemoveDrug={(id) => {
-                setDrugs(drugs.filter(d => d.id !== id));
-                generator.setHasChanges(true);
-              }}
-              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '', type: 'MEDICAMENT' }])}
-              validationErrors={generator.validationErrors}
-              onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
-              hasChanges={generator.hasChanges}
-              coherenceWarnings={generator.coherenceWarnings}
-            />
-            </>
-          )}
-
-          {activeTab === 'certificat' && (
-            <CertificateForm
-              patientId={patientId || ""}
-              certifType={certifType} setCertifType={setCertifType}
-              certifDays={certifDays} setCertifDays={setCertifDays}
-              docDate={docDate}
-              certifStartDate={certifStartDate} setCertifStartDate={setCertifStartDate}
-              certifCustomMotif={certifCustomMotif} setCertifCustomMotif={setCertifCustomMotif}
-            />
-          )}
-
-          {activeTab === 'libre' && (
-            <LibreForm
-              title={libreTitle}
-              setTitle={setLibreTitle}
-              content={libreContent} setContent={setLibreContent}
-              customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
-              customDate={libreCustomDate} setCustomDate={setLibreCustomDate}
-              hideHeader={libreHideHeader} setHideHeader={setLibreHideHeader}
-              pageSize={librePageSize} setPageSize={setLibrePageSize}
-              alignment={libreAlignment} setAlignment={setLibreAlignment}
-              validationErrors={generator.validationErrors}
-            />
-          )}
-
-          {activeTab === 'echeancier' && (
-            <InstallmentStudio
-              patientId={patientId || '0'}
-              onPayloadChange={setEcheancierPayload}
-            />
-          )}
-
-          {(activeTab === 'devis' || activeTab === 'honoraires') && (
-            <AccountingStudio
-              isDevis={activeTab === 'devis'}
-              patientId={patientId || '0'}
-              coherenceWarnings={generator.coherenceWarnings}
-              validationErrors={generator.validationErrors}
-              setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
-            />
-          )}
-
-        </div>
+        <DocumentHubContent
+          activeTab={activeTab}
+          patientId={patientId}
+          showLegalAnnotations={showLegalAnnotations}
+          setShowLegalAnnotations={setShowLegalAnnotations}
+          drugs={drugs}
+          setDrugs={setDrugs}
+          certifType={certifType}
+          setCertifType={setCertifType}
+          certifDays={certifDays}
+          setCertifDays={setCertifDays}
+          docDate={docDate}
+          certifStartDate={certifStartDate}
+          setCertifStartDate={setCertifStartDate}
+          certifCustomMotif={certifCustomMotif}
+          setCertifCustomMotif={setCertifCustomMotif}
+          libreTitle={libreTitle}
+          setLibreTitle={setLibreTitle}
+          libreContent={libreContent}
+          setLibreContent={setLibreContent}
+          libreCustomPatient={libreCustomPatient}
+          setLibreCustomPatient={setLibreCustomPatient}
+          libreCustomDate={libreCustomDate}
+          setLibreCustomDate={setLibreCustomDate}
+          libreHideHeader={libreHideHeader}
+          setLibreHideHeader={setLibreHideHeader}
+          librePageSize={librePageSize}
+          setLibrePageSize={setLibrePageSize}
+          libreAlignment={libreAlignment}
+          setLibreAlignment={setLibreAlignment}
+          setEcheancierPayload={setEcheancierPayload}
+          setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
+          onConvertPlanToQuote={handleConvertPlanToQuote}
+          generator={generator}
+        />
 
         <StudioFooter
           loading={generator.loading}
