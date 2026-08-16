@@ -281,15 +281,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         const nextAccountingTab: AccountingDirtyTab = isDevisEdit ? 'devis' : 'honoraires';
         setActiveTab(nextAccountingTab);
         const srcItems = d.items || d.payments || [];
-        const hydratedRows = isDevisEdit
-          ? hydrateArchivedDevisRows(srcItems, d.teeth_data)
-          : srcItems.map((i, idx) => ({
-              id: Date.now() + idx,
-              description: i.acte || '',
-              dent: i.dent || '0',
-              price: i.montant ?? i.prix_unitaire ?? 0,
-              toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
-            }));
+        const hydratedRows = hydrateArchivedDevisRows(srcItems, d.teeth_data);
         setItems(hydratedRows);
         setAccountingBaselineFingerprint(accountingDocumentFingerprint(nextAccountingTab, hydratedRows, d.doc_date || docDate));
       }
