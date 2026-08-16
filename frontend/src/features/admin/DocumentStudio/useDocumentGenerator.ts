@@ -142,7 +142,7 @@ export function shouldSkipInvalidLibrePreview(params: UseDocumentGeneratorParams
   return params.activeTab === 'libre' && validatePayload(params).length > 0;
 }
 
-// --- Analyse de cohérence IA (Phase 4) ---
+// --- Analyse de cohérence déterministe (Phase 4) ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
   message: string;
@@ -205,8 +205,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [aiReport, setAiReport] = useState<string | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
   const [showPrintWarning, setShowPrintWarning] = useState(false);
   const [pendingPrint, setPendingPrint] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -534,21 +532,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, activeTab, buildPayload, params]);
 
-  const handleGenerateAI = useCallback(async () => {
-    if (!patientId) return;
-    setLoadingAi(true);
-    window.dispatchEvent(new Event('ai-generation-start'));
-    try {
-      const res = await api.get(`/patients/${patientId}/ai-diagnostic`);
-      setAiReport(res.data.report);
-    } catch (e) {
-      console.error('Erreur IA:', e);
-    } finally {
-      setLoadingAi(false);
-      window.dispatchEvent(new Event('ai-generation-end'));
-    }
-  }, [patientId]);
-
   const handleSavePreference = useCallback(async (smartSuggestion: any, drugs: DrugItem[]) => {
     if (!smartSuggestion?.protocol_name) return;
     try {
@@ -573,8 +556,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   return {
     pdfUrl,
     loading,
-    aiReport,
-    loadingAi,
     showPrintWarning,
     pendingPrint,
     hasChanges,
@@ -585,7 +566,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     confirmDuplicate,
     cancelDuplicate: () => setDuplicateArgs(null),
     handleGenerate,
-    handleGenerateAI,
     handleSavePreference,
     closeWarning: () => setShowPrintWarning(false),
   };
