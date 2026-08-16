@@ -28,6 +28,11 @@ function toothNumberFromKey(key: string | undefined): number | null {
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 
+function sameNumbers(left: number[] | undefined, right: number[]): boolean {
+  if (!left || left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
 export function canonicalToothNumbers(item: AccountingOdontogramSourceItem): number[] {
   const explicit = uniqueToothNumbers(item.toothNumbers);
   if (explicit.length > 0) return explicit;
@@ -44,9 +49,11 @@ export function normalizeStructuredAccountingItems<T extends AccountingOdontogra
   return items.map(item => {
     const teeth = canonicalToothNumbers(item);
     if (teeth.length === 0) return item;
+    const dent = teeth.join('-');
+    if (item.dent === dent && sameNumbers(item.toothNumbers, teeth)) return item;
     return {
       ...item,
-      dent: teeth.join('-'),
+      dent,
       toothNumbers: teeth,
     };
   });
