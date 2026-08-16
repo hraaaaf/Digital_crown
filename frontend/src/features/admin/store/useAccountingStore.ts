@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { PARTIAL_PAYMENT_DISABLED_REASON } from '../DocumentStudio/AccountingPaymentPolicy';
 
-export type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
+export type PaymentMode = '' | 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
 export interface PriceItem {
   id: number;
@@ -64,7 +64,7 @@ interface AccountingState {
 
 const initialState = {
   items: [],
-  paymentMode: 'Espèces' as PaymentMode,
+  paymentMode: '' as PaymentMode,
   installments: [],
   isAccounted: true,
   paymentStatus: 'EN_ATTENTE',
