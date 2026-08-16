@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import datetime
 import math
-from typing import Any, List, Union
+from typing import List, Union
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
@@ -28,6 +29,7 @@ _PAYMENT_METHOD_CANONICAL = {
     "CHEQUE": "Chèque",
     "CHÈQUE": "Chèque",
     "VIREMENT": "Virement",
+    "EN ATTENTE": "EN ATTENTE",
 }
 
 
@@ -37,7 +39,7 @@ def _is_phase_separator(value: str) -> bool:
 
 
 class PaymentItem(BaseModel):
-    date: Any = None
+    date: datetime.date | None = None
     acte: str = ""
     dent: str = "-"
     dents: List[Union[int, str]] = []
@@ -94,7 +96,7 @@ class PaymentItem(BaseModel):
 
 class HonorairesData(BaseModel):
     payments: List[PaymentItem] = []
-    doc_date: Any = None
+    doc_date: datetime.date | None = None
     teeth_data: List[ToothData] = []
     age: int | None = None
     gender: str | None = None
@@ -172,16 +174,16 @@ class HonorairesData(BaseModel):
 
 
 class DocumentRequest(LegacyDocumentRequest):
-    """Document request with fail-closed Honoraires draft isolation.
+    """Document request with fail-closed Honoraires financial semantics.
 
     Unique notes must not inherit an installment plan previously loaded in the
-    shared frontend store. Sanitize the raw dict before the inherited validators,
-    PDF construction, archive conflict check and clinical_data persistence.
+    shared frontend store. A collection method is meaningful only for PAYE;
+    pending notes are rendered/archived as EN ATTENTE instead of default cash.
     """
 
     @model_validator(mode="before")
     @classmethod
-    def isolate_unique_honoraires_installments(cls, value):
+    def sanitize_honoraires_request(cls, value):
         if not isinstance(value, dict):
             return value
         if value.get("type") not in {"note", "honoraires"}:
@@ -190,9 +192,28 @@ class DocumentRequest(LegacyDocumentRequest):
         if not isinstance(data, dict):
             return value
 
+        payment_status = str(value.get("payment_status") or "EN_ATTENTE").strip().upper()
+        if payment_status not in {"EN_ATTENTE", "PAYE", "PARTIEL"}:
+            raise PydanticCustomError(
+                "honoraires_invalid_payment_status",
+                "Statut de paiement invalide.",
+            )
+
         sanitized_request = dict(value)
         sanitized_data = dict(data)
         if not bool(sanitized_data.get("is_global_note", False)):
             sanitized_data["installments"] = []
+
+        if payment_status != "PAYE":
+            sanitized_payments = []
+            for payment in sanitized_data.get("payments") or []:
+                if isinstance(payment, dict):
+                    payment_copy = dict(payment)
+                    payment_copy["mode_reglement"] = "EN ATTENTE"
+                    sanitized_payments.append(payment_copy)
+                else:
+                    sanitized_payments.append(payment)
+            sanitized_data["payments"] = sanitized_payments
+
         sanitized_request["data"] = sanitized_data
         return sanitized_request
