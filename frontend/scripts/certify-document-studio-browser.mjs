@@ -178,6 +178,15 @@ for (const viewport of viewports) {
     await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
 
+    // Document Libre opens its preview automatically. This stress scenario certifies
+    // tab transitions and dirty-draft protection, so close that independent surface first.
+    const openPreview = page.getByRole('dialog').last();
+    if (await openPreview.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await page.keyboard.press('Escape');
+      await openPreview.waitFor({ state: 'hidden', timeout: 10000 });
+      await page.waitForTimeout(400);
+    }
+
     const editable = page.locator('textarea').first();
     edited = (await editable.count()) > 0;
     if (edited) {
@@ -189,13 +198,24 @@ for (const viewport of viewports) {
       const tab = page.locator(`[data-tour="${studioPage.tourId}"]`);
       await tab.waitFor({ state: 'visible', timeout: 10000 });
 
+      // Align the tab inside the actually clickable viewport, not via offsetLeft.
+      // A fixed desktop sidebar occupies part of the viewport and is intentionally excluded.
       await tab.evaluate((element) => {
         const container = element.parentElement;
         if (!container) return;
-        const targetLeft = element.offsetLeft - (container.clientWidth - element.clientWidth) / 2;
-        container.scrollTo({ left: Math.max(0, targetLeft), behavior: 'instant' });
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const sidebar = document.querySelector('aside.bg-sidebar');
+        const sidebarRect = sidebar?.getBoundingClientRect();
+        const sidebarRight = sidebarRect && sidebarRect.right > 0 ? sidebarRect.right : 0;
+        const safeLeft = Math.max(containerRect.left + 12, sidebarRight + 12);
+        const safeRight = containerRect.right - 12;
+        let delta = 0;
+        if (elementRect.left < safeLeft) delta = elementRect.left - safeLeft;
+        else if (elementRect.right > safeRight) delta = elementRect.right - safeRight;
+        if (delta !== 0) container.scrollBy({ left: delta, behavior: 'instant' });
       });
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(120);
 
       const hitTarget = await tab.evaluate((element) => {
         const rect = element.getBoundingClientRect();
