@@ -18,11 +18,29 @@ interface ProposedAct {
   act: string;
 }
 
+const INITIAL_HISTORY: ChatMessage[] = [
+  { role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' },
+];
+
+export function buildTreatmentPlanSafetyWarnings(medicalHistory: string, actLabels: string[]): string[] {
+  const atcd = (medicalHistory || '').toLowerCase();
+  const hasPenicillinSignal = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
+  const hasAinsSignal = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
+  const warnings: string[] = [];
+
+  if (hasPenicillinSignal && actLabels.some(label => label.toLowerCase().includes('antibiothérapie'))) {
+    warnings.push('⚠️ Signal lié aux pénicillines détecté dans les ATCD : vérifier les données structurées et le choix thérapeutique. Aucune substitution thérapeutique automatique n’est appliquée.');
+  }
+  if (hasAinsSignal && actLabels.some(label => label.toLowerCase().includes('anti-inflammatoire'))) {
+    warnings.push('⚠️ Signal lié aux AINS détecté dans les ATCD : vérifier les données structurées et le choix thérapeutique. Aucune substitution thérapeutique automatique n’est appliquée.');
+  }
+
+  return warnings;
+}
+
 export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote?: (acts: any[]) => void }> = ({ patientId, onConvertToQuote }) => {
   const [currentState, setCurrentState] = useState<DiagnosticState>('MOTIF');
-  const [history, setHistory] = useState<ChatMessage[]>([
-    { role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }
-  ]);
+  const [history, setHistory] = useState<ChatMessage[]>(INITIAL_HISTORY);
   const [finalDiagnosis, setFinalDiagnosis] = useState('');
   const [proposedActs, setProposedActs] = useState<ProposedAct[]>([]);
   const [newActText, setNewActText] = useState('');
@@ -31,19 +49,35 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
   const [allergyWarning, setAllergyWarning] = useState<string | null>(null);
 
   React.useEffect(() => {
-    // Fetch patient data for active pharmacovigilance
+    // Patient boundary: no diagnostic, proposed act or warning may survive a patient change.
+    let cancelled = false;
+    setCurrentState('MOTIF');
+    setHistory(INITIAL_HISTORY);
+    setFinalDiagnosis('');
+    setProposedActs([]);
+    setNewActText('');
+    setNewActPhase('CONSERVATRICE');
+    setMedicalHistory('');
+    setAllergyWarning(null);
+
     const fetchPatient = async () => {
       try {
-        // Assuming api.get exists and is imported from '../../../services/api'
-        // If api is not imported in this file, we should import it.
         const { api } = await import('../../../services/api');
         const response = await api.get(`/patients/${patientId}`);
-        setMedicalHistory(response.data.antecedents_medicaux || '');
+        if (!cancelled) {
+          setMedicalHistory(response.data.antecedents_medicaux || '');
+        }
       } catch (err) {
-        console.error("Failed to fetch patient history for pharmacovigilance", err);
+        if (!cancelled) {
+          console.error("Failed to fetch patient history for pharmacovigilance", err);
+        }
       }
     };
-    if (patientId) fetchPatient();
+
+    if (patientId) void fetchPatient();
+    return () => {
+      cancelled = true;
+    };
   }, [patientId]);
 
   const { profile } = useSettingsStore();
@@ -73,32 +107,12 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
   const handleAnswer = (answerText: string, nextState: DiagnosticState, diagnosis?: string, acts?: Omit<ProposedAct, 'id'>[]) => {
     setHistory(prev => [...prev, { role: 'user', text: answerText }]);
-    
-    if (diagnosis && acts) {
-      let finalActs = [...acts];
-      let warning: string | null = null;
-      
-      // ACTIVE PHARMACOVIGILANCE INTERCEPTION
-      const atcd = medicalHistory.toLowerCase();
-      const hasPenicillinAllergy = atcd.includes('pénicilline') || atcd.includes('penicilline') || atcd.includes('clamoxyl') || atcd.includes('amoxicilline');
-      const hasAinsAllergy = atcd.includes('ains') || atcd.includes('ibuprofène') || atcd.includes('ibuprofene') || atcd.includes('anti-inflammatoire');
-      
-      finalActs = finalActs.map(act => {
-        let modifiedAct = act.act;
-        if (hasPenicillinAllergy && modifiedAct.toLowerCase().includes('antibiothérapie')) {
-          modifiedAct = modifiedAct.replace('Antibiothérapie', 'Antibiothérapie (Clindamycine/Macrolide - ⚠️ Allergie Pénicilline adapt.)');
-          warning = "⚠️ Allergie à la Pénicilline détectée dans les ATCD. Le protocole antibiotique a été automatiquement basculé sur macrolides/lincosamides.";
-        }
-        if (hasAinsAllergy && modifiedAct.toLowerCase().includes('anti-inflammatoire')) {
-          modifiedAct = modifiedAct.replace('anti-inflammatoires', 'corticostéroïdes (⚠️ Allergie AINS adapt.)');
-          if (!warning) warning = "⚠️ Allergie aux AINS détectée. Protocole anti-inflammatoire modifié.";
-        }
-        return { ...act, act: modifiedAct };
-      });
 
+    if (diagnosis && acts) {
+      const warnings = buildTreatmentPlanSafetyWarnings(medicalHistory, acts.map(act => act.act));
       setFinalDiagnosis(diagnosis);
-      setProposedActs(finalActs.map((a, i) => ({ ...a, id: `act-${Date.now()}-${i}` })));
-      if (warning) setAllergyWarning(warning);
+      setProposedActs(acts.map((a, i) => ({ ...a, id: `act-${Date.now()}-${i}` })));
+      setAllergyWarning(warnings.length > 0 ? warnings.join(' ') : null);
     }
 
     setTimeout(() => {
@@ -169,70 +183,70 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
       case 'DOULEUR_SPONTANEE':
         return (
           <>
-            <OptionButton 
-              text="Oui, avec irradiation (réveille la nuit)" 
+            <OptionButton
+              text="Oui, avec irradiation (réveille la nuit)"
               onClick={() => handleAnswer("Oui, avec irradiation", 'RESULT', 'Pulpite Irréversible', [
                 { phase: 'URGENCE', act: 'Pulpectomie et parage canalaire' },
                 { phase: 'INITIALE', act: 'Prescription antalgique (Palier 2)' }
-              ])} 
+              ])}
             />
-            <OptionButton 
-              text="Non, douleur localisée à la mastication" 
-              onClick={() => handleAnswer("Non, localisée à la mastication", 'PERCUSSION')} 
+            <OptionButton
+              text="Non, douleur localisée à la mastication"
+              onClick={() => handleAnswer("Non, localisée à la mastication", 'PERCUSSION')}
             />
           </>
         );
       case 'PERCUSSION':
         return (
           <>
-            <OptionButton 
-              text="Oui, très douloureuse" 
+            <OptionButton
+              text="Oui, très douloureuse"
               onClick={() => handleAnswer("Oui, très douloureuse", 'RESULT', 'Parodontite Apicale Aiguë', [
                 { phase: 'URGENCE', act: 'Ouverture camérale, drainage et mise en sous-occlusion' },
                 { phase: 'INITIALE', act: 'Antibiothérapie et antalgiques' }
-              ])} 
+              ])}
             />
-            <OptionButton 
-              text="Non ou très peu" 
+            <OptionButton
+              text="Non ou très peu"
               onClick={() => handleAnswer("Non ou très peu", 'RESULT', 'Syndrome du septum', [
                 { phase: 'INITIALE', act: 'Nettoyage des espaces interdentaires et contrôle de l\'occlusion' }
-              ])} 
+              ])}
             />
           </>
         );
       case 'DOULEUR_PROVOQUEE':
         return (
           <>
-            <OptionButton 
-              text="Oui (disparaît en quelques secondes)" 
+            <OptionButton
+              text="Oui (disparaît en quelques secondes)"
               onClick={() => handleAnswer("Oui (quelques secondes)", 'RESULT', 'Hyperhémie Pulpaire / Pulpite Réversible', [
                 { phase: 'CONSERVATRICE', act: 'Coiffage pulpaire indirect et restauration coronaire' }
-              ])} 
+              ])}
             />
-            <OptionButton 
-              text="Non, elle persiste plusieurs minutes" 
+            <OptionButton
+              text="Non, elle persiste plusieurs minutes"
               onClick={() => handleAnswer("Non, persiste plusieurs minutes", 'RESULT', 'Pulpite Irréversible', [
                 { phase: 'URGENCE', act: 'Pulpectomie immédiate' }
-              ])} 
+              ])}
             />
           </>
         );
       case 'ABCES':
         return (
           <>
-            <OptionButton 
-              text="Oui, fluctuation évidente" 
+            <OptionButton
+              text="Oui, fluctuation évidente"
               onClick={() => handleAnswer("Oui, fluctuation évidente", 'RESULT', 'Abcès Sous-Muqueux', [
                 { phase: 'URGENCE', act: 'Incision, drainage et lavage' },
                 { phase: 'INITIALE', act: 'Antibiothérapie de couverture et antalgiques' }
-              ])} 
+              ])}
             />
-            <OptionButton 
-              text="Non, douleur sourde diffuse (pas de fluctuation)" 
+            <OptionButton
+              text="Non, douleur sourde diffuse (pas de fluctuation)"
               onClick={() => handleAnswer("Non, pas de fluctuation", 'RESULT', 'Cellulite (Stade séreux)', [
                 { phase: 'INITIALE', act: 'Antibiothérapie et anti-inflammatoires stéroïdiens' },
                 { phase: 'URGENCE', act: 'Traitement endodontique de la dent causale' }
-              ])} 
+              ])}
             />
           </>
         );
@@ -337,7 +351,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
   const resetDiagnostic = () => {
     setCurrentState('MOTIF');
-    setHistory([{ role: 'bot', text: 'Bonjour Docteur. Quel est le motif principal de la consultation aujourd\'hui ?' }]);
+    setHistory(INITIAL_HISTORY);
     setFinalDiagnosis('');
     setProposedActs([]);
     setAllergyWarning(null);
@@ -364,7 +378,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
       {/* Chat History Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar-white">
         {history.map((msg, idx) => (
-          <motion.div 
+          <motion.div
             key={idx}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -375,8 +389,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
           >
             <div className={cn(
               "max-w-[80%] px-4 py-3 text-sm font-medium",
-              msg.role === 'user' 
-                ? "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md" 
+              msg.role === 'user'
+                ? "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md"
                 : "bg-white border border-slate-200 text-slate-700 shadow-sm rounded-2xl rounded-tl-sm"
             )}>
               {msg.text}
@@ -385,7 +399,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
         ))}
 
         {currentState !== 'RESULT' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col items-end gap-2 mt-4"
@@ -396,7 +410,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
         {/* Result Area */}
         {currentState === 'RESULT' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden"
@@ -408,18 +422,18 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                 <h4 className="text-lg font-black text-slate-800 tracking-tight">{finalDiagnosis}</h4>
               </div>
             </div>
-            
+
             <div className="p-6">
-              {/* Active Pharmacovigilance Warning Banner */}
+              {/* Warning-only pharmacovigilance boundary. */}
               {allergyWarning && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3"
                 >
                   <ShieldCheck size={18} className="text-rose-600 shrink-0 mt-0.5" />
                   <div>
-                    <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Pharmacovigilance Active</h5>
+                    <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Vérification ATCD requise</h5>
                     <p className="text-xs font-bold text-rose-700 leading-snug">{allergyWarning}</p>
                   </div>
                 </motion.div>
@@ -428,7 +442,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FileText size={14} /> Plan de Traitement Scientifique
               </h5>
-              
+
               <div className="space-y-2 mb-6">
                 {proposedActs.map((act) => (
                   <div key={act.id} className="flex items-center justify-between p-3 bg-slate-50/80 rounded-xl border border-slate-100 group transition-colors hover:bg-slate-50">
@@ -453,8 +467,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 
               {/* Add Custom Act */}
               <div className="flex gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100">
-                <select 
-                  value={newActPhase} 
+                <select
+                  value={newActPhase}
                   onChange={(e) => setNewActPhase(e.target.value)}
                   className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg px-3 py-2 outline-none focus:border-primary shadow-sm"
                 >
@@ -464,8 +478,8 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
                   <option value="CHIRURGIE">Chirurgie</option>
                   <option value="REHABILITATION">Réhabilitation</option>
                 </select>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newActText}
                   onChange={(e) => setNewActText(e.target.value)}
                   placeholder="Ajouter un acte clinique scientifique..."
@@ -492,7 +506,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
               )}
 
               {clinicalTipsEnabled && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
@@ -518,7 +532,7 @@ export const TreatmentPlanStudio: React.FC<{ patientId: number; onConvertToQuote
 };
 
 const OptionButton: React.FC<{ text: string; onClick: () => void }> = ({ text, onClick }) => (
-  <button 
+  <button
     onClick={onClick}
     className="px-5 py-2.5 bg-white border border-slate-200 text-primary text-sm font-black rounded-2xl shadow-sm hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center gap-2 group hover:-translate-y-0.5"
   >
