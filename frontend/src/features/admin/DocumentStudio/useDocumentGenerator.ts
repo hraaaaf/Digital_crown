@@ -59,7 +59,6 @@ export interface ArchiveSuccessSignal {
   tab: HubDocumentType;
 }
 
-// --- Validation stricte (Phase 3) ---
 export interface ValidationError {
   field: string;
   message: string;
@@ -147,7 +146,6 @@ export function shouldSkipInvalidLibrePreview(params: UseDocumentGeneratorParams
   return params.activeTab === 'libre' && validatePayload(params).length > 0;
 }
 
-// --- Analyse de cohérence déterministe ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
   message: string;
@@ -229,7 +227,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     return () => { if (ref.current) URL.revokeObjectURL(ref.current); };
   }, []);
 
-  // Impression automatique après génération PDF
   useEffect(() => {
     if (!pendingPrint || !pdfUrl) return;
 
@@ -371,7 +368,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     if (!patientId) return;
     if (activeTab === 'plan') return;
 
-    // Flux dédié échéancier : PDF uniquement, sans persistance implicite du plan.
     if (activeTab === 'echeancier') {
       const payload = params.echeancierPayload;
       if (!payload || payload.items.length === 0) {
@@ -380,7 +376,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       }
       if (print && !isPreview && !force) { setShowPrintWarning(true); return; }
       setLoading(true);
-      if (print) setPendingPrint(true);
+      if (print) setPendingPrint(false);
       try {
         const res = await api.post('/installments/generate-preview', payload);
         if (res.data.pdf_url) {
@@ -397,9 +393,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
             finalUrl = `${API_BASE}/api/${cleanPdfPath}?t=${Date.now()}#view=FitH`;
             setPdfUrl(finalUrl);
           }
+          if (print) setPendingPrint(true);
           if (!isPreview && !print) window.open(finalUrl, '_blank');
         }
       } catch (e: any) {
+        if (print) setPendingPrint(false);
         toast.error(e?.response?.data?.detail || 'Erreur lors de la génération du PDF');
       } finally {
         setLoading(false);
@@ -469,7 +467,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           toast.success('Document archivé dans le dossier patient.');
         }
 
-        // N'armer l'impression qu'après réception du nouveau PDF.
         if (print) {
           setPendingPrint(true);
         }
@@ -501,7 +498,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
 
-        // Les actes financiers sont appris côté backend après génération/archivage réussi.
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
           useAccountingStore.getState().setGroupSelectedTeeth([]);
           useAccountingStore.getState().setOdontogramMode('individual');
