@@ -182,12 +182,15 @@ class TestOtherGeneratorsAgeFix:
         assert attr in source, f"{module_name} should use {attr} for age+'ans' groups"
 
     def test_certificat_generates_with_long_name(self, tmp_path):
-        from backend.services.generators.certificat_gen import CertificatGenerator
+        from backend.services.generators.certificat_gen import (
+            CERTIFICATE_REASON_PRESENCE,
+            CertificatGenerator,
+        )
         gen = CertificatGenerator(output_dir=str(tmp_path))
         patient = _make_patient(nom="AIT EL BOUKHAR ALAOUI", prenom="Mohammed")
         data = SimpleNamespace(
             doc_date=date.today(),
-            reason="présence",
+            reason=CERTIFICATE_REASON_PRESENCE,
             days=0,
             is_ortho=False,
         )
