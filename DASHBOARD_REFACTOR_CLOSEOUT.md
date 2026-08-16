@@ -16,7 +16,7 @@ Fermer la roadmap Dashboard D1→D9 par une certification globale sur le head r�
 - D6 — accessibilité clavier/focus : CLOSED.
 - D7 — vérité locale + états dégradés : CLOSED.
 - D8 — responsive 390/430/768 : CLOSED.
-- D9 — certification globale : ACTIVE jusqu'à CI + certification visuelle exact-head puis merge.
+- D9 — certification globale : ACTIVE jusqu'à certification du head documentaire final puis merge.
 
 ## Preuves canoniques D1→D8
 
@@ -29,9 +29,27 @@ Fermer la roadmap Dashboard D1→D9 par une certification globale sur le head r�
 - D7 PR #121, head `a131b5cbac1ff10f5907aea489403a1fdd21ece6`, merge `f0fcc9bc542559c5aa447c4683fddff55fb08b06`, CI #702 SUCCESS, visuel #15 SUCCESS, score 9,8/10.
 - D8 PR #122, head `9f07c5952841270fce1080e4268cd2497cf588fa`, merge `f04b8987615f2020521b319bd946204d2dc58563`, CI #707 SUCCESS, visuel #19 SUCCESS, score 9,9/10.
 
+## D9 — pré-certification vérifiée
+
+Sur le head `97ed17a33cc8c4854bb0995c6d1197d01b7917c4` :
+
+- PR #123 ouverte depuis `master@f04b8987615f2020521b319bd946204d2dc58563`.
+- Diff strictement documentaire/certification : `.github/workflows/dashboard-visual-cert.yml` + ce fichier ; aucun code produit modifié.
+- CI #709 : frontend tests/build SUCCESS ; garde production négative SUCCESS ; backend tests/durcissement encore en cours au moment de cette écriture.
+- Dashboard Visual Certification #20 : `Capture d9` SUCCESS.
+- Artefact D9 id `9271973250`.
+- Digest : `sha256:66759f7db07d2bc2de07e77fa5b1c36308f8aa3ab52c50819aa02c72da0f5f05`.
+- Metadata artefact : `label=d9`, `ref=97ed17a33cc8c4854bb0995c6d1197d01b7917c4`.
+- Viewports : 390 / 430 / 768 / 1024 / 1440 × 1200.
+- Rôles : ADMIN + SECRETAIRE.
+- 10/10 fichiers `.errors.txt` : 0 octet.
+- Inspection visuelle finale : pas d'overflow mobile observé, hiérarchie/glassmorphisme conservés, statut système absent côté SECRETAIRE.
+- Score visuel candidat D9 : 9,9/10.
+- `vercel.json` conserve `git.deploymentEnabled=false` ; aucun déploiement Vercel lancé.
+
 ## D9 — critères de fermeture
 
-D9 n'est fermé que si, sur le head exact de la PR D9 :
+D9 n'est fermé que si, sur le head exact final de la PR D9 :
 
 1. CI complète SUCCESS : backend tests/durcissement, frontend tests/build, garde production négative.
 2. Dashboard Visual Certification SUCCESS sur ADMIN et SECRETAIRE aux viewports 390, 430, 768, 1024 et 1440 px.
@@ -42,4 +60,4 @@ D9 n'est fermé que si, sur le head exact de la PR D9 :
 
 ## État de ce document
 
-Ce fichier ne déclare pas D9 fermé. Les preuves D9 finales doivent être ajoutées uniquement après exécution réelle des gates ci-dessus.
+Ce fichier consigne la pré-certification du head `97ed17a33cc8c4854bb0995c6d1197d01b7917c4`. Sa propre mise à jour crée un nouveau head documentaire qui doit être recertifié intégralement avant de pouvoir déclarer D9 CLOSED.
