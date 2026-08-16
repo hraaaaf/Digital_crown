@@ -147,7 +147,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const pendingAccountingArchiveRef = useRef(false);
   const accountingTab: AccountingDirtyTab | null = activeTab === 'devis' || activeTab === 'honoraires' ? activeTab : null;
   const accountingDirty = accountingTab
-    ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint)
+    ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint, docDate)
     : false;
 
   // --- GARDES NAVIGATION ---
@@ -236,9 +236,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   useEffect(() => {
     if (!pendingAccountingArchiveRef.current || !generator.pdfUrl || !accountingTab) return;
-    setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items));
+    setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items, docDate));
     pendingAccountingArchiveRef.current = false;
-  }, [generator.pdfUrl, accountingTab, items]);
+  }, [generator.pdfUrl, accountingTab, items, docDate]);
 
   // --- HYDRATATION ---
   useEffect(() => {
@@ -283,7 +283,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
             }));
         setItems(hydratedRows);
-        setAccountingBaselineFingerprint(accountingDocumentFingerprint(nextAccountingTab, hydratedRows));
+        setAccountingBaselineFingerprint(accountingDocumentFingerprint(nextAccountingTab, hydratedRows, d.doc_date || docDate));
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
