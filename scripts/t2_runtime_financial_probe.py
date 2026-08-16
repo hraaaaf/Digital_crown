@@ -7,7 +7,12 @@ Runs only against the disposable T2 runtime database configured by the workflow.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import httpx
 
@@ -70,7 +75,6 @@ def main() -> None:
 
         baseline = counts(patient_id)
 
-        # P3 — Devis archives a financial document but must not invent performed acts/payments.
         devis = {
             "type": "devis",
             "patient_id": patient_id,
@@ -96,7 +100,6 @@ def main() -> None:
         if after_devis["actes"] != baseline["actes"] or after_devis["payments"] != baseline["payments"]:
             fail("P3 devis invented transactional rows", {"before": baseline, "after": after_devis})
 
-        # P4a — Pending note persists the act, not cash collection.
         pending_note = {
             "type": "note",
             "patient_id": patient_id,
@@ -126,7 +129,6 @@ def main() -> None:
         if after_pending["payments"] != after_devis["payments"]:
             fail("P4 pending note incorrectly collected cash", {"before": after_devis, "after": after_pending})
 
-        # P4b — Paid note persists exactly one act and one exact linked cash payment.
         paid_note = {
             "type": "note",
             "patient_id": patient_id,
@@ -168,7 +170,6 @@ def main() -> None:
                     "acteId": getattr(last_payment, "acte_id", None),
                 })
 
-        # P5 — Persist a balanced plan, reload it, then collect one exact installment.
         plan_payload = {
             "patient_id": patient_id,
             "title": "T2 P5 Probe",
