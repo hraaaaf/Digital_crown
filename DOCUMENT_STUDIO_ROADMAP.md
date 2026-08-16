@@ -163,11 +163,49 @@ Reste : exécuter réellement le harness sur le head final, runtime authentifié
 
 ## P7 — Compagnon Diagnostique
 
-**État : 🟡 frontière safety partiellement fermée ; audit complet restant.**
+**État : 🔴 audit canonique réalisé ; deux frontières P0 ouvertes ; correction P7-A prioritaire.**
 
-Acquis historique : ancien P5-P0 / PR #38, pharmacovigilance/substitution fail-closed.
+Rapport : `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md`.
 
-Reste : arbre d’états, contexte patient, sorties diagnostiques, validation praticien, connexions P7→P3/P1, état inter-pages, callbacks, valeur clinique, validation scientifique humaine.
+### Architecture vérifiée
+
+- onglet actif : `plan` ;
+- composant actif : `TreatmentPlanStudio` ;
+- contexte patient lu via `/patients/{patientId}` ;
+- state machine clinique codée directement dans le composant ;
+- sortie éditable puis conversion explicite P7→P3 ;
+- conversion Devis financièrement neutre (`price = 0`) ;
+- moteurs legacy parallèles : `HouseWizard` / `DiagnosticEngine` / `SafeDiagnosticEngine`.
+
+### P0 ouverts
+
+1. **Substitution thérapeutique automatique active** dans `TreatmentPlanStudio` : détection textuelle d'ATCD peut remplacer antibiothérapie par clindamycine/macrolide ou anti-inflammatoires par corticostéroïdes. Le correctif historique PR #38 ne protège que l'autre moteur legacy.
+2. **Frontière patient non atomique** : changement `patientId` recharge les ATCD mais ne reset pas explicitement diagnostic/historique/actes ; `DocumentHub` ne force pas `key={patientId}`. Risque de plan stale inter-patient si l'instance est réutilisée ; scénario runtime à confirmer.
+
+### P1 principaux
+
+- terminologie de certitude (`Diagnostic Établi`, `Plan de Traitement Scientifique`) ;
+- absence de dent/site cible ;
+- ATCD/allergies par substring texte libre ;
+- plusieurs moteurs diagnostiques divergents ;
+- fallback legacy non fail-closed (`Consultation Standard` + traitement) ;
+- conseils scientifiques sans provenance/version ;
+- absence de snapshot de raisonnement/règle/version/confirmation ;
+- dirty-state P7 absent ;
+- actes P7 peuvent contenir une prescription médicamenteuse implicite avant conversion P3.
+
+### Lots
+
+- **P7-A** : supprimer toute substitution automatique + reset patient atomique + tests ;
+- **P7-B** : moteur unique fail-closed, aucun traitement par défaut ;
+- **P7-C** : contexte structuré dent/site/allergies/données manquantes ;
+- **P7-D** : contrat non prescriptif + terminologie ;
+- **P7-E** : provenance/version/evidence ;
+- **P7-F** : connexions P7→P3/P1 + dirty-state ;
+- **P7-G** : UX/responsive/accessibilité ;
+- **P7-H** : validation scientifique humaine + recertification finale.
+
+Reste : P7-A→P7-H, runtime inter-patient, validation scientifique humaine et full-regression.
 
 ---
 
@@ -206,16 +244,17 @@ Reste : arbre d’états, contexte patient, sorties diagnostiques, validation pr
 ## Chemin critique courant
 
 1. **P3 PR #77** : conserver comme base ordonnée et fermer les gates full-repo/runtime quand l’infrastructure permet une exécution réelle.
-2. **Stack P4/P5/P6 PR #80** : vérifier le diff final et exécuter `scripts/certify_document_studio_p3_p6.sh` sur le head exact dès qu’un runner réel est disponible.
-3. **Ordre de merge** : P3 d’abord ; ensuite retarget/rebase du stack P4/P5/P6 vers `master`, recertification et merge seulement avec preuves suffisantes.
-4. **Gates manuels P4→P6** : runtime authentifié, PDF cabinet réel, responsive/accessibilité, rapprochement financier.
-5. **P7**, puis **T1**, puis **T2**.
+2. **Stack P4/P5/P6 PR #80** : head engineering/documentation fermé ; exécution réelle CI/runtime/PDF/financière reste externe et ouverte.
+3. **P7-A** : supprimer immédiatement les substitutions thérapeutiques automatiques et rendre le changement patient atomique.
+4. **P7-B→P7-F** : moteur fail-closed, contexte clinique, contrat non prescriptif, provenance et inter-pages.
+5. **P7-G/H** : UX/runtime puis validation scientifique humaine et recertification.
+6. **T1**, puis **T2**.
 
 ## Infrastructure CI
 
-Sur les heads récents P3/P4/P5, GitHub Actions a déjà pu échouer avant exécution des steps (`steps=null`). Ce blocage runner/billing est externe : il ne justifie ni PASS ni échec applicatif et ne bloque pas le travail indépendant.
+Sur les heads récents P3/P4/P5, GitHub Actions a déjà pu échouer avant exécution des steps (`steps=null`). Ce blocage runner/billing-like est externe : il ne justifie ni PASS ni échec applicatif et ne bloque pas le travail indépendant.
 
-Le harness P3→P6 est désormais prêt, mais aucun PASS n’est revendiqué tant qu’il n’a pas été réellement exécuté sur un head exact.
+Sur le head final P4→P6 `fb75780c44d21e552b396d1f4376b657e8837994`, aucun workflow run ni status context réel n'était observable au contrôle effectué. Aucun PASS n'est revendiqué.
 
 ## Règle de progression
 
