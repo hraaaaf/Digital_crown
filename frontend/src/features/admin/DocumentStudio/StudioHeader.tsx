@@ -1,12 +1,13 @@
 import React from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
 interface StudioHeaderProps {
   patientName: string;
   docDate: string;
   onDateChange: (date: string) => void;
-  activeTab: import('../DocumentHub').HubDocumentType;
+  activeTab: CertifiableDocumentStudioTab | 'ai';
   showOdontoPanoramique: boolean;
   onToggleOdonto: () => void;
   onGenerate?: (archive: boolean, print: boolean, isPreview: boolean, force: boolean) => void;
