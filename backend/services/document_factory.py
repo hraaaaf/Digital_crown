@@ -17,6 +17,7 @@ from backend.services.generators.libre_gen import LibreGenerator
 from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
 from backend.services.generators.installment_gen import generate_installment_plan
 from backend.services.certificate_payload_policy import normalize_and_validate_certificate_data
+from backend.services.honoraires_contract import validate_honoraires_document_data
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +115,9 @@ class DocumentFactory:
         return self.cert_gen.generate(patient, validated_data, db=db, user_id=user_id)
 
     def create_note_honoraires(self, patient, data, db: Session = None, user_id: int = None):
-        facture_seq = getattr(data, 'facture_numero', None)
-        return self.acc_gen.generate_note(patient, data, facture_number=facture_seq, db=db, user_id=user_id)
+        validated_data = validate_honoraires_document_data(data)
+        facture_seq = getattr(validated_data, 'facture_numero', None)
+        return self.acc_gen.generate_note(patient, validated_data, facture_number=facture_seq, db=db, user_id=user_id)
     
     def create_devis(self, patient, data, db: Session = None, user_id: int = None):
         devis_seq = getattr(data, 'devis_numero', None)
