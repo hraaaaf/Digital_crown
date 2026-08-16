@@ -1,4 +1,6 @@
-export type DocumentTab = 'plan' | 'ordonnance' | 'certificat' | 'devis' | 'honoraires' | 'echeancier' | 'libre' | 'ai';
+import type { CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
+
+export type DocumentTab = CertifiableDocumentStudioTab;
 
 export interface DocumentDirtySnapshot {
   prescription: boolean;
