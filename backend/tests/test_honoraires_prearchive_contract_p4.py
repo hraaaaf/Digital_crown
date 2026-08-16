@@ -1,6 +1,8 @@
+from datetime import date
+
 import pytest
 
-from backend.schemas.documents import HonorairesData, PaymentItem
+from backend.schemas.documents import HonorairesData, InstallmentItem, PaymentItem
 from backend.services.honoraires_contract import validate_honoraires_document_data
 
 
@@ -25,4 +27,21 @@ def test_honoraires_accepts_explicit_valid_line():
         montant=300,
         mode_reglement="TPE",
     )])
+    assert validate_honoraires_document_data(data) is data
+
+
+def test_honoraires_installment_requires_explicit_due_date_before_pdf():
+    data = HonorairesData(
+        payments=[PaymentItem(acte="Consultation", montant=300)],
+        installments=[InstallmentItem(amount=300, label="Versement 1")],
+    )
+    with pytest.raises(ValueError, match="date explicite"):
+        validate_honoraires_document_data(data)
+
+
+def test_honoraires_installment_accepts_explicit_due_date():
+    data = HonorairesData(
+        payments=[PaymentItem(acte="Consultation", montant=300)],
+        installments=[InstallmentItem(date=date(2026, 9, 1), amount=300, label="Versement 1")],
+    )
     assert validate_honoraires_document_data(data) is data
