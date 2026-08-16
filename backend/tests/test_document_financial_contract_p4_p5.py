@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.schemas.documents import DocumentRequest
+from backend.schemas.documents import DocumentRequest, PaymentItem
 
 
 def test_document_payment_status_is_closed():
@@ -16,6 +16,15 @@ def test_honoraires_method_is_required_only_for_real_collection():
         "payments": [{"acte": "Consultation", "montant": 300}],
     })
     assert pending.payment_status == "EN_ATTENTE"
+    assert "mode_reglement" not in pending.data["payments"][0]
+
+    pending_with_stale_frontend_method = DocumentRequest(
+        type="note",
+        patient_id=1,
+        payment_status="EN_ATTENTE",
+        data={"payments": [{"acte": "Consultation", "montant": 300, "mode_reglement": "Espèces"}]},
+    )
+    assert "mode_reglement" not in pending_with_stale_frontend_method.data["payments"][0]
 
     with pytest.raises(ValidationError) as missing_method:
         DocumentRequest(type="note", patient_id=1, payment_status="PAYE", data={
@@ -27,6 +36,12 @@ def test_honoraires_method_is_required_only_for_real_collection():
         "payments": [{"acte": "Consultation", "montant": 300, "mode_reglement": "CARTE"}],
     })
     assert paid.payment_status == "PAYE"
+    assert paid.data["payments"][0]["mode_reglement"] == "CARTE"
+
+
+def test_payment_item_has_no_implicit_cash_default():
+    item = PaymentItem(acte="Consultation", montant=300)
+    assert item.mode_reglement == ""
 
 
 def test_honoraires_request_rejects_invalid_amount_even_without_collection():
