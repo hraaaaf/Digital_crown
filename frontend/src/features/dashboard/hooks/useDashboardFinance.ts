@@ -40,36 +40,51 @@ export const useDashboardFinance = (
     let cancelled = false;
     setFinanceState('loading');
 
+    const request = async (
+      run: () => Promise<void>,
+      label: string,
+    ): Promise<boolean> => {
+      try {
+        await run();
+        return true;
+      } catch (error) {
+        console.warn(label, error);
+        return false;
+      }
+    };
+
     const requests = [
-      api.get('/intelligence/forecast-semaine')
-        .then(response => { if (!cancelled) setForecast(response.data); })
-        .catch(error => console.warn('Erreur forecast', error)),
-      api.get('/intelligence/taux-conversion')
-        .then(response => { if (!cancelled) setConversion(response.data); })
-        .catch(error => console.warn('Erreur conversion', error)),
-      api.get('/intelligence/projection-mensuelle')
-        .then(response => { if (!cancelled) setProjection(response.data); })
-        .catch(error => console.warn('Erreur projection', error)),
-      api.get('/intelligence/latent-cash')
-        .then(response => { if (!cancelled) setLatentCash(response.data); })
-        .catch(error => console.warn('Erreur latent cash', error)),
-      api.get('/stats/financial')
-        .then(response => {
-          if (!cancelled) {
-            setFinanceToday({
-              today_revenue: response.data.today_revenue ?? 0,
-              month_revenue: response.data.month_revenue ?? 0,
-              total_debt: response.data.total_debt ?? 0,
-            });
-          }
-        })
-        .catch(error => console.warn('Erreur finance today', error)),
+      request(async () => {
+        const response = await api.get('/intelligence/forecast-semaine');
+        if (!cancelled) setForecast(response.data);
+      }, 'Erreur forecast'),
+      request(async () => {
+        const response = await api.get('/intelligence/taux-conversion');
+        if (!cancelled) setConversion(response.data);
+      }, 'Erreur conversion'),
+      request(async () => {
+        const response = await api.get('/intelligence/projection-mensuelle');
+        if (!cancelled) setProjection(response.data);
+      }, 'Erreur projection'),
+      request(async () => {
+        const response = await api.get('/intelligence/latent-cash');
+        if (!cancelled) setLatentCash(response.data);
+      }, 'Erreur latent cash'),
+      request(async () => {
+        const response = await api.get('/stats/financial');
+        if (!cancelled) {
+          setFinanceToday({
+            today_revenue: response.data.today_revenue ?? 0,
+            month_revenue: response.data.month_revenue ?? 0,
+            total_debt: response.data.total_debt ?? 0,
+          });
+        }
+      }, 'Erreur finance today'),
     ];
 
-    void Promise.allSettled(requests).then(results => {
+    void Promise.all(requests).then(results => {
       if (cancelled) return;
-      const allFailed = results.every(result => result.status === 'rejected');
-      setFinanceState(allFailed ? 'error' : 'ready');
+      setFinanceState(results.some(Boolean) ? 'ready' : 'error');
     });
 
     return () => {
