@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -10,6 +10,8 @@ import { StudioHeader } from './DocumentStudio/StudioHeader';
 import { StudioTabs } from './DocumentStudio/StudioTabs';
 import { StudioFooter } from './DocumentStudio/StudioFooter';
 import { LivePreview } from './DocumentStudio/LivePreview';
+import { PendingNavigationDialog, DuplicateWarningDialog } from './DocumentStudio/DocumentHubOverlays';
+import { LegalAnnotationsSwitch } from './DocumentStudio/LegalAnnotationsSwitch';
 
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
@@ -29,6 +31,8 @@ import { isInstallmentDirty, setInstallmentDirty } from './DocumentStudio/Instal
 import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
 import { isP7Dirty, setP7Dirty } from './DocumentStudio/P7DirtyState';
 import { shouldGuardDocumentTabTransition } from './DocumentStudio/DocumentTabNavigationPolicy';
+import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
+import { useDocumentPreviewController } from './DocumentStudio/useDocumentPreviewController';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -254,6 +258,61 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   const generator = useDocumentGenerator(generatorParams);
 
+  const previewFingerprint = useMemo(() => documentPreviewFingerprint({
+    activeTab,
+    patientId,
+    docDate,
+    drugs: drugs.map(drug => ({
+      id: drug.id,
+      name: drug.name,
+      dosage: drug.dosage,
+      forme: drug.forme,
+      posologie: drug.posologie,
+      type: drug.type,
+      nonSubstituable: drug.non_substituable,
+    })),
+    certificate: {
+      type: certifType,
+      days: certifDays,
+      startDate: certifStartDate,
+      customReason: certifCustomMotif,
+    },
+    accounting: {
+      items: items.map(item => ({ ...item })),
+      paymentMode,
+      paymentStatus,
+      installments: installments.map(item => ({ ...item })),
+      isGlobalNote,
+      selectedTeeth: selectedTeethFromOdontogram.map(item => ({ ...item })),
+    },
+    libre: {
+      title: libreTitle,
+      content: libreContent,
+      customPatient: libreCustomPatient,
+      customDate: libreCustomDate,
+      hideHeader: libreHideHeader,
+      pageSize: librePageSize,
+      alignment: libreAlignment,
+    },
+    showLegalAnnotations,
+    installmentPayload: echeancierPayload,
+  }), [
+    activeTab, patientId, docDate, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
+    items, paymentMode, paymentStatus, installments, isGlobalNote, selectedTeethFromOdontogram,
+    libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize,
+    libreAlignment, showLegalAnnotations, echeancierPayload,
+  ]);
+
+  const handleGeneratePreview = useCallback(() => {
+    generator.handleGenerate(false, false, true);
+  }, [generator.handleGenerate]);
+
+  useDocumentPreviewController({
+    enabled: sideStudioType === 'PREVIEW',
+    fingerprint: previewFingerprint,
+    onGeneratePreview: handleGeneratePreview,
+  });
+
   // --- HYDRATATION ---
   useEffect(() => {
     if (editData?.clinical_data) {
@@ -347,17 +406,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   }, [patientId, activeTab]);
 
   useEffect(() => {
-    if (sideStudioType !== 'PREVIEW') return;
-    const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
-    libreTitle, libreContent, docDate, activeTab,
-    generator.handleGenerate
-  ]);
-
-  useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
       setSideStudioType('PREVIEW');
     }
@@ -402,45 +450,28 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {activeTab === 'ordonnance' && (
             <>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <button
-                type="button"
-                onClick={() => setShowLegalAnnotations(v => !v)}
-                className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none",
-                  showLegalAnnotations ? "bg-primary" : "bg-slate-200"
-                )}
-                role="switch"
-                aria-checked={showLegalAnnotations}
-                aria-label="Afficher les mentions légales de radioprotection"
-              >
-                <span className={cn(
-                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200",
-                  showLegalAnnotations ? "translate-x-4" : "translate-x-0"
-                )} />
-              </button>
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                Mentions légales (Radioprotection)
-              </span>
-            </div>
-            <PrescriptionAgenticStudio
-              patientId={patientId || '0'}
-              drugs={drugs}
-              setDrugs={setDrugs}
-              onUpdateDrug={(id, field, val) => {
-                setDrugs(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
-                generator.setHasChanges(true);
-              }}
-              onRemoveDrug={(id) => {
-                setDrugs(drugs.filter(d => d.id !== id));
-                generator.setHasChanges(true);
-              }}
-              onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '', type: 'MEDICAMENT' }])}
-              validationErrors={generator.validationErrors}
-              onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
-              hasChanges={generator.hasChanges}
-              coherenceWarnings={generator.coherenceWarnings}
-            />
+              <LegalAnnotationsSwitch
+                checked={showLegalAnnotations}
+                onChange={() => setShowLegalAnnotations(value => !value)}
+              />
+              <PrescriptionAgenticStudio
+                patientId={patientId || '0'}
+                drugs={drugs}
+                setDrugs={setDrugs}
+                onUpdateDrug={(id, field, val) => {
+                  setDrugs(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
+                  generator.setHasChanges(true);
+                }}
+                onRemoveDrug={(id) => {
+                  setDrugs(drugs.filter(d => d.id !== id));
+                  generator.setHasChanges(true);
+                }}
+                onAddDrug={() => setDrugs([...drugs, { id: Date.now(), name: '', dosage: '', forme: 'Comprimés', posologie: '', type: 'MEDICAMENT' }])}
+                validationErrors={generator.validationErrors}
+                onSaveHabit={(context, drugs) => generator.handleSavePreference({ protocol_name: context }, drugs)}
+                hasChanges={generator.hasChanges}
+                coherenceWarnings={generator.coherenceWarnings}
+              />
             </>
           )}
 
@@ -502,72 +533,17 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         />
       </div>
 
-      {/* MODALE — Garde changement d'onglet */}
-      {pendingTab && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={cancelPendingTab} />
-          <div
-            className="relative bg-white dark:bg-slate-950 rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="document-navigation-warning-title"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
-              <div>
-                <h3 id="document-navigation-warning-title" className="text-sm font-black text-slate-800 dark:text-white">Document en cours</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Le brouillon non enregistré sera abandonné.</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={cancelPendingTab}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-              >Annuler</button>
-              <button
-                type="button"
-                onClick={confirmPendingTab}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-primary transition-all"
-                style={{ '--tw-bg-primary': 'var(--primary)' } as React.CSSProperties}
-              >Continuer</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PendingNavigationDialog
+        open={pendingTab !== null}
+        onCancel={cancelPendingTab}
+        onConfirm={confirmPendingTab}
+      />
 
-      {/* MODALE — Doublon détecté (remplace window.confirm) */}
-      {generator.showDuplicateModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={generator.cancelDuplicate} />
-          <div
-            className="relative bg-white dark:bg-slate-950 rounded-[2rem] p-8 w-80 shadow-2xl flex flex-col gap-5"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="document-duplicate-warning-title"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 text-lg">⚠️</div>
-              <div>
-                <h3 id="document-duplicate-warning-title" className="text-sm font-black text-slate-800 dark:text-white">Doublon détecté</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Un document similaire existe déjà pour ce patient.</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={generator.cancelDuplicate}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-              >Annuler</button>
-              <button
-                type="button"
-                onClick={generator.confirmDuplicate}
-                className="flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-orange-500 text-white hover:bg-orange-600 transition-all"
-              >Forcer</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DuplicateWarningDialog
+        open={generator.showDuplicateModal}
+        onCancel={generator.cancelDuplicate}
+        onConfirm={generator.confirmDuplicate}
+      />
 
       {/* APERÇU RESPONSIVE */}
       <AnimatePresence>
@@ -582,7 +558,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
-              onRefresh={() => generator.handleGenerate(false, false, true)}
+              onRefresh={handleGeneratePreview}
               title={{
                 'plan': 'Stratégie Clinique',
                 'ordonnance': 'Ordonnance',
