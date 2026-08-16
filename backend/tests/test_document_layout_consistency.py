@@ -183,6 +183,28 @@ class TestOtherGeneratorsAgeFix:
 
     def test_certificat_generates_with_long_name(self, tmp_path):
         from backend.services.generators.certificat_gen import CertificatGenerator
+
+        signer = SimpleNamespace(
+            id=1,
+            role="DENTISTE",
+            nom_complet="Dr Test Dentiste",
+            employer_id=None,
+        )
+
+        class _QueryStub:
+            def __init__(self, value):
+                self.value = value
+
+            def filter(self, *_args, **_kwargs):
+                return self
+
+            def first(self):
+                return self.value
+
+        class _DbStub:
+            def query(self, model):
+                return _QueryStub(signer if getattr(model, "__name__", "") == "User" else None)
+
         gen = CertificatGenerator(output_dir=str(tmp_path))
         patient = _make_patient(nom="AIT EL BOUKHAR ALAOUI", prenom="Mohammed")
         data = SimpleNamespace(
@@ -191,9 +213,9 @@ class TestOtherGeneratorsAgeFix:
             days=0,
             is_ortho=False,
         )
-        # Certains générateurs exigent des attributs spécifiques — test tolérant
+        # Le générateur est fail-closed : un praticien DENTISTE identifié est requis.
         try:
-            path = gen.generate(patient, data)
+            path = gen.generate(patient, data, db=_DbStub(), user_id=signer.id)
             assert os.path.exists(path)
         except AttributeError:
             pytest.skip("CertificatGenerator.generate signature differs — covered by source-level check above")
