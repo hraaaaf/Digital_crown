@@ -42,14 +42,14 @@ export function canonicalToothNumbers(item: AccountingOdontogramSourceItem): num
 
 export function canonicalDentLabel(item: AccountingOdontogramSourceItem): string {
   const teeth = canonicalToothNumbers(item);
-  return teeth.length > 0 ? teeth.join('-') : item.dent;
+  return teeth.length > 0 ? teeth.join(', ') : item.dent;
 }
 
 export function normalizeStructuredAccountingItems<T extends AccountingOdontogramSourceItem>(items: T[]): T[] {
   return items.map(item => {
     const teeth = canonicalToothNumbers(item);
     if (teeth.length === 0) return item;
-    const dent = teeth.join('-');
+    const dent = teeth.join(', ');
     if (item.dent === dent && sameNumbers(item.toothNumbers, teeth)) return item;
     return {
       ...item,
