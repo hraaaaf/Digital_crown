@@ -17,24 +17,25 @@ const rows = [{
 
 describe('P3-G accounting dirty state', () => {
   it('treats an archived/reopened fingerprint as clean', () => {
-    const baseline = accountingDocumentFingerprint('devis', rows);
-    expect(isAccountingDocumentDirty('devis', rows, baseline)).toBe(false);
+    const baseline = accountingDocumentFingerprint('devis', rows, '2026-08-16');
+    expect(isAccountingDocumentDirty('devis', rows, baseline, '2026-08-16')).toBe(false);
   });
 
-  it('detects financial, odontogram and order changes', () => {
-    const baseline = accountingDocumentFingerprint('devis', rows);
-    expect(isAccountingDocumentDirty('devis', [{ ...rows[0], price: 800 }], baseline)).toBe(true);
-    expect(isAccountingDocumentDirty('devis', [{ ...rows[0], odontogramNotes: 'Note modifiée' }], baseline)).toBe(true);
-    expect(isAccountingDocumentDirty('devis', [rows[0], { ...rows[0], description: 'Couronne' }], baseline)).toBe(true);
+  it('detects financial, odontogram, order and document-date changes', () => {
+    const baseline = accountingDocumentFingerprint('devis', rows, '2026-08-16');
+    expect(isAccountingDocumentDirty('devis', [{ ...rows[0], price: 800 }], baseline, '2026-08-16')).toBe(true);
+    expect(isAccountingDocumentDirty('devis', [{ ...rows[0], odontogramNotes: 'Note modifiée' }], baseline, '2026-08-16')).toBe(true);
+    expect(isAccountingDocumentDirty('devis', [rows[0], { ...rows[0], description: 'Couronne' }], baseline, '2026-08-16')).toBe(true);
+    expect(isAccountingDocumentDirty('devis', rows, baseline, '2026-08-17')).toBe(true);
   });
 
   it('treats Devis to Honoraires as a new dirty financial document', () => {
-    const baseline = accountingDocumentFingerprint('devis', rows);
-    expect(isAccountingDocumentDirty('honoraires', rows, baseline)).toBe(true);
+    const baseline = accountingDocumentFingerprint('devis', rows, '2026-08-16');
+    expect(isAccountingDocumentDirty('honoraires', rows, baseline, '2026-08-16')).toBe(true);
   });
 
   it('does not warn for an empty document', () => {
-    expect(isAccountingDocumentDirty('devis', [], null)).toBe(false);
-    expect(isAccountingDocumentDirty('devis', [{ description: '   ', dent: '', price: 0 }], null)).toBe(false);
+    expect(isAccountingDocumentDirty('devis', [], null, '2026-08-16')).toBe(false);
+    expect(isAccountingDocumentDirty('devis', [{ description: '   ', dent: '', price: 0 }], null, '2026-08-16')).toBe(false);
   });
 });
