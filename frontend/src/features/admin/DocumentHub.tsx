@@ -502,9 +502,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
           onSavePreference={() => generator.handleSavePreference(smartSuggestion, drugs)}
-          aiReport={generator.aiReport}
-          onGenerateAI={generator.handleGenerateAI}
-          loadingAi={generator.loadingAi}
           total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
