@@ -87,6 +87,29 @@ describe('P3-B odontogram source of truth', () => {
     ]);
   });
 
+  it('uses canonical toothNumbers rather than a stale odontogram key when building teeth_data', () => {
+    const teethData = buildTeethDataFromAccountingItems([
+      {
+        id: 6,
+        description: 'Composite',
+        dent: '16',
+        price: 600,
+        toothNumbers: [16],
+        _odontogramKey: '21::stale-key',
+        odontogramTreatmentCode: 'COMP',
+      },
+    ]);
+
+    expect(teethData).toEqual([
+      {
+        tooth_number: 16,
+        treatments: [{ code: 'COMP', name: 'Composite', price: 600 }],
+        surfaces: [],
+        notes: '',
+      },
+    ]);
+  });
+
   it('rehydrates archived odontogram metadata without inventing financial rows', () => {
     const items = [
       { id: 10, description: 'Couronne Zircone', dent: '16', price: 4200, toothNumbers: [16] },
