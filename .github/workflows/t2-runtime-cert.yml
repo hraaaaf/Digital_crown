@@ -76,7 +76,11 @@ jobs:
 
       - name: Execute authenticated browser matrix
         working-directory: frontend
-        run: node scripts/certify-document-studio-browser.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/t2-browser
+          node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
 
       - name: Dump runtime logs on failure
         if: failure()
