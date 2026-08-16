@@ -4,10 +4,9 @@ from backend.schemas.documents import HonorairesData, PaymentItem
 from backend.services.honoraires_contract import validate_honoraires_document_data
 
 
-def test_honoraires_rejects_missing_explicit_payment_method_before_pdf():
+def test_honoraires_prearchive_does_not_require_method_without_collection_context():
     data = HonorairesData(payments=[PaymentItem(acte="Consultation", montant=300)])
-    with pytest.raises(ValueError, match="choisi explicitement"):
-        validate_honoraires_document_data(data)
+    assert validate_honoraires_document_data(data) is data
 
 
 def test_honoraires_rejects_zero_negative_and_empty_label_before_pdf():
