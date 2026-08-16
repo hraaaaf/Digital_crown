@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PARTIAL_PAYMENT_DISABLED_REASON } from '../DocumentStudio/AccountingPaymentPolicy';
+import { installmentsAfterGlobalNoteToggle } from '../DocumentStudio/AccountingHonorairesInstallmentPolicy';
 
 export type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
@@ -98,7 +99,10 @@ export const useAccountingStore = create<AccountingState>((set) => ({
     set({ paymentStatus, paymentStatusGuardMessage: null });
   },
   clearPaymentStatusGuard: () => set({ paymentStatusGuardMessage: null }),
-  setIsGlobalNote: (isGlobalNote) => set({ isGlobalNote }),
+  setIsGlobalNote: (isGlobalNote) => set((state) => ({
+    isGlobalNote,
+    installments: installmentsAfterGlobalNoteToggle(state.isGlobalNote, isGlobalNote, state.installments),
+  })),
 
   setGroupTreatmentName: (groupTreatmentName) => set({ groupTreatmentName }),
   setGroupTreatmentPrice: (groupTreatmentPrice) => set({ groupTreatmentPrice }),
