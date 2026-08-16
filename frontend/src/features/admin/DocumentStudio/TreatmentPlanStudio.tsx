@@ -21,6 +21,10 @@ import {
   type CompanionTopic,
   type PractitionerAct,
 } from './DiagnosticCompanionPolicy';
+import {
+  isDiagnosticCompanionDirty,
+  setDiagnosticCompanionDirty,
+} from './DiagnosticCompanionDirtyState';
 
 interface TreatmentPlanStudioProps {
   patientId: number;
@@ -68,6 +72,21 @@ export const TreatmentPlanStudio: React.FC<TreatmentPlanStudioProps> = ({ patien
     return () => { cancelled = true; };
   }, [patientId]);
 
+  useEffect(() => {
+    const dirty = practitionerActs.length > 0 || normalizePractitionerAct(newActText).length > 0;
+    setDiagnosticCompanionDirty(dirty);
+  }, [practitionerActs, newActText]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDiagnosticCompanionDirty()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const selectTopic = (nextTopic: CompanionTopic) => {
     setTopic(nextTopic);
     setPractitionerConfirmed(false);
@@ -95,12 +114,14 @@ export const TreatmentPlanStudio: React.FC<TreatmentPlanStudioProps> = ({ patien
     setNewActText('');
     setNewActPhase('INITIALE');
     setPractitionerConfirmed(false);
+    setDiagnosticCompanionDirty(false);
   };
 
   const transferToQuote = () => {
     if (!onConvertToQuote) return;
     const payload = buildQuoteTransferPayload(practitionerActs, practitionerConfirmed);
     if (payload.length === 0) return;
+    setDiagnosticCompanionDirty(false);
     onConvertToQuote(payload);
     setPractitionerConfirmed(false);
   };
