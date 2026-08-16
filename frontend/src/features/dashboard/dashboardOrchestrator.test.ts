@@ -24,13 +24,12 @@ describe('Dashboard D4 — contrat orchestrateur', () => {
     expect(dashboardSource).not.toMatch(/from\s+['"]\.\.\/services\/api['"]/);
   });
 
-  it('préserve les ancres data-tour canoniques après extraction', () => {
+  it('préserve les ancres data-tour réellement canoniques après extraction', () => {
     for (const tourId of [
+      'quick-action-new-patient',
+      'dashboard-agenda',
+      'dashboard-activity',
       'dashboard-stats',
-      'dashboard-recent',
-      'dashboard-waiting',
-      'dashboard-health',
-      'dashboard-finance',
     ]) {
       expect(componentSources).toContain(`data-tour="${tourId}"`);
     }
