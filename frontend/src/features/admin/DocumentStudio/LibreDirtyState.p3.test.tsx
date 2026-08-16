@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LibreForm } from './Forms/LibreForm';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
-import { StudioTabs } from './StudioTabs';
+import { shouldGuardDocumentTabTransition } from './DocumentTabNavigationPolicy';
 
 const renderLibreForm = () => {
   let content = '';
@@ -27,6 +27,15 @@ const renderLibreForm = () => {
     />,
   );
 };
+
+const dirtySnapshot = (libre: boolean) => ({
+  prescription: false,
+  certificate: false,
+  accounting: false,
+  installment: false,
+  libre,
+  plan: false,
+});
 
 describe('P3 Document Libre dirty-state', () => {
   beforeEach(() => {
@@ -56,28 +65,23 @@ describe('P3 Document Libre dirty-state', () => {
     unmount();
   });
 
-  it('keeps the user on Document Libre when tab abandonment is refused', () => {
-    const onTabChange = vi.fn();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('delegates dirty tab-abandonment protection to the centralized navigation policy', () => {
     setLibreDirty(true);
 
-    render(<StudioTabs activeTab="libre" onTabChange={onTabChange} />);
-    fireEvent.click(screen.getByRole('button', { name: /Ordonnance/i }));
-
-    expect(confirmSpy).toHaveBeenCalledOnce();
-    expect(onTabChange).not.toHaveBeenCalled();
-    expect(isLibreDirty()).toBe(true);
+    expect(
+      shouldGuardDocumentTabTransition('libre', 'ordonnance', dirtySnapshot(isLibreDirty())),
+    ).toBe(true);
   });
 
-  it('abandons the draft only after explicit confirmation and clears dirty state', () => {
-    const onTabChange = vi.fn();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('allows the transition once explicit discard clears the Libre dirty state', () => {
     setLibreDirty(true);
+    expect(
+      shouldGuardDocumentTabTransition('libre', 'ordonnance', dirtySnapshot(isLibreDirty())),
+    ).toBe(true);
 
-    render(<StudioTabs activeTab="libre" onTabChange={onTabChange} />);
-    fireEvent.click(screen.getByRole('button', { name: /Ordonnance/i }));
-
-    expect(onTabChange).toHaveBeenCalledWith('ordonnance');
-    expect(isLibreDirty()).toBe(false);
+    setLibreDirty(false);
+    expect(
+      shouldGuardDocumentTabTransition('libre', 'ordonnance', dirtySnapshot(isLibreDirty())),
+    ).toBe(false);
   });
 });
