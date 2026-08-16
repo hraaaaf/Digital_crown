@@ -92,25 +92,11 @@ Rapport : `docs/audits/DOCUMENT_STUDIO_P5_SUIVI_PAIEMENT_AUDIT.md`.
 Handover : `docs/audits/DOCUMENT_STUDIO_P5_HANDOVER_2026-08-16.md`.
 PR : **#95**, draft.
 
-Acquis :
-- création de plan fail-closed et somme exacte ;
-- édition conciliée avec le total contractuel ;
-- échéance payée immuable sans contrepassation ;
-- suppression d’un plan avec historique de paiement interdite ;
-- suivi backend-authoritative : payé / restant / prochaine échéance / retard ;
-- règlement réel explicite avec mode de paiement ;
-- alias TPE→CARTE ;
-- brouillon nouveau plan séparé du suivi réel ;
-- faux toggle local `Réglé` supprimé ;
-- sauvegarde explicite `POST /installments/` ;
-- faux bouton global `Enregistrer` supprimé pour P5 ;
-- rappel WhatsApp manuel depuis données backend.
+Acquis : création de plan fail-closed et somme exacte, édition conciliée, historique de paiement protégé, suivi backend-authoritative, règlement réel explicite, sauvegarde dédiée et faux états locaux supprimés.
 
 Preuves locales : backend **15/15 PASS**, summary policy **4/4 PASS**, create-payload policy `tsc --strict` + **8/8 PASS**.
 
-Gates différés : build/tests full-project, création/reload/paiement authentifiés, vérification vraie ligne `Payment`, suppression réelle avec historique, responsive/browser, WhatsApp réel.
-
-Amélioration produit séparée : restructuration atomique d’un plan impayé existant.
+Gates différés : build/tests full-project, création/reload/paiement authentifiés, vraie ligne `Payment`, responsive/browser, WhatsApp réel.
 
 ---
 
@@ -121,55 +107,63 @@ Amélioration produit séparée : restructuration atomique d’un plan impayé e
 Rapport : `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md`.
 PR : **#96**, draft.
 
-Socle vérifié :
-- titre/contenu obligatoires ;
-- toolbar non-submit ;
-- permission backend `clinical` + accès patient ;
-- validation fail-closed avant PDF : titre/contenu explicites, tailles maximales, A4/A5, alignements autorisés ;
-- markup toolbar limité et contenu non autorisé échappé ;
-- filename nettoyé ;
-- tableaux/wrapping/multipage ;
-- preview non archivée ;
-- archive documentaire uniquement après génération réussie ;
-- protection brouillon sur changement d’onglet et `beforeunload`.
+Socle vérifié : contrat fail-closed, A4/A5, alignements, markup sûr, archive après génération, protection brouillon.
 
-Correction P6-R1 :
-- l’ouverture/réouverture établit une baseline Libre propre ;
-- un archivage Libre ne nettoie le dirty-state qu’après réponse backend réussie avec `pdf_url` ;
-- preview, échec, 409/doublon, autre type ou PDF absent conservent l’état sale.
+Correction P6-R1 : un archivage Libre ne nettoie le dirty-state qu’après réponse backend réussie avec `pdf_url`; preview, échec, 409/doublon, autre type ou PDF absent conservent l’état sale.
 
 Preuve locale P6-R1 : `tsc --strict` PASS + **11/11 assertions PASS**.
 
-Gates différés : vrai build/tests React/Vite, runtime saisie/toolbar/tableau/A4-A5/alignements, archive/reopen/409, impression, PDF cabinet multipage, responsive/browser, merge/post-merge.
+Gates différés : full React/Vite, runtime, archive/reopen/409, impression, PDF cabinet multipage, responsive/browser, merge/post-merge.
 
 ---
 
 ## P7 — Compagnon Diagnostique
 
-**État : 🟡 PAGE ACTIVE — audit complet à exécuter maintenant.**
+**État : ✅ engineering safety local convergé ; ⏳ full-app + validation clinique/scientifique différés.**
 
-Acquis historique : frontière pharmacovigilance/substitution durcie, notamment PR #38 ; les signaux d’allergie avertissent sans substitution thérapeutique automatique.
+Rapport : `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md`.
+PR : **#97**, draft.
 
-### Chemin critique P7
+### Findings fermés
+- ancien arbre symptomatique supprimé comme source de `Diagnostic Établi` ;
+- substitutions automatiques antibiotique/AINS depuis texte libre supprimées ;
+- plans thérapeutiques et conseils médicaux spécifiques hardcodés supprimés ;
+- plus aucun acte clinique prérempli automatiquement ;
+- contexte patient en lecture seule, sans interprétation lexicale ;
+- acte transférable uniquement s’il est saisi manuellement par le praticien ;
+- confirmation explicite du praticien obligatoire ;
+- P7→P3 garde prix **0**, aucune dent inventée et filtre les instructions médicamenteuses/non financières ;
+- aucun chemin automatique P7→Ordonnance ;
+- dirty-state des actes praticien protégé sur changement d’onglet et fermeture navigateur.
 
-- [ ] cartographier l’arbre réel des états/questions ;
-- [ ] vérifier les données patient réellement consommées ;
-- [ ] qualifier les sorties : diagnostic, hypothèse, acte proposé, orientation ;
-- [ ] vérifier la validation praticien avant toute action clinique ;
-- [ ] auditer P7→P3 Devis et les filtres déjà durcis ;
-- [ ] auditer P7→P1 Ordonnance / autres documents ;
-- [ ] vérifier conservation/perte d’état inter-pages ;
-- [ ] supprimer callbacks/branches orphelins ;
-- [ ] auditer UX/accessibilité/responsive ;
-- [ ] séparer explicitement validation scientifique humaine de la certification engineering.
+### Preuves locales
+- policy P7 : `tsc --strict` PASS + **8/8 assertions PASS** ;
+- chaîne P7→P3 + dirty : `tsc --strict` PASS + **12/12 assertions PASS**.
+
+### Gates différés
+- vrai `npm test` / `npm run build` full-project ;
+- runtime authentifié avec patient réel ;
+- test réel P7→P3 ;
+- browser 390/768/desktop + clavier/touch ;
+- validation clinique/scientifique humaine de toute future orientation plus spécifique ;
+- analyse réglementaire applicable au produit final ;
+- ready review / merge / post-merge.
 
 ---
 
 ## T1 — Audit transversal premium
 
-**État : ⬜ après P7.**
+**État : 🟡 ACTIVE — audit partagé Document Studio à exécuter maintenant.**
 
-Couvre notamment : cohérence navigation, dirty-state multi-pages, preview/impression/archive, permissions, responsive, accessibilité, duplication de logique, contrats backend partagés et nomenclature.
+Chemin critique :
+- [ ] navigation et bypass des dirty-state, y compris changements par URL/query params ;
+- [ ] harmonisation lifecycle preview/archive/print/duplicate ;
+- [ ] cohérence des registres dirty-state entre pages ;
+- [ ] permissions et contrats backend partagés ;
+- [ ] responsive/accessibilité des composants communs ;
+- [ ] callbacks/branches mortes et duplication de logique ;
+- [ ] nomenclature et messages transactionnels ;
+- [ ] régression ciblée des transitions inter-pages.
 
 ---
 
