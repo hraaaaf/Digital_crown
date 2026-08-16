@@ -1,4 +1,4 @@
-name: Dashboard D2 Visual Proof
+name: Dashboard D3 Visual Proof
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - agent/dashboard-d1-visual-proof
 
 jobs:
-  capture-d2:
+  capture-d3:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/dashboard-d2-system-truth
+          ref: agent/dashboard-d3-marketplace-cleanup
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -31,72 +31,37 @@ jobs:
           for i in {1..60}; do curl -fsS http://127.0.0.1:4173 >/dev/null && exit 0; sleep 1; done
           cat /tmp/vite.log
           exit 1
-      - name: Capture D2 system truth states
+      - name: Capture D3 marketplace
         working-directory: frontend
         run: |
-          mkdir -p visual-proof-d2
-          cat > capture-d2.mjs <<'JS'
+          mkdir -p visual-proof-d3
+          cat > capture-d3.mjs <<'JS'
           import { chromium } from 'playwright';
-
-          const user = {id:1,email:'achraf@example.test',nom_complet:'Dr Achraf Benmoussa',role:'DENTISTE',employer_id:null,permissions:{},is_superadmin:false};
-          const stats = {total_patients:1248,total_analyses:318,in_waiting:2,weekly_activity:[12,15,10,18,16,5,0],weekly_patient_counts:[9,12,8,14,13,4,0],weekly_patients:60,recent_patients:[{id:1,nom:'EL ALAMI',prenom:'Youssef',acte:'Consultation',time:'10:30',type:'CONSULTATION'},{id:2,nom:'BENNANI',prenom:'Salma',acte:'Détartrage',time:'09:45',type:'SOINS'}]};
-          const health = {database:{status:'ok',detail:null},disk:{status:'ok',free_gb:182.4,total_gb:476.8},backup_local:{status:'ok',overall_status:'SUCCESS',age_hours:2.1,run_id:'visual-proof'},offsite:{status:'NOT_CONFIGURED',offsite_status:null,db_copied:null,media_copied:null},overall_severity:'ok'};
-          const responses = new Map([
-            ['/health',{status:'ok'}], ['/api/auth/me',user], ['/api/clinics/init-status',{is_initialized:true}],
-            ['/api/admin/cabinet/me',{header_lines_fr:['Dr Achraf Benmoussa']}], ['/api/admin/dashboard/stats',stats],
-            ['/api/intelligence/alerts/today',{alerts:[]}], ['/api/intelligence/forecast-semaine',{week_start:'2026-08-16',week_end:'2026-08-22',rdv_count:31,forecast_revenue:28400,avg_per_rdv:916}],
-            ['/api/intelligence/taux-conversion',{devis_count:18,converted_count:13,taux:72.2,avg_days:4.2}], ['/api/intelligence/projection-mensuelle',{historical:[],projections:[],avg_monthly:112000}],
-            ['/api/intelligence/latent-cash',{total_opportunites:7,valeur_totale_latente:18600,opportunites:[]}], ['/api/stats/financial',{today_revenue:4200,month_revenue:68400,total_debt:12900}],
+          const user={id:1,email:'achraf@example.test',nom_complet:'Dr Achraf Benmoussa',role:'DENTISTE',employer_id:null,permissions:{},is_superadmin:false};
+          const stats={total_patients:1248,total_analyses:318,in_waiting:2,weekly_activity:[12,15,10,18,16,5,0],weekly_patient_counts:[9,12,8,14,13,4,0],weekly_patients:60,recent_patients:[{id:1,nom:'EL ALAMI',prenom:'Youssef',acte:'Consultation',time:'10:30',type:'CONSULTATION'}]};
+          const health={database:{status:'ok',detail:null},disk:{status:'ok',free_gb:182.4,total_gb:476.8},backup_local:{status:'ok',overall_status:'SUCCESS',age_hours:2.1,run_id:'visual-proof'},offsite:{status:'NOT_CONFIGURED',offsite_status:null,db_copied:null,media_copied:null},overall_severity:'ok'};
+          const responses=new Map([
+            ['/health',{status:'ok'}],['/api/auth/me',user],['/api/clinics/init-status',{is_initialized:true}],['/api/admin/cabinet/me',{header_lines_fr:['Dr Achraf Benmoussa']}],['/api/admin/dashboard/stats',stats],['/api/admin/cabinet-health',health],['/api/intelligence/alerts/today',{alerts:[]}],['/api/intelligence/forecast-semaine',{week_start:'2026-08-16',week_end:'2026-08-22',rdv_count:31,forecast_revenue:28400,avg_per_rdv:916}],['/api/intelligence/taux-conversion',{devis_count:18,converted_count:13,taux:72.2,avg_days:4.2}],['/api/intelligence/projection-mensuelle',{historical:[],projections:[],avg_monthly:112000}],['/api/intelligence/latent-cash',{total_opportunites:7,valeur_totale_latente:18600,opportunites:[]}],['/api/stats/financial',{today_revenue:4200,month_revenue:68400,total_debt:12900}],
           ]);
-          const viewports = [{name:'desktop-1280',width:1280,height:900},{name:'tablet-768',width:768,height:1024},{name:'mobile-430',width:430,height:932},{name:'mobile-390',width:390,height:844}];
-          const browser = await chromium.launch({headless:true});
-
-          for (const scenario of ['verified','unverified']) {
-            for (const vp of viewports) {
-              const context = await browser.newContext({viewport:{width:vp.width,height:vp.height}});
-              const page = await context.newPage();
-              await page.route('http://127.0.0.1:8005/**', async route => {
-                const u = new URL(route.request().url());
-                if (u.pathname === '/api/admin/cabinet-health') {
-                  if (scenario === 'unverified') {
-                    await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'unavailable'})});
-                  } else {
-                    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(health)});
-                  }
-                  return;
-                }
-                let body;
-                if (u.pathname === '/api/appointments/') body = [{id:11,start_time:'2026-08-16T11:00:00',status:'EN_ATTENTE',patient:{id:3,nom:'TAZI',prenom:'Amine'}}];
-                else if (u.pathname.startsWith('/api/patients/')) body = [];
-                else if (u.pathname.includes('unread')) body = {count:0};
-                else body = responses.get(u.pathname) ?? {};
-                await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
-              });
-              await page.addInitScript(() => {
-                const payload=btoa(JSON.stringify({exp:4102444800})).replaceAll('=','');
-                localStorage.setItem('token',`e30.${payload}.x`);
-                localStorage.setItem('digitalcrown_tour_completed','2.0');
-                localStorage.setItem('digital_crown_tour_completed','true');
-                localStorage.setItem('appMode','prod');
-              });
-              await page.goto('http://127.0.0.1:4173/dashboard',{waitUntil:'networkidle',timeout:60000});
-              await page.waitForTimeout(1500);
-              const bodyText = await page.locator('body').innerText();
-              if (!bodyText.includes('Bonjour')) throw new Error(`Dashboard non rendu ${scenario}/${vp.name}`);
-              const expected = scenario === 'verified' ? 'SYSTÈME OPÉRATIONNEL' : 'SYSTÈME NON VÉRIFIÉ';
-              if (!bodyText.toUpperCase().includes(expected)) throw new Error(`État D2 absent ${scenario}/${vp.name}: ${bodyText.slice(0,800)}`);
-              if (bodyText.includes('Système local actif')) throw new Error(`Ancien faux positif encore visible ${scenario}/${vp.name}`);
-              await page.screenshot({path:`visual-proof-d2/d2-${scenario}-${vp.name}.png`,fullPage:true});
-              await context.close();
-            }
+          const browser=await chromium.launch({headless:true});
+          for(const vp of [{name:'desktop-1280',width:1280,height:900},{name:'tablet-768',width:768,height:1024},{name:'mobile-430',width:430,height:932},{name:'mobile-390',width:390,height:844}]){
+            const context=await browser.newContext({viewport:{width:vp.width,height:vp.height}}); const page=await context.newPage();
+            await page.route('http://127.0.0.1:8005/**',async route=>{const u=new URL(route.request().url());let body;if(u.pathname==='/api/appointments/')body=[{id:11,start_time:'2026-08-16T11:00:00',status:'EN_ATTENTE',patient:{id:3,nom:'TAZI',prenom:'Amine'}}];else if(u.pathname.startsWith('/api/patients/'))body=[];else if(u.pathname.includes('unread'))body={count:0};else body=responses.get(u.pathname)??{};await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});});
+            await page.addInitScript(()=>{const payload=btoa(JSON.stringify({exp:4102444800})).replaceAll('=','');localStorage.setItem('token',`e30.${payload}.x`);localStorage.setItem('digitalcrown_tour_completed','2.0');localStorage.setItem('digital_crown_tour_completed','true');localStorage.setItem('appMode','prod');});
+            await page.goto('http://127.0.0.1:4173/dashboard',{waitUntil:'networkidle',timeout:60000}); await page.waitForTimeout(1500);
+            const bodyText=await page.locator('body').innerText();
+            if(!bodyText.includes('Marketplace')) throw new Error(`Marketplace absente ${vp.name}`);
+            for(const forbidden of ['Pourquoi ici','frontend only','perimetre metier coherent']) if(bodyText.includes(forbidden)) throw new Error(`Prose interne visible ${vp.name}: ${forbidden}`);
+            if(!bodyText.includes('Commander les consommables et fournitures du cabinet')) throw new Error(`Copy métier D3 absente ${vp.name}`);
+            await page.screenshot({path:`visual-proof-d3/d3-${vp.name}.png`,fullPage:true}); await context.close();
           }
           await browser.close();
           JS
-          node capture-d2.mjs
-      - name: Upload D2 screenshots
+          node capture-d3.mjs
+      - name: Upload D3 screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: dashboard-d2-visual-proof
-          path: frontend/visual-proof-d2/*.png
+          name: dashboard-d3-visual-proof
+          path: frontend/visual-proof-d3/*.png
           if-no-files-found: error
           retention-days: 7
