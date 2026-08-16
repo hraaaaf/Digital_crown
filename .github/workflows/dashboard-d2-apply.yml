@@ -7,7 +7,7 @@ on:
 
 jobs:
   apply:
-    if: github.event.head_commit.message != 'fix(dashboard): make system health status fail-closed'
+    if: ${{ github.event.head_commit.message != 'fix(dashboard): make system health status fail-closed' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -21,27 +21,80 @@ jobs:
           from pathlib import Path
           p=Path('frontend/src/pages/Dashboard.tsx')
           s=p.read_text()
-
-          old="""  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);\n"""
-          new="""  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);\n  const [cabinetHealthState, setCabinetHealthState] = useState<'idle' | 'checking' | 'verified' | 'unverified'>('idle');\n"""
+          old="  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);\n"
+          new=old+"  const [cabinetHealthState, setCabinetHealthState] = useState<'idle' | 'checking' | 'verified' | 'unverified'>('idle');\n"
           assert old in s, 'cabinetHealth state anchor missing'
           s=s.replace(old,new,1)
 
-          old="""  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern\n  // que le badge d'alertes non lues de Sidebar.tsx).\n  useEffect(() => {\n    if (authLoading || !hasAccess('admin')) {\n      setCabinetHealth(null);\n      return;\n    }\n    const fetchHealth = () => api.get('/admin/cabinet-health')\n      .then(res => setCabinetHealth(res.data))\n      .catch(() => {});\n    fetchHealth();\n    const interval = setInterval(fetchHealth, 120000);\n    return () => clearInterval(interval);\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [user, authLoading]);\n"""
-          new="""  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min.\n  // Fail-closed : aucune réponse réseau ne doit être transformée en état rassurant.\n  useEffect(() => {\n    if (authLoading) return;\n    if (!hasAccess('admin')) {\n      setCabinetHealth(null);\n      setCabinetHealthState('idle');\n      return;\n    }\n\n    let cancelled = false;\n    const fetchHealth = async () => {\n      if (!cancelled) setCabinetHealthState('checking');\n      try {\n        const res = await api.get('/admin/cabinet-health');\n        if (cancelled) return;\n        setCabinetHealth(res.data);\n        setCabinetHealthState('verified');\n      } catch {\n        if (cancelled) return;\n        setCabinetHealth(null);\n        setCabinetHealthState('unverified');\n      }\n    };\n\n    fetchHealth();\n    const interval = setInterval(fetchHealth, 120000);\n    return () => {\n      cancelled = true;\n      clearInterval(interval);\n    };\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [user, authLoading]);\n"""
-          assert old in s, 'health effect anchor missing'
-          s=s.replace(old,new,1)
+          start=s.index("  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern")
+          end=s.index("\n  const markAlertRead", start)
+          replacement="""  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min.
+  // Fail-closed : aucune réponse réseau ne doit être transformée en état rassurant.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!hasAccess('admin')) {
+      setCabinetHealth(null);
+      setCabinetHealthState('idle');
+      return;
+    }
 
-          old="""          <div className=\"flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60\">\n            <div className=\"px-6 py-3 rounded-elite-sm flex flex-col items-end\">\n              <span className=\"text-[10px] font-black text-text-muted uppercase tracking-widest mb-1\">Status Système</span>\n              <div className=\"flex items-center gap-2\">\n                <div className={cn(\n                  \"w-2 h-2 rounded-full\",\n                  !cabinetHealth ? \"bg-slate-400\" :\n                  cabinetHealth.overall_severity === \"ok\" ? \"bg-emerald-500 animate-pulse\" :\n                  cabinetHealth.overall_severity === \"warning\" ? \"bg-amber-500\" : \"bg-red-500\"\n                )} />\n                <span className=\"text-sm font-black text-main uppercase tracking-tighter\" style={{ color: 'var(--text-main)' }}>\n                  {!cabinetHealth ? \"Système local actif\" :\n                    cabinetHealth.overall_severity === \"ok\" ? \"Système local actif\" :\n                    cabinetHealth.overall_severity === \"warning\" ? \"Vigilance requise\" : \"Problème détecté\"}\n                </span>\n              </div>\n            </div>\n          </div>\n"""
-          new="""          {hasAccess('admin') && (\n            <div className=\"flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60\">\n              <div className=\"px-6 py-3 rounded-elite-sm flex flex-col items-end\">\n                <span className=\"text-[10px] font-black text-text-muted uppercase tracking-widest mb-1\">Statut Système</span>\n                <div className=\"flex items-center gap-2\">\n                  <div className={cn(\n                    \"w-2 h-2 rounded-full\",\n                    cabinetHealthState !== 'verified' ? \"bg-slate-400\" :\n                    cabinetHealth?.overall_severity === \"ok\" ? \"bg-emerald-500 animate-pulse\" :\n                    cabinetHealth?.overall_severity === \"warning\" ? \"bg-amber-500\" : \"bg-red-500\"\n                  )} />\n                  <span className=\"text-sm font-black text-main uppercase tracking-tighter\" style={{ color: 'var(--text-main)' }}>\n                    {cabinetHealthState === 'checking' ? \"Vérification…\" :\n                      cabinetHealthState === 'unverified' ? \"État non vérifié\" :\n                      cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === \"ok\" ? \"Système opérationnel\" :\n                      cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === \"warning\" ? \"Vigilance requise\" :\n                      cabinetHealthState === 'verified' ? \"Problème détecté\" : \"État non vérifié\"}\n                  </span>\n                </div>\n              </div>\n            </div>\n          )}\n"""
-          assert old in s, 'system status widget anchor missing'
-          s=s.replace(old,new,1)
+    let cancelled = false;
+    const fetchHealth = async () => {
+      if (!cancelled) setCabinetHealthState('checking');
+      try {
+        const res = await api.get('/admin/cabinet-health');
+        if (cancelled) return;
+        setCabinetHealth(res.data);
+        setCabinetHealthState('verified');
+      } catch {
+        if (cancelled) return;
+        setCabinetHealth(null);
+        setCabinetHealthState('unverified');
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 120000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+"""
+          s=s[:start]+replacement+s[end:]
+
+          start=s.index('          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">')
+          end=s.index('\n        </div>\n      </motion.header>', start)
+          old_widget=s[start:end]
+          assert 'Système local actif' in old_widget, 'system widget anchor changed'
+          replacement="""          {hasAccess('admin') && (
+            <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
+              <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut Système</span>
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    cabinetHealthState !== 'verified' ? "bg-slate-400" :
+                    cabinetHealth?.overall_severity === "ok" ? "bg-emerald-500 animate-pulse" :
+                    cabinetHealth?.overall_severity === "warning" ? "bg-amber-500" : "bg-red-500"
+                  )} />
+                  <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
+                    {cabinetHealthState === 'checking' ? "Vérification…" :
+                      cabinetHealthState === 'unverified' ? "État non vérifié" :
+                      cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === "ok" ? "Système opérationnel" :
+                      cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === "warning" ? "Vigilance requise" :
+                      cabinetHealthState === 'verified' ? "Problème détecté" : "État non vérifié"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}"""
+          s=s[:start]+replacement+s[end:]
           p.write_text(s)
 
-          test=Path('frontend/src/pages/Dashboard.systemTruth.test.ts')
-          test.write_text('''import { describe, expect, it } from "vitest";\nimport fs from "node:fs";\nimport path from "node:path";\n\nconst source = fs.readFileSync(path.resolve(__dirname, "Dashboard.tsx"), "utf8");\n\ndescribe("Dashboard D2 system truth", () => {\n  it("never maps missing health data to an active/operational label", () => {\n    expect(source).not.toContain('!cabinetHealth ? "Système local actif"');\n    expect(source).toContain('cabinetHealthState === \'unverified\' ? "État non vérifié"');\n  });\n\n  it("clears stale health data on fetch failure", () => {\n    expect(source).toContain("setCabinetHealth(null);");\n    expect(source).toContain("setCabinetHealthState('unverified');");\n  });\n\n  it("shows system health only to admin-capable users", () => {\n    expect(source).toContain("{hasAccess('admin') && (");\n    expect(source).toContain("Statut Système");\n  });\n\n  it("uses a verified server severity before showing green operational state", () => {\n    expect(source).toContain("cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === \\\"ok\\\" ? \\\"Système opérationnel\\\"");\n  });\n});\n''')
+          Path('frontend/src/pages/Dashboard.systemTruth.test.ts').write_text('''import { describe, expect, it } from "vitest";\nimport fs from "node:fs";\nimport path from "node:path";\nconst source = fs.readFileSync(path.resolve(__dirname, "Dashboard.tsx"), "utf8");\ndescribe("Dashboard D2 system truth", () => {\n  it("does not turn missing health data into a positive state", () => {\n    expect(source).not.toContain('!cabinetHealth ? "Système local actif"');\n    expect(source).toContain("setCabinetHealthState('unverified')");\n    expect(source).toContain('"État non vérifié"');\n  });\n  it("requires verified severity for the green label", () => {\n    expect(source).toContain("cabinetHealthState === 'verified' && cabinetHealth?.overall_severity === \\\"ok\\\"");\n    expect(source).toContain('"Système opérationnel"');\n  });\n  it("hides system status outside admin access", () => {\n    expect(source).toContain("{hasAccess('admin') && (");\n    expect(source).toContain("Statut Système");\n  });\n});\n''')
           PY
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add frontend/src/pages/Dashboard.tsx frontend/src/pages/Dashboard.systemTruth.test.ts
