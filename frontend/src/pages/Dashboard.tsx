@@ -38,6 +38,7 @@ import { motion, type Variants } from 'framer-motion';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { DayOneTour } from '../components/DayOneTour';
+import { getCabinetHealthDisplayState, useCabinetHealth } from '../hooks/useCabinetHealth';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -106,14 +107,6 @@ interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'fo
 interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
 interface LatentCashData { total_opportunites: number; valeur_totale_latente: number; opportunites: any[]; }
 
-interface CabinetHealth {
-  database: { status: 'ok' | 'error'; detail: string | null };
-  disk: { status: 'ok' | 'warning' | 'critical' | 'unknown'; free_gb: number | null; total_gb: number | null };
-  backup_local: { status: 'ok' | 'warning' | 'critical' | 'none'; overall_status: string | null; age_hours: number | null; run_id: string | null };
-  offsite: { status: 'NOT_CONFIGURED' | 'ok' | 'warning'; offsite_status: string | null; db_copied: boolean | null; media_copied: boolean | null };
-  overall_severity: 'ok' | 'warning' | 'critical';
-}
-
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -135,7 +128,6 @@ export const Dashboard: React.FC = () => {
     month_revenue: number;
     total_debt: number;
   } | null>(null);
-  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,6 +141,12 @@ export const Dashboard: React.FC = () => {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasAccess = (permission: string) => userHasAccess(user, permission);
+  const cabinetHealthState = useCabinetHealth({
+    enabled: hasAccess('admin'),
+    authLoading,
+  });
+  const cabinetHealth = cabinetHealthState.status === 'ready' ? cabinetHealthState.data : null;
+  const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);
 
   useEffect(() => {
     if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
@@ -239,7 +237,6 @@ export const Dashboard: React.FC = () => {
       clearPatientData();
       clearAccountingData();
       setTodayAppointments([]);
-      setCabinetHealth(null);
       setLoading(false);
       return;
     }
@@ -310,22 +307,6 @@ export const Dashboard: React.FC = () => {
     }
     // hasAccess est une vue pure de user ; le rerun dépend donc uniquement de
     // l'identité résolue et de l'état d'hydratation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]);
-
-  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern
-  // que le badge d'alertes non lues de Sidebar.tsx).
-  useEffect(() => {
-    if (authLoading || !hasAccess('admin')) {
-      setCabinetHealth(null);
-      return;
-    }
-    const fetchHealth = () => api.get('/admin/cabinet-health')
-      .then(res => setCabinetHealth(res.data))
-      .catch(() => {});
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 120000);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
@@ -505,25 +486,24 @@ export const Dashboard: React.FC = () => {
               <span className="hidden md:inline">Mobile</span>
             </button>
           )}
-          
-          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
-            <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  !cabinetHealth ? "bg-slate-400" :
-                  cabinetHealth.overall_severity === "ok" ? "bg-emerald-500 animate-pulse" :
-                  cabinetHealth.overall_severity === "warning" ? "bg-amber-500" : "bg-red-500"
-                )} />
-                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
-                  {!cabinetHealth ? "Système local actif" :
-                    cabinetHealth.overall_severity === "ok" ? "Système local actif" :
-                    cabinetHealth.overall_severity === "warning" ? "Vigilance requise" : "Problème détecté"}
-                </span>
+
+          {hasAccess('admin') && (
+            <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
+              <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut système</span>
+                <div className="flex items-center gap-2" role="status" aria-live="polite">
+                  {systemStatus.isLoading ? (
+                    <Loader2 size={12} className="text-slate-400 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <div className={cn("w-2 h-2 rounded-full", systemStatus.dotClassName)} aria-hidden="true" />
+                  )}
+                  <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
+                    {systemStatus.label}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </motion.header>
 
