@@ -43,7 +43,7 @@ interface UseDocumentGeneratorParams {
   libreAlignment: 'left' | 'center' | 'right' | 'justify';
   docDate: string;
   selectedTeethFromOdontogram: SelectedSurfaceData[];
-  smartSuggestion: any[] | any;
+  smartSuggestion: any;
   installments: any[];
   isAccounted?: boolean;
   echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
@@ -70,7 +70,7 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
   if (activeTab === 'ordonnance') {
     const validDrugs = drugs.filter(d => d.name.trim());
     if (validDrugs.length === 0) {
-      errors.push({ field: 'items', message: "L'ordonnance ne contient aucun médicament. Ajoutez au moins un médicament avant de générer." });
+      errors.push({ field: 'drugs', message: "L'ordonnance ne contient aucun médicament. Ajoutez au moins un médicament avant de générer." });
     }
     drugs.forEach((d, i) => {
       const isExamen = d.type === 'EXAMEN' || /radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name);
