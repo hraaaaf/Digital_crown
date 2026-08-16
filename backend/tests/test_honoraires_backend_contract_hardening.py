@@ -59,6 +59,7 @@ def test_payment_method_aliases_are_normalized_and_unknown_rejected():
     assert PaymentItem(**_payment(mode_reglement="CARTE")).mode_reglement == "TPE"
     assert PaymentItem(**_payment(mode_reglement="CHEQUE")).mode_reglement == "Chèque"
     assert PaymentItem(**_payment(mode_reglement="cash")).mode_reglement == "Espèces"
+    assert PaymentItem(**_payment(mode_reglement="EN ATTENTE")).mode_reglement == "EN ATTENTE"
     with pytest.raises(ValidationError):
         PaymentItem(**_payment(mode_reglement="Crypto"))
 
@@ -152,4 +153,38 @@ def test_document_request_keeps_global_installments_for_existing_reconciliation_
                 "is_global_note": True,
                 "installments": [{"label": "Versement 1", "date": "2026-09-01", "amount": 600}],
             },
+        )
+
+
+def test_pending_note_rewrites_collection_method_to_pending_semantics():
+    req = DocumentRequest(
+        type="note",
+        patient_id=1,
+        payment_status="EN_ATTENTE",
+        data={"payments": [_payment(mode_reglement="Espèces")], "is_global_note": False},
+    )
+    assert req.data["payments"][0]["mode_reglement"] == "EN ATTENTE"
+    parsed = HonorairesData(**req.data)
+    assert parsed.payments[0].mode_reglement == "EN ATTENTE"
+
+
+def test_paid_note_preserves_real_collection_method():
+    req = DocumentRequest(
+        type="note",
+        patient_id=1,
+        payment_status="PAYE",
+        data={"payments": [_payment(mode_reglement="TPE")], "is_global_note": False},
+    )
+    assert req.data["payments"][0]["mode_reglement"] == "TPE"
+    parsed = HonorairesData(**req.data)
+    assert parsed.payments[0].mode_reglement == "TPE"
+
+
+def test_unknown_payment_status_is_rejected():
+    with pytest.raises(ValidationError):
+        DocumentRequest(
+            type="note",
+            patient_id=1,
+            payment_status="MAGIQUE",
+            data={"payments": [_payment()], "is_global_note": False},
         )
