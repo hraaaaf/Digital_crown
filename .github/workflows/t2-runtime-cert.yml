@@ -65,6 +65,9 @@ jobs:
       - name: Certify strict runtime PDF
         run: python scripts/t2_runtime_pdf_probe.py
 
+      - name: Certify P3 P4 P5 persisted reconciliation
+        run: python scripts/t2_runtime_financial_probe.py
+
       - name: Start frontend
         working-directory: frontend
         run: |
