@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { PriceBrain } from '../../../../components/odontogram/PriceBrain';
 import { api } from '../../../../services/api';
 import { buildExactInstallmentAllocation } from '../InstallmentAllocationPolicy';
+import { buildInstallmentPlanCreatePayload } from '../InstallmentPlanDraftPolicy';
 import { InstallmentTrackingPanel } from './InstallmentTrackingPanel';
 
 interface InstallmentStudioProps {
@@ -154,34 +155,29 @@ export const InstallmentStudio: React.FC<InstallmentStudioProps> = ({ patientId,
 
   const plannedTotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const isBalanced = totalAmount > 0 && Math.abs(plannedTotal - totalAmount) < 0.005;
-  const draftIsValid = Boolean(
-    patientId
-    && patientId !== '0'
-    && title.trim()
-    && totalAmount > 0
-    && items.length > 0
-    && isBalanced
-    && items.every(item => item.label.trim() && Number.isFinite(item.amount) && item.amount > 0 && item.dueDate),
-  );
+
+  let draftIsValid = false;
+  try {
+    buildInstallmentPlanCreatePayload(patientId, title, totalAmount, items);
+    draftIsValid = true;
+  } catch {
+    draftIsValid = false;
+  }
 
   const savePlan = async () => {
-    if (!draftIsValid || savingPlan) {
-      toast.error('Le plan doit être complet, positif et exactement équilibré avant enregistrement.');
+    if (savingPlan) return;
+
+    let payload;
+    try {
+      payload = buildInstallmentPlanCreatePayload(patientId, title, totalAmount, items);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Plan de paiement invalide.');
       return;
     }
+
     setSavingPlan(true);
     try {
-      await api.post('/installments/', {
-        patient_id: Number(patientId),
-        title: title.trim(),
-        total_amount: totalAmount,
-        installments: items.map(item => ({
-          label: item.label.trim(),
-          amount: item.amount,
-          due_date: `${item.dueDate}T00:00:00`,
-          status: 'EN_ATTENTE',
-        })),
-      });
+      await api.post('/installments/', payload);
       toast.success('Plan de paiement enregistré.');
       resetDraft();
       setTrackingRevision(value => value + 1);
