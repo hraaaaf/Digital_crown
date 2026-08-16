@@ -11,16 +11,28 @@ def test_document_payment_status_is_closed():
         })
 
 
-def test_honoraires_request_requires_explicit_method_and_positive_amount():
+def test_honoraires_method_is_required_only_for_real_collection():
+    pending = DocumentRequest(type="note", patient_id=1, payment_status="EN_ATTENTE", data={
+        "payments": [{"acte": "Consultation", "montant": 300}],
+    })
+    assert pending.payment_status == "EN_ATTENTE"
+
     with pytest.raises(ValidationError) as missing_method:
-        DocumentRequest(type="note", patient_id=1, data={
+        DocumentRequest(type="note", patient_id=1, payment_status="PAYE", data={
             "payments": [{"acte": "Consultation", "montant": 300}],
         })
     assert any(error["type"] == "honoraires_payment_method_required" for error in missing_method.value.errors())
 
+    paid = DocumentRequest(type="note", patient_id=1, payment_status="PAYE", data={
+        "payments": [{"acte": "Consultation", "montant": 300, "mode_reglement": "CARTE"}],
+    })
+    assert paid.payment_status == "PAYE"
+
+
+def test_honoraires_request_rejects_invalid_amount_even_without_collection():
     with pytest.raises(ValidationError) as zero_amount:
-        DocumentRequest(type="note", patient_id=1, data={
-            "payments": [{"acte": "Consultation", "montant": 0, "mode_reglement": "Espèces"}],
+        DocumentRequest(type="note", patient_id=1, payment_status="EN_ATTENTE", data={
+            "payments": [{"acte": "Consultation", "montant": 0}],
         })
     assert any(error["type"] == "honoraires_invalid_amount" for error in zero_amount.value.errors())
 
