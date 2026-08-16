@@ -38,6 +38,7 @@ import { motion, type Variants } from 'framer-motion';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { DayOneTour } from '../components/DayOneTour';
+import { getCabinetHealthDisplayState, useCabinetHealth } from '../hooks/useCabinetHealth';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -49,8 +50,8 @@ const containerVariants: Variants = {
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     transition: { duration: 0.5, ease: "easeOut" }
   }
@@ -106,14 +107,6 @@ interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'fo
 interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
 interface LatentCashData { total_opportunites: number; valeur_totale_latente: number; opportunites: any[]; }
 
-interface CabinetHealth {
-  database: { status: 'ok' | 'error'; detail: string | null };
-  disk: { status: 'ok' | 'warning' | 'critical' | 'unknown'; free_gb: number | null; total_gb: number | null };
-  backup_local: { status: 'ok' | 'warning' | 'critical' | 'none'; overall_status: string | null; age_hours: number | null; run_id: string | null };
-  offsite: { status: 'NOT_CONFIGURED' | 'ok' | 'warning'; offsite_status: string | null; db_copied: boolean | null; media_copied: boolean | null };
-  overall_severity: 'ok' | 'warning' | 'critical';
-}
-
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -135,20 +128,25 @@ export const Dashboard: React.FC = () => {
     month_revenue: number;
     total_debt: number;
   } | null>(null);
-  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  
+
   // Ghost Secrétariat (To-Do List Magique)
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{nom: string; prenom: string} | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasAccess = (permission: string) => userHasAccess(user, permission);
+  const cabinetHealthState = useCabinetHealth({
+    enabled: hasAccess('admin'),
+    authLoading,
+  });
+  const cabinetHealth = cabinetHealthState.status === 'ready' ? cabinetHealthState.data : null;
+  const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);
 
   useEffect(() => {
     if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
@@ -188,7 +186,7 @@ export const Dashboard: React.FC = () => {
     try {
       await api.put(`/appointments/${apptId}`, { status: newStatus });
       fetchTodayAppointments();
-      
+
       // Mettre aussi à jour les stats pour répercuter le in_waiting si le rôle
       // a le droit de charger les données patients.
       if (hasAccess('patients')) {
@@ -208,8 +206,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const today = new Date().toLocaleDateString('fr-FR', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+  const today = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
   const formatDate = (dateStr: string) => {
@@ -239,7 +237,6 @@ export const Dashboard: React.FC = () => {
       clearPatientData();
       clearAccountingData();
       setTodayAppointments([]);
-      setCabinetHealth(null);
       setLoading(false);
       return;
     }
@@ -313,22 +310,6 @@ export const Dashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
-  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern
-  // que le badge d'alertes non lues de Sidebar.tsx).
-  useEffect(() => {
-    if (authLoading || !hasAccess('admin')) {
-      setCabinetHealth(null);
-      return;
-    }
-    const fetchHealth = () => api.get('/admin/cabinet-health')
-      .then(res => setCabinetHealth(res.data))
-      .catch(() => {});
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 120000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]);
-
   const markAlertRead = async (alertId: number) => {
     if (!hasAccess('patients')) return;
     try {
@@ -376,7 +357,7 @@ export const Dashboard: React.FC = () => {
   if (loading || authLoading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -393,7 +374,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          
+
           {/* Barre de Recherche rapide */}
           {hasAccess('patients') && (
             <div className="relative flex items-center">
@@ -505,21 +486,18 @@ export const Dashboard: React.FC = () => {
               <span className="hidden md:inline">Mobile</span>
             </button>
           )}
-          
+
           <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
             <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  !cabinetHealth ? "bg-slate-400" :
-                  cabinetHealth.overall_severity === "ok" ? "bg-emerald-500 animate-pulse" :
-                  cabinetHealth.overall_severity === "warning" ? "bg-amber-500" : "bg-red-500"
-                )} />
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut système</span>
+              <div className="flex items-center gap-2" role="status" aria-live="polite">
+                {systemStatus.isLoading ? (
+                  <Loader2 size={12} className="text-slate-400 animate-spin" aria-hidden="true" />
+                ) : (
+                  <div className={cn("w-2 h-2 rounded-full", systemStatus.dotClassName)} aria-hidden="true" />
+                )}
                 <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
-                  {!cabinetHealth ? "Système local actif" :
-                    cabinetHealth.overall_severity === "ok" ? "Système local actif" :
-                    cabinetHealth.overall_severity === "warning" ? "Vigilance requise" : "Problème détecté"}
+                  {systemStatus.label}
                 </span>
               </div>
             </div>
@@ -631,8 +609,8 @@ export const Dashboard: React.FC = () => {
                 stats.recent_patients.map((patient, index) => {
                   if (!patient || !patient.nom) return null;
                   return (
-                    <Link 
-                      key={patient.id} 
+                    <Link
+                      key={patient.id}
                       to={`/patients/${patient.id}`}
                       className={cn(
                         "flex items-center justify-between p-4 hover:bg-primary/5 rounded-elite-sm transition-elite group",
@@ -672,8 +650,8 @@ export const Dashboard: React.FC = () => {
                   <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
                     Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
                   </p>
-                  <Link 
-                    to="/patients/new" 
+                  <Link
+                    to="/patients/new"
                     className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
                   >
                     Créer mon 1er patient <ChevronRight size={14} />
@@ -686,133 +664,133 @@ export const Dashboard: React.FC = () => {
 
         {hasAccess('agenda') && (
           <motion.section variants={itemVariants} className="space-y-5">
-              <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
-                <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
-                <button
-                  onClick={fetchTodayAppointments}
-                  className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
-                >
-                  {loadingAppts ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
-                </button>
-              </h2>
+            <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
+              <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
+              <button
+                onClick={fetchTodayAppointments}
+                className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
+              >
+                {loadingAppts ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
+              </button>
+            </h2>
 
-              <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-                
-                {/* Contenu principal défilable */}
-                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                  {todayAppointments && todayAppointments.length > 0 ? (
-                    [...todayAppointments]
-                      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-                      .map((appt) => {
-                        const apptTime = new Date(appt.start_time).toLocaleTimeString('fr-FR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        });
-                        
-                        let statusLabel = "Prévu";
-                        let statusColor = "bg-slate-100 text-slate-600 border-slate-200";
-                        let actionButton = null;
+            <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
-                        if (appt.status === 'EN_S_ATTENTE') {
-                          statusLabel = "Salle d'attente";
-                          statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse";
-                          actionButton = (
-                            <button
-                              onClick={() => updateAppointmentStatus(appt.id, 'EN_FAUTEUIL')}
-                              className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                            >
-                              Installer au Fauteuil
-                            </button>
-                          );
-                        } else if (appt.status === 'EN_FAUTEUIL') {
-                          statusLabel = "Au Fauteuil";
-                          statusColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
-                          actionButton = (
-                            <button
-                              onClick={() => updateAppointmentStatus(appt.id, 'TERMINÉ')}
-                              className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
-                            >
-                              Terminer la Séance
-                            </button>
-                          );
-                        } else if (appt.status === 'TERMINÉ') {
-                          statusLabel = "Terminé";
-                          statusColor = "bg-slate-500/10 text-slate-400 border-slate-500/10";
-                        } else if (appt.status === 'ANNULÉ') {
-                          statusLabel = "Annulé";
-                          statusColor = "bg-rose-500/10 text-rose-500 border-rose-500/20";
-                        } else {
-                          actionButton = (
-                            <button
-                              onClick={() => updateAppointmentStatus(appt.id, 'EN_S_ATTENTE')}
-                              className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                            >
-                              Marquer Arrivé
-                            </button>
-                          );
-                        }
+              {/* Contenu principal défilable */}
+              <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+                {todayAppointments && todayAppointments.length > 0 ? (
+                  [...todayAppointments]
+                    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                    .map((appt) => {
+                      const apptTime = new Date(appt.start_time).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
 
-                        return (
-                          <div 
-                            key={appt.id}
-                            className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
+                      let statusLabel = "Prévu";
+                      let statusColor = "bg-slate-100 text-slate-600 border-slate-200";
+                      let actionButton = null;
+
+                      if (appt.status === 'EN_S_ATTENTE') {
+                        statusLabel = "Salle d'attente";
+                        statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse";
+                        actionButton = (
+                          <button
+                            onClick={() => updateAppointmentStatus(appt.id, 'EN_FAUTEUIL')}
+                            className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-                                {apptTime}
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-black text-primary font-outfit">
-                                  {appt.patient ? `${appt.patient.nom.toUpperCase()} ${appt.patient.prenom}` : 'Patient non spécifié'}
-                                </h4>
-                                <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
-                                  {appt.description || 'Consultation clinique'}
-                                </p>
-                              </div>
-                            </div>
+                            Installer au Fauteuil
+                          </button>
+                        );
+                      } else if (appt.status === 'EN_FAUTEUIL') {
+                        statusLabel = "Au Fauteuil";
+                        statusColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+                        actionButton = (
+                          <button
+                            onClick={() => updateAppointmentStatus(appt.id, 'TERMINÉ')}
+                            className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
+                          >
+                            Terminer la Séance
+                          </button>
+                        );
+                      } else if (appt.status === 'TERMINÉ') {
+                        statusLabel = "Terminé";
+                        statusColor = "bg-slate-500/10 text-slate-400 border-slate-500/10";
+                      } else if (appt.status === 'ANNULÉ') {
+                        statusLabel = "Annulé";
+                        statusColor = "bg-rose-500/10 text-rose-500 border-rose-500/20";
+                      } else {
+                        actionButton = (
+                          <button
+                            onClick={() => updateAppointmentStatus(appt.id, 'EN_S_ATTENTE')}
+                            className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
+                          >
+                            Marquer Arrivé
+                          </button>
+                        );
+                      }
 
-                            <div className="flex items-center gap-3">
-                              <span className={cn("text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider", statusColor)}>
-                                {statusLabel}
-                              </span>
-                              {actionButton}
+                      return (
+                        <div
+                          key={appt.id}
+                          className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                              {apptTime}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-black text-primary font-outfit">
+                                {appt.patient ? `${appt.patient.nom.toUpperCase()} ${appt.patient.prenom}` : 'Patient non spécifié'}
+                              </h4>
+                              <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
+                                {appt.description || 'Consultation clinique'}
+                              </p>
                             </div>
                           </div>
-                        );
-                      })
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                        <Calendar size={28} className="text-emerald-500" />
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
-                        <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
-                          Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
-                        </p>
-                      </div>
-                      <Link 
-                        to="/agenda" 
-                        className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                      >
-                        Ouvrir l'agenda
-                      </Link>
-                    </div>
-                  )}
-                </div>
 
-                {/* Statistiques rapides en bas */}
-                <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    En Salle d'Attente : {todayAppointments.filter(a => a.status === 'EN_S_ATTENTE').length}
-                  </span>
-                  <span>
-                    Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
-                  </span>
-                </div>
+                          <div className="flex items-center gap-3">
+                            <span className={cn("text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider", statusColor)}>
+                              {statusLabel}
+                            </span>
+                            {actionButton}
+                          </div>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
+                      <Calendar size={28} className="text-emerald-500" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
+                      <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
+                        Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
+                      </p>
+                    </div>
+                    <Link
+                      to="/agenda"
+                      className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                    >
+                      Ouvrir l'agenda
+                    </Link>
+                  </div>
+                )}
               </div>
+
+              {/* Statistiques rapides en bas */}
+              <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  En Salle d'Attente : {todayAppointments.filter(a => a.status === 'EN_S_ATTENTE').length}
+                </span>
+                <span>
+                  Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
+                </span>
+              </div>
+            </div>
           </motion.section>
         )}
 
@@ -997,8 +975,26 @@ export const Dashboard: React.FC = () => {
           </motion.section>
         )}
 
-        {/* Widget santé cabinet — propriétaire/admin uniquement */}
-        {hasAccess('admin') && cabinetHealth && (
+        {/* Santé cabinet non vérifiée — ne jamais masquer une absence de preuve. */}
+        {hasAccess('admin') && cabinetHealthState.status === 'unverified' && (
+          <motion.section variants={itemVariants}>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
+              Santé du Cabinet
+            </h2>
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-elite-lg shadow-elite p-6 flex items-start gap-4" role="status">
+              <AlertCircle size={22} className="text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <h3 className="text-sm font-black text-amber-600 font-outfit uppercase tracking-tight">Système non vérifié</h3>
+                <p className="text-xs font-medium text-text-muted mt-1">
+                  Le contrôle de santé local est indisponible ou a dépassé le délai de réponse. Une nouvelle vérification sera tentée automatiquement.
+                </p>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {/* Widget santé cabinet — propriétaire/admin uniquement, après preuve réelle */}
+        {hasAccess('admin') && cabinetHealthState.status === 'ready' && cabinetHealth && (
           <motion.section variants={itemVariants}>
             <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
               Santé du Cabinet
@@ -1338,7 +1334,7 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Mobile Security Modal */}
       <AnimatePresence>
         {hasAccess('admin') && isMobileModalOpen && (
@@ -1372,4 +1368,3 @@ export const Dashboard: React.FC = () => {
     </motion.div>
   );
 };
-
