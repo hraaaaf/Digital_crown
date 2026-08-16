@@ -14,9 +14,11 @@ export type AccountingDirtyTab = 'devis' | 'honoraires';
 export function accountingDocumentFingerprint(
   tab: AccountingDirtyTab,
   items: AccountingDirtyItem[],
+  docDate: string = '',
 ): string {
   return JSON.stringify({
     tab,
+    docDate,
     items: items.map(item => ({
       description: item.description,
       dent: item.dent,
@@ -34,8 +36,9 @@ export function isAccountingDocumentDirty(
   tab: AccountingDirtyTab,
   items: AccountingDirtyItem[],
   baselineFingerprint: string | null,
+  docDate: string = '',
 ): boolean {
   if (!items.some(item => item.description.trim())) return false;
   if (baselineFingerprint === null) return true;
-  return accountingDocumentFingerprint(tab, items) !== baselineFingerprint;
+  return accountingDocumentFingerprint(tab, items, docDate) !== baselineFingerprint;
 }
