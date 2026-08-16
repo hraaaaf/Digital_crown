@@ -25,6 +25,7 @@ describe('P4 financial draft state', () => {
     useAccountingStore.getState().setPaymentStatus('PAYE');
     expect(useAccountingStore.getState().paymentMode).toBe('');
 
-    useAccountingStore.getState().setPaymentMode('CARTE' as never);
+    useAccountingStore.getState().setPaymentMode('TPE');
+    expect(useAccountingStore.getState().paymentMode).toBe('TPE');
   });
 });
