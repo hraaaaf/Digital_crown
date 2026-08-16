@@ -22,6 +22,19 @@ describe('P3-B odontogram source of truth', () => {
     expect(normalizeStructuredAccountingItems([item])[0].dent).toBe('16');
   });
 
+  it('uses the same comma-separated multi-tooth label as backend/PDF', () => {
+    const item = {
+      id: 12,
+      description: 'Bridge',
+      dent: '14-15-16',
+      price: 9000,
+      toothNumbers: [14, 15, 16],
+    };
+
+    expect(canonicalDentLabel(item)).toBe('14, 15, 16');
+    expect(normalizeStructuredAccountingItems([item])[0].dent).toBe('14, 15, 16');
+  });
+
   it('leaves a manual financial row untouched', () => {
     const manual = { id: 2, description: 'Remise exceptionnelle', dent: 'Arcade', price: -100 };
     expect(normalizeStructuredAccountingItems([manual])).toEqual([manual]);
@@ -54,7 +67,7 @@ describe('P3-B odontogram source of truth', () => {
       {
         id: 5,
         description: 'Bridge',
-        dent: '14-16',
+        dent: '14, 15, 16',
         price: 9000,
         toothNumbers: [14, 15, 16],
       },
