@@ -163,55 +163,49 @@ Reste : exécuter réellement le harness sur le head final, runtime authentifié
 
 ## P7 — Compagnon Diagnostique
 
-**État : 🔴 audit canonique réalisé ; deux frontières P0 ouvertes ; correction P7-A prioritaire.**
+**État : 🟡 P7-A/B/D/F/G fermés en engineering ; P7-C/E/H ouverts ; aucune certification d’exécution/scientifique revendiquée.**
 
-Rapport : `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P7_INTEGRATION_STATUS.md`.
 
 ### Architecture vérifiée
 
 - onglet actif : `plan` ;
 - composant actif : `TreatmentPlanStudio` ;
 - contexte patient lu via `/patients/{patientId}` ;
-- state machine clinique codée directement dans le composant ;
 - sortie éditable puis conversion explicite P7→P3 ;
 - conversion Devis financièrement neutre (`price = 0`) ;
 - moteurs legacy parallèles : `HouseWizard` / `DiagnosticEngine` / `SafeDiagnosticEngine`.
 
-### P0 ouverts
+### Engineering acquis
 
-1. **Substitution thérapeutique automatique active** dans `TreatmentPlanStudio` : détection textuelle d'ATCD peut remplacer antibiothérapie par clindamycine/macrolide ou anti-inflammatoires par corticostéroïdes. Le correctif historique PR #38 ne protège que l'autre moteur legacy.
-2. **Frontière patient non atomique** : changement `patientId` recharge les ATCD mais ne reset pas explicitement diagnostic/historique/actes ; `DocumentHub` ne force pas `key={patientId}`. Risque de plan stale inter-patient si l'instance est réutilisée ; scénario runtime à confirmer.
+- **P7-A** : aucune substitution thérapeutique automatique à partir des ATCD texte libre ; warning-only pénicilline/AINS ; changement patient atomique avec protection contre réponse réseau stale ;
+- **P7-B** : no-match legacy fail-closed, sans diagnostic rassurant, médicament ni traitement par défaut ;
+- **P7-D** : résultat présenté comme hypothèse/proposition à confirmer ; claims scientifiques non sourcés retirés du parcours actif ;
+- **P7-F** : dirty-state, garde changement d’onglet, `beforeunload`, nettoyage après reset/conversion ;
+- **P7-G** : engineering mobile/tactile/clavier/accessibilité ;
+- P7→P3 reste neutre : prix zéro, aucune dent inventée si absente, propositions vides supprimées.
 
-### P1 principaux
+### Couverture préparée
 
-- terminologie de certitude (`Diagnostic Établi`, `Plan de Traitement Scientifique`) ;
-- absence de dent/site cible ;
-- ATCD/allergies par substring texte libre ;
-- plusieurs moteurs diagnostiques divergents ;
-- fallback legacy non fail-closed (`Consultation Standard` + traitement) ;
-- conseils scientifiques sans provenance/version ;
-- absence de snapshot de raisonnement/règle/version/confirmation ;
-- dirty-state P7 absent ;
-- actes P7 peuvent contenir une prescription médicamenteuse implicite avant conversion P3.
+`scripts/certify_document_studio_p7.sh` regroupe les tests réellement présents P7-A/B/D/F/G, le contrat P7→P3, la full-suite frontend et le build.
 
-### Lots
+**Le harness est écrit mais aucun PASS n’est revendiqué tant qu’il n’a pas réellement tourné sur le head final.**
 
-- **P7-A** : supprimer toute substitution automatique + reset patient atomique + tests ;
-- **P7-B** : moteur unique fail-closed, aucun traitement par défaut ;
-- **P7-C** : contexte structuré dent/site/allergies/données manquantes ;
-- **P7-D** : contrat non prescriptif + terminologie ;
-- **P7-E** : provenance/version/evidence ;
-- **P7-F** : connexions P7→P3/P1 + dirty-state ;
-- **P7-G** : UX/responsive/accessibilité ;
-- **P7-H** : validation scientifique humaine + recertification finale.
+### Ouvert
 
-Reste : P7-A→P7-H, runtime inter-patient, validation scientifique humaine et full-regression.
+- **P7-C — contexte clinique structuré** : le schéma patient inspecté ne démontre qu’un `antecedents_medicaux` texte libre, sans source allergies structurée ; nécessite évolution du modèle patient et gouvernance clinique ;
+- **P7-E — provenance/version/evidence** : aucun modèle canonique persistant de proposition/rule-set/version/entrées/warnings/confirmation praticien n’est défini ; nécessite décision d’architecture ;
+- **P7-H — validation scientifique + recertification** : revue médicale humaine, sources/versionnement, cas positifs/négatifs/no-match, runtime authentifié patient A→B, 390/768/desktop et full-regression.
+
+Les deux P0 statiques du baseline sont corrigés en engineering ; la page **n’est pas certifiée** tant que les gates d’exécution et C/E/H restent ouverts.
 
 ---
 
 ## T1 — Audit transversal premium
 
-**État : ⬜ après convergence des pages ou lorsqu’un défaut transversal bloque plusieurs pages.**
+**État : ⬜ prochain chantier exécutable après closeout engineering P7.**
 
 À couvrir : navigation, header/footer/actions, dirty-state, preview, responsive, typographie/contraste, dark mode, clavier, terminologie, loading/empty/error/success, accessibilité, cohérence clinique/financière/documentaire.
 
@@ -243,18 +237,17 @@ Reste : P7-A→P7-H, runtime inter-patient, validation scientifique humaine et f
 
 ## Chemin critique courant
 
-1. **P3 PR #77** : conserver comme base ordonnée et fermer les gates full-repo/runtime quand l’infrastructure permet une exécution réelle.
-2. **Stack P4/P5/P6 PR #80** : head engineering/documentation fermé ; exécution réelle CI/runtime/PDF/financière reste externe et ouverte.
-3. **P7-A** : supprimer immédiatement les substitutions thérapeutiques automatiques et rendre le changement patient atomique.
-4. **P7-B→P7-F** : moteur fail-closed, contexte clinique, contrat non prescriptif, provenance et inter-pages.
-5. **P7-G/H** : UX/runtime puis validation scientifique humaine et recertification.
-6. **T1**, puis **T2**.
+1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
+2. **Stack P4/P5/P6 PR #80** : engineering/documentation fermé sur son head ; CI/runtime/PDF/financier externes ouverts.
+3. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
+4. **T1** : lancer l’audit transversal premium maintenant, car c’est le prochain travail indépendant immédiatement exécutable.
+5. **T2** après T1 et après consolidation des gates restants.
 
 ## Infrastructure CI
 
-Sur les heads récents P3/P4/P5, GitHub Actions a déjà pu échouer avant exécution des steps (`steps=null`). Ce blocage runner/billing-like est externe : il ne justifie ni PASS ni échec applicatif et ne bloque pas le travail indépendant.
+Sur les heads récents P3/P4/P5/P7, GitHub Actions a pu soit échouer avant exécution des steps (`steps=null`), soit ne créer aucun run observable. Ces conditions externes ne justifient ni PASS ni échec applicatif et ne bloquent pas le travail indépendant.
 
-Sur le head final P4→P6 `fb75780c44d21e552b396d1f4376b657e8837994`, aucun workflow run ni status context réel n'était observable au contrôle effectué. Aucun PASS n'est revendiqué.
+Sur le head final P4→P6 `fb75780c44d21e552b396d1f4376b657e8837994`, aucun workflow run ni status context réel n'était observable au contrôle effectué. Les heads P7-A/B/D/F/G contrôlés n’ont pas non plus produit de run observable au moment du contrôle. Aucun PASS n'est revendiqué.
 
 ## Règle de progression
 
