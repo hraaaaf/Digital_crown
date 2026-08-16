@@ -3,6 +3,7 @@ import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react'
 import { cn } from '../../../utils/cn';
 import { isPrescriptionDirty, setPrescriptionDirty } from './PrescriptionDirtyState';
 import { isLibreDirty, setLibreDirty } from './LibreDirtyState';
+import { requiresDevisToHonorairesConfirmation } from './AccountingDocumentTransitionPolicy';
 
 interface StudioTabsProps {
   activeTab: import('../DocumentHub').HubDocumentType;
@@ -13,6 +14,12 @@ interface StudioTabsProps {
 export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 'data-tour': dataTour }) => {
   const requestTabChange = (tab: import('../DocumentHub').HubDocumentType) => {
     if (tab === activeTab) return;
+    if (requiresDevisToHonorairesConfirmation(activeTab, tab)) {
+      const confirmed = window.confirm(
+        'Convertir ce devis en Note d\'Honoraires ? Les actes et montants seront conservés. Aucun paiement n\'est enregistré par ce changement d\'onglet.',
+      );
+      if (!confirmed) return;
+    }
     if (activeTab === 'ordonnance' && isPrescriptionDirty()) {
       const confirmed = window.confirm(
         'Des modifications non enregistrées sont présentes dans l’ordonnance. Quitter cet onglet et les abandonner ?',
