@@ -4,6 +4,7 @@ import {
   buildTeethDataFromAccountingItems,
   canonicalDentLabel,
   hydrateAccountingItemsFromTeethData,
+  hydrateArchivedDevisRows,
   normalizeStructuredAccountingItems,
 } from './AccountingOdontogramSourcePolicy';
 
@@ -111,5 +112,51 @@ describe('P3-B odontogram source of truth', () => {
     });
     expect(hydrated[0]._odontogramKey).toMatch(/^16::archived-/);
     expect(hydrated[1]).toEqual(items[1]);
+  });
+
+  it('rebuilds archived DocumentHub Devis rows and restores teeth_data metadata', () => {
+    const rows = hydrateArchivedDevisRows(
+      [
+        { acte: 'Composite 2 faces', dent: '16', dents: [16], prix_unitaire: 700 },
+        { acte: 'Bridge', dent: '14-15-16', dents: ['16', 14, 15, 14], prix_unitaire: 9000 },
+        { acte: 'Ligne manuelle', dent: 'Arcade', montant: 200 },
+      ],
+      [
+        {
+          tooth_number: 16,
+          treatments: [{ code: 'COMP2', name: 'Composite 2 faces', price: 700 }],
+          surfaces: ['M', 'O', 'M'],
+          notes: 'Carie profonde',
+        },
+      ],
+      index => 100 + index,
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({
+      id: 100,
+      description: 'Composite 2 faces',
+      dent: '16',
+      price: 700,
+      toothNumbers: [16],
+      odontogramTreatmentCode: 'COMP2',
+      odontogramSurfaces: ['M', 'O'],
+      odontogramNotes: 'Carie profonde',
+    });
+    expect(rows[0]._odontogramKey).toMatch(/^16::archived-/);
+    expect(rows[1]).toMatchObject({
+      id: 101,
+      description: 'Bridge',
+      dent: '14, 15, 16',
+      price: 9000,
+      toothNumbers: [14, 15, 16],
+    });
+    expect(rows[2]).toEqual({
+      id: 102,
+      description: 'Ligne manuelle',
+      dent: 'Arcade',
+      price: 200,
+      toothNumbers: [],
+    });
   });
 });
