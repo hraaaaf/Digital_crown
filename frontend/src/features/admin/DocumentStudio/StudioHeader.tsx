@@ -44,8 +44,9 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           <button
             type="button"
             onClick={onToggleOdonto}
+            aria-pressed={showOdontoPanoramique}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+              "flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
               showOdontoPanoramique
                 ? "bg-primary text-white shadow-lg shadow-primary/30"
                 : "bg-white text-primary border border-primary/20 hover:bg-primary/5"
@@ -57,12 +58,13 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
 
         <div className="bg-white/80 dark:bg-slate-900/50 p-2.5 rounded-2xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col items-start gap-1 min-w-[130px]">
-          <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
+          <label htmlFor="document-studio-date" className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1 leading-none h-3">
             <CalendarIcon size={10} /> Date d'émission
           </label>
           <input
+            id="document-studio-date"
             type="date"
-            className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer h-5"
+            className="bg-transparent text-xs font-black text-slate-700 dark:text-slate-200 outline-none w-full cursor-pointer min-h-8 focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md"
             value={docDate}
             onChange={(e) => onDateChange(e.target.value)}
           />
