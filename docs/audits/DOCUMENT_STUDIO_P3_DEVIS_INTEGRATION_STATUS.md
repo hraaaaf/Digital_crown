@@ -5,9 +5,17 @@ Branch: `agent/p3d-devis-phases-learning`
 Functional code head locally re-executed: `e25c01f63fbe4e1625f2b53751efedd57d9cefd9`
 Full-repository certification harness: `scripts/certify_p3_devis.sh`
 
+## Chantier status
+
+**CLOSED / PAUSED UNTIL FURTHER NOTICE — product decision 2026-08-16.**
+
+This is an operational closeout, **not** a claim of full-app certification or merge readiness. P3-A through P3-G are substantially hardened and P3-H has strong local Linux evidence. The remaining full authenticated React/build/browser/cabinet gates are deliberately deferred until P3 is reopened.
+
+PR `#77` remains **open + draft** to preserve the unmerged work and exact restart point.
+
 ## Scope integrated
 
-P3-A through P3-G are integrated on the branch, including defects found during P3-H review. P3-H now has substantial **local Linux execution evidence** independent of GitHub Actions. The full authenticated React application is still not certified because this runtime does not contain the complete checkout/frontend dependency tree.
+P3-A through P3-G are integrated on the branch, including defects found during P3-H review. P3-H has substantial **local Linux execution evidence** independent of GitHub Actions.
 
 ### P3-A — financial isolation / backend contract
 - Devis excludes inherited installments/global-note semantics.
@@ -74,8 +82,6 @@ Environment actually used:
 - no Digital Crown app listening on 8005/8006/5173/3000
 
 ### Backend contract execution
-A Devis-relevant package was reconstructed from the current branch source and the P3 contract tests were materialized locally.
-
 Result: **26/26 tests PASS**.
 
 Covered:
@@ -98,9 +104,9 @@ Additional isolated backend learning guard: **PASS**.
 - real act: one normal learning write/commit.
 
 ### Frontend policy execution
-Production policy sources were materialized from the current branch and compile with **`tsc --strict` PASS**.
+Production policy sources compile with **`tsc --strict` PASS**.
 
-A minimal local Vitest-compatible orchestration shim was used only because the Vitest package is absent; it supplies `describe/it/expect/beforeEach/vi` while executing the P3 policy code itself.
+A minimal local Vitest-compatible orchestration shim was used only because Vitest is absent; it supplies test orchestration while executing the P3 policy code itself.
 
 Result: **39/39 test cases PASS**.
 
@@ -119,10 +125,10 @@ Covered:
 - stale odontogram key rejection in favor of `toothNumbers`;
 - PriceBrain pre-archive `usageCount=0`.
 
-One TypeScript diagnostic occurred only in a reconstructed **test** because of inferred union narrowing around `_odontogramKey`; production sources still passed strict compilation. The emitted test was executed successfully. This is a harness limitation, not represented as an application PASS or failure.
+One TypeScript diagnostic occurred only in a reconstructed **test** because of inferred union narrowing around `_odontogramKey`; production sources passed strict compilation. The emitted test executed successfully. This is a harness limitation, not an application failure.
 
 ### P3-F isolated rendering execution
-Using the current P3 readability floor and the actual `BaseTemplate.get_adaptive_font_size/get_adaptive_style` algorithm:
+Using the current readability floor and actual `BaseTemplate.get_adaptive_font_size/get_adaptive_style` algorithm:
 - 36 long treatment lines → **3 pages**;
 - table header visible **3/3 pages**;
 - minimum observed table/body style: **7.5 pt**;
@@ -131,40 +137,29 @@ Using the current P3 readability floor and the actual `BaseTemplate.get_adaptive
 - total `31500.00 MAD` remains on one line after adaptive sizing;
 - visual inspection of all generated pages showed no table overflow in the isolated fixture.
 
-This is an isolated rendering proof, **not** a cabinet-branded runtime PDF/signature certification.
+This is an isolated rendering proof, **not** cabinet-branded runtime PDF/signature certification.
 
-## GitHub Actions status
+## Deferred gates — reopen checklist
 
-GitHub Actions is **not part of the active P3-H path**. Its runner-allocation problem is recorded only as infrastructure history and is not treated as a blocker or code verdict for this chantier.
+When P3 is reopened, resume directly with:
 
-## Remaining P3-H gates
+1. complete Digital Crown checkout with real frontend dependencies;
+2. real `npm test` + `npm run build` or equivalent full-project execution;
+3. authenticated adult/pediatric Devis smoke;
+4. archive/reopen round-trip for dents/notes/surfaces/code/multi-dents;
+5. duplicate-conflict + stale-print verification;
+6. real cabinet PDF with branding/signature;
+7. browser 390 / 768 / desktop + keyboard/touch;
+8. only after PASS: mark PR #77 ready, merge, canonical post-merge closeout and recertification.
 
-### Full application build/runtime
-Still required:
-- complete Digital Crown checkout with real frontend dependencies;
-- real `npm test` / `npm run build` or equivalent full-project execution;
-- authenticated Devis runtime.
+## Final operational verdict
 
-### Authenticated smoke
-- adult Devis create/catalog/odontogram/edit/reorder/delete/preview;
-- pediatric Q5-Q8 path;
-- explicit archive and archive reopen;
-- notes/surfaces/code/multi-dent round-trip;
-- phased Devis behavior;
-- P7→P3 filtered conversion;
-- P3→Honoraires explicit conversion;
-- duplicate conflict + stale print prevention.
+**P3 chantier: CLOSED / PAUSED until explicitly reopened.**
 
-### Cabinet PDF / responsive
-- real cabinet branding + signature fixture;
-- short and long adult/pediatric Devis;
-- 390 / 768 / desktop browser inspection;
-- touch controls and odontogram keyboard interaction.
+**Engineering evidence: strong local PASS.**
 
-## Certification status
+**Full-app certification: deferred, not claimed.**
 
-**P3-A→P3-G: substantially hardened with current local execution evidence.**
+**Merge readiness: deferred, not claimed.**
 
-**P3-H: NOT YET FULL-APP CERTIFIED / NOT YET MERGE-READY.**
-
-The remaining gap is the complete authenticated React application/build and cabinet/browser smoke, not a currently known unaddressed P3 policy/backend/PDF logic defect.
+Next canonical page: **P4 — Note Honoraires**.
