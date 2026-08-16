@@ -86,11 +86,13 @@ Le chemin clinique courant doit conserver la séparation suivante : **assistance
 Roadmap canonique : `DOCUMENT_STUDIO_ROADMAP.md`.
 
 Au 16 août 2026 :
-- **P3 Devis** : chantier **clos/pausé jusqu'à nouvel ordre** après durcissement P3-A→P3-G et recertification locale Linux P3-H ; full-app/authenticated/browser gates différés et non revendiqués ; PR #77 conservée open + draft ;
-- preuves locales P3 principales : backend **26/26 PASS**, frontend policies **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS** ;
-- **P4 Note Honoraires** : **page active suivante**.
+- **P3 Devis** : chantier **clos/pausé jusqu'à nouvel ordre** ; preuves locales principales : backend **26/26 PASS**, frontend policies **`tsc --strict` PASS**, tests frontend P3 **39/39 PASS**, PDF multipage ciblé **PASS** ; full-app/authenticated/browser gates différés ; PR #77 conservée draft ;
+- **P4 Note Honoraires** : engineering local **convergé** après fermeture des P0/P1 de l'audit ; preuves principales : backend financier/global/status **13/13 PASS**, isolation échéancier **4/4 PASS**, archive hydration **1/1 PASS**, PDF long ciblé **36/36 lignes sur 6 pages, header 6/6, floor >=7 pt** ; full-app/browser/PDF cabinet différés ; PR #90 conservée draft ;
+- **P5 Suivi Paiement** : **page active suivante**.
 
-Le statut détaillé P3 est conservé dans `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
+Statuts détaillés :
+- P3 : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`
+- P4 : `docs/audits/DOCUMENT_STUDIO_P4_NOTE_HONORAIRES_AUDIT.md`
 
 ### Comptabilité
 
