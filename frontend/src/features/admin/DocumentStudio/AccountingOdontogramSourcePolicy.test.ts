@@ -5,6 +5,7 @@ import {
   canonicalDentLabel,
   hydrateAccountingItemsFromTeethData,
   normalizeStructuredAccountingItems,
+  type AccountingOdontogramSourceItem,
 } from './AccountingOdontogramSourcePolicy';
 
 describe('P3-B odontogram source of truth', () => {
@@ -87,7 +88,7 @@ describe('P3-B odontogram source of truth', () => {
   });
 
   it('rehydrates archived odontogram metadata without inventing financial rows', () => {
-    const items = [
+    const items: AccountingOdontogramSourceItem[] = [
       { id: 10, description: 'Couronne Zircone', dent: '16', price: 4200, toothNumbers: [16] },
       { id: 11, description: 'Ligne manuelle', dent: '-', price: 200 },
     ];
