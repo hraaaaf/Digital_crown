@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -95,33 +95,17 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [certifDays, setCertifDays] = useState(0);
   const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const { 
-    items, setItems, paymentMode, installments, setInstallments, 
-    isAccounted, paymentStatus, isGlobalNote 
+  const {
+    items, setItems,
+    paymentMode, setPaymentMode,
+    installments, setInstallments,
+    isAccounted,
+    paymentStatus, setPaymentStatus,
+    isGlobalNote, setIsGlobalNote,
   } = useAccountingStore();
 
-  // --- PERSISTENCE ECHEANCES ---
-  useEffect(() => {
-    if (patientId && patientId !== '0') {
-      api.get(`/installments/patient/${patientId}`)
-        .then(res => {
-          const plans = res.data;
-          if (plans && plans.length > 0) {
-            const latestPlan = plans[plans.length - 1];
-            if (latestPlan && latestPlan.installments && latestPlan.installments.length > 0) {
-              const loadedInstallments = latestPlan.installments.map((inst: any) => ({
-                id: inst.id,
-                date: inst.due_date ? inst.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
-                amount: inst.amount,
-                label: inst.label || 'Versement'
-              }));
-              setInstallments(loadedInstallments);
-            }
-          }
-        })
-        .catch(console.error);
-    }
-  }, [patientId]);
+  // P5 charge désormais son plan via son endpoint /latest dans InstallmentStudio.
+  // Aucun plan historique P5 n'est injecté dans le brouillon financier P3/P4.
 
   // --- ÉTATS DOCUMENT LIBRE ---
   const [libreTitle, setLibreTitle] = useState('Note Médicale');
@@ -136,9 +120,23 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
 
+  const resetHonorairesFinancialDraft = () => {
+    setPaymentMode('');
+    setPaymentStatus('EN_ATTENTE');
+    setIsGlobalNote(false);
+    setInstallments([]);
+  };
+
   // Garde sur changement d'onglet (1.3)
   const handleTabChange = (newTab: HubDocumentType) => {
-    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire)
+    // P3 → P4 conserve les actes mais repart d'un contexte financier neutre.
+    if (activeTab === 'devis' && newTab === 'honoraires') {
+      resetHonorairesFinancialDraft();
+      setActiveTab(newTab);
+      return;
+    }
+
+    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire d'actes).
     const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
       (newTab === 'devis' || newTab === 'honoraires');
     const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
@@ -167,43 +165,28 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [echeancierPayload, setEcheancierPayload] = useState<any>(null);
 
   // --- HOOK GÉNÉRATEUR (Phases 1, 3, 4) ---
-  const handleSuggestRadio = useCallback(() => {
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <span className="font-semibold text-sm">Ordonnance radio recommandée</span>
-        <span className="text-xs text-slate-500">Un acte prothétique a été détecté. Souhaitez-vous créer une ordonnance radiologique ?</span>
-        <div className="flex gap-2 mt-1">
-          <button
-            onClick={() => { setActiveTab('ordonnance'); toast.dismiss(t.id); }}
-            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700"
-          >
-            Créer l'ordonnance
-          </button>
-          <button onClick={() => toast.dismiss(t.id)} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-lg hover:bg-slate-200">
-            Ignorer
-          </button>
-        </div>
-      </div>
-    ), { duration: 12000, icon: '🦷' });
-  }, [setActiveTab]);
-
   const generatorParams = useMemo(() => ({
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
-    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
+    items,
+    // EN_ATTENTE n'encaisse rien. La valeur de transport évite de rendre le mode obligatoire
+    // dans l'ancien validateur frontend ; pour PAYE, le store reste vide tant que le praticien
+    // n'a pas explicitement choisi un mode.
+    paymentMode: paymentStatus === 'PAYE' ? paymentMode : 'Espèces' as const,
+    libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote, onSuggestRadio: handleSuggestRadio,
+    installments, isAccounted, paymentStatus, isGlobalNote,
     showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
     items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
     libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
-    installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
+    installments, isAccounted, paymentStatus, isGlobalNote, showLegalAnnotations, echeancierPayload,
   ]);
 
   // --- INTELLIGENCE SCOPE ---
-  const isSurgical = useMemo(() => items.some(i => 
-    i.description.toLowerCase().includes('extraction') || 
-    i.description.toLowerCase().includes('implant') || 
+  const isSurgical = useMemo(() => items.some(i =>
+    i.description.toLowerCase().includes('extraction') ||
+    i.description.toLowerCase().includes('implant') ||
     i.description.toLowerCase().includes('chirurgie')
   ), [items]);
 
@@ -241,7 +224,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
         });
       }
-      
+
       if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
         complications.push({
           id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
@@ -353,10 +336,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
         const srcItems = d.items || d.payments || [];
         setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, 
-          description: i.acte || '', 
+          id: Date.now() + idx,
+          description: i.acte || '',
           dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0, 
+          price: i.montant ?? i.prix_unitaire ?? 0,
           toothNumbers: i.dents || [],
         })));
       }
@@ -427,8 +410,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
-            <TreatmentPlanStudio 
-              patientId={Number(patientId)} 
+            <TreatmentPlanStudio
+              patientId={Number(patientId)}
               onConvertToQuote={(allActs) => {
                 const newItems = convertPlanActsToQuoteItems(allActs);
                 setItems(prev => [...prev, ...newItems]);
@@ -493,7 +476,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {activeTab === 'libre' && (
             <LibreForm
-              title={libreTitle} 
+              title={libreTitle}
               setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
@@ -504,7 +487,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
-          
+
           {activeTab === 'echeancier' && (
             <InstallmentStudio
               patientId={patientId || '0'}
@@ -560,9 +543,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               >Annuler</button>
               <button
                 onClick={() => {
-                  useAccountingStore.getState().setItems([]);
-                  useAccountingStore.getState().setGroupSelectedTeeth([]);
-                  useAccountingStore.getState().setOdontogramMode('individual');
+                  const accounting = useAccountingStore.getState();
+                  accounting.setItems([]);
+                  accounting.setGroupSelectedTeeth([]);
+                  accounting.setOdontogramMode('individual');
+                  accounting.setPaymentMode('');
+                  accounting.setPaymentStatus('EN_ATTENTE');
+                  accounting.setIsGlobalNote(false);
+                  accounting.setInstallments([]);
                   setActiveTab(pendingTab);
                   setPendingTab(null);
                 }}
@@ -603,10 +591,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       {/* APERÇU RESPONSIVE */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
-          <motion.div 
-            initial={{ x: 600, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            exit={{ x: 600, opacity: 0 }} 
+          <motion.div
+            initial={{ x: 600, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 600, opacity: 0 }}
             className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
           >
             <LivePreview
