@@ -27,4 +27,17 @@ describe('AccountingLineOrderPolicy', () => {
   it('keeps unknown ids stable', () => {
     expect(moveAccountingLine(lines, 999, 'DOWN')).toBe(lines);
   });
+
+  it('locks manual reorder once phase separators are present', () => {
+    const phased = [
+      { id: 10, description: '--- PHASE 1 : ASSAINISSEMENT ---' },
+      { id: 11, description: 'Composite' },
+      { id: 12, description: '--- PHASE 2 : CHIRURGIE ---' },
+      { id: 13, description: 'Extraction' },
+    ];
+
+    expect(moveAccountingLine(phased, 11, 'DOWN')).toBe(phased);
+    expect(moveAccountingLine(phased, 12, 'UP')).toBe(phased);
+    expect(phased.map(item => item.id)).toEqual([10, 11, 12, 13]);
+  });
 });
