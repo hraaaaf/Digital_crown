@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { BarChart2, ChevronRight, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -32,6 +32,7 @@ export const Dashboard: React.FC = () => {
   const showPatientBadges = useSettingsStore(state => state.profile.show_patient_badges);
   const { user, isLoading: authLoading } = useAuthStore();
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [showManagement, setShowManagement] = useState(false);
   const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{ nom: string; prenom: string } | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
 
@@ -106,7 +107,7 @@ export const Dashboard: React.FC = () => {
       variants={dashboardContainerVariants}
       initial="hidden"
       animate="visible"
-      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12"
+      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-10"
     >
       <DayOneTour />
 
@@ -130,11 +131,11 @@ export const Dashboard: React.FC = () => {
         onOpenMobile={() => setIsMobileModalOpen(true)}
       />
 
+      {/* Priorité 1 : actions fréquentes immédiatement disponibles. */}
       <QuickActions canReadPatients={canReadPatients} canUseAgenda={canUseAgenda} />
-      <MarketplaceCard visible={canReadPatients} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges} />
+      {/* Priorité 2-3 : flux clinique du jour avant toute donnée de pilotage. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <WaitingRoom
           visible={canUseAgenda}
           appointments={appointments}
@@ -142,26 +143,80 @@ export const Dashboard: React.FC = () => {
           onRefresh={() => { void refreshAppointments(); }}
           onStatusChange={(appointmentId, status) => { void updateAppointmentStatus(appointmentId, status); }}
         />
-        <WeeklyPerformance visible={canReadAccounting && canReadPatients} stats={stats} />
-        <FinanceSummary visible={canReadAccounting} finance={financeToday} />
-        <CabinetHealth visible={canAdmin} healthState={cabinetHealthState} />
-        <IntelligenceAlerts
-          forecast={forecast}
-          alerts={alerts}
-          showForecast={canReadAccounting}
-          showAlerts={canReadPatients}
-          onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
-          onSnooze={alertId => { void snooze(alertId); }}
-          onMarkRead={alertId => { void markRead(alertId); }}
-        />
-        <BusinessInsights
-          visible={canReadAccounting}
-          conversion={conversion}
-          projection={projection}
-          latentCash={latentCash}
-          onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
-        />
+        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges} />
       </div>
+
+      {/* Priorité 4 : uniquement les alertes actionnables restent dans le flux principal. */}
+      <IntelligenceAlerts
+        forecast={null}
+        alerts={alerts}
+        showForecast={false}
+        showAlerts={canReadPatients}
+        onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+        onSnooze={alertId => { void snooze(alertId); }}
+        onMarkRead={alertId => { void markRead(alertId); }}
+      />
+
+      {/* Priorité 5 : pilotage cabinet disponible, mais replié par défaut. */}
+      {canReadAccounting && (
+        <motion.section data-tour="dashboard-stats" className="rounded-elite-lg border border-border-main bg-card-bg/60 shadow-elite overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowManagement(value => !value)}
+            className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-primary/5 transition-colors"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0">
+                <BarChart2 size={19} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-primary font-outfit">Pilotage du cabinet</span>
+                <span className="block text-xs font-medium text-text-muted mt-0.5">Finances, performance et projections</span>
+              </span>
+            </span>
+            <ChevronRight size={18} className={cn('text-text-muted transition-transform', showManagement && 'rotate-90')} />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {showManagement && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-border-main px-6 py-6 space-y-8">
+                  <FinanceSummary visible finance={financeToday} />
+                  <WeeklyPerformance visible={canReadPatients} stats={stats} />
+                  <IntelligenceAlerts
+                    forecast={forecast}
+                    alerts={[]}
+                    showForecast
+                    showAlerts={false}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                    onSnooze={() => undefined}
+                    onMarkRead={() => undefined}
+                  />
+                  <BusinessInsights
+                    visible
+                    conversion={conversion}
+                    projection={projection}
+                    latentCash={latentCash}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+      )}
+
+      {/* Priorité 6 : état technique réservé à l'administration. */}
+      <CabinetHealth visible={canAdmin} healthState={cabinetHealthState} />
+
+      {/* Priorité 7 : approvisionnement secondaire, après le cockpit clinique. */}
+      <MarketplaceCard visible={canReadPatients} />
 
       {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
       <AnimatePresence>
