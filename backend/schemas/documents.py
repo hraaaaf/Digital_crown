@@ -4,6 +4,7 @@ import datetime
 from typing import Optional, Dict, List, Literal, Any, Union
 
 from .base import DocumentType, DocumentStatus, ConflictResolution
+from backend.utils.devis_phase_sanitizer import strip_devis_phase_presentation_rows
 from backend.utils.installment_reconciliation import validate_installments
 
 
@@ -86,11 +87,47 @@ class InstallmentPlanOut(InstallmentPlanBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+_VALID_DEVIS_FDI = {
+    *range(11, 19), *range(21, 29), *range(31, 39), *range(41, 49),
+    *range(51, 56), *range(61, 66), *range(71, 76), *range(81, 86),
+}
+
+
 class DevisItem(BaseModel):
     acte: str = ""
     dent: str = ""
     dents: List[Union[int, str]] = []
-    prix_unitaire: float = 0.0
+    prix_unitaire: float = Field(default=0.0, ge=0, le=1_000_000)
+
+    @model_validator(mode="after")
+    def validate_devis_item(self):
+        self.acte = self.acte.strip()
+        if not self.acte:
+            raise PydanticCustomError(
+                "devis_empty_act",
+                "Un acte de devis ne peut pas être vide.",
+            )
+
+        normalized_dents: List[int] = []
+        for value in self.dents:
+            try:
+                tooth = int(value)
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError(
+                    "devis_invalid_tooth",
+                    f"Numéro de dent invalide : {value}.",
+                ) from exc
+            if tooth not in _VALID_DEVIS_FDI:
+                raise PydanticCustomError(
+                    "devis_invalid_tooth",
+                    f"Numéro FDI hors référentiel adulte/pédiatrique : {tooth}.",
+                )
+            normalized_dents.append(tooth)
+
+        self.dents = normalized_dents
+        if normalized_dents:
+            self.dent = ", ".join(str(tooth) for tooth in normalized_dents)
+        return self
 
 
 class InstallmentItem(BaseModel):
@@ -106,6 +143,67 @@ class DevisData(BaseModel):
     age: Optional[int] = None
     gender: Optional[str] = None
     installments: List[InstallmentItem] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def strip_phase_presentation_rows(cls, value):
+        if not isinstance(value, dict):
+            return value
+        sanitized = dict(value)
+        installments = value.get("installments") or []
+        if installments:
+            raise PydanticCustomError(
+                "devis_installments_forbidden",
+                "Un devis ne peut pas contenir d'échéancier. Utilisez le flux Honoraires/Échéancier dédié.",
+            )
+        sanitized["items"] = strip_devis_phase_presentation_rows(value.get("items"))
+        return sanitized
+
+    @model_validator(mode="after")
+    def require_real_devis_item(self):
+        if not self.items:
+            raise PydanticCustomError(
+                "devis_empty_items",
+                "Le devis doit contenir au moins un acte réel.",
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_consistent_teeth_data(self):
+        if not self.teeth_data:
+            return self
+
+        item_pairs = {}
+        for item in self.items:
+            normalized_name = item.acte.strip().casefold()
+            for tooth in item.dents:
+                item_pairs[(tooth, normalized_name)] = float(item.prix_unitaire)
+
+        for tooth_data in self.teeth_data:
+            if tooth_data.tooth_number not in _VALID_DEVIS_FDI:
+                raise PydanticCustomError(
+                    "devis_invalid_teeth_data_tooth",
+                    f"teeth_data contient un numéro FDI invalide : {tooth_data.tooth_number}.",
+                )
+            if not tooth_data.treatments:
+                raise PydanticCustomError(
+                    "devis_orphan_teeth_data",
+                    f"teeth_data pour la dent {tooth_data.tooth_number} ne contient aucun acte du devis.",
+                )
+            for treatment in tooth_data.treatments:
+                normalized_name = treatment.name.strip().casefold()
+                key = (tooth_data.tooth_number, normalized_name)
+                if not normalized_name or key not in item_pairs:
+                    raise PydanticCustomError(
+                        "devis_orphan_teeth_data",
+                        f"teeth_data ne correspond à aucune ligne du devis : dent {tooth_data.tooth_number}, acte '{treatment.name}'.",
+                    )
+                if abs(float(treatment.price) - item_pairs[key]) > 0.01:
+                    raise PydanticCustomError(
+                        "devis_teeth_data_price_mismatch",
+                        f"Prix incohérent entre items et teeth_data pour la dent {tooth_data.tooth_number}, acte '{treatment.name}'.",
+                    )
+        return self
 
 
 class PaymentItem(BaseModel):

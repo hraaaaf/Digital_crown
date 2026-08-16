@@ -229,6 +229,7 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
 }) => {
   const [hoveredTooth, setHoveredTooth] = useState<number | null>(null);
   const [hoveredSurface, setHoveredSurface] = useState<string | null>(null);
+  const [focusedTooth, setFocusedTooth] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasSize = useElementSize(containerRef as React.RefObject<HTMLElement>);
@@ -285,6 +286,21 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
     },
     [onSurfaceHover]
   );
+
+  const getToothAccessibleName = useCallback((toothNumber: number) => {
+    const name = type === 'ADULT'
+      ? TOOTH_NAMES[toothNumber as ToothNumberFDI]
+      : PEDIATRIC_TOOTH_NAMES[toothNumber as PediatricToothNumber];
+    return `Dent ${toothNumber}${name ? `, ${name}` : ''}`;
+  }, [type]);
+
+  const handleToothKeyDown = useCallback((toothNumber: number) => (event: React.KeyboardEvent<SVGGElement>) => {
+    if (readOnly || !onToothDirectClick) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onToothDirectClick(toothNumber);
+    }
+  }, [readOnly, onToothDirectClick]);
 
   return (
     <div ref={containerRef} className={`relative w-full max-w-[480px] mx-auto ${className}`}>
@@ -352,9 +368,39 @@ export const OdontogramSVG: React.FC<OdontogramSVGProps> = ({
 
             const isMultiSelected = multiSelectedTeeth.includes(toothNumber);
             const isToothSelected = selectedTooth === toothNumber;
+            const isKeyboardFocused = focusedTooth === toothNumber;
 
             return (
-              <g key={`tooth-group-${toothNumber}`}>
+              <g
+                key={`tooth-group-${toothNumber}`}
+                tabIndex={!readOnly && onToothDirectClick ? 0 : undefined}
+                role={!readOnly && onToothDirectClick ? 'button' : undefined}
+                aria-label={!readOnly && onToothDirectClick ? getToothAccessibleName(toothNumber) : undefined}
+                aria-pressed={!readOnly && onToothDirectClick ? (isMultiSelected || isToothSelected) : undefined}
+                onFocus={() => {
+                  if (!readOnly && onToothDirectClick) {
+                    setFocusedTooth(toothNumber);
+                    handleHover(toothNumber, 'O');
+                  }
+                }}
+                onBlur={() => {
+                  setFocusedTooth(null);
+                  handleHover(toothNumber, null);
+                }}
+                onKeyDown={handleToothKeyDown(toothNumber)}
+              >
+                {isKeyboardFocused && (
+                  <circle
+                    cx={px.cx}
+                    cy={px.cy}
+                    r={px.r * 1.35}
+                    fill="transparent"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeDasharray="4 3"
+                    className="text-primary pointer-events-none"
+                  />
+                )}
                 
                 {/* Effet de sélection groupée ou globale */}
                 {isMultiSelected && (

@@ -12,6 +12,8 @@ import {
   History,
   LayoutGrid,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Sparkles,
   Wand2
 } from 'lucide-react';
@@ -27,8 +29,13 @@ import { PriceBrain } from '../../components/odontogram/PriceBrain';
 import { useAccountingStore, type PriceItem, type InstallmentItem } from './store/useAccountingStore';
 import { useCatalogStore } from './Settings/hooks/useCatalogStore';
 import { AccountingQuickActions } from './DocumentStudio/AccountingQuickActions';
-import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePolicy';
+import { groupAccountingItemsByPhase, isAccountingPhaseSeparator } from './DocumentStudio/AccountingPhasePolicy';
 import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
+import { odontogramGroupSelection, odontogramQuickGroupKeys } from './DocumentStudio/AccountingOdontogramModePolicy';
+import { resolveAccountingBundles, type ResolvedAccountingBundle } from './DocumentStudio/AccountingBundlePolicy';
+import { moveAccountingLine } from './DocumentStudio/AccountingLineOrderPolicy';
+import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
+import { resolveNamedDevisActPrice } from './DocumentStudio/AccountingNamedActPricePolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -90,27 +97,16 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   }, [specialties]);
 
   const handleToothDirectClick = (n: number) => setGroupSelectedTeeth(groupSelectedTeeth.includes(n) ? groupSelectedTeeth.filter(x => x !== n) : [...groupSelectedTeeth, n]);
-  
+
+  const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
+  const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [suggestedBundles, setSuggestedBundles] = useState<ResolvedAccountingBundle[]>([]);
+  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
+
   const selectTeethGroup = (g: string) => {
-    const max = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
-    const mand = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
-    const regions: Record<string, number[]> = {
-      'all': [...max, ...mand],
-      'maxillaire': max,
-      'mandibule': mand,
-      'Q1': [11, 12, 13, 14, 15, 16, 17, 18],
-      'Q2': [21, 22, 23, 24, 25, 26, 27, 28],
-      'Q3': [31, 32, 33, 34, 35, 36, 37, 38],
-      'Q4': [41, 42, 43, 44, 45, 46, 47, 48],
-      'S1': [14, 15, 16, 17, 18],
-      'S2': [13, 12, 11, 21, 22, 23],
-      'S3': [24, 25, 26, 27, 28],
-      'S4': [34, 35, 36, 37, 38],
-      'S5': [33, 32, 31, 41, 42, 43],
-      'S6': [44, 45, 46, 47, 48]
-    };
-    if (regions[g]) setGroupSelectedTeeth(regions[g]);
-    else setGroupSelectedTeeth([]);
+    setGroupSelectedTeeth(odontogramGroupSelection(odontogramType, g));
   };
 
   const applyGroupTreatment = () => {
@@ -131,8 +127,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     toothNumber: number,
     treatments: ToothTreatment[],
     surfaces: ToothSurface[],
+    notes: string,
   ) => {
     const dentLabel = surfaces.length > 0 ? toothNumber.toString() + ` (${surfaces.join('')})` : undefined;
+    const normalizedNotes = notes.trim();
     setItems((prev: PriceItem[]) => replaceOdontogramToothSelections(
       prev,
       toothNumber,
@@ -143,6 +141,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         price: treatment.price,
         category: treatment.category,
         dent: dentLabel,
+        surfaces: surfaces.length > 0 ? surfaces : undefined,
+        notes: normalizedNotes || undefined,
+        treatmentCode: treatment.code,
       })),
     ));
   }, [setItems]);
@@ -156,16 +157,20 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       if (!item._odontogramKey?.startsWith(prefix) || !item.category) return [];
       return [{
         id: item._odontogramKey.slice(prefix.length),
+        code: item.odontogramTreatmentCode,
         name: item.description,
         price: Number(item.price) || 0,
         category: item.category as ToothTreatment['category'],
+        surfaces: item.odontogramSurfaces as ToothSurface[] | undefined,
         scope: 'UNITAIRE' as const,
       }];
     });
   }, [activeTooth, items]);
 
+  const hasPhaseSeparators = items.some(item => isAccountingPhaseSeparator(item.description));
   const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
-  const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
+  const removeItem = (id: number) => setItems((prev: PriceItem[]) => prev.filter(item => item.id !== id || isAccountingPhaseSeparator(item.description)));
+  const moveItem = (id: number, direction: 'UP' | 'DOWN') => setItems((prev: PriceItem[]) => moveAccountingLine(prev, id, direction));
   
   const updateItem = (id: number, f: string, v: string | number) => {
     const newItems = items.map(i => i.id === id ? { ...i, [f]: f === 'price' ? Number(v) : v } : i);
@@ -187,7 +192,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     ).map((t: any) => ({ 
       id: `template_${t.id}`, 
       name: t.name,
-      base_price: 0,
+      base_price: t.base_price,
       category: t.category,
       isLocal: true,
       is_habit: false
@@ -210,14 +215,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
   };
 
   const applyActSuggestion = (itemId: number, act: any) => {
+    const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
     setItems(items.map(i => i.id === itemId ? {
       ...i,
       description: act.name,
-      price: act.base_price || 0,
-      category: act.category
+      price: resolved.price,
+      category: resolved.category || act.category
     } : i));
     setActSuggestions([]);
     setActiveActSearchId(null);
+    if (resolved.source === 'UNRESOLVED') {
+      toast.error('Tarif catalogue absent : renseignez le prix avant archivage.');
+    }
   };
 
   const handlePhaseSequencing = () => {
@@ -239,36 +248,39 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     setItems(newItems);
     toast.success('Organisation par phases appliquée au devis.');
   };
-
-  const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
-  const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
-  const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
-  const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
   
   const fetchQuickActs = async () => {
     try {
       const res = await api.get('/accounting/frequent-acts');
-      if (res.data && res.data.length > 0) {
-        setQuickActs(res.data);
-      } else {
-        const top = PriceBrain.getTopFrequent(4);
-        setQuickActs(top.length > 0 ? top.map(t => ({ name: t.name, price: t.price || 0, category: t.category })) : [
-          { name: 'Consultation', price: 300, category: 'CONSERVATRICE' },
-          { name: 'Détartrage', price: 500, category: 'PREVENTION' },
-          { name: 'Composite 1 face', price: 400, category: 'CONSERVATRICE' },
-          { name: 'Extraction simple', price: 600, category: 'CHIRURGIE' },
-        ]);
-      }
+      const source = Array.isArray(res.data) && res.data.length > 0
+        ? res.data
+        : TREATMENT_TEMPLATES.slice(0, 8).map(t => ({ name: t.name, category: t.category }));
+      const repriced = source
+        .map((act: any) => {
+          const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
+          return {
+            name: act.name,
+            price: resolved.price,
+            category: resolved.category || act.category || 'CONSERVATRICE',
+          };
+        })
+        .filter((act: any) => act.price > 0)
+        .slice(0, 4);
+      setQuickActs(repriced);
     } catch (err) {
       console.error("Erreur habitudes acts:", err);
+      setQuickActs(
+        TREATMENT_TEMPLATES
+          .map(t => ({ name: t.name, price: Number(t.base_price) || 0, category: t.category }))
+          .filter(t => t.price > 0)
+          .slice(0, 4)
+      );
     }
   };
 
   useEffect(() => {
-    fetchQuickActs();
-  }, []);
+    if (TREATMENT_TEMPLATES.length > 0) fetchQuickActs();
+  }, [TREATMENT_TEMPLATES]);
 
   useEffect(() => {
     const lastItem = items[items.length - 1];
@@ -276,7 +288,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       const timer = setTimeout(async () => {
         try {
           const res = await api.post('/actes/catalog/bundles', { act_names: [lastItem.description] });
-          setSuggestedBundles(res.data || []);
+          const catalogActs = TREATMENT_TEMPLATES.map(t => ({
+            name: t.name,
+            base_price: t.base_price,
+            category: t.category,
+          }));
+          setSuggestedBundles(resolveAccountingBundles(res.data || [], catalogActs));
         } catch (err) {
           console.error("Erreur fetching bundles:", err);
         }
@@ -285,14 +302,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     } else {
       setSuggestedBundles([]);
     }
-  }, [items]);
+  }, [items, TREATMENT_TEMPLATES]);
 
-  const saveActAsHabit = async (name: string, price: number, category?: string) => {
-    try {
-      PriceBrain.recordAct(name, price, category || 'CONSERVATRICE');
-      await api.post('/accounting/record-act', { name, price, category });
-      fetchQuickActs();
-    } catch (err) { console.error(err); }
+  const rememberActPrice = (name: string, price: number, category?: string) => {
+    if (!name.trim() || !Number.isFinite(price) || price <= 0) return;
+    PriceBrain.recordAct(name, price, category || 'CONSERVATRICE');
   };
 
   useEffect(() => {
@@ -334,7 +348,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 ...items.filter(it => it.description.trim()),
                 { id: Date.now() + Math.random(), description: act.name, price: act.price, dent: '-', category: act.category },
               ]);
-              saveActAsHabit(act.name, act.price, act.category);
+              rememberActPrice(act.name, act.price, act.category);
             }}
             onAddManual={addEmptyRow}
           />
@@ -343,7 +357,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
             {suggestedBundles.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                animate={{ height: 'auto', opacity: 1 }}
                 exit={{ opacity: 0, height: 0 }}
                 className="pt-4 border-t border-slate-100 flex items-center justify-between"
               >
@@ -352,7 +366,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions complémentaires :</span>
                   <div className="flex gap-2">
                     {suggestedBundles.map((b, i) => (
-                      <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">+{b.name}</span>
+                      <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">
+                        +{b.name}{b.priceSource === 'UNRESOLVED' ? ' • prix à saisir' : ''}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -365,9 +381,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
                       }
                     });
+                    const unresolved = suggestedBundles.filter(b => b.priceSource === 'UNRESOLVED').length;
                     setItems(newItems);
                     setSuggestedBundles([]);
-                    toast.success("Suggestions ajoutées");
+                    if (unresolved > 0) {
+                      toast.error(`${unresolved} suggestion(s) ajoutée(s) sans tarif catalogue : prix à renseigner.`);
+                    } else {
+                      toast.success("Suggestions ajoutées avec les tarifs catalogue");
+                    }
                   }}
                   className="px-6 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl font-black uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-white transition-all"
                 >
@@ -419,7 +440,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <button
                             key={type}
                             type="button"
-                            onClick={() => setOdontogramType(type)}
+                            onClick={() => {
+                              setOdontogramType(type);
+                              setGroupSelectedTeeth([]);
+                              setActiveTooth(null);
+                            }}
                             className={cn(
                               "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
                               odontogramType === type ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
@@ -469,33 +494,45 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             </div>
                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                               {[
-                                {name: 'Détartrage & Polissage', price: 400, category: 'PREVENTION'},
-                                {name: 'Surfaçage Radiculaire (par secteur)', price: 1500, category: 'PARO'},
-                                {name: 'Bilan Parodontal Complet', price: 600, category: 'PARO'},
-                                {name: 'Blanchiment Dentaire', price: 2500, category: 'ESTHETIQUE'},
-                                {name: 'Fluorisation', price: 300, category: 'PREVENTION'},
-                                {name: 'Gouttière de Bruxisme', price: 1500, category: 'PROTHESE'},
-                                {name: 'Semestre ODF', price: 4500, category: 'ORTHO'},
-                                {name: 'Consultation Standard', price: 300, category: 'CONSERVATRICE'},
-                                {name: 'Aéropolissage', price: 350, category: 'PREVENTION'},
-                                {name: 'Traitement Parodontal (Séance)', price: 800, category: 'PARO'},
-                              ].map(act => (
-                                <button
-                                  key={act.name}
-                                  type="button"
-                                  onClick={() => {
-                                    const price = PriceBrain.suggestPrice(act.name) || act.price;
-                                    setItems([...items, { id: Date.now() + Math.random(), description: act.name, dent: 'Global', price, category: act.category }]);
-                                    toast.success(`Ajouté : ${act.name}`, {
-                                      style: { background: '#fff', color: '#1e293b', fontSize: '10px', fontWeight: 'bold', border: '1px solid #f1f5f9' }
-                                    });
-                                  }}
-                                  className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
-                                >
-                                  <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
-                                  <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">{PriceBrain.suggestPrice(act.name) || act.price} MAD</span>
-                                </button>
-                              ))}
+                                {name: 'Détartrage & Polissage', category: 'PREVENTION'},
+                                {name: 'Surfaçage Radiculaire (par secteur)', category: 'PARO'},
+                                {name: 'Bilan Parodontal Complet', category: 'PARO'},
+                                {name: 'Blanchiment Dentaire', category: 'ESTHETIQUE'},
+                                {name: 'Fluorisation', category: 'PREVENTION'},
+                                {name: 'Gouttière de Bruxisme', category: 'PROTHESE'},
+                                {name: 'Semestre ODF', category: 'ORTHO'},
+                                {name: 'Consultation Standard', category: 'CONSERVATRICE'},
+                                {name: 'Aéropolissage', category: 'PREVENTION'},
+                                {name: 'Traitement Parodontal (Séance)', category: 'PARO'},
+                              ].map(act => {
+                                const resolved = resolveNamedDevisActPrice(act.name, TREATMENT_TEMPLATES);
+                                return (
+                                  <button
+                                    key={act.name}
+                                    type="button"
+                                    onClick={() => {
+                                      setItems([...items, {
+                                        id: Date.now() + Math.random(),
+                                        description: act.name,
+                                        dent: 'Global',
+                                        price: resolved.price,
+                                        category: resolved.category || act.category,
+                                      }]);
+                                      if (resolved.source === 'UNRESOLVED') {
+                                        toast.error(`Tarif catalogue absent pour ${act.name} : prix à renseigner.`);
+                                      } else {
+                                        toast.success(`Ajouté : ${act.name}`);
+                                      }
+                                    }}
+                                    className="p-4 bg-white rounded-2xl hover:bg-slate-50 border border-slate-100 hover:border-primary/30 text-left transition-all group/act flex flex-col gap-2 shadow-sm cursor-pointer"
+                                  >
+                                    <span className="text-xs font-bold text-slate-700 group-hover/act:text-primary transition-colors">{act.name}</span>
+                                    <span className="text-[10px] font-black text-slate-400 group-hover/act:text-primary/70">
+                                      {resolved.source === 'CATALOG' ? `${resolved.price} MAD` : 'Prix catalogue requis'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
                             <button
                               type="button"
@@ -543,15 +580,17 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                     <Sparkles className="w-4 h-4 text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Sélection Rapide</span>
                                   </div>
                                   <div className="grid grid-cols-4 gap-2">
-                                    {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
-                                      <button key={q} type="button" onClick={() => selectTeethGroup(q as any)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{q}</button>
+                                    {odontogramQuickGroupKeys(odontogramType).slice(0, 4).map(group => (
+                                      <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-2 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[10px] font-black tracking-widest">{group}</button>
                                     ))}
                                   </div>
-                                  <div className="grid grid-cols-6 gap-2">
-                                    {['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(s => (
-                                      <button key={s} type="button" onClick={() => selectTeethGroup(s as any)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{s}</button>
-                                    ))}
-                                  </div>
+                                  {odontogramType === 'ADULT' && (
+                                    <div className="grid grid-cols-6 gap-2">
+                                      {odontogramQuickGroupKeys(odontogramType).slice(4).map(group => (
+                                        <button key={group} type="button" onClick={() => selectTeethGroup(group)} className="py-1.5 bg-white/10 text-slate-300 hover:bg-white/20 rounded-xl text-[9px] font-black tracking-widest">{group}</button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <>
@@ -576,16 +615,23 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                         key={act}
                                         type="button"
                                         onClick={() => {
-                                          const suggestedPrice = PriceBrain.suggestPrice(act);
+                                          const resolved = resolveNamedDevisActPrice(act, TREATMENT_TEMPLATES);
                                           setGroupTreatmentName(act);
-                                          if (!suggestedPrice || suggestedPrice <= 0) {
+                                          if (resolved.source === 'UNRESOLVED') {
                                             setGroupTreatmentPrice('');
-                                            toast.error('Prix inconnu : renseignez un prix avant d’ajouter cet acte groupé.');
+                                            toast.error('Tarif catalogue absent : renseignez un prix avant d’ajouter cet acte groupé.');
                                             return;
                                           }
-                                          setGroupTreatmentPrice(suggestedPrice);
+                                          setGroupTreatmentPrice(resolved.price);
                                           const sorted = [...groupSelectedTeeth].sort((a, b) => a - b);
-                                          setItems([...items, { id: Date.now() + Math.random(), description: act, dent: sorted.join('-'), price: suggestedPrice, toothNumbers: sorted }]);
+                                          setItems([...items, {
+                                            id: Date.now() + Math.random(),
+                                            description: act,
+                                            dent: sorted.join('-'),
+                                            price: resolved.price,
+                                            toothNumbers: sorted,
+                                            category: resolved.category,
+                                          }]);
                                           selectTeethGroup('none');
                                           setGroupTreatmentName('');
                                           setGroupTreatmentPrice('');
@@ -629,11 +675,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       <AnimatePresence>
                         {activeTooth && (
                           <TreatmentSelector
-                            toothNumber={activeTooth as any}
+                            toothNumber={activeTooth}
                             currentTreatments={activeToothTreatments}
+                            initialSurfaces={[...new Set(items
+                              .filter(item => item._odontogramKey?.startsWith(`${activeTooth}::`))
+                              .flatMap(item => item.odontogramSurfaces || []))] as ToothSurface[]}
+                            initialNotes={[...new Set(items
+                              .filter(item => item._odontogramKey?.startsWith(`${activeTooth}::`))
+                              .map(item => (item.odontogramNotes || '').trim())
+                              .filter(Boolean))].join('\n')}
                             allowEmptyConfirm={activeToothTreatments.length > 0}
                             onConfirm={(treatments, surfaces, notes) => {
-                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces);
+                              replaceToothTreatmentsFromSelector(activeTooth, treatments, surfaces, notes);
                               treatments.forEach(t => {
                                 if (t.price && t.price > 0) {
                                   PriceBrain.recordAct(t.name, t.price, t.category, t.id);
@@ -687,87 +740,121 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description de l'acte</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-center">Dent</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44 text-right">Honoraires (MAD)</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24"></th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   <AnimatePresence mode="popLayout">
-                    {items.map((item, idx) => (
-                      <motion.tr
-                        key={item.id}
-                        layout
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="group hover:bg-slate-50/50 transition-colors"
-                      >
-                        <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
-                        <td className="px-8 py-4 relative">
-                          <div className="relative group/search">
+                    {items.map((item, idx) => {
+                      const isPhaseSeparator = isAccountingPhaseSeparator(item.description);
+                      return (
+                        <motion.tr
+                          key={item.id}
+                          layout
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className={cn(
+                            "group transition-colors",
+                            isPhaseSeparator ? "bg-indigo-50/70" : "hover:bg-slate-50/50"
+                          )}
+                        >
+                          <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
+                          <td className="px-8 py-4 relative">
+                            <div className="relative group/search">
+                              <input
+                                type="text"
+                                disabled={isPhaseSeparator}
+                                className={cn(
+                                  "w-full border rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all",
+                                  isPhaseSeparator
+                                    ? "bg-transparent border-transparent text-indigo-600 cursor-default"
+                                    : "bg-white border-slate-100 focus:border-primary/50 text-slate-800"
+                                )}
+                                value={item.description}
+                                onChange={(e) => handleActSearch(e.target.value, item.id)}
+                                onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
+                                placeholder="Rechercher ou saisir un acte..."
+                              />
+                              {!isPhaseSeparator && activeActSearchId === item.id && actSuggestions.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                  {actSuggestions.map((act) => (
+                                    <button
+                                      key={act.id}
+                                      type="button"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => applyActSuggestion(item.id, act)}
+                                      className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
+                                    >
+                                      <div>
+                                        <p className="font-bold text-sm text-slate-800">{act.name}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
+                                      </div>
+                                      <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-8 py-4">
                             <input
                               type="text"
-                              className="w-full bg-white border border-slate-100 focus:border-primary/50 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-all"
-                              value={item.description}
-                              onChange={(e) => handleActSearch(e.target.value, item.id)}
-                              onBlur={() => setTimeout(() => setActiveActSearchId(null), 200)}
-                              placeholder="Rechercher ou saisir un acte..."
+                              disabled={isPhaseSeparator}
+                              className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                              value={item.dent}
+                              onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
+                              placeholder="--"
                             />
-                            {activeActSearchId === item.id && actSuggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                {actSuggestions.map((act) => (
-                                  <button
-                                    key={act.id}
-                                    type="button"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => applyActSuggestion(item.id, act)}
-                                    className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
-                                  >
-                                    <div>
-                                      <p className="font-bold text-sm text-slate-800">{act.name}</p>
-                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
-                                    </div>
-                                    <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-8 py-4">
-                          <input
-                            type="text"
-                            className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all"
-                            value={item.dent}
-                            onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
-                            placeholder="--"
-                          />
-                        </td>
-                        <td className="px-8 py-4">
-                          <div className="relative">
-                            <input
-                              type="number"
-                              className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all"
-                              style={{ color: 'var(--primary)' }}
-                              value={item.price || ''}
-                              onFocus={e => e.target.select()}
-                              onChange={(e) => updateItem(item.id, 'price', e.target.value)}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-8 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
+                          </td>
+                          <td className="px-8 py-4">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                disabled={isPhaseSeparator}
+                                className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                                style={{ color: 'var(--primary)' }}
+                                value={item.price || ''}
+                                onFocus={e => e.target.select()}
+                                onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-8 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => moveItem(item.id, 'UP')}
+                                disabled={hasPhaseSeparators || isPhaseSeparator || idx === 0}
+                                aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                              >
+                                <ArrowUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(item.id, 'DOWN')}
+                                disabled={hasPhaseSeparators || isPhaseSeparator || idx === items.length - 1}
+                                aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                              >
+                                <ArrowDown size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.id)}
+                                disabled={isPhaseSeparator}
+                                aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
+                                className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
                   </AnimatePresence>
                 </tbody>
               </table>
@@ -776,7 +863,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
             <div className="px-10 py-6 border-t border-slate-50 bg-slate-50/30 flex flex-col items-end gap-4">
               <div className="flex items-center justify-between w-full">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total</span>
-                <span className="text-xl font-black text-primary">{items.reduce((acc, it) => acc + (Number(it.price) || 0), 0)} MAD</span>
+                <span className="text-xl font-black text-primary">{accountingDocumentTotal(items)} MAD</span>
               </div>
               {!isDevis && (
                 <button 
@@ -948,7 +1035,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           </div>
                           <div className="w-full sm:col-span-3 relative">
                             <input 
-                              type="number" 
+                              type="number"
                               className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
                               value={inst.amount}
                               onFocus={e => e.target.select()}

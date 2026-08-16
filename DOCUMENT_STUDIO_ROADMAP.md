@@ -105,42 +105,49 @@ Les lots récents ont rencontré un blocage GitHub Actions **avant exécution de
 
 ## P3 — Devis
 
-**État : 🟡 PROCHAINE PAGE ACTIVE.**
+**État : ⏸ CLOSED / PAUSED UNTIL FURTHER NOTICE — décision produit du 16 août 2026.**
+
+Rapport de statut canonique : `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md`.
 
 Historique technique partagé avec Note Honoraires : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
 
 > Les anciens lots `P2-*` restent des identifiants historiques. Ils alimentent désormais P3 Devis et P4 Note Honoraires selon leur portée réelle.
 
-### Socle engineering déjà acquis
+### Socle engineering acquis
 - ancien **P2-A** : prix catalogue local conservé, PR #27, CI `31882328096`, merge `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc` ;
 - ancien **P2-C** : actes rapides tactiles + terminologie déterministe + phases neutres, PR #46, CI `31900572795` 3/3 SUCCESS, merge `967f56ed10d61b373bcd3c75e6a737a49bd7349a` ;
 - ancien **P2-D** : odontogramme / déduplication / prix groupe, PR #47, CI `31902205419` 3/3 SUCCESS, merge `021ee425a532bb83ae9669ab4c449522258bdcc6` ;
-- ancien **P2-E** : réconciliation totale/échéances partagée, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd`.
+- ancien **P2-E** : réconciliation totale/échéances partagée, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd` ;
+- branche d’intégration P3-A→P3-G : `agent/p3d-devis-phases-learning`, PR #77 conservée **open + draft** ;
+- isolation financière Devis, source de vérité odontogramme, tarification catalogue, phases, lifecycle, PDF lisible, dirty-state, responsive/accessibilité durcis ;
+- P7→P3 filtré et P3→Honoraires rendu explicite.
 
-### Audit page-par-page à exécuter maintenant
-- [ ] état initial Devis ;
-- [ ] actes rapides / recherche catalogue ;
-- [ ] odontogramme : clic dent, modal, surfaces, traitements ;
-- [ ] modes Soins ciblés / Bridge & Prothèses / Soins généraux ;
-- [ ] sélection Q1-Q4 / S1-S6 ;
-- [ ] prix connu / prix inconnu / modification manuelle ;
-- [ ] bundles / suggestions complémentaires ;
-- [ ] organisation par phases ;
-- [ ] lignes manuelles, suppression et réorganisation ;
-- [ ] totaux ;
-- [ ] preview ;
-- [ ] sauvegarde / archivage ;
-- [ ] impression ;
-- [ ] erreurs / états vides / navigation dirty-state ;
-- [ ] responsive et accessibilité ;
-- [ ] verdict UX puis lots correctifs ;
-- [ ] recertification finale de la page.
+### Preuves P3-H locales exécutées
+- backend P3 : **26/26 PASS** sous Linux ;
+- frontend policies : **`tsc --strict` PASS** ;
+- tests frontend P3 : **39/39 PASS** via orchestration locale compatible Vitest ;
+- garde apprentissage : **PASS** ;
+- PriceBrain pré-archive : **PASS** ;
+- PDF 36 lignes longues : **3 pages**, header **3/3**, minimum observé **7,5 pt**, floor **7,0 pt**, total non coupé avec l’algorithme adaptive réel.
+
+### Gates volontairement différés
+Ces éléments **ne sont pas revendiqués comme exécutés** et doivent être repris uniquement si P3 est rouvert :
+- full checkout + vraies dépendances frontend ;
+- vrai `npm test` / `npm run build` full-project ;
+- smoke authentifié adulte/pédiatrique ;
+- archive/reopen réel dents/notes/surfaces/code/multi-dents ;
+- duplicate/stale-print dans l’application complète ;
+- PDF cabinet branding/signature ;
+- browser 390 / 768 / desktop + clavier/touch ;
+- ready review / merge / post-merge recertification.
+
+**Verdict : chantier P3 clos opérationnellement, certification full-app différée et non revendiquée.**
 
 ---
 
 ## P4 — Note Honoraires
 
-**État : 🟡 socle engineering partiellement fermé ; audit page-par-page à faire après P3.**
+**État : 🟡 PAGE ACTIVE — audit page-par-page à démarrer maintenant.**
 
 Historique technique partagé : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
 
@@ -148,7 +155,8 @@ Historique technique partagé : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES
 - ancien **P2-B** : `PARTIEL` fail-closed cohérent UI/backend, PR #29, CI `31884437013`, merge `6543c3dad146bdbe055117fe0302b3fbe9cbda07` ;
 - ancien **P2-E** : totaux/payload/échéances, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd` ;
 - ancien **P2-F** : allocation `PAYE` exacte par Acte, PR #36, CI `31886400223`, merge `5916216ae6b3ebe6cf3609ff652ee09cc549391f` ;
-- les socles actes rapides / odontogramme communs issus des anciens P2-C/P2-D sont également présents.
+- les socles actes rapides / odontogramme communs issus des anciens P2-C/P2-D sont également présents ;
+- l’audit P4 doit intégrer les changements partagés introduits par la branche P3 avant de conclure sur l’état courant.
 
 ### À auditer
 - [ ] état initial Note Honoraires ;
@@ -294,8 +302,8 @@ Les PR, commits, noms de branches et fichiers d’audit historiques **ne sont pa
 
 1. **P1 Ordonnance** : engineering + visuel fermés ; gates authentifiés/cliniques séparés.
 2. **P2 Certificat** : engineering convergé ; certification finale runtime/PDF encore ouverte.
-3. **P3 Devis** : **prochaine page active à décortiquer intégralement**.
-4. **P4 Note Honoraires** : après P3.
+3. **P3 Devis** : **clos/pausé jusqu’à nouvel ordre** ; full-app gates différés et documentés ; PR #77 conservée draft.
+4. **P4 Note Honoraires** : **PAGE ACTIVE**.
 5. **P5 Suivi Paiement** : après P4.
 6. **P6 Document Libre** : engineering convergé ; runtime/PDF final à recertifier dans son tour de page.
 7. **P7 Compagnon Diagnostique** : après P6.
@@ -307,4 +315,4 @@ Pour chaque page :
 
 **audit interaction par interaction → défauts classés → correctifs réversibles → tests ciblés → CI si disponible → runtime/visuel selon le risque → mise à jour audit canonique → mise à jour roadmap → page suivante.**
 
-Un blocage d’infrastructure externe non spécifique à la page (ex. runner CI indisponible) doit être consigné mais ne doit pas empêcher de poursuivre le travail indépendant autorisé. Aucune réussite de test n’est revendiquée si le test n’a pas réellement été exécuté.
+Un blocage d’infrastructure externe non spécifique à la page doit être consigné mais ne doit pas empêcher de poursuivre le travail indépendant autorisé. Aucune réussite de test n’est revendiquée si le test n’a pas réellement été exécuté.

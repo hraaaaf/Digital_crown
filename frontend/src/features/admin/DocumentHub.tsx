@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -18,11 +18,21 @@ import { InstallmentStudio } from './DocumentStudio/Forms/InstallmentStudio';
 import { LibreForm } from './DocumentStudio/Forms/LibreForm';
 import { AccountingStudio } from './AccountingStudio';
 import { TreatmentPlanStudio } from './DocumentStudio/TreatmentPlanStudio';
-import type { Insight } from './DocumentStudio/EliteAssistant';
 import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
-import { PriceBrain } from '../../components/odontogram/PriceBrain';
-import { useAccountingStore, type PriceItem } from './store/useAccountingStore';
+import { useAccountingStore } from './store/useAccountingStore';
+import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
+import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
+import {
+  accountingDocumentFingerprint,
+  isAccountingDocumentDirty,
+  type AccountingDirtyTab,
+} from './DocumentStudio/AccountingDirtyStatePolicy';
+import {
+  hydrateArchivedDevisRows,
+  type ArchivedDevisItem,
+  type ArchivedToothData,
+} from './DocumentStudio/AccountingOdontogramSourcePolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -46,8 +56,9 @@ interface GenericClinicalData {
   hide_patient_header?: boolean;
   page_size?: 'A5' | 'A4';
   alignment?: 'left' | 'center' | 'right' | 'justify';
-  items?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
-  payments?: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }[];
+  items?: ArchivedDevisItem[];
+  payments?: ArchivedDevisItem[];
+  teeth_data?: ArchivedToothData[];
   doc_date?: string;
 }
 
@@ -87,8 +98,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [searchParams]);
 
-
-
   // --- ÉTATS FORMULAIRES ---
   const [drugs, setDrugs] = useState<DrugItem[]>([{ id: 1, name: '', dosage: '', forme: '', posologie: '', type: 'MEDICAMENT' }]);
   const [showLegalAnnotations, setShowLegalAnnotations] = useState(true);
@@ -96,9 +105,9 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [certifDays, setCertifDays] = useState(0);
   const [certifStartDate, setCertifStartDate] = useState('');
   const [certifCustomMotif, setCertifCustomMotif] = useState('');
-  const { 
-    items, setItems, paymentMode, installments, setInstallments, 
-    isAccounted, paymentStatus, isGlobalNote 
+  const {
+    items, setItems, paymentMode, installments, setInstallments,
+    isAccounted, paymentStatus, isGlobalNote
   } = useAccountingStore();
 
   // --- PERSISTENCE ECHEANCES ---
@@ -132,18 +141,28 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [libreHideHeader, setLibreHideHeader] = useState(false);
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
-  const [insights, setInsights] = useState<Insight[]>([]);
+
+  // --- DIRTY STATE COMPTABLE ---
+  const [accountingBaselineFingerprint, setAccountingBaselineFingerprint] = useState<string | null>(null);
+  const pendingAccountingArchiveRef = useRef(false);
+  const pendingAccountingArchivePdfUrlRef = useRef<string | null>(null);
+  const accountingTab: AccountingDirtyTab | null = activeTab === 'devis' || activeTab === 'honoraires' ? activeTab : null;
+  const accountingDirty = accountingTab
+    ? isAccountingDocumentDirty(accountingTab, items, accountingBaselineFingerprint, docDate)
+    : false;
 
   // --- GARDES NAVIGATION ---
   const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
 
   // Garde sur changement d'onglet (1.3)
   const handleTabChange = (newTab: HubDocumentType) => {
-    // Pas d'alerte si on reste dans le duo devis/honoraires (même formulaire)
+    // Le duo devis/honoraires partage les lignes, mais la conversion P3→P4 est confirmée dans StudioTabs.
     const isAccountingSwitch = (activeTab === 'devis' || activeTab === 'honoraires') &&
       (newTab === 'devis' || newTab === 'honoraires');
-    const hasUnsaved = (activeTab === 'devis' || activeTab === 'honoraires') &&
-      items.some(i => i.description.trim()) && newTab !== activeTab && !isAccountingSwitch;
+    if (!accountingTab && (newTab === 'devis' || newTab === 'honoraires')) {
+      setAccountingBaselineFingerprint(null);
+    }
+    const hasUnsaved = accountingDirty && newTab !== activeTab && !isAccountingSwitch;
     if (hasUnsaved) {
       setPendingTab(newTab);
     } else {
@@ -154,14 +173,14 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   // Garde fermeture navigateur (1.6)
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if ((activeTab === 'devis' || activeTab === 'honoraires') && items.some(i => i.description.trim())) {
+      if (accountingDirty) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [activeTab, items]);
+  }, [accountingDirty]);
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
@@ -201,155 +220,33 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     installments, isAccounted, paymentStatus, isGlobalNote, handleSuggestRadio, showLegalAnnotations, echeancierPayload,
   ]);
 
-  // --- INTELLIGENCE SCOPE ---
-  const isSurgical = useMemo(() => items.some(i => 
-    i.description.toLowerCase().includes('extraction') || 
-    i.description.toLowerCase().includes('implant') || 
-    i.description.toLowerCase().includes('chirurgie')
-  ), [items]);
-
-  const hasDrugs = useMemo(() => drugs.length > 0, [drugs]);
-
-  // --- BRAIN ENGINE : INTELLIGENCE PROACTIVE ---
-  useEffect(() => {
-    // 1. Détection des actes pour suggestions croisées (Bundles)
-    const currentActNames = items.map(i => i.description).filter(Boolean);
-    if (currentActNames.length > 0) {
-      const timer = setTimeout(() => {
-        api.post('/actes/catalog/bundles', { act_names: currentActNames })
-          .then(res => {
-            const bundles = res.data as { name: string; price: number; category: string }[];
-            bundles.forEach(b => {
-              const id = `bundle-${b.name}`;
-              if (!insights.find(ins => ins.id === id)) {
-                setInsights(prev => [{
-                  id: id,
-                  type: 'suggestion',
-                  title: 'Acte Complémentaire',
-                  content: `Pour un traitement complet, l'assistant suggère d'ajouter : ${b.name}.`,
-                  actionLabel: `Ajouter (+${b.price} MAD)`,
-                  onAction: () => {
-                    setItems(prev => [...prev, { id: Date.now(), description: b.name, price: b.price, dent: '0', category: b.category }]);
-                    setInsights(prev => prev.filter(i => i.id !== id));
-                  }
-                }, ...prev]);
-              }
-            });
-          })
-          .catch(console.error);
-      }, 500); // Debounce pour éviter trop d'appels
-      return () => clearTimeout(timer);
-    }
-
-    // 2. Intelligence Elite : Détection des Protocoles Oubliés
-    if (isSurgical && !hasDrugs && !insights.find(ins => ins.id === 'ins-missing-protocol')) {
-       
-      setInsights(prev => [{
-        id: 'ins-missing-protocol',
-        type: 'safety',
-        title: 'Protocole Post-Op Manquant',
-        content: "Détection d'un acte chirurgical sans ordonnance associée. Souhaitez-vous générer un protocole antalgique/antibiotique ?",
-        actionLabel: 'Générer Protocole',
-        onAction: () => { setActiveTab('ordonnance'); }
-      }, ...prev]);
-    }
-
-    // 4. GHOST COMPLICATIONS (Bouclier de Sécurité Médicolégal)
-    if (patientDetails?.antecedents_medicaux) {
-      const ant = patientDetails.antecedents_medicaux.toLowerCase();
-      const currentActNames = items.map(i => i.description.toLowerCase());
-      const hasSurgery = currentActNames.some(a => a.includes('extraction') || a.includes('implant') || a.includes('chirurgie') || a.includes('lambeau'));
-      const hasRadio = currentActNames.some(a => a.includes('radio') || a.includes('panoramique') || a.includes('cbct') || a.includes('cone beam'));
-
-      const complications: any[] = [];
-
-      if (hasSurgery && (ant.includes('sintrom') || ant.includes('anticoagulant') || ant.includes('kardegic') || ant.includes('aspirine'))) {
-        complications.push({
-          id: 'ghost-comp-bleeding', type: 'safety', title: '⚠️ Risque Hémorragique',
-          content: "Patient sous anticoagulants. Risque élevé d'hémorragie post-opératoire. Avez-vous le bilan d'hémostase (INR) ?"
-        });
-      }
-      
-      if (hasSurgery && (ant.includes('diabète') || ant.includes('diabete'))) {
-        complications.push({
-          id: 'ghost-comp-diabetes', type: 'safety', title: '⚠️ Patient Diabétique',
-          content: "Risque accru d'infection et de retard de cicatrisation osseuse. Couverture antibiotique stricte recommandée."
-        });
-      }
-
-      if (hasSurgery && (ant.includes('bisphosphonate') || ant.includes('prolia') || ant.includes('xgeva'))) {
-        complications.push({
-          id: 'ghost-comp-mronj', type: 'safety', title: '🚨 DANGER : Ostéochimionécrose',
-          content: "Antécédent de bisphosphonates. Risque majeur d'ostéochimionécrose des mâchoires (MRONJ). Prudence extrême."
-        });
-      }
-
-      if (hasRadio && (ant.includes('enceinte') || ant.includes('grossesse'))) {
-        complications.push({
-          id: 'ghost-comp-pregnancy', type: 'safety', title: '⚠️ Grossesse',
-          content: "Radiographies contre-indiquées (surtout T1). Utiliser un tablier de plomb si urgence absolue."
-        });
-      }
-
-      complications.forEach(comp => {
-        if (!insights.find(ins => ins.id === comp.id)) {
-          setInsights(prev => [comp, ...prev]);
-        }
-      });
-    }
-
-    // 5. GHOST MUTUELLE (Optimiseur de Plafond Fin d'Année)
-    // Les mutuelles privées ont un plafond annuel. CNSS/CNOPS ont un plafond prothèse (3000 MAD/2 ans).
-    if (patientDetails?.assurance && patientDetails.assurance !== 'AUCUNE') {
-      const currentMonth = new Date().getMonth(); // 0 = Jan, 11 = Dec
-      const isEndOfYear = currentMonth >= 9; // Octobre à Décembre
-      const currentActNames = items.map(i => i.description.toLowerCase());
-      const hasProsthesis = currentActNames.some(a => a.includes('couronne') || a.includes('bridge') || a.includes('inlay') || a.includes('prothèse') || a.includes('facette'));
-      const totalAmount = items.reduce((sum, item: any) => sum + ((item.price || item.montant || 0) * (item.toothNumbers?.length || item.dents?.length || 1)), 0);
-
-      // Si le montant global est lourd et contient de la prothèse
-      if (isEndOfYear && hasProsthesis && totalAmount >= 3000) {
-        if (!insights.find(ins => ins.id === 'ghost-mutuelle-plafond')) {
-          setInsights(prev => [{
-            id: 'ghost-mutuelle-plafond',
-            type: 'habit',
-            title: '💡 Ghost Mutuelle : Optimisation',
-            content: `Le plafond prothétique de la ${patientDetails.assurance} se renouvelle bientôt. Séparer ce devis de ${totalAmount} MAD (Décembre / Janvier) maximisera le remboursement du patient !`,
-          }, ...prev]);
-        }
-      }
-    }
-
-    // 6. Sécurité Clinique Médicamenteuse : Double-contrôle CRE, DDI et Omissions
-    const drugNames = drugs.map(d => d.name).filter(Boolean);
-    if (drugNames.length > 0 && patientId) {
-      const timer = setTimeout(() => {
-        api.post('/prescriptions/safety/check', { patient_id: patientId, drug_names: drugNames })
-          .then(res => {
-            const warnings = res.data as { type: string; severity: string; message: string; drug: string }[];
-            warnings.forEach(w => {
-              const id = `safety-${w.drug}`;
-              if (!insights.find(ins => ins.id === id)) {
-                setInsights(prev => [{
-                  id: id,
-                  type: w.type === 'omission' ? 'suggestion' : 'safety',
-                  title: w.type === 'coherence' ? 'Incohérence Clinique' :
-                         w.type === 'omission' ? 'Prévention' :
-                         w.type === 'ddi' ? 'Interaction Médicamenteuse' : 'Contre-indication',
-                  content: w.message,
-                  source_type: 'DETERMINISTIC'
-                }, ...prev]);
-              }
-            });
-          })
-          .catch(console.error);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, drugs, patientDetails, insights, patientId]);
-
   const generator = useDocumentGenerator(generatorParams);
+
+  const handleGenerate = useCallback((
+    archive = false,
+    print = false,
+    isPreview = false,
+    force = false,
+  ) => {
+    if (accountingTab) {
+      if (archive && !isPreview) {
+        pendingAccountingArchiveRef.current = true;
+        pendingAccountingArchivePdfUrlRef.current = generator.pdfUrl;
+      } else {
+        pendingAccountingArchiveRef.current = false;
+        pendingAccountingArchivePdfUrlRef.current = null;
+      }
+    }
+    return generator.handleGenerate(archive, print, isPreview, force);
+  }, [accountingTab, generator.handleGenerate, generator.pdfUrl]);
+
+  useEffect(() => {
+    if (!pendingAccountingArchiveRef.current || !generator.pdfUrl || !accountingTab) return;
+    if (generator.pdfUrl === pendingAccountingArchivePdfUrlRef.current) return;
+    setAccountingBaselineFingerprint(accountingDocumentFingerprint(accountingTab, items, docDate));
+    pendingAccountingArchiveRef.current = false;
+    pendingAccountingArchivePdfUrlRef.current = null;
+  }, [generator.pdfUrl, accountingTab, items, docDate]);
 
   // --- HYDRATATION ---
   useEffect(() => {
@@ -357,7 +254,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       const type = editData.type.toLowerCase();
       const d = editData.clinical_data as GenericClinicalData;
       if (type === 'ordonnance') {
-         
         setActiveTab('ordonnance');
         if (d.medications) setDrugs(d.medications.map((m: { nom?: string; dosage?: string; forme?: string; posologie?: string; type?: 'MEDICAMENT' | 'EXAMEN' }, idx: number) => ({
           id: Date.now() + idx, name: m.nom || '', dosage: m.dosage || '',
@@ -381,21 +277,25 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         setLibrePageSize(d.page_size || 'A5');
         setLibreAlignment(d.alignment || 'justify');
       } else {
-        setActiveTab(type === 'devis' ? 'devis' : 'honoraires');
+        const isDevisEdit = type === 'devis';
+        const nextAccountingTab: AccountingDirtyTab = isDevisEdit ? 'devis' : 'honoraires';
+        setActiveTab(nextAccountingTab);
         const srcItems = d.items || d.payments || [];
-        setItems(srcItems.map((i: { acte: string; dent: string; montant?: number; prix_unitaire?: number; dents?: number[] }, idx: number) => ({
-          id: Date.now() + idx, 
-          description: i.acte || '', 
-          dent: i.dent || '0',
-          price: i.montant ?? i.prix_unitaire ?? 0, 
-          toothNumbers: i.dents || [],
-        })));
+        const hydratedRows = isDevisEdit
+          ? hydrateArchivedDevisRows(srcItems, d.teeth_data)
+          : srcItems.map((i, idx) => ({
+              id: Date.now() + idx,
+              description: i.acte || '',
+              dent: i.dent || '0',
+              price: i.montant ?? i.prix_unitaire ?? 0,
+              toothNumbers: (i.dents || []).map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0),
+            }));
+        setItems(hydratedRows);
+        setAccountingBaselineFingerprint(accountingDocumentFingerprint(nextAccountingTab, hydratedRows, d.doc_date || docDate));
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
   }, [editData]);
-
-
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -419,18 +319,17 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   useEffect(() => {
     if (sideStudioType !== 'PREVIEW') return;
-    const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
+    const timer = setTimeout(() => handleGenerate(false, false, true), 1200);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
     libreTitle, libreContent, docDate, activeTab,
-    generator.handleGenerate // Seule la fonction stable est nécessaire
+    handleGenerate
   ]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
-       
       setSideStudioType('PREVIEW');
     }
   }, [activeTab]);
@@ -440,8 +339,8 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
       {/* ESPACE DE TRAVAIL */}
       <div className={cn(
-        "flex-1 h-full flex flex-col px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
-        sideStudioType === 'PREVIEW' ? "pr-[570px]" : ""
+        "flex-1 h-full flex flex-col px-4 sm:px-8 pt-6 pb-32 gap-3 overflow-y-auto bg-transparent dark:bg-slate-900/50 transition-all duration-500 custom-scrollbar",
+        sideStudioType === 'PREVIEW' ? "xl:pr-[570px]" : ""
       )}>
 
         <StudioHeader
@@ -451,7 +350,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           activeTab={activeTab}
           showOdontoPanoramique={useAccountingStore(s => s.showOdontoPanoramique)}
           onToggleOdonto={() => useAccountingStore.getState().setShowOdontoPanoramique(v => !v)}
-          onGenerate={generator.handleGenerate}
+          onGenerate={handleGenerate}
           loading={generator.loading}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
@@ -461,16 +360,11 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
         <div data-tour="document-hub-content" className="flex-1 flex flex-col p-2 min-h-min shrink-0">
           {activeTab === 'plan' && (
-            <TreatmentPlanStudio 
-              patientId={Number(patientId)} 
+            <TreatmentPlanStudio
+              patientId={Number(patientId)}
               onConvertToQuote={(allActs) => {
-                const newItems: PriceItem[] = allActs.map((act: any) => ({
-                  id: Date.now() + Math.random(),
-                  description: act.suggested_act,
-                  dent: act.fdi,
-                  price: 0, // À remplir par le praticien ou le catalogue
-                  toothNumbers: act.fdi !== 'Global' ? [Number(act.fdi)] : []
-                }));
+                const newItems = convertPlanActsToQuoteItems(allActs);
+                setAccountingBaselineFingerprint(null);
                 setItems(prev => [...prev, ...newItems]);
                 setActiveTab('devis');
               }}
@@ -533,7 +427,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
           {activeTab === 'libre' && (
             <LibreForm
-              title={libreTitle} 
+              title={libreTitle}
               setTitle={setLibreTitle}
               content={libreContent} setContent={setLibreContent}
               customPatient={libreCustomPatient} setCustomPatient={setLibreCustomPatient}
@@ -544,7 +438,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               validationErrors={generator.validationErrors}
             />
           )}
-          
+
           {activeTab === 'echeancier' && (
             <InstallmentStudio
               patientId={patientId || '0'}
@@ -567,7 +461,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         <StudioFooter
           loading={generator.loading}
           activeTab={activeTab}
-          onGenerate={generator.handleGenerate}
+          onGenerate={handleGenerate}
           showPrintWarning={generator.showPrintWarning}
           onCloseWarning={generator.closeWarning}
           hasChanges={generator.hasChanges}
@@ -575,7 +469,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           aiReport={generator.aiReport}
           onGenerateAI={generator.handleGenerateAI}
           loadingAi={generator.loadingAi}
-          total={items.reduce((acc, i) => acc + (Number(i.price) || 0), 0)}
+          total={accountingDocumentTotal(items)}
           sideStudioType={sideStudioType}
           onTogglePreview={() => setSideStudioType(prev => prev === 'PREVIEW' ? 'NONE' : 'PREVIEW')}
         />
@@ -590,7 +484,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 text-lg">⚠️</div>
               <div>
                 <h3 className="text-sm font-black text-slate-800">Document en cours</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">Les actes saisis seront effacés.</p>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">Les modifications non archivées seront abandonnées.</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -600,10 +494,10 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
               >Annuler</button>
               <button
                 onClick={() => {
-                  // Effacement réel des actes avant de changer d'onglet
                   useAccountingStore.getState().setItems([]);
                   useAccountingStore.getState().setGroupSelectedTeeth([]);
                   useAccountingStore.getState().setOdontogramMode('individual');
+                  setAccountingBaselineFingerprint(null);
                   setActiveTab(pendingTab);
                   setPendingTab(null);
                 }}
@@ -641,20 +535,20 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
         </div>
       )}
 
-      {/* APERÇU LATÉRAL */}
+      {/* APERÇU RESPONSIVE */}
       <AnimatePresence>
         {sideStudioType === 'PREVIEW' && (
-          <motion.div 
-            initial={{ x: 600, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
-            exit={{ x: 600, opacity: 0 }} 
-            className="fixed right-2 top-2 bottom-2 w-[550px] z-[11000] drop-shadow-2xl"
+          <motion.div
+            initial={{ x: 600, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 600, opacity: 0 }}
+            className="fixed inset-2 z-[11000] drop-shadow-2xl xl:left-auto xl:w-[550px]"
           >
             <LivePreview
               pdfUrl={generator.pdfUrl}
               loading={generator.loading}
               onClose={() => setSideStudioType('NONE')}
-              onRefresh={() => generator.handleGenerate(false, false, true)}
+              onRefresh={() => handleGenerate(false, false, true)}
               title={{
                 'plan': 'Stratégie Clinique',
                 'ordonnance': 'Ordonnance',

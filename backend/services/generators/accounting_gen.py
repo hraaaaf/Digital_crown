@@ -12,6 +12,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 # Import centralisé du Design System
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
 from backend.services.generators.document_layout_safety import join_unbreakable
+from backend.services.generators.accounting_pdf_readability import readable_accounting_font_floor
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -411,7 +412,8 @@ class AccountingGenerator:
         font_main = self.base_template.premium_font
         font_bold = self.base_template.premium_bold
 
-        # Détermination du facteur de compression si trop d'items (Single Page Force)
+        # Compression limitée aux espacements/titres. Les lignes Devis doivent
+        # rester lisibles et sont autorisées à s'étendre sur plusieurs pages.
         num_items = len(data.items)
         compression_factor = 1.0
         if num_items > 10:
@@ -425,47 +427,45 @@ class AccountingGenerator:
         header_style = ParagraphStyle(name='TableHeader', parent=self.styles['Normal'], fontName=font_bold, fontSize=10 * compression_factor, textColor=colors.white, alignment=TA_CENTER)
         table_data = [[Paragraph("ACTE", header_style), Paragraph("DENT", header_style), Paragraph("PRIX (MAD)", header_style)]]
         
-        base_fs = 10 * compression_factor
+        readable_floor = readable_accounting_font_floor()
+        base_fs = max(10 * compression_factor, readable_floor)
         text_style = ParagraphStyle(name='TableText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_CENTER, leading=base_fs * 1.4)
         acte_style = ParagraphStyle(name='ActeText', parent=self.styles['Normal'], fontName=font_main, fontSize=base_fs, textColor=p_color, alignment=TA_LEFT, leading=base_fs * 1.4)
 
         total = 0.0
         acte_w, dent_w, prix_w = 6.5*cm, 2.65*cm, 2.65*cm  # total = 11.8cm (A5)
-        min_fs = base_fs
         for item in data.items:
-            _dent_pre = getattr(item, 'dent', '-')
-            if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
-                _dent_pre = ', '.join([str(d) for d in item.dents])
-            for _ct, _cw in [
-                (item.acte.replace(' ', ' '), acte_w - 0.22*cm),
-                (str(_dent_pre).replace(' ', ' '), dent_w - 0.22*cm),
-                (f"{item.prix_unitaire:.2f}", prix_w - 0.22*cm),
-            ]:
-                _dyn = self.base_template.get_adaptive_style(text_style, _ct, _cw, min_fs=2.0)
-                if _dyn.fontSize < min_fs:
-                    min_fs = _dyn.fontSize
-
-        uniform_style = ParagraphStyle(name='UniformAll', parent=text_style, fontSize=min_fs, leading=min_fs * 1.4)
-        uniform_acte_style = ParagraphStyle(name='UniformActe', parent=acte_style, fontSize=min_fs, leading=min_fs * 1.4)
-
-        for item in data.items:
-            acte_nbsp = item.acte.replace(' ', ' ')
-            acte_para = Paragraph(acte_nbsp, uniform_acte_style)
+            # Garder les espaces ordinaires : ReportLab peut ainsi wrapper une
+            # description longue au lieu de réduire toute la table à 2 pt.
+            acte_para = Paragraph(item.acte, acte_style)
             dent_display = getattr(item, 'dent', '-')
             if hasattr(item, 'dents') and item.dents and len(item.dents) > 0:
                 dent_display = ', '.join([str(d) for d in item.dents])
-            dent_nbsp = str(dent_display).replace(' ', ' ')
-            table_data.append([acte_para, Paragraph(dent_nbsp, uniform_style), Paragraph(f"{item.prix_unitaire:.2f}", uniform_style)])
+            dent_text = str(dent_display)
+            dent_style = self.base_template.get_adaptive_style(
+                text_style, dent_text, dent_w - 0.22*cm, min_fs=readable_floor
+            )
+            price_text = f"{item.prix_unitaire:.2f}"
+            price_style = self.base_template.get_adaptive_style(
+                text_style, price_text, prix_w - 0.22*cm, min_fs=readable_floor
+            )
+            table_data.append([
+                acte_para,
+                Paragraph(dent_text, dent_style),
+                Paragraph(price_text, price_style),
+            ])
             total += item.prix_unitaire
 
         total_words_style = ParagraphStyle(name='TotalWords', parent=self.styles['Normal'], fontName=font_bold, fontSize=11, textColor=p_color, alignment=TA_RIGHT)
         total_amount_style = ParagraphStyle(name='TotalAmount', parent=self.styles['Normal'], fontName=font_bold, fontSize=10.5, textColor=p_color, alignment=TA_CENTER)
         total_amount_text = f"<b>{total:.2f}\u00A0MAD</b>"
-        total_amount_style = self.base_template.get_adaptive_style(total_amount_style, total_amount_text, prix_w - 0.22*cm, min_fs=6.5)
+        total_amount_style = self.base_template.get_adaptive_style(
+            total_amount_style, total_amount_text, prix_w - 0.22*cm, min_fs=readable_floor
+        )
 
         table_data.append([Paragraph("<b>TOTAL GÉNÉRAL</b>", total_words_style), "", Paragraph(total_amount_text, total_amount_style)])
         
-        t = Table(table_data, colWidths=[6.5*cm, 2.65*cm, 2.65*cm])  # 11.8cm total
+        t = Table(table_data, colWidths=[6.5*cm, 2.65*cm, 2.65*cm], repeatRows=1)  # 11.8cm total
         # Ajustement du padding pour gagner de l'espace si num_items est élevé
         v_pad = 8 if num_items <= 5 else (4 if num_items <= 8 else 2)
         t.setStyle(TableStyle([
@@ -508,18 +508,16 @@ class AccountingGenerator:
         
         cloture = template.format(total_words=total_words_elite, total_amount=f"{total:,.2f}".replace(',', ' '))
         
-        # Cloture Flowable
+        # La clôture conserve sa taille normale et peut wrapper. Elle ne doit pas
+        # être rendue insécable puis rapetissée pour simuler une seule ligne.
         cloture_style = ParagraphStyle(
             name='Cloture', parent=self.styles['Normal'],
             fontName=self.base_template.premium_font, fontSize=9.5,
             textColor=p_color, alignment=TA_CENTER, leading=14
         )
         
-        cloture_nbsp = cloture.replace(' ', '\u00A0')
-        adaptive_cloture = self.base_template.get_adaptive_style(cloture_style, cloture_nbsp, 11.5*cm, min_fs=6.0)
-        
         from backend.services.base_template import PinnedCloture
-        elements.append(PinnedCloture(cloture_nbsp, adaptive_cloture))
+        elements.append(PinnedCloture(cloture, cloture_style))
 
         # Bloc de signature électronique
         sig_image_path = kwargs.get("signature_path")

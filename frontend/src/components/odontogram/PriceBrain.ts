@@ -1,6 +1,7 @@
 /**
  * PriceBrain.ts
- * Gère la mémoire des tarifs et de la fréquence des actes (Brain Ghost)
+ * Mémoire locale des tarifs. La fréquence d'usage clinique est autoritative côté
+ * backend après archivage réussi d'un document financier.
  */
 
 export interface ActHistory {
@@ -19,7 +20,7 @@ let _historyCache: Record<string, ActHistory> | null = null;
 
 export const PriceBrain = {
   /**
-   * Récupère l'historique complet (en mémoire cache, invalidé à chaque écriture)
+   * Récupère l'historique complet (en mémoire cache, invalidé à chaque écriture).
    */
   getHistory: (): Record<string, ActHistory> => {
     if (_historyCache) return _historyCache;
@@ -33,7 +34,11 @@ export const PriceBrain = {
   },
 
   /**
-   * Enregistre un acte (met à jour le prix et incrémente l'usage)
+   * Mémorise le dernier prix saisi localement sans incrémenter la fréquence.
+   *
+   * P3-D2 : sélectionner, éditer ou confirmer un acte n'est pas une preuve
+   * d'utilisation clinique. `usageCount` est donc conservé tel quel. La fréquence
+   * autoritative est enregistrée côté backend après archivage réussi.
    */
   recordAct: (name: string, price: number, category: string, id?: string) => {
     const history = PriceBrain.getHistory();
@@ -42,10 +47,10 @@ export const PriceBrain = {
 
     history[actId] = {
       ...existing,
-      price: price, // On retient le dernier prix saisi
-      usageCount: existing.usageCount + 1,
-      category: category,
-      name: name // On s'assure que le nom est à jour
+      price,
+      usageCount: existing.usageCount,
+      category,
+      name,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
@@ -53,7 +58,8 @@ export const PriceBrain = {
   },
 
   /**
-   * Récupère le Top N des actes les plus fréquents
+   * Récupère le Top N local historique. Les nouveaux événements P3 ne modifient
+   * plus ce compteur avant archivage.
    */
   getTopFrequent: (limit: number = 7): ActHistory[] => {
     const history = PriceBrain.getHistory();
@@ -63,7 +69,7 @@ export const PriceBrain = {
   },
 
   /**
-   * Suggère un prix pour un acte donné
+   * Suggère un prix pour un acte donné.
    */
   suggestPrice: (name: string): number | null => {
     const history = PriceBrain.getHistory();
@@ -71,7 +77,7 @@ export const PriceBrain = {
   },
 
   /**
-   * Enregistre un schéma d'échelonnement type
+   * Enregistre un schéma d'échelonnement type.
    */
   recordInstallmentPlan: (title: string, advance: number, months: number, monthly: number) => {
     try {
@@ -85,7 +91,7 @@ export const PriceBrain = {
   },
 
   /**
-   * Suggère un schéma d'échelonnement basé sur le titre
+   * Suggère un schéma d'échelonnement basé sur le titre.
    */
   suggestInstallmentPlan: (title: string): { advance: number, months: number, monthly: number } | null => {
     try {
@@ -94,16 +100,15 @@ export const PriceBrain = {
       const history = JSON.parse(data);
       const exactMatch = history[title.toLowerCase()];
       if (exactMatch) return exactMatch;
-      
-      // Recherche partielle
+
       for (const [key, plan] of Object.entries(history)) {
         if (title.toLowerCase().includes(key) || key.includes(title.toLowerCase())) {
-          return plan as { advance: number, months: number, monthly: number };
+          return plan as { advance: number; months: number; monthly: number };
         }
       }
     } catch (e) {
       console.warn('PriceBrain: failed to suggest installment plan', e);
     }
     return null;
-  }
+  },
 };

@@ -18,7 +18,10 @@ class AccountingService:
         Enregistre l'usage d'un acte clinique pour l'apprentissage des raccourcis.
         """
         try:
-            act_name = act_name.strip()
+            act_name = str(act_name or "").strip()
+            if not act_name or (act_name.startswith("--- ") and act_name.endswith(" ---")):
+                return
+
             existing = db.query(models.DoctorActHabit).filter(
                 models.DoctorActHabit.doctor_id == doctor_id,
                 models.DoctorActHabit.act_name == act_name
