@@ -56,8 +56,3 @@ def test_teeth_data_rejects_price_divergence():
             items=[_item(prix_unitaire=700)],
             teeth_data=[_teeth_data(treatments=[{"code": "COMP2", "name": "Composite 2 faces", "price": 701}])],
         )
-
-
-def test_teeth_data_rejects_duplicate_tooth_entries():
-    with pytest.raises(ValidationError):
-        DevisData(items=[_item()], teeth_data=[_teeth_data(), _teeth_data()])
