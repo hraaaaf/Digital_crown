@@ -3,130 +3,139 @@
 Date: 2026-08-16
 Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
 Current canonical PR: #105 (`agent/t2-f-global-recertification`).
-Last code-bearing candidate HEAD certified by CI: `4d5ce377079f0304323e0aa9c2abf16824f7ceb0`.
-Certified PR merge ref: `a851cc56c16ccfb49eecb3f5af87b719800ed567`.
-Exact automated evidence: CI #628 / run `31957613657` — SUCCESS.
-
-Parallel closeout PR #102 is superseded by this stack. Its useful LivePreview accessibility delta was migrated to #105 before closure.
+Current exact HEAD: `4546d761b7ef4643472f23e5bb3715a807dfb3e3`.
 
 ## Proof contract
 
 - **CODE VÉRIFIÉ**: demonstrated by inspected source/diff.
 - **TEST EXÉCUTÉ**: demonstrated by a real repository run.
-- **RUNTIME / VISUEL**: requires authenticated/browser evidence.
-- **CERTIFICATION AUTOMATISÉE**: exact code-bearing head passes repository CI/tests/build.
-- **CERTIFICATION FINALE**: additionally requires the remaining runtime/browser/PDF/financial gates below.
+- **RUNTIME / VISUEL**: only authenticated/browser evidence counts.
+- **CERTIFICATION**: separate final gate; never inferred from code presence alone.
+
+## Automated exact-head proof
+
+CI #630 / run `31958552660` completed **SUCCESS** on exact documentation-closeout HEAD `4546d761b7ef4643472f23e5bb3715a807dfb3e3`.
+
+Verified jobs:
+- Frontend test suite: SUCCESS;
+- Frontend production build: SUCCESS;
+- Backend tests & hardening: SUCCESS;
+- Production negative guard: SUCCESS.
+
+The immediately preceding code-bearing candidate was validated by CI #628 / run `31957613657` on source HEAD `4d5ce377079f0304323e0aa9c2abf16824f7ceb0` / PR merge ref `a851cc56c16ccfb49eecb3f5af87b719800ed567` with:
+- frontend **69/69 files PASS**;
+- frontend **296/296 tests PASS**;
+- frontend production build PASS;
+- backend **2635 passed / 7 skipped**;
+- production safety check PASS;
+- negative production guard PASS.
+
+The #630 descendant contains only the canonical status closeout change after that code-bearing candidate and all repository CI jobs also pass on #630.
 
 ## T2-A — Information architecture
 
-**State: CODE + AUTOMATED TESTS VERIFIED — AUTHENTICATED RUNTIME OPEN**
+**State: AUTOMATED SOURCE/TEST VERIFIED — AUTHENTICATED RUNTIME OPEN**
 
 Verified:
-- one canonical P1→P7 vocabulary/parser;
-- dormant `ai` removed from certifiable tab types and rejected by URL parsing;
+- canonical P1→P7 vocabulary/parser;
+- dormant `ai` rejected by certifiable navigation/types;
 - no AI execution plumbing in `useDocumentGenerator`;
-- P7→P3 transfer remains explicit and filtered through `convertPlanActsToQuoteItems()`;
-- navigation dirty-state policy tests pass in CI #628.
+- explicit P7→P3 filtered conversion.
 
 Open:
-- authenticated browser URL/navigation verification.
+- authenticated URL/navigation browser verification.
 
 ## T2-B — Preview truth / freshness
 
-**State: CODE + AUTOMATED CONTRACTS VERIFIED — BROWSER OPEN**
+**State: AUTOMATED CONTRACT VERIFIED — BROWSER OPEN**
 
 Verified:
-- deterministic `documentPreviewFingerprint()` covers document-domain state;
-- visible stale PDF is suppressed while regeneration is pending;
-- preview freshness resets correctly on close/reopen contract;
-- synthetic `Espèces` for `EN_ATTENTE` is removed;
-- Honoraires emits `mode_reglement` only for `PAYE`;
-- fingerprint/controller regression tests pass in CI #628.
+- deterministic preview fingerprint;
+- fingerprint-driven preview controller;
+- stale PDF hidden during regeneration;
+- no synthetic `Espèces` for pending state;
+- installment payload serializable;
+- relevant Vitest contracts pass in #628/#630.
 
 Open:
-- authenticated browser rapid edits / tab switches / preview close-reopen / stale-PDF verification.
+- rapid edits / tab switches / close-reopen / stale-PDF browser verification.
 
 ## T2-C — Shell decomposition
 
-**State: ENGINEERING BOUNDARIES VERIFIED + AUTOMATED REGRESSION PASS**
+**State: AUTOMATED SOURCE/TEST VERIFIED**
 
 Verified boundaries:
-- `useDocumentHubNavigation`: URL sync, dirty guards, discard flow, `beforeunload`, P3→P4 reset routing;
-- `useDocumentHubPatient`: patient/session boundary;
-- `DocumentHubPreview`: preview freshness boundary;
-- `DocumentHubDialogs`: modal boundary;
-- `DocumentHubContent`: P1→P7 page-studio rendering boundary;
-- root `DocumentHub`: orchestration/shell composition.
+- `useDocumentHubNavigation`;
+- `useDocumentHubPatient`;
+- `DocumentHubPreview`;
+- `DocumentHubDialogs`;
+- `DocumentHubContent`;
+- root `DocumentHub` reduced to orchestration/shell composition.
 
-`DocumentHubDecomposition.t2c.test.ts` passes in CI #628.
-
-Open:
-- authenticated navigation/browser regression.
+Relevant decomposition regression tests pass in #628/#630.
 
 ## T2-D — Accessibility residual closeout
 
-**State: CODE + AUTOMATED TESTS VERIFIED — BROWSER KEYBOARD MATRIX OPEN**
+**State: AUTOMATED SOURCE/TEST VERIFIED — BROWSER OPEN**
 
-Verified:
-- LivePreview labelled dialog semantics;
+Verified in code/tests:
+- modal semantics;
 - initial close focus;
-- Escape close;
-- loading announcement;
-- discard/duplicate modal semantics;
-- legal annotation switch semantics;
-- relevant accessibility regressions pass in CI #628.
+- Escape handling;
+- announced loading state;
+- labelled discard/duplicate dialogs;
+- legal annotation switch semantics.
 
 Open:
-- authenticated browser keyboard/focus/Escape matrix.
+- authenticated keyboard/focus/Escape browser matrix.
 
 ## T2-E — Product polish
 
-**State: CODE + AUTOMATED SOURCE GATES VERIFIED — VISUAL MATRIX OPEN**
+**State: AUTOMATED SOURCE/TEST VERIFIED — VISUAL OPEN**
 
 Verified:
-- canonical patient/document labels;
-- dark-mode contrast/source polish retained;
-- explicit `Préparer impression` label;
-- touch/focus source invariants;
-- product-polish source tests pass in CI #628.
+- canonical labels and action hierarchy;
+- dark-mode source hardening;
+- prepared-print accessible label;
+- relevant product-polish source gates pass.
 
 Open:
-- browser visual review at 390/430/768/1280;
-- real dark-mode and overflow verification.
+- 390/430/768/1280 browser captures;
+- real dark mode and overflow verification.
 
 ## T2-F — Global recertification
 
-**State: AUTOMATED EXACT-HEAD CODE CERTIFICATION PASS — FINAL RUNTIME GATES OPEN**
+**State: AUTOMATED REPOSITORY CLOSEOUT PASS — RUNTIME/HUMAN GATES OPEN**
 
-CI #628 / run `31957613657` completed SUCCESS on the code-bearing candidate:
+Closed with evidence:
+- code-bearing CI #628 SUCCESS;
+- documentation-closeout exact-head CI #630 SUCCESS;
+- canonical status synchronized to exact evidence.
 
-- Frontend: **69/69 test files PASS**;
-- Frontend: **296/296 tests PASS**;
-- Frontend production build: **PASS**;
-- Backend: **2635 passed / 7 skipped**;
-- Backend warnings: **4 SQLAlchemy warnings**, non-failing and unrelated to T2 Document Studio;
-- Prod safety check: **PASS** in CI development environment;
-- Negative production guard: **PASS**.
+Still open and not inferable from CI:
+- authenticated browser matrices;
+- real PDF/print output;
+- persisted P3/P4/P5 financial reconciliation;
+- separate clinical/regulatory human certification where required.
 
-This proves repository-level automated source/test/build compatibility for the code-bearing candidate. It does **not** prove authenticated browser behavior, real print output, persisted financial reconciliation, or clinical/regulatory human certification.
+## Runtime/tooling boundary
 
-## Independent anomalies / non-T2 blockers
+No Playwright/Cypress/Puppeteer harness exists in the repository. The currently connected Vercel account exposes no Digital Crown project, so no authenticated remote browser path is available through current connected tools.
 
-- CI dependency install force-pins `httpx==0.27.2` after dependencies requiring 0.28.x; CI still passes, but dependency hygiene remains a separate issue.
-- npm install reports dependency vulnerabilities; no security certification is inferred from CI success.
-- GitHub Actions warns that Node 20-based action runtimes are deprecated/forced onto Node 24.
-- No Playwright/Cypress/Puppeteer harness exists in the repository.
-- The connected Vercel account exposes no Digital Crown project, so no authenticated browser certification path is available through that connector.
+## Independent anomalies
 
-## Remaining critical path
+- CI force-pins `httpx==0.27.2` although newer Firebase/Ultralytics packages require 0.28.x. This did not break #628/#630 and remains separate dependency-hygiene work.
+- npm install reports dependency vulnerabilities; no security certification is claimed.
+- GitHub Actions reports Node 20 action-runtime deprecation warnings.
 
-1. authenticated runtime/browser access for navigation, dirty guards, preview freshness and keyboard/focus;
-2. responsive/dark-mode matrix at 390/430/768/1280 using before/mockup/after evidence where visual changes are evaluated;
-3. real PDF/print evidence;
-4. persisted P3/P4/P5 financial reconciliation evidence;
-5. separate clinical/regulatory human certification where required;
-6. only after these gates: final ready/merge decision.
+## Current critical path
 
-PR #105 remains draft. No production-ready, merge-ready, or final T2 certification claim is made.
+1. obtain an authenticated Digital Crown runtime/browser path;
+2. execute navigation/dirty guards, preview freshness and keyboard/focus matrices;
+3. execute 390/430/768/1280 + dark mode/overflow visual certification;
+4. execute real PDF/print and persisted financial reconciliation checks;
+5. only after those gates, consider ready/merge/final T2 certification.
 
-No percentage is assigned because the canonical roadmap still has no validated weighting model.
+PR #105 remains draft. No production-ready, merge-ready, or final T2 certification claim.
+
+No percentage is assigned because the canonical roadmap has no validated weighting model.
