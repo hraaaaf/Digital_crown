@@ -16,6 +16,8 @@ import { useCatalogStore } from '../../features/admin/Settings/hooks/useCatalogS
 interface TreatmentSelectorProps {
   toothNumber: ToothNumberFDI;
   currentTreatments: ToothTreatment[];
+  currentSurfaces?: ToothSurface[];
+  currentNotes?: string;
   onConfirm: (treatments: ToothTreatment[], surfaces: ToothSurface[], notes: string) => void;
   onCancel: () => void;
   embedded?: boolean;
@@ -54,6 +56,8 @@ const SURFACES: { code: ToothSurface; label: string }[] = [
 export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
   toothNumber,
   currentTreatments,
+  currentSurfaces = [],
+  currentNotes = '',
   onConfirm,
   onCancel,
   embedded = false,
@@ -61,9 +65,9 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 }) => {
   const [selectedTreatments, setSelectedTreatments] = useState<ToothTreatment[]>(currentTreatments);
   const [treatmentPrices, setTreatmentPrices] = useState<Record<string, number>>({});
-  const [selectedSurfaces, setSelectedSurfaces] = useState<ToothSurface[]>([]);
+  const [selectedSurfaces, setSelectedSurfaces] = useState<ToothSurface[]>(currentSurfaces);
   const [activeCategory, setActiveCategory] = useState<string>('FREQUENTS');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(currentNotes);
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
   const [showAddAct, setShowAddAct] = useState(false);
@@ -289,7 +293,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
                               <div className="flex items-center gap-3">
                                 <span className={cn("w-2 h-2 rounded-full shrink-0", colors.dot)} />
                                 <div>
-                                                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-slate-800")}>{template.name}</p>
+                                  <p className={cn("font-bold text-sm leading-tight", embedded ? "text-white" : "text-slate-800")}>{template.name}</p>
                                   <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter mt-0.5">
                                     {CATEGORY_LABELS[template.category] || template.category}
                                   </p>
@@ -404,6 +408,33 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
 
           {/* Right: Elite Panel */}
           <div className={cn("w-full lg:w-[18rem] border-l p-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar", embedded ? "bg-white/5 border-white/5" : "bg-white border-slate-100")}>
+            <div className="mb-8">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Surfaces</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {SURFACES.map(surface => {
+                  const selected = selectedSurfaces.includes(surface.code);
+                  return (
+                    <button
+                      key={surface.code}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggleSurface(surface.code)}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-left text-[10px] font-black transition-all",
+                        selected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : embedded
+                            ? "border-white/10 bg-white/5 text-white/50 hover:bg-white/10"
+                            : "border-slate-200 bg-slate-50 text-slate-500 hover:border-primary/30"
+                      )}
+                    >
+                      <span className="mr-2">{surface.code}</span>{surface.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="mb-10 flex-1">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Notes Cliniques</h3>
               <textarea
@@ -420,7 +451,7 @@ export const TreatmentSelector: React.FC<TreatmentSelectorProps> = ({
               <div className="flex items-center justify-between mb-8">
                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Devis</span>
                 <div className="text-right">
-                                    <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-slate-900")}>{totalPrice}</span>
+                  <span className={cn("text-3xl font-black tracking-tighter", embedded ? "text-white" : "text-slate-900")}>{totalPrice}</span>
 
                   <span className="text-xs font-black text-slate-400 ml-2">MAD</span>
                 </div>
