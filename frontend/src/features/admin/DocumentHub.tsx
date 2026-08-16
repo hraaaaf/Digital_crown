@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -34,6 +34,8 @@ import { isInstallmentDirty, setInstallmentDirty } from './DocumentStudio/Instal
 import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
 import { isP7Dirty, setP7Dirty } from './DocumentStudio/P7DirtyState';
 import { shouldGuardDocumentTabTransition } from './DocumentStudio/DocumentTabNavigationPolicy';
+import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
+import { useDocumentPreviewController } from './DocumentStudio/useDocumentPreviewController';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -260,6 +262,55 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
 
   const generator = useDocumentGenerator(generatorParams);
 
+  const previewFingerprint = useMemo(() => documentPreviewFingerprint({
+    activeTab,
+    patientId,
+    docDate,
+    drugs: drugs as unknown as Array<Record<string, unknown>>,
+    certificate: {
+      type: certifType,
+      days: certifDays,
+      startDate: certifStartDate,
+      customReason: certifCustomMotif,
+    },
+    accounting: {
+      items: items as unknown as Array<Record<string, unknown>>,
+      paymentMode,
+      paymentStatus,
+      installments: installments as Array<Record<string, unknown>>,
+      isGlobalNote,
+      selectedTeeth: selectedTeethFromOdontogram as unknown as Array<Record<string, unknown>>,
+    },
+    libre: {
+      title: libreTitle,
+      content: libreContent,
+      customPatient: libreCustomPatient,
+      customDate: libreCustomDate,
+      hideHeader: libreHideHeader,
+      pageSize: librePageSize,
+      alignment: libreAlignment,
+    },
+    isAccounted,
+    showLegalAnnotations,
+    installmentPayload: echeancierPayload,
+  }), [
+    activeTab, patientId, docDate, drugs,
+    certifType, certifDays, certifStartDate, certifCustomMotif,
+    items, paymentMode, paymentStatus, installments, isGlobalNote, selectedTeethFromOdontogram,
+    libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment,
+    isAccounted, showLegalAnnotations, echeancierPayload,
+  ]);
+
+  const generatePreview = useCallback(() => {
+    void generator.handleGenerate(false, false, true);
+  }, [generator.handleGenerate]);
+
+  useDocumentPreviewController({
+    enabled: sideStudioType === 'PREVIEW',
+    fingerprint: previewFingerprint,
+    onGeneratePreview: generatePreview,
+  });
+
   // --- HYDRATATION ---
   useEffect(() => {
     if (editData?.clinical_data) {
@@ -351,17 +402,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       cancelled = true;
     };
   }, [patientId, activeTab]);
-
-  useEffect(() => {
-    if (sideStudioType !== 'PREVIEW') return;
-    const timer = setTimeout(() => generator.handleGenerate(false, false, true), 1200);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    sideStudioType, drugs, items, certifType, certifDays, certifStartDate, paymentMode,
-    libreTitle, libreContent, docDate, activeTab,
-    generator.handleGenerate
-  ]);
 
   useEffect(() => {
     if (activeTab === 'certificat' || activeTab === 'libre') {
