@@ -36,20 +36,25 @@ describe('InstallmentStudio P5 explicit financial lifecycle', () => {
 
     await screen.findByText('Plan enregistré #12. Les montants sont figés ; toute restructuration passe par un nouveau plan.');
     expect(screen.getByText('PAYÉ')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Encaisser/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Encaisser/i })).toBeDisabled();
     expect(screen.queryByTitle('Marquer comme réglé')).toBeNull();
   });
 
-  it('encaisse une échéance persistée via PUT avec méthode explicite', async () => {
+  it('encaisse une échéance persistée seulement après choix explicite de méthode', async () => {
     vi.mocked(api.put).mockResolvedValue({ data: { status: 'PAYE' } } as never);
     render(<InstallmentStudio patientId="42" onPayloadChange={vi.fn()} />);
 
-    const collect = await screen.findByRole('button', { name: /Encaisser/i });
+    const method = await screen.findByLabelText('Mode de règlement Acompte');
+    const collect = screen.getByRole('button', { name: /Encaisser/i });
+    expect(collect).toBeDisabled();
+
+    fireEvent.change(method, { target: { value: 'CARTE' } });
+    expect(collect).not.toBeDisabled();
     fireEvent.click(collect);
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/installments/101', {
       status: 'PAYE',
-      payment_method: 'ESPECES',
+      payment_method: 'CARTE',
     }));
   });
 
