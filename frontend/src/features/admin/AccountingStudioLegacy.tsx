@@ -30,6 +30,7 @@ import { AccountingQuickActions } from './DocumentStudio/AccountingQuickActions'
 import { groupAccountingItemsByPhase } from './DocumentStudio/AccountingPhasePolicy';
 import { replaceOdontogramToothSelections } from './DocumentStudio/AccountingOdontogramPolicy';
 import { odontogramGroupSelection, odontogramQuickGroupKeys } from './DocumentStudio/AccountingOdontogramModePolicy';
+import { resolveAccountingBundles, type ResolvedAccountingBundle } from './DocumentStudio/AccountingBundlePolicy';
 
 const detectRegion = (teeth: number[]): string => {
   if (teeth.length === 0) return 'Général';
@@ -94,7 +95,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
   const [isOdontoOpen, setIsOdontoOpen] = useState(items.length === 0);
   const [quickActs, setQuickActs] = useState<{ name: string; price: number; category: string }[]>([]);
-  const [suggestedBundles, setSuggestedBundles] = useState<{ name: string; price: number; category: string }[]>([]);
+  const [suggestedBundles, setSuggestedBundles] = useState<ResolvedAccountingBundle[]>([]);
   const [odontogramType, setOdontogramType] = useState<'ADULT' | 'PEDIATRIC'>('ADULT');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isTreasuryModalOpen, setIsTreasuryModalOpen] = useState(false);
@@ -259,7 +260,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       const timer = setTimeout(async () => {
         try {
           const res = await api.post('/actes/catalog/bundles', { act_names: [lastItem.description] });
-          setSuggestedBundles(res.data || []);
+          const catalogActs = TREATMENT_TEMPLATES.map(t => ({
+            name: t.name,
+            base_price: t.base_price,
+            category: t.category,
+          }));
+          setSuggestedBundles(resolveAccountingBundles(res.data || [], catalogActs));
         } catch (err) {
           console.error("Erreur fetching bundles:", err);
         }
@@ -268,7 +274,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     } else {
       setSuggestedBundles([]);
     }
-  }, [items]);
+  }, [items, TREATMENT_TEMPLATES]);
 
   const rememberActPrice = (name: string, price: number, category?: string) => {
     if (!name.trim() || !Number.isFinite(price) || price <= 0) return;
@@ -332,7 +338,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions complémentaires :</span>
                   <div className="flex gap-2">
                     {suggestedBundles.map((b, i) => (
-                      <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">+{b.name}</span>
+                      <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">
+                        +{b.name}{b.priceSource === 'UNRESOLVED' ? ' • prix à saisir' : ''}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -345,9 +353,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         newItems.push({ id: Date.now() + Math.random(), description: b.name, price: b.price, dent: '-', category: b.category });
                       }
                     });
+                    const unresolved = suggestedBundles.filter(b => b.priceSource === 'UNRESOLVED').length;
                     setItems(newItems);
                     setSuggestedBundles([]);
-                    toast.success("Suggestions ajoutées");
+                    if (unresolved > 0) {
+                      toast.error(`${unresolved} suggestion(s) ajoutée(s) sans tarif catalogue : prix à renseigner.`);
+                    } else {
+                      toast.success("Suggestions ajoutées avec les tarifs catalogue");
+                    }
                   }}
                   className="px-6 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl font-black uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-white transition-all"
                 >
