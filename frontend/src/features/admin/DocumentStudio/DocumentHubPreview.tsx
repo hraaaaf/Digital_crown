@@ -24,10 +24,18 @@ export const DocumentHubPreview: React.FC<DocumentHubPreviewProps> = ({
 }) => {
   const [stale, setStale] = useState(false);
   const previousPdfUrl = useRef<string | null>(pdfUrl);
+  const previousFingerprint = useRef(fingerprint);
 
   useEffect(() => {
     if (open && pdfUrl) setStale(true);
-  }, [open]);
+  }, [open, pdfUrl]);
+
+  useEffect(() => {
+    if (fingerprint !== previousFingerprint.current) {
+      previousFingerprint.current = fingerprint;
+      if (open) setStale(true);
+    }
+  }, [fingerprint, open]);
 
   useEffect(() => {
     if (pdfUrl !== previousPdfUrl.current) {
