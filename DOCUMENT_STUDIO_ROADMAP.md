@@ -205,15 +205,37 @@ Les deux P0 statiques du baseline sont corrigés en engineering ; la page **n’
 
 ## T1 — Audit transversal premium
 
-**État : ⬜ prochain chantier exécutable après closeout engineering P7.**
+**État : 🟡 T1-A→T1-E convergés en engineering sur PR #88/#89/#91/#92/#93 ; T1-F harness/closeout sur PR #94 ; runtime/CI/visuel non certifiés.**
 
-À couvrir : navigation, header/footer/actions, dirty-state, preview, responsive, typographie/contraste, dark mode, clavier, terminologie, loading/empty/error/success, accessibilité, cohérence clinique/financière/documentaire.
+Rapport : `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md`.
+
+### Engineering acquis
+
+- **T1-A patient isolation** : remount par patient, reset atomique du store comptable et de l’édition archivée, invalidation des dirty states, protections contre réponses patient/suggestion tardives ;
+- **T1-B navigation** : une policy dirty-state couvre P1→P7 ; les transitions manuelles et `documentTab` passent par le même arbitre `DocumentHub` ; P2/P5 publient désormais leur état sale explicitement ;
+- **T1-C frontière clinique** : suppression du side-channel Ghost/free-text/financial labels ; sécurité ordonnance dédiée conservée ; exécuteur direct `ai-diagnostic` neutralisé dans le Studio certifiable ;
+- **T1-D vérité UI** : surfaces Header/Tabs/Footer/Preview contrôlées et gate anti-régression contre les claims runtime/IA trompeurs ;
+- **T1-E responsive/a11y** : labels/états accessibles, cibles tactiles, focus visible, dialogues impression/preview, Escape preview, iframe titrée, durcissement mobile ;
+- **T1-F préparé** : `scripts/certify_document_studio_t1.sh` regroupe régression T1 ciblée, full frontend et build production.
+
+### Limite de preuve
+
+Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 / `31941504118`) a échoué avant tout step avec `runner_id=0` / `steps=[]`; cela ne prouve ni échec du code ni PASS.
+
+### Reste
+
+- exécuter `scripts/certify_document_studio_t1.sh` sur le head final avec Node 20 ;
+- runtime authentifié patient A→B, y compris réponse A retardée ;
+- matrice dirty P1→P7 en navigation manuelle + URL ;
+- vérifier qu’aucune route Studio ne peut exécuter `ai-diagnostic` ;
+- navigateur réel 390/430/1280, clavier/focus, preview/impression ;
+- seulement après ces preuves : certification T1, merge/closeout et transition de recertification finale T2.
 
 ---
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après P1→P7 + T1.**
+**État : ⬜ après fermeture des gates exécutables T1 et consolidation des gates P1→P7 restants.**
 
 À couvrir : cartographie finale, matrice garder/améliorer/fusionner/cacher/supprimer/refaire, navigation cible, hiérarchie, priorités, critères UX/fonctionnels, régression globale et recertification finale.
 
@@ -240,14 +262,16 @@ Les deux P0 statiques du baseline sont corrigés en engineering ; la page **n’
 1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
 2. **Stack P4/P5/P6 PR #80** : engineering/documentation fermé sur son head ; CI/runtime/PDF/financier externes ouverts.
 3. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
-4. **T1** : lancer l’audit transversal premium maintenant, car c’est le prochain travail indépendant immédiatement exécutable.
-5. **T2** après T1 et après consolidation des gates restants.
+4. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
+5. **T2** : recertification/refonte finale après consolidation des gates précédents.
 
 ## Infrastructure CI
 
-Sur les heads récents P3/P4/P5/P7, GitHub Actions a pu soit échouer avant exécution des steps (`steps=null`), soit ne créer aucun run observable. Ces conditions externes ne justifient ni PASS ni échec applicatif et ne bloquent pas le travail indépendant.
+Sur les heads récents P3/P4/P5/P7/T1, GitHub Actions a pu soit échouer avant exécution des steps, soit ne créer aucun run observable. Ces conditions externes ne justifient ni PASS ni échec applicatif et ne bloquent pas le travail indépendant.
 
-Sur le head final P4→P6 `fb75780c44d21e552b396d1f4376b657e8837994`, aucun workflow run ni status context réel n'était observable au contrôle effectué. Les heads P7-A/B/D/F/G contrôlés n’ont pas non plus produit de run observable au moment du contrôle. Aucun PASS n'est revendiqué.
+Sur T1-C, le run #503 (`31941504118`) a créé trois jobs avec `runner_id=0` et `steps=[]` : aucun test de dépôt n’a donc été exécuté. Aucun PASS n'est revendiqué.
+
+Le harness T1 canonique est `scripts/certify_document_studio_t1.sh` et devra être exécuté sur l’exact head final lorsque l’infrastructure le permettra.
 
 ## Règle de progression
 
