@@ -167,8 +167,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     });
   }, [activeTooth, items]);
 
+  const hasPhaseSeparators = items.some(item => isAccountingPhaseSeparator(item.description));
   const addEmptyRow = () => setItems((prev: any) => [...prev, { id: Date.now(), description: '', dent: '0', price: 0 }]);
-  const removeItem = (id: number) => setItems((prev: any) => prev.filter((i: any) => i.id !== id));
+  const removeItem = (id: number) => setItems((prev: PriceItem[]) => prev.filter(item => item.id !== id || isAccountingPhaseSeparator(item.description)));
   const moveItem = (id: number, direction: 'UP' | 'DOWN') => setItems((prev: PriceItem[]) => moveAccountingLine(prev, id, direction));
   
   const updateItem = (id: number, f: string, v: string | number) => {
@@ -825,7 +826,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               <button
                                 type="button"
                                 onClick={() => moveItem(item.id, 'UP')}
-                                disabled={idx === 0}
+                                disabled={hasPhaseSeparators || isPhaseSeparator || idx === 0}
                                 aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
                                 className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
                               >
@@ -834,7 +835,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               <button
                                 type="button"
                                 onClick={() => moveItem(item.id, 'DOWN')}
-                                disabled={idx === items.length - 1}
+                                disabled={hasPhaseSeparators || isPhaseSeparator || idx === items.length - 1}
                                 aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
                                 className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
                               >
@@ -843,8 +844,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               <button
                                 type="button"
                                 onClick={() => removeItem(item.id)}
+                                disabled={isPhaseSeparator}
                                 aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
-                                className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
                               >
                                 <Trash2 size={16} />
                               </button>
