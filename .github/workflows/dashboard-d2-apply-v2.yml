@@ -1,0 +1,28 @@
+name: Dashboard D2 exact patch
+
+on:
+  push:
+    branches:
+      - agent/dashboard-d2-system-truth
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply exact patch and self-clean
+        run: |
+          git apply --check .github/patches/dashboard-d2.patch
+          git apply .github/patches/dashboard-d2.patch
+          rm -f .github/patches/dashboard-d2.patch
+          rm -f .github/workflows/dashboard-d2-apply.yml
+          rm -f .github/workflows/dashboard-d2-apply-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(dashboard): make system health status fail-closed"
+          git push origin HEAD:agent/dashboard-d2-system-truth
