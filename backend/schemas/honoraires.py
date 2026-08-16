@@ -7,6 +7,7 @@ from typing import List, Union
 from pydantic import BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
 
+from backend.utils.document_installment_contract import assert_document_installment_path_is_disabled
 from backend.utils.installment_reconciliation import validate_installments
 from .documents import (
     DocumentRequest as LegacyDocumentRequest,
@@ -174,12 +175,26 @@ class HonorairesData(BaseModel):
 
 
 class DocumentRequest(LegacyDocumentRequest):
-    """Document request with fail-closed Honoraires financial semantics.
+    """Document request with fail-closed shared financial semantics.
 
-    Unique notes must not inherit an installment plan previously loaded in the
-    shared frontend store. A collection method is meaningful only for PAYE;
-    pending notes are rendered/archived as EN ATTENTE instead of default cash.
+    Unique Honoraires notes must not inherit an installment plan previously
+    loaded in the shared frontend store. A collection method is meaningful only
+    for PAYE. Installment plans use their dedicated P5 API exclusively.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_legacy_installment_document_path(cls, value):
+        if not isinstance(value, dict):
+            return value
+        try:
+            assert_document_installment_path_is_disabled(value.get("type", ""))
+        except ValueError as exc:
+            raise PydanticCustomError(
+                "installment_document_path_disabled",
+                "Le flux échéancier /documents/generate est désactivé. Utilisez les endpoints /installments dédiés.",
+            ) from exc
+        return value
 
     @model_validator(mode="before")
     @classmethod
