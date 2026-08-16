@@ -135,6 +135,12 @@ from .documents import (
     HonoraireListResponse,
 )
 
+# P4 Note Honoraires uses a stricter fail-closed contract than the historical
+# document models. Import last so `backend.schemas.HonorairesData`,
+# `backend.schemas.PaymentItem` and `backend.schemas.DocumentRequest` resolve to
+# the hardened P4 versions without breaking direct historical imports.
+from .honoraires import PaymentItem, HonorairesData, DocumentRequest
+
 from .bot import (
     BotExecuteRequest,
     BotChatRequest,
