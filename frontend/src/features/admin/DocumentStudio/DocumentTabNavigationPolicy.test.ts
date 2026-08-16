@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldGuardDocumentTabTransition, type DocumentDirtySnapshot } from './DocumentTabNavigationPolicy';
+import { shouldGuardDocumentTabTransition, type DocumentDirtySnapshot, type DocumentTab } from './DocumentTabNavigationPolicy';
 
 const clean: DocumentDirtySnapshot = {
   prescription: false,
@@ -20,7 +20,8 @@ describe('shouldGuardDocumentTabTransition', () => {
     ['libre', 'libre'],
     ['plan', 'plan'],
   ] as const)('guards dirty %s transitions', (activeTab, dirtyKey) => {
-    expect(shouldGuardDocumentTabTransition(activeTab, 'ai', { ...clean, [dirtyKey]: true })).toBe(true);
+    const nextTab: DocumentTab = activeTab === 'ordonnance' ? 'certificat' : 'ordonnance';
+    expect(shouldGuardDocumentTabTransition(activeTab, nextTab, { ...clean, [dirtyKey]: true })).toBe(true);
   });
 
   it('does not guard a clean transition or a transition to the same tab', () => {
