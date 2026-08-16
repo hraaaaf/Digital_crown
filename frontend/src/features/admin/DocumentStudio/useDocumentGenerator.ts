@@ -338,7 +338,9 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           prix_unitaire: parseFloat(i.price.toString()),
           montant: parseFloat(i.price.toString()),
           date: docDate,
-          mode_reglement: paymentMode,
+          ...(activeTab === 'honoraires' && paymentStatus === 'PAYE'
+            ? { mode_reglement: paymentMode }
+            : {}),
         }));
       const robustTeethData = buildTeethDataFromAccountingItems(
         items.filter(i => !isAccountingPhaseSeparator(i.description))
