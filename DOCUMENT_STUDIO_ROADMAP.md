@@ -100,7 +100,7 @@ PR : **#96**, draft.
 
 Preuve P6-R1 : `tsc --strict` PASS + **11/11 assertions PASS**.
 
-T1 a centralisé son dirty-state dans le lifecycle partagé et n’autorise le nettoyage qu’après un vrai signal d’archive réussie.
+T1 a centralisé la décision de navigation et l'archive-success au niveau du Hub. Les anciens listeners locaux encore présents restent redondants mais fail-closed ; T2 ne revendique pas leur suppression.
 
 ---
 
@@ -132,12 +132,12 @@ PR : **#101**, draft.
 - P5 impression non persistante rendue explicite et stale-print supprimé ;
 - branche ghost `ai` retirée du Document Studio et appel `/ai-diagnostic` supprimé du hook ;
 - ancien `/documents/generate` `echeancier` désactivé ;
-- header partagé nettoyé : branche AI morte, boutons `type=button`, label date ;
+- header partagé nettoyé des raccourcis de navigation directs ;
 - permissions partagées relues et accès patient conservé.
 
 ### Preuves T1
 
-- `DocumentNavigationPolicy` : `tsc --strict` PASS + **10/10 assertions PASS** ;
+- `DocumentNavigationPolicy` : `tsc --strict` PASS + **9/9 scénarios PASS** au dernier rerun local ;
 - contrat legacy échéancier : **4/4 PASS** sous Linux ;
 - tests `DocumentRequest` versionnés ;
 - inspection statique des composants/routeurs partagés.
@@ -155,14 +155,38 @@ PR : **#101**, draft.
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : 🟡 ACTIVE — closeout final engineering + préparation de la recertification.**
+**État : ✅ engineering local convergé ; ⏳ certification full-app / humaine différée.**
 
-Chemin critique :
-- [ ] supprimer/neutraliser les restes legacy devenus inatteignables ;
-- [ ] réduire les listeners/props/callbacks partagés redondants sans casser les protections ;
-- [ ] compléter l’accessibilité des modales partagées ;
-- [ ] produire un harness de certification Document Studio unique et fail-closed ;
-- [ ] vérifier la cohérence des PR stackées et des audits canoniques ;
-- [ ] exécuter tout test local réellement disponible ;
-- [ ] documenter précisément les gates full-app/runtime/PDF/browser encore externes ;
-- [ ] ne pas merger/ready les PR tant que les gates requis ne sont pas réellement exécutés.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_T2_FINAL_STATUS.md`
+- `docs/audits/DOCUMENT_STUDIO_T2_FINAL_RECERTIFICATION.md`
+- `docs/audits/DOCUMENT_STUDIO_T2_HANDOVER_2026-08-16.md`
+
+PR : **#102**, draft.
+
+### Acquis T2
+
+- certificateur unifié `scripts/certify_document_studio.sh` couvrant targeted backend P1→P7, full backend, targeted DocumentStudio Vitest, full frontend, build, invariants source et prod-safety ;
+- prérequis du harness : Python >=3.12, Node >=20, worktree propre ;
+- `LivePreview` non-inline durci : `role=dialog`, `aria-modal`, titre lié, focus initial, Escape, loading `aria-live` ;
+- test LivePreview étendu pour dialog/focus/Escape ;
+- fichiers legacy potentiellement orphelins non supprimés sans scan complet fiable (`incomplete_results=true`).
+
+### Preuves T2 réellement exécutées
+
+- `bash -n scripts/certify_document_studio.sh` reconstruit sous Linux : **PASS** ;
+- environnement local : Python **3.13.5**, Node **22.16.0**, npm **10.9.2**.
+
+Le harness complet n'est pas revendiqué PASS dans cette session : le checkout full-repository avec dépendances installées n'est pas monté dans cet environnement.
+
+### Gates finaux différés
+
+1. exécution complète de `bash scripts/certify_document_studio.sh` sur le head candidat exact ;
+2. runtime authentifié P1→P7 ;
+3. archive/reopen/duplicate/print/payment réels ;
+4. PDF cabinet branding/signature/long/multipage ;
+5. browser 390 / 768 / desktop + clavier/touch/focus ;
+6. validations humaines clinique/scientifique/réglementaire/financière applicables ;
+7. ready/merge ordonné des PR stackées puis post-merge recertification.
+
+**Verdict global Document Studio : engineering local connu convergé ; certification complète non revendiquée. Pourcentage global indéterminé faute de pondération officielle.**
