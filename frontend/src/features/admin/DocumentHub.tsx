@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
 
@@ -12,9 +10,10 @@ import { DocumentHubPreview } from './DocumentStudio/DocumentHubPreview';
 import { DocumentHubDialogs } from './DocumentStudio/DocumentHubDialogs';
 import {
   DOCUMENT_STUDIO_PREVIEW_TITLES,
-  isCertifiableDocumentStudioTab,
   type CertifiableDocumentStudioTab,
 } from './DocumentStudio/DocumentStudioVocabulary';
+import { useDocumentHubNavigation } from './DocumentStudio/useDocumentHubNavigation';
+import { useDocumentHubPatient } from './DocumentStudio/useDocumentHubPatient';
 
 // Formulaires
 import { PrescriptionAgenticStudio, type DrugItem } from './DocumentStudio/Forms/PrescriptionAgenticStudio';
@@ -28,12 +27,6 @@ import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
-import { isPrescriptionDirty, setPrescriptionDirty } from './DocumentStudio/PrescriptionDirtyState';
-import { isCertificateDirty, setCertificateDirty } from './DocumentStudio/CertificateDirtyState';
-import { isInstallmentDirty, setInstallmentDirty } from './DocumentStudio/InstallmentDirtyState';
-import { isLibreDirty, setLibreDirty } from './DocumentStudio/LibreDirtyState';
-import { isP7Dirty, setP7Dirty } from './DocumentStudio/P7DirtyState';
-import { shouldGuardDocumentTabTransition } from './DocumentStudio/DocumentTabNavigationPolicy';
 import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
 
 interface DocumentHubProps {
@@ -63,30 +56,11 @@ interface GenericClinicalData {
   doc_date?: string;
 }
 
-interface PatientDetails {
-  id: number;
-  nom: string;
-  prenom: string;
-  date_naissance?: string;
-  genre?: string;
-}
-
 export type HubDocumentType = CertifiableDocumentStudioTab;
-
-type TabChangeSource = 'ui' | 'url';
-
-const isHubDocumentType = (value: string | null): value is HubDocumentType =>
-  isCertifiableDocumentStudioTab(value);
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   // --- ÉTATS GÉNÉRAUX ---
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedDocumentTab = searchParams.get('documentTab');
-  const [activeTab, setActiveTab] = useState<HubDocumentType>(() =>
-    isHubDocumentType(requestedDocumentTab) ? requestedDocumentTab : 'ordonnance'
-  );
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
-  const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
 
   // --- ÉTATS IA ---
@@ -120,124 +94,27 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
   const [librePageSize, setLibrePageSize] = useState<'A5' | 'A4'>('A5');
   const [libreAlignment, setLibreAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('justify');
 
-  // --- GARDES NAVIGATION ---
-  const [pendingTab, setPendingTab] = useState<HubDocumentType | null>(null);
-  const [pendingTabSource, setPendingTabSource] = useState<TabChangeSource>('ui');
-
-  const resetHonorairesFinancialDraft = () => {
+  const resetHonorairesFinancialDraft = useCallback(() => {
     setPaymentMode('');
     setPaymentStatus('EN_ATTENTE');
     setIsGlobalNote(false);
     setInstallments([]);
-  };
+  }, [setPaymentMode, setPaymentStatus, setIsGlobalNote, setInstallments]);
 
-  const dirtySnapshot = () => ({
-    prescription: isPrescriptionDirty(),
-    certificate: isCertificateDirty(),
-    accounting: items.some(item => item.description.trim()),
-    installment: isInstallmentDirty(),
-    libre: isLibreDirty(),
-    plan: isP7Dirty(),
+  const {
+    activeTab,
+    setActiveTab,
+    pendingTab,
+    handleTabChange,
+    cancelPendingTab,
+    confirmPendingTab,
+    syncDocumentTab,
+  } = useDocumentHubNavigation({
+    hasAccountingDraft: items.some(item => item.description.trim()),
+    resetHonorairesFinancialDraft,
   });
 
-  const clearDirtyForTab = (tab: HubDocumentType) => {
-    switch (tab) {
-      case 'ordonnance':
-        setPrescriptionDirty(false);
-        break;
-      case 'certificat':
-        setCertificateDirty(false);
-        break;
-      case 'devis':
-      case 'honoraires':
-        useAccountingStore.getState().reset();
-        break;
-      case 'echeancier':
-        setInstallmentDirty(false);
-        break;
-      case 'libre':
-        setLibreDirty(false);
-        break;
-      case 'plan':
-        setP7Dirty(false);
-        break;
-      default:
-        break;
-    }
-  };
-
-  const syncDocumentTab = (tab: HubDocumentType) => {
-    if (searchParams.get('documentTab') === tab) return;
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('documentTab', tab);
-    setSearchParams(nextParams, { replace: true });
-  };
-
-  const commitTabChange = (newTab: HubDocumentType, source: TabChangeSource) => {
-    setActiveTab(newTab);
-    if (source === 'ui') syncDocumentTab(newTab);
-  };
-
-  const handleTabChange = (newTab: HubDocumentType, source: TabChangeSource = 'ui') => {
-    if (newTab === activeTab) return;
-
-    // P3 → P4 conserve les actes mais repart d'un contexte financier neutre.
-    if (activeTab === 'devis' && newTab === 'honoraires') {
-      resetHonorairesFinancialDraft();
-      commitTabChange(newTab, source);
-      return;
-    }
-
-    if (shouldGuardDocumentTabTransition(activeTab, newTab, dirtySnapshot())) {
-      setPendingTab(newTab);
-      setPendingTabSource(source);
-      return;
-    }
-
-    commitTabChange(newTab, source);
-  };
-
-  useEffect(() => {
-    const nextTab = searchParams.get('documentTab');
-    if (isHubDocumentType(nextTab) && nextTab !== activeTab) {
-      handleTabChange(nextTab, 'url');
-    }
-  // Deliberately reacts only to URL/search changes; current dirty state is read at transition time.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const cancelPendingTab = () => {
-    if (pendingTabSource === 'url') {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set('documentTab', activeTab);
-      setSearchParams(nextParams, { replace: true });
-    }
-    setPendingTab(null);
-    setPendingTabSource('ui');
-  };
-
-  const confirmPendingTab = () => {
-    if (!pendingTab) return;
-    const nextTab = pendingTab;
-    const source = pendingTabSource;
-    clearDirtyForTab(activeTab);
-    setPendingTab(null);
-    setPendingTabSource('ui');
-    commitTabChange(nextTab, source);
-  };
-
-  // Garde fermeture navigateur pour P3/P4 ; les autres pages publient aussi leur dirty-state
-  // au niveau de la frontière patient T1.
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if ((activeTab === 'devis' || activeTab === 'honoraires') && items.some(i => i.description.trim())) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [activeTab, items]);
+  const patientDetails = useDocumentHubPatient(patientId);
 
   // --- ÉTATS UI ---
   const [selectedTeethFromOdontogram, setSelectedTeethFromOdontogram] = useState<SelectedSurfaceData[]>([]);
@@ -345,36 +222,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
       }
       if (d.doc_date) setDocDate(d.doc_date);
     }
-  }, [editData]);
-
-  // --- DATA FETCHING ---
-  useEffect(() => {
-    if (!patientId) {
-      setPatientDetails(null);
-      return;
-    }
-
-    let cancelled = false;
-    setPatientDetails(null);
-
-    api.get(`/patients/${patientId}`)
-      .then(res => {
-        if (!cancelled) setPatientDetails(res.data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error('DocumentHub: patient fetch failed', err);
-        const status = err.response?.status;
-        if (status === 403 || status === 404) {
-          setPatientDetails(null);
-          toast.error("Dossier patient introuvable ou accès non autorisé.");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [patientId]);
+  }, [editData, setActiveTab, setItems]);
 
   useEffect(() => {
     if (!patientId || activeTab !== 'ordonnance') {
