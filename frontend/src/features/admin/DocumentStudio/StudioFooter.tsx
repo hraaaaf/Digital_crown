@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, AlertTriangle, Eye, Archive, Printer } from 'lucide-react';
+import { AlertTriangle, Eye, Archive, Printer } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { createPortal } from 'react-dom';
 
@@ -25,9 +25,6 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
   onGenerate,
   showPrintWarning,
   onCloseWarning,
-  aiReport,
-  onGenerateAI,
-  loadingAi,
   total,
   sideStudioType,
   onTogglePreview
@@ -36,11 +33,18 @@ export const StudioFooter: React.FC<StudioFooterProps> = ({
 
   if (activeTab === 'ai') {
     return (
-      <div className="flex justify-end p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 mt-6">
-        <button onClick={onGenerateAI} disabled={loadingAi} className="px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-primary/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: 'var(--primary)' }}>
-          {loadingAi ? <Loader2 className="animate-spin mr-2 inline" /> : <Eye className="mr-2 inline" />}
-          {aiReport ? 'Régénérer Analyse' : 'Lancer Analyse IA'}
-        </button>
+      <div
+        className="flex items-center gap-3 rounded-[2rem] border border-amber-200 bg-amber-50/80 p-5 text-amber-800"
+        role="status"
+        aria-live="polite"
+      >
+        <AlertTriangle size={18} className="shrink-0" />
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-widest">Fonction clinique désactivée</div>
+          <p className="mt-1 text-xs font-semibold">
+            L’analyse clinique automatisée n’est pas disponible dans le Document Studio certifiable. Une validation scientifique dédiée est requise avant toute réactivation.
+          </p>
+        </div>
       </div>
     );
   }
