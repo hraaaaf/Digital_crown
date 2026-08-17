@@ -78,8 +78,36 @@ with database.SessionLocal() as db:
             is_accounted=False,
             is_collected=False,
         ))
+
+    zero_billed_patient = db.query(models.Patient).filter(
+        models.Patient.numero_dossier == "T2-ZERO-BILL",
+        models.Patient.employer_id == user.id,
+    ).first()
+    if not zero_billed_patient:
+        zero_billed_patient = models.Patient(
+            numero_dossier="T2-ZERO-BILL",
+            nom="ZEROFACTURE",
+            prenom="T2",
+            date_naissance=datetime(1991, 2, 2),
+            sexe="F",
+            employer_id=user.id,
+            assurance="AUCUNE",
+        )
+        db.add(zero_billed_patient)
+        db.commit()
+        db.refresh(zero_billed_patient)
+        db.add(models.DossierClinique(patient_id=zero_billed_patient.id, is_ortho_active=False))
+        db.add(models.Payment(
+            patient_id=zero_billed_patient.id,
+            amount=800.0,
+            payment_method=models.PaymentMethod.ESPECES,
+            payment_date=datetime.now(),
+            notes="T2 synthetic zero-billed finance edge state",
+        ))
+
     db.commit()
     print(f"T2_RUNTIME_PATIENT_ID={patient.id}", flush=True)
+    print(f"T2_ZERO_BILLED_PATIENT_ID={zero_billed_patient.id}", flush=True)
 
 import backend.main as main
 
