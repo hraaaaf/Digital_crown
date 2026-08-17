@@ -3,6 +3,7 @@ import os
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -59,9 +60,39 @@ def create_installment_plan(
     current_user: models.User = Depends(require_permission("accounting")),
 ):
     assert_patient_access(plan_req.patient_id, current_user, db)
+
+    linked_acte = None
+    if plan_req.acte_id is not None:
+        linked_acte = db.query(models.Acte).filter(models.Acte.id == plan_req.acte_id).first()
+        if linked_acte is None:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+        if linked_acte.patient_id != plan_req.patient_id:
+            raise HTTPException(status_code=422, detail="L'acte n'appartient pas au patient du plan d'échéances.")
+        if linked_acte.deleted_at is not None:
+            raise HTTPException(status_code=409, detail="Impossible de créer un échéancier sur un acte placé à la corbeille.")
+
+        existing_plan = db.query(models.InstallmentPlan).filter(
+            models.InstallmentPlan.acte_id == linked_acte.id
+        ).first()
+        if existing_plan is not None:
+            raise HTTPException(status_code=409, detail="Un échéancier est déjà lié à cet acte.")
+
+        total_paid = float(db.query(func.sum(models.Payment.amount)).filter(
+            models.Payment.acte_id == linked_acte.id
+        ).scalar() or 0.0)
+        remaining_due = max(round(float(linked_acte.montant) - total_paid, 2), 0.0)
+        if remaining_due <= 0.005:
+            raise HTTPException(status_code=409, detail="Cet acte est déjà entièrement encaissé.")
+        if abs(float(plan_req.total_amount) - remaining_due) >= 0.005:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Le total de l'échéancier doit couvrir exactement le reste dû de l'acte ({remaining_due:.2f} MAD).",
+            )
+
     try:
         db_plan = models.InstallmentPlan(
             patient_id=plan_req.patient_id,
+            acte_id=plan_req.acte_id,
             title=plan_req.title,
             total_amount=plan_req.total_amount,
         )
@@ -143,10 +174,26 @@ def update_installment(
             amount=inst.amount,
             payment_method=payment_method,
             payment_date=paid_at,
+            acte_id=plan.acte_id,
             installment_id=inst.id,
             notes=f"Paiement échéance: {inst.label} ({plan.title})",
             validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",
         ))
+        db.flush()
+
+        if plan.acte_id is not None:
+            linked_acte = db.query(models.Acte).filter(models.Acte.id == plan.acte_id).first()
+            if linked_acte is None or linked_acte.patient_id != plan.patient_id:
+                raise HTTPException(status_code=409, detail="Lien acte/échéancier incohérent.")
+            total_paid = float(db.query(func.sum(models.Payment.amount)).filter(
+                models.Payment.acte_id == linked_acte.id
+            ).scalar() or 0.0)
+            if total_paid >= float(linked_acte.montant) - 0.005:
+                linked_acte.statut_paiement = models.PaiementStatut.PAYE
+                linked_acte.is_collected = True
+            elif total_paid > 0:
+                linked_acte.statut_paiement = models.PaiementStatut.PARTIEL
+                linked_acte.is_collected = False
     else:
         if req.status is not None:
             inst.status = req.status
