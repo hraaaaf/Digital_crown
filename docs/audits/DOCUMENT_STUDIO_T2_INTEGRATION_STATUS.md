@@ -1,9 +1,9 @@
 # Document Studio — T2 Integration Status
 
-Date: 2026-08-16
+Date: 2026-08-17
 Canonical stack: T2 baseline #98 → T2-A #99 → T2-B #103 → T2-E #104 → T2-F #105.
 Current canonical PR: #105 (`agent/t2-f-global-recertification`).
-Current exact HEAD: `4546d761b7ef4643472f23e5bb3715a807dfb3e3`.
+Runtime-certified source HEAD: `677d43a57f9cf564922370d3922c6a15b6ea138f`.
 
 ## Proof contract
 
@@ -12,42 +12,44 @@ Current exact HEAD: `4546d761b7ef4643472f23e5bb3715a807dfb3e3`.
 - **RUNTIME / VISUEL**: only authenticated/browser evidence counts.
 - **CERTIFICATION**: separate final gate; never inferred from code presence alone.
 
-## Automated exact-head proof
+## Exact-head automated proof
 
-CI #630 / run `31958552660` completed **SUCCESS** on exact documentation-closeout HEAD `4546d761b7ef4643472f23e5bb3715a807dfb3e3`.
+The runtime-certified source HEAD `677d43a57f9cf564922370d3922c6a15b6ea138f` has two independent exact-head green runs:
 
-Verified jobs:
-- Frontend test suite: SUCCESS;
-- Frontend production build: SUCCESS;
-- Backend tests & hardening: SUCCESS;
-- Production negative guard: SUCCESS.
+- T2 Runtime Browser Certification #39 / run `31984350987`: **SUCCESS**;
+- CI #720 / run `31984350982`: **SUCCESS**.
 
-The immediately preceding code-bearing candidate was validated by CI #628 / run `31957613657` on source HEAD `4d5ce377079f0304323e0aa9c2abf16824f7ceb0` / PR merge ref `a851cc56c16ccfb49eecb3f5af87b719800ed567` with:
-- frontend **69/69 files PASS**;
-- frontend **296/296 tests PASS**;
-- frontend production build PASS;
-- backend **2635 passed / 7 skipped**;
-- production safety check PASS;
-- negative production guard PASS.
+CI #720 verified:
+- frontend test suite: SUCCESS;
+- frontend production build: SUCCESS;
+- backend tests & hardening: SUCCESS;
+- production negative guard: SUCCESS.
 
-The #630 descendant contains only the canonical status closeout change after that code-bearing candidate and all repository CI jobs also pass on #630.
+Runtime #39 verified:
+- authenticated browser matrix: 7/7 pages green;
+- light responsive viewports: 390x844, 430x932, 768x1024, 1280x900;
+- dark-mode verification: 1280x900;
+- all seven page scorecards: overall 10/10 in the automated matrix;
+- rapid-navigation stress: PASS;
+- strict runtime PDF: generation HTTP 200, fetch HTTP 200, `application/pdf`, `%PDF` signature;
+- browser print runtime path: PASS;
+- PDF freshness after rapid edits: PASS;
+- persisted P3/P4/P5 financial reconciliation: PASS.
 
 ## T2-A — Information architecture
 
-**State: AUTOMATED SOURCE/TEST VERIFIED — AUTHENTICATED RUNTIME OPEN**
+**State: TECHNICAL RUNTIME PASS**
 
 Verified:
 - canonical P1→P7 vocabulary/parser;
 - dormant `ai` rejected by certifiable navigation/types;
 - no AI execution plumbing in `useDocumentGenerator`;
-- explicit P7→P3 filtered conversion.
-
-Open:
-- authenticated URL/navigation browser verification.
+- explicit P7→P3 filtered conversion;
+- authenticated browser navigation across the certifiable Document Studio surface passes in #39.
 
 ## T2-B — Preview truth / freshness
 
-**State: AUTOMATED CONTRACT VERIFIED — BROWSER OPEN**
+**State: TECHNICAL RUNTIME PASS**
 
 Verified:
 - deterministic preview fingerprint;
@@ -55,14 +57,14 @@ Verified:
 - stale PDF hidden during regeneration;
 - no synthetic `Espèces` for pending state;
 - installment payload serializable;
-- relevant Vitest contracts pass in #628/#630.
-
-Open:
-- rapid edits / tab switches / close-reopen / stale-PDF browser verification.
+- rapid-edit freshness runtime gate PASS in #39;
+- latest payload observed as `T2 Freshness C` / `Version PDF C`;
+- first and second PDFs both HTTP 200 / `application/pdf`;
+- SHA-256 hashes differ, proving regenerated output rather than stale reuse.
 
 ## T2-C — Shell decomposition
 
-**State: AUTOMATED SOURCE/TEST VERIFIED**
+**State: TECHNICAL PASS**
 
 Verified boundaries:
 - `useDocumentHubNavigation`;
@@ -72,70 +74,94 @@ Verified boundaries:
 - `DocumentHubContent`;
 - root `DocumentHub` reduced to orchestration/shell composition.
 
-Relevant decomposition regression tests pass in #628/#630.
+Relevant decomposition regression tests pass in the exact-head CI.
 
 ## T2-D — Accessibility residual closeout
 
-**State: AUTOMATED SOURCE/TEST VERIFIED — BROWSER OPEN**
+**State: TECHNICAL BROWSER PASS**
 
-Verified in code/tests:
+Verified in source/tests and authenticated browser matrix:
 - modal semantics;
 - initial close focus;
 - Escape handling;
 - announced loading state;
 - labelled discard/duplicate dialogs;
-- legal annotation switch semantics.
-
-Open:
-- authenticated keyboard/focus/Escape browser matrix.
+- legal annotation switch semantics;
+- responsive/runtime action-path coverage across the certified matrix.
 
 ## T2-E — Product polish
 
-**State: AUTOMATED SOURCE/TEST VERIFIED — VISUAL OPEN**
+**State: TECHNICAL VISUAL PASS**
 
 Verified:
 - canonical labels and action hierarchy;
 - dark-mode source hardening;
 - prepared-print accessible label;
-- relevant product-polish source gates pass.
-
-Open:
-- 390/430/768/1280 browser captures;
-- real dark mode and overflow verification.
+- 390/430/768/1280 light captures;
+- 1280 dark captures;
+- no certified responsive overflow findings;
+- all seven automated visual scorecards: 10/10.
 
 ## T2-F — Global recertification
 
-**State: AUTOMATED REPOSITORY CLOSEOUT PASS — RUNTIME/HUMAN GATES OPEN**
+**State: TECHNICAL INTEGRATION CERTIFICATION PASS ON SOURCE HEAD**
 
-Closed with evidence:
-- code-bearing CI #628 SUCCESS;
-- documentation-closeout exact-head CI #630 SUCCESS;
-- canonical status synchronized to exact evidence.
+Closed with exact evidence on `677d43a57f9cf564922370d3922c6a15b6ea138f`:
+- CI #720 SUCCESS;
+- runtime/browser #39 SUCCESS;
+- 7/7 browser pages and rapid-navigation stress PASS;
+- strict runtime PDF PASS;
+- print runtime path PASS;
+- rapid-edit PDF freshness PASS;
+- P3/P4/P5 persisted reconciliation PASS.
 
-Still open and not inferable from CI:
-- authenticated browser matrices;
-- real PDF/print output;
-- persisted P3/P4/P5 financial reconciliation;
-- separate clinical/regulatory human certification where required.
+Financial evidence from #39:
+- P4 paid exact payment: **888 MAD**;
+- P5 installment plan total: **1,200 MAD**;
+- rows: **500 + 700 MAD**;
+- collected: **500 MAD**.
 
-## Runtime/tooling boundary
+## Print boundary
 
-No Playwright/Cypress/Puppeteer harness exists in the repository. The currently connected Vercel account exposes no Digital Crown project, so no authenticated remote browser path is available through current connected tools.
+The automated browser gate certifies this runtime chain:
+
+`PDF blob → hidden iframe → onload → contentWindow.focus() → contentWindow.print()`.
+
+Exact #39 trace:
+- iframe created: 1;
+- blob source observed: 1;
+- iframe appended: 1;
+- onload assigned: 1;
+- focus calls: 1;
+- print calls: 1;
+- fallback `window.open`: 0.
+
+Because Chromium headless does not reliably emit the PDF plugin iframe load event, the harness supplies a controlled PDF load signal. Therefore CI certifies the application print callback path and real PDF generation/retrieval, **not observation of a native operating-system print dialog**.
+
+## Runtime PDF evidence
+
+Exact #39 strict PDF probe:
+- generate status: 200;
+- PDF fetch status: 200;
+- content type: `application/pdf`;
+- signature: `%PDF`;
+- bytes: 2437.
 
 ## Independent anomalies
 
-- CI force-pins `httpx==0.27.2` although newer Firebase/Ultralytics packages require 0.28.x. This did not break #628/#630 and remains separate dependency-hygiene work.
-- npm install reports dependency vulnerabilities; no security certification is claimed.
+These are separate from the T2 technical integration gate and remain open:
+- CI force-pins `httpx==0.27.2` although newer Firebase/Ultralytics packages require 0.28.x;
+- npm install reports dependency vulnerabilities; no security certification is claimed;
 - GitHub Actions reports Node 20 action-runtime deprecation warnings.
 
-## Current critical path
+## Remaining external/human gates
 
-1. obtain an authenticated Digital Crown runtime/browser path;
-2. execute navigation/dirty guards, preview freshness and keyboard/focus matrices;
-3. execute 390/430/768/1280 + dark mode/overflow visual certification;
-4. execute real PDF/print and persisted financial reconciliation checks;
-5. only after those gates, consider ready/merge/final T2 certification.
+The technical T2 integration gates are closed on the runtime-certified source HEAD. This status does **not** claim:
+- native OS print-dialog observation;
+- security certification;
+- clinical/regulatory human certification;
+- production-ready status.
 
-PR #105 remains draft. No production-ready, merge-ready, or final T2 certification claim.
+PR #105 remains draft pending exact-head recertification of this documentation closeout and stacked-PR merge-topology review.
 
 No percentage is assigned because the canonical roadmap has no validated weighting model.
