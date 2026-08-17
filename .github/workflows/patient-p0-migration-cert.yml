@@ -6,6 +6,9 @@ on:
       - agent/patient-page-p0-truth-safety
     paths:
       - .github/workflows/patient-p0-migration-cert.yml
+      - alembic/**
+      - alembic.ini
+      - backend/models.py
   workflow_dispatch:
 
 jobs:
@@ -30,9 +33,10 @@ jobs:
           python -m pip install --upgrade pip
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0-migration.txt
           pip install -r /tmp/requirements-p0-migration.txt
+          pip install alembic
 
       - name: Upgrade empty database to Alembic head
-        run: alembic upgrade head
+        run: python -m alembic upgrade head
 
       - name: Verify exact head and Patient P0 schema
         run: |
