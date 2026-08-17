@@ -6,6 +6,7 @@ on:
       - agent/patient-page-p0-truth-safety
     paths:
       - .github/workflows/patient-installment-baseline.yml
+      - frontend/scripts/capture-patient-installment-plan-baseline.mjs
   workflow_dispatch:
 
 concurrency:
