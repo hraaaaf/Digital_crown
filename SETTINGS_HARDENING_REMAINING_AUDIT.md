@@ -1,41 +1,37 @@
 # Settings Hardening — Remaining Audit
 
 Date: 2026-08-17
-Base audited: `085df0daf6d5e7f6b9ad079a3427af2c4a57a6b1`
+Final audited base: `622c6b0e7a40ee50879454baf61175e3c82d5705`
 
 ## Goal
-Reprendre le chantier sans inventer de lots ni de pourcentage et identifier uniquement les écarts encore présents sur le master courant.
+Identifier uniquement les écarts encore présents après fermeture des lots Settings, sans inventer de bug ni de pourcentage.
 
-## Fermé mais absent du premier closeout
-- S2 local-first patient/Firebase : PR #124 mergée.
-- S3 backup SQLCipher restaurable/vérifiable : PR #125 mergée.
-- P1-3 whitelist stricte CabinetConfigUpdate : PR #151 mergée.
-- P1-4 doublons patients tenant-scopés : PR #152 mergée.
-- P1-2 historique #14 : fermé comme supersédé par S7A #147.
+## Gaps précédemment identifiés — état final
 
-## S12B — licence fail-closed, gap vérifié
-`backend/main.py::get_user_license_status()` contient encore un fail-open explicite : si la lecture DB de l'état de licence échoue, le résultat devient `(True, "DB_ERROR_FAIL_OPEN")`. Le middleware peut donc laisser passer une requête sans preuve positive de licence.
+- S12B licence fail-closed : **FERMÉ**. Une erreur de lecture DB ne produit plus un état de licence positif.
+- S6C persistance thème : **FERMÉ**. La preview reste immédiate mais `digitalcrown_theme` n'est persistant qu'après vérité backend ou chargement d'un profil persisté.
+- S6D-A Agenda + Catalogue read truth : **FERMÉ**.
+- S6D-B Profil + Équipe read truth : **FERMÉ**. CI #960, T2 #227, Visual #3, IA #5 et RBAC #34 SUCCESS ; certification visuelle réelle 9,5/10.
+- S6D-C Journal d'Audit read truth : **FERMÉ**.
 
-Goal : une erreur de lecture de licence ne doit jamais produire `is_ok=True`.
+## Re-audit ciblé final
 
-Succès : DB licence inaccessible → état non autorisé/fail-closed ; aucune mutation sans preuve positive ; contrat superadmin explicitement conservé si voulu ; tests ciblés + CI exact-head + T2 exact-head.
+- Upload logo : backend-first ; l'état local n'est modifié qu'après réponse positive.
+- Upload papier-en-tête : backend-first ; toast succès uniquement après réponse positive.
+- Suppression logo : backend-first.
+- Suppression papier-en-tête : backend-first.
+- Branding/Profile : vérité de persistance et vérité de lecture désormais couvertes par S6C + S6D-B.
+- Sécurité/Backup : aucun nouveau lecteur permanent transformant une panne en faux état vide n'a été démontré.
+- `switchCabinet()` reste une logique locale suspecte dans `useSettingsStore`, mais aucun appelant actif n'a été démontré dans les surfaces Settings auditées. Dette/cleanup non bloquante tant qu'aucune surface utilisateur active n'est prouvée.
 
-## S6C — persistance thème, gap vérifié
-`useSettingsStore.applyTheme()` écrit `digitalcrown_theme` dans `localStorage` dès la prévisualisation. `updateProfile()` appelle `applyTheme()` avant sauvegarde backend. Un thème peut donc rester durable localement après échec de `PUT /clinics/me`.
+## Conclusion
 
-Goal : conserver exactement la preview existante, mais ne persister `digitalcrown_theme` qu'après succès backend ou chargement d'un profil déjà persisté.
-
-Référence visuelle : baseline S1 réelle `admin-branding` aux viewports 1440/1024/768/430/390. Aucun design ou mockup inventé.
-
-Succès : preview inchangée ; save KO → aucune nouvelle valeur durable ; save OK → valeur durable alignée ; captures après conformes à la baseline réelle ; CI/T2 + certification visuelle exact-head.
-
-## Priorité
-1. S12B sécurité/licence fail-closed.
-2. S6C vérité de persistance thème sans changement visuel.
-3. Re-audit ciblé upload/delete/switch cabinet et Branding/Profile avant fermeture finale.
+Aucun nouveau gap fonctionnel Settings actif n'est démontré sur cette base après le re-audit final. La dette `switchCabinet()` ne doit pas être transformée en lot produit sans appelant réel ou scénario reproductible.
 
 ## Pourcentage
-Aucun nouveau pourcentage : aucun dénominateur canonique exhaustif vérifiable n'existe encore dans le dépôt.
+
+Aucun nouveau pourcentage canonique n'est déduit de ce fichier : aucun dénominateur exhaustif de roadmap n'existe à la racine du dépôt.
 
 ## Déploiement
-Aucun déploiement Vercel autorisé ou requis.
+
+Aucun déploiement Vercel effectué.
