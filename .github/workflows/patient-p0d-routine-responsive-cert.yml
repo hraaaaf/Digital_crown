@@ -21,6 +21,8 @@ jobs:
   certify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     env:
       ENVIRONMENT: test
       SECRET_KEY: patient-p0d-responsive-secret-000001
@@ -39,6 +41,42 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Patch ClinicalHub mobile result layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('frontend/src/features/patients/components/ClinicalHub.tsx')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  'className="w-full flex flex-col gap-6 p-6 bg-white/40 dark:bg-slate-900/40 rounded-[2.5rem] border border-white/60 dark:border-slate-800/50 backdrop-blur-xl shadow-elite min-h-[80vh] relative overflow-hidden"',
+                  'className="w-full min-w-0 flex flex-col gap-4 p-3 sm:gap-6 sm:p-6 bg-white/40 dark:bg-slate-900/40 rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/60 dark:border-slate-800/50 backdrop-blur-xl shadow-elite min-h-[80vh] relative overflow-hidden"'
+              ),
+              (
+                  '<div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start justify-between gap-4">\n                  <div className="flex items-start gap-3 flex-1">\n                    <div className="w-10 h-10 bg-indigo-500/20 text-indigo-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">\n                      <Sparkles size={18} />\n                    </div>\n                    <div className="flex-1 min-w-0">\n                      <h4 className="text-sm font-black text-indigo-900">Proposition clinique à valider — {lastDiagnosis.wizard}</h4>\n                      <p className="text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>\n                      <p className="text-[10px] text-indigo-600/70 font-mono mt-2">{lastDiagnosis.date}</p>\n                    </div>\n                  </div>\n                  <button\n                    onClick={clearLastDiagnosis}\n                    className="text-indigo-400 hover:text-indigo-600 transition-colors p-1 shrink-0"\n                  >\n                    <Trash2 size={16} />\n                  </button>\n                </div>',
+                  '<div className="mb-6 scroll-mt-48 sm:scroll-mt-40 p-3 sm:p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start gap-2 sm:gap-4 relative">\n                  <div className="flex min-w-0 items-start gap-2 sm:gap-3 flex-1">\n                    <div className="hidden sm:flex w-10 h-10 bg-indigo-500/20 text-indigo-600 rounded-full items-center justify-center shrink-0 mt-0.5">\n                      <Sparkles size={18} />\n                    </div>\n                    <div className="flex-1 min-w-0 pr-7 sm:pr-0">\n                      <h4 className="text-xs sm:text-sm font-black text-indigo-900 leading-snug">Proposition clinique à valider — {lastDiagnosis.wizard}</h4>\n                      <p className="text-[11px] sm:text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>\n                      <p className="text-[10px] text-indigo-600/70 font-mono mt-2">{lastDiagnosis.date}</p>\n                    </div>\n                  </div>\n                  <button\n                    onClick={clearLastDiagnosis}\n                    className="absolute right-2.5 top-2.5 sm:static text-indigo-400 hover:text-indigo-600 transition-colors p-1 shrink-0"\n                  >\n                    <Trash2 size={16} />\n                  </button>\n                </div>'
+              ),
+              (
+                  'className="mt-2 p-8 bg-card-bg border border-primary/30 rounded-[2.5rem] shadow-2xl relative overflow-hidden"',
+                  'className="mt-2 p-4 sm:p-8 bg-card-bg border border-primary/30 rounded-[1.75rem] sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden"'
+              ),
+          ]
+
+          changed = False
+          for old, new in replacements:
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  changed = True
+              elif new not in text:
+                  raise SystemExit(f'Expected ClinicalHub fragment not found: {old[:100]}')
+
+          if changed:
+              path.write_text(text)
+          PY
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -92,3 +130,15 @@ jobs:
           path: artifacts/patient-p0d-routine-after
           if-no-files-found: error
           retention-days: 14
+      - name: Commit certified ClinicalHub mobile patch
+        run: |
+          if git diff --quiet -- frontend/src/features/patients/components/ClinicalHub.tsx; then
+            echo "ClinicalHub already contains certified mobile layout."
+            exit 0
+          fi
+          git add frontend/src/features/patients/components/ClinicalHub.tsx
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(patient): make clinical proposal readable on mobile"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
