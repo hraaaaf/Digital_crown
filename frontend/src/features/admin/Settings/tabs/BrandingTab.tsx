@@ -42,22 +42,22 @@ export const BrandingTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-300 min-w-0">
       
       {/* Top action row */}
-      <div className="flex items-center gap-3 pb-5 border-b border-[var(--border-color)]">
+      <div className="flex flex-wrap items-center gap-3 pb-5 border-b border-[var(--border-color)]">
         <AmbiancePill currentPreset={currentPreset} onClick={() => setPresetsOpen(true)} />
         
-        <div className="flex-1" />
+        <div className="hidden sm:block sm:flex-1" />
         
         {/* Scope Switch */}
-        <div className="flex bg-[var(--bg-medical-pearl)] p-1 rounded-xl border border-[var(--border-color)]">
+        <div className="flex max-w-full bg-[var(--bg-medical-pearl)] p-1 rounded-xl border border-[var(--border-color)]">
           {(['app', 'doc'] as Scope[]).map(s => (
             <button
               key={s}
               onClick={() => handleScopeChange(s)}
               className={cn(
-                "px-4 py-1.5 font-semibold text-[13px] rounded-lg transition-all capitalize",
+                "px-3 sm:px-4 py-1.5 font-semibold text-[13px] rounded-lg transition-all capitalize whitespace-nowrap",
                 scope === s ? "bg-white text-[var(--text-main)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
               )}
             >
@@ -68,16 +68,20 @@ export const BrandingTab: React.FC = () => {
 
         <button 
           onClick={handleReset} 
-          className="px-4 py-2 font-semibold text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-medical-pearl)] hover:text-[var(--text-main)] rounded-lg transition-colors border border-transparent hover:border-[var(--border-color)]"
+          className="px-3 sm:px-4 py-2 font-semibold text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-medical-pearl)] hover:text-[var(--text-main)] rounded-lg transition-colors border border-transparent hover:border-[var(--border-color)] whitespace-nowrap"
         >
           ↺ Réinitialiser
         </button>
       </div>
 
       {/* Studio Layout */}
-      <div className="grid grid-cols-[380px_1fr] gap-6">
-        <StudioControls profile={profile} updateProfile={updateProfile} />
-        <StudioPreview profile={profile} scope={scope} />
+      <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-6 min-w-0">
+        <div className="min-w-0">
+          <StudioControls profile={profile} updateProfile={updateProfile} />
+        </div>
+        <div className="min-w-0">
+          <StudioPreview profile={profile} scope={scope} />
+        </div>
       </div>
 
       <PresetsModal
