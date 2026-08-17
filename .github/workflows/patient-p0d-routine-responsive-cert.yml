@@ -77,21 +77,6 @@ jobs:
               path.write_text(text)
           PY
 
-      - name: Patch capture scroll below sticky header
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('frontend/scripts/capture-patient-p0d-routine-after.mjs')
-          text = path.read_text()
-          old = """  await focus.scrollIntoViewIfNeeded();\n  await page.waitForTimeout(150);"""
-          new = """  await focus.evaluate((el) => {\n    const header = document.querySelector('header');\n    const headerBottom = header ? header.getBoundingClientRect().bottom : 0;\n    const targetTop = el.getBoundingClientRect().top + window.scrollY;\n    window.scrollTo({ top: Math.max(0, targetTop - headerBottom - 24), behavior: 'instant' });\n  });\n  await page.waitForTimeout(150);"""
-          if old in text:
-              path.write_text(text.replace(old, new, 1))
-          elif new not in text:
-              raise SystemExit('Expected capture scroll fragment not found')
-          PY
-
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -135,7 +120,7 @@ jobs:
           node scripts/capture-patient-p0d-routine-after.mjs 2>&1 | tee /tmp/p0d-responsive-runner.log
           test -f ../artifacts/patient-p0d-routine-after/summary.json
           test -f ../artifacts/patient-p0d-routine-after/evidence.json
-          test "$(find ../artifacts/patient-p0d-routine-after -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+          test "$(find ../artifacts/patient-p0d-routine-after -maxdepth 1 -name '*.png' | wc -l)" -eq 12
           cp /tmp/p0d-responsive-runner.log ../artifacts/patient-p0d-routine-after/runner.log
       - name: Upload Routine responsive evidence
         if: always()
