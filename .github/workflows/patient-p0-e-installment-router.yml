@@ -1,0 +1,71 @@
+name: Patient P0 E — Reconcile installment plans with Acte
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-e-installment-router.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Apply Acte reconciliation contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/routers/installments.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 occurrence, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'from sqlalchemy.orm import Session\n',
+              'from sqlalchemy import func\nfrom sqlalchemy.orm import Session\n',
+              'sqlalchemy func import',
+          )
+
+          replace_once(
+          '''    assert_patient_access(plan_req.patient_id, current_user, db)\n    try:\n        db_plan = models.InstallmentPlan(\n            patient_id=plan_req.patient_id,\n            title=plan_req.title,\n            total_amount=plan_req.total_amount,\n        )\n''',
+          '''    assert_patient_access(plan_req.patient_id, current_user, db)\n\n    linked_acte = None\n    if plan_req.acte_id is not None:\n        linked_acte = db.query(models.Acte).filter(models.Acte.id == plan_req.acte_id).first()\n        if linked_acte is None:\n            raise HTTPException(status_code=404, detail="Acte introuvable")\n        if linked_acte.patient_id != plan_req.patient_id:\n            raise HTTPException(status_code=422, detail="L'acte n'appartient pas au patient du plan d'échéances.")\n        if linked_acte.deleted_at is not None:\n            raise HTTPException(status_code=409, detail="Impossible de créer un échéancier sur un acte placé à la corbeille.")\n\n        existing_plan = db.query(models.InstallmentPlan).filter(\n            models.InstallmentPlan.acte_id == linked_acte.id\n        ).first()\n        if existing_plan is not None:\n            raise HTTPException(status_code=409, detail="Un échéancier est déjà lié à cet acte.")\n\n        total_paid = float(db.query(func.sum(models.Payment.amount)).filter(\n            models.Payment.acte_id == linked_acte.id\n        ).scalar() or 0.0)\n        remaining_due = max(round(float(linked_acte.montant) - total_paid, 2), 0.0)\n        if remaining_due <= 0.005:\n            raise HTTPException(status_code=409, detail="Cet acte est déjà entièrement encaissé.")\n        if abs(float(plan_req.total_amount) - remaining_due) >= 0.005:\n            raise HTTPException(\n                status_code=422,\n                detail=f"Le total de l'échéancier doit couvrir exactement le reste dû de l'acte ({remaining_due:.2f} MAD).",\n            )\n\n    try:\n        db_plan = models.InstallmentPlan(\n            patient_id=plan_req.patient_id,\n            acte_id=plan_req.acte_id,\n            title=plan_req.title,\n            total_amount=plan_req.total_amount,\n        )\n''',
+          'create linked plan validation')
+
+          replace_once(
+          '''        db.add(models.Payment(\n            patient_id=plan.patient_id,\n            amount=inst.amount,\n            payment_method=payment_method,\n            payment_date=paid_at,\n            installment_id=inst.id,\n            notes=f"Paiement échéance: {inst.label} ({plan.title})",\n            validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",\n        ))\n''',
+          '''        db.add(models.Payment(\n            patient_id=plan.patient_id,\n            amount=inst.amount,\n            payment_method=payment_method,\n            payment_date=paid_at,\n            acte_id=plan.acte_id,\n            installment_id=inst.id,\n            notes=f"Paiement échéance: {inst.label} ({plan.title})",\n            validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})",\n        ))\n        db.flush()\n\n        if plan.acte_id is not None:\n            linked_acte = db.query(models.Acte).filter(models.Acte.id == plan.acte_id).first()\n            if linked_acte is None or linked_acte.patient_id != plan.patient_id:\n                raise HTTPException(status_code=409, detail="Lien acte/échéancier incohérent.")\n            total_paid = float(db.query(func.sum(models.Payment.amount)).filter(\n                models.Payment.acte_id == linked_acte.id\n            ).scalar() or 0.0)\n            if total_paid >= float(linked_acte.montant) - 0.005:\n                linked_acte.statut_paiement = models.PaiementStatut.PAYE\n                linked_acte.is_collected = True\n            elif total_paid > 0:\n                linked_acte.statut_paiement = models.PaiementStatut.PARTIEL\n                linked_acte.is_collected = False\n''',
+          'installment payment Acte reconciliation')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify patch scope
+        run: |
+          git diff --check
+          test "$(git diff --name-only | grep -v '^.github/workflows/patient-p0-e-installment-router.yml$' | wc -l)" -eq 1
+          grep -q 'models.InstallmentPlan.acte_id == linked_acte.id' backend/routers/installments.py
+          grep -q 'acte_id=plan.acte_id' backend/routers/installments.py
+          grep -q 'Le total de l.*échéancier doit couvrir exactement le reste dû' backend/routers/installments.py
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-e-installment-router.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/routers/installments.py .github/workflows/patient-p0-e-installment-router.yml
+          git commit -m "fix(patient): reconcile installment plans with billed Acte"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
