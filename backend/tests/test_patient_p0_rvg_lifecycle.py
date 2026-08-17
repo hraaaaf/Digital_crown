@@ -40,8 +40,20 @@ def _headers(client, user, password="TestPass123!"):
 
 
 def test_rvg_full_lifecycle_is_authenticated_recoverable_and_tenant_isolated(
-    client, db, dentiste, auth_headers
+    client, db, dentiste, auth_headers, tmp_path, monkeypatch
 ):
+    # The DB fixture is isolated but the application media root is process-global.
+    # Isolate the physical archive too so this test proves the real upload/download
+    # lifecycle without depending on a developer/runner home directory.
+    from backend.services import archive_service as archive_module
+    from backend.routers import documents as documents_router
+
+    media_root = tmp_path / "media"
+    monkeypatch.setattr(archive_module, "MEDIA_DIR", media_root)
+    monkeypatch.setattr(archive_module, "ARCHIVE_BASE_DIR", media_root / "archives")
+    monkeypatch.setattr(archive_module, "LEGACY_DOCS_DIR", media_root / "documents")
+    monkeypatch.setattr(documents_router, "MEDIA_DIR", media_root)
+
     client.cookies.clear()
     patient_a = _patient(db, dentiste, "A")
     other = make_user(db, email="rvg-other@cabinet.ma")
@@ -61,6 +73,11 @@ def test_rvg_full_lifecycle_is_authenticated_recoverable_and_tenant_isolated(
     )
     assert upload.status_code == 200, upload.text
     document_id = upload.json()["id"]
+
+    archived = db.query(models.DocumentArchive).filter(models.DocumentArchive.id == document_id).one()
+    stored_file = media_root / archived.file_path.replace("static/", "", 1)
+    assert stored_file.exists(), archived.file_path
+    assert stored_file.read_bytes() == PNG_1X1
 
     listed = client.get(
         f"/api/documents/patients/{patient_a.id}/rvg",
