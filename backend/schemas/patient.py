@@ -20,12 +20,26 @@ class PraticienProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 class DossierOut(BaseModel):
     id: int
     is_ortho_active: bool
     note_honnetete: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+def _normalize_explicit_sexe(value: str) -> str:
+    """Normalize only explicit, unambiguous sex values.
+
+    Patient identity data must never be inferred from an empty or unknown value.
+    """
+    normalized = str(value).strip().upper()
+    male_values = {"M", "HOMME", "MASCULIN", "GARCON", "GARÇON"}
+    female_values = {"F", "FEMME", "FEMININ", "FÉMININ", "FILLE"}
+    if normalized in male_values:
+        return "M"
+    if normalized in female_values:
+        return "F"
+    raise ValueError("Sexe invalide : valeur explicite M ou F requise")
 
 
 class PatientBase(BaseModel):
@@ -49,18 +63,14 @@ class PatientBase(BaseModel):
     motif_consultation: Optional[str] = None
     employer_id: Optional[int] = None
 
-    @field_validator('sexe', mode='before')
+    @field_validator("sexe", mode="before")
     @classmethod
-    def normalize_sexe(cls, v):
-        if not v: return "M"
-        v_upper = str(v).upper()
-        if "HOMME" in v_upper or "MASC" in v_upper or v_upper.startswith("M"):
-            return "M"
-        if "FEMME" in v_upper or "GARC" in v_upper or v_upper.startswith("F"):
-            return "M" if "GARC" in v_upper else "F"
-        return "F" if "F" in v_upper else "M"
+    def normalize_sexe(cls, value):
+        if value is None or not str(value).strip():
+            raise ValueError("Sexe requis : valeur explicite M ou F attendue")
+        return _normalize_explicit_sexe(value)
 
-    @field_validator('date_naissance', mode='before')
+    @field_validator("date_naissance", mode="before")
     @classmethod
     def parse_date_naissance(cls, v):
         if isinstance(v, datetime.datetime):
@@ -69,7 +79,7 @@ class PatientBase(BaseModel):
             return datetime.datetime.combine(v, datetime.time.min)
         if isinstance(v, str):
             try:
-                return datetime.datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return datetime.datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
                 try:
                     d = datetime.date.fromisoformat(v)
@@ -78,7 +88,7 @@ class PatientBase(BaseModel):
                     raise ValueError("Format de date invalide (ISO attendu)")
         return v
 
-    @field_validator('email', mode='before')
+    @field_validator("email", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
         if v == "" or v is None:
@@ -107,6 +117,15 @@ class PatientUpdate(BaseModel):
     motif_consultation: Optional[str] = None
     is_ortho_active: Optional[bool] = None
 
+    @field_validator("sexe", mode="before")
+    @classmethod
+    def normalize_optional_sexe(cls, value):
+        if value is None:
+            return None
+        if not str(value).strip():
+            raise ValueError("Sexe invalide : valeur explicite M ou F attendue")
+        return _normalize_explicit_sexe(value)
+
 
 class PatientCreate(PatientBase):
     is_ortho_active: Optional[bool] = False
@@ -120,6 +139,7 @@ class PatientOut(PatientBase):
     employer_id: int
     model_config = ConfigDict(from_attributes=True)
 
+
 class TreatmentPlanStepBase(BaseModel):
     title: str
     assistant: str
@@ -127,13 +147,16 @@ class TreatmentPlanStepBase(BaseModel):
     date_str: str = "Aujourd'hui"
     order_index: int = 0
 
+
 class TreatmentPlanStepCreate(TreatmentPlanStepBase):
     pass
+
 
 class TreatmentPlanStepOut(TreatmentPlanStepBase):
     id: int
     plan_id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class TreatmentMasterPlanOut(BaseModel):
     id: int
