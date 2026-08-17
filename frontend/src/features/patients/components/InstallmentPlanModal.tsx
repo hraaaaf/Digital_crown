@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CalendarDays } from 'lucide-react';
 import axios from 'axios';
@@ -104,10 +105,10 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
     }
   };
 
-  return (
+  const modal = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
@@ -120,9 +121,8 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col my-auto"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden max-h-[calc(100dvh-2rem)] flex flex-col my-auto"
           >
-            {/* Header */}
             <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50 shrink-0">
               <div className="min-w-0 pr-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Plan d'échéances</p>
@@ -143,7 +143,6 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="p-5 sm:p-6 space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                {/* Titre du plan */}
                 <div>
                   <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Titre du plan</label>
                   <input
@@ -155,7 +154,6 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                   />
                 </div>
 
-                {/* Versements */}
                 <div>
                   <div className="flex items-center justify-between mb-3 gap-3">
                     <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Versements</label>
@@ -219,7 +217,6 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                   </div>
                 </div>
 
-                {/* Récapitulatif */}
                 <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
                   <div className="flex justify-between gap-4 text-xs font-bold text-slate-600">
                     <span>Total des versements</span>
@@ -236,7 +233,6 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="p-5 sm:p-6 border-t border-slate-100 shrink-0 bg-white">
                 <button
                   type="submit"
@@ -253,4 +249,6 @@ export const InstallmentPlanModal = ({ acte, patientId, isOpen, onClose, onCreat
       )}
     </AnimatePresence>
   );
+
+  return typeof document === 'undefined' ? null : createPortal(modal, document.body);
 };
