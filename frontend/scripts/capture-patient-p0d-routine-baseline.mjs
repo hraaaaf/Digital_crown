@@ -65,7 +65,7 @@ for (const viewport of viewports) {
 
   await openClinical(page);
   await page.getByRole('button', { name: /Examen Clinique Complet/i }).click();
-  await page.getByRole('button', { name: /Consultation de routine/i }).click();
+  await page.getByRole('button', { name: /Contrôle de routine \/ Bilan/i }).click();
 
   await page.getByText('Antécédents médicaux', { exact: true }).waitFor();
   await page.getByRole('button', { name: /Cardiopathie \/ Prothèse valvulaire/i }).click();
