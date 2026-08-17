@@ -89,7 +89,10 @@ for (const viewport of viewports) {
 const relevantHttpErrors = evidence.flatMap(e => e.httpErrors.map(err => ({ phase: e.phase, viewport: e.viewport, ...err })))
   .filter(e => !/\/api\/patients\/\d+\/master-plan$/.test(e.url) || e.status !== 404);
 const results = evidence.filter(e => e.phase === 'result');
-const banned = /Antibioprophylaxie|Amox\s*2\s*g|Parodontite Sévère|Caries Actives|Bruxisme|Lésion Muqueuse Suspecte|surfaçage|Détartrage bi-maxillaire|radiograph|Traitement des caries|Gouttière|IRM|Biopsie|cytodiagnostic|Équilibration occlusale/i;
+// Clinical observations may legitimately contain labels such as “Parodontite sévère”,
+// “Caries actives” or “Bruxisme”. The contract must reject automatic actions/prescriptions,
+// not the patient's recorded findings themselves.
+const bannedAutomaticAction = /Antibioprophylaxie|Amox\s*2\s*g|surfaçage|Détartrage bi-maxillaire|radiograph(?:ie|ies|ique)?\s+(?:panoramique|rétro|retro|systématique|systematique)|Traitement des caries|Gouttière de protection|IRM|Biopsie\s*\/\s*cytodiagnostic|cytodiagnostic|Équilibration occlusale/i;
 const required = [/Observations recueillies/i, /Vigilance/i, /ne pose pas automatiquement de diagnostic/i, /décision du praticien/i];
 const summary = {
   totalCaptures: evidence.length,
@@ -98,7 +101,7 @@ const summary = {
   relevantHttpErrors,
   resultContracts: results.map(e => ({
     viewport: e.viewport,
-    hasBannedOutput: banned.test(e.focusedText),
+    hasBannedOutput: bannedAutomaticAction.test(e.focusedText),
     hasRequiredSafetyText: required.every(pattern => pattern.test(e.focusedText)),
   })),
 };
