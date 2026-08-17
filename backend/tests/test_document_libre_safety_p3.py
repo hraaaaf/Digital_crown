@@ -55,9 +55,9 @@ def test_unknown_page_size_is_rejected(page_size):
         _normalize_and_validate_libre_data(_libre(page_size=page_size))
 
 
-def test_blank_page_size_normalizes_to_safe_a5_default():
-    normalized = _normalize_and_validate_libre_data(_libre(page_size=""))
-    assert normalized.page_size == "A5"
+def test_blank_page_size_falls_back_to_a5():
+    data = _normalize_and_validate_libre_data(_libre(page_size=""))
+    assert data.page_size == "A5"
 
 
 @pytest.mark.parametrize("alignment", ["middle", "auto", "diagonal"])
