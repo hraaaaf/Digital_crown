@@ -32,7 +32,7 @@ interface SettingsState {
   uploadLetterhead: (file: File, options?: { stripBody?: boolean; headerPct?: number; footerPct?: number }) => Promise<void>;
   deleteLetterhead: () => Promise<void>;
   deleteLogo: () => Promise<void>;
-  applyTheme: () => void;
+  applyTheme: (options?: { persist?: boolean }) => void;
   activeCabinetId: string;
   cabinets: Array<{ id: string; nom: string; specialty: string; primary_color: string; accent_color: string; theme: string; caisse: number }>;
   switchCabinet: (id: string) => void;
@@ -89,6 +89,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   fetchProfile: async () => {
     set({ loading: true });
+    let profileLoaded = false;
     try {
       const res = await api.get('/clinics/me');
       if (res.data) {
@@ -165,6 +166,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
         set({ profile });
         syncRuntimePreferences(profile);
+        profileLoaded = true;
 
         if (res.data.contacts_json && Object.keys(res.data.contacts_json).length > 0) {
           set({ contacts: res.data.contacts_json as ContactsJson });
@@ -179,17 +181,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       console.warn('Error fetching profile, using fallback', err);
     } finally {
       set({ loading: false, isDirty: false });
-      get().applyTheme();
+      get().applyTheme({ persist: profileLoaded });
     }
   },
 
-  applyTheme: () => {
+  applyTheme: (options = { persist: true }) => {
     const { profile } = get();
     const finalTheme = profile.selected_theme || 'elite';
 
     document.body.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
     document.documentElement.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
-    localStorage.setItem('digitalcrown_theme', finalTheme);
+    if (options.persist !== false) {
+      localStorage.setItem('digitalcrown_theme', finalTheme);
+    }
 
     if (profile.primary_color) {
       document.documentElement.style.setProperty('--primary', profile.primary_color);
@@ -249,7 +253,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       return { profile, isDirty: true };
     });
     if (updates.selected_theme || updates.primary_color || updates.accent_color) {
-      get().applyTheme();
+      get().applyTheme({ persist: false });
     }
   },
 
@@ -296,6 +300,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
 
       await api.put('/clinics/me', payload);
+      get().applyTheme({ persist: true });
 
       if (safeStorage.get('appMode') === 'demo') {
         sessionStorage.setItem('demoConfig', JSON.stringify({

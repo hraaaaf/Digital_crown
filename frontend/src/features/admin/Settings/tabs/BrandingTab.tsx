@@ -38,7 +38,7 @@ export const BrandingTab: React.FC = () => {
   const handleApplyPreset = (preset: any) => {
     updateProfile(presetToProfilePatch(preset));
     setPresetsOpen(false);
-    toast.success("Ambiance appliquée");
+    toast.success("Aperçu appliqué — sauvegardez pour confirmer");
   };
 
   return (
