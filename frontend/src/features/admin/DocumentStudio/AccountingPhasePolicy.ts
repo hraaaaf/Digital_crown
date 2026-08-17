@@ -17,6 +17,11 @@ const PHASE_LABELS: Record<AccountingPhase, string> = {
   AUTRES: 'Autres actes',
 };
 
+export function isAccountingPhaseSeparator(description: string): boolean {
+  const value = (description || '').trim();
+  return /^---\s+.+\s+---$/.test(value);
+}
+
 export function classifyAccountingPhase(description: string): AccountingPhase {
   const value = description.toLowerCase();
   if (/détartrage|detartrage|composite|carie|surfaçage|surfacage|endo|pulpectomie|traitement|obturation/.test(value)) {
@@ -32,7 +37,7 @@ export function classifyAccountingPhase(description: string): AccountingPhase {
 }
 
 export function groupAccountingItemsByPhase<T extends AccountingPhaseItem>(items: T[]): AccountingPhaseGroup<T>[] {
-  const cleanItems = items.filter(item => !item.description.startsWith('--- '));
+  const cleanItems = items.filter(item => !isAccountingPhaseSeparator(item.description));
   const buckets: Record<AccountingPhase, T[]> = {
     ASSAINISSEMENT: [],
     CHIRURGIE: [],

@@ -55,6 +55,32 @@ api.interceptors.request.use((config) => {
   if (_authFailed) {
     return Promise.reject(new axios.Cancel('Session expirée — requête annulée.'));
   }
+
+  // Les PDFs fraîchement générés par Document Studio sont déjà exposés sous
+  // forme d'URL blob: locale. Axios/XHR ne les traite pas de façon fiable dans
+  // tous les navigateurs headless ; un adapter fetch natif garde le même contrat
+  // responseType:'blob' sans repasser par le backend ni ouvrir un onglet fallback.
+  if (typeof config.url === 'string' && config.url.startsWith('blob:')) {
+    config.baseURL = undefined;
+    config.adapter = async (adapterConfig) => {
+      const response = await fetch(adapterConfig.url!);
+      if (!response.ok) {
+        throw new Error(`Impossible de lire le PDF local (${response.status})`);
+      }
+      const data = adapterConfig.responseType === 'blob'
+        ? await response.blob()
+        : await response.arrayBuffer();
+      return {
+        data,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        config: adapterConfig,
+        request: null,
+      };
+    };
+  }
+
   try {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;

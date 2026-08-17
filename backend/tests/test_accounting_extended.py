@@ -159,7 +159,9 @@ class TestInstallmentsGeneratePreview:
                 "patient_id": 999999,
                 "title": "Plan de paiement",
                 "total_amount": 3000.0,
-                "items": [],
+                "items": [
+                    {"label": "Acompte 1", "amount": 3000.0, "due_date": "2026-07-01", "paid": False},
+                ],
             },
             headers=auth_headers,
         )

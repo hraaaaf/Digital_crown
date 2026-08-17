@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { PARTIAL_PAYMENT_DISABLED_REASON } from '../DocumentStudio/AccountingPaymentPolicy';
 
-export type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
+export type PaymentMode = '' | 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 
 export interface PriceItem {
   id: number;
@@ -11,9 +11,13 @@ export interface PriceItem {
   toothNumbers?: number[];
   _odontogramKey?: string;
   category?: string;
+  odontogramSurfaces?: string[];
+  odontogramNotes?: string;
+  odontogramTreatmentCode?: string;
 }
 
 export interface InstallmentItem {
+  [key: string]: unknown;
   id: number;
   date: string;
   amount: number;
@@ -61,7 +65,7 @@ interface AccountingState {
 
 const initialState = {
   items: [],
-  paymentMode: 'Espèces' as PaymentMode,
+  paymentMode: '' as PaymentMode,
   installments: [],
   isAccounted: true,
   paymentStatus: 'EN_ATTENTE',

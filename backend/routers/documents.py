@@ -20,6 +20,11 @@ from backend.services.generators.report_gen import ReportGenerator
 from backend.services.clinical_coherence import coherence_service
 from backend.utils.accounting_utils import extract_amount_from_clinical_data
 from backend.services.audit_service import audit_service
+from backend.services.devis_document_lifecycle import (
+    should_archive_financial_document,
+    should_learn_financial_document,
+    should_offer_financial_rdv_suggestion,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents & Accounting"])
@@ -145,7 +150,11 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
         pdf_path = await asyncio.to_thread(_generate_pdf_in_thread)
         
         is_financial = req.type in ["honoraires", "note", "devis"]
-        should_archive = (archive or is_financial) and not preview and not isinstance(pdf_path, dict)
+        should_archive = (
+            should_archive_financial_document(req.type, archive, preview)
+            if is_financial
+            else archive and not preview
+        ) and not isinstance(pdf_path, dict)
 
         if should_archive:
             with open(pdf_path, "rb") as f: pdf_content = f.read()
@@ -251,8 +260,8 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
             elif "static/" in pdf_url:
                 pdf_url = pdf_url[pdf_url.find("static/"):]
         
-        # Apprentissage des habitudes d'actes (Phase 5)
-        if is_financial and not preview:
+        # Apprentissage des habitudes d'actes uniquement après archivage réel.
+        if should_learn_financial_document(req.type, bool(should_archive), preview):
             from backend.services.accounting_service import accounting_service
             if req.type == "devis":
                 for item in req.data.get('items', []):
@@ -261,33 +270,17 @@ async def generate_document(req: schemas.DocumentRequest, archive: bool = False,
                 for p in req.data.get('payments', []):
                     accounting_service.record_act_usage(db, user_id, p.get('acte'), float(p.get('montant', 0)))
 
-        # D2: Suggestion RDV après acte ortho
+        # Un document financier n'est pas une preuve de soin réalisé et ne doit
+        # pas inventer un délai de suivi clinique générique.
         rdv_suggestion = None
-        if is_financial and not preview:
-            items = req.data.get('items', req.data.get('payments', []))
-            for item in items:
-                act_name = (item.get('acte') or item.get('description') or '').lower()
-                if any(k in act_name for k in ['ortho', 'semestr', 'contention', 'bagues', 'appareil ortho']):
-                    from datetime import timedelta as _td
-                    rdv_suggestion = {
-                        "message": "Planifier le prochain RDV dans 4 semaines",
-                        "suggested_date": (datetime.now() + _td(weeks=4)).strftime('%Y-%m-%d'),
-                    }
-                    break
+        if should_offer_financial_rdv_suggestion(req.type):
+            rdv_suggestion = None
 
-        # D3: Suggestion ordonnance radio post-prothèse
+        # Financial documents are not a clinical indication for radiography.
         suggest_radio = False
-        _PROTHESE_KEYWORDS = ['couronne', 'prothèse', 'prothese', 'bridge', 'implant', 'facette', 'inlay', 'onlay']
-        if req.type in ["honoraires", "note"] and not preview:
-            items = req.data.get('payments', req.data.get('items', []))
-            for item in items:
-                act_name = (item.get('acte') or item.get('description') or '').lower()
-                if any(k in act_name for k in _PROTHESE_KEYWORDS):
-                    suggest_radio = True
-                    break
 
         if not preview:
-            audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {archive}")
+            audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="GENERATE", resource_type="Document", resource_id=str(req.patient_id), details=f"Type: {req.type}, Preview: {preview}, Archive: {should_archive}")
         return {"status": "success", "pdf_url": pdf_url, "warnings": warnings, "rdv_suggestion": rdv_suggestion, "suggest_radio": suggest_radio}
     except ValueError as e:
         msg = str(e)
@@ -711,8 +704,7 @@ async def upload_rvg(
         action="RVG_UPLOAD",
         resource_type="RADIOGRAPHIE",
         resource_id=str(patient_id),
-        severity="INFO",
-        details=f"RVG téléchargée pour le patient {patient_id} : {file.filename}",
+        severity="INFO", details=f"RVG téléchargée pour le patient {patient_id} : {file.filename}",
     )
 
     db.commit()

@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from typing import List
 from datetime import datetime
 import os
+from typing import List
 
-from backend import models, database
-from backend.schemas import installments as schemas
-from backend.routers.auth import require_permission
-from backend.utils.access_control import assert_patient_access
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from backend import database, models
 from backend.core.paths import AppPaths
+from backend.routers.auth import require_permission
+from backend.schemas import installments as schemas
+from backend.utils.access_control import assert_patient_access
 
 MEDIA_DIR = AppPaths.get_user_data_dir() / "media"
 DOCS_DIR = str(MEDIA_DIR / "documents")
@@ -24,8 +24,32 @@ def get_installment_plans(
     current_user: models.User = Depends(require_permission("accounting")),
 ):
     assert_patient_access(patient_id, current_user, db)
-    plans = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.patient_id == patient_id).all()
-    return plans
+    # Deterministic lifecycle: callers that need the latest plan can safely use
+    # the last returned row instead of depending on database incidental order.
+    return (
+        db.query(models.InstallmentPlan)
+        .filter(models.InstallmentPlan.patient_id == patient_id)
+        .order_by(models.InstallmentPlan.created_at.asc(), models.InstallmentPlan.id.asc())
+        .all()
+    )
+
+
+@router.get("/patient/{patient_id}/latest", response_model=schemas.InstallmentPlanResponse)
+def get_latest_installment_plan(
+    patient_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("accounting")),
+):
+    assert_patient_access(patient_id, current_user, db)
+    plan = (
+        db.query(models.InstallmentPlan)
+        .filter(models.InstallmentPlan.patient_id == patient_id)
+        .order_by(models.InstallmentPlan.created_at.desc(), models.InstallmentPlan.id.desc())
+        .first()
+    )
+    if not plan:
+        raise HTTPException(status_code=404, detail="Aucun plan de paiement")
+    return plan
 
 
 @router.post("/", response_model=schemas.InstallmentPlanResponse)
@@ -100,8 +124,6 @@ def update_installment(
             detail="Le mode de règlement est requis pour marquer une échéance comme payée.",
         )
 
-    # Appliquer d'abord les données modifiables : si montant + PAYE arrivent dans
-    # la même requête, le Payment doit refléter le nouveau montant explicite.
     if req.amount is not None:
         inst.amount = req.amount
     if req.due_date is not None:
@@ -184,6 +206,18 @@ def delete_installment_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Plan introuvable")
     assert_patient_access(plan.patient_id, current_user, db)
+
+    paid_installment = (
+        db.query(models.Installment)
+        .filter(models.Installment.plan_id == plan_id, models.Installment.status == "PAYE")
+        .first()
+    )
+    if paid_installment:
+        raise HTTPException(
+            status_code=409,
+            detail="Un plan contenant une échéance encaissée ne peut pas être supprimé sans contrepassation comptable.",
+        )
+
     db.delete(plan)
     db.commit()
     return None

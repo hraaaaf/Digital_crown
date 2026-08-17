@@ -3,19 +3,16 @@ import toast from 'react-hot-toast';
 import { api, API_BASE } from '../../../services/api';
 import type { DrugItem } from './Forms/PrescriptionAgenticStudio';
 import type { SelectedSurfaceData } from '../../../components/odontogram/types';
-import { useAccountingStore } from '../store/useAccountingStore';
+import { useAccountingStore, type PriceItem } from '../store/useAccountingStore';
 import { buildCertificatePayload, certificateRequiresDuration, validateCertificateReason } from './CertificatePolicy';
 import { setLibreDirty } from './LibreDirtyState';
-
-interface PriceItem {
-  id: number;
-  description: string;
-  dent: string;
-  price: number;
-  toothNumbers?: number[];
-  _odontogramKey?: string;
-  category?: string;
-}
+import {
+  buildTeethDataFromAccountingItems,
+  canonicalDentLabel,
+  canonicalToothNumbers,
+} from './AccountingOdontogramSourcePolicy';
+import { isAccountingPhaseSeparator } from './AccountingPhasePolicy';
+import { accountingDocumentTotal } from './AccountingTotalPolicy';
 
 interface PatientDetails {
   id: number;
@@ -25,7 +22,7 @@ interface PatientDetails {
   genre?: string;
 }
 
-type PaymentMode = 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
+type PaymentMode = '' | 'Espèces' | 'Chèque' | 'TPE' | 'Virement';
 import type { HubDocumentType } from '../DocumentHub';
 
 interface UseDocumentGeneratorParams {
@@ -54,7 +51,6 @@ interface UseDocumentGeneratorParams {
   echeancierPayload?: { patient_id: number; title: string; total_amount: number; items: Array<{ label: string; amount: number; due_date: string; paid: boolean }> } | null;
   paymentStatus?: string;
   isGlobalNote?: boolean;
-  onSuggestRadio?: () => void;
   showLegalAnnotations?: boolean;
 }
 
@@ -105,10 +101,11 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
   }
 
   if (activeTab === 'devis' || activeTab === 'honoraires') {
-    if (items.length === 0) {
+    const realItems = items.filter(item => !isAccountingPhaseSeparator(item.description));
+    if (realItems.length === 0) {
       errors.push({ field: 'items', message: 'Le document ne contient aucun acte. Ajoutez au moins un acte.' });
     }
-    items.forEach((item, i) => {
+    realItems.forEach((item, i) => {
       if (!item.description.trim()) {
         errors.push({ field: `item_${i}`, message: `Acte #${i + 1} : la description est vide.` });
       }
@@ -120,8 +117,8 @@ function validatePayload(params: UseDocumentGeneratorParams): ValidationError[] 
         errors.push({ field: `item_price_${i}`, message: `Acte "${item.description}" : montant (${price} MAD) dépasse la limite autorisée.` });
       }
     });
-    if (activeTab === 'honoraires' && !params.paymentMode) {
-      errors.push({ field: 'paymentMode', message: 'Le mode de règlement est requis pour une Note d\'Honoraires.' });
+    if (activeTab === 'honoraires' && params.paymentStatus === 'PAYE' && !params.paymentMode) {
+      errors.push({ field: 'paymentMode', message: 'Le mode de règlement est requis pour enregistrer une Note d\'Honoraires réglée.' });
     }
   }
 
@@ -145,7 +142,7 @@ export function shouldSkipInvalidLibrePreview(params: UseDocumentGeneratorParams
   return params.activeTab === 'libre' && validatePayload(params).length > 0;
 }
 
-// --- Analyse de cohérence IA (Phase 4) ---
+// --- Analyse de cohérence déterministe (Phase 4) ---
 export interface CoherenceWarning {
   level: 'info' | 'warning' | 'critical';
   message: string;
@@ -156,9 +153,9 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
   const { activeTab, drugs, items } = params;
 
   if (activeTab === 'ordonnance') {
-    const namedDrugs = drugs.filter(d => 
-      d.name.trim() && 
-      d.type !== 'EXAMEN' && 
+    const namedDrugs = drugs.filter(d =>
+      d.name.trim() &&
+      d.type !== 'EXAMEN' &&
       !/radio|bilan|scanner|irm|panoramique|telecrane|télécrane/i.test(d.name)
     );
     const hasMissingDosage = namedDrugs.some(d => !d.dosage.trim());
@@ -174,15 +171,15 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
 
     const ains = namedDrugs.filter(d => /ibuprofène|ibuprofene|antadys|nurofen|ketoprofène|biprofenid|diclofenac|voltarène/i.test(d.name));
     const corticos = namedDrugs.filter(d => /solupred|prednisolone|cortancyl|celestene/i.test(d.name));
-    
+
     if (ains.length > 0 && corticos.length > 0) {
       warnings.push({ level: 'warning', message: `Association AINS et Corticoïdes détectée (${ains[0].name} + ${corticos[0].name}). Risque ulcérogène accru.` });
     }
-    
+
     if (ains.length > 1) {
       warnings.push({ level: 'critical', message: `Redondance d'AINS détectée. Évitez de prescrire deux AINS simultanément.` });
     }
-    
+
     const paracetamol = namedDrugs.filter(d => /doliprane|paracetamol|efferalgan/i.test(d.name));
     if (paracetamol.length > 1) {
       warnings.push({ level: 'warning', message: `Surdosage potentiel de Paracétamol détecté. Vérifiez la dose journalière maximale (3g à 4g/jour).` });
@@ -190,11 +187,12 @@ function analyzeCoherence(params: UseDocumentGeneratorParams): CoherenceWarning[
   }
 
   if (activeTab === 'devis' || activeTab === 'honoraires') {
-    const zeroItems = items.filter(i => Number(i.price) === 0 && i.description.trim());
+    const realItems = items.filter(item => !isAccountingPhaseSeparator(item.description));
+    const zeroItems = realItems.filter(i => Number(i.price) === 0 && i.description.trim());
     if (zeroItems.length > 0) {
       warnings.push({ level: 'info', message: `${zeroItems.length} acte(s) avec montant à 0 MAD : ${zeroItems.map(i => i.description).join(', ')}.` });
     }
-    const total = items.reduce((s, i) => s + Number(i.price), 0);
+    const total = accountingDocumentTotal(realItems);
     if (total > 50000) {
       warnings.push({ level: 'warning', message: `Total élevé (${total.toLocaleString('fr-MA')} MAD). Confirmez le montant avant archivage.` });
     }
@@ -207,8 +205,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [aiReport, setAiReport] = useState<string | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
   const [showPrintWarning, setShowPrintWarning] = useState(false);
   const [pendingPrint, setPendingPrint] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -230,22 +226,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   // Impression automatique après génération PDF
   useEffect(() => {
     if (!pendingPrint || !pdfUrl) return;
-    
+
     const printTimer = setTimeout(async () => {
       try {
-        // Nettoyage de l'URL pour le fetch (retrait du fragment #view=...)
         const fetchUrl = pdfUrl.split('#')[0];
-        
-        console.log("🖨️ Tentative d'impression directe :", fetchUrl);
-        
-        // Extract the path from fetchUrl since api.get will prepend the base URL
         const basePath = fetchUrl.replace(`${API_BASE}/api`, '');
-        
         const response = await api.get(basePath, { responseType: 'blob' });
         const blob = response.data;
         const localBlobUrl = URL.createObjectURL(blob);
-        
-        // Création d'un iframe caché pour l'impression
         const printFrame = document.createElement('iframe');
         printFrame.style.position = 'fixed';
         printFrame.style.right = '0';
@@ -254,9 +242,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         printFrame.style.height = '0';
         printFrame.style.border = 'none';
         printFrame.src = localBlobUrl;
-        
         document.body.appendChild(printFrame);
-        
+
         printFrame.onload = () => {
           try {
             if (printFrame.contentWindow) {
@@ -265,11 +252,9 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
             }
           } catch (e) {
             console.error("Erreur print iframe:", e);
-            // Fallback : ouverture dans un nouvel onglet si l'iframe échoue
             window.open(pdfUrl, '_blank');
           } finally {
             setPendingPrint(false);
-            // Nettoyage après un délai raisonnable
             setTimeout(() => {
               if (document.body.contains(printFrame)) {
                 document.body.removeChild(printFrame);
@@ -284,8 +269,8 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         window.open(pdfUrl, '_blank');
         toast('Impression lancée dans un nouvel onglet.', { icon: '🖨️' });
       }
-    }, 500); // Délai réduit pour plus de réactivité
-    
+    }, 500);
+
     return () => clearTimeout(printTimer);
   }, [pdfUrl, pendingPrint, activeTab]);
 
@@ -293,7 +278,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     const {
       patientId, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif, items, paymentMode,
       libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader,
-      librePageSize, libreAlignment, docDate, patientDetails, selectedTeethFromOdontogram,
+      librePageSize, libreAlignment, docDate, patientDetails,
       installments, isAccounted, paymentStatus, isGlobalNote,
     } = params;
 
@@ -343,21 +328,23 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       }
     } else {
       const commonItems = items
-        .filter(i => i.description.trim() !== '')
+        .filter(i => i.description.trim() !== '' && !isAccountingPhaseSeparator(i.description))
         .map(i => ({
-          acte: i.description, dent: i.dent || '0', dents: i.toothNumbers || [],
+          acte: i.description,
+          dent: canonicalDentLabel(i) || '0',
+          dents: canonicalToothNumbers(i),
           prix_unitaire: parseFloat(i.price.toString()),
           montant: parseFloat(i.price.toString()),
-          date: docDate, mode_reglement: paymentMode,
+          date: docDate,
+          ...(activeTab === 'honoraires' && paymentStatus === 'PAYE'
+            ? { mode_reglement: paymentMode }
+            : {}),
         }));
-      const robustTeethData = selectedTeethFromOdontogram.map(t => ({
-        tooth_number: t.toothNumber,
-        treatments: t.treatments.map(tr => ({ code: tr.code || 'ACT', name: tr.name, price: tr.price || 0 })),
-        surfaces: t.surface ? [t.surface as string] : [],
-        notes: '',
-      }));
+      const robustTeethData = buildTeethDataFromAccountingItems(
+        items.filter(i => !isAccountingPhaseSeparator(i.description))
+      );
       payload.data = activeTab === 'devis'
-        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote }
+        ? { items: commonItems, doc_date: docDate, teeth_data: robustTeethData }
         : { payments: commonItems, doc_date: docDate, teeth_data: robustTeethData, installments, is_global_note: isGlobalNote };
     }
 
@@ -367,7 +354,7 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     params.certifStartDate, params.certifCustomMotif, params.items, params.paymentMode, params.libreTitle,
     params.libreContent, params.libreCustomPatient, params.libreCustomDate,
     params.libreHideHeader, params.librePageSize, params.libreAlignment, params.docDate,
-    params.patientDetails, params.selectedTeethFromOdontogram, params.installments,
+    params.patientDetails, params.installments,
     params.isAccounted, params.paymentStatus, params.isGlobalNote, params.showLegalAnnotations,
   ]);
 
@@ -421,8 +408,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       return;
     }
 
-    // Un certificat ou document libre incomplet ne déclenche pas de requête d'auto-preview ni de toast d'erreur.
-    // La validation finale reste strictement inchangée ci-dessous.
     if (
       isPreview &&
       (shouldSkipInvalidCertificatePreview(params) || shouldSkipInvalidLibrePreview(params))
@@ -432,7 +417,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
       return;
     }
 
-    // Validation Phase 3 (skip sur preview auto)
     if (!isPreview) {
       const errors = validatePayload(params);
       setValidationErrors(errors);
@@ -441,7 +425,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         return;
       }
 
-      // Cohérence Phase 4
       const warnings = analyzeCoherence(params);
       setCoherenceWarnings(warnings);
       const criticals = warnings.filter(w => w.level === 'critical');
@@ -455,14 +438,12 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     }
 
     setLoading(true);
-    if (print) setPendingPrint(true);
 
     try {
       const payload = buildPayload();
       const res = await api.post(`/documents/generate?archive=${archive}&preview=${isPreview}&force=${force}`, payload);
       if (res.data.pdf_url) {
         const cleanPdfPath = res.data.pdf_url.startsWith('/') ? res.data.pdf_url.substring(1) : res.data.pdf_url;
-        // Fetch as blob so the iframe gets the PDF without auth headers issue
         let finalUrl = '';
         try {
           const pdfBlob = await api.get(`/${cleanPdfPath}`, { responseType: 'blob' });
@@ -476,7 +457,11 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           setPdfUrl(finalUrl);
         }
 
-        // Mise à jour des alertes de cohérence depuis le backend (Triple-Check Validation)
+        // N'armer l'impression qu'après réception du nouveau PDF.
+        if (print) {
+          setPendingPrint(true);
+        }
+
         if (res.data.warnings && res.data.warnings.length > 0) {
           console.log("🩺 [Clinical Intelligence] Alertes de cohérence détectées:", res.data.warnings);
           setCoherenceWarnings(res.data.warnings);
@@ -484,12 +469,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           setCoherenceWarnings([]);
         }
 
-        // Si ce n'est pas une preview et pas une impression directe, on ouvre le PDF
         if (!isPreview && !print) {
           window.open(finalUrl, '_blank');
         }
 
-        // --- Apprentissage automatique des habitudes (Phase 2) ---
         if (activeTab === 'ordonnance' && !isPreview && archive) {
           try {
             for (const drug of drugs) {
@@ -506,24 +489,10 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
           }
         }
 
-        // --- Apprentissage automatique des Actes (Phase 2) ---
+        // Les actes financiers sont appris côté backend après génération/archivage réussi.
         if ((activeTab === 'devis' || activeTab === 'honoraires') && !isPreview && archive) {
-          try {
-            useAccountingStore.getState().setGroupSelectedTeeth([]);
-            useAccountingStore.getState().setOdontogramMode('individual');
-            const { items } = params;
-            for (const item of items) {
-              if (item.description.trim()) {
-                await api.post('/accounting/record-act', {
-                  name: item.description,
-                  price: item.price,
-                  category: item.category
-                });
-              }
-            }
-          } catch (e) {
-            console.warn("Échec de l'apprentissage des actes (silencieux)", e);
-          }
+          useAccountingStore.getState().setGroupSelectedTeeth([]);
+          useAccountingStore.getState().setOdontogramMode('individual');
 
           if (activeTab === 'honoraires') {
             useAccountingStore.getState().setItems([{ id: Date.now(), description: '', dent: '0', price: 0 }]);
@@ -534,19 +503,14 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         if (activeTab === 'libre') setLibreDirty(false);
         toast.success('Document archivé dans le dossier patient.');
       }
-      // D2: Suggestion RDV après acte ortho
       if (res.data.rdv_suggestion && !isPreview) {
         toast(`📅 ${res.data.rdv_suggestion.message} — Proposé : ${res.data.rdv_suggestion.suggested_date}`, {
           duration: 8000,
           icon: '📅',
         });
       }
-
-      // D3: Suggestion ordonnance radio post-prothèse
-      if (res.data.suggest_radio && !isPreview && params.onSuggestRadio) {
-        params.onSuggestRadio();
-      }
     } catch (e: any) {
+      if (print) setPendingPrint(false);
       if (e.response?.status === 409 && e.response?.data?.detail?.code === 'DOUBLE_DETECTED') {
         setDuplicateArgs({ archive, print });
       } else {
@@ -555,7 +519,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
         if (typeof detail === 'string') {
           msg = detail;
         } else if (Array.isArray(detail)) {
-          // Erreur de validation Pydantic (422) : tableau de {loc, msg, type}
           msg = detail.map((d: any) => d.msg || JSON.stringify(d)).join(' | ');
         } else {
           msg = detail?.message || e.message || 'Impossible de générer le document.';
@@ -568,21 +531,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, activeTab, buildPayload, params]);
-
-  const handleGenerateAI = useCallback(async () => {
-    if (!patientId) return;
-    setLoadingAi(true);
-    window.dispatchEvent(new Event('ai-generation-start'));
-    try {
-      const res = await api.get(`/patients/${patientId}/ai-diagnostic`);
-      setAiReport(res.data.report);
-    } catch (e) {
-      console.error('Erreur IA:', e);
-    } finally {
-      setLoadingAi(false);
-      window.dispatchEvent(new Event('ai-generation-end'));
-    }
-  }, [patientId]);
 
   const handleSavePreference = useCallback(async (smartSuggestion: any, drugs: DrugItem[]) => {
     if (!smartSuggestion?.protocol_name) return;
@@ -608,8 +556,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
   return {
     pdfUrl,
     loading,
-    aiReport,
-    loadingAi,
     showPrintWarning,
     pendingPrint,
     hasChanges,
@@ -620,7 +566,6 @@ export function useDocumentGenerator(params: UseDocumentGeneratorParams) {
     confirmDuplicate,
     cancelDuplicate: () => setDuplicateArgs(null),
     handleGenerate,
-    handleGenerateAI,
     handleSavePreference,
     closeWarning: () => setShowPrintWarning(false),
   };

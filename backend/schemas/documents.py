@@ -1,9 +1,11 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
 import datetime
+import math
 from typing import Optional, Dict, List, Literal, Any, Union
 
 from .base import DocumentType, DocumentStatus, ConflictResolution
+from backend.utils.devis_phase_sanitizer import strip_devis_phase_presentation_rows
 from backend.utils.installment_reconciliation import validate_installments
 
 
@@ -86,11 +88,47 @@ class InstallmentPlanOut(InstallmentPlanBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+_VALID_DEVIS_FDI = {
+    *range(11, 19), *range(21, 29), *range(31, 39), *range(41, 49),
+    *range(51, 56), *range(61, 66), *range(71, 76), *range(81, 86),
+}
+
+
 class DevisItem(BaseModel):
     acte: str = ""
     dent: str = ""
     dents: List[Union[int, str]] = []
-    prix_unitaire: float = 0.0
+    prix_unitaire: float = Field(default=0.0, ge=0, le=1_000_000)
+
+    @model_validator(mode="after")
+    def validate_devis_item(self):
+        self.acte = self.acte.strip()
+        if not self.acte:
+            raise PydanticCustomError(
+                "devis_empty_act",
+                "Un acte de devis ne peut pas être vide.",
+            )
+
+        normalized_dents: List[int] = []
+        for value in self.dents:
+            try:
+                tooth = int(value)
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError(
+                    "devis_invalid_tooth",
+                    f"Numéro de dent invalide : {value}.",
+                ) from exc
+            if tooth not in _VALID_DEVIS_FDI:
+                raise PydanticCustomError(
+                    "devis_invalid_tooth",
+                    f"Numéro FDI hors référentiel adulte/pédiatrique : {tooth}.",
+                )
+            normalized_dents.append(tooth)
+
+        self.dents = normalized_dents
+        if normalized_dents:
+            self.dent = ", ".join(str(tooth) for tooth in normalized_dents)
+        return self
 
 
 class InstallmentItem(BaseModel):
@@ -107,6 +145,30 @@ class DevisData(BaseModel):
     gender: Optional[str] = None
     installments: List[InstallmentItem] = []
 
+    @model_validator(mode="before")
+    @classmethod
+    def strip_phase_presentation_rows(cls, value):
+        if not isinstance(value, dict):
+            return value
+        sanitized = dict(value)
+        installments = value.get("installments") or []
+        if installments:
+            raise PydanticCustomError(
+                "devis_installments_forbidden",
+                "Un devis ne peut pas contenir d'échéancier. Utilisez le flux Honoraires/Échéancier dédié.",
+            )
+        sanitized["items"] = strip_devis_phase_presentation_rows(value.get("items"))
+        return sanitized
+
+    @model_validator(mode="after")
+    def require_real_devis_item(self):
+        if not self.items:
+            raise PydanticCustomError(
+                "devis_empty_items",
+                "Le devis doit contenir au moins un acte réel.",
+            )
+        return self
+
 
 class PaymentItem(BaseModel):
     date: Optional[datetime.date] = None
@@ -114,7 +176,7 @@ class PaymentItem(BaseModel):
     dent: str = "-"
     dents: List[Union[int, str]] = []
     montant: float = 0.0
-    mode_reglement: str = "Espèces"
+    mode_reglement: str = ""
 
 
 class HonorairesData(BaseModel):
@@ -146,17 +208,11 @@ class DocumentRequest(BaseModel):
     patient_id: int
     data: Dict
     is_accounted: bool = True
-    payment_status: Optional[str] = "EN_ATTENTE" # EN_ATTENTE, PAYE, PARTIEL
+    payment_status: Optional[Literal["EN_ATTENTE", "PAYE", "PARTIEL"]] = "EN_ATTENTE"
 
     @model_validator(mode="after")
     def reject_implicit_partial_payment(self):
-        """Fail closed: this document flow has no explicit amount-paid field.
-
-        A PARTIEL status used to synthesize a Payment equal to 50% of the billed
-        total. Until the caller supplies an explicit collected amount through the
-        dedicated accounting payment flow, partial payment must not create any
-        financial write from this document request.
-        """
+        """This document flow has no explicit amount-paid field for PARTIEL."""
         if self.payment_status == "PARTIEL":
             raise PydanticCustomError(
                 "partial_payment_requires_explicit_amount",
@@ -165,12 +221,42 @@ class DocumentRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def reconcile_global_honoraires_installments(self):
-        """Reject a persisted global honoraires plan whose installments do not match billing.
+    def validate_honoraires_financial_contract(self):
+        if self.type not in {"note", "honoraires"}:
+            return self
+        payments = (self.data or {}).get("payments") or []
+        if not payments:
+            raise PydanticCustomError(
+                "honoraires_empty",
+                "Une note d'honoraires doit contenir au moins un acte.",
+            )
+        for index, payment in enumerate(payments, start=1):
+            if not isinstance(payment, dict):
+                raise PydanticCustomError("honoraires_invalid_item", f"Acte #{index} invalide.")
+            if not str(payment.get("acte") or "").strip():
+                raise PydanticCustomError("honoraires_empty_label", f"Acte #{index} : la description est requise.")
+            try:
+                amount = float(payment.get("montant"))
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError("honoraires_invalid_amount", f"Acte #{index} : montant non numérique.") from exc
+            if not math.isfinite(amount) or amount <= 0 or amount > 1_000_000:
+                raise PydanticCustomError(
+                    "honoraires_invalid_amount",
+                    f"Acte #{index} : le montant doit être fini, strictement positif et ≤ 1 000 000 MAD.",
+                )
+            if self.payment_status == "PAYE" and (
+                "mode_reglement" not in payment or not str(payment.get("mode_reglement") or "").strip()
+            ):
+                raise PydanticCustomError(
+                    "honoraires_payment_method_required",
+                    f"Acte #{index} : le mode de règlement doit être choisi explicitement pour un encaissement.",
+                )
+            if self.payment_status != "PAYE":
+                payment.pop("mode_reglement", None)
+        return self
 
-        The route creates InstallmentPlan/Installment rows from raw request data.
-        Validate the exact monetary reconciliation before any database write.
-        """
+    @model_validator(mode="after")
+    def reconcile_global_honoraires_installments(self):
         if self.type not in {"note", "honoraires"}:
             return self
         data = self.data or {}
@@ -185,10 +271,50 @@ class DocumentRequest(BaseModel):
         try:
             validate_installments(sum(billed_amounts), installment_amounts)
         except (TypeError, ValueError) as exc:
-            raise PydanticCustomError(
-                "installment_total_mismatch",
-                str(exc),
-            ) from exc
+            raise PydanticCustomError("installment_total_mismatch", str(exc)) from exc
+        return self
+
+    @model_validator(mode="after")
+    def validate_direct_echeancier_contract(self):
+        if self.type != "echeancier":
+            return self
+        data = self.data or {}
+        if data.get("plan_id"):
+            return self
+
+        title = str(data.get("title") or "").strip()
+        if not title:
+            raise PydanticCustomError("installment_title_required", "Le titre du plan de paiement est requis.")
+        try:
+            total = float(data.get("totalAmount"))
+        except (TypeError, ValueError) as exc:
+            raise PydanticCustomError("installment_total_invalid", "Le total du plan est invalide.") from exc
+        if not math.isfinite(total) or total <= 0 or total > 10_000_000:
+            raise PydanticCustomError("installment_total_invalid", "Le total du plan doit être fini et strictement positif.")
+
+        items = data.get("items") or []
+        if not items:
+            raise PydanticCustomError("installment_items_required", "Le plan doit contenir au moins une échéance.")
+        amounts = []
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                raise PydanticCustomError("installment_item_invalid", f"Échéance #{index} invalide.")
+            if not str(item.get("label") or "").strip():
+                raise PydanticCustomError("installment_label_required", f"Échéance #{index} : libellé requis.")
+            if not item.get("dueDate"):
+                raise PydanticCustomError("installment_date_required", f"Échéance #{index} : date explicite requise.")
+            try:
+                datetime.date.fromisoformat(str(item.get("dueDate")).split("T")[0])
+                amount = float(item.get("amount"))
+            except (TypeError, ValueError) as exc:
+                raise PydanticCustomError("installment_item_invalid", f"Échéance #{index} invalide.") from exc
+            if not math.isfinite(amount) or amount <= 0 or amount > 1_000_000:
+                raise PydanticCustomError("installment_amount_invalid", f"Échéance #{index} : montant invalide.")
+            amounts.append(amount)
+        try:
+            validate_installments(total, amounts)
+        except (TypeError, ValueError) as exc:
+            raise PydanticCustomError("installment_total_mismatch", str(exc)) from exc
         return self
 
 

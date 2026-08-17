@@ -42,4 +42,24 @@ describe('LivePreview R7', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('expose la preview non-inline comme dialogue, place le focus sur Fermer et gère Escape', () => {
+    const onClose = vi.fn()
+    render(
+      <LivePreview
+        pdfUrl={null}
+        loading={false}
+        onClose={onClose}
+        title="Ordonnance"
+      />,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Ordonnance' })
+    const closeButton = screen.getByRole('button', { name: 'Fermer' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(closeButton).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
 })

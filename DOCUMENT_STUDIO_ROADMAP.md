@@ -2,11 +2,9 @@
 
 ## Objectif
 
-Auditer, corriger et recertifier le Studio documentaire de Digital Crown **page par page, dans l’ordre visuel réel de l’interface**, sans perdre les preuves techniques déjà acquises.
+Auditer, corriger et recertifier le Studio documentaire de Digital Crown **page par page**, sans confondre code vérifié, tests exécutés, runtime observé et certification métier.
 
-L’ordre canonique est celui de `frontend/src/features/admin/DocumentStudio/StudioTabs.tsx`.
-
-## Règle de numérotation canonique — depuis le 16 août 2026
+Ordre canonique :
 
 1. **P1 — Ordonnance**
 2. **P2 — Certificat**
@@ -15,56 +13,31 @@ L’ordre canonique est celui de `frontend/src/features/admin/DocumentStudio/Stu
 5. **P5 — Suivi Paiement**
 6. **P6 — Document Libre**
 7. **P7 — Compagnon Diagnostique**
+8. **T1 — Audit transversal premium**
+9. **T2 — Refonte intelligente finale / recertification globale**
 
-Les anciens identifiants techniques comme `P2-A`, `P2-B`, `P3-C`, `P4-A` ou `P5-P0` sont **conservés comme références historiques de PR/commits**. Ils ne définissent plus le numéro de page.
-
-Les anciens chantiers transversaux deviennent :
-- **T1 — Audit transversal premium** ;
-- **T2 — Refonte intelligente finale / recertification globale**.
+Les anciens identifiants techniques restent conservés dans les PR/commits/audits historiques.
 
 ## Règle de preuve
 
-Pour chaque page et chaque interaction :
-- **CODE VÉRIFIÉ** : comportement démontré par le code source ;
-- **TEST EXÉCUTÉ** : test réellement exécuté avec résultat observé ;
-- **INTERACTION EXÉCUTÉE** : comportement observé dans l’application réelle ;
-- **CERTIFICATION CLINIQUE / FINANCIÈRE / PRODUCTION** : séparée de l’engineering et jamais déduite d’une CI verte.
+- **CODE VÉRIFIÉ** : démontré par source/diff.
+- **TEST EXÉCUTÉ** : réellement lancé avec résultat observé.
+- **INTERACTION EXÉCUTÉE** : observée dans l’application réelle.
+- **CERTIFICATION CLINIQUE / FINANCIÈRE / PRODUCTION** : indépendante de l’engineering.
 
-Une page n’est pas déclarée totalement certifiée tant que ses gates applicables ne sont pas réellement fermés.
+Une CI qui échoue avant tout step n’est ni un échec du code ni un PASS.
 
 ---
 
 ## P1 — Ordonnance
 
-**État : ✅ engineering fermé + recertification visuelle réalisée.**
+**État : ✅ engineering fermé + recertification visuelle réalisée ; gates authentifiés/cliniques séparés.**
 
-Rapport canonique : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
+Rapport : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
 
-### Acquis
-- audit interactionnel/statique détaillé ;
-- R1 à R7 engineering fermés et fusionnés ;
-- cohérence médicament / Maroc-first ;
-- persistance protocoles/habitudes ;
-- orchestration safety fail-closed ;
-- dirty-state et protections navigation ;
-- fast prescription UX ;
-- référentiel/protocoles ;
-- contexte patient + preview responsive ;
-- recertification visuelle 1440 / 768 / 390.
+Acquis : R1→R7 fusionnés, safety fail-closed, dirty-state, habitudes/protocoles, UX rapide, contexte patient, preview responsive, visuel 1440/768/390.
 
-### Preuves principales
-- R1 : PR #17, CI `31852032393`, merge `e32ab311f72980e0797b93a306c3616a4ff66042` ;
-- R2 : PR #19, CI `31852827218`, merge `432a95eca05d1d7b9781d2d8e81077f0dcb589f2` ;
-- R3 : PR #20, CI `31853962025`, merge `75e4693dc983ba1708914d16432504bea8f0cd8c` ;
-- R4 : PR #21, CI `31855874418`, merge `6a4debe01cf0e0ea78e49ed787cae5e26c4976b8` ;
-- R5 : PR #22, CI `31878337816`, merge `8957635e1bd50d8f44fbcef38c529b3c27f8fb32` ;
-- R6 : PR #23, CI `31879112143`, merge `6f2b8a22f9cdca25cafe228f266ed46deee8281b` ;
-- R7 : PR #26, CI `31879649826`, merge `2596da527fdd1bee5c6746f645e995f682ca3189` ;
-- closeout visuel : PR #43, CI `31898122575`, merge `91a2c2efd781fd736ebdc96e9de4f5e3c73c82c8`, recapture `31898157179`, post-merge `31898590067`.
-
-### Gate séparé restant
-- interaction authentifiée dans l’application locale réelle ;
-- certification clinique/pharmacologique humaine.
+Reste : interaction authentifiée locale et certification clinique/pharmacologique humaine.
 
 ---
 
@@ -72,239 +45,234 @@ Rapport canonique : `docs/audits/DOCUMENT_STUDIO_P1_ORDONNANCE_AUDIT.md`.
 
 **État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
 
-Rapport historique/canonique actuel : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
+Rapport historique : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
 
-> Le nom du fichier d’audit conserve l’ancien identifiant `P3` pour traçabilité. La page est désormais **P2** dans la roadmap canonique.
+Acquis : nature explicite, dates/durée séparées, aucun choix clinique prérempli, texte libre praticien, contrat backend, signature manuscrite dentiste, impression fraîche, intégrité PDF, QR neutralisé sans contrat valide.
 
-### Acquis engineering Certificat
-- nature du document explicite ;
-- dates + durée séparées ;
-- aucun type/durée clinique prérempli sur un nouveau certificat ;
-- certificat médical libre 100 % praticien ;
-- suggestions contextuelles non prescriptives ;
-- contrat backend fail-closed ;
-- validation UX praticien ;
-- signature manuscrite, signataire `DENTISTE` uniquement ;
-- impression fraîche et sûre ;
-- intégrité PDF / identité datée ;
-- QR validation neutralisé sans contrat valide ;
-- routage PDF, noms de fichiers et texte libre long sécurisés.
-
-### Preuves / historique
-PR Certificat fusionnées notamment : #48, #49, #52, #53, #54, #55, #56, #57, #58, #59, #60, #61, #63.
-
-Les lots récents ont rencontré un blocage GitHub Actions **avant exécution des steps** ; aucune CI verte récente n’est inventée.
-
-### Gate séparé restant
-- régression réelle du `master` final ;
-- runtime authentifié des parcours Certificat ;
-- inspection visuelle des PDF finaux ;
-- certification réglementaire/clinique indépendante si requise.
+Reste : régression finale, runtime authentifié, inspection PDF et certification réglementaire/clinique si requise.
 
 ---
 
 ## P3 — Devis
 
-**État : 🟡 PROCHAINE PAGE ACTIVE.**
+**État : 🟡 P3-A→P3-G intégrés sur PR #77 ; P3-H partiellement exécuté ; PR toujours draft/non mergée.**
 
-Historique technique partagé avec Note Honoraires : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P3_DEVIS_INTEGRATION_STATUS.md` sur la branche P3.
 
-> Les anciens lots `P2-*` restent des identifiants historiques. Ils alimentent désormais P3 Devis et P4 Note Honoraires selon leur portée réelle.
+Acquis sur #77 : isolation financière Devis, source de vérité odontogramme, catalogue/dentition, phases non financières, apprentissage autoritatif, Plan→Devis, suppression suggestion RDV financière générique, PDF multipage lisible, responsive/accessibilité engineering.
 
-### Socle engineering déjà acquis
-- ancien **P2-A** : prix catalogue local conservé, PR #27, CI `31882328096`, merge `a8ce1f8143fd58f20aee5cb4ebb9b8827128c4cc` ;
-- ancien **P2-C** : actes rapides tactiles + terminologie déterministe + phases neutres, PR #46, CI `31900572795` 3/3 SUCCESS, merge `967f56ed10d61b373bcd3c75e6a737a49bd7349a` ;
-- ancien **P2-D** : odontogramme / déduplication / prix groupe, PR #47, CI `31902205419` 3/3 SUCCESS, merge `021ee425a532bb83ae9669ab4c449522258bdcc6` ;
-- ancien **P2-E** : réconciliation totale/échéances partagée, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd`.
+Preuves ciblées historiques P3-H : backend 13 passed ; policies frontend 22 groupes ; odontogramme 9 groupes ; PriceBrain 1 groupe ; PDF long 36 actes → 3 pages avec en-tête répété et minimum observé 7,5 pt.
 
-### Audit page-par-page à exécuter maintenant
-- [ ] état initial Devis ;
-- [ ] actes rapides / recherche catalogue ;
-- [ ] odontogramme : clic dent, modal, surfaces, traitements ;
-- [ ] modes Soins ciblés / Bridge & Prothèses / Soins généraux ;
-- [ ] sélection Q1-Q4 / S1-S6 ;
-- [ ] prix connu / prix inconnu / modification manuelle ;
-- [ ] bundles / suggestions complémentaires ;
-- [ ] organisation par phases ;
-- [ ] lignes manuelles, suppression et réorganisation ;
-- [ ] totaux ;
-- [ ] preview ;
-- [ ] sauvegarde / archivage ;
-- [ ] impression ;
-- [ ] erreurs / états vides / navigation dirty-state ;
-- [ ] responsive et accessibilité ;
-- [ ] verdict UX puis lots correctifs ;
-- [ ] recertification finale de la page.
+Reste : suite complète + build, smoke authentifié, PDF cabinet réel, responsive réel, merge et post-merge.
 
 ---
 
 ## P4 — Note Honoraires
 
-**État : 🟡 socle engineering partiellement fermé ; audit page-par-page à faire après P3.**
+**État : 🟡 audit canonique + durcissement engineering intégrés après P3 sur `agent/p4-p6-after-p3` ; certification runtime/financière ouverte.**
 
-Historique technique partagé : `docs/audits/DOCUMENT_STUDIO_P2_DEVIS_HONORAIRES_AUDIT.md`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P4_HONORAIRES_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
-### Socle engineering déjà acquis
-- ancien **P2-B** : `PARTIEL` fail-closed cohérent UI/backend, PR #29, CI `31884437013`, merge `6543c3dad146bdbe055117fe0302b3fbe9cbda07` ;
-- ancien **P2-E** : totaux/payload/échéances, PR #34, CI `31885119569`, merge `cb265a8070307d3e3be2e76b239af7762254dddd` ;
-- ancien **P2-F** : allocation `PAYE` exacte par Acte, PR #36, CI `31886400223`, merge `5916216ae6b3ebe6cf3609ff652ee09cc549391f` ;
-- les socles actes rapides / odontogramme communs issus des anciens P2-C/P2-D sont également présents.
+### Engineering acquis
 
-### À auditer
-- [ ] état initial Note Honoraires ;
-- [ ] reprise des actes / panier ;
-- [ ] statut de paiement ;
-- [ ] modes de règlement ;
-- [ ] cohérence Acte ↔ Payment ;
-- [ ] totaux et reste dû ;
-- [ ] preview / archive / impression ;
-- [ ] comportement après archivage ;
-- [ ] erreurs et dirty-state ;
-- [ ] responsive / accessibilité ;
-- [ ] verdict UX et recertification.
+- contrats Devis P3 et Honoraires P4 fusionnés sans régression volontaire ;
+- statut documentaire fermé ; `PARTIEL` refusé sans montant encaissé explicite ;
+- note/acte vide refusés ; montants finis, >0, ≤ 1 000 000 MAD ;
+- validation request + pré-PDF + persistance ;
+- `PAYE` exige un mode de règlement choisi explicitement ;
+- `EN_ATTENTE` n’exige, ne sérialise et ne conserve aucun mode de règlement ;
+- aucun fallback silencieux vers Espèces à la persistance ;
+- allocation exacte `Acte ↔ Payment` conservée ;
+- note globale réconciliée au centime ;
+- échéances d’une note exigeant un plan datées explicitement avant PDF/archive : aucune date financière synthétisée ;
+- Devis → Honoraires conserve les actes mais réinitialise statut/mode/plan/échéances ;
+- aucun historique P5 injecté dans le store P3/P4 ;
+- suggestions radio/RDV non contractuelles retirées du parcours financier ;
+- tests request, pré-PDF, persistance, absence d’inférence clinique et store ajoutés.
+
+### Reste
+
+- exécution réelle du harness/full-suite/build sur le stack P3→P6 ;
+- runtime authentifié EN_ATTENTE/PAYE, archive/doublon/impression ;
+- rapprochement `Acte ↔ Payment` dans le dossier patient ;
+- PDF réel et responsive/accessibilité ;
+- certification financière séparée.
 
 ---
 
 ## P5 — Suivi Paiement
 
-**État : 🟡 engineering financier critique partiellement fermé ; audit runtime page complet restant.**
+**État : 🟡 audit canonique + contrat/lifecycle intégrés après P3 ; certification runtime/financière ouverte.**
 
-### Acquis historiques
-- ancien **P4-A** : répartition exacte des échéances, PR #41, CI `31896494441`, merge `989b819fe9f38ea616a48bf34e59263f7bcab82b` ;
-- ancien **P4-B** : paiement d’échéance fail-closed, PR #42, CI `31897537545`, merge `365a8cd9f1e9543898a70e060fd3e6890f647d66`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P5_SUIVI_PAIEMENT_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
-### À auditer
-- [ ] chargement plan existant ;
-- [ ] total / avance / nombre d’échéances ;
-- [ ] génération des lignes ;
-- [ ] modification manuelle ;
-- [ ] passage payé / non payé ;
-- [ ] méthode de paiement ;
-- [ ] résumé payé / restant / prochaine échéance ;
-- [ ] rappels / WhatsApp si réellement branchés ;
-- [ ] erreurs / sauvegarde ;
-- [ ] responsive / accessibilité ;
-- [ ] certification financière runtime séparée.
+### Engineering acquis
+
+- création/preview/mutation fail-closed : titre, total, lignes, dates, montants, statuts ;
+- réconciliation exacte au centime ;
+- endpoint `latest` explicite et tri déterministe ;
+- échéance PAYE non réouvrable/non rechiffrable sans contrepassation ;
+- plan encaissé non supprimable sans contrepassation ;
+- UI `brouillon → équilibre → enregistrement → encaissement` ;
+- ancien checkbox local « Réglé » supprimé ;
+- aucun mode de paiement présélectionné ;
+- bouton d’encaissement désactivé jusqu’au choix explicite ;
+- montants persistés figés ; restructuration via nouveau plan ;
+- résumé total/payé/restant ;
+- WhatsApp manuel uniquement ;
+- P5 charge son propre `/latest` et ne pollue plus le store P3/P4 ;
+- tests schema, route et frontend ajoutés/alignés.
+
+### Reste
+
+- exécution réelle full-suite/build ;
+- runtime authentifié création/sauvegarde/encaissement ;
+- rapprochement `Payment ↔ installment` ;
+- scénario de contrepassation à définir/certifier séparément ;
+- PDF et responsive réel 1440/768/390 ;
+- certification financière finale.
 
 ---
 
 ## P6 — Document Libre
 
-**État : ✅ engineering convergé ; ⏳ certification finale runtime/PDF non fermée.**
+**État : ✅ engineering convergé + matrice de certification automatisée préparée ; ⏳ exécution/runtime/PDF visuel non fermés.**
 
-Rapport historique/canonique actuel : `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md`.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P6_DOCUMENT_LIBRE_AUDIT.md` ;
+- historique `docs/audits/DOCUMENT_STUDIO_P3_CERTIFICAT_AUDIT.md` ;
+- statut stack : `docs/audits/DOCUMENT_STUDIO_P4_P6_AFTER_P3_STATUS.md`.
 
-> Le rapport conserve l’ancien regroupement `P3 Certificat + Document Libre` pour traçabilité. Document Libre est désormais **P6**.
+Acquis : validation titre/contenu, toolbar non-submit, contrat/PDF sûr, allowlist markup, document long/multipage, impression fraîche, auto-preview invalide silencieux, dirty-state, permission clinique, archive/réouverture.
 
-### Acquis engineering
-- ancien P3-C / PR #40 : validation champs + toolbar non-submit ;
-- ancien P3-D / PR #64 : contrat + PDF sûr ;
-- ancien P3-E / PR #65 : impression sûre ;
-- ancien P3-F / PR #66 : auto-preview invalide silencieux ;
-- ancien P3-G / PR #67 : protection des brouillons ;
-- ancien P3-H / PR #70 : permission clinique d’émission.
+Couverture automatisée existante/ajoutée : sécurité markup, permissions, caractères spéciaux, multipage lisible, A4/A5 sur dimensions PDF, destinataire/date personnalisés et tableau Markdown.
 
-### Gate séparé restant
-- régression réelle frontend/backend/PDF ;
-- runtime authentifié saisie, toolbar, tableau, A4/A5, alignement, preview, archive, réouverture, abandon protégé et impression ;
-- inspection visuelle PDF multi-page ;
-- amélioration WYSIWYG éventuelle classée produit, non sécurité.
+Harness stack : `scripts/certify_document_studio_p3_p6.sh` regroupe régression ciblée P3→P6, full backend, frontend ciblé/full, build et prod-safety fail-closed.
+
+Aucun nouveau P0 statique démontré dans le chantier actuel.
+
+Reste : exécuter réellement le harness sur le head final, runtime authentifié, inspection A4/A5/multipage/tableaux/caractères spéciaux, responsive/accessibilité. WYSIWYG/templates = amélioration produit, pas gate sécurité.
 
 ---
 
 ## P7 — Compagnon Diagnostique
 
-**État : 🟡 frontière safety partiellement fermée ; audit complet restant.**
+**État : 🟡 P7-A/B/D/F/G fermés en engineering ; P7-C/E/H ouverts ; aucune certification d’exécution/scientifique revendiquée.**
 
-### Acquis historique
-- ancien **P5-P0** : frontière pharmacovigilance / substitution, PR #38, CI `31886995993`, merge `46d9388e80e3334230f8bea1356e4e38951408ca` ;
-- les signaux textuels d’allergie produisent des warnings et ne substituent plus automatiquement un protocole thérapeutique.
+Rapports :
+- `docs/audits/DOCUMENT_STUDIO_P7_COMPAGNON_DIAGNOSTIQUE_AUDIT.md` ;
+- `docs/audits/DOCUMENT_STUDIO_P7_INTEGRATION_STATUS.md`.
 
-### À auditer
-- [ ] arbre complet des états/questions ;
-- [ ] contexte patient réellement utilisé ;
-- [ ] sorties diagnostiques / actes proposés ;
-- [ ] validation praticien ;
-- [ ] passage Compagnon → Devis ;
-- [ ] passage vers Ordonnance / autres documents ;
-- [ ] conservation/perte d’état inter-pages ;
-- [ ] callbacks orphelins ;
-- [ ] valeur clinique et UX ;
-- [ ] validation scientifique humaine séparée.
+### Architecture vérifiée
+
+- onglet actif : `plan` ;
+- composant actif : `TreatmentPlanStudio` ;
+- contexte patient lu via `/patients/{patientId}` ;
+- sortie éditable puis conversion explicite P7→P3 ;
+- conversion Devis financièrement neutre (`price = 0`) ;
+- moteurs legacy parallèles : `HouseWizard` / `DiagnosticEngine` / `SafeDiagnosticEngine`.
+
+### Engineering acquis
+
+- **P7-A** : aucune substitution thérapeutique automatique à partir des ATCD texte libre ; warning-only pénicilline/AINS ; changement patient atomique avec protection contre réponse réseau stale ;
+- **P7-B** : no-match legacy fail-closed, sans diagnostic rassurant, médicament ni traitement par défaut ;
+- **P7-D** : résultat présenté comme hypothèse/proposition à confirmer ; claims scientifiques non sourcés retirés du parcours actif ;
+- **P7-F** : dirty-state, garde changement d’onglet, `beforeunload`, nettoyage après reset/conversion ;
+- **P7-G** : engineering mobile/tactile/clavier/accessibilité ;
+- P7→P3 reste neutre : prix zéro, aucune dent inventée si absente, propositions vides supprimées.
+
+### Couverture préparée
+
+`scripts/certify_document_studio_p7.sh` regroupe les tests réellement présents P7-A/B/D/F/G, le contrat P7→P3, la full-suite frontend et le build.
+
+**Le harness est écrit mais aucun PASS n’est revendiqué tant qu’il n’a pas réellement tourné sur le head final.**
+
+### Ouvert
+
+- **P7-C — contexte clinique structuré** : le schéma patient inspecté ne démontre qu’un `antecedents_medicaux` texte libre, sans source allergies structurée ; nécessite évolution du modèle patient et gouvernance clinique ;
+- **P7-E — provenance/version/evidence** : aucun modèle canonique persistant de proposition/rule-set/version/entrées/warnings/confirmation praticien n’est défini ; nécessite décision d’architecture ;
+- **P7-H — validation scientifique + recertification** : revue médicale humaine, sources/versionnement, cas positifs/négatifs/no-match, runtime authentifié patient A→B, 390/768/desktop et full-regression.
+
+Les deux P0 statiques du baseline sont corrigés en engineering ; la page **n’est pas certifiée** tant que les gates d’exécution et C/E/H restent ouverts.
 
 ---
 
 ## T1 — Audit transversal premium
 
-**État : ⬜ à traiter après les pages P1 à P7 ou lorsqu’un défaut transversal bloque plusieurs pages.**
+**État : 🟡 T1-A→T1-E convergés en engineering sur PR #88/#89/#91/#92/#93 ; T1-F harness/closeout sur PR #94 ; runtime/CI/visuel non certifiés.**
 
-- [ ] navigation globale et ordre des onglets ;
-- [ ] header / footer / actions globales ;
-- [ ] dirty-state / protections navigation ;
-- [ ] preview responsive / split view / plein écran ;
-- [ ] responsive multi-format ;
-- [ ] typographie / tailles minimales / contraste ;
-- [ ] dark mode ;
-- [ ] raccourcis clavier ;
-- [ ] cohérence labels / terminologie ;
-- [ ] loading / empty / error / success ;
-- [ ] accessibilité ;
-- [ ] cohérence clinique, financière et documentaire.
+Rapport : `docs/audits/DOCUMENT_STUDIO_T1_TRANSVERSAL_PREMIUM_AUDIT.md`.
 
-Ancien pré-audit `P6` conservé comme historique, mais **T1** est désormais l’identifiant canonique transversal.
+### Engineering acquis
+
+- **T1-A patient isolation** : remount par patient, reset atomique du store comptable et de l’édition archivée, invalidation des dirty states, protections contre réponses patient/suggestion tardives ;
+- **T1-B navigation** : une policy dirty-state couvre P1→P7 ; les transitions manuelles et `documentTab` passent par le même arbitre `DocumentHub` ; P2/P5 publient désormais leur état sale explicitement ;
+- **T1-C frontière clinique** : suppression du side-channel Ghost/free-text/financial labels ; sécurité ordonnance dédiée conservée ; exécuteur direct `ai-diagnostic` neutralisé dans le Studio certifiable ;
+- **T1-D vérité UI** : surfaces Header/Tabs/Footer/Preview contrôlées et gate anti-régression contre les claims runtime/IA trompeurs ;
+- **T1-E responsive/a11y** : labels/états accessibles, cibles tactiles, focus visible, dialogues impression/preview, Escape preview, iframe titrée, durcissement mobile ;
+- **T1-F préparé** : `scripts/certify_document_studio_t1.sh` regroupe régression T1 ciblée, full frontend et build production.
+
+### Limite de preuve
+
+Le harness T1 est **préparé mais non exécuté**. Le run T1-C observé (#503 / `31941504118`) a échoué avant tout step avec `runner_id=0` / `steps=[]`; cela ne prouve ni échec du code ni PASS.
+
+### Reste
+
+- exécuter `scripts/certify_document_studio_t1.sh` sur le head final avec Node 20 ;
+- runtime authentifié patient A→B, y compris réponse A retardée ;
+- matrice dirty P1→P7 en navigation manuelle + URL ;
+- vérifier qu’aucune route Studio ne peut exécuter `ai-diagnostic` ;
+- navigateur réel 390/430/1280, clavier/focus, preview/impression ;
+- seulement après ces preuves : certification T1, merge/closeout et transition de recertification finale T2.
 
 ---
 
 ## T2 — Refonte intelligente finale / recertification globale
 
-**État : ⬜ après convergence P1 à P7 + T1.**
+**État : ⬜ après fermeture des gates exécutables T1 et consolidation des gates P1→P7 restants.**
 
-- [ ] cartographie consolidée du module ;
-- [ ] matrice `GARDER / AMÉLIORER / FUSIONNER / CACHER / SUPPRIMER / REFAIRE` ;
-- [ ] architecture finale de navigation ;
-- [ ] hiérarchie de l’information ;
-- [ ] priorités P0/P1/P2 ;
-- [ ] critères de validation UX/fonctionnels ;
-- [ ] régression globale ;
-- [ ] recertification finale du Studio documentaire.
-
-Ancien chantier `P7 Refonte intelligente finale` renommé **T2** afin de réserver P7 à la vraie septième page du Studio.
+À couvrir : cartographie finale, matrice garder/améliorer/fusionner/cacher/supprimer/refaire, navigation cible, hiérarchie, priorités, critères UX/fonctionnels, régression globale et recertification finale.
 
 ---
 
-## Table de migration des anciens identifiants
+## Migration des anciens identifiants
 
-| Ancien identifiant | Portée historique | Nouvelle page canonique |
+| Ancien identifiant | Portée historique | Canonique |
 |---|---|---|
-| P1 / R1-R7 | Ordonnance | **P1 Ordonnance** |
-| P2-A, P2-C, P2-D | Devis / socle comptable partagé | **P3 Devis** principalement |
-| P2-B, P2-E, P2-F | Honoraires / contrats comptables partagés | **P4 Note Honoraires** principalement |
-| P3 Certificat | Certificat | **P2 Certificat** |
-| P3-C à P3-H Document Libre | Document Libre | **P6 Document Libre** |
-| P4-A / P4-B | Échéancier / paiements | **P5 Suivi Paiement** |
-| P5-P0 | Compagnon / safety | **P7 Compagnon Diagnostique** |
-| ancien P6 | Audit transversal | **T1** |
-| ancien P7 | Refonte finale | **T2** |
-
-Les PR, commits, noms de branches et fichiers d’audit historiques **ne sont pas renommés rétroactivement**.
+| P1 / R1-R7 | Ordonnance | **P1** |
+| P2-A, P2-C, P2-D | Devis / comptable partagé | **P3** principalement |
+| P2-B, P2-E, P2-F | Honoraires / comptable partagé | **P4** principalement |
+| P3 Certificat | Certificat | **P2** |
+| P3-C→P3-H Document Libre | Document Libre | **P6** |
+| P4-A/P4-B | Échéancier/paiements | **P5** |
+| P5-P0 | Compagnon/safety | **P7** |
+| ancien P6 | transversal | **T1** |
+| ancien P7 | refonte finale | **T2** |
 
 ---
 
-## État courant / chemin critique
+## Chemin critique courant
 
-1. **P1 Ordonnance** : engineering + visuel fermés ; gates authentifiés/cliniques séparés.
-2. **P2 Certificat** : engineering convergé ; certification finale runtime/PDF encore ouverte.
-3. **P3 Devis** : **prochaine page active à décortiquer intégralement**.
-4. **P4 Note Honoraires** : après P3.
-5. **P5 Suivi Paiement** : après P4.
-6. **P6 Document Libre** : engineering convergé ; runtime/PDF final à recertifier dans son tour de page.
-7. **P7 Compagnon Diagnostique** : après P6.
-8. **T1** puis **T2** : transversal et closeout global.
+1. **P3 PR #77** : fermer full-repo/runtime/visuel/merge dès qu’une exécution réelle redevient possible.
+2. **Stack P4/P5/P6 PR #80** : engineering/documentation fermé sur son head ; CI/runtime/PDF/financier externes ouverts.
+3. **P7 stack #81→#86** : A/B/D/F/G engineering fermé ; exécuter le harness/runtime quand l’infrastructure le permet ; P7-C/E nécessitent architecture dédiée ; P7-H est un gate scientifique humain.
+4. **T1 stack #88→#94** : A→E convergés en engineering ; exécuter le harness T1 puis les checks authentifiés/browser dès qu’une exécution réelle est disponible ; ne pas certifier/merger avant ces preuves.
+5. **T2** : recertification/refonte finale après consolidation des gates précédents.
+
+## Infrastructure CI
+
+Sur les heads récents P3/P4/P5/P7/T1, GitHub Actions a pu soit échouer avant exécution des steps, soit ne créer aucun run observable. Ces conditions externes ne justifient ni PASS ni échec applicatif et ne bloquent pas le travail indépendant.
+
+Sur T1-C, le run #503 (`31941504118`) a créé trois jobs avec `runner_id=0` et `steps=[]` : aucun test de dépôt n’a donc été exécuté. Aucun PASS n'est revendiqué.
+
+Le harness T1 canonique est `scripts/certify_document_studio_t1.sh` et devra être exécuté sur l’exact head final lorsque l’infrastructure le permettra.
 
 ## Règle de progression
 
-Pour chaque page :
-
-**audit interaction par interaction → défauts classés → correctifs réversibles → tests ciblés → CI si disponible → runtime/visuel selon le risque → mise à jour audit canonique → mise à jour roadmap → page suivante.**
-
-Un blocage d’infrastructure externe non spécifique à la page (ex. runner CI indisponible) doit être consigné mais ne doit pas empêcher de poursuivre le travail indépendant autorisé. Aucune réussite de test n’est revendiquée si le test n’a pas réellement été exécuté.
+**audit → défauts classés → correctifs réversibles → tests ciblés → CI si disponible → runtime/visuel selon risque → audit/status canonique → roadmap → page suivante.**

@@ -21,7 +21,7 @@ interface LayoutProps {
 export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const { fetchPatientIntelligence } = useEliteStore();
   const location = useLocation();
-  
+
   // Détection du patient_id dans l'URL pour rafraîchir l'intelligence
   useEffect(() => {
     const match = location.pathname.match(/\/patients\/(\d+)/);
@@ -32,7 +32,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
   const { profile, fetchProfile } = useSettingsStore();
   const [animatedBg, setAnimatedBg] = React.useState(() => safeStorage.get('app_background_animated') === 'true');
-  
+
   // Rigueur CTO : Chargement du profil et application du thème au montage du layout
   useEffect(() => {
     if (!profile.nom) {
@@ -52,6 +52,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const [isBotOpen, setIsBotOpen] = useState(false);
   const [ghostUnreadCount, setGhostUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
+    && new URLSearchParams(location.search).get('tab') === 'admin';
 
   // Close sidebar on route change (mobile nav)
   React.useEffect(() => {
@@ -82,7 +84,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         </button>
         <Header />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 pt-0 flex flex-col custom-scrollbar">
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-8'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -90,8 +92,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex-1 rounded-elite border backdrop-blur-xl shadow-elite p-6 transition-elite"
-              style={{ 
+              className={`flex-1 rounded-elite border backdrop-blur-xl shadow-elite transition-elite ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-6' : 'p-6'}`}
+              style={{
                 backgroundColor: 'var(--glass-bg)',
                 borderColor: 'var(--glass-border)'
               }}
@@ -120,7 +122,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       {/* Overlay / Popover Crown Bot */}
       <AnimatePresence>
         {isBotOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -133,4 +135,4 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       </AnimatePresence>
     </div>
   );
-};
+};

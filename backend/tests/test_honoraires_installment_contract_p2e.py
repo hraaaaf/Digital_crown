@@ -12,12 +12,16 @@ def _honoraires_request(installment_amounts):
         "payment_status": "EN_ATTENTE",
         "data": {
             "payments": [
-                {"acte": "Couronne", "montant": 700.0},
-                {"acte": "Détartrage", "montant": 300.0},
+                {"acte": "Couronne", "montant": 700.0, "mode_reglement": "Espèces"},
+                {"acte": "Détartrage", "montant": 300.0, "mode_reglement": "Espèces"},
             ],
             "is_global_note": True,
             "installments": [
-                {"label": f"Versement {index + 1}", "amount": amount}
+                {
+                    "label": f"Versement {index + 1}",
+                    "amount": amount,
+                    "date": f"2026-{9 + index:02d}-01",
+                }
                 for index, amount in enumerate(installment_amounts)
             ],
         },
