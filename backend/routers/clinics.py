@@ -14,7 +14,7 @@ from PIL import Image
 from backend import models, schemas, database
 from backend.config import settings
 from backend.database import get_db
-from backend.routers.auth import get_current_user, get_current_user_optional, is_superadmin_user
+from backend.routers.auth import get_current_user, is_superadmin_user
 from backend.services.logo_processor import LogoProcessor
 from backend.services.license_service import LicenseService
 
@@ -103,66 +103,45 @@ def _normalize_clinic_update_dict(update_dict: dict, config: Optional[models.Cab
 
 @router.post("/recheck-license")
 async def recheck_license(request: Request, current_user: models.User = Depends(get_current_user)):
-    """Re-vérifie la licence (Admin only). Débloque l'app si la licence est redevenue valide."""
+    """Re-vérifie la licence (Admin only)."""
     if current_user.role != models.UserRole.ADMIN and not is_superadmin_user(current_user):
         raise HTTPException(status_code=403, detail="Non autorisé.")
-        
+
     clinic_id = os.getenv("CLINIC_ID", "default_clinic")
     license_ok = await LicenseService().validate_license(clinic_id)
-    
     request.app.state.license_ok = license_ok
-    
+
     if not license_ok:
         raise HTTPException(status_code=402, detail="La licence est toujours invalide.")
-        
+
     return {"message": "Licence validée avec succès. Application déverrouillée."}
 
 
 @router.get("/init-status")
 def check_init_status(
     db: Session = Depends(get_db),
-    current_user: Optional[models.User] = Depends(get_current_user_optional),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """
-    Vérifie si le cabinet est initialisé. 
-    Règle absolue : S'il y a un Dentiste/Admin en DB, on considère le cabinet initialisé et on bypass le Wizard.
-    """
-    if current_user:
-        config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == current_user.get_employer_id()).first()
-        if config:
-            return {
-                "is_initialized": bool(config.is_initialized),
-                "needs_setup": not bool(config.is_initialized),
-            }
+    """Retourne uniquement l'état d'initialisation du cabinet authentifié.
 
-    admin_user = db.query(models.User).filter(
-        models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE])
+    Cette lecture est fail-closed : elle ne choisit jamais un utilisateur/config global,
+    ne crée aucune configuration et ne modifie aucun état d'initialisation.
+    """
+    employer_id = current_user.get_employer_id()
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == employer_id
     ).first()
 
-    if admin_user:
-        any_config = db.query(models.CabinetConfig).first()
-        if not any_config:
-            new_config = models.CabinetConfig(
-                owner_id=admin_user.id,
-                nom_cabinet=admin_user.nom_complet or "Mon Cabinet",
-                nom_praticien=admin_user.nom_complet or "Docteur",
-                is_initialized=True
-            )
-            db.add(new_config)
-            db.commit()
-        elif not any_config.is_initialized:
-            any_config.is_initialized = True
-            db.commit()
-            
+    if not config:
         return {
-            "is_initialized": True,
-            "needs_setup": False
+            "is_initialized": False,
+            "needs_setup": True,
         }
-    
-    # Mode "Nouveau Client" (pas de dentiste créé / base de donnée vide)
+
+    is_initialized = bool(config.is_initialized)
     return {
-        "is_initialized": False,
-        "needs_setup": True
+        "is_initialized": is_initialized,
+        "needs_setup": not is_initialized,
     }
 
 
@@ -171,14 +150,12 @@ def create_clinic(
     config: schemas.CabinetConfigCreate,
     db: Session = Depends(get_db)
 ):
-    """
-    Créer la configuration d'un nouveau cabinet (Wizard étape 1).
-    """
+    """Créer la configuration d'un nouveau cabinet (Wizard étape 1)."""
     admin_user = db.query(models.User).filter(
         models.User.role.in_([models.UserRole.ADMIN, models.UserRole.DENTISTE]),
         models.User.employer_id == None,
     ).order_by(models.User.created_at.asc()).first()
-    
+
     if not admin_user:
         admin_email = settings.SUPERADMIN_EMAIL
         admin_initial_pwd = os.getenv("SUPERADMIN_INITIAL_PASSWORD", "")
@@ -198,7 +175,7 @@ def create_clinic(
         db.flush()
 
     existing_cabinet = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == admin_user.id).first()
-    
+
     create_dict = _normalize_clinic_update_dict(config.model_dump(exclude_unset=True))
     create_dict["owner_id"] = admin_user.id
     create_dict["is_initialized"] = True
@@ -227,9 +204,8 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
     """Récupérer la configuration du cabinet."""
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    
+
     if not config:
-        # Création à la volée pour les nouveaux utilisateurs / admins (auto-corrective)
         config = models.CabinetConfig(
             owner_id=employer_id,
             nom_cabinet=current_user.nom_complet or "Mon Cabinet",
@@ -249,7 +225,7 @@ def get_my_clinic(db: Session = Depends(database.get_db), current_user: models.U
         db.add(config)
         db.commit()
         db.refresh(config)
-    
+
     return config
 
 
@@ -262,9 +238,8 @@ def update_my_clinic(
     """Mettre à jour la configuration du cabinet."""
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    
+
     if not config:
-        # Création à la volée pour les nouveaux utilisateurs / admins (auto-corrective)
         config = models.CabinetConfig(
             owner_id=employer_id,
             nom_cabinet=current_user.nom_complet or "Mon Cabinet",
@@ -283,16 +258,16 @@ def update_my_clinic(
         )
         db.add(config)
         db.flush()
-    
+
     update_dict = _normalize_clinic_update_dict(
         config_update.model_dump(exclude_unset=True),
         config=config,
     )
-        
+
     for key, value in update_dict.items():
         if hasattr(config, key):
             setattr(config, key, value)
-    
+
     db.commit()
     db.refresh(config)
     return config
@@ -308,56 +283,49 @@ async def upload_clinic_logo(
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou SVG")
-    
+
     employer_id = current_user.get_employer_id()
     config = db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == employer_id).first()
-    
+
     if not config:
         raise HTTPException(status_code=404, detail="Cabinet non configuré")
-    
+
     static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
-    
+
     file_ext = file.filename.split(".")[-1].lower()
     file_bytes = await file.read()
-    
+
     if file.content_type == "image/svg+xml":
         final_bytes = file_bytes
         file_ext = "svg"
     else:
-        # Traitement Premium (IA Détourage + Normalisation)
         png_bytes = LogoProcessor.process_logo(file_bytes)
         final_bytes = png_bytes
         file_ext = "png"
 
     unique_name = f"logo_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
-    
+
     with open(file_path, "wb") as buffer:
         buffer.write(final_bytes)
-    
+
     relative_path = f"clinics/{config.public_id}/{unique_name}"
     config.logo_path = relative_path
     db.commit()
-    
+
     return {"logo_url": f"/static/uploads/{relative_path}"}
 
 
 def _process_letterhead_file(content: bytes, content_type: str,
                              strip_body: bool, header_pct: float, footer_pct: float) -> tuple[bytes, bool]:
-    """Prépare le fichier letterhead : PDF -> PNG (1re page), et si strip_body,
-    blanchit la bande centrale pour ne garder que l'en-tête et le pied de page
-    (cas : le cabinet uploade un document déjà rempli comme modèle).
-
-    Retourne (octets finaux, was_processed). was_processed=True => sortie PNG.
-    Lève HTTPException(400) sur PDF illisible/vide — jamais d'exception brute.
-    """
+    """Prépare le fichier letterhead et retourne (octets finaux, was_processed)."""
     was_processed = False
 
     if content_type == "application/pdf":
         try:
-            import fitz  # PyMuPDF
+            import fitz
             pdf = fitz.open(stream=content, filetype="pdf")
             if pdf.page_count == 0:
                 pdf.close()
@@ -377,8 +345,6 @@ def _process_letterhead_file(content: bytes, content_type: str,
             from PIL import Image, ImageDraw
             img = Image.open(_io.BytesIO(content)).convert("RGB")
             w, h = img.size
-            # Bornes de sécurité : chaque bande entre 5% et 45% de la hauteur,
-            # pour qu'il reste toujours une bande centrale à blanchir.
             header_px = int(h * max(5.0, min(header_pct, 45.0)) / 100.0)
             footer_px = int(h * max(5.0, min(footer_pct, 45.0)) / 100.0)
             draw = ImageDraw.Draw(img)
@@ -406,15 +372,7 @@ async def upload_clinic_letterhead(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Uploader le papier en-tête (Letterhead) du cabinet.
-
-    - PDF : la première page est convertie en PNG (PyMuPDF) — un PDF brut ne peut
-      pas être dessiné comme fond par ReportLab.
-    - strip_body : blanchit la bande centrale (garde ~header_pct% en haut et
-      ~footer_pct% en bas) pour utiliser un document déjà rempli comme modèle.
-    - Les paramètres sont des champs Form (multipart) — sans Form(), FastAPI les
-      lisait en query params et ignorait silencieusement ce que le frontend envoyait.
-    """
+    """Uploader le papier en-tête (Letterhead) du cabinet."""
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou PDF")
@@ -437,8 +395,6 @@ async def upload_clinic_letterhead(
     clinic_dir = os.path.join(static_dir, "uploads", "clinics", config.public_id)
     os.makedirs(clinic_dir, exist_ok=True)
 
-    # Toute sortie traitée (PDF converti ou corps blanchi) est un vrai PNG ;
-    # sinon on conserve l'extension d'origine de l'image.
     file_ext = "png" if was_processed else file.filename.split(".")[-1].lower()
     unique_name = f"letterhead_{uuid.uuid4().hex[:8]}.{file_ext}"
     file_path = os.path.join(clinic_dir, unique_name)
@@ -453,8 +409,6 @@ async def upload_clinic_letterhead(
     config.margin_bottom = margins_bottom
     config.hide_header = hide_header
     config.hide_footer = hide_footer
-    # Extraction de couleurs sur les octets finaux : fonctionne désormais aussi
-    # pour un PDF (converti en PNG ci-dessus).
     detected_colors = _extract_brand_colors(content)
     if detected_colors:
         config.primary_color = detected_colors["primary_color"]
