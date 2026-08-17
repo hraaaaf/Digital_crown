@@ -36,9 +36,13 @@ def test_document_flow_keeps_non_partial_statuses_valid():
     assert _document_request("PAYE").payment_status == "PAYE"
 
 
-def test_dedicated_payment_flow_requires_an_explicit_amount():
+def test_dedicated_payment_flow_requires_explicit_amount_and_method():
     with pytest.raises(ValidationError):
         PaymentCreate(patient_id=1)
 
-    payment = PaymentCreate(patient_id=1, amount=250.0)
+    with pytest.raises(ValidationError):
+        PaymentCreate(patient_id=1, amount=250.0)
+
+    payment = PaymentCreate(patient_id=1, amount=250.0, payment_method="ESPECES")
     assert payment.amount == 250.0
+    assert payment.payment_method == "ESPECES"
