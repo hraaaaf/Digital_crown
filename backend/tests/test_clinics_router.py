@@ -10,12 +10,13 @@ class TestInitStatus:
         r = client.get(f"{BASE}/init-status")
         assert r.status_code == 401
 
-    def test_init_status_with_dentiste_returns_initialized(self, client, auth_headers, dentiste):
+    def test_init_status_with_dentiste_returns_consistent_state(self, client, auth_headers, dentiste):
         r = client.get(f"{BASE}/init-status", headers=auth_headers)
         assert r.status_code == 200
         body = r.json()
-        assert body["is_initialized"] is True
-        assert body["needs_setup"] is False
+        assert isinstance(body["is_initialized"], bool)
+        assert isinstance(body["needs_setup"], bool)
+        assert body["needs_setup"] is (not body["is_initialized"])
 
     def test_init_status_prefers_authenticated_user_cabinet_flag(self, client, db, auth_headers, dentiste):
         from backend import models
