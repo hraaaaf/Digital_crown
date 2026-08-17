@@ -30,12 +30,7 @@ _SETTINGS_FIELDS = (
 
 
 def _ensure_tenant_columns(db: Session) -> None:
-    """Add the tenant columns idempotently for legacy installations.
-
-    The project historically used self-healing additive migrations rather than
-    Alembic. Keep that contract here, but never silently assign ambiguous legacy
-    rows to a cabinet.
-    """
+    """Add the tenant columns idempotently for legacy installations."""
     bind = db.get_bind()
     inspector = inspect(bind)
     for table_name in ("cabinet_settings", "agenda_exceptions"):
@@ -122,7 +117,7 @@ def get_cabinet_settings(
 def update_cabinet_settings(
     settings_update: CabinetSettingsUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_permission("agenda")),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     employer_id = _prepare_tenant(db, current_user)
     if not _settings_row(db, employer_id):
