@@ -80,6 +80,14 @@ jobs:
           cat /tmp/t2-frontend.log
           exit 1
 
+      - name: Capture Patient baseline matrix
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/patient-baseline
+          node scripts/capture-patient-baseline.mjs 2>&1 | tee ../artifacts/patient-baseline/runner.log
+
       - name: Execute authenticated browser matrix
         working-directory: frontend
         shell: bash
@@ -108,6 +116,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: t2-browser-evidence
-          path: artifacts/t2-browser
+          path: |
+            artifacts/t2-browser
+            artifacts/patient-baseline
           if-no-files-found: warn
           retention-days: 14
