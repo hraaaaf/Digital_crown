@@ -166,99 +166,54 @@ function buildUrgenceDiag(ans: Record<string, string>): { diag: string; steps: a
 }
 
 function buildRoutineDiag(ans: Record<string, string>): { diag: string; steps: any[]; next: string | null } {
-  const { antecedents, hygiene, paro, dentaire, occlusion, tissus_mous } = ans;
+  const selectedLabel = (questionId: string, value: string | undefined) => {
+    const question = ROUTINE_STEPS.find((item) => item.id === questionId);
+    return question?.options.find((option) => option.value === value)?.label || 'Non renseigné';
+  };
 
-  const diagParts: string[] = ['Bilan Dentaire Complet'];
-  const steps: any[] = [];
-  let next: string | null = null;
+  const observations = [
+    `Antécédents rapportés : ${selectedLabel('antecedents', ans.antecedents)}`,
+    `Hygiène renseignée : ${selectedLabel('hygiene', ans.hygiene)}`,
+    `Statut parodontal renseigné : ${selectedLabel('paro', ans.paro)}`,
+    `Statut dentaire renseigné : ${selectedLabel('dentaire', ans.dentaire)}`,
+    `Examen occlusal renseigné : ${selectedLabel('occlusion', ans.occlusion)}`,
+    `Tissus mous renseignés : ${selectedLabel('tissus_mous', ans.tissus_mous)}`,
+  ];
 
-  // Antécédents
-  if (antecedents === 'cardio') {
-    diagParts.push('Haut Risque Infectieux');
-    steps.push({ title: 'Antibioprophylaxie avant tout soin invasif (Amox 2g, 1h avant)', assistant: 'general' });
-  } else if (antecedents === 'allergie') {
-    diagParts.push('Allergie Connue');
-    steps.push({ title: 'Mise à jour dossier médical — alerte allergie', assistant: 'general' });
-  } else if (antecedents === 'hta_diabete') {
-    steps.push({ title: 'Coordination médecin traitant (contrôle TA / glycémie)', assistant: 'general' });
+  const vigilance: string[] = [];
+  if (ans.antecedents === 'cardio') {
+    vigilance.push('Antécédent cardiovasculaire / prothèse valvulaire déclaré : indication éventuelle de prophylaxie à qualifier précisément selon la cardiopathie, le geste envisagé et les recommandations applicables.');
+  }
+  if (ans.antecedents === 'allergie') {
+    vigilance.push('Allergie médicamenteuse déclarée : substance, réaction, gravité et statut actuel à confirmer avant toute prescription.');
+  }
+  if (ans.antecedents === 'hta_diabete') {
+    vigilance.push('HTA / diabète / anticoagulants déclarés : situation médicale et traitements en cours à préciser avant décision clinique.');
+  }
+  if (ans.paro === 'paro_severe' || ans.paro === 'paro_moderee') {
+    vigilance.push('Signes parodontaux rapportés : diagnostic et stade à confirmer par examen parodontal complet et données nécessaires.');
+  }
+  if (ans.dentaire === 'caries' || ans.dentaire === 'caries_et_restaurations' || ans.dentaire === 'restaurations') {
+    vigilance.push('Anomalies dentaires rapportées : confirmer dent par dent avant diagnostic, imagerie ou plan thérapeutique.');
+  }
+  if (ans.occlusion !== 'normale') {
+    vigilance.push('Anomalie occlusale / parafonction rapportée : examen fonctionnel à compléter avant conclusion ou traitement.');
+  }
+  if (ans.tissus_mous === 'lesion_suspecte') {
+    vigilance.push('Lésion muqueuse rapportée comme suspecte : examen clinique ciblé, documentation et orientation à décider sans délai selon les constatations du praticien.');
+  } else if (ans.tissus_mous !== 'ras') {
+    vigilance.push('Anomalie des tissus mous rapportée : description clinique, durée, évolution et facteurs associés à documenter.');
   }
 
-  // Hygiène → motivation + prophylaxie
-  if (hygiene === 'mediocre') {
-    diagParts.push('Hygiène Insuffisante');
-    steps.push({ title: 'Motivation à l\'hygiène + révélateur de plaque', assistant: 'paro' });
-    steps.push({ title: 'Détartrage bi-maxillaire + polissage', assistant: 'paro' });
-    if (!next) next = 'paro';
-  } else if (hygiene === 'moyenne') {
-    steps.push({ title: 'Détartrage bi-maxillaire', assistant: 'paro' });
-  }
+  const summary = [
+    `Observations recueillies : ${observations.join(' ; ')}.`,
+    vigilance.length ? `Vigilance : ${vigilance.join(' ')}` : 'Vigilance : aucun signal particulier déclaré dans ce questionnaire.',
+    "Données à confirmer / compléter : examen clinique complet et examens complémentaires décidés par le praticien selon les indications constatées.",
+    "Ce questionnaire ne pose pas automatiquement de diagnostic et ne détermine pas de traitement.",
+    "Diagnostic, examens complémentaires et conduite thérapeutique : décision du praticien après validation clinique.",
+  ].join(' ');
 
-  // Statut paro
-  if (paro === 'paro_severe') {
-    diagParts.push('Parodontite Sévère');
-    steps.push({ title: 'Bilan parodontal complet (sondage 6 points / dent)', assistant: 'paro' });
-    steps.push({ title: 'Phase I : surfaçage radiculaire (par quadrant)', assistant: 'paro' });
-    steps.push({ title: 'Réévaluation parodontale à 8 semaines', assistant: 'paro' });
-    next = 'paro';
-  } else if (paro === 'paro_moderee') {
-    diagParts.push('Parodontite Modérée');
-    steps.push({ title: 'Sondage parodontal + radiographies périapicales', assistant: 'paro' });
-    steps.push({ title: 'Détartrage-surfaçage + contrôle de plaque', assistant: 'paro' });
-    if (!next) next = 'paro';
-  } else if (paro === 'gingivite') {
-    steps.push({ title: 'Séance de motivation + détartrage', assistant: 'paro' });
-  }
-
-  // Statut dentaire
-  if (dentaire === 'caries_et_restaurations') {
-    diagParts.push('Caries Multiples + Restaurations à Renouveler');
-    steps.push({ title: 'Bilan radiologique complet (mordu-centré bi-latéral)', assistant: 'general' });
-    steps.push({ title: 'Plan de soins conservateurs (amalgames / composites)', assistant: 'endo' });
-    steps.push({ title: 'Renouvellement des restaurations défaillantes', assistant: 'prothese' });
-    if (!next) next = 'endo';
-  } else if (dentaire === 'caries') {
-    diagParts.push('Caries Actives');
-    steps.push({ title: 'Bilan cariologique (radiographies mordu-centré)', assistant: 'general' });
-    steps.push({ title: 'Traitement des caries (composite / amalgame)', assistant: 'endo' });
-    if (!next) next = 'endo';
-  } else if (dentaire === 'restaurations') {
-    diagParts.push('Restaurations Défaillantes');
-    steps.push({ title: 'Renouvellement des obturations / couronnes secondaires', assistant: 'prothese' });
-    if (!next) next = 'prothese';
-  }
-
-  // Occlusion
-  if (occlusion === 'bruxisme') {
-    diagParts.push('Bruxisme');
-    steps.push({ title: 'Gouttière de protection nocturne (thermoformée)', assistant: 'atm' });
-    steps.push({ title: 'Bilan ATM clinique + éventuellement IRM ATM', assistant: 'atm' });
-    if (!next) next = 'atm';
-  } else if (occlusion === 'malocclusion') {
-    diagParts.push('Malocclusion');
-    steps.push({ title: 'Bilan ODF (photos, moulages, téléradiographie)', assistant: 'ortho' });
-    if (!next) next = 'ortho';
-  } else if (occlusion === 'supracontacts') {
-    steps.push({ title: 'Équilibration occlusale sélective', assistant: 'atm' });
-  }
-
-  // Tissus mous
-  if (tissus_mous === 'lesion_suspecte') {
-    diagParts.push('Lésion Muqueuse Suspecte');
-    steps.push({ title: 'Biopsie / cytodiagnostic — PRIORITAIRE', assistant: 'patho' });
-    steps.push({ title: 'Orientation chirurgien maxillo-facial si nécessaire', assistant: 'chirurgie' });
-    next = 'patho';
-  } else if (tissus_mous === 'aphtes') {
-    steps.push({ title: 'Traitement local (corticoïdes topiques) + bilan systémique', assistant: 'patho' });
-  }
-
-  // Si RAS partout
-  if (steps.length === 0) {
-    steps.push({ title: 'Prophylaxie fluorée + scellements de sillons', assistant: 'general' });
-    steps.push({ title: 'Contrôle de routine dans 6 mois', assistant: 'general' });
-  }
-
-  const diag = diagParts.join(' — ');
-  return { diag, steps, next };
+  return { diag: summary, steps: [], next: null };
 }
 
 // ── Composant principal ────────────────────────────────────────────────────
@@ -357,7 +312,7 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
           {branch === 'urgence' ? 'Protocole d\'urgence en cours…' : 'Synthèse du bilan clinique…'}
         </h3>
         <p className="text-xs text-slate-400 font-bold">
-        {branch === 'urgence' ? 'Synthèse des observations et signaux de vigilance' : 'Génération du diagnostic + plan de traitement'}
+        {branch === 'urgence' ? 'Synthèse des observations et signaux de vigilance' : 'Synthèse clinique structurée'}
       </p>
       </div>
     );
