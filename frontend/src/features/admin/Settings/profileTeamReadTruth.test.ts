@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const containerSource = readFileSync(new URL('./SettingsContainer.tsx', import.meta.url), 'utf8');
-const teamGateSource = readFileSync(new URL('./components/TeamReadTruthGate.tsx', import.meta.url), 'utf8');
+const settingsDir = resolve(process.cwd(), 'src/features/admin/Settings');
+const containerSource = readFileSync(resolve(settingsDir, 'SettingsContainer.tsx'), 'utf8');
+const teamGateSource = readFileSync(resolve(settingsDir, 'components/TeamReadTruthGate.tsx'), 'utf8');
 
 describe('Settings profile/team read truth', () => {
   it('blocks profile-backed settings and global save after a failed profile read', () => {
