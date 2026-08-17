@@ -13,17 +13,24 @@ interface QuickPayModalProps {
   patientId: number;
 }
 
+type PaymentMethod = 'ESPECES' | 'CARTE' | 'VIREMENT' | 'CHEQUE';
+
 export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps) => {
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState<'ESPECES' | 'CARTE' | 'VIREMENT' | 'CHEQUE'>('ESPECES');
+  const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEscapeKey(isOpen, onClose);
+  const handleClose = () => {
+    setMethod(null);
+    onClose();
+  };
+
+  useEscapeKey(isOpen, handleClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0 || !method) return;
 
     try {
       setIsSubmitting(true);
@@ -35,6 +42,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
       });
       toast.success('Paiement enregistré avec succès');
       setAmount('');
+      setMethod(null);
       setNotes('');
       useAccountingStore.getState().setGroupSelectedTeeth([]);
       useAccountingStore.getState().setOdontogramMode('individual');
@@ -46,7 +54,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
     }
   };
 
-  const methods = [
+  const methods: Array<{ id: PaymentMethod; label: string; icon: React.ReactNode }> = [
     { id: 'ESPECES', label: 'Espèces', icon: <Banknote size={20} /> },
     { id: 'CARTE', label: 'Carte', icon: <CreditCard size={20} /> },
     { id: 'VIREMENT', label: 'Virement', icon: <Landmark size={20} /> },
@@ -61,7 +69,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
 
@@ -73,7 +81,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
           >
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Saisir un Paiement</h2>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors" aria-label="Fermer">
+              <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors" aria-label="Fermer">
                 <X size={20} />
               </button>
             </div>
@@ -104,11 +112,11 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setMethod(m.id as any)}
+                      onClick={() => setMethod(m.id)}
                       className={cn(
                         "flex items-center gap-3 p-4 rounded-2xl border transition-all",
-                        method === m.id 
-                          ? "bg-primary/5 border-primary text-primary shadow-sm" 
+                        method === m.id
+                          ? "bg-primary/5 border-primary text-primary shadow-sm"
                           : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
                       )}
                     >
@@ -133,9 +141,9 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={isSubmitting || !amount}
+                  disabled={isSubmitting || !amount || parseFloat(amount) <= 0 || !method}
                   className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 hover:bg-primary shadow-lg"
-                  style={!isSubmitting && amount ? { backgroundColor: 'var(--primary)' } : {}}
+                  style={!isSubmitting && amount && parseFloat(amount) > 0 && method ? { backgroundColor: 'var(--primary)' } : {}}
                 >
                   {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : 'Encaisser'}
                 </button>
