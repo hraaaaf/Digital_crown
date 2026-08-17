@@ -1,0 +1,303 @@
+name: Settings Visual Baseline
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-visual-baseline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: Settings baseline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout baseline HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject visual-only Settings harness
+        working-directory: frontend
+        run: |
+          cat > settings-visual-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Settings Visual Baseline</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/settings-visual-cert.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/settings-visual-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const role = new URLSearchParams(window.location.search).get('role') === 'secretary'
+            ? 'SECRETAIRE'
+            : 'ADMIN';
+
+          const user = role === 'ADMIN'
+            ? {
+                id: 1,
+                email: 'admin@settings-baseline.local',
+                nom_complet: 'Dr Baseline Settings',
+                role: 'ADMIN',
+                is_superadmin: false,
+                permissions: {},
+              }
+            : {
+                id: 2,
+                email: 'secretariat@settings-baseline.local',
+                nom_complet: 'Secrétariat Baseline',
+                role: 'SECRETAIRE',
+                is_superadmin: false,
+                permissions: { agenda: true, patients: true, settings: false, admin: false },
+              };
+
+          useAuthStore.setState({
+            user: user as any,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/settings']}>
+                <Settings />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > settings-visual-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = process.env.OUTPUT_DIR || 'settings-visual-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const profile = {
+            id: 1,
+            public_id: 'baseline-settings',
+            nom_cabinet: 'Cabinet Dentaire Baseline',
+            nom_praticien: 'Achraf Baseline',
+            nom_praticien_ar: 'أشرف',
+            footer_address: 'Rabat, Maroc',
+            footer_phones: '📞 05 37 00 00 00',
+            inpe: '123456789',
+            ice: '001234567890123',
+            if_: '12345678',
+            primary_color: '#003380',
+            secondary_color: '#1e40af',
+            accent_color: '#60a5fa',
+            selected_theme: 'elite',
+            font_fr: 'inter',
+            selected_template: 'swiss',
+            header_lines_fr: ['Dr. Achraf Baseline', 'Chirurgien Dentiste'],
+            header_lines_ar: ['د. أشرف', 'طبيب جراحة الأسنان'],
+            specialty_ids: [],
+            contacts_json: {
+              fixe: { enabled: true, value: '05 37 00 00 00' },
+              mobile: { enabled: true, value: '06 00 00 00 00' },
+              whatsapp: { enabled: false, value: '' },
+              instagram: { enabled: false, value: '' },
+            },
+            margin_top: 3.6,
+            margin_bottom: 3.2,
+            watermark_enabled: true,
+            use_letterhead: false,
+            qr_code_enabled: false,
+            qr_code_type: 'VCARD',
+            qr_code_style: 'dots',
+            show_patient_badges: true,
+            performance_mode: false,
+            clinical_tips_enabled: true,
+            hide_header: true,
+            hide_footer: true,
+            cabinet_type: 'PRIVE',
+          };
+
+          const specialtyFixture = [
+            {
+              id: 1,
+              name: 'Omnipratique',
+              color: '#1e40af',
+              pathologies: [
+                { id: 1, specialty_id: 1, name: 'Caries', description: '', is_active: true },
+              ],
+              acts: [
+                { id: 1, specialty_id: 1, name: 'Consultation', code: 'CONS', base_price: 300, color: '#60a5fa', is_active: true },
+                { id: 2, specialty_id: 1, name: 'Détartrage', code: 'DET', base_price: 450, color: '#38bdf8', is_active: true },
+              ],
+            },
+          ];
+
+          const agendaSettings = {
+            id: 1,
+            opening_time_morning: '09:00',
+            closing_time_morning: '13:00',
+            opening_time_afternoon: '14:00',
+            closing_time_afternoon: '18:00',
+            is_continuous: false,
+            agenda_mode: 'EXACT',
+            use_tickets: false,
+          };
+
+          const team = [
+            {
+              id: 2,
+              email: 'assistante@baseline.local',
+              role: 'SECRETAIRE',
+              nom_complet: 'Assistante Baseline',
+              telephone_mobile: '0600000000',
+              is_active: true,
+              approval_status: 'approved',
+              permissions: { agenda: true, patients: true, settings: false, admin: false },
+            },
+          ];
+
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4178, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch();
+          const tabs = [
+            ['profil', 'Profil Cabinet'],
+            ['branding', 'Design & Ambiance'],
+            ['catalogue', 'Catalogue Actes'],
+            ['agenda', 'Horaires & Agenda'],
+            ['ia', 'IA & Système'],
+            ['securite', 'Sécurité & Backup'],
+            ['equipe', 'Mon Équipe'],
+          ];
+
+          try {
+            const widths = [1440, 1024, 768, 430, 390];
+            for (const role of ['admin', 'secretary']) {
+              for (const width of widths) {
+                const context = await browser.newContext({ viewport: { width, height: 1200 } });
+                const page = await context.newPage();
+                const runtimeErrors = [];
+                page.on('pageerror', error => runtimeErrors.push(`pageerror: ${error.message}`));
+                page.on('console', message => {
+                  if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+                });
+
+                await page.route('**/*', async route => {
+                  const request = route.request();
+                  const url = new URL(request.url());
+                  if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+
+                  if (request.method() !== 'GET') return route.fulfill(json({}));
+                  if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
+                  if (url.pathname.endsWith('/specialties')) return route.fulfill(json(specialtyFixture));
+                  if (url.pathname.endsWith('/agenda/settings')) return route.fulfill(json(agendaSettings));
+                  if (url.pathname.endsWith('/agenda/exceptions')) return route.fulfill(json([]));
+                  if (url.pathname.endsWith('/agenda/upcoming-holidays')) return route.fulfill(json([]));
+                  if (url.pathname.includes('/audit-logs')) return route.fulfill(json({ total: 0, logs: [] }));
+                  if (url.pathname.includes('/team/quota')) return route.fulfill(json({
+                    plan: 'GOLD', dentistes_used: 1, dentistes_max: 1,
+                    secretaires_used: 1, secretaires_max: 2, pending_count: 0,
+                    can_add_dentiste: false, can_add_secretaire: true,
+                  }));
+                  if (url.pathname.includes('/team')) return route.fulfill(json(team));
+                  if (url.pathname.includes('/mobile')) return route.fulfill(json([]));
+                  if (url.pathname.includes('/backup')) return route.fulfill(json({ status: 'ok' }));
+                  return route.fulfill(json({}));
+                });
+
+                await page.goto(`http://127.0.0.1:4178/settings-visual-cert.html?role=${role}`, { waitUntil: 'networkidle' });
+                await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
+
+                for (const [tabId, label] of tabs) {
+                  await page.getByRole('button', { name: new RegExp(label, 'i') }).click();
+                  await page.waitForTimeout(150);
+                  await page.screenshot({
+                    path: `${output}/${role}-${tabId}-${width}x1200.png`,
+                    fullPage: true,
+                    animations: 'disabled',
+                  });
+                }
+
+                await fs.writeFile(`${output}/${role}-${width}x1200.errors.txt`, runtimeErrors.join('\n'));
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture Settings baseline
+        working-directory: frontend
+        env:
+          OUTPUT_DIR: settings-visual-artifacts
+        run: node settings-visual-cert.mjs
+
+      - name: Record baseline metadata
+        working-directory: frontend
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HARNESS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          cat > settings-visual-artifacts/metadata.txt <<EOF
+          target_sha=${TARGET_SHA}
+          harness_sha=${HARNESS_SHA}
+          goal=Baseline exhaustive Réglages avant toute modification UI.
+          tabs=profil,branding,catalogue,agenda,ia,securite,equipe
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          roles=ADMIN,SECRETAIRE
+          expected_screenshots=70
+          product_changes=none
+          EOF
+
+      - name: Verify artifact cardinality
+        working-directory: frontend
+        run: |
+          count=$(find settings-visual-artifacts -name '*.png' | wc -l)
+          test "$count" -eq 70
+          if grep -R -n -E 'pageerror:|console:' settings-visual-artifacts/*.errors.txt; then
+            echo "Runtime errors detected in Settings baseline harness" >&2
+            exit 1
+          fi
+
+      - name: Upload Settings baseline proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-visual-baseline
+          path: frontend/settings-visual-artifacts/
+          if-no-files-found: error
+          retention-days: 14
