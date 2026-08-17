@@ -66,15 +66,21 @@ async function captureProtocol(viewport, protocol) {
     throw error;
   }
 
+  let focus;
   if (protocol === 'endo') {
     await page.getByRole('button', { name: /Endodontie/i }).click();
-    await page.getByText('Protocole Endodontie', { exact: true }).waitFor({ state: 'visible' });
+    focus = page.getByText('Protocole Endodontie', { exact: true });
+    await focus.waitFor({ state: 'visible' });
     await page.getByText('Symptomatologie et Douleur', { exact: true }).waitFor({ state: 'visible' });
   } else {
     await page.getByRole('button', { name: /Examen Clinique Complet/i }).click();
-    await page.getByText('Protocole Examen Clinique Complet', { exact: true }).waitFor({ state: 'visible' });
+    focus = page.getByText('Protocole Examen Clinique Complet', { exact: true });
+    await focus.waitFor({ state: 'visible' });
     await page.getByText('Urgence / Douleur aiguë', { exact: true }).waitFor({ state: 'visible' });
   }
+
+  await focus.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(350);
 
   const metrics = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -86,7 +92,7 @@ async function captureProtocol(viewport, protocol) {
   });
 
   const screenshot = `patient-p0d-${protocol}-baseline-${viewport.width}x${viewport.height}.png`;
-  await page.screenshot({ path: path.join(outDir, screenshot), fullPage: true });
+  await page.screenshot({ path: path.join(outDir, screenshot), fullPage: false });
   evidence.push({ protocol, viewport, metrics, pageErrors, consoleErrors, screenshot });
   await context.close();
 }
