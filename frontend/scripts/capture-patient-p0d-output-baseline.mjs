@@ -34,7 +34,8 @@ async function seedAuth(page) {
 async function openClinical(page) {
   await seedAuth(page);
   await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText('Espace Clinique', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /Endodontie/i }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /Examen Clinique Complet/i }).waitFor({ state: 'visible', timeout: 30000 });
 }
 
 async function snap(page, protocol, phase, viewport, pageErrors, httpErrors) {
