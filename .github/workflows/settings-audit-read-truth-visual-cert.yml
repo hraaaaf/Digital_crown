@@ -1,0 +1,97 @@
+name: Settings Audit Read Truth Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Security/AuditLogViewer.tsx"
+      - "frontend/src/features/admin/Security/AuditLogViewer.test.tsx"
+      - "frontend/src/features/admin/Settings/components/SharedUI.tsx"
+      - ".github/workflows/settings-audit-read-truth-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject audit degraded-read harness
+        working-directory: frontend
+        run: |
+          cat > settings-audit-read-truth-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Settings Audit Read Truth</title></head><body><div id="root"></div><script type="module" src="/src/settings-audit-read-truth-cert.tsx"></script></body></html>
+          EOF
+          cat > src/settings-audit-read-truth-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({ user: ({ id:1, email:'admin@audit-read-truth.local', nom_complet:'Dr Audit Truth', role:'ADMIN', is_superadmin:false, permissions:{} } as any), isAuthenticated:true, isLoading:false, error:null });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > settings-audit-read-truth-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const output='settings-audit-read-truth-artifacts'; await fs.mkdir(output,{recursive:true});
+          const profile={nom_praticien:'Dr Audit Truth',nom_cabinet:'Cabinet Audit Truth',header_lines_fr:['Dr Audit Truth'],specialty_ids:[],selected_theme:'elite',primary_color:'#003380',secondary_color:'#1e40af',accent_color:'#60a5fa',show_patient_badges:true,performance_mode:false,clinical_tips_enabled:true};
+          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for(const width of [1440,1024,768,430,390]) {
+              const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const runtimeErrors=[];
+              page.on('pageerror',e=>runtimeErrors.push(`pageerror: ${e.message}`));
+              page.on('console',m=>{
+                if(m.type()!=='error') return;
+                const text=m.text();
+                const expected=text.includes('503') || text.startsWith('Path: /admin/audit-logs') || text.startsWith('Details: unavailable') || text.includes('Erreur chargement audit logs');
+                if(!expected) runtimeErrors.push(`console: ${text}`);
+              });
+              await page.route('**/api/**', async route => {
+                const url=new URL(route.request().url());
+                if(url.pathname.endsWith('/clinics/me')) return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(profile)});
+                if(url.pathname.includes('/admin/audit-logs')) return route.fulfill({status:503,contentType:'application/json',body:'{"detail":"unavailable"}'});
+                return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+              });
+              await page.goto('http://127.0.0.1:4178/settings-audit-read-truth-cert.html',{waitUntil:'networkidle'});
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'Sécurité & Backup',exact:true}).click();
+              await page.getByText("Journal d'audit indisponible",{exact:true}).waitFor({state:'visible',timeout:15000});
+              await page.getByRole('button',{name:'Réessayer',exact:true}).waitFor({state:'visible'});
+              const text=await page.locator('body').innerText();
+              if(text.includes('Aucun log trouvé')) throw new Error('False empty audit history visible after failed read');
+              if(text.includes('0 entrée')) throw new Error('False zero audit count visible after failed read');
+              const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth); if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
+              if(runtimeErrors.length) throw new Error(runtimeErrors.join('\n'));
+              await page.screenshot({path:`${output}/admin-audit-error-${width}x1200.png`,fullPage:true,animations:'disabled'});
+              await context.close();
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture and assert Audit degraded read views
+        working-directory: frontend
+        run: node settings-audit-read-truth-cert.mjs
+      - name: Verify proof count
+        working-directory: frontend
+        run: test "$(find settings-audit-read-truth-artifacts -name '*.png' | wc -l)" -eq 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-audit-read-truth-visual-cert
+          path: frontend/settings-audit-read-truth-artifacts/
+          if-no-files-found: error
+          retention-days: 14

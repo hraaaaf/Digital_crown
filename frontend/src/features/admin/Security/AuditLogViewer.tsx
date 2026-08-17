@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Filter, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
+import { SettingsReadError } from '../Settings/components/SharedUI';
 
 interface AuditLog {
   id: number;
@@ -28,12 +29,14 @@ export const AuditLogViewer = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [readError, setReadError] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
   const limit = 20;
 
   const fetchLogs = async () => {
     setLoading(true);
+    setReadError(null);
     try {
       const params = new URLSearchParams({ limit: String(limit), offset: String(page * limit) });
       if (actionFilter) params.set('action', actionFilter);
@@ -43,6 +46,7 @@ export const AuditLogViewer = () => {
       setTotal(res.data.total);
     } catch (e) {
       console.error('Erreur chargement audit logs', e);
+      setReadError("Impossible de charger le journal d'audit réel du cabinet.");
     } finally {
       setLoading(false);
     }
@@ -72,7 +76,8 @@ export const AuditLogViewer = () => {
         <select
           value={actionFilter}
           onChange={e => { setActionFilter(e.target.value); setPage(0); }}
-          className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+          disabled={Boolean(readError)}
+          className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
         >
           <option value="">Toutes les actions</option>
           <option value="LOGIN_SUCCESS">Connexion réussie</option>
@@ -86,7 +91,8 @@ export const AuditLogViewer = () => {
         <select
           value={severityFilter}
           onChange={e => { setSeverityFilter(e.target.value); setPage(0); }}
-          className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+          disabled={Boolean(readError)}
+          className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
         >
           <option value="">Toutes les sévérités</option>
           <option value="INFO">INFO</option>
@@ -96,13 +102,23 @@ export const AuditLogViewer = () => {
         <button onClick={fetchLogs} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Rafraîchir">
           <RefreshCw size={16} />
         </button>
-        <span className="ml-auto text-xs font-bold text-slate-400">{total} entrée{total > 1 ? 's' : ''}</span>
+        <span className="ml-auto text-xs font-bold text-slate-400">
+          {readError ? '— entrées' : `${total} entrée${total > 1 ? 's' : ''}`}
+        </span>
       </div>
 
       {/* Logs table */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-sm font-medium">Chargement...</div>
+        ) : readError ? (
+          <div className="p-6">
+            <SettingsReadError
+              title="Journal d'audit indisponible"
+              message={`${readError} Aucun historique vide n'est supposé tant que la lecture n'a pas réussi.`}
+              onRetry={fetchLogs}
+            />
+          </div>
         ) : logs.length === 0 ? (
           <div className="p-12 text-center text-slate-400 text-sm font-medium">Aucun log trouvé</div>
         ) : (
@@ -153,7 +169,7 @@ export const AuditLogViewer = () => {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!readError && totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
