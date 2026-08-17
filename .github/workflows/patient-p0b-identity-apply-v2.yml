@@ -1,0 +1,74 @@
+name: Patient P0-B Identity Apply V2
+
+on:
+  push:
+    branches: [agent/patient-page-p0-truth-safety]
+    paths: [.github/workflows/patient-p0b-identity-apply-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+      - name: Apply guarded identity patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def one(text, old, new, label):
+              n = text.count(old)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {n}')
+              return text.replace(old, new, 1)
+
+          p = Path('frontend/src/features/patients/AddPatientForm.tsx')
+          s = p.read_text()
+          s = one(s, "sexe: 'F', ", "sexe: '',", 'add sex default')
+          s = one(s, "status: 'idle' | 'checking' | 'available' | 'taken'", "status: 'idle' | 'checking' | 'available' | 'taken' | 'unknown'", 'add status type')
+          s = one(s, "setDossierStatus({ status: 'available' }); // Fallback silent", "setDossierStatus({ status: 'unknown' });", 'add dossier catch')
+          s = one(s, 'if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";', 'if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";\n    if (!formData.sexe) newErrors.sexe = "Le sexe doit être sélectionné explicitement.";', 'add sex validate')
+          s = one(s, 'const checkDuplicate = async (): Promise<boolean> => {', 'const checkDuplicate = async (): Promise<boolean | null> => {', 'add duplicate type')
+          s = one(s, 'console.error("Erreur vérification doublon:", err);\n      return false; // En cas d\'erreur, on continue (le backend vérifiera aussi)', 'console.error("Erreur vérification doublon:", err);\n      setErrors(prev => ({ ...prev, global: "Vérification anti-doublon indisponible. Réessayez avant de créer le dossier." }));\n      return null;', 'add duplicate catch')
+          s = one(s, 'if (hasDuplicate) return; // Arrêter ici, attendre la décision de l\'utilisateur', 'if (hasDuplicate === null || hasDuplicate) return; // Erreur de contrôle ou doublon : ne jamais poursuivre silencieusement', 'add duplicate gate')
+          s = one(s, 'if (!validate()) return;\n\n    // Si pas encore vérifié', 'if (!validate()) return;\n    if (formData.numero_dossier && dossierStatus.status === \'unknown\') {\n      setErrors(prev => ({ ...prev, global: "Vérification du numéro de dossier indisponible. Réessayez avant de créer le dossier." }));\n      return;\n    }\n\n    // Si pas encore vérifié', 'add dossier submit gate')
+          s = one(s, "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}", "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}\n                  {dossierStatus.status === 'unknown' && <AlertTriangle className=\"w-4 h-4 text-amber-500\" />}", 'add unknown icon')
+          marker = "{dossierStatus.status === 'available' && (\n                <p className=\"text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1\">\n                  <UserCheck size={12} /> Numéro disponible\n                </p>\n              )}"
+          s = one(s, marker, marker + "\n              {dossierStatus.status === 'unknown' && (\n                <p className=\"text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1\">\n                  <AlertTriangle size={12} /> Vérification indisponible — réessayez\n                </p>\n              )}", 'add unknown message')
+          s = one(s, 'className={inputClass}\n                >\n                  <option value="F">Féminin</option>', 'className={cn(inputClass, errors.sexe && "border-red-400 focus:border-red-400 focus:ring-red-100")}\n                  required\n                >\n                  <option value="">Sélectionner</option>\n                  <option value="F">Féminin</option>', 'add sex select')
+          s = one(s, '</select>\n              </div>\n\n              <div>\n                <label className={labelClass}>Assurance / Couverture Médicale</label>', '</select>\n                {errors.sexe && <span className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}\n              </div>\n\n              <div>\n                <label className={labelClass}>Assurance / Couverture Médicale</label>', 'add sex error')
+          s = one(s, '<div className="max-w-4xl mx-auto p-10">', '<div className="max-w-4xl mx-auto p-3 sm:p-6 lg:p-10">', 'add responsive outer')
+          s = one(s, 'bg-[#003380] px-10 py-8 flex', 'bg-[#003380] px-5 py-6 sm:px-10 sm:py-8 flex', 'add responsive header')
+          s = one(s, '<form onSubmit={handleSubmit} className="p-10 space-y-10">', '<form onSubmit={handleSubmit} className="p-5 sm:p-8 lg:p-10 space-y-10">', 'add responsive form')
+          p.write_text('\n'.join(line.rstrip() for line in s.splitlines()) + '\n')
+
+          p = Path('frontend/src/features/patients/EditPatientForm.tsx')
+          s = p.read_text()
+          s = one(s, "sexe: 'F',", "sexe: '',", 'edit sex default')
+          s = one(s, "sexe: patient.sexe || 'F',", "sexe: patient.sexe || '',", 'edit loaded sex')
+          s = one(s, "status: 'idle' | 'checking' | 'available' | 'taken'", "status: 'idle' | 'checking' | 'available' | 'taken' | 'unknown'", 'edit status type')
+          s = one(s, "setDossierStatus({ status: 'available' });\n      }\n    }, 500);", "setDossierStatus({ status: 'unknown' });\n      }\n    }, 500);", 'edit dossier catch')
+          s = one(s, "e.preventDefault();\n    setNumeroError('');", "e.preventDefault();\n    setNumeroError('');\n    if (!formData.sexe) {\n      alert(\"Le sexe doit être sélectionné explicitement.\");\n      return;\n    }\n    if (formData.numero_dossier !== originalNumero && dossierStatus.status === 'unknown') {\n      setNumeroError(\"Vérification du numéro de dossier indisponible. Réessayez avant d'enregistrer.\");\n      return;\n    }", 'edit submit gates')
+          s = one(s, "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}", "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}\n                {dossierStatus.status === 'unknown' && <AlertTriangle className=\"w-4 h-4 text-amber-500\" />}", 'edit unknown icon')
+          marker = "{dossierStatus.status === 'available' && (\n              <p className=\"mt-2 text-xs text-emerald-600 font-bold\">✓ Numéro disponible</p>\n            )}"
+          s = one(s, marker, marker + "\n            {dossierStatus.status === 'unknown' && (\n              <p className=\"mt-2 text-xs text-amber-600 font-bold\">Vérification indisponible — réessayez</p>\n            )}", 'edit unknown message')
+          s = one(s, 'className={inputClass}\n            >\n              <option value="F">Féminin</option>', 'className={inputClass}\n              required\n            >\n              <option value="">Sélectionner</option>\n              <option value="F">Féminin</option>', 'edit sex select')
+          s = one(s, '<div className="max-w-2xl mx-auto p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">', '<div className="max-w-2xl mx-auto p-3 sm:p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">', 'edit responsive outer')
+          s = one(s, 'bg-white/70 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem]', 'bg-white/70 backdrop-blur-2xl p-5 sm:p-8 md:p-12 rounded-[2.5rem]', 'edit responsive card')
+          p.write_text('\n'.join(line.rstrip() for line in s.splitlines()) + '\n')
+          PY
+      - name: Verify and commit
+        run: |
+          git diff --check
+          git diff --stat -- frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx
+          rm .github/workflows/patient-p0b-identity-apply.yml .github/workflows/patient-p0b-identity-apply-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx .github/workflows/patient-p0b-identity-apply.yml .github/workflows/patient-p0b-identity-apply-v2.yml
+          git commit -m "fix(patient): fail closed on identity truth"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
