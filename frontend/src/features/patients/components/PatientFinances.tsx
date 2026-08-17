@@ -411,6 +411,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           onCreated={() => {
             setPlanActe(null);
             refetch();
+            refetchBilling();
           }}
         />
       )}
