@@ -51,13 +51,15 @@ for (const viewport of viewports) {
   const requestedUrl = `http://127.0.0.1:5173/patients/${patient.id}?tab=finances`;
   await page.goto(requestedUrl, { waitUntil: 'networkidle', timeout: 90000 });
   await page.getByRole('button', { name: /Plan/i }).first().click();
-  await page.getByText('Échéancier de paiement', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByText("Plan d'échéances", { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
   await page.waitForTimeout(250);
 
   const metrics = await page.evaluate(() => {
     const doc = document.documentElement;
-    const modal = [...document.querySelectorAll('[role="dialog"]')].find((el) =>
-      (el.textContent || '').includes('Échéancier')
+    const modal = [...document.querySelectorAll('div')].find((el) =>
+      el.classList.contains('bg-white') &&
+      el.classList.contains('max-w-lg') &&
+      (el.textContent || '').includes("Plan d'échéances")
     );
     const rect = modal?.getBoundingClientRect();
     return {
@@ -68,10 +70,13 @@ for (const viewport of viewports) {
       noPageHorizontalOverflow: doc.scrollWidth <= doc.clientWidth + 2,
       modalFound: Boolean(modal),
       modalRect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+      modalFitsViewport: rect ? rect.x >= -1 && rect.right <= innerWidth + 1 && rect.y >= -1 && rect.bottom <= innerHeight + 1 : false,
       viewport: { width: innerWidth, height: innerHeight },
       bodyTextLength: (document.body.innerText || '').trim().length,
     };
   });
+
+  if (!metrics.modalFound) throw new Error(`Installment modal not found at ${viewport.width}x${viewport.height}`);
 
   const screenshot = `patient-installment-baseline-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, screenshot), fullPage: true });
@@ -85,6 +90,7 @@ const summary = {
   totalCaptures: evidence.length,
   modalCaptures: evidence.filter((e) => e.metrics.modalFound).length,
   overflowFindings: evidence.filter((e) => !e.metrics.noPageHorizontalOverflow).map((e) => e.viewport),
+  modalViewportFitFindings: evidence.filter((e) => !e.metrics.modalFitsViewport).map((e) => e.viewport),
   runtimeErrorFindings: evidence.filter((e) => e.pageErrors.length > 0).map((e) => ({ viewport: e.viewport, errors: e.pageErrors })),
 };
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify(evidence, null, 2));
