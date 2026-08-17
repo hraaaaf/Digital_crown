@@ -87,16 +87,19 @@ jobs:
                   return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
                 });
                 await page.goto(`http://127.0.0.1:4178/settings-rbac-cert.html?role=${role}`, { waitUntil: 'networkidle' });
-                await page.getByText('Paramètres', { exact: true }).waitFor({ timeout: 15000 });
+                await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
                 if (role === 'admin') {
-                  for (const label of allAdminTabs) await page.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+                  for (const label of allAdminTabs) {
+                    await page.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible' });
+                  }
                   await page.screenshot({ path: `${output}/admin-profil-${width}x1200.png`, fullPage: true, animations: 'disabled' });
                 } else {
-                  await page.getByText('Horaires & Agenda', { exact: true }).waitFor({ state: 'visible' });
+                  await page.getByRole('button', { name: 'Horaires & Agenda', exact: true }).waitFor({ state: 'visible' });
+                  await page.getByRole('heading', { name: 'Horaires & Agenda', exact: true }).waitFor({ state: 'visible' });
                   for (const label of forbiddenForSecretary) {
-                    if (await page.getByText(label, { exact: true }).count()) throw new Error(`Forbidden secretary tab visible: ${label}`);
+                    if (await page.getByRole('button', { name: label, exact: true }).count()) throw new Error(`Forbidden secretary tab visible: ${label}`);
                   }
-                  if (await page.getByText('Mettre à jour le Profil', { exact: true }).count()) throw new Error('Forbidden profile save button visible to secretary');
+                  if (await page.getByRole('button', { name: 'Mettre à jour le Profil', exact: true }).count()) throw new Error('Forbidden profile save button visible to secretary');
                   await page.screenshot({ path: `${output}/secretary-agenda-${width}x1200.png`, fullPage: true, animations: 'disabled' });
                 }
                 if (errors.length) throw new Error(errors.join('\n'));
