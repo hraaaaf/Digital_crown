@@ -92,7 +92,8 @@ def _get_user_status_sync(email: str):
 
 async def get_user_license_status(email: str) -> tuple[bool, str]:
     """Vérifie la licence d'un utilisateur depuis SQLite avec cache TTL 60s.
-    Retourne (is_ok, reason) où reason ∈ {OK, NOT_LICENSED, LICENSE_EXPIRED, SUSPENDED, ARCHIVED, USER_NOT_FOUND}.
+    Retourne (is_ok, reason). Une panne DB ne peut jamais accorder implicitement
+    une licence : elle passe en lecture seule avec LICENSE_STATUS_UNAVAILABLE.
     """
     now = time.time()
     cached = _license_cache.get(email)
@@ -103,8 +104,9 @@ async def get_user_license_status(email: str) -> tuple[bool, str]:
         result = await run_in_threadpool(_get_user_status_sync, email)
     except Exception as e:
         logger.error(f"Erreur vérification licence pour {email}: {e}")
-        # Fail-open : si la DB est inaccessible, ne pas bloquer l'utilisateur
-        result = (True, "DB_ERROR_FAIL_OPEN")
+        # Fail-closed : une panne de la source locale de vérité ne doit jamais
+        # transformer une licence inconnue en licence valide.
+        result = (False, "LICENSE_STATUS_UNAVAILABLE")
 
     _license_cache[email] = (*result, now)
     return result
@@ -379,6 +381,7 @@ async def license_check_middleware(request: Request, call_next):
                 "SUSPENDED": "Votre accès a été suspendu.",
                 "ARCHIVED": "Ce compte est archivé.",
                 "USER_NOT_FOUND": "Compte introuvable. Veuillez vous reconnecter.",
+                "LICENSE_STATUS_UNAVAILABLE": "Mode lecture seule : état de licence indisponible temporairement.",
             }
             # Utilise 403 au lieu de 402 pour éviter le Hard-Lock global de l'UI
             return JSONResponse(
