@@ -1,0 +1,93 @@
+name: Patient P0 C — ClinicalHub truth follow-up
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-c-clinicalhub-truth-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Remove remaining simulated success paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('frontend/src/features/patients/components/ClinicalHub.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once('  Plus,\n', '', 'unused Plus import')
+          replace_once('Agent {ASSISTANTS.find(a => a.id === activeAssistant)?.name}', 'Protocole {ASSISTANTS.find(a => a.id === activeAssistant)?.name}', 'agent heading')
+
+          # The fallback branch is unreachable from the registered cards, but must still be fail-closed.
+          pattern = re.compile(r'''                \) : \(\n                  <>\n                    <p className="text-text-muted font-bold mb-6 text-sm">\n                      Le système est prêt.*?\n                  </>\n                \)\}''', re.S)
+          replacement = '''                ) : (\n                  <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-bold">\n                    Protocole indisponible. Aucune donnée clinique ni étape de traitement n'est générée.\n                  </div>\n                )}'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'unreachable simulation fallback: expected 1 replacement, found {count}')
+
+          # Replace fake archive/reset success block with a truthful backend reset only.
+          pattern = re.compile(r'''            \{progressPercent === 100 && treatmentPlan.length > 0 \? \(\n              <button.*?\n            \) : \(\n              <button.*?\n            \)\}''', re.S)
+          replacement = '''            <button\n              onClick={async () => {\n                if (window.confirm('Remplacer le plan de traitement enregistré par un plan vide ?')) {\n                  if (await savePlan([])) {\n                    setActiveAssistant(null);\n                    toast.success('Plan de traitement réinitialisé.');\n                  }\n                }\n              }}\n              disabled={planLoading || treatmentPlan.length === 0}\n              className="text-[10px] uppercase font-black tracking-widest text-rose-500 hover:text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors px-3 py-1.5 rounded-lg border border-rose-500/30"\n            >\n              Réinitialiser\n            </button>'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'archive/reset block: expected 1 replacement, found {count}')
+
+          # Render loading/error truth before progress.
+          marker = '''            {/* PROGRESS BAR */}'''
+          insert = '''            {planLoading && (\n              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500" role="status">\n                Chargement du plan enregistré…\n              </div>\n            )}\n            {planError && (\n              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700" role="alert">\n                {planError}\n              </div>\n            )}\n\n            {/* PROGRESS BAR */}'''
+          replace_once(marker, insert, 'plan loading/error display')
+
+          # Empty backend must be visibly empty, not implied success.
+          marker = '''              <AnimatePresence>\n                {treatmentPlan.map((step, index) => {'''
+          replacement = '''              {!planLoading && !planError && treatmentPlan.length === 0 && (\n                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-center text-xs font-bold text-slate-500">\n                  Aucune étape de traitement enregistrée.\n                </div>\n              )}\n              <AnimatePresence>\n                {treatmentPlan.map((step, index) => {'''
+          replace_once(marker, replacement, 'empty plan state')
+
+          # Devis handoff cannot use localStorage as a pretend accounting integration.
+          pattern = re.compile(r'''            <div className="pt-6 mt-6 border-t border-border-main/50 relative z-10">\n              <button.*?\n            </div>''', re.S)
+          replacement = '''            <div className="pt-6 mt-6 border-t border-border-main/50 relative z-10">\n              <div className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-center text-[11px] font-bold text-slate-500">\n                Pour créer un devis, utilisez l'espace Documents afin de conserver le flux comptable et l'archivage officiels.\n              </div>\n            </div>'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'fake devis handoff: expected 1 replacement, found {count}')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify fail-closed scope
+        run: |
+          git diff --check
+          test "$(git diff --name-only | grep -v '^.github/workflows/patient-p0-c-clinicalhub-truth-followup.yml$' | wc -l)" -eq 1
+          ! grep -q 'Simulation : Acte ajouté' frontend/src/features/patients/components/ClinicalHub.tsx
+          ! grep -q 'pending_devis_plan' frontend/src/features/patients/components/ClinicalHub.tsx
+          ! grep -q 'Ancien plan archivé' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'Aucune étape de traitement enregistrée' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'Chargement du plan enregistré' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'Protocole indisponible' frontend/src/features/patients/components/ClinicalHub.tsx
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-c-clinicalhub-truth-followup.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add frontend/src/features/patients/components/ClinicalHub.tsx .github/workflows/patient-p0-c-clinicalhub-truth-followup.yml
+          git commit -m "fix(patient): remove remaining ClinicalHub simulated success paths"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
