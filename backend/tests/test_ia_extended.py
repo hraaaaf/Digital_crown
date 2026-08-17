@@ -124,7 +124,12 @@ class TestGeneratePanoramicReport:
         analysis = _make_panoramic(db, pat.id)
         r = client.post(
             "/api/ia/generate-panoramic-report",
-            json={"analysis_id": analysis.id, "manual_anomalies": {}, "global_findings": [], "rejected_detections": []},
+            json={
+                "analysis_id": analysis.id,
+                "manual_anomalies": {},
+                "global_findings": [],
+                "rejected_detections": [],
+            },
             headers=auth_headers,
         )
         assert r.status_code == 200
@@ -137,7 +142,12 @@ class TestGeneratePanoramicReport:
         analysis = _make_panoramic(db, pat.id)
         r = client.post(
             "/api/ia/generate-panoramic-report",
-            json={"analysis_id": analysis.id, "manual_anomalies": {"16": ["Carie"], "26": ["Tartre"]}, "global_findings": ["Perte osseuse légère"], "rejected_detections": []},
+            json={
+                "analysis_id": analysis.id,
+                "manual_anomalies": {"16": ["Carie"], "26": ["Tartre"]},
+                "global_findings": ["Perte osseuse légère"],
+                "rejected_detections": [],
+            },
             headers=auth_headers,
         )
         assert r.status_code == 200
@@ -147,7 +157,13 @@ class TestGeneratePanoramicReport:
         analysis = _make_panoramic(db, pat.id)
         r = client.post(
             "/api/ia/generate-panoramic-report",
-            json={"analysis_id": analysis.id, "manual_anomalies": {}, "global_findings": [], "rejected_detections": [], "visual_annotations": [{"id": 1, "x": 25.0, "y": 50.0, "text": "Suspicion carie"}]},
+            json={
+                "analysis_id": analysis.id,
+                "manual_anomalies": {},
+                "global_findings": [],
+                "rejected_detections": [],
+                "visual_annotations": [{"id": 1, "x": 25.0, "y": 50.0, "text": "Suspicion carie"}],
+            },
             headers=auth_headers,
         )
         assert r.status_code == 200
@@ -159,10 +175,12 @@ class TestPanoramicPdf:
         assert r.status_code == 401
 
     def test_pdf_nonexistent_analysis_returns_error(self, client, auth_headers):
+        """Nonexistent analysis — either 404 or 500 depending on generator internals."""
         r = client.get("/api/ia/panoramic/999999/pdf", headers=auth_headers)
         assert r.status_code in (404, 500)
 
     def test_pdf_existing_analysis_returns_url_or_500(self, client, db, auth_headers, dentiste):
+        """Generator may fail in test env (no WeasyPrint) but should not 401/403."""
         pat = _make_patient(db, dentiste, "PANOPDF")
         analysis = _make_panoramic(db, pat.id)
         r = client.get(f"/api/ia/panoramic/{analysis.id}/pdf", headers=auth_headers)
@@ -174,12 +192,22 @@ class TestPanoramicPdf:
 class TestUploadRadioGuards:
     def test_upload_radio_invalid_patient_returns_403_or_404(self, client, auth_headers):
         fake_image = io.BytesIO(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
-        r = client.post("/api/ia/upload-radio", params={"patient_id": 999999}, files={"file": ("radio.jpg", fake_image, "image/jpeg")}, headers=auth_headers)
+        r = client.post(
+            "/api/ia/upload-radio",
+            params={"patient_id": 999999},
+            files={"file": ("radio.jpg", fake_image, "image/jpeg")},
+            headers=auth_headers,
+        )
         assert r.status_code in (400, 403, 404)
 
     def test_upload_panoramic_invalid_patient_returns_403_or_404(self, client, auth_headers):
         fake_image = io.BytesIO(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
-        r = client.post("/api/ia/upload-panoramic", params={"patient_id": 999999}, files={"file": ("panoramic.jpg", fake_image, "image/jpeg")}, headers=auth_headers)
+        r = client.post(
+            "/api/ia/upload-panoramic",
+            params={"patient_id": 999999},
+            files={"file": ("panoramic.jpg", fake_image, "image/jpeg")},
+            headers=auth_headers,
+        )
         assert r.status_code in (400, 403, 404)
 
 
@@ -219,9 +247,17 @@ class TestAdminExtended:
 
     def test_audit_logs_severity_filter(self, client, db, auth_headers, dentiste):
         from backend import models
-        log = models.AuditLog(user_id=dentiste.id, employer_id=dentiste.id, action="TEST_SEV", resource_type="Test", severity="CRITICAL", timestamp=datetime.now())
+        log = models.AuditLog(
+            user_id=dentiste.id,
+            employer_id=dentiste.id,
+            action="TEST_SEV",
+            resource_type="Test",
+            severity="CRITICAL",
+            timestamp=datetime.now(),
+        )
         db.add(log)
         db.commit()
+
         r = client.get("/api/admin/audit-logs?severity=CRITICAL", headers=auth_headers)
         assert r.status_code == 200
         for entry in r.json()["logs"]:
