@@ -37,22 +37,83 @@ async function openClinical(page) {
   await page.getByRole('button', { name: /Examen Clinique Complet/i }).waitFor({ state: 'visible', timeout: 30000 });
 }
 
+async function positionFocus(page, focus) {
+  await focus.scrollIntoViewIfNeeded();
+  await focus.evaluate((el) => {
+    const header = document.querySelector('header');
+    const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+    const requiredTop = headerBottom + 24;
+    const currentTop = el.getBoundingClientRect().top;
+    const delta = currentTop - requiredTop;
+
+    let parent = el.parentElement;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      const style = getComputedStyle(parent);
+      const scrollable = /(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 1;
+      if (scrollable) {
+        parent.scrollBy({ top: delta, behavior: 'instant' });
+        return;
+      }
+      parent = parent.parentElement;
+    }
+
+    window.scrollBy({ top: delta, behavior: 'instant' });
+  });
+  await page.waitForTimeout(180);
+}
+
 async function snap(page, phase, viewport, pageErrors, httpErrors) {
   const focus = phase === 'result'
     ? page.getByText(/Proposition clinique à valider/).first().locator('xpath=..')
     : page.getByText(/Synthèse clinique structurée/).first();
   await focus.waitFor({ state: 'visible', timeout: 12000 });
-  await focus.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(150);
+  await positionFocus(page, focus);
+
   const focusedText = await focus.innerText();
+  const geometry = await focus.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const header = document.querySelector('header');
+    const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height,
+      headerBottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      visibleBelowHeader: rect.top >= headerBottom + 8 && rect.bottom > headerBottom + 24,
+      horizontallyVisible: rect.left >= -1 && rect.right <= window.innerWidth + 1,
+    };
+  });
   const metrics = await page.evaluate(() => ({
     pathname: location.pathname,
     search: location.search,
     noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2,
   }));
+
   const screenshot = `patient-p0d-routine-${phase}-after-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, screenshot), fullPage: false });
-  evidence.push({ phase, viewport, screenshot, focusedText, metrics, pageErrors: [...pageErrors], httpErrors: [...httpErrors] });
+
+  let focusScreenshot = null;
+  if (phase === 'result') {
+    focusScreenshot = `patient-p0d-routine-result-card-after-${viewport.width}x${viewport.height}.png`;
+    await focus.screenshot({ path: path.join(outDir, focusScreenshot) });
+  }
+
+  evidence.push({
+    phase,
+    viewport,
+    screenshot,
+    focusScreenshot,
+    focusedText,
+    geometry,
+    metrics,
+    pageErrors: [...pageErrors],
+    httpErrors: [...httpErrors],
+  });
 }
 
 for (const viewport of viewports) {
@@ -90,8 +151,6 @@ const relevantHttpErrors = evidence.flatMap(e => e.httpErrors.map(err => ({ phas
   .filter(e => !/\/api\/patients\/\d+\/master-plan$/.test(e.url) || e.status !== 404);
 const results = evidence.filter(e => e.phase === 'result');
 
-// Match only concrete automatic interventions from the legacy Routine engine.
-// Do not ban generic clinical words: e.g. "confirmer" contains the letters "IRM".
 const bannedAutomaticActions = [
   /Antibioprophylaxie avant tout soin invasif/i,
   /Amox\s*2\s*g\s*,?\s*1h avant/i,
@@ -111,15 +170,26 @@ const summary = {
   overflowFindings: evidence.filter(e => !e.metrics.noHorizontalOverflow).map(e => ({ phase: e.phase, viewport: e.viewport })),
   pageErrorFindings: evidence.filter(e => e.pageErrors.length).map(e => ({ phase: e.phase, viewport: e.viewport, errors: e.pageErrors })),
   relevantHttpErrors,
+  resultGeometryFindings: results
+    .filter(e => !e.geometry.visibleBelowHeader || !e.geometry.horizontallyVisible)
+    .map(e => ({ viewport: e.viewport, geometry: e.geometry })),
   resultContracts: results.map(e => ({
     viewport: e.viewport,
     bannedMatches: bannedAutomaticActions.filter(pattern => pattern.test(e.focusedText)).map(pattern => pattern.source),
     hasRequiredSafetyText: required.every(pattern => pattern.test(e.focusedText)),
+    visibleBelowHeader: e.geometry.visibleBelowHeader,
+    horizontallyVisible: e.geometry.horizontallyVisible,
   })),
 };
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify(evidence, null, 2));
 fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
-if (summary.totalCaptures !== 8 || summary.overflowFindings.length || summary.pageErrorFindings.length || summary.relevantHttpErrors.length) {
+if (
+  summary.totalCaptures !== 8 ||
+  summary.overflowFindings.length ||
+  summary.pageErrorFindings.length ||
+  summary.relevantHttpErrors.length ||
+  summary.resultGeometryFindings.length
+) {
   console.error(JSON.stringify(summary, null, 2));
   process.exit(1);
 }
