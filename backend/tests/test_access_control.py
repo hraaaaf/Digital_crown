@@ -1,6 +1,5 @@
 """
-Tests: RBAC — secrétaire sans permission bloquée, token invalide rejeté,
-et confirmation que le bypass admin a bien été supprimé.
+Tests RBAC — matrice legacy fail-closed, permissions explicites et auth invalide.
 """
 import pytest
 from backend import models
@@ -14,6 +13,7 @@ def _make_user(db, email: str, role: str = "DENTISTE", permissions: dict = None,
         role=role,
         nom_complet="Test",
         is_active=True,
+        is_licensed=True,
         permissions=permissions or {},
         employer_id=employer_id,
     )
@@ -27,7 +27,7 @@ def _token(client, email: str) -> str:
     return r.json()["access_token"]
 
 
-# --- Secrétaire avec permission ---
+# --- Secrétaire : fallback legacy + matrice explicite ---
 
 def test_secretaire_can_read_patients_with_permission(client, db):
     boss = _make_user(db, "boss-rbac1@test.ma")
@@ -38,10 +38,19 @@ def test_secretaire_can_read_patients_with_permission(client, db):
     assert resp.status_code == 200
 
 
-def test_secretaire_blocked_without_permission(client, db):
+def test_secretaire_legacy_empty_permissions_can_read_patients(client, db):
     boss = _make_user(db, "boss-rbac2@test.ma")
     sec = _make_user(db, "sec-rbac2@test.ma", role="SECRETAIRE",
                      permissions={}, employer_id=boss.id)
+    tok = _token(client, sec.email)
+    resp = client.get("/api/patients/", headers={"Authorization": f"Bearer {tok}"})
+    assert resp.status_code == 200
+
+
+def test_secretaire_explicit_patient_denial_is_enforced(client, db):
+    boss = _make_user(db, "boss-rbac3@test.ma")
+    sec = _make_user(db, "sec-rbac3@test.ma", role="SECRETAIRE",
+                     permissions={"patients": False}, employer_id=boss.id)
     tok = _token(client, sec.email)
     resp = client.get("/api/patients/", headers={"Authorization": f"Bearer {tok}"})
     assert resp.status_code == 403

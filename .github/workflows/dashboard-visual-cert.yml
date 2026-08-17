@@ -1,0 +1,272 @@
+name: Dashboard Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/pages/Dashboard.tsx"
+      - "frontend/src/features/dashboard/**"
+      - "frontend/src/hooks/useCabinetHealth.ts"
+      - ".github/workflows/dashboard-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: baseline-d2
+            ref: 62a8a9e4c732f929ee284e41ce9c6229db7ad781
+          - label: d2
+            ref: 6da2844dab59b8dc4b5989b3deaa204501ca57f9
+          - label: d3
+            ref: 13f4cf119c3a75c9c2014071797ecd5c2be57dec
+          - label: d7
+            ref: f0fcc9bc542559c5aa447c4683fddff55fb08b06
+          - label: d9
+            ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - name: Checkout target UI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Inject visual-only harness
+        working-directory: frontend
+        run: |
+          cat > visual-cert.html <<'EOF'
+          <!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>Dashboard Visual Certification</title>
+            </head>
+            <body>
+              <div id="root"></div>
+              <script type="module" src="/src/visual-cert.tsx"></script>
+            </body>
+          </html>
+          EOF
+
+          cat > src/visual-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { Dashboard } from './pages/Dashboard';
+          import { useAuthStore } from './stores/useAuthStore';
+
+          const role = new URLSearchParams(window.location.search).get('role') === 'secretary'
+            ? 'SECRETAIRE'
+            : 'ADMIN';
+
+          const user = role === 'ADMIN'
+            ? {
+                id: 1,
+                email: 'admin@visual.local',
+                nom_complet: 'Dr Visual Cert',
+                role: 'ADMIN',
+                is_superadmin: false,
+                permissions: {},
+              }
+            : {
+                id: 2,
+                email: 'secretariat@visual.local',
+                nom_complet: 'Secrétariat Visual',
+                role: 'SECRETAIRE',
+                is_superadmin: false,
+                permissions: {},
+              };
+
+          useAuthStore.setState({
+            user: user as any,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          createRoot(document.getElementById('root')!).render(
+            <React.StrictMode>
+              <MemoryRouter initialEntries={['/dashboard']}>
+                <Dashboard />
+              </MemoryRouter>
+            </React.StrictMode>,
+          );
+          EOF
+
+          cat > visual-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+
+          const output = process.env.OUTPUT_DIR || 'visual-artifacts';
+          await fs.mkdir(output, { recursive: true });
+
+          const fixtures = {
+            '/api/admin/dashboard/stats': {
+              total_patients: 184,
+              total_analyses: 326,
+              in_waiting: 2,
+              weekly_activity: [38, 55, 47, 72, 61, 84, 66],
+              weekly_patient_counts: [4, 7, 5, 9, 6, 10, 8],
+              weekly_patients: 49,
+              recent_patients: [
+                { id: 101, nom: 'EL AMRANI', prenom: 'Sara', acte: 'Consultation', time: '09:20', type: 'patient' },
+                { id: 102, nom: 'BENALI', prenom: 'Youssef', acte: 'Contrôle', time: '10:05', type: 'patient' },
+                { id: 103, nom: 'TAZI', prenom: 'Meryem', acte: 'Détartrage', time: '11:30', type: 'patient' },
+              ],
+            },
+            '/api/admin/cabinet/me': { header_lines_fr: ['Dr Visual Cert'] },
+            '/api/intelligence/alerts/today': {
+              alerts: [
+                { id: 1, patient_id: 101, nom: 'EL AMRANI', prenom: 'Sara', type: 'followup', title: 'Contrôle à planifier', message: '', action: 'Contacter la patiente', priority: 2 },
+              ],
+            },
+            '/api/intelligence/forecast-semaine': { week_start: '2026-08-17', week_end: '2026-08-23', rdv_count: 31, forecast_revenue: 28400, avg_per_rdv: 916 },
+            '/api/intelligence/taux-conversion': { devis_count: 12, converted_count: 8, taux: 66.7, avg_days: 4 },
+            '/api/intelligence/projection-mensuelle': {
+              historical: [
+                { month: 'Mai', revenue: 72000, type: 'actual' },
+                { month: 'Juin', revenue: 78500, type: 'actual' },
+                { month: 'Juil.', revenue: 81200, type: 'actual' },
+              ],
+              projections: [
+                { month: 'Août', revenue: 84600, type: 'forecast' },
+                { month: 'Sept.', revenue: 87300, type: 'forecast' },
+              ],
+              avg_monthly: 77233,
+            },
+            '/api/intelligence/latent-cash': {
+              total_opportunites: 2,
+              valeur_totale_latente: 12500,
+              opportunites: [
+                { patient_id: 104, patient_name: 'Nadia Alaoui', type: 'Devis', date_devis: '2026-07-20', montant: 7500, telephone: '0600000000' },
+                { patient_id: 105, patient_name: 'Omar Idrissi', type: 'Devis', date_devis: '2026-07-18', montant: 5000, telephone: '0600000001' },
+              ],
+            },
+            '/api/stats/financial': { today_revenue: 6200, month_revenue: 48600, total_debt: 9300 },
+            '/api/admin/cabinet-health': {
+              database: { status: 'ok', detail: null },
+              disk: { status: 'ok', free_gb: 418.6, total_gb: 512 },
+              backup_local: { status: 'ok', overall_status: 'ok', age_hours: 3, run_id: 'visual-cert' },
+              offsite: { status: 'ok', offsite_status: 'ok', db_copied: true, media_copied: true },
+              overall_severity: 'ok',
+            },
+          };
+
+          const appointments = [
+            { id: 201, start_time: '2026-08-16T09:00:00', status: 'EN_S_ATTENTE', description: 'Consultation', patient: { nom: 'AMRANI', prenom: 'Sara' } },
+            { id: 202, start_time: '2026-08-16T10:30:00', status: 'EN_FAUTEUIL', description: 'Contrôle', patient: { nom: 'BENALI', prenom: 'Youssef' } },
+            { id: 203, start_time: '2026-08-16T14:00:00', status: 'PLANIFIÉ', description: 'Détartrage', patient: { nom: 'TAZI', prenom: 'Meryem' } },
+          ];
+
+          const server = await createServer({
+            server: { host: '127.0.0.1', port: 4177, strictPort: true },
+            clearScreen: false,
+          });
+          await server.listen();
+
+          const browser = await chromium.launch();
+          try {
+            const widths = [1440, 1024, 768, 430, 390];
+            for (const role of ['admin', 'secretary']) {
+              for (const width of widths) {
+                const height = 1200;
+                const context = await browser.newContext({ viewport: { width, height } });
+                const page = await context.newPage();
+
+                await page.route('**/*', async route => {
+                  const request = route.request();
+                  const url = new URL(request.url());
+                  if (url.port !== '8005' || !url.pathname.startsWith('/api/')) {
+                    return route.continue();
+                  }
+
+                  if (url.pathname === '/api/appointments/') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appointments) });
+                  }
+                  if (url.pathname === '/api/patients/') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+                  }
+                  if (request.method() !== 'GET') {
+                    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+                  }
+
+                  const body = fixtures[url.pathname] ?? {};
+                  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+                });
+
+                const errors = [];
+                page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+                page.on('console', message => {
+                  if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+                });
+
+                await page.goto(`http://127.0.0.1:4177/visual-cert.html?role=${role}`, { waitUntil: 'networkidle' });
+                await page.getByText(/Bonjour,/).first().waitFor({ state: 'visible', timeout: 15000 });
+                await page.screenshot({
+                  path: `${output}/${role}-${width}x${height}.png`,
+                  fullPage: true,
+                  animations: 'disabled',
+                });
+                await fs.writeFile(
+                  `${output}/${role}-${width}x${height}.errors.txt`,
+                  errors.join('\n'),
+                );
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await server.close();
+          }
+          EOF
+
+      - name: Capture deterministic viewports
+        working-directory: frontend
+        env:
+          OUTPUT_DIR: visual-artifacts
+        run: node visual-cert.mjs
+
+      - name: Record certification metadata
+        working-directory: frontend
+        env:
+          TARGET_REF: ${{ matrix.ref }}
+          TARGET_LABEL: ${{ matrix.label }}
+        run: |
+          cat > visual-artifacts/metadata.txt <<EOF
+          label=${TARGET_LABEL}
+          ref=${TARGET_REF}
+          goal=Certification finale Dashboard D1-D9 sur données identiques, multi-rôles et multi-viewports, sans backend réel ni déploiement.
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          roles=ADMIN,SECRETAIRE
+          EOF
+
+      - name: Upload visual proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-visual-${{ matrix.label }}
+          path: frontend/visual-artifacts/
+          if-no-files-found: error
+          retention-days: 14

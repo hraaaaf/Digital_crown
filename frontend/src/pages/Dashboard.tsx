@@ -1,1244 +1,272 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  UserPlus,
-  Calendar,
-  Clock,
-  FileText,
-  ChevronRight,
-  TrendingUp,
-  Loader2,
-  Users,
-  Bell,
-  CheckCheck,
-  BarChart2,
-  Smartphone,
-  X,
-  Banknote,
-  Phone,
-  Sparkles,
-  Plus,
-  Search,
-  ShoppingCart,
-  AlertCircle,
-  Database,
-  HardDrive,
-  Archive,
-  CloudOff,
-  Store
-} from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { BarChart2, ChevronRight, Sparkles, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../utils/cn';
-import { api } from '../services/api';
-import { PatientScoreBadge } from '../features/patients/components/PatientScoreBadge';
+import { hasAccess } from '../utils/accessControl';
 import { useSettingsStore } from '../features/admin/Settings/hooks/useSettingsStore';
 import { useAuthStore } from '../stores/useAuthStore';
-import { motion, type Variants } from 'framer-motion';
 import { MobileSecurity } from '../features/admin/Security/MobileSecurity';
 import { EliteGhostLoader } from '../components/EliteGhostLoader';
 import { DayOneTour } from '../components/DayOneTour';
+import { getCabinetHealthDisplayState, useCabinetHealth } from '../hooks/useCabinetHealth';
+import { dashboardContainerVariants } from '../features/dashboard/animations';
+import { BusinessInsights } from '../features/dashboard/components/BusinessInsights';
+import { CabinetHealth } from '../features/dashboard/components/CabinetHealth';
+import { DashboardHeader } from '../features/dashboard/components/DashboardHeader';
+import { FinanceSummary } from '../features/dashboard/components/FinanceSummary';
+import { IntelligenceAlerts } from '../features/dashboard/components/IntelligenceAlerts';
+import { MarketplaceCard } from '../features/dashboard/components/MarketplaceCard';
+import { QuickActions } from '../features/dashboard/components/QuickActions';
+import { RecentActivity } from '../features/dashboard/components/RecentActivity';
+import { WaitingRoom } from '../features/dashboard/components/WaitingRoom';
+import { WeeklyPerformance } from '../features/dashboard/components/WeeklyPerformance';
+import { useDashboardFinance } from '../features/dashboard/hooks/useDashboardFinance';
+import { useDashboardStats } from '../features/dashboard/hooks/useDashboardStats';
+import { usePatientSearch } from '../features/dashboard/hooks/usePatientSearch';
+import { useProactiveAlerts } from '../features/dashboard/hooks/useProactiveAlerts';
+import { useTodayAppointments } from '../features/dashboard/hooks/useTodayAppointments';
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
-  }
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { duration: 0.5, ease: "easeOut" }
-  }
-};
-
-interface RecentPatient {
-  id: number;
-  nom: string;
-  prenom: string;
-  acte: string;
-  time: string;
-  type: string;
-}
-
-interface DashboardStats {
-  total_patients: number;
-  total_analyses: number;
-  in_waiting: number;
-  recent_patients: RecentPatient[];
-  weekly_activity: number[];
-  weekly_patient_counts?: number[];
-  weekly_patients?: number;
-}
-
-interface ProactiveAlert {
-  id: number;
-  patient_id: number | null;
-  nom: string | null;
-  prenom: string | null;
-  type: string;
-  title: string;
-  message: string;
-  action: string;
-  priority: number;
-}
-
-interface ForecastData {
-  week_start: string;
-  week_end: string;
-  rdv_count: number;
-  forecast_revenue: number;
-  avg_per_rdv: number;
-}
-
-interface ConversionData {
-  devis_count: number;
-  converted_count: number;
-  taux: number;
-  avg_days: number | null;
-}
-
-interface ProjectionEntry { month: string; revenue: number; type: 'actual' | 'forecast'; }
-interface ProjectionData { historical: ProjectionEntry[]; projections: ProjectionEntry[]; avg_monthly: number; }
-interface LatentCashData { total_opportunites: number; valeur_totale_latente: number; opportunites: any[]; }
-
-interface CabinetHealth {
-  database: { status: 'ok' | 'error'; detail: string | null };
-  disk: { status: 'ok' | 'warning' | 'critical' | 'unknown'; free_gb: number | null; total_gb: number | null };
-  backup_local: { status: 'ok' | 'warning' | 'critical' | 'none'; overall_status: string | null; age_hours: number | null; run_id: string | null };
-  offsite: { status: 'NOT_CONFIGURED' | 'ok' | 'warning'; offsite_status: string | null; db_copied: boolean | null; media_copied: boolean | null };
-  overall_severity: 'ok' | 'warning' | 'critical';
-}
+const MANAGEMENT_PANEL_ID = 'dashboard-management-panel';
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [praticienName, setPraticienName] = useState('Praticien');
-  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
-  const { user } = useAuthStore();
-
-  const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
-  const [loadingAppts, setLoadingAppts] = useState(false);
-  const [showWeeklyChart, setShowWeeklyChart] = useState(false);
-  const [proactiveAlerts, setProactiveAlerts] = useState<ProactiveAlert[]>([]);
-  const [forecast, setForecast] = useState<ForecastData | null>(null);
-  const [conversion, setConversion] = useState<ConversionData | null>(null);
-  const [projection, setProjection] = useState<ProjectionData | null>(null);
-  const [latentCash, setLatentCash] = useState<LatentCashData | null>(null);
-  const [financeToday, setFinanceToday] = useState<{
-    today_revenue: number;
-    month_revenue: number;
-    total_debt: number;
-  } | null>(null);
-  const [cabinetHealth, setCabinetHealth] = useState<CabinetHealth | null>(null);
+  const showPatientBadges = useSettingsStore(state => state.profile.show_patient_badges);
+  const { user, isLoading: authLoading } = useAuthStore();
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  
-  // Ghost Secrétariat (To-Do List Magique)
-  const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{nom: string; prenom: string} | null>(null);
+  const [showManagement, setShowManagement] = useState(false);
+  const [ghostSecretariatPatient, setGhostSecretariatPatient] = useState<{ nom: string; prenom: string } | null>(null);
   const [ghostChecklist, setGhostChecklist] = useState({ encaisser: false, ordonnance: false, rdv: false });
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv) {
-      setTimeout(() => {
-        setGhostSecretariatPatient(null);
-        setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
-      }, 1000);
-    }
-  }, [ghostChecklist]);
+  const canReadPatients = hasAccess(user, 'patients');
+  const canUseAgenda = hasAccess(user, 'agenda');
+  const canReadAccounting = hasAccess(user, 'accounting');
+  const canAdmin = hasAccess(user, 'admin');
 
-  // TODO(dette P1-ITEM2): hasAccess() dupliqué avec Sidebar.tsx, diverge sur le
-  // fallback secrétaire ('payments' absent ici, présent dans Sidebar.tsx) —
-  // factoriser dans un hook partagé ultérieurement. Non corrigé dans ce P1.
-  const hasAccess = (permission: string) => {
-    if (!user) return true;
-    if (user.role === 'ADMIN') return true;
-    if (user.is_superadmin) return true;
-    if (user.role === 'DENTISTE' && !user.employer_id) return true; // Propriétaire du cabinet
+  const { stats, statsState, praticienName, refreshStats } = useDashboardStats(user, authLoading);
+  const {
+    forecast,
+    conversion,
+    projection,
+    latentCash,
+    financeToday,
+  } = useDashboardFinance(user, authLoading);
+  const { alerts, markRead, snooze } = useProactiveAlerts(user, authLoading);
+  const patientSearch = usePatientSearch(user);
 
-    if (user.permissions && typeof user.permissions === 'object') {
-      return user.permissions[permission] ?? false;
-    }
-    
-    if (user.role === 'SECRETAIRE') {
-      const defaults: Record<string, boolean> = {
-        agenda: true,
-        patients: true,
-        prescriptions: false,
-        accounting: false,
-        panoramic: false,
-        cephalo: false,
-        settings: false
-      };
-      return defaults[permission] ?? false;
-    }
-    if (user.role === 'DENTISTE') {
-      return true; // Fallback pour ancien sous-dentiste
-    }
-    return true;
-  };
-
-  const displayName = user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : praticienName);
-
-  const fetchTodayAppointments = async () => {
-    setLoadingAppts(true);
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const start = `${todayStr}T00:00:00`;
-      const end = `${todayStr}T23:59:59`;
-      const response = await api.get(`/appointments/?start_date=${start}&end_date=${end}`);
-      setTodayAppointments(response.data);
-    } catch (e) {
-      console.error("Erreur chargement rendez-vous du jour");
-    } finally {
-      setLoadingAppts(false);
-    }
-  };
-
-  const updateAppointmentStatus = async (apptId: number, newStatus: string) => {
-    try {
-      await api.put(`/appointments/${apptId}`, { status: newStatus });
-      fetchTodayAppointments();
-      
-      // Mettre aussi à jour les stats pour répercuter le in_waiting
-      const response = await api.get('/admin/dashboard/stats');
-      setStats(response.data);
-
-      if (newStatus === 'TERMINÉ') {
-        const appt = todayAppointments.find(a => a.id === apptId);
-        if (appt && appt.patient) {
-          setGhostSecretariatPatient({ nom: appt.patient.nom, prenom: appt.patient.prenom });
-          setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
-        }
-      }
-    } catch (e) {
-      console.error("Erreur changement de statut du rendez-vous");
-    }
-  };
-
-  const today = new Date().toLocaleDateString('fr-FR', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  });
-
-  const formatDate = (dateStr: string) => {
-    return dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-  };
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/admin/dashboard/stats');
-        setStats(response.data);
-      } catch (err) {
-        console.warn("Route API manquante ou invalide, injection des données de secours.");
-        setStats({
-          total_patients: 0,
-          total_analyses: 0,
-          in_waiting: 0,
-          weekly_activity: [0, 0, 0, 0, 0, 0, 0],
-          weekly_patient_counts: [0, 0, 0, 0, 0, 0, 0],
-          recent_patients: []
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchConfig = async () => {
-      try {
-        const response = await api.get('/admin/cabinet/me');
-        const config = response.data;
-        if (config.header_lines_fr && config.header_lines_fr.length > 0) {
-          setPraticienName(config.header_lines_fr[0]);
-        }
-      } catch (e) {
-        console.warn("Erreur chargement configuration cabinet", e);
-      }
-    };
-
-    fetchStats();
-    fetchConfig();
-    fetchTodayAppointments();
-    api.get('/intelligence/alerts/today').then(res => setProactiveAlerts(res.data.alerts || [])).catch(err => console.warn("Erreur alerts", err));
-    api.get('/intelligence/forecast-semaine').then(res => setForecast(res.data)).catch(err => console.warn("Erreur forecast", err));
-    api.get('/intelligence/taux-conversion').then(res => setConversion(res.data)).catch(err => console.warn("Erreur conversion", err));
-    api.get('/intelligence/projection-mensuelle').then(res => setProjection(res.data)).catch(err => console.warn("Erreur projection", err));
-    api.get('/intelligence/latent-cash').then(res => setLatentCash(res.data)).catch(err => console.warn("Erreur latent cash", err));
-    api.get('/stats/financial').then(res => setFinanceToday({
-      today_revenue: res.data.today_revenue ?? 0,
-      month_revenue: res.data.month_revenue ?? 0,
-      total_debt: res.data.total_debt ?? 0,
-    })).catch(err => console.warn("Erreur finance today", err));
+  const handleCompletedAppointment = useCallback((patient: { nom: string; prenom: string }) => {
+    setGhostSecretariatPatient(patient);
+    setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
   }, []);
 
-  // Widget santé cabinet — propriétaire/admin uniquement, poll 2 min (même pattern
-  // que le badge d'alertes non lues de Sidebar.tsx).
+  const closeMobileModal = useCallback(() => {
+    setIsMobileModalOpen(false);
+    window.setTimeout(() => mobileButtonRef.current?.focus(), 0);
+  }, []);
+
+  const handleMobileDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      mobileDialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [],
+    ).filter(element => !element.hasAttribute('disabled'));
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const {
+    appointments,
+    loadingAppointments,
+    refreshAppointments,
+    updateAppointmentStatus,
+  } = useTodayAppointments({
+    user,
+    authLoading,
+    onStatsRefresh: refreshStats,
+    onCompleted: handleCompletedAppointment,
+  });
+
+  const cabinetHealthState = useCabinetHealth({
+    enabled: canAdmin,
+    authLoading,
+  });
+  const systemStatus = getCabinetHealthDisplayState(cabinetHealthState);
+
   useEffect(() => {
-    if (!hasAccess('admin')) return;
-    const fetchHealth = () => api.get('/admin/cabinet-health')
-      .then(res => setCabinetHealth(res.data))
-      .catch(() => {});
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 120000);
-    return () => clearInterval(interval);
-  }, [user]);
+    if (!(ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv)) return;
+    const timeout = window.setTimeout(() => {
+      setGhostSecretariatPatient(null);
+      setGhostChecklist({ encaisser: false, ordonnance: false, rdv: false });
+    }, 1000);
+    return () => window.clearTimeout(timeout);
+  }, [ghostChecklist]);
 
-  const markAlertRead = async (alertId: number) => {
-    try {
-      await api.patch(`/intelligence/alerts/${alertId}/read`);
-      setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch (err) {
-      console.warn("Erreur lors du marquage de l'alerte", err);
-    }
-  };
+  useEffect(() => {
+    if (!canUseAgenda) setGhostSecretariatPatient(null);
+  }, [canUseAgenda]);
 
-  const snoozeAlert = async (alertId: number) => {
-    try {
-      await api.patch(`/intelligence/alerts/${alertId}/snooze`);
-      setProactiveAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch (err) {
-      console.warn("Erreur lors du report de l'alerte", err);
-    }
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    if (!value.trim()) { setSearchResults([]); return; }
-    setSearchLoading(true);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await api.get(`/patients/?search=${encodeURIComponent(value.trim())}&limit=6`);
-        setSearchResults(res.data || []);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
+  useEffect(() => {
+    if (!isMobileModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMobileModal();
       }
-    }, 300);
-  };
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closeMobileModal, isMobileModalOpen]);
 
-  const handleSearchClose = () => {
-    setIsSearchExpanded(false);
-    setSearchQuery('');
-    setSearchResults([]);
-  };
+  const today = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const dateLabel = today.charAt(0).toUpperCase() + today.slice(1);
+  const displayName = user?.nom_complet || (user?.role === 'SECRETAIRE' ? 'Assistante' : praticienName);
+  const dashboardLoading = authLoading || (canReadPatients && statsState !== 'ready' && statsState !== 'error');
 
-  if (loading) return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
+  if (dashboardLoading) {
+    return <EliteGhostLoader text="Initialisation de votre cabinet..." />;
+  }
 
   return (
-    <motion.div 
-      variants={containerVariants}
+    <motion.div
+      variants={dashboardContainerVariants}
       initial="hidden"
       animate="visible"
-      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-12"
+      className="max-w-[1600px] mx-auto w-full px-6 py-8 md:px-10 md:py-10 space-y-10"
     >
       <DayOneTour />
-      <motion.header variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight font-outfit text-primary">Bonjour, {displayName}</h1>
-          <div className="flex items-center gap-3 mt-3 bg-card-bg/60 backdrop-blur-md px-4 py-2 rounded-elite-sm border border-border-main w-fit">
-            <Calendar size={16} className="text-primary" />
-            <p className="text-text-muted font-bold text-sm">{formatDate(today)}</p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          
-          {/* Barre de Recherche rapide */}
-          <div className="relative flex items-center">
-            {isSearchExpanded ? (
-              <div className="absolute right-0 z-30 animate-in fade-in slide-in-from-right-4">
-                <div className="flex items-center bg-white dark:bg-slate-800 border border-border-main rounded-full px-2 py-1 shadow-elite w-72">
-                  {searchLoading
-                    ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" />
-                    : <Search size={18} className="text-text-muted ml-2 flex-shrink-0" />
-                  }
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Nom, prénom ou n° de dossier..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onBlur={() => { if (!searchQuery) handleSearchClose(); }}
-                    className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm px-2 py-1.5"
-                  />
-                  <button type="button" onClick={handleSearchClose} className="text-text-muted hover:text-red-500 mr-2 flex-shrink-0">
-                    <X size={16} />
-                  </button>
-                </div>
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-2xl overflow-hidden">
-                    {searchResults.map((p) => (
-                      <button
-                        key={p.id}
-                        onMouseDown={() => { navigate(`/patients/${p.id}`); handleSearchClose(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 transition-colors text-left border-b border-border-main last:border-0"
-                      >
-                        <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
-                          {(p.nom || '?').charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-sm text-primary truncate">{(p.nom || '').toUpperCase()} {p.prenom || ''}</p>
-                          <p className="text-[10px] text-text-muted font-medium">{p.numero_dossier || `#${p.id}`}</p>
-                        </div>
-                        <ChevronRight size={14} className="text-text-muted ml-auto flex-shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
-                  <div className="absolute top-full mt-2 right-0 w-72 bg-white dark:bg-slate-800 border border-border-main rounded-2xl shadow-xl px-4 py-3 text-sm text-text-muted font-medium text-center">
-                    Aucun patient trouvé
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsSearchExpanded(true)}
-                className="p-3 bg-white dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
-                title="Chercher un patient"
-              >
-                <Search size={20} />
-              </button>
-            )}
-          </div>
+      <DashboardHeader
+        displayName={displayName}
+        dateLabel={dateLabel}
+        canReadPatients={canReadPatients}
+        canUseAgenda={canUseAgenda}
+        canAdmin={canAdmin}
+        systemStatus={systemStatus}
+        search={{
+          isExpanded: patientSearch.isExpanded,
+          query: patientSearch.query,
+          results: patientSearch.results,
+          loading: patientSearch.loading,
+          open: patientSearch.open,
+          close: patientSearch.close,
+          change: patientSearch.change,
+        }}
+        onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+        onOpenMobile={() => setIsMobileModalOpen(true)}
+        mobileButtonRef={mobileButtonRef}
+      />
 
-          {/* Bouton d'ajout rapide (+) */}
-          <div className="relative">
-            <button
-              onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-              className="p-3 bg-primary text-white hover:bg-primary/90 rounded-full shadow-md transition-all flex items-center justify-center"
-              title="Ajout Rapide"
-            >
-              <Plus size={20} />
-            </button>
-            {isAddMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsAddMenuOpen(false)}></div>
-                <div className="absolute top-14 right-0 bg-white dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95">
-                  <Link
-                    to="/patients/new"
-                    onClick={() => setIsAddMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
-                  >
-                    <UserPlus size={16} className="text-primary" />
-                    Nouveau Patient
-                  </Link>
-                  <Link
-                    to="/agenda"
-                    onClick={() => setIsAddMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
-                  >
-                    <Calendar size={16} className="text-emerald-500" />
-                    Nouveau RDV
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
+      <QuickActions canReadPatients={canReadPatients} canUseAgenda={canUseAgenda} />
 
-          <button
-            onClick={() => setIsMobileModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-sm rounded-elite-lg transition-all border border-indigo-100 shadow-sm"
-            title="Appairer le téléphone"
-          >
-            <Smartphone size={20} />
-            <span className="hidden md:inline">Mobile</span>
-          </button>
-          
-          <div className="flex items-center gap-4 bg-card-bg/40 p-2 rounded-elite-lg border border-border-main shadow-elite transition-elite hover:bg-card-bg/60">
-            <div className="px-6 py-3 rounded-elite-sm flex flex-col items-end">
-              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Status Système</span>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  !cabinetHealth ? "bg-slate-400" :
-                  cabinetHealth.overall_severity === "ok" ? "bg-emerald-500 animate-pulse" :
-                  cabinetHealth.overall_severity === "warning" ? "bg-amber-500" : "bg-red-500"
-                )} />
-                <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
-                  {!cabinetHealth ? "Système local actif" :
-                    cabinetHealth.overall_severity === "ok" ? "Système local actif" :
-                    cabinetHealth.overall_severity === "warning" ? "Vigilance requise" : "Problème détecté"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.header>
-
-      <motion.section variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <motion.div variants={itemVariants}>
-          <Link to="/patients/new" data-tour="quick-action-new-patient" className="group block p-8 rounded-elite-lg shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full" style={{ backgroundImage: 'linear-gradient(135deg, var(--primary), var(--secondary, #1e3a8a))' }}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-elite duration-700" />
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-elite-sm flex items-center justify-center mb-8 border border-white/30 group-hover:rotate-12 transition-elite">
-                <UserPlus className="text-white" size={32} />
-              </div>
-              <h3 className="text-2xl font-black text-white leading-none font-outfit">Nouveau Patient</h3>
-              <p className="text-white/70 mt-2 font-medium">Ouvrir un dossier clinique complet</p>
-            </div>
-          </Link>
-        </motion.div>
-
-        <motion.div variants={itemVariants}>
-          <Link to="/patients" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
-            <div className="w-14 h-14 bg-primary/5 rounded-elite-sm flex items-center justify-center mb-6 border border-primary/10 group-hover:bg-primary group-hover:text-white transition-elite text-primary">
-              <Users size={28} />
-            </div>
-            <h3 className="text-xl font-black tracking-tight font-outfit text-primary">Dossiers Patients</h3>
-            <p className="text-text-muted mt-1 font-medium italic">Gestion de la patientèle</p>
-          </Link>
-        </motion.div>
-
-        <motion.div variants={itemVariants}>
-          <Link to="/agenda" className="group bg-card-bg block p-8 rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite relative overflow-hidden h-full">
-            <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-elite-sm flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-elite">
-              <Calendar size={28} />
-            </div>
-            <h3 className="text-xl font-black text-main tracking-tight font-outfit" style={{ color: 'var(--text-main)' }}>Agenda Clinique</h3>
-            <p className="text-text-muted mt-1 font-medium italic">Suivi des rendez-vous</p>
-          </Link>
-        </motion.div>
-      </motion.section>
-
-      <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
-        <Link
-          to="/approvisionnement"
-          className="group block rounded-elite-lg border border-border-main shadow-elite hover:shadow-elite-hover hover:-translate-y-1 transition-elite overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary, #0f766e) 12%, transparent), color-mix(in srgb, var(--accent, #f59e0b) 12%, transparent), color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent))' }}
-        >
-          <div className="p-8 md:p-9 flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4 min-w-0">
-              <div
-                className="w-16 h-16 rounded-[1.5rem] border shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0"
-                style={{
-                  backgroundColor: 'color-mix(in srgb, var(--card-bg, #ffffff) 86%, transparent)',
-                  borderColor: 'color-mix(in srgb, var(--primary, #0f766e) 12%, var(--border-main, rgba(15,23,42,0.08)))',
-                  color: 'var(--primary, #0f766e)',
-                }}
-              >
-                <ShoppingCart size={28} />
-              </div>
-              <div className="min-w-0">
-                <p
-                  className="text-[10px] uppercase tracking-widest font-black mb-2"
-                  style={{ color: 'var(--text-muted, #64748b)' }}
-                >
-                  Approvisionnement
-                </p>
-                <h2 className="text-2xl font-black tracking-tight font-outfit" style={{ color: 'var(--text-main, #0f172a)' }}>
-                  Marketplace
-                </h2>
-              </div>
-            </div>
-            <Store
-              size={18}
-              className="shrink-0 transition-transform group-hover:translate-x-1"
-              style={{ color: 'var(--primary, #0f766e)' }}
-            />
-          </div>
-        </Link>
-
-        <div className="rounded-elite-lg border border-border-main bg-card-bg shadow-elite p-6">
-          <p className="text-[10px] uppercase tracking-widest font-black text-text-muted mb-3">Pourquoi ici</p>
-          <div className="space-y-3 text-sm text-slate-600 font-medium leading-relaxed">
-            <p>Le besoin est proche du stock et des achats, donc le module reste dans un perimetre metier coherent.</p>
-            <p>La premiere integration est frontend only, ce qui evite tout risque sur la base de donnees et les flux cliniques.</p>
-            <p>On pourra brancher plus tard un vrai envoi partenaire sans re-dessiner tout le dashboard.</p>
-          </div>
-        </div>
-      </motion.section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <motion.section variants={itemVariants} data-tour="dashboard-agenda" className="space-y-5">
-          <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center gap-2">
-            <Clock size={16} /> Activité Récente
-          </h2>
-          <div data-tour="dashboard-activity" className="bg-card-bg/80 backdrop-blur-xl border border-border-main rounded-elite-lg p-4 shadow-elite">
-            {stats?.recent_patients && stats.recent_patients.length > 0 ? (
-              stats.recent_patients.map((patient, index) => {
-                if (!patient || !patient.nom) return null;
-                return (
-                  <Link 
-                    key={patient.id} 
-                    to={`/patients/${patient.id}`}
-                    className={cn(
-                      "flex items-center justify-between p-4 hover:bg-primary/5 rounded-elite-sm transition-elite group",
-                      index !== (stats.recent_patients.length - 1) && "border-b border-border-main"
-                    )}
-                  >
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-primary/10 text-primary rounded-elite-sm flex items-center justify-center font-black text-xl border border-primary/20 group-hover:bg-primary group-hover:text-white transition-elite shadow-sm">
-                        {(patient.nom || '?').charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h4 className="font-black text-primary text-lg leading-none font-outfit">
-                            {(patient.nom || '').toUpperCase()} {patient.prenom || ''}
-                          </h4>
-                          {show_patient_badges && <PatientScoreBadge patientId={patient.id} className="scale-75 origin-left" />}
-                        </div>
-                        <p className="text-xs font-bold text-text-muted mt-2 flex items-center gap-2">
-                          <FileText size={14} className="text-blue-400" /> {patient.acte || 'Consultation'}
-                          <span className="text-border-main">·</span>
-                          <span>{patient.time || 'Récemment'}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <ChevronRight size={18} className="text-text-muted group-hover:text-primary transition-elite group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="py-14 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-6">
-                  <UserPlus className="text-primary w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-black text-primary font-outfit mb-2">Bienvenue dans Digital Crown</h3>
-                <p className="text-text-muted font-medium text-sm max-w-[280px] leading-relaxed mb-8">
-                  Votre cabinet est prêt ! Commencez par créer votre premier dossier patient pour débloquer l'analyse IA.
-                </p>
-                <Link 
-                  to="/patients/new" 
-                  className="px-6 py-3 bg-primary text-white rounded-elite-sm text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-md shadow-primary/20 flex items-center gap-2"
-                >
-                  Créer mon 1er patient <ChevronRight size={14} />
-                </Link>
-              </div>
-            )}
-          </div>
-        </motion.section>
-
-        <motion.section variants={itemVariants} className="space-y-5">
-            <h2 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between">
-              <span className="flex items-center gap-2"><Clock size={16} /> File d'attente & Arrivées du Jour</span>
-              <button
-                onClick={fetchTodayAppointments}
-                className="text-primary hover:text-primary-hover text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 transition-all"
-              >
-                {loadingAppts ? <Loader2 className="animate-spin" size={10} /> : 'Actualiser'}
-              </button>
-            </h2>
-
-            <div className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main p-6 h-[410px] shadow-elite flex flex-col justify-between relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-              
-              {/* Contenu principal défilable */}
-              <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
-                {todayAppointments && todayAppointments.length > 0 ? (
-                  [...todayAppointments]
-                    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-                    .map((appt) => {
-                      const apptTime = new Date(appt.start_time).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      });
-                      
-                      let statusLabel = "Prévu";
-                      let statusColor = "bg-slate-100 text-slate-600 border-slate-200";
-                      let actionButton = null;
-
-                      if (appt.status === 'EN_S_ATTENTE') {
-                        statusLabel = "Salle d'attente";
-                        statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse";
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'EN_FAUTEUIL')}
-                            className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                          >
-                            Installer au Fauteuil
-                          </button>
-                        );
-                      } else if (appt.status === 'EN_FAUTEUIL') {
-                        statusLabel = "Au Fauteuil";
-                        statusColor = "bg-blue-500/10 text-blue-500 border-blue-500/20";
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'TERMINÉ')}
-                            className="px-3 py-1.5 bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-slate-700 transition-all"
-                          >
-                            Terminer la Séance
-                          </button>
-                        );
-                      } else if (appt.status === 'TERMINÉ') {
-                        statusLabel = "Terminé";
-                        statusColor = "bg-slate-500/10 text-slate-400 border-slate-500/10";
-                      } else if (appt.status === 'ANNULÉ') {
-                        statusLabel = "Annulé";
-                        statusColor = "bg-rose-500/10 text-rose-500 border-rose-500/20";
-                      } else {
-                        actionButton = (
-                          <button
-                            onClick={() => updateAppointmentStatus(appt.id, 'EN_S_ATTENTE')}
-                            className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md hover:brightness-110 transition-all"
-                          >
-                            Marquer Arrivé
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <div 
-                          key={appt.id}
-                          className="flex items-center justify-between p-4 bg-white/40 border border-border-main rounded-elite-sm hover:bg-white/60 transition-all gap-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="text-sm font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-                              {apptTime}
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-black text-primary font-outfit">
-                                {appt.patient ? `${appt.patient.nom.toUpperCase()} ${appt.patient.prenom}` : 'Patient non spécifié'}
-                              </h4>
-                              <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-wide">
-                                {appt.description || 'Consultation clinique'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <span className={cn("text-[9px] font-black border px-2.5 py-1 rounded-full uppercase tracking-wider", statusColor)}>
-                              {statusLabel}
-                            </span>
-                            {actionButton}
-                          </div>
-                        </div>
-                      );
-                    })
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center py-16 space-y-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-full flex items-center justify-center">
-                      <Calendar size={28} className="text-emerald-500" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-black text-primary font-outfit mb-2">Aucun patient aujourd'hui</h4>
-                      <p className="text-text-muted text-xs font-medium mt-1 max-w-[250px] mx-auto leading-relaxed">
-                        Les rendez-vous programmés pour la journée apparaîtront ici pour le suivi de la file d'attente.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/agenda" 
-                      className="mt-4 px-5 py-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                    >
-                      Ouvrir l'agenda
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Statistiques rapides en bas */}
-              <div className="relative z-10 border-t border-border-main pt-4 mt-4 flex items-center justify-between text-[9px] font-black text-text-muted uppercase tracking-wider">
-                <span className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  En Salle d'Attente : {todayAppointments.filter(a => a.status === 'EN_S_ATTENTE').length}
-                </span>
-                <span>
-                  Au Fauteuil : {todayAppointments.filter(a => a.status === 'EN_FAUTEUIL').length}
-                </span>
-              </div>
-            </div>
-        </motion.section>
-
-        {/* Performance Hebdomadaire — accordéon, réservé aux rôles avec accès compta.
-            Le wrapper data-tour="dashboard-stats" reste toujours monté (jamais démonté
-            conditionnellement) car il est la cible d'une étape du tour d'onboarding
-            (DayOneTour.tsx / tourConfig.ts) — seul le contenu interne est animé. */}
-        {hasAccess('accounting') && (
-          <motion.section variants={itemVariants} className="lg:col-span-2 space-y-5">
-            <button
-              onClick={() => setShowWeeklyChart(v => !v)}
-              className="w-full text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 px-4 flex items-center justify-between hover:text-primary transition-colors"
-            >
-              <span className="flex items-center gap-2"><TrendingUp size={16} /> Performance Hebdomadaire</span>
-              <ChevronRight size={14} className={cn("transition-transform", showWeeklyChart && "rotate-90")} />
-            </button>
-            <div data-tour="dashboard-stats" className="bg-card-bg/85 backdrop-blur-xl rounded-elite-lg border border-border-main shadow-elite relative overflow-hidden">
-              <AnimatePresence initial={false}>
-                {showWeeklyChart && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="p-8 h-[410px] flex flex-col justify-between relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-
-                      {/* Header statistics inside the widget */}
-                      <div className="relative z-10 flex items-center justify-between border-b border-border-main pb-4">
-                        <div>
-                          <p className="font-black text-[9px] uppercase tracking-[0.2em] text-text-muted">Intelligence Analytique</p>
-                          <h4 className="text-xl font-black text-primary font-outfit mt-1">Activité Clinique</h4>
-                        </div>
-                        <div className="flex gap-4">
-                          <div className="text-right">
-                            <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">Volume Hebdo</span>
-                            <span className="text-xs font-black text-main">
-                              {stats?.weekly_patients !== undefined ? stats.weekly_patients : 0} Dossier{stats?.weekly_patients !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[8px] font-black text-text-muted uppercase tracking-wider block">IA / Patient</span>
-                            <span className="font-black text-xs text-emerald-500 flex items-center justify-end gap-1">
-                              {stats?.total_patients ? (stats.total_analyses / stats.total_patients).toFixed(1) : '0'} analyses
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* The Interactive Chart Area */}
-                      <div className="relative z-10 flex-1 flex items-end justify-between gap-3 pt-8 pb-4 h-[220px]">
-                        {/* Grid Lines background */}
-                        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-                          {[1, 2, 3, 4].map((_, i) => (
-                            <div key={i} className="w-full border-t border-dashed border-text-muted/40" />
-                          ))}
-                        </div>
-
-                        {stats?.weekly_activity && stats.weekly_activity.map((val, idx) => {
-                          // Generate past 7 days short labels dynamically
-                          const getPast7DaysLabels = () => {
-                            const labels = [];
-                            const today = new Date();
-                            for (let i = 6; i >= 0; i--) {
-                              const d = new Date();
-                              d.setDate(today.getDate() - i);
-                              labels.push(d.toLocaleDateString('fr-FR', { weekday: 'short' }));
-                            }
-                            return labels;
-                          };
-
-                          const labels = getPast7DaysLabels();
-                          const label = labels[idx] ? labels[idx].charAt(0).toUpperCase() + labels[idx].slice(1) : '';
-                          // Compte réel exposé par le backend (weekly_patient_counts) — jamais
-                          // ré-inféré depuis val (pourcentage normalisé pour la hauteur de la barre).
-                          const pCount = stats?.weekly_patient_counts?.[idx];
-
-                          return (
-                            <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar relative z-10 h-full justify-end">
-
-                              {/* Hover tooltip card */}
-                              {pCount !== undefined && (
-                                <div className="absolute bottom-[calc(100%-10px)] left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none bg-slate-900/95 dark:bg-black/90 border border-border-main text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black shadow-xl whitespace-nowrap mb-2 z-[20]">
-                                  <div className="text-[7px] text-white/70 uppercase tracking-widest">Nouveaux dossiers</div>
-                                  <div className="text-sm font-black text-accent mt-0.5">{pCount} Patient{pCount > 1 ? 's' : ''}</div>
-                                </div>
-                              )}
-
-                              {/* Bar container */}
-                              <div className="w-full relative rounded-t-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-transparent group-hover/bar:border-primary/20 transition-all h-full flex items-end">
-                                <motion.div
-                                  initial={{ height: 0 }}
-                                  animate={{ height: `${val}%` }}
-                                  transition={{ duration: 0.8, ease: "easeOut", delay: idx * 0.05 }}
-                                  className="w-full rounded-t-xl bg-gradient-to-t from-primary/30 to-primary relative group-hover/bar:from-primary/50 group-hover/bar:to-primary/90 transition-all"
-                                >
-                                  {/* Glow indicator at the top of active bar */}
-                                  {val > 5 && (
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-white/40 shadow-[0_0_10px_#fff]" />
-                                  )}
-                                </motion.div>
-                              </div>
-
-                              {/* Day label */}
-                              <span className="text-[9px] font-black text-text-muted uppercase tracking-wider group-hover/bar:text-primary transition-colors">
-                                {label}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Bottom summary note */}
-                      <div className="relative z-10 border-t border-border-main pt-4 flex items-center justify-between text-[9px] font-bold text-text-muted uppercase tracking-wider">
-                        <span className="flex items-center gap-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Nouveaux dossiers / 7 jours
-                        </span>
-                        <span>Mise à jour à chaque chargement</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.section>
-        )}
-
-        {/* FINANCES DU CABINET — CA Jour / Mois en cours / Impayés */}
-        {financeToday && (
-          <motion.section variants={itemVariants}>
-            <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
-              Finances du Cabinet — Aujourd'hui
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-9 h-9 bg-emerald-500/10 rounded-elite-sm flex items-center justify-center border border-emerald-500/20">
-                    <Banknote size={18} className="text-emerald-400" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">CA du Jour</span>
-                </div>
-                <div className="text-3xl font-black font-outfit text-emerald-400">
-                  {financeToday.today_revenue.toLocaleString('fr-MA')}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">MAD encaissés aujourd'hui</div>
-              </div>
-
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-9 h-9 bg-blue-500/10 rounded-elite-sm flex items-center justify-center border border-blue-500/20">
-                    <TrendingUp size={18} className="text-blue-400" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Mois en Cours</span>
-                </div>
-                <div className="text-3xl font-black font-outfit text-blue-400">
-                  {financeToday.month_revenue.toLocaleString('fr-MA')}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">MAD encaissés ce mois</div>
-              </div>
-
-              <div className={cn(
-                "rounded-elite-lg border shadow-elite p-6",
-                financeToday.total_debt > 0 ? "bg-red-50 border-red-100" : "bg-card-bg border-border-main"
-              )}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn(
-                    "w-9 h-9 rounded-elite-sm flex items-center justify-center",
-                    financeToday.total_debt > 0 ? "bg-red-500/10 border border-red-500/20" : "bg-emerald-500/10 border border-emerald-500/20"
-                  )}>
-                    <AlertCircle size={18} className={financeToday.total_debt > 0 ? "text-red-400" : "text-emerald-400"} />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Impayés Globaux</span>
-                </div>
-                <div className={cn(
-                  "text-3xl font-black font-outfit",
-                  financeToday.total_debt > 0 ? "text-red-500" : "text-emerald-400"
-                )}>
-                  {financeToday.total_debt.toLocaleString('fr-MA')}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">MAD non encaissés (total cabinet)</div>
-              </div>
-            </div>
-          </motion.section>
-        )}
-
-        {/* Widget santé cabinet — propriétaire/admin uniquement */}
-        {hasAccess('admin') && cabinetHealth && (
-          <motion.section variants={itemVariants}>
-            <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">
-              Santé du Cabinet
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn(
-                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
-                    cabinetHealth.database.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
-                  )}>
-                    <Database size={18} className={cabinetHealth.database.status === "ok" ? "text-emerald-400" : "text-red-400"} />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Base de Données</span>
-                </div>
-                <div className={cn(
-                  "text-2xl font-black font-outfit",
-                  cabinetHealth.database.status === "ok" ? "text-emerald-400" : "text-red-500"
-                )}>
-                  {cabinetHealth.database.status === "ok" ? "Connectée" : "Erreur"}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">Connexion à la base réelle</div>
-              </div>
-
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn(
-                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
-                    cabinetHealth.disk.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
-                    cabinetHealth.disk.status === "warning" ? "bg-amber-500/10 border-amber-500/20" :
-                    cabinetHealth.disk.status === "critical" ? "bg-red-500/10 border-red-500/20" : "bg-slate-500/10 border-slate-500/20"
-                  )}>
-                    <HardDrive size={18} className={
-                      cabinetHealth.disk.status === "ok" ? "text-emerald-400" :
-                      cabinetHealth.disk.status === "warning" ? "text-amber-400" :
-                      cabinetHealth.disk.status === "critical" ? "text-red-400" : "text-slate-400"
-                    } />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Espace Disque</span>
-                </div>
-                <div className={cn(
-                  "text-2xl font-black font-outfit",
-                  cabinetHealth.disk.status === "ok" ? "text-emerald-400" :
-                  cabinetHealth.disk.status === "warning" ? "text-amber-400" :
-                  cabinetHealth.disk.status === "critical" ? "text-red-500" : "text-slate-400"
-                )}>
-                  {cabinetHealth.disk.free_gb !== null ? `${cabinetHealth.disk.free_gb.toLocaleString('fr-FR')} Go` : "Inconnu"}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">Espace libre disponible</div>
-              </div>
-
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn(
-                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
-                    cabinetHealth.backup_local.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
-                    cabinetHealth.backup_local.status === "warning" ? "bg-amber-500/10 border-amber-500/20" : "bg-red-500/10 border-red-500/20"
-                  )}>
-                    <Archive size={18} className={
-                      cabinetHealth.backup_local.status === "ok" ? "text-emerald-400" :
-                      cabinetHealth.backup_local.status === "warning" ? "text-amber-400" : "text-red-400"
-                    } />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Sauvegarde Locale</span>
-                </div>
-                <div className={cn(
-                  "text-2xl font-black font-outfit",
-                  cabinetHealth.backup_local.status === "ok" ? "text-emerald-400" :
-                  cabinetHealth.backup_local.status === "warning" ? "text-amber-400" : "text-red-500"
-                )}>
-                  {cabinetHealth.backup_local.age_hours !== null ? `Il y a ${Math.round(cabinetHealth.backup_local.age_hours)}h` : "Aucune"}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">Dernière sauvegarde DB + médias</div>
-              </div>
-
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn(
-                    "w-9 h-9 rounded-elite-sm flex items-center justify-center border",
-                    cabinetHealth.offsite.status === "ok" ? "bg-emerald-500/10 border-emerald-500/20" :
-                    cabinetHealth.offsite.status === "warning" ? "bg-amber-500/10 border-amber-500/20" : "bg-slate-500/10 border-slate-500/20"
-                  )}>
-                    <CloudOff size={18} className={
-                      cabinetHealth.offsite.status === "ok" ? "text-emerald-400" :
-                      cabinetHealth.offsite.status === "warning" ? "text-amber-400" : "text-slate-400"
-                    } />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Sauvegarde Hors-Site</span>
-                </div>
-                <div className={cn(
-                  "text-2xl font-black font-outfit",
-                  cabinetHealth.offsite.status === "ok" ? "text-emerald-400" :
-                  cabinetHealth.offsite.status === "warning" ? "text-amber-400" : "text-slate-400"
-                )}>
-                  {cabinetHealth.offsite.status === "NOT_CONFIGURED" ? "Non configurée" :
-                    cabinetHealth.offsite.status === "ok" ? "À jour" : "À vérifier"}
-                </div>
-                <div className="text-[10px] font-bold text-text-muted mt-1">Copie réseau hors machine</div>
-              </div>
-            </div>
-          </motion.section>
-        )}
-
-        {/* C1 — Forecast Semaine + E4 — Alertes du Jour */}
-        {(forecast || proactiveAlerts.length > 0) && (
-          <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* C1 — Forecast Semaine */}
-            {forecast && (
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-9 h-9 bg-emerald-500/10 rounded-elite-sm flex items-center justify-center border border-emerald-500/20">
-                    <BarChart2 size={18} className="text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Forecast Semaine</h3>
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{forecast.rdv_count} RDV planifiés</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-end gap-2">
-                    <span className="text-3xl font-black text-emerald-400 font-outfit">{forecast.forecast_revenue.toLocaleString('fr-FR')}</span>
-                    <span className="text-sm text-text-muted font-bold mb-1">MAD estimés</span>
-                  </div>
-                  <p className="text-[11px] text-text-muted font-medium">
-                    Basé sur {forecast.rdv_count} RDV × {forecast.avg_per_rdv.toFixed(0)} MAD moyen/RDV (30 derniers jours)
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* E4 — Alertes du Jour */}
-            {proactiveAlerts.length > 0 && (
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-amber-500/10 rounded-elite-sm flex items-center justify-center border border-amber-500/20">
-                      <Bell size={18} className="text-amber-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Alertes du Jour</h3>
-                      <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{proactiveAlerts.length} alerte{proactiveAlerts.length > 1 ? 's' : ''} active{proactiveAlerts.length > 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
-                  <span className="w-6 h-6 bg-amber-500 text-white rounded-full text-[10px] font-black flex items-center justify-center">
-                    {proactiveAlerts.length}
-                  </span>
-                </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {proactiveAlerts.map(alert => (
-                    <div key={alert.id} className="flex items-center gap-3 p-3 bg-white/30 border border-border-main rounded-elite-sm hover:bg-white/50 transition-all group">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full flex-shrink-0",
-                        alert.priority === 1 ? "bg-red-500" : "bg-amber-400"
-                      )} />
-                      <div
-                        className={cn("flex-1 min-w-0", alert.patient_id !== null && "cursor-pointer")}
-                        onClick={() => alert.patient_id !== null && navigate(`/patients/${alert.patient_id}`)}
-                      >
-                        <p className="text-[11px] font-black text-primary truncate">
-                          {alert.nom
-                            ? <>{alert.nom} {alert.prenom} — <span className="text-amber-500">{alert.title}</span></>
-                            : alert.title}
-                        </p>
-                        <p className="text-[10px] text-text-muted font-medium truncate">{alert.action}</p>
-                      </div>
-                      <button
-                        onClick={() => snoozeAlert(alert.id)}
-                        className="p-1 rounded text-text-muted hover:text-amber-500"
-                        title="Reporter 24h"
-                        aria-label="Reporter cette alerte de 24h"
-                      >
-                        <Clock size={14} />
-                      </button>
-                      <button
-                        onClick={() => markAlertRead(alert.id)}
-                        className="p-1 rounded text-text-muted hover:text-emerald-400"
-                        title="Marquer comme lu"
-                        aria-label="Marquer cette alerte comme lue"
-                      >
-                        <CheckCheck size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.section>
-        )}
-
-        {/* C4 — Taux Conversion + C5 — Projection Mensuelle + Ghost Re-Call */}
-        {(conversion || projection || latentCash) && (
-          <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-            {/* C4 — Taux de Conversion Devis */}
-            {conversion && conversion.devis_count > 0 && (
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-9 h-9 bg-blue-500/10 rounded-elite-sm flex items-center justify-center border border-blue-500/20">
-                    <TrendingUp size={18} className="text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Taux de Conversion</h3>
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{conversion.devis_count} devis émis</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-end gap-2">
-                    <span className={cn("text-3xl font-black font-outfit", conversion.taux >= 60 ? "text-emerald-400" : conversion.taux >= 40 ? "text-amber-400" : "text-red-400")}>
-                      {conversion.taux}%
-                    </span>
-                    <span className="text-sm text-text-muted font-bold mb-1">de conversion</span>
-                  </div>
-                  <div className="w-full bg-slate-200/50 rounded-full h-2">
-                    <div className={cn("h-2 rounded-full transition-all", conversion.taux >= 60 ? "bg-emerald-400" : conversion.taux >= 40 ? "bg-amber-400" : "bg-red-400")}
-                      style={{ width: `${Math.min(conversion.taux, 100)}%` }} />
-                  </div>
-                  <p className="text-[11px] text-text-muted font-medium">
-                    {conversion.converted_count} / {conversion.devis_count} devis suivis d'un acte
-                    {conversion.avg_days ? ` · délai moyen ${conversion.avg_days}j` : ''}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* C5 — Projection Mensuelle */}
-            {projection && (
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-9 h-9 bg-violet-500/10 rounded-elite-sm flex items-center justify-center border border-violet-500/20">
-                    <BarChart2 size={18} className="text-violet-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Projection Mensuelle</h3>
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Moy. {projection.avg_monthly.toLocaleString('fr-FR')} MAD/mois</p>
-                  </div>
-                </div>
-                <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                  {[...projection.historical, ...projection.projections].map(entry => (
-                    <div key={entry.month} className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-text-muted">{entry.month}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={cn("font-black", entry.type === 'actual' ? "text-primary" : "text-violet-400")}>
-                          {entry.revenue.toLocaleString('fr-FR')} MAD
-                        </span>
-                        <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider",
-                          entry.type === 'actual' ? "bg-slate-100 text-slate-500" : "bg-violet-500/10 text-violet-500")}>
-                          {entry.type === 'actual' ? 'réel' : 'estimé'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* GHOST RE-CALL : Cash Latent */}
-            {latentCash && latentCash.total_opportunites > 0 && (
-              <div className="bg-card-bg rounded-elite-lg border border-border-main shadow-elite p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-purple-500/10 rounded-elite-sm flex items-center justify-center border border-purple-500/20">
-                      <Banknote size={18} className="text-purple-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-primary font-outfit uppercase tracking-tight">Ghost Re-Call (Cash Latent)</h3>
-                      <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{latentCash.total_opportunites} Opportunités</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-end gap-2">
-                    <span className="text-3xl font-black text-purple-400 font-outfit">{latentCash.valeur_totale_latente.toLocaleString('fr-FR')}</span>
-                    <span className="text-sm text-text-muted font-bold mb-1">MAD récupérables</span>
-                  </div>
-                  <p className="text-[11px] text-text-muted font-medium mb-3">
-                    Devis signés de plus de 15 jours sans actes commencés.
-                  </p>
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {latentCash.opportunites.map((opp: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-purple-50 hover:border-purple-200 transition-all cursor-pointer" onClick={() => navigate(`/patients/${opp.patient_id}`)}>
-                        <div>
-                          <p className="text-xs font-black text-slate-800">{opp.patient_name}</p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{opp.type} • {opp.date_devis}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-purple-600">{opp.montant.toLocaleString('fr-FR')} <span className="text-[9px] text-purple-400">MAD</span></p>
-                          <a href={`tel:${opp.telephone}`} onClick={(e) => e.stopPropagation()} className="text-[10px] text-emerald-500 hover:text-emerald-600 font-bold flex items-center gap-1 justify-end mt-0.5"><Phone size={10} /> Appeler</a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.section>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <WaitingRoom
+          visible={canUseAgenda}
+          appointments={appointments}
+          loading={loadingAppointments}
+          onRefresh={() => { void refreshAppointments(); }}
+          onStatusChange={(appointmentId, status) => { void updateAppointmentStatus(appointmentId, status); }}
+        />
+        <RecentActivity visible={canReadPatients} stats={stats} showPatientBadges={showPatientBadges === true} />
       </div>
 
-      {/* GHOST SECRÉTARIAT MODAL (To-Do List Magique) */}
+      <IntelligenceAlerts
+        forecast={null}
+        alerts={alerts}
+        showForecast={false}
+        showAlerts={canReadPatients}
+        onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+        onSnooze={alertId => { void snooze(alertId); }}
+        onMarkRead={alertId => { void markRead(alertId); }}
+      />
+
+      {canReadAccounting && (
+        <motion.section data-tour="dashboard-stats" className="rounded-elite-lg border border-border-main bg-card-bg/60 shadow-elite overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowManagement(value => !value)}
+            aria-expanded={showManagement}
+            aria-controls={MANAGEMENT_PANEL_ID}
+            className="min-h-11 w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-primary/5 transition-colors"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-elite-sm bg-primary/10 text-primary border border-primary/15 flex items-center justify-center shrink-0" aria-hidden="true">
+                <BarChart2 size={19} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-primary font-outfit">Pilotage du cabinet</span>
+                <span className="block text-xs font-medium text-text-muted mt-0.5">Finances, performance et projections</span>
+              </span>
+            </span>
+            <ChevronRight size={18} className={cn('text-text-muted transition-transform', showManagement && 'rotate-90')} aria-hidden="true" />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {showManagement && (
+              <motion.div
+                id={MANAGEMENT_PANEL_ID}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-border-main px-6 py-6 space-y-8">
+                  <FinanceSummary visible finance={financeToday} />
+                  <WeeklyPerformance visible={canReadPatients} stats={stats} />
+                  <IntelligenceAlerts
+                    forecast={forecast}
+                    alerts={[]}
+                    showForecast
+                    showAlerts={false}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                    onSnooze={() => undefined}
+                    onMarkRead={() => undefined}
+                  />
+                  <BusinessInsights
+                    visible
+                    conversion={conversion}
+                    projection={projection}
+                    latentCash={latentCash}
+                    onNavigatePatient={patientId => navigate(`/patients/${patientId}`)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+      )}
+
+      <CabinetHealth visible={canAdmin} healthState={cabinetHealthState} />
+      <MarketplaceCard visible={canReadPatients} />
+
       <AnimatePresence>
-        {ghostSecretariatPatient && (
+        {canUseAgenda && ghostSecretariatPatient && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1248,25 +276,49 @@ export const Dashboard: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-cyan-400" />
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1"><Sparkles size={10} /> Ghost Action</p>
-                <h3 className="text-sm font-black text-white truncate max-w-[200px]">Patient Sortant : {ghostSecretariatPatient.nom.toUpperCase()} {ghostSecretariatPatient.prenom}</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1">
+                  <Sparkles size={10} aria-hidden="true" /> Ghost Action
+                </p>
+                <h3 className="text-sm font-black text-white truncate max-w-[200px]">
+                  Patient Sortant : {ghostSecretariatPatient.nom.toUpperCase()} {ghostSecretariatPatient.prenom}
+                </h3>
               </div>
-              <button onClick={() => setGhostSecretariatPatient(null)} className="text-slate-400 hover:text-white transition-colors">
-                <X size={16} />
+              <button
+                type="button"
+                onClick={() => setGhostSecretariatPatient(null)}
+                aria-label="Fermer les actions de sortie patient"
+                className="min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-white transition-colors rounded-full"
+              >
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.encaisser} onChange={(e) => setGhostChecklist(prev => ({...prev, encaisser: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
-                <span className={cn("text-xs font-bold", ghostChecklist.encaisser ? "text-slate-500 line-through" : "text-slate-200")}>Encaisser les soins du jour</span>
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.encaisser}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, encaisser: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
+                <span className={cn('text-xs font-bold', ghostChecklist.encaisser ? 'text-slate-500 line-through' : 'text-slate-200')}>Encaisser les soins du jour</span>
               </label>
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.ordonnance} onChange={(e) => setGhostChecklist(prev => ({...prev, ordonnance: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
-                <span className={cn("text-xs font-bold", ghostChecklist.ordonnance ? "text-slate-500 line-through" : "text-slate-200")}>Remettre l'ordonnance</span>
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.ordonnance}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, ordonnance: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
+                <span className={cn('text-xs font-bold', ghostChecklist.ordonnance ? 'text-slate-500 line-through' : 'text-slate-200')}>Remettre l'ordonnance</span>
               </label>
-              <label className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input type="checkbox" checked={ghostChecklist.rdv} onChange={(e) => setGhostChecklist(prev => ({...prev, rdv: e.target.checked}))} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900" />
-                <span className={cn("text-xs font-bold", ghostChecklist.rdv ? "text-slate-500 line-through" : "text-slate-200")}>Fixer le RDV de contrôle</span>
+              <label className="min-h-11 flex items-center gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={ghostChecklist.rdv}
+                  onChange={event => setGhostChecklist(previous => ({ ...previous, rdv: event.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                />
+                <span className={cn('text-xs font-bold', ghostChecklist.rdv ? 'text-slate-500 line-through' : 'text-slate-200')}>Fixer le RDV de contrôle</span>
               </label>
             </div>
             {ghostChecklist.encaisser && ghostChecklist.ordonnance && ghostChecklist.rdv && (
@@ -1277,29 +329,37 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Mobile Security Modal */}
+
       <AnimatePresence>
-        {isMobileModalOpen && (
+        {canAdmin && isMobileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsMobileModalOpen(false)}
+              onClick={closeMobileModal}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              aria-hidden="true"
             />
             <motion.div
+              ref={mobileDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Sécurité mobile"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onKeyDown={handleMobileDialogKeyDown}
               className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
             >
               <button
-                onClick={() => setIsMobileModalOpen(false)}
-                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
+                type="button"
+                autoFocus
+                onClick={closeMobileModal}
+                aria-label="Fermer la fenêtre de sécurité mobile"
+                className="absolute top-6 right-6 min-w-11 min-h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-20"
               >
-                <X size={24} />
+                <X size={24} aria-hidden="true" />
               </button>
               <div className="p-8 overflow-y-auto">
                 <MobileSecurity />
@@ -1311,4 +371,3 @@ export const Dashboard: React.FC = () => {
     </motion.div>
   );
 };
-
