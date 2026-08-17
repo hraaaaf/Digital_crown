@@ -1,0 +1,94 @@
+name: Patient P0-D Routine Responsive Cert
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0d-routine-responsive-cert.yml
+      - frontend/src/features/patients/PatientDetailsInner.tsx
+      - frontend/src/features/patients/components/ClinicalHub.tsx
+      - frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx
+      - frontend/scripts/capture-patient-p0d-routine-after.mjs
+      - scripts/t2_runtime_server.py
+  workflow_dispatch:
+
+concurrency:
+  group: patient-p0d-routine-responsive-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p0d-responsive-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0d-responsive.txt
+          pip install -r /tmp/requirements-p0d-responsive.txt
+          pip install httpx==0.27.2
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Start isolated backend
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/p0d-responsive-backend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p0d-responsive-backend.log
+          exit 1
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p0d-responsive-frontend.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p0d-responsive-frontend.log
+          exit 1
+      - name: Capture Routine responsive evidence
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          rm -rf ../artifacts/patient-p0d-routine-after
+          node scripts/capture-patient-p0d-routine-after.mjs 2>&1 | tee /tmp/p0d-responsive-runner.log
+          test -f ../artifacts/patient-p0d-routine-after/summary.json
+          test -f ../artifacts/patient-p0d-routine-after/evidence.json
+          test "$(find ../artifacts/patient-p0d-routine-after -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+          cp /tmp/p0d-responsive-runner.log ../artifacts/patient-p0d-routine-after/runner.log
+      - name: Upload Routine responsive evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patient-p0d-routine-responsive-after
+          path: artifacts/patient-p0d-routine-after
+          if-no-files-found: error
+          retention-days: 14
