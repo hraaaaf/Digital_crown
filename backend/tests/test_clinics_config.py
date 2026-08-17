@@ -37,7 +37,11 @@ class TestCabinetConfig:
         client.post("/api/clinics/", json=CABINET_PAYLOAD, headers=auth_headers)
         r = client.put(
             "/api/clinics/me",
-            json={**CABINET_PAYLOAD, "nom_cabinet": "Cabinet Mis à Jour"},
+            json={
+                "nom_cabinet": "Cabinet Mis à Jour",
+                "adresse": CABINET_PAYLOAD["adresse"],
+                "telephone": CABINET_PAYLOAD["telephone"],
+            },
             headers=auth_headers,
         )
         assert r.status_code in (200, 201, 404)
