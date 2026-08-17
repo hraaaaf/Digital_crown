@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    MetaData, Table, Column, Integer, String, Float, Boolean, Text,
+    Table, Column, Integer, String, Float, Boolean, Text,
     ForeignKey, UniqueConstraint, select, insert, update
 )
 from sqlalchemy.orm import Session
 
 from backend import models
 
-metadata = MetaData()
+metadata = models.Base.metadata
 
 specialties = Table(
     "cabinet_specialties", metadata,
