@@ -39,11 +39,32 @@ async function captureProtocol(viewport, protocol) {
   const page = await context.newPage();
   await seedAuth(page);
   const pageErrors = [];
+  const consoleErrors = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
+  page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
 
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.getByText('Espace Clinique', { exact: true }).waitFor({ state: 'visible' });
+  await page.waitForTimeout(500);
+
+  const entryName = protocol === 'endo' ? /Endodontie/i : /Examen Clinique Complet/i;
+  try {
+    await page.getByRole('button', { name: entryName }).waitFor({ state: 'visible', timeout: 30000 });
+  } catch (error) {
+    const diagnostic = `patient-p0d-${protocol}-diagnostic-${viewport.width}x${viewport.height}.png`;
+    await page.screenshot({ path: path.join(outDir, diagnostic), fullPage: true });
+    const state = await page.evaluate(() => ({
+      href: location.href,
+      pathname: location.pathname,
+      search: location.search,
+      bodyText: (document.body.innerText || '').slice(0, 4000),
+    }));
+    fs.writeFileSync(
+      path.join(outDir, `patient-p0d-${protocol}-diagnostic-${viewport.width}x${viewport.height}.json`),
+      JSON.stringify({ state, pageErrors, consoleErrors }, null, 2),
+    );
+    throw error;
+  }
 
   if (protocol === 'endo') {
     await page.getByRole('button', { name: /Endodontie/i }).click();
@@ -58,13 +79,15 @@ async function captureProtocol(viewport, protocol) {
   const metrics = await page.evaluate(() => {
     const doc = document.documentElement;
     return {
+      pathname: location.pathname,
+      search: location.search,
       noHorizontalOverflow: doc.scrollWidth <= doc.clientWidth + 2,
     };
   });
 
   const screenshot = `patient-p0d-${protocol}-baseline-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, screenshot), fullPage: true });
-  evidence.push({ protocol, viewport, metrics, pageErrors, screenshot });
+  evidence.push({ protocol, viewport, metrics, pageErrors, consoleErrors, screenshot });
   await context.close();
 }
 
@@ -77,7 +100,7 @@ const summary = {
   patientId: patient.id,
   totalCaptures: evidence.length,
   overflowFindings: evidence.filter((e) => !e.metrics.noHorizontalOverflow).map((e) => ({ protocol: e.protocol, viewport: e.viewport })),
-  runtimeErrorFindings: evidence.filter((e) => e.pageErrors.length).map((e) => ({ protocol: e.protocol, viewport: e.viewport, errors: e.pageErrors })),
+  runtimeErrorFindings: evidence.filter((e) => e.pageErrors.length || e.consoleErrors.length).map((e) => ({ protocol: e.protocol, viewport: e.viewport, pageErrors: e.pageErrors, consoleErrors: e.consoleErrors })),
 };
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify(evidence, null, 2));
 fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
