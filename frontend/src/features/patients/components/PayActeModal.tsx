@@ -24,23 +24,30 @@ interface PayActeModalProps {
   onPaid: () => void;
 }
 
-const METHODS = [
+type PaymentMethod = 'ESPECES' | 'CARTE' | 'VIREMENT' | 'CHEQUE';
+
+const METHODS: Array<{ id: PaymentMethod; label: string; icon: React.ReactNode }> = [
   { id: 'ESPECES',  label: 'Espèces',  icon: <Banknote size={18} /> },
   { id: 'CARTE',    label: 'Carte',    icon: <CreditCard size={18} /> },
   { id: 'VIREMENT', label: 'Virement', icon: <Landmark size={18} /> },
   { id: 'CHEQUE',   label: 'Chèque',  icon: <FileSignature size={18} /> },
-] as const;
+];
 
 export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayActeModalProps) => {
   const [amount, setAmount] = useState(String(acte.remaining_due));
-  const [method, setMethod] = useState<'ESPECES' | 'CARTE' | 'VIREMENT' | 'CHEQUE'>('ESPECES');
+  const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const handleClose = () => {
+    setMethod(null);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0) return;
+    if (!parsed || parsed <= 0 || !method) return;
     setSubmitting(true);
     try {
       await paymentApi.recordPayment({
@@ -51,6 +58,7 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
         notes: notes || undefined,
       });
       toast.success('Paiement enregistré');
+      setMethod(null);
       onPaid();
     } catch {
       toast.error('Erreur lors de l\'enregistrement');
@@ -65,7 +73,7 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
           <motion.div
@@ -80,7 +88,7 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Paiement acte</p>
                 <h2 className="text-base font-black text-slate-800 tracking-tight">{acte.libelle}</h2>
               </div>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors mt-0.5">
+              <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors mt-0.5">
                 <X size={18} />
               </button>
             </div>
@@ -172,8 +180,8 @@ export const PayActeModal = ({ acte, patientId, isOpen, onClose, onPaid }: PayAc
               {/* Submit */}
               <button
                 type="submit"
-                disabled={submitting || !amount || parseFloat(amount) <= 0}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50 shadow-lg"
+                disabled={submitting || !amount || parseFloat(amount) <= 0 || !method}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Encaisser'}
