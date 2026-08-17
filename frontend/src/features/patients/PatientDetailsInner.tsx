@@ -32,8 +32,6 @@ import { PatientJourney } from './components/PatientJourney';
 import { PatientFinances } from './components/PatientFinances';
 import { FlashSummary } from '../../components/clinical/FlashSummary';
 import { QuickPayModal } from './components/QuickPayModal';
-import { PatientScoreBadge } from './components/PatientScoreBadge';
-import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
@@ -70,7 +68,6 @@ export const PatientDetails = () => {
   
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
-  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);
 
   // Permission « clinical » : le propriétaire (sans employer_id) passe toujours,
   // un sous-compte doit l'avoir explicitement (miroir de has_permission backend).
@@ -221,7 +218,6 @@ export const PatientDetails = () => {
                   <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
                     {fullName}
                   </h1>
-                  {show_patient_badges && <PatientScoreBadge patientId={Number(id)} />}
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {!isCompact && (
                     <div className="flex items-center gap-2">
