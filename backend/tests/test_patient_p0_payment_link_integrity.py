@@ -83,7 +83,7 @@ def test_payment_rejects_acte_owned_by_another_patient_without_side_effects(
         headers=auth_headers,
     )
 
-    assert response.status_code == 422, response.text
+    assert response.status_code == 409, response.text
     assert _payment_count(db) == before
     db.refresh(acte_b)
     assert acte_b.statut_paiement == models.PaiementStatut.EN_ATTENTE
@@ -108,7 +108,7 @@ def test_payment_rejects_installment_owned_by_another_patient_without_side_effec
         headers=auth_headers,
     )
 
-    assert response.status_code == 422, response.text
+    assert response.status_code == 409, response.text
     assert _payment_count(db) == before
     db.refresh(installment_b)
     assert installment_b.status == "EN_ATTENTE"
