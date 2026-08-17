@@ -1,0 +1,65 @@
+name: Patient P0 Migration Certification
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-migration-cert.yml
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p0-migration-cert-secret-000001
+      DATABASE_URL: sqlite:///./patient-p0-migration-cert.db
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install migration dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0-migration.txt
+          pip install -r /tmp/requirements-p0-migration.txt
+
+      - name: Upgrade empty database to Alembic head
+        run: alembic upgrade head
+
+      - name: Verify exact head and Patient P0 schema
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+
+          db_path = Path('patient-p0-migration-cert.db')
+          if not db_path.exists():
+              raise SystemExit('Migration database was not created')
+          conn = sqlite3.connect(db_path)
+          head = conn.execute('SELECT version_num FROM alembic_version').fetchone()[0]
+          if head != 'c4d5e6f7a8b9':
+              raise SystemExit(f'Unexpected Alembic head: {head}')
+
+          patient_cols = {row[1] for row in conn.execute('PRAGMA table_info(patients)')}
+          dossier_cols = {row[1] for row in conn.execute('PRAGMA table_info(dossiers_cliniques)')}
+          plan_cols = {row[1] for row in conn.execute('PRAGMA table_info(installment_plans)')}
+          if 'antecedents_medicaux' not in patient_cols:
+              raise SystemExit('Canonical patient medical-history column missing')
+          if 'antecedents_medicaux' not in dossier_cols:
+              raise SystemExit('Legacy physical column unexpectedly dropped before data-retention closeout')
+          if 'acte_id' not in plan_cols:
+              raise SystemExit('InstallmentPlan acte_id column missing')
+
+          fks = list(conn.execute('PRAGMA foreign_key_list(installment_plans)'))
+          if not any(row[2] == 'actes' and row[3] == 'acte_id' and row[4] == 'id' for row in fks):
+              raise SystemExit(f'InstallmentPlan acte_id FK missing: {fks}')
+          print({'head': head, 'installment_plan_columns': sorted(plan_cols), 'acte_fk': True})
+          PY
