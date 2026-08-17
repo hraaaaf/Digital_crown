@@ -1,0 +1,99 @@
+name: Patient P0 C — ClinicalHub truth hardening
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-c-clinicalhub-truth.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Apply exact ClinicalHub truth patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('frontend/src/features/patients/components/ClinicalHub.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 occurrence, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+          '''  const [lastDiagnosis, setLastDiagnosis] = useState<LastDiagnosis | null>(() => {\n    const s = localStorage.getItem(`diag_${patientId}`);\n    return s ? JSON.parse(s) : null;\n  });''',
+          '''  // Assistant output is session-only until explicitly validated by the practitioner.\n  const [lastDiagnosis, setLastDiagnosis] = useState<LastDiagnosis | null>(null);''',
+          'lastDiagnosis localStorage init')
+
+          pattern = re.compile(r'''  const \[treatmentPlan, setTreatmentPlan\] = useState<TreatmentStep\[]>\(\(\) => \{.*?\n  \}\);\n\n  useEffect\(\(\) => \{\n    api\.get\(`/patients/\$\{patientId\}/master-plan`\).*?\n  \}, \[patientId\]\);''', re.S)
+          replacement = '''  // The backend Master Plan is the only authoritative treatment-plan source.\n  const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>([]);\n  const [planLoading, setPlanLoading] = useState(true);\n  const [planError, setPlanError] = useState<string | null>(null);\n\n  useEffect(() => {\n    let cancelled = false;\n    setPlanLoading(true);\n    setPlanError(null);\n    api.get(`/patients/${patientId}/master-plan`)\n      .then((res: any) => {\n        if (cancelled) return;\n        const rawSteps = Array.isArray(res.data?.steps) ? res.data.steps : [];\n        const steps = rawSteps.map((s: any) => ({\n          id: s.id ? s.id.toString() : crypto.randomUUID(),\n          title: s.title,\n          assistant: s.assistant,\n          status: s.status,\n          date: s.date_str\n        }));\n        setTreatmentPlan(steps);\n      })\n      .catch((err: any) => {\n        if (cancelled) return;\n        console.error("Erreur chargement master plan:", err);\n        setTreatmentPlan([]);\n        setPlanError("Plan de traitement indisponible. Aucune donnée locale n'est utilisée comme remplacement.");\n      })\n      .finally(() => {\n        if (!cancelled) setPlanLoading(false);\n      });\n    return () => { cancelled = true; };\n  }, [patientId]);'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'treatment plan init/load: expected 1 replacement, found {count}')
+
+          pattern = re.compile(r'''  const deleteStep = \(id: string\) => \{.*?\n  \};\n\n  const savePlan = \(plan: TreatmentStep\[]\) => \{.*?\n  \};\n\n  const updateStatus = \(id: string, newStatus: PlanStatus\) => \{.*?\n  \};''', re.S)
+          replacement = '''  const mapPersistedPlan = (data: any): TreatmentStep[] => {\n    const rawSteps = Array.isArray(data?.steps) ? data.steps : [];\n    return rawSteps.map((s: any) => ({\n      id: s.id ? s.id.toString() : crypto.randomUUID(),\n      title: s.title,\n      assistant: s.assistant,\n      status: s.status,\n      date: s.date_str\n    }));\n  };\n\n  const savePlan = async (plan: TreatmentStep[]): Promise<boolean> => {\n    const payload = plan.map((s, index) => ({\n      title: s.title,\n      assistant: s.assistant,\n      status: s.status,\n      date_str: s.date,\n      order_index: index\n    }));\n    try {\n      const res: any = await api.put(`/patients/${patientId}/master-plan`, payload);\n      setTreatmentPlan(mapPersistedPlan(res.data));\n      setPlanError(null);\n      return true;\n    } catch (err) {\n      console.error("Erreur sauvegarde master plan:", err);\n      setPlanError("La modification n'a pas été enregistrée. Le plan affiché reste inchangé.");\n      toast.error("Échec de sauvegarde du plan de traitement.");\n      return false;\n    }\n  };\n\n  const deleteStep = async (id: string) => {\n    const updated = treatmentPlan.filter(step => step.id !== id);\n    if (await savePlan(updated)) {\n      toast.success('Étape supprimée du plan enregistré.');\n    }\n  };\n\n  const updateStatus = async (id: string, newStatus: PlanStatus) => {\n    const updated = treatmentPlan.map(step =>\n      step.id === id ? { ...step, status: newStatus, date: newStatus === 'done' ? 'Fait le ' + new Date().toLocaleDateString() : 'Reporté' } : step\n    );\n    if (await savePlan(updated) && newStatus === 'done') {\n      toast.success('Étape validée dans le plan enregistré.');\n    }\n  };'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'save/delete/status: expected 1 replacement, found {count}')
+
+          pattern = re.compile(r'''  const handleWizardComplete = \(wizardId: string, diag: string, steps: any\[], suggestedNextAssistant\?: string \| null\) => \{.*?\n  \};\n\n  const clearLastDiagnosis = \(\) => \{.*?\n  \};''', re.S)
+          replacement = '''  const handleWizardComplete = (wizardId: string, diag: string, _steps: any[], _suggestedNextAssistant?: string | null) => {\n    // P0 fail-closed: an assistant may formulate a proposal, never validate a diagnosis\n    // or mutate the authoritative treatment plan on behalf of the practitioner.\n    const proposal: LastDiagnosis = {\n      text: diag,\n      date: new Date().toLocaleString('fr-FR'),\n      wizard: ASSISTANTS.find(a => a.id === wizardId)?.name || wizardId\n    };\n    setLastDiagnosis(proposal);\n    setActiveAssistant(null);\n    toast.success('Proposition clinique générée. Validation du praticien requise.');\n  };\n\n  const clearLastDiagnosis = () => {\n    setLastDiagnosis(null);\n    toast.success('Proposition supprimée.');\n  };'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'wizard fail-closed: expected 1 replacement, found {count}')
+
+          replace_once('Cerveau Clinique Central', 'Espace Clinique', 'header title')
+          replace_once('Ghost Orchestrator', 'Protocoles structurés', 'header badge')
+          replace_once('Diagnostic intelligent, plan de traitement global et suivi automatisé.', 'Collecte clinique structurée, propositions à valider et plan de traitement enregistré.', 'header subtitle')
+          replace_once('Assistants IA', 'Protocoles cliniques', 'assistant tab label')
+          replace_once('Dernier Diagnostic — {lastDiagnosis.wizard}', 'Proposition clinique à valider — {lastDiagnosis.wizard}', 'proposal heading')
+
+          # Make local odontogram status visibly a draft, not chart truth.
+          replace_once(
+          '''                    <p className="text-xs text-text-muted font-bold">Renseignez les caries, restaurations, et dents absentes</p>''',
+          '''                    <p className="text-xs text-text-muted font-bold">Brouillon local non enregistré au dossier — renseignez les caries, restaurations et dents absentes</p>''',
+          'odontogram draft label')
+
+          # Expose loading/error truth next to the plan instead of silently showing empty success.
+          marker = '''  const completedSteps = treatmentPlan.filter(s => s.status === 'done').length;'''
+          replace_once(marker, '''  const completedSteps = treatmentPlan.filter(s => s.status === 'done').length;''', 'progress marker')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify truth contracts and scope
+        run: |
+          git diff --check
+          git diff -- frontend/src/features/patients/components/ClinicalHub.tsx
+          test "$(git diff --name-only | grep -v '^.github/workflows/patient-p0-c-clinicalhub-truth.yml$' | wc -l)" -eq 1
+          ! grep -q 'master_plan_.*localStorage' frontend/src/features/patients/components/ClinicalHub.tsx
+          ! grep -q 'diag_.*localStorage' frontend/src/features/patients/components/ClinicalHub.tsx
+          ! grep -q 'scientificOrder' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'Validation du praticien requise' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'Brouillon local non enregistré au dossier' frontend/src/features/patients/components/ClinicalHub.tsx
+          grep -q 'await api.put' frontend/src/features/patients/components/ClinicalHub.tsx
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-c-clinicalhub-truth.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add frontend/src/features/patients/components/ClinicalHub.tsx .github/workflows/patient-p0-c-clinicalhub-truth.yml
+          git commit -m "fix(patient): make ClinicalHub fail closed and backend authoritative"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
