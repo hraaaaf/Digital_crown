@@ -88,6 +88,13 @@ jobs:
           mkdir -p ../artifacts/t2-browser
           node scripts/certify-document-studio-browser.mjs 2>&1 | tee ../artifacts/t2-browser/runner.log
 
+      - name: Certify browser print and PDF freshness
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/certify-document-studio-output.mjs 2>&1 | tee ../artifacts/t2-browser/output-runner.log
+
       - name: Dump runtime logs on failure
         if: failure()
         run: |
