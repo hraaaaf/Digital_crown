@@ -250,7 +250,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 p-6 bg-white/40 dark:bg-slate-900/40 rounded-[2.5rem] border border-white/60 dark:border-slate-800/50 backdrop-blur-xl shadow-elite min-h-[80vh] relative overflow-hidden">
+    <div className="w-full min-w-0 flex flex-col gap-4 p-3 sm:gap-6 sm:p-6 bg-white/40 dark:bg-slate-900/40 rounded-[1.75rem] sm:rounded-[2.5rem] border border-white/60 dark:border-slate-800/50 backdrop-blur-xl shadow-elite min-h-[80vh] relative overflow-hidden">
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] -mr-48 -mt-48 rounded-full pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 blur-[100px] -ml-48 -mb-48 rounded-full pointer-events-none" />
 
@@ -326,20 +326,20 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
           ) : (
             <>
               {lastDiagnosis && (
-                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="w-10 h-10 bg-indigo-500/20 text-indigo-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <div className="mb-6 scroll-mt-48 sm:scroll-mt-40 p-3 sm:p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start gap-2 sm:gap-4 relative">
+                  <div className="flex min-w-0 items-start gap-2 sm:gap-3 flex-1">
+                    <div className="hidden sm:flex w-10 h-10 bg-indigo-500/20 text-indigo-600 rounded-full items-center justify-center shrink-0 mt-0.5">
                       <Sparkles size={18} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-black text-indigo-900">Proposition clinique à valider — {lastDiagnosis.wizard}</h4>
-                      <p className="text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>
+                    <div className="flex-1 min-w-0 pr-7 sm:pr-0">
+                      <h4 className="text-xs sm:text-sm font-black text-indigo-900 leading-snug">Proposition clinique à valider — {lastDiagnosis.wizard}</h4>
+                      <p className="text-[11px] sm:text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>
                       <p className="text-[10px] text-indigo-600/70 font-mono mt-2">{lastDiagnosis.date}</p>
                     </div>
                   </div>
                   <button
                     onClick={clearLastDiagnosis}
-                    className="text-indigo-400 hover:text-indigo-600 transition-colors p-1 shrink-0"
+                    className="absolute right-2.5 top-2.5 sm:static text-indigo-400 hover:text-indigo-600 transition-colors p-1 shrink-0"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -404,7 +404,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="mt-2 p-8 bg-card-bg border border-primary/30 rounded-[2.5rem] shadow-2xl relative overflow-hidden"
+                className="mt-2 p-4 sm:p-8 bg-card-bg border border-primary/30 rounded-[1.75rem] sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden"
                 style={{ boxShadow: '0 20px 60px -15px rgba(var(--primary-rgb), 0.15)' }}
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" style={{ backgroundImage: 'linear-gradient(to right, transparent, var(--primary), transparent)' }} />
