@@ -1,5 +1,6 @@
 """P0-F — RVG lifecycle must stay authenticated, recoverable and tenant-isolated."""
 import base64
+from datetime import datetime
 
 from backend import models
 from backend.tests.conftest import make_user
@@ -15,7 +16,7 @@ def _patient(db, owner, suffix):
         numero_dossier=f"RVG-{suffix}",
         nom=f"RVG{suffix}",
         prenom="P0",
-        date_naissance="1990-01-01",
+        date_naissance=datetime(1990, 1, 1),
         sexe="F",
         employer_id=owner.id,
     )
