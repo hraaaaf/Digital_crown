@@ -40,8 +40,12 @@ async function captureProtocol(viewport, protocol) {
   await seedAuth(page);
   const pageErrors = [];
   const consoleErrors = [];
+  const httpErrors = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+  page.on('response', (response) => {
+    if (response.status() >= 400) httpErrors.push({ status: response.status(), url: response.url() });
+  });
 
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
@@ -61,7 +65,7 @@ async function captureProtocol(viewport, protocol) {
     }));
     fs.writeFileSync(
       path.join(outDir, `patient-p0d-${protocol}-diagnostic-${viewport.width}x${viewport.height}.json`),
-      JSON.stringify({ state, pageErrors, consoleErrors }, null, 2),
+      JSON.stringify({ state, pageErrors, consoleErrors, httpErrors }, null, 2),
     );
     throw error;
   }
@@ -69,14 +73,17 @@ async function captureProtocol(viewport, protocol) {
   let focus;
   if (protocol === 'endo') {
     await page.getByRole('button', { name: /Endodontie/i }).click();
-    focus = page.getByText('Protocole Endodontie', { exact: true });
+    await page.getByText('Protocole Endodontie', { exact: true }).waitFor({ state: 'visible' });
+    focus = page.getByText('Symptomatologie et Douleur', { exact: true });
     await focus.waitFor({ state: 'visible' });
-    await page.getByText('Symptomatologie et Douleur', { exact: true }).waitFor({ state: 'visible' });
   } else {
     await page.getByRole('button', { name: /Examen Clinique Complet/i }).click();
-    focus = page.getByText('Protocole Examen Clinique Complet', { exact: true });
+    await page.getByText('Protocole Examen Clinique Complet', { exact: true }).waitFor({ state: 'visible' });
+    const urgencyEntry = page.getByRole('button', { name: /Urgence \/ Douleur aiguë/i });
+    await urgencyEntry.waitFor({ state: 'visible' });
+    await urgencyEntry.click();
+    focus = page.getByText('Type de douleur / motif urgent', { exact: true });
     await focus.waitFor({ state: 'visible' });
-    await page.getByText('Urgence / Douleur aiguë', { exact: true }).waitFor({ state: 'visible' });
   }
 
   await focus.scrollIntoViewIfNeeded();
@@ -93,7 +100,7 @@ async function captureProtocol(viewport, protocol) {
 
   const screenshot = `patient-p0d-${protocol}-baseline-${viewport.width}x${viewport.height}.png`;
   await page.screenshot({ path: path.join(outDir, screenshot), fullPage: false });
-  evidence.push({ protocol, viewport, metrics, pageErrors, consoleErrors, screenshot });
+  evidence.push({ protocol, viewport, metrics, pageErrors, consoleErrors, httpErrors, screenshot });
   await context.close();
 }
 
@@ -106,7 +113,13 @@ const summary = {
   patientId: patient.id,
   totalCaptures: evidence.length,
   overflowFindings: evidence.filter((e) => !e.metrics.noHorizontalOverflow).map((e) => ({ protocol: e.protocol, viewport: e.viewport })),
-  runtimeErrorFindings: evidence.filter((e) => e.pageErrors.length || e.consoleErrors.length).map((e) => ({ protocol: e.protocol, viewport: e.viewport, pageErrors: e.pageErrors, consoleErrors: e.consoleErrors })),
+  runtimeErrorFindings: evidence.filter((e) => e.pageErrors.length || e.consoleErrors.length || e.httpErrors.length).map((e) => ({
+    protocol: e.protocol,
+    viewport: e.viewport,
+    pageErrors: e.pageErrors,
+    consoleErrors: e.consoleErrors,
+    httpErrors: e.httpErrors,
+  })),
 };
 fs.writeFileSync(path.join(outDir, 'evidence.json'), JSON.stringify(evidence, null, 2));
 fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
