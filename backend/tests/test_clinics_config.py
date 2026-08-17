@@ -42,11 +42,10 @@ class TestCabinetConfig:
         )
         assert r.status_code in (200, 201, 404)
 
-    def test_init_status_public(self, client):
-        """init-status is intentionally public (called before login)."""
+    def test_init_status_requires_authentication(self, client):
+        """init-status is tenant-scoped and requires authentication."""
         r = client.get("/api/clinics/init-status")
-        assert r.status_code == 200
-        assert "is_initialized" in r.json()
+        assert r.status_code == 401
 
 
 class TestCabinetConfigIsolation:
