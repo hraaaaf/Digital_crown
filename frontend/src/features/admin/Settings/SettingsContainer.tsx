@@ -65,6 +65,14 @@ const SettingsContainer: React.FC = () => {
     }
   }, [activeTab, tabs]);
 
+  const handleGlobalSave = async () => {
+    try {
+      await saveProfile();
+    } catch {
+      // The store owns the user-facing error toast. Avoid an unhandled rejection.
+    }
+  };
+
   if (loading) {
     return (
       <DigitalCrownLoader text="Initialisation du Centre de Contrôle..." minHeight="min-h-[600px]" />
@@ -104,7 +112,7 @@ const SettingsContainer: React.FC = () => {
           {access.canSettings && (
             <div className="pt-6">
               <button
-                onClick={saveProfile}
+                onClick={handleGlobalSave}
                 disabled={saving || (!isDirty && !saveSuccess)}
                 className={cn(
                   "w-full py-5 rounded-[1.5rem] font-black text-base transition-all duration-500 shadow-2xl flex items-center justify-center gap-4",
