@@ -1,0 +1,96 @@
+name: Settings Branding Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
+      - "frontend/src/features/admin/Settings/hooks/themePersistenceTruth.test.ts"
+      - ".github/workflows/settings-branding-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject Branding Settings harness
+        working-directory: frontend
+        run: |
+          cat > settings-branding-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Settings Branding</title></head><body><div id="root"></div><script type="module" src="/src/settings-branding-cert.tsx"></script></body></html>
+          EOF
+          cat > src/settings-branding-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({ user: ({ id:1, email:'admin@branding-cert.local', nom_complet:'Dr Branding', role:'ADMIN', is_superadmin:false, permissions:{} } as any), isAuthenticated:true, isLoading:false, error:null });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > settings-branding-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const output='settings-branding-artifacts'; await fs.mkdir(output,{recursive:true});
+          const profile={
+            id:1, public_id:'branding-cert', nom_cabinet:'Cabinet Dentaire Baseline', nom_praticien:'Achraf Baseline',
+            nom_praticien_ar:'أشرف', footer_address:'Rabat, Maroc', footer_phones:'05 37 00 00 00',
+            primary_color:'#003380', secondary_color:'#1e40af', accent_color:'#60a5fa', selected_theme:'elite',
+            font_fr:'inter', selected_template:'swiss', header_lines_fr:['Dr. Achraf Baseline','Chirurgien Dentiste'],
+            header_lines_ar:['د. أشرف','طبيب جراحة الأسنان'], specialty_ids:[], contacts_json:{},
+            margin_top:3.6, margin_bottom:3.2, watermark_enabled:true, use_letterhead:false,
+            qr_code_enabled:false, show_patient_badges:true, performance_mode:false, clinical_tips_enabled:true,
+            hide_header:true, hide_footer:true, cabinet_type:'PRIVE'
+          };
+          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch();
+          try {
+            for (const width of [1440,1024,768,430,390]) {
+              const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+              page.on('console',m=>{if(m.type()==='error') errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**', async route => {
+                const url=new URL(route.request().url());
+                if(url.pathname.endsWith('/clinics/me')) return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(profile)});
+                return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+              });
+              await page.goto('http://127.0.0.1:4178/settings-branding-cert.html',{waitUntil:'networkidle'});
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'Design & Ambiance',exact:true}).click();
+              await page.waitForTimeout(150);
+              const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
+              if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
+              if(errors.length) throw new Error(errors.join('\n'));
+              await page.screenshot({path:`${output}/admin-branding-${width}x1200.png`,fullPage:true,animations:'disabled'});
+              await context.close();
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture and assert Branding views
+        working-directory: frontend
+        run: node settings-branding-cert.mjs
+      - name: Verify proof count
+        working-directory: frontend
+        run: test "$(find settings-branding-artifacts -name '*.png' | wc -l)" -eq 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-branding-visual-cert
+          path: frontend/settings-branding-artifacts/
+          if-no-files-found: error
+          retention-days: 14
