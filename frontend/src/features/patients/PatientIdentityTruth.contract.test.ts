@@ -1,8 +1,15 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const addSource = fs.readFileSync(new URL('./AddPatientForm.tsx', import.meta.url), 'utf8');
-const editSource = fs.readFileSync(new URL('./EditPatientForm.tsx', import.meta.url), 'utf8');
+const addSource = fs.readFileSync(
+  path.resolve(process.cwd(), 'src/features/patients/AddPatientForm.tsx'),
+  'utf8',
+);
+const editSource = fs.readFileSync(
+  path.resolve(process.cwd(), 'src/features/patients/EditPatientForm.tsx'),
+  'utf8',
+);
 
 describe('P0-B patient identity truth contract', () => {
   it('never preselects female sex for patient creation', () => {
