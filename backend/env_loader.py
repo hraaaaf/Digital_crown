@@ -7,6 +7,13 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parent
+_WEAK_SECRETS = {
+    "SET_A_REAL_SECRET_KEY_IN_ENV",
+    "dev_only_secret_key_change_me",
+    "default-dc-fallback-key",
+    "changeme",
+    "secret",
+}
 
 
 def _appdata_env_path() -> Path | None:
@@ -22,6 +29,21 @@ def _appdata_env_path() -> Path | None:
         if base:
             return Path(base) / "DigitalCrown" / ".env"
     return Path.home() / ".config" / "DigitalCrown" / ".env"
+
+
+def _enforce_cabinet_crypto_secret() -> None:
+    """Fail before database import can ever use a predictable SQLCipher fallback."""
+    if os.getenv("ENVIRONMENT", "development").strip().lower() != "cabinet":
+        return
+
+    dedicated = os.getenv("CABINET_MASTER_KEY_HEX", "").strip()
+    shared = os.getenv("SECRET_KEY", "").strip()
+    candidate = dedicated or shared
+    if not candidate or candidate in _WEAK_SECRETS or len(candidate) < 32:
+        raise RuntimeError(
+            "SECURITE : mode cabinet refuse. Définissez CABINET_MASTER_KEY_HEX "
+            "ou une SECRET_KEY forte (>= 32 caractères) avant toute ouverture de la base."
+        )
 
 
 def load_backend_env(override: bool = True) -> Path:
@@ -47,8 +69,10 @@ def load_backend_env(override: bool = True) -> Path:
     for candidate in candidates:
         if candidate.exists():
             load_dotenv(candidate, override=override)
+            _enforce_cabinet_crypto_secret()
             return candidate
 
+    _enforce_cabinet_crypto_secret()
     return candidates[-1]
 
 
