@@ -74,8 +74,12 @@ jobs:
       - name: Capture Endo and Urgence baseline
         working-directory: frontend
         run: |
+          set -euo pipefail
           mkdir -p ../artifacts/patient-p0d-endo-urgence-baseline
-          node scripts/capture-patient-p0d-endo-urgence-baseline.mjs | tee ../artifacts/patient-p0d-endo-urgence-baseline/runner.log
+          node scripts/capture-patient-p0d-endo-urgence-baseline.mjs 2>&1 | tee ../artifacts/patient-p0d-endo-urgence-baseline/runner.log
+          test -s ../artifacts/patient-p0d-endo-urgence-baseline/summary.json
+          test -s ../artifacts/patient-p0d-endo-urgence-baseline/evidence.json
+          test "$(find ../artifacts/patient-p0d-endo-urgence-baseline -maxdepth 1 -name '*.png' | wc -l)" -eq 8
       - name: Upload baseline evidence
         if: always()
         uses: actions/upload-artifact@v4
