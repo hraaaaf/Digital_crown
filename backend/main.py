@@ -92,7 +92,7 @@ def _get_user_status_sync(email: str):
 
 async def get_user_license_status(email: str) -> tuple[bool, str]:
     """Vérifie la licence d'un utilisateur depuis SQLite avec cache TTL 60s.
-    Retourne (is_ok, reason) où reason ∈ {OK, NOT_LICENSED, LICENSE_EXPIRED, SUSPENDED, ARCHIVED, USER_NOT_FOUND}.
+    Retourne (is_ok, reason) où reason ∈ {OK, NOT_LICENSED, LICENSE_EXPIRED, SUSPENDED, ARCHIVED, USER_NOT_FOUND, DB_ERROR}.
     """
     now = time.time()
     cached = _license_cache.get(email)
@@ -103,8 +103,8 @@ async def get_user_license_status(email: str) -> tuple[bool, str]:
         result = await run_in_threadpool(_get_user_status_sync, email)
     except Exception as e:
         logger.error(f"Erreur vérification licence pour {email}: {e}")
-        # Fail-open : si la DB est inaccessible, ne pas bloquer l'utilisateur
-        result = (True, "DB_ERROR_FAIL_OPEN")
+        # Fail-closed : une panne DB rend l'état de licence invérifiable.
+        result = (False, "DB_ERROR")
 
     _license_cache[email] = (*result, now)
     return result
@@ -372,6 +372,14 @@ async def license_check_middleware(request: Request, call_next):
     # Vérification licence per-user (SQLite + cache TTL 60s)
     is_ok, reason = await get_user_license_status(email)
     if not is_ok:
+        if reason == "DB_ERROR":
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": "DB_ERROR",
+                    "message": "Vérification de licence indisponible : base locale inaccessible."
+                }
+            )
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
             messages = {
                 "NOT_LICENSED": "Mode lecture seule : Votre cabinet n'a pas de licence active.",
