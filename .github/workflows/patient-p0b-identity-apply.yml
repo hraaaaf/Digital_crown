@@ -1,0 +1,161 @@
+name: Patient P0-B Identity Apply
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0b-identity-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+      - name: Apply exact identity truth patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              return text.replace(old, new, 1)
+
+          add_path = Path('frontend/src/features/patients/AddPatientForm.tsx')
+          add = add_path.read_text()
+          add = replace_once(add, "sexe: 'F', ", "sexe: '', ", 'add default sex')
+          add = replace_once(
+              add,
+              "useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' })",
+              "useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'unknown', owner?: string }>({ status: 'idle' })",
+              'add dossier status type',
+          )
+          add = replace_once(
+              add,
+              "} catch (err) {\n        setDossierStatus({ status: 'available' }); // Fallback silent\n      }",
+              "} catch (err) {\n        setDossierStatus({ status: 'unknown' });\n      }",
+              'add dossier fail closed',
+          )
+          add = replace_once(
+              add,
+              "if (!formData.prenom) newErrors.prenom = \"Le prénom est requis.\";\n    if (!formData.date_naissance)",
+              "if (!formData.prenom) newErrors.prenom = \"Le prénom est requis.\";\n    if (!formData.sexe) newErrors.sexe = \"Le sexe doit être sélectionné explicitement.\";\n    if (!formData.date_naissance)",
+              'add sex validation',
+          )
+          add = replace_once(
+              add,
+              "const checkDuplicate = async (): Promise<boolean> => {",
+              "const checkDuplicate = async (): Promise<boolean | null> => {",
+              'add duplicate return type',
+          )
+          add = replace_once(
+              add,
+              "} catch (err) {\n      console.error(\"Erreur vérification doublon:\", err);\n      return false; // En cas d'erreur, on continue (le backend vérifiera aussi)\n    }",
+              "} catch (err) {\n      console.error(\"Erreur vérification doublon:\", err);\n      setErrors(prev => ({ ...prev, global: \"Vérification anti-doublon indisponible. Réessayez avant de créer le dossier.\" }));\n      return null;\n    }",
+              'add duplicate fail closed',
+          )
+          add = replace_once(
+              add,
+              "const hasDuplicate = await checkDuplicate();\n      setLoading(false);\n      if (hasDuplicate) return; // Arrêter ici, attendre la décision de l'utilisateur",
+              "const hasDuplicate = await checkDuplicate();\n      setLoading(false);\n      if (hasDuplicate === null || hasDuplicate) return; // Erreur de contrôle ou doublon : ne jamais poursuivre silencieusement",
+              'add duplicate submit gate',
+          )
+          add = replace_once(
+              add,
+              "if (!validate()) return;\n\n    // Si pas encore vérifié",
+              "if (!validate()) return;\n    if (formData.numero_dossier && dossierStatus.status === 'unknown') {\n      setErrors(prev => ({ ...prev, global: \"Vérification du numéro de dossier indisponible. Réessayez avant de créer le dossier.\" }));\n      return;\n    }\n\n    // Si pas encore vérifié",
+              'add dossier submit gate',
+          )
+          add = replace_once(
+              add,
+              "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}",
+              "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}\n                  {dossierStatus.status === 'unknown' && <AlertTriangle className=\"w-4 h-4 text-amber-500\" />}",
+              'add unknown icon',
+          )
+          add = replace_once(
+              add,
+              "{dossierStatus.status === 'available' && (\n                <p className=\"text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1\">\n                  <UserCheck size={12} /> Numéro disponible\n                </p>\n              )}",
+              "{dossierStatus.status === 'available' && (\n                <p className=\"text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1\">\n                  <UserCheck size={12} /> Numéro disponible\n                </p>\n              )}\n              {dossierStatus.status === 'unknown' && (\n                <p className=\"text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1\">\n                  <AlertTriangle size={12} /> Vérification indisponible — réessayez\n                </p>\n              )}",
+              'add unknown message',
+          )
+          add = replace_once(
+              add,
+              "<select \n                  name=\"sexe\" \n                  value={formData.sexe} \n                  onChange={handleChange}\n                  className={inputClass}\n                >\n                  <option value=\"F\">Féminin</option>",
+              "<select \n                  name=\"sexe\" \n                  value={formData.sexe} \n                  onChange={handleChange}\n                  className={cn(inputClass, errors.sexe && \"border-red-400 focus:border-red-400 focus:ring-red-100\")}\n                  required\n                >\n                  <option value=\"\">Sélectionner</option>\n                  <option value=\"F\">Féminin</option>",
+              'add select explicit',
+          )
+          add = replace_once(
+              add,
+              "</select>\n              </div>\n\n              <div>\n                <label className={labelClass}>Assurance / Couverture Médicale</label>",
+              "</select>\n                {errors.sexe && <span className=\"text-red-500 text-xs mt-1 ml-1\">{errors.sexe}</span>}\n              </div>\n\n              <div>\n                <label className={labelClass}>Assurance / Couverture Médicale</label>",
+              'add sex error display',
+          )
+          add = replace_once(add, '<div className="max-w-4xl mx-auto p-10">', '<div className="max-w-4xl mx-auto p-3 sm:p-6 lg:p-10">', 'add outer responsive')
+          add = replace_once(add, '<div className="bg-[#003380] px-10 py-8 flex justify-between items-center relative overflow-hidden">', '<div className="bg-[#003380] px-5 py-6 sm:px-10 sm:py-8 flex justify-between items-center relative overflow-hidden">', 'add header responsive')
+          add = replace_once(add, '<form onSubmit={handleSubmit} className="p-10 space-y-10">', '<form onSubmit={handleSubmit} className="p-5 sm:p-8 lg:p-10 space-y-10">', 'add form responsive')
+          add_path.write_text(add)
+
+          edit_path = Path('frontend/src/features/patients/EditPatientForm.tsx')
+          edit = edit_path.read_text()
+          edit = replace_once(edit, "sexe: 'F',", "sexe: '',", 'edit default sex')
+          edit = replace_once(edit, "sexe: patient.sexe || 'F',", "sexe: patient.sexe || '',", 'edit load sex fallback')
+          edit = replace_once(
+              edit,
+              "useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' })",
+              "useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'unknown', owner?: string }>({ status: 'idle' })",
+              'edit dossier status type',
+          )
+          edit = replace_once(
+              edit,
+              "} catch (err) {\n        setDossierStatus({ status: 'available' });\n      }",
+              "} catch (err) {\n        setDossierStatus({ status: 'unknown' });\n      }",
+              'edit dossier fail closed',
+          )
+          edit = replace_once(
+              edit,
+              "e.preventDefault();\n    setNumeroError('');",
+              "e.preventDefault();\n    setNumeroError('');\n    if (!formData.sexe) {\n      alert(\"Le sexe doit être sélectionné explicitement.\");\n      return;\n    }\n    if (formData.numero_dossier !== originalNumero && dossierStatus.status === 'unknown') {\n      setNumeroError(\"Vérification du numéro de dossier indisponible. Réessayez avant d'enregistrer.\");\n      return;\n    }",
+              'edit submit gates',
+          )
+          edit = replace_once(
+              edit,
+              "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}",
+              "{dossierStatus.status === 'available' && <UserCheck className=\"w-4 h-4 text-emerald-500\" />}\n                {dossierStatus.status === 'unknown' && <AlertTriangle className=\"w-4 h-4 text-amber-500\" />}",
+              'edit unknown icon',
+          )
+          edit = replace_once(
+              edit,
+              "{dossierStatus.status === 'available' && (\n              <p className=\"mt-2 text-xs text-emerald-600 font-bold\">✓ Numéro disponible</p>\n            )}",
+              "{dossierStatus.status === 'available' && (\n              <p className=\"mt-2 text-xs text-emerald-600 font-bold\">✓ Numéro disponible</p>\n            )}\n            {dossierStatus.status === 'unknown' && (\n              <p className=\"mt-2 text-xs text-amber-600 font-bold\">Vérification indisponible — réessayez</p>\n            )}",
+              'edit unknown message',
+          )
+          edit = replace_once(
+              edit,
+              "<select \n              name=\"sexe\" \n              value={formData.sexe} \n              onChange={(e) => setFormData({...formData, sexe: e.target.value})}\n              className={inputClass}\n            >\n              <option value=\"F\">Féminin</option>",
+              "<select \n              name=\"sexe\" \n              value={formData.sexe} \n              onChange={(e) => setFormData({...formData, sexe: e.target.value})}\n              className={inputClass}\n              required\n            >\n              <option value=\"\">Sélectionner</option>\n              <option value=\"F\">Féminin</option>",
+              'edit select explicit',
+          )
+          edit = replace_once(edit, '<div className="max-w-2xl mx-auto p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">', '<div className="max-w-2xl mx-auto p-3 sm:p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">', 'edit outer responsive')
+          edit = replace_once(edit, '<div className="bg-white/70 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">', '<div className="bg-white/70 backdrop-blur-2xl p-5 sm:p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">', 'edit card responsive')
+          edit_path.write_text(edit)
+          PY
+      - name: Verify diff scope
+        run: |
+          git diff --check
+          git diff -- frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          rm .github/workflows/patient-p0b-identity-apply.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx .github/workflows/patient-p0b-identity-apply.yml
+          git commit -m "fix(patient): fail closed on identity truth"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
