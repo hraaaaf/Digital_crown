@@ -100,7 +100,6 @@ class TestUpdateCephaloAnalysis:
             json={"landmarks": _LANDMARK_PAYLOAD, "mm_per_pixel": 0.2},
             headers=auth_headers,
         )
-        # Either success (200) or 500 if refine_analysis has internal deps
         assert r.status_code in (200, 500)
 
 
@@ -141,7 +140,6 @@ class TestGeneratePanoramicReport:
     def test_generate_with_manual_anomalies(self, client, db, auth_headers, dentiste):
         pat = _make_patient(db, dentiste, "PANOMANUAL")
         analysis = _make_panoramic(db, pat.id)
-        # manual_anomalies: Dict[int, List[str]] — tooth number → list of anomalies
         r = client.post(
             "/api/ia/generate-panoramic-report",
             json={
@@ -186,7 +184,6 @@ class TestPanoramicPdf:
         pat = _make_patient(db, dentiste, "PANOPDF")
         analysis = _make_panoramic(db, pat.id)
         r = client.get(f"/api/ia/panoramic/{analysis.id}/pdf", headers=auth_headers)
-        # In test env WeasyPrint may not be available → 500 is acceptable
         assert r.status_code in (200, 500)
         if r.status_code == 200:
             assert "pdf_url" in r.json()
@@ -219,14 +216,11 @@ class TestAdminExtended:
         r = client.get("/api/admin/export-db")
         assert r.status_code == 401
 
-    def test_export_db_reaches_handler(self, client, auth_headers):
-        """In-memory SQLite → FileResponse crashes on ':memory:' path in test env."""
-        import pytest as _pytest
-        # The endpoint is reached (passes auth/audit) but the ASGI transport
-        # raises OSError when Starlette tries os.stat(':memory:'). We verify it
-        # reaches the handler at all (not 401/403).
-        with _pytest.raises(Exception):
-            client.get("/api/admin/export-db", headers=auth_headers)
+    def test_export_db_fails_closed_for_in_memory_database(self, client, auth_headers):
+        """Authenticated export reaches the handler and returns a controlled failure."""
+        r = client.get("/api/admin/export-db", headers=auth_headers)
+        assert r.status_code == 500
+        assert "sauvegarde chiffrée" in r.json()["detail"].lower()
 
     def test_revoke_mobile_requires_auth(self, client):
         r = client.post("/api/admin/revoke-mobile")
