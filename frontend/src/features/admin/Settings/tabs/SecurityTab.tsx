@@ -3,8 +3,13 @@ import { Shield, Database, Download, Loader2 } from 'lucide-react';
 import { SettingsSection } from '../components/SharedUI';
 import { MobileSecurity } from '../../Security/MobileSecurity';
 import { AuditLogViewer } from '../../Security/AuditLogViewer';
-import { API_BASE, api } from '../../../../services/api';
+import { api } from '../../../../services/api';
 import toast from 'react-hot-toast';
+
+const backupFilename = (contentDisposition?: string): string => {
+  const match = contentDisposition?.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+  return match?.[1]?.replace(/\"/g, '').trim() || 'digital-crown-backup.enc';
+};
 
 export const SecurityTab: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -13,17 +18,19 @@ export const SecurityTab: React.FC = () => {
     setIsExporting(true);
     try {
       const response = await api.get('/admin/export-db', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const filename = backupFilename(response.headers['content-disposition']);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/octet-stream' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `backup_${new Date().toISOString().split('T')[0]}.db`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
-      toast.success("Base de données exportée avec succès");
+      window.URL.revokeObjectURL(url);
+      toast.success("Sauvegarde chiffrée créée et téléchargée");
     } catch (error) {
-      toast.error("Échec de l'export sécurisé de la base de données");
-      console.error("Export DB error:", error);
+      toast.error("Impossible de créer une sauvegarde chiffrée vérifiée");
+      console.error("Verified backup export error:", error);
     } finally {
       setIsExporting(false);
     }
@@ -41,8 +48,8 @@ export const SecurityTab: React.FC = () => {
             <Database size={40} />
           </div>
           <div className="max-w-md">
-            <h4 className="font-black text-xl text-slate-800">Sauvegarde Intégrale (Full Backup)</h4>
-            <p className="text-sm text-slate-500 mt-2 font-medium">Exportez instantanément l'intégralité de votre base de données SQLite locale, incluant patients, analyses et archives.</p>
+            <h4 className="font-black text-xl text-slate-800">Sauvegarde chiffrée vérifiée</h4>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Crée une sauvegarde chiffrée du moteur de données actif, vérifie sa création puis télécharge le fichier avec son format réel.</p>
           </div>
           <button 
             onClick={handleExportDB}
@@ -54,7 +61,7 @@ export const SecurityTab: React.FC = () => {
             ) : (
               <Download size={24} className="group-hover:translate-y-1 transition-transform" /> 
             )}
-            {isExporting ? "Création du Backup..." : "Exporter la Base de Données"}
+            {isExporting ? "Création et vérification..." : "Créer et télécharger la sauvegarde"}
           </button>
         </div>
 

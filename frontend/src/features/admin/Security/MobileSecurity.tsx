@@ -12,7 +12,6 @@ export const MobileSecurity = () => {
   const [isRevoking, setIsRevoking] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
-  // Gestion du timer d'auto-masquage
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     if (isVisible && countdown > 0) {
@@ -31,24 +30,26 @@ export const MobileSecurity = () => {
       setQrCode(response.data.qr_code);
       setTokenCode(response.data.token_code);
       setIsVisible(true);
-      setCountdown(30); // 30 secondes de visibilité
+      setCountdown(30);
     } catch (error) {
       console.error("Erreur lors de la récupération du QR Code", error);
-      toast.error("Impossible de générer le QR code — vérifiez la configuration serveur.");
+      toast.error("Impossible de générer le code d'appairage — vérifiez la configuration serveur.");
     }
   };
 
   const handleRevoke = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir révoquer l'accès mobile ? Cela déconnectera immédiatement tous les téléphones appairés.")) return;
-    
+    if (!window.confirm("Révoquer immédiatement toutes les sessions mobiles existantes de ce cabinet ? Les téléphones devront être appairés à nouveau.")) return;
+
     setIsRevoking(true);
     try {
       await api.post('/admin/revoke-mobile');
-      setStatus({ type: 'success', msg: "Accès révoqué avec succès. La clé a été renouvelée." });
+      setStatus({ type: 'success', msg: "Sessions mobiles révoquées. Un nouvel appairage est nécessaire." });
       setQrCode(null);
+      setTokenCode(null);
       setIsVisible(false);
-    } catch (error) {
-      setStatus({ type: 'error', msg: "Échec de la révocation." });
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      setStatus({ type: 'error', msg: typeof detail === 'string' ? detail : "Impossible de confirmer la révocation mobile." });
     } finally {
       setIsRevoking(false);
       setTimeout(() => setStatus(null), 5000);
@@ -63,12 +64,11 @@ export const MobileSecurity = () => {
         </div>
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-white font-outfit">Compagnon Mobile</h2>
-          <p className="text-sm text-slate-500">Gérez l'accès Zero-Knowledge de votre smartphone.</p>
+          <p className="text-sm text-slate-500">Gérez l'appairage local et les sessions mobiles du cabinet.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* SECTION 1: QR CODE PAIRING */}
         <div className="bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200/60 dark:border-white/5 p-8 relative overflow-hidden">
           <div className="relative z-10">
             <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
@@ -76,15 +76,14 @@ export const MobileSecurity = () => {
               Appairage Sécurisé
             </h3>
             <p className="text-sm text-slate-500 mb-6">
-              Scannez ce code avec l'application mobile Digital Crown pour importer votre clé de déchiffrement locale.
+              Affichez un code temporaire puis scannez-le avec Digital Crown Mobile sur le réseau local du cabinet. La clé locale est transmise chiffrée après l'échange ECDH, jamais dans le QR code.
             </p>
 
             <div className="relative w-64 mx-auto group">
-              {/* QR Code avec masque de sécurité */}
               <div className={`w-full h-72 rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-800/30 transition-all duration-500 ${!isVisible ? 'p-0' : 'p-4'}`}>
                 {qrCode ? (
                   <>
-                    <img src={qrCode} alt="ZKA Key QR" className={`w-full h-44 object-contain transition-all duration-700 ${!isVisible ? 'blur-2xl opacity-0 scale-95' : 'blur-0 opacity-100 scale-100'}`} />
+                    <img src={qrCode} alt="Code d'appairage Digital Crown Mobile" className={`w-full h-44 object-contain transition-all duration-700 ${!isVisible ? 'blur-2xl opacity-0 scale-95' : 'blur-0 opacity-100 scale-100'}`} />
                     {tokenCode && (
                       <div className={`mt-3 font-black text-3xl tracking-[0.25em] text-indigo-600 transition-all duration-700 ${!isVisible ? 'blur-xl opacity-0' : 'blur-0 opacity-100'}`}>
                         {tokenCode}
@@ -95,24 +94,23 @@ export const MobileSecurity = () => {
                   <Smartphone size={48} className="text-slate-300 dark:text-slate-700" />
                 )}
 
-                {/* Overlay de masquage */}
                 {!isVisible && (
                   <div className="absolute inset-0 backdrop-blur-md bg-white/40 dark:bg-slate-900/40 flex flex-col items-center justify-center p-6 text-center">
-                    <button 
+                    <button
                       onClick={fetchQrCode}
+                      aria-label="Afficher le code d'appairage mobile"
                       className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center text-indigo-500 hover:scale-110 transition-transform active:scale-95"
                     >
                       <Eye size={24} />
                     </button>
-                    <p className="mt-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Révéler la clé</p>
+                    <p className="mt-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Afficher le code d'appairage</p>
                   </div>
                 )}
               </div>
 
-              {/* Countdown badge */}
               <AnimatePresence>
                 {isVisible && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
@@ -125,12 +123,10 @@ export const MobileSecurity = () => {
               </AnimatePresence>
             </div>
           </div>
-          
-          {/* Background decoration */}
+
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl" />
         </div>
 
-        {/* SECTION 2: DANGER ZONE / REVOCATION */}
         <div className="flex flex-col gap-6">
           <div className="bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/20 p-8">
             <h3 className="text-lg font-semibold text-rose-600 dark:text-rose-400 mb-2 flex items-center gap-2">
@@ -138,10 +134,10 @@ export const MobileSecurity = () => {
               Zone de Danger
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              En cas de perte ou de vol de votre smartphone, révoquez immédiatement l'accès. Une nouvelle clé sera générée et l'ancien téléphone ne pourra plus lire vos données.
+              En cas de perte ou de vol, révoquez les sessions mobiles existantes. Les anciens jetons seront refusés immédiatement et les codes d'appairage en attente seront invalidés pour ce cabinet.
             </p>
 
-            <button 
+            <button
               onClick={handleRevoke}
               disabled={isRevoking}
               className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-slate-400 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-rose-500/20 transition-all active:scale-[0.98]"
@@ -159,7 +155,7 @@ export const MobileSecurity = () => {
 
           <AnimatePresence>
             {status && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -174,10 +170,9 @@ export const MobileSecurity = () => {
       </div>
 
       <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200/60 dark:border-white/5">
-        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Comprendre la Sécurité Zero-Knowledge</h4>
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Sécurité mobile locale</h4>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Digital Crown utilise un chiffrement AES-256 de bout en bout. Votre clé secrète est générée localement sur ce PC et transmise physiquement à votre téléphone via le QR code. 
-          <strong> Aucun tiers, ni même les développeurs de l'application, ne peut accéder à vos données cliniques sur le cloud.</strong>
+          Les données cliniques restent sur le réseau local du cabinet. Le QR contient uniquement une adresse LAN et un code temporaire. Lors de l'appairage, Digital Crown utilise un échange ECDH pour transmettre la clé locale sous forme chiffrée au téléphone autorisé.
         </p>
       </div>
     </div>
