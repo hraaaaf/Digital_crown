@@ -298,7 +298,6 @@ class DossierClinique(Base):
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), unique=True, nullable=False)
     is_ortho_active: Mapped[bool] = mapped_column(Boolean, default=False)
     note_honnetete: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    antecedents_medicaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     patient: Mapped["Patient"] = relationship(back_populates="dossier")
 
