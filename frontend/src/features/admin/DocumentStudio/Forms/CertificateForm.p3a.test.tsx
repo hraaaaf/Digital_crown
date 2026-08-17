@@ -42,7 +42,7 @@ describe('CertificateForm P3', () => {
 
     expect(setCertifType).not.toHaveBeenCalled();
     expect(setCertifDays).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent(/Aucun choix n’est appliqué automatiquement/i);
+    expect(screen.getByRole('status').textContent).toMatch(/Aucun choix n’est appliqué automatiquement/i);
     expect(screen.getByText(/Validation du praticien requise/i)).toBeTruthy();
   });
 
