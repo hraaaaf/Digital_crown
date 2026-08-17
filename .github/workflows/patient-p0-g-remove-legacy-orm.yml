@@ -1,0 +1,52 @@
+name: Patient P0 G — Remove legacy medical-history ORM field
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-g-remove-legacy-orm.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Remove only the legacy ORM mapping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/models.py')
+          text = path.read_text(encoding='utf-8')
+          old = '    antecedents_medicaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)\n'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one legacy DossierClinique mapping, found {count}')
+          text = text.replace(old, '', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify minimal scope
+        run: |
+          git diff --check
+          test "$(git diff --name-only | grep -v '^.github/workflows/patient-p0-g-remove-legacy-orm.yml$' | wc -l)" -eq 1
+          test "$(git diff --numstat -- backend/models.py | awk '{print $1+$2}')" -eq 1
+          grep -q 'antecedents_medicaux: Mapped\[str | None\]' backend/models.py
+          test "$(grep -c 'antecedents_medicaux: Mapped' backend/models.py)" -eq 1
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-g-remove-legacy-orm.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/models.py .github/workflows/patient-p0-g-remove-legacy-orm.yml
+          git commit -m "fix(patient): retire legacy dossier medical-history ORM source"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
