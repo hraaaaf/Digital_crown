@@ -192,20 +192,20 @@ export const PatientDetails = () => {
   const isCompact = activeTab === 'admin' || activeTab === 'archives';
 
   return (
-    <div className={cn("flex flex-col bg-transparent", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
+    <div className={cn("flex min-w-0 flex-col bg-transparent", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
       
       <header className={cn(
         "sticky top-0 z-[300] bg-card-bg/80 backdrop-blur-xl border-b border-border-main transition-all duration-500",
-        isCompact ? "pt-3 pb-0 shadow-elite" : "pt-8 pb-0 shadow-elite"
+        isCompact ? "pt-3 pb-0 shadow-elite" : "pt-4 md:pt-8 pb-0 shadow-elite"
       )}>
-        <div className="max-w-[1600px] mx-auto px-6 md:px-10">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-10">
           
-          <div className={cn("flex items-center justify-between transition-all duration-500", isCompact ? "mb-2" : "mb-6")}>
-            <div className="flex items-center gap-5">
+          <div className={cn("flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between transition-all duration-500", isCompact ? "mb-2" : "mb-4 md:mb-6")}>
+            <div className="flex min-w-0 items-start gap-3 md:gap-5">
               <button
                 onClick={() => navigate('/patients')}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:border-primary flex items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
-                  isCompact ? "w-8 h-8" : "w-12 h-12"
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:border-primary flex shrink-0 items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
+                  isCompact ? "w-8 h-8" : "w-10 h-10 md:w-12 md:h-12"
                 )}
                 style={{ color: 'var(--primary)' }}
                 aria-label="Retourner à la liste des patients"
@@ -213,14 +213,14 @@ export const PatientDetails = () => {
                 <ArrowLeft size={isCompact ? 18 : 24} strokeWidth={2.5} />
               </button>
               
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  <h1 className={cn("min-w-0 break-words font-black tracking-tight transition-all duration-500", isCompact ? "text-xl" : "text-xl sm:text-2xl md:text-3xl")} style={{ color: 'var(--primary)' }}>
                     {fullName}
                   </h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
                   {!isCompact && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2.5 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-lg uppercase tracking-widest border border-primary/10 shadow-sm" style={{ color: 'var(--primary)' }}>
                         Dossier Actif
                       </span>
@@ -235,7 +235,7 @@ export const PatientDetails = () => {
                   )}
                 </div>
                 
-                <div className={cn("flex flex-wrap items-center gap-4 mt-3 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
+                <div className={cn("flex flex-wrap items-center gap-2 md:gap-4 mt-3 text-xs sm:text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100") }>
                   <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
                     <FileDigit size={14} style={{ color: 'var(--primary)' }} />
                     <span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span>
@@ -244,38 +244,38 @@ export const PatientDetails = () => {
                   <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone}</span></div>
                   {patient.telephone_2 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_2}</span></div>}
                   {patient.telephone_3 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_3}</span></div>}
-                  {patient.email && <div className="flex items-center gap-2"><Mail size={16} className="text-text-muted" /><span>{patient.email}</span></div>}
-                  {patient.adresse && <div className="flex items-center gap-2"><MapPin size={16} className="text-text-muted" /><span>{patient.adresse}</span></div>}
+                  {patient.email && <div className="flex min-w-0 items-center gap-2"><Mail size={16} className="shrink-0 text-text-muted" /><span className="break-all">{patient.email}</span></div>}
+                  {patient.adresse && <div className="flex min-w-0 items-center gap-2"><MapPin size={16} className="shrink-0 text-text-muted" /><span className="break-words">{patient.adresse}</span></div>}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center gap-2 sm:gap-3 lg:w-auto lg:justify-end">
               <button
                 onClick={() => navigate('/agenda', {
                   state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom }
                 })}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-11 flex-1 px-3 sm:px-4 md:h-16 md:flex-none md:px-6")}
               >
                 <Calendar size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
-                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Prendre RDV</span>}
+                {!isCompact && <span className="ml-2 md:ml-3 font-black uppercase tracking-widest text-[10px] md:text-[11px]">Prendre RDV</span>}
               </button>
 
               <button
                 onClick={() => setIsPayModalOpen(true)}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
+                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-11 flex-1 px-3 sm:px-4 md:h-16 md:flex-none md:px-6")}
               >
                 <Banknote size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
-                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Encaisser</span>}
+                {!isCompact && <span className="ml-2 md:ml-3 font-black uppercase tracking-widest text-[10px] md:text-[11px]">Encaisser</span>}
               </button>
 
-              <div className={cn("rounded-[1.2rem] text-white shadow-xl transition-all duration-500 flex items-center justify-center", isCompact ? "w-10 h-10" : "w-16 h-16")} style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}>
+              <div className={cn("shrink-0 rounded-[1.2rem] text-white shadow-xl transition-all duration-500 flex items-center justify-center", isCompact ? "w-10 h-10" : "w-11 h-11 md:w-16 md:h-16")} style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}>
                 <User size={isCompact ? 20 : 30} strokeWidth={2} />
               </div>
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
+          <div data-tour="patient-tabs" className="flex gap-5 md:gap-10 overflow-x-auto border-b border-transparent -mb-[1px]">
             <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={18} />} label="Séances & Suivi" />
             {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />}
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
@@ -287,8 +287,8 @@ export const PatientDetails = () => {
       </header>
 
       <main className={cn(
-        "max-w-[1600px] mx-auto w-full transition-all duration-500",
-        isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-10 py-10 space-y-10"
+        "max-w-[1600px] mx-auto w-full min-w-0 transition-all duration-500",
+        isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-3 sm:px-4 md:px-10 py-4 md:py-10 space-y-6 md:space-y-10"
       )}>
         
         
@@ -337,7 +337,7 @@ export const PatientDetails = () => {
 
         <FlashSummary patientId={Number(id)} patientName={fullName} />
 
-        <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
+        <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full min-w-0", !isCompact && "delay-150")}>
           {activeTab === 'radiology' && (
             <div className="space-y-6">
               {/* Ghost Elite Toggle */}
@@ -424,7 +424,7 @@ const TabButton = ({ active, onClick, icon, label }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 pb-3 px-2 text-[12px] font-black uppercase tracking-[0.1em] transition-all border-b-4",
+      "flex shrink-0 items-center gap-2 whitespace-nowrap pb-3 px-2 text-[12px] font-black uppercase tracking-[0.1em] transition-all border-b-4",
       active 
         ? "text-primary" 
         : "border-transparent text-text-muted hover:text-main hover:border-border-main"
