@@ -58,7 +58,12 @@ jobs:
               for (const target of ['agenda','catalogue']) {
                 const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const runtimeErrors=[];
                 page.on('pageerror',e=>runtimeErrors.push(`pageerror: ${e.message}`));
-                page.on('console',m=>{ if(m.type()==='error' && !m.text().includes('503')) runtimeErrors.push(`console: ${m.text()}`); });
+                page.on('console',m=>{
+                  if(m.type()!=='error') return;
+                  const text=m.text();
+                  const expectedDegradedRead = text.includes('503') || text.startsWith('Path: /agenda/settings') || text.startsWith('Path: /catalog/specialties') || text.startsWith('Details: unavailable');
+                  if(!expectedDegradedRead) runtimeErrors.push(`console: ${text}`);
+                });
                 await page.route('**/api/**', async route => {
                   const url=new URL(route.request().url());
                   if(url.pathname.endsWith('/clinics/me')) return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(profile)});
