@@ -24,7 +24,7 @@ export const AddPatientForm = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isOrtho, setIsOrtho] = useState(false);
-  
+
   // Gestion des doublons
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
@@ -34,14 +34,14 @@ export const AddPatientForm = () => {
   const prefillPrenom = searchParams.get('prenom') || '';
 
   // État pour la validation du numéro de dossier
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'unknown', owner?: string }>({ status: 'idle' });
 
   const [formData, setFormData] = useState<any>({
     numero_dossier: '',
     nom: prefillNom,
     prenom: prefillPrenom,
     date_naissance: '',
-    sexe: 'F', 
+    sexe: '',
     telephone: '',
     telephone_2: '',
     telephone_3: '',
@@ -71,7 +71,7 @@ export const AddPatientForm = () => {
 
   // Charger le prochain numéro de dossier disponible au chargement
   useEffect(() => {
-     
+
     fetchNextDossierNumber();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -79,7 +79,7 @@ export const AddPatientForm = () => {
   // Check availability when numero_dossier changes
   useEffect(() => {
     if (!formData.numero_dossier || formData.numero_dossier.length < 2) {
-       
+
       setDossierStatus({ status: 'idle' });
       return;
     }
@@ -94,7 +94,7 @@ export const AddPatientForm = () => {
           setDossierStatus({ status: 'available' });
         }
       } catch (err) {
-        setDossierStatus({ status: 'available' }); // Fallback silent
+        setDossierStatus({ status: 'unknown' });
       }
     }, 500);
 
@@ -109,10 +109,10 @@ export const AddPatientForm = () => {
     } else if (name === 'nom') {
       finalValue = value.toUpperCase();
     }
-    
-    setFormData({ 
-      ...formData, 
-      [name]: finalValue 
+
+    setFormData({
+      ...formData,
+      [name]: finalValue
     });
     if (errors[name]) setErrors({ ...errors, [name]: '' });
     // Réinitialiser le modal doublon si modif
@@ -132,6 +132,7 @@ export const AddPatientForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!formData.nom) newErrors.nom = "Le nom est requis.";
     if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";
+    if (!formData.sexe) newErrors.sexe = "Le sexe doit être sélectionné explicitement.";
     if (!formData.date_naissance) {
       newErrors.date_naissance = "La date de naissance est obligatoire.";
     } else {
@@ -143,7 +144,7 @@ export const AddPatientForm = () => {
       }
     }
     // Téléphone, email et adresse sont optionnels
-    
+
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Format d'email invalide.";
     }
@@ -153,7 +154,7 @@ export const AddPatientForm = () => {
   };
 
   // Vérification préalable des doublons
-  const checkDuplicate = async (): Promise<boolean> => {
+  const checkDuplicate = async (): Promise<boolean | null> => {
     try {
       const response = await api.post('/patients/check-duplicate', {
         numero_dossier: formData.numero_dossier || null,
@@ -166,32 +167,37 @@ export const AddPatientForm = () => {
         adresse: formData.adresse || null,
         antecedents_medicaux: formData.antecedents_medicaux || null
       });
-      
+
       const data: DuplicateInfo = response.data;
-      
+
       if (data.has_duplicate && data.existing_patient) {
         setDuplicateInfo(data);
         setShowDuplicateModal(true);
         return true; // Doublon trouvé
       }
-      
+
       return false; // Pas de doublon
     } catch (err) {
       console.error("Erreur vérification doublon:", err);
-      return false; // En cas d'erreur, on continue (le backend vérifiera aussi)
+      setErrors(prev => ({ ...prev, global: "Vérification anti-doublon indisponible. Réessayez avant de créer le dossier." }));
+      return null;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    if (formData.numero_dossier && dossierStatus.status === 'unknown') {
+      setErrors(prev => ({ ...prev, global: "Vérification du numéro de dossier indisponible. Réessayez avant de créer le dossier." }));
+      return;
+    }
 
     // Si pas encore vérifié, faire la pré-vérification
     if (!forceCreate && !showDuplicateModal) {
       setLoading(true);
       const hasDuplicate = await checkDuplicate();
       setLoading(false);
-      if (hasDuplicate) return; // Arrêter ici, attendre la décision de l'utilisateur
+      if (hasDuplicate === null || hasDuplicate) return; // Erreur de contrôle ou doublon : ne jamais poursuivre silencieusement
     }
 
     await performSubmit(forceCreate);
@@ -222,7 +228,7 @@ export const AddPatientForm = () => {
       navigate(`/patients/${data.id}`);
     } catch (err: any) {
       console.error("❌ ERREUR API:", err);
-      
+
       // Gérer l'erreur 409 (doublon) du backend
       if (err.response?.status === 409) {
         const detail = err.response.data.detail;
@@ -236,7 +242,7 @@ export const AddPatientForm = () => {
           return;
         }
       }
-      
+
       setErrors({ global: "Erreur serveur. Vérifiez la console." });
       setLoading(false);
     }
@@ -253,11 +259,11 @@ export const AddPatientForm = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-10">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6 lg:p-10">
       <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white/80 overflow-hidden">
-        
+
         {/* Header Premium */}
-        <div className="bg-[#003380] px-10 py-8 flex justify-between items-center relative overflow-hidden">
+        <div className="bg-[#003380] px-5 py-6 sm:px-10 sm:py-8 flex justify-between items-center relative overflow-hidden">
           <div className="flex items-center gap-5 relative z-10">
             <div className="p-4 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md">
               <User className="text-white w-8 h-8" />
@@ -269,19 +275,19 @@ export const AddPatientForm = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-8 lg:p-10 space-y-10">
           {errors.global && (
             <div className="p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 flex items-center gap-2 font-bold text-sm">
               <Activity className="w-5 h-5" /> {errors.global}
             </div>
           )}
-          
+
           {/* Info pré-remplissage depuis recherche */}
           {(prefillNom || prefillPrenom) && (
             <div className="p-4 bg-blue-50 text-[#003380] rounded-2xl border border-blue-100 flex items-center gap-3 text-sm">
               <Search className="w-5 h-5" />
               <span className="font-medium">
-                Patient "<strong>{prefillNom} {prefillPrenom}</strong>" introuvable. 
+                Patient "<strong>{prefillNom} {prefillPrenom}</strong>" introuvable.
                 Vérifiez les informations et complétez le formulaire ci-dessous.
               </span>
             </div>
@@ -303,13 +309,13 @@ export const AddPatientForm = () => {
                   "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5",
                   dossierStatus.status === 'taken' ? "text-red-500" : "text-[#003380]"
                 )} />
-                <input 
-                  type="text" 
-                  name="numero_dossier" 
-                  value={formData.numero_dossier || ''} 
+                <input
+                  type="text"
+                  name="numero_dossier"
+                  value={formData.numero_dossier || ''}
                   onChange={handleNumeroDossierChange}
                   className={cn(
-                    inputClass, 
+                    inputClass,
                     "pl-14 font-mono text-lg tracking-wider",
                     dossierStatus.status === 'taken' && "border-red-400 focus:ring-red-100",
                     dossierStatus.status === 'available' && "border-emerald-400 focus:ring-emerald-100"
@@ -320,9 +326,10 @@ export const AddPatientForm = () => {
                   {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
                   {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
                   {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+                  {dossierStatus.status === 'unknown' && <AlertTriangle className="w-4 h-4 text-amber-500" />}
                 </div>
               </div>
-              
+
               {dossierStatus.status === 'taken' && (
                 <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> Ce numéro appartient déjà à : <span className="underline">{dossierStatus.owner}</span>
@@ -333,16 +340,21 @@ export const AddPatientForm = () => {
                   <UserCheck size={12} /> Numéro disponible
                 </p>
               )}
+              {dossierStatus.status === 'unknown' && (
+                <p className="text-amber-600 text-[10px] font-black uppercase tracking-widest mt-2 ml-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Vérification indisponible — réessayez
+                </p>
+              )}
             </div>
 
             {/* Champs Nom et Prénom - nécessaires dans les deux cas */}
             <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
               <div>
                 <label className={labelClass}>Nom de famille *</label>
-                <input 
-                  type="text" 
-                  name="nom" 
-                  value={formData.nom} 
+                <input
+                  type="text"
+                  name="nom"
+                  value={formData.nom}
                   onChange={handleChange}
                   className={cn(inputClass, errors.nom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="BENMOUSSA"
@@ -352,10 +364,10 @@ export const AddPatientForm = () => {
 
               <div>
                 <label className={labelClass}>Prénom *</label>
-                <input 
-                  type="text" 
-                  name="prenom" 
-                  value={formData.prenom} 
+                <input
+                  type="text"
+                  name="prenom"
+                  value={formData.prenom}
                   onChange={handleChange}
                   className={cn(inputClass, errors.prenom && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                   placeholder="Yazan"
@@ -376,10 +388,10 @@ export const AddPatientForm = () => {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className={labelClass}>Date de naissance *</label>
-                <input 
-                  type="date" 
-                  name="date_naissance" 
-                  value={formData.date_naissance} 
+                <input
+                  type="date"
+                  name="date_naissance"
+                  value={formData.date_naissance}
                   onChange={handleChange}
                   className={cn(inputClass, errors.date_naissance && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                 />
@@ -388,22 +400,25 @@ export const AddPatientForm = () => {
 
               <div>
                 <label className={labelClass}>Sexe *</label>
-                <select 
-                  name="sexe" 
-                  value={formData.sexe} 
+                <select
+                  name="sexe"
+                  value={formData.sexe}
                   onChange={handleChange}
-                  className={inputClass}
+                  className={cn(inputClass, errors.sexe && "border-red-400 focus:border-red-400 focus:ring-red-100")}
+                  required
                 >
+                  <option value="">Sélectionner</option>
                   <option value="F">Féminin</option>
                   <option value="M">Masculin</option>
                 </select>
+                {errors.sexe && <span className="text-red-500 text-xs mt-1 ml-1">{errors.sexe}</span>}
               </div>
 
               <div>
                 <label className={labelClass}>Assurance / Couverture Médicale</label>
-                <select 
-                  name="assurance" 
-                  value={formData.assurance} 
+                <select
+                  name="assurance"
+                  value={formData.assurance}
                   onChange={handleChange}
                   className={inputClass}
                 >
@@ -413,21 +428,21 @@ export const AddPatientForm = () => {
                   <option value="MUTUELLE_FAR">Mutuelle de FAR</option>
                   <option value="PRIVEE">Assurance Privée</option>
                 </select>
-                
+
                 {formData.assurance === 'PRIVEE' && (
                   <div className="mt-3">
                     <label className={labelClass}>Nom de l'Assurance Privée</label>
-                    <input 
-                      type="text" 
-                      name="assurance_privee_nom" 
-                      value={formData.assurance_privee_nom} 
+                    <input
+                      type="text"
+                      name="assurance_privee_nom"
+                      value={formData.assurance_privee_nom}
                       onChange={handleChange}
                       className={inputClass}
                       placeholder="Ex: Sanlam, Wafa Assurance..."
                     />
                   </div>
                 )}
-                
+
                 {/* Assurance Complémentaire */}
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <label className="flex items-center gap-3 cursor-pointer mb-3">
@@ -440,23 +455,23 @@ export const AddPatientForm = () => {
                         formData.assurance_complementaire ? "left-6" : "left-1"
                       )} />
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       name="assurance_complementaire"
-                      checked={formData.assurance_complementaire} 
+                      checked={formData.assurance_complementaire}
                       onChange={handleChange}
                       className="hidden"
                     />
                     <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
                   </label>
-                  
+
                   {formData.assurance_complementaire && (
                     <div>
                       <label className={labelClass}>Nom de l'Assurance Complémentaire</label>
-                      <input 
-                        type="text" 
-                        name="assurance_complementaire_nom" 
-                        value={formData.assurance_complementaire_nom} 
+                      <input
+                        type="text"
+                        name="assurance_complementaire_nom"
+                        value={formData.assurance_complementaire_nom}
                         onChange={handleChange}
                         className={inputClass}
                         placeholder="Ex: Mutuelle interne..."
@@ -481,47 +496,47 @@ export const AddPatientForm = () => {
                 <label className={labelClass}>Téléphone Principal</label>
                 <div className="relative mb-2">
                   <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input 
-                    type="tel" 
-                    name="telephone" 
-                    value={formData.telephone} 
+                  <input
+                    type="tel"
+                    name="telephone"
+                    value={formData.telephone}
                     onChange={handleChange}
                     className={cn(inputClass, "pl-14")}
                     placeholder="06 12 34 56 78"
                   />
                 </div>
-                
+
                 {showPhone2 && (
                   <div className="relative mb-2 mt-2">
                     <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                    <input 
-                      type="tel" 
-                      name="telephone_2" 
-                      value={formData.telephone_2} 
+                    <input
+                      type="tel"
+                      name="telephone_2"
+                      value={formData.telephone_2}
                       onChange={handleChange}
                       className={cn(inputClass, "pl-14 py-3")}
                       placeholder="Téléphone secondaire"
                     />
                   </div>
                 )}
-                
+
                 {showPhone3 && (
                   <div className="relative mb-2 mt-2">
                     <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                    <input 
-                      type="tel" 
-                      name="telephone_3" 
-                      value={formData.telephone_3} 
+                    <input
+                      type="tel"
+                      name="telephone_3"
+                      value={formData.telephone_3}
                       onChange={handleChange}
                       className={cn(inputClass, "pl-14 py-3")}
                       placeholder="Autre numéro"
                     />
                   </div>
                 )}
-                
+
                 {(!showPhone2 || !showPhone3) && (
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => {
                       if (!showPhone2) setShowPhone2(true);
                       else if (!showPhone3) setShowPhone3(true);
@@ -537,10 +552,10 @@ export const AddPatientForm = () => {
                 <label className={labelClass}>Email</label>
                 <div className="relative">
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email} 
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleChange}
                     className={cn(inputClass, "pl-14", errors.email && "border-red-400 focus:border-red-400 focus:ring-red-100")}
                     placeholder="yazan.benmoussa@email.com"
@@ -551,10 +566,10 @@ export const AddPatientForm = () => {
 
               <div className="md:col-span-2">
                 <label className={labelClass}>Adresse</label>
-                <input 
-                  type="text" 
-                  name="adresse" 
-                  value={formData.adresse} 
+                <input
+                  type="text"
+                  name="adresse"
+                  value={formData.adresse}
                   onChange={handleChange}
                   className={inputClass}
                   placeholder="Avenue Mohammed V, Rabat"
@@ -581,9 +596,9 @@ export const AddPatientForm = () => {
 
             <div className="mt-6">
               <label className={labelClass}>Historique médical et allergies</label>
-              <textarea 
-                name="antecedents_medicaux" 
-                value={formData.antecedents_medicaux} 
+              <textarea
+                name="antecedents_medicaux"
+                value={formData.antecedents_medicaux}
                 onChange={handleChange}
                 rows={4}
                 className={inputClass}
@@ -593,7 +608,7 @@ export const AddPatientForm = () => {
           </div>
 
           <div className="p-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-2xl border border-blue-100">
-            <div 
+            <div
               className="flex items-center gap-4 cursor-pointer"
               onClick={() => setIsOrtho(!isOrtho)}
             >
@@ -615,15 +630,15 @@ export const AddPatientForm = () => {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => navigate('/patients')}
               className="px-8 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all"
             >
               Annuler
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="px-8 py-4 bg-[#003380] text-white rounded-2xl font-bold hover:bg-[#002266] transition-all shadow-lg shadow-blue-900/20 flex items-center gap-3 disabled:opacity-50"
             >
