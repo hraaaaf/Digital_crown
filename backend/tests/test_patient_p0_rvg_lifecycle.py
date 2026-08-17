@@ -32,12 +32,17 @@ def _headers(client, user, password="TestPass123!"):
         data={"username": user.email, "password": password},
     )
     assert response.status_code == 200, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    token = response.json()["access_token"]
+    # Auth is cookie-first. Clear login cookies so each request below proves
+    # the explicit Bearer identity rather than whichever user logged in last.
+    client.cookies.clear()
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_rvg_full_lifecycle_is_authenticated_recoverable_and_tenant_isolated(
     client, db, dentiste, auth_headers
 ):
+    client.cookies.clear()
     patient_a = _patient(db, dentiste, "A")
     other = make_user(db, email="rvg-other@cabinet.ma")
     patient_b = _patient(db, other, "B")
