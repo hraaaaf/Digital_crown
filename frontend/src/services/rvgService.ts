@@ -1,6 +1,6 @@
 /**
  * RVG (Intra-oral X-ray) service
- * Handles upload, listing, authenticated download, and deletion of patient RVG documents.
+ * Handles upload, listing, authenticated download, and soft deletion of patient RVG documents.
  */
 import { api } from './api';
 
@@ -67,9 +67,9 @@ export const rvgService = {
     return response.data;
   },
 
-  /** Delete an RVG document. */
+  /** Soft-delete an RVG document through the recoverable document trash. */
   async deleteRVG(documentId: number): Promise<void> {
-    await api.delete(`/documents/${documentId}`, { params: { confirm: true } });
+    await api.post(`/documents/${documentId}/trash`);
   },
 };
 
