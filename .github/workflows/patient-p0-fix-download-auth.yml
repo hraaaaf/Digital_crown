@@ -1,0 +1,52 @@
+name: Patient P0 F — Remove query-token download auth
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-fix-download-auth.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Apply exact security patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/routers/documents.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    # 1. Extraction du token (Header ou Query)\n    auth_header = request.headers.get("Authorization")\n    token = None\n    if auth_header and auth_header.startswith("Bearer "):\n        token = auth_header.split(" ")[1]\n    else:\n        token = request.query_params.get("token")\n'''
+          new = '''    # 1. Extraction du token — Authorization header uniquement.\n    # Les tokens en query string sont interdits : ils peuvent fuiter dans\n    # l'historique navigateur, les logs intermédiaires et les referrers.\n    auth_header = request.headers.get("Authorization")\n    token = None\n    if auth_header and auth_header.startswith("Bearer "):\n        token = auth_header.split(" ", 1)[1]\n'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one auth block, found {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Verify patch scope
+        run: |
+          git diff --check
+          git diff -- backend/routers/documents.py
+          test "$(git diff --numstat -- backend/routers/documents.py | wc -l)" -eq 1
+          grep -q 'Authorization header uniquement' backend/routers/documents.py
+          ! grep -q 'request.query_params.get("token")' backend/routers/documents.py
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-fix-download-auth.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/routers/documents.py .github/workflows/patient-p0-fix-download-auth.yml
+          git commit -m "fix(patient): reject document auth tokens in query strings"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
