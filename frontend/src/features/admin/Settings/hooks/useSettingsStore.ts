@@ -20,22 +20,19 @@ interface SettingsState {
   saving: boolean;
   saveSuccess: boolean;
   isDirty: boolean;
-  
-  // Actions
+
   fetchProfile: () => Promise<void>;
   saveProfile: () => Promise<void>;
   updateProfile: (updates: Partial<CabinetProfile>) => void;
   updateContacts: (updates: Partial<ContactsJson>) => void;
   toggleContact: (type: string) => void;
   updateContactValue: (type: string, value: string) => void;
-  
-  // Media Actions
+
   uploadLogo: (file: File) => Promise<void>;
   uploadLetterhead: (file: File, options?: { stripBody?: boolean; headerPct?: number; footerPct?: number }) => Promise<void>;
   deleteLetterhead: () => Promise<void>;
   deleteLogo: () => Promise<void>;
   applyTheme: () => void;
-  // Multi-Cabinet Support
   activeCabinetId: string;
   cabinets: Array<{ id: string; nom: string; specialty: string; primary_color: string; accent_color: string; theme: string; caisse: number }>;
   switchCabinet: (id: string) => void;
@@ -96,15 +93,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const res = await api.get('/clinics/me');
       if (res.data) {
         const activeId = localStorage.getItem('active_cabinet_id') || 'default';
-        
+
         const dynamicCabinet = {
-           id: activeId,
-           nom: res.data.nom_cabinet || res.data.nom_praticien || 'Mon Cabinet',
-           specialty: res.data.header_lines_fr?.[1] || 'Chirurgien Dentiste',
-           primary_color: res.data.primary_color || '#1E40AF',
-           accent_color: res.data.accent_color || '#3B82F6',
-           theme: res.data.selected_theme || 'elite',
-           caisse: 0
+          id: activeId,
+          nom: res.data.nom_cabinet || res.data.nom_praticien || 'Mon Cabinet',
+          specialty: res.data.header_lines_fr?.[1] || 'Chirurgien Dentiste',
+          primary_color: res.data.primary_color || '#1E40AF',
+          accent_color: res.data.accent_color || '#3B82F6',
+          theme: res.data.selected_theme || 'elite',
+          caisse: 0
         };
         set({ cabinets: [dynamicCabinet] });
         const cabinet = dynamicCabinet;
@@ -179,7 +176,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
       }
     } catch (err) {
-      console.warn("Error fetching profile, using fallback", err);
+      console.warn('Error fetching profile, using fallback', err);
     } finally {
       set({ loading: false, isDirty: false });
       get().applyTheme();
@@ -189,20 +186,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   applyTheme: () => {
     const { profile } = get();
     const finalTheme = profile.selected_theme || 'elite';
-    
-    // Application aux deux niveaux pour compatibilité maximale
+
     document.body.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
     document.documentElement.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
-    
-    // Sauvegarde localStorage pour le flash au chargement (App.tsx)
     localStorage.setItem('digitalcrown_theme', finalTheme);
-    
-    // Application des couleurs de palette personnalisée en priorité
+
     if (profile.primary_color) {
       document.documentElement.style.setProperty('--primary', profile.primary_color);
       document.body.style.setProperty('--primary', profile.primary_color);
-      
-      // Luminance calculation for --text-on-primary
+
       const hex = profile.primary_color.replace('#', '');
       const r = parseInt(hex.substr(0, 2), 16);
       const g = parseInt(hex.substr(2, 2), 16);
@@ -229,20 +221,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } else {
       document.documentElement.style.removeProperty('--accent');
     }
-    
-    // Support legacy pour la couleur d'accent d'application
+
     if (profile.app_accent_color) {
       document.documentElement.style.setProperty('--app-accent', profile.app_accent_color);
     }
-    
-    // Synchro Meta theme-color
+
     let metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (!metaThemeColor) {
       metaThemeColor = document.createElement('meta');
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    // Set theme color based on active theme
     const isDark = ['prestige', 'graphite'].includes(finalTheme);
     metaThemeColor.setAttribute('content', isDark ? '#020617' : '#f8fafc');
   },
@@ -263,8 +252,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       get().applyTheme();
     }
   },
-  
-  updateContacts: (updates) => set((state) => ({ 
+
+  updateContacts: (updates) => set((state) => ({
     contacts: { ...state.contacts, ...updates } as ContactsJson,
     isDirty: true
   })),
@@ -289,7 +278,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ saving: true, saveSuccess: false });
     const { profile, contacts } = get();
 
-    // Format phone string for backend legacy support
     const parts: string[] = [];
     Object.keys(contacts).forEach(type => {
       const c = contacts[type];
@@ -308,7 +296,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
 
       await api.put('/clinics/me', payload);
-      
+
       if (safeStorage.get('appMode') === 'demo') {
         sessionStorage.setItem('demoConfig', JSON.stringify({
           selected_theme: profile.selected_theme,
@@ -319,11 +307,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
 
       set({ saveSuccess: true, isDirty: false });
-      toast.success("Profil mis à jour");
+      toast.success('Profil mis à jour');
       setTimeout(() => set({ saveSuccess: false }), 3000);
     } catch (err) {
-      console.error("Save error", err);
-      toast.error("Erreur lors de la sauvegarde");
+      console.error('Save error', err);
+      toast.error('Erreur lors de la sauvegarde');
+      throw err;
     } finally {
       set({ saving: false });
     }
@@ -333,7 +322,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ saving: true });
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const uploadPromise = api.post('/clinics/me/logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -386,9 +375,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           accent_color: res.data.detected_colors?.accent_color || state.profile.accent_color
         }
       }));
-      toast.success("Papier en-tête mis à jour");
+      toast.success('Papier en-tête mis à jour');
     } catch (err) {
-      toast.error("Erreur upload en-tête");
+      toast.error('Erreur upload en-tête');
     } finally {
       set({ saving: false });
     }
@@ -398,9 +387,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       await api.put('/clinics/me', { letterhead_path: null, use_letterhead: false });
       set((state) => ({ profile: { ...state.profile, letterhead_path: '', use_letterhead: false } }));
-      toast.success("Fond de page supprimé");
+      toast.success('Fond de page supprimé');
     } catch (err) {
-      toast.error("Erreur suppression du fond de page");
+      toast.error('Erreur suppression du fond de page');
     }
   },
 
@@ -408,23 +397,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       await api.put('/clinics/me', { logo_path: null });
       set((state) => ({ profile: { ...state.profile, logo_path: '' } }));
-      toast.success("Logo supprimé");
+      toast.success('Logo supprimé');
     } catch (err) {
-      toast.error("Erreur suppression logo");
+      toast.error('Erreur suppression logo');
     }
   },
 
-  // Multi-Cabinet Support
   activeCabinetId: localStorage.getItem('active_cabinet_id') || 'default',
   cabinets: [],
   switchCabinet: (id: string) => {
     const cabinet = get().cabinets.find(c => c.id === id);
     if (!cabinet) return;
-    
+
     set({ activeCabinetId: id });
     localStorage.setItem('active_cabinet_id', id);
-    
-    // Morph profile settings dynamically
+
     const updatedProfile = {
       ...get().profile,
       nom: cabinet.nom,
@@ -433,11 +420,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       selected_theme: cabinet.theme,
       header_lines_fr: [cabinet.nom, cabinet.specialty]
     };
-    
+
     set({ profile: updatedProfile });
     get().applyTheme();
-    
-    // Send standard custom event to refresh cash register and header balances globally
+
     window.dispatchEvent(new CustomEvent('cabinet-changed', { detail: { cabinet } }));
     toast.success(`Transition réussie vers ${cabinet.nom}`);
   }
