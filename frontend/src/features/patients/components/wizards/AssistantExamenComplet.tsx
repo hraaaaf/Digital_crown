@@ -131,69 +131,38 @@ const ROUTINE_STEPS = [
 // ── Moteurs de diagnostic ─────────────────────────────────────────────────
 
 function buildUrgenceDiag(ans: Record<string, string>): { diag: string; steps: any[]; next: string | null } {
-  const type = ans.type_douleur;
-  const carac = ans.caractere;
-  const signes = ans.signes_gen;
-  const loc = ans.localisation;
+  const selectedLabel = (questionId: string, value: string | undefined) => {
+    const question = URGENCE_STEPS.find((item) => item.id === questionId);
+    return question?.options.find((option) => option.value === value)?.label || 'Non renseigné';
+  };
 
-  let diag = 'Urgence Dentaire';
-  const steps: any[] = [];
-  let next: string | null = null;
+  const observations = [
+    `Motif urgent rapporté : ${selectedLabel('type_douleur', ans.type_douleur)}`,
+    `Localisation rapportée : ${selectedLabel('localisation', ans.localisation)}`,
+    `Caractère rapporté : ${selectedLabel('caractere', ans.caractere)}`,
+    `Signes généraux rapportés : ${selectedLabel('signes_gen', ans.signes_gen)}`,
+  ];
 
-  // Signes généraux graves → hospitalisation possible
-  if (signes === 'cellulite' || signes === 'trismus') {
-    diag = 'Cellulite Cervico-Faciale — Urgence Absolue';
-    steps.push({ title: 'Drainage chirurgical immédiat', assistant: 'chirurgie' });
-    steps.push({ title: 'Antibiothérapie IV (Amoxicilline + Métronidazole)', assistant: 'general' });
-    steps.push({ title: 'Orientation hospitalière si trismus sévère', assistant: 'general' });
-    next = 'chirurgie';
-    return { diag, steps, next };
+  const vigilance: string[] = [];
+  if (ans.signes_gen === 'fievre') {
+    vigilance.push('Fièvre ≥ 38°C rapportée : signal de vigilance systémique à évaluer cliniquement sans délai.');
+  }
+  if (ans.signes_gen === 'trismus') {
+    vigilance.push("Trismus rapporté : signal de vigilance nécessitant une évaluation clinique de l'extension et de la gravité.");
+  }
+  if (ans.signes_gen === 'cellulite') {
+    vigilance.push('Adénopathies / cellulite diffuse rapportées : signal de vigilance nécessitant une évaluation clinique immédiate.');
   }
 
-  if (signes === 'fievre') {
-    steps.push({ title: 'Antipyrétique + antibiotique systémique (Amox 2g/j × 5j)', assistant: 'general' });
-  }
+  const summary = [
+    `Observations recueillies : ${observations.join(' ; ')}.`,
+    vigilance.length ? `Vigilance : ${vigilance.join(' ')}` : 'Vigilance : aucun signe général critique déclaré dans ce questionnaire.',
+    "Données à confirmer / compléter : examen extra- et intra-oral, constantes si indiquées, tests cliniques ciblés et examens complémentaires décidés par le praticien.",
+    "Ce questionnaire ne pose pas automatiquement de diagnostic et ne détermine pas de traitement.",
+    "Diagnostic et conduite thérapeutique : décision du praticien après évaluation clinique complète.",
+  ].join(' ');
 
-  if (type === 'pulpaire') {
-    if (carac === 'spontanee') {
-      diag = 'Pulpite Irréversible — Urgence Endodontique';
-      steps.push({ title: 'Radiographie RVG de diagnostic', assistant: 'general' });
-      steps.push({ title: "Pulpectomie d'urgence (mise en forme + médication Ca(OH)₂)", assistant: 'endo' });
-      steps.push({ title: 'Traitement endodontique complet', assistant: 'endo' });
-      next = 'endo';
-    } else if (carac === 'tuméfaction') {
-      diag = 'Abcès Péri-Apical Aigu';
-      steps.push({ title: 'Drainage (voie canalaire ou incision si collecté)', assistant: 'endo' });
-      steps.push({ title: 'Antibiothérapie (Amoxicilline 2g/j × 5j)', assistant: 'general' });
-      steps.push({ title: 'Traitement endodontique différé (J+3)', assistant: 'endo' });
-      next = 'endo';
-    } else {
-      diag = 'Pulpite Réversible — Hyperesthésie Dentinaire';
-      steps.push({ title: 'Radiographie RVG', assistant: 'general' });
-      steps.push({ title: 'Coiffage direct ou indirect selon profondeur', assistant: 'endo' });
-      next = 'endo';
-    }
-  } else if (type === 'trauma') {
-    diag = `Traumatisme Dentaire — Secteur ${loc}`;
-    steps.push({ title: 'Bilan radiologique (RVG, cliché occlusal)', assistant: 'general' });
-    steps.push({ title: 'Stabilisation / contention si luxation', assistant: 'chirurgie' });
-    steps.push({ title: 'Surveillance pulpaire (tests de vitalité à J0, J30, J90)', assistant: 'endo' });
-    next = 'chirurgie';
-  } else if (type === 'abces_paro') {
-    diag = 'Abcès Parodontal Aigu';
-    steps.push({ title: 'Drainage de l\'abcès (incision)', assistant: 'paro' });
-    steps.push({ title: "Détartrage supra et sous-gingival d'urgence", assistant: 'paro' });
-    steps.push({ title: 'Antibiothérapie si signes systémiques', assistant: 'general' });
-    next = 'paro';
-  } else if (type === 'atm') {
-    diag = 'Dysfonction Temporo-Mandibulaire Aiguë';
-    steps.push({ title: 'Bilan clinique ATM (palpation, bruits, amplitudes)', assistant: 'atm' });
-    steps.push({ title: 'Gouttière occlusale de décompression', assistant: 'atm' });
-    steps.push({ title: 'AINS + relaxants musculaires (courte durée)', assistant: 'general' });
-    next = 'atm';
-  }
-
-  return { diag, steps, next };
+  return { diag: summary, steps: [], next: null };
 }
 
 function buildRoutineDiag(ans: Record<string, string>): { diag: string; steps: any[]; next: string | null } {
@@ -387,7 +356,9 @@ export const AssistantExamenComplet: React.FC<AssistantExamenCompletProps> = ({ 
         <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
           {branch === 'urgence' ? 'Protocole d\'urgence en cours…' : 'Synthèse du bilan clinique…'}
         </h3>
-        <p className="text-xs text-slate-400 font-bold">Génération du diagnostic + plan de traitement</p>
+        <p className="text-xs text-slate-400 font-bold">
+        {branch === 'urgence' ? 'Synthèse des observations et signaux de vigilance' : 'Génération du diagnostic + plan de traitement'}
+      </p>
       </div>
     );
   }
