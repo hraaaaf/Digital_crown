@@ -41,31 +41,73 @@ await context.addInitScript(({ access, refresh }) => {
   localStorage.setItem('refresh_token', refresh || '');
   localStorage.setItem('appMode', 'prod');
 
-  window.__t2PrintCalls = 0;
+  window.__t2PrintTrace = {
+    iframeCreated: 0,
+    iframeBlobSource: 0,
+    iframeAppended: 0,
+    onloadAssigned: 0,
+    focusCalls: 0,
+    printCalls: 0,
+    syntheticPdfLoad: 0,
+    windowOpenCalls: 0,
+  };
+
   const nativeCreateElement = Document.prototype.createElement;
-  const contentWindowDescriptor = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow');
+  const nativeAppendChild = Node.prototype.appendChild;
+  const nativeOpen = window.open.bind(window);
+
+  window.open = (...args) => {
+    window.__t2PrintTrace.windowOpenCalls += 1;
+    return null;
+  };
+
   Document.prototype.createElement = function patchedCreateElement(tagName, options) {
     const element = nativeCreateElement.call(this, tagName, options);
-    if (String(tagName).toLowerCase() === 'iframe' && contentWindowDescriptor?.get) {
-      try {
-        Object.defineProperty(element, 'contentWindow', {
-          configurable: true,
-          get() {
-            const childWindow = contentWindowDescriptor.get.call(this);
-            if (childWindow && !childWindow.__t2PrintWrapped) {
-              try {
-                childWindow.__t2PrintWrapped = true;
-                childWindow.print = () => {
-                  window.__t2PrintCalls = (window.__t2PrintCalls || 0) + 1;
-                };
-              } catch {}
-            }
-            return childWindow;
-          },
-        });
-      } catch {}
-    }
+    if (String(tagName).toLowerCase() !== 'iframe') return element;
+
+    window.__t2PrintTrace.iframeCreated += 1;
+    let assignedOnload = null;
+
+    try {
+      Object.defineProperty(element, 'onload', {
+        configurable: true,
+        get() { return assignedOnload; },
+        set(handler) {
+          assignedOnload = handler;
+          if (typeof handler !== 'function') return;
+          window.__t2PrintTrace.onloadAssigned += 1;
+
+          // Chromium headless does not reliably emit iframe.onload for PDF blob URLs.
+          // The product has already fetched the PDF blob before creating this iframe.
+          // Emulate only that browser PDF-load signal, then observe the real product callback.
+          setTimeout(() => {
+            try {
+              Object.defineProperty(element, 'contentWindow', {
+                configurable: true,
+                value: {
+                  focus() { window.__t2PrintTrace.focusCalls += 1; },
+                  print() { window.__t2PrintTrace.printCalls += 1; },
+                },
+              });
+              window.__t2PrintTrace.syntheticPdfLoad += 1;
+              handler.call(element, new Event('load'));
+            } catch {}
+          }, 50);
+        },
+      });
+    } catch {}
+
     return element;
+  };
+
+  Node.prototype.appendChild = function patchedAppendChild(child) {
+    if (child instanceof HTMLIFrameElement) {
+      window.__t2PrintTrace.iframeAppended += 1;
+      if (typeof child.src === 'string' && child.src.startsWith('blob:')) {
+        window.__t2PrintTrace.iframeBlobSource += 1;
+      }
+    }
+    return nativeAppendChild.call(this, child);
   };
 }, { access: tokens.access_token, refresh: tokens.refresh_token });
 
@@ -137,17 +179,26 @@ try {
   await warning.waitFor({ state: 'visible', timeout: 10000 });
   await warning.getByRole('button', { name: 'Confirmer', exact: true }).click();
   const printGenerateResponse = await generatedForPrint;
-  await page.waitForFunction(() => window.__t2PrintCalls > 0, null, { timeout: 30000 });
-  const printCalls = await page.evaluate(() => window.__t2PrintCalls || 0);
+  await page.waitForFunction(() => window.__t2PrintTrace?.printCalls > 0, null, { timeout: 30000 });
+  const trace = await page.evaluate(() => window.__t2PrintTrace);
   printEvidence = {
-    pass: printGenerateResponse.ok() && printCalls > 0,
+    pass: printGenerateResponse.ok()
+      && trace.iframeCreated > 0
+      && trace.iframeBlobSource > 0
+      && trace.iframeAppended > 0
+      && trace.onloadAssigned > 0
+      && trace.focusCalls > 0
+      && trace.printCalls > 0
+      && trace.windowOpenCalls === 0,
     generateStatus: printGenerateResponse.status(),
-    printCalls,
-    path: 'iframe.contentWindow.print()',
+    trace,
+    path: 'PDF blob -> hidden iframe -> onload -> contentWindow.focus() -> contentWindow.print()',
+    headlessPdfLoadSignal: 'controlled',
   };
   await page.screenshot({ path: path.join(outDir, 't2-browser-print.png'), fullPage: true });
 } catch (error) {
-  printEvidence = { pass: false, error: String(error) };
+  const trace = await page.evaluate(() => window.__t2PrintTrace).catch(() => null);
+  printEvidence = { pass: false, error: String(error), trace };
   await page.screenshot({ path: path.join(outDir, 't2-browser-print-failed.png'), fullPage: true }).catch(() => {});
 }
 
