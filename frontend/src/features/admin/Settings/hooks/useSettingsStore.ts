@@ -32,7 +32,7 @@ interface SettingsState {
   uploadLetterhead: (file: File, options?: { stripBody?: boolean; headerPct?: number; footerPct?: number }) => Promise<void>;
   deleteLetterhead: () => Promise<void>;
   deleteLogo: () => Promise<void>;
-  applyTheme: () => void;
+  applyTheme: (options?: { persist?: boolean }) => void;
   activeCabinetId: string;
   cabinets: Array<{ id: string; nom: string; specialty: string; primary_color: string; accent_color: string; theme: string; caisse: number }>;
   switchCabinet: (id: string) => void;
@@ -179,17 +179,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       console.warn('Error fetching profile, using fallback', err);
     } finally {
       set({ loading: false, isDirty: false });
-      get().applyTheme();
+      get().applyTheme({ persist: true });
     }
   },
 
-  applyTheme: () => {
+  applyTheme: (options) => {
     const { profile } = get();
     const finalTheme = profile.selected_theme || 'elite';
 
     document.body.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
     document.documentElement.dataset.theme = finalTheme === 'elite' ? '' : finalTheme;
-    localStorage.setItem('digitalcrown_theme', finalTheme);
+    if (options?.persist) {
+      localStorage.setItem('digitalcrown_theme', finalTheme);
+    }
 
     if (profile.primary_color) {
       document.documentElement.style.setProperty('--primary', profile.primary_color);
@@ -249,6 +251,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       return { profile, isDirty: true };
     });
     if (updates.selected_theme || updates.primary_color || updates.accent_color) {
+      // Preview immediately, but do not persist the theme before backend truth.
       get().applyTheme();
     }
   },
@@ -296,6 +299,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       };
 
       await api.put('/clinics/me', payload);
+      get().applyTheme({ persist: true });
 
       if (safeStorage.get('appMode') === 'demo') {
         sessionStorage.setItem('demoConfig', JSON.stringify({
@@ -422,7 +426,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     };
 
     set({ profile: updatedProfile });
-    get().applyTheme();
+    get().applyTheme({ persist: true });
 
     window.dispatchEvent(new CustomEvent('cabinet-changed', { detail: { cabinet } }));
     toast.success(`Transition réussie vers ${cabinet.nom}`);
