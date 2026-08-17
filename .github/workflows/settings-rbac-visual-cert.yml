@@ -33,7 +33,7 @@ jobs:
         working-directory: frontend
         run: |
           cat > settings-rbac-cert.html <<'EOF'
-          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Settings RBAC</title></head><body><div id="root"></div><script type="module" src="/src/settings-rbac-cert.tsx"></script></body></html>
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Settings RBAC</title></head><body><div id="root"></div><script type="module" src="/src/settings-rbac-cert.tsx"></script></body></html>
           EOF
           cat > src/settings-rbac-cert.tsx <<'EOF'
           import React from 'react';
