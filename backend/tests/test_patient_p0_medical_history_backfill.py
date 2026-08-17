@@ -1,5 +1,5 @@
 """P0-G — prove the medical-history backfill preserves canonical Patient truth."""
-import importlib.util
+import ast
 import sqlite3
 from pathlib import Path
 
@@ -9,11 +9,15 @@ MIGRATION = ROOT / "alembic/versions/c3d4e5f6a7b8_backfill_patient_medical_histo
 
 
 def _load_backfill_sql() -> str:
-    spec = importlib.util.spec_from_file_location("patient_p0_medical_history_migration", MIGRATION)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.BACKFILL_SQL
+    """Read the migration constant without importing Alembic runtime machinery."""
+    tree = ast.parse(MIGRATION.read_text(encoding="utf-8"), filename=str(MIGRATION))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            if any(isinstance(target, ast.Name) and target.id == "BACKFILL_SQL" for target in node.targets):
+                value = ast.literal_eval(node.value)
+                assert isinstance(value, str)
+                return value
+    raise AssertionError("BACKFILL_SQL not found in patient medical-history migration")
 
 
 def _db():
