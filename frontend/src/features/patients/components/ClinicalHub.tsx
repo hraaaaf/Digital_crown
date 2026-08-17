@@ -14,7 +14,6 @@ import {
   Clock,
   ChevronRight,
   Sparkles,
-  Plus,
   Trash2
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
@@ -410,7 +409,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" style={{ backgroundImage: 'linear-gradient(to right, transparent, var(--primary), transparent)' }} />
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-black">Agent {ASSISTANTS.find(a => a.id === activeAssistant)?.name}</h3>
+                  <h3 className="text-xl font-black">Protocole {ASSISTANTS.find(a => a.id === activeAssistant)?.name}</h3>
                   {activeAssistant !== 'paro' && activeAssistant !== 'endo' && activeAssistant !== 'chirurgie' && activeAssistant !== 'prothese' && activeAssistant !== 'pedo' && activeAssistant !== 'ortho' && activeAssistant !== 'general' && activeAssistant !== 'atm' && activeAssistant !== 'patho' && (
                     <div className="px-3 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-[9px] uppercase tracking-widest font-black flex items-center gap-1">
                       <Sparkles size={12} /> Construction (Phase 3)
@@ -464,31 +463,9 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                     onComplete={(diag, steps) => handleWizardComplete('patho', diag, steps)}
                   />
                 ) : (
-                  <>
-                    <p className="text-text-muted font-bold mb-6 text-sm">
-                      Le système est prêt à héberger les algorithmes d'arbre décisionnel (QCM interactif) pour cette spécialité. Le diagnostic généré viendra s'insérer automatiquement dans le Master Plan à droite.
-                    </p>
-                    <div className="flex gap-4">
-                      <button 
-                        onClick={() => setActiveAssistant(null)}
-                        className="px-6 py-3 bg-card-bg border border-border-main text-text-muted font-black uppercase text-xs tracking-wider rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-sm"
-                      >
-                        Fermer l'assistant
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const id = crypto.randomUUID();
-                          const assistantName = ASSISTANTS.find(a => a.id === activeAssistant)?.id || 'general';
-                          savePlan([...treatmentPlan, { id, title: 'Nouvel Acte ' + assistantName.toUpperCase(), assistant: assistantName, status: 'pending', date: 'Nouveau' }]);
-                          toast.success('Simulation : Acte ajouté au Master Plan.');
-                        }}
-                        className="px-6 py-3 bg-primary/10 text-primary font-black uppercase text-xs tracking-wider rounded-xl hover:bg-primary/20 transition-colors flex items-center gap-2"
-                        style={{ color: 'var(--primary)' }}
-                      >
-                        <Plus size={16} /> Simuler Ajout au Plan
-                      </button>
-                    </div>
-                  </>
+                  <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-bold">
+                    Protocole indisponible. Aucune donnée clinique ni étape de traitement n'est générée.
+                  </div>
                 )}
               </motion.div>
             )}
@@ -501,34 +478,20 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
         <div className="xl:col-span-4 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted">Master Plan de Traitement</h3>
-            {progressPercent === 100 && treatmentPlan.length > 0 ? (
-              <button 
-                onClick={() => {
-                  if (window.confirm('Voulez-vous archiver ce plan terminé et en démarrer un nouveau ?')) {
-                    // Dans un vrai backend, on appellerait une route /archive
-                    savePlan([]);
-                    setActiveAssistant('general');
-                    toast.success('Ancien plan archivé. Nouveau plan initié.');
+            <button
+              onClick={async () => {
+                if (window.confirm('Remplacer le plan de traitement enregistré par un plan vide ?')) {
+                  if (await savePlan([])) {
+                    setActiveAssistant(null);
+                    toast.success('Plan de traitement réinitialisé.');
                   }
-                }}
-                className="text-[10px] uppercase font-black tracking-widest text-emerald-500 hover:text-white hover:bg-emerald-500 transition-colors px-3 py-1.5 rounded-lg border border-emerald-500/30"
-              >
-                Archiver & Nouveau
-              </button>
-            ) : (
-              <button 
-                onClick={() => {
-                  if (window.confirm('Voulez-vous vraiment réinitialiser le plan de traitement complet ?')) {
-                    savePlan([]);
-                    setActiveAssistant('general');
-                    toast.success('Plan réinitialisé. L\'Assistant Général prend le relais.');
-                  }
-                }}
-                className="text-[10px] uppercase font-black tracking-widest text-rose-500 hover:text-white hover:bg-rose-500 transition-colors px-3 py-1.5 rounded-lg border border-rose-500/30"
-              >
-                Réinitialiser
-              </button>
-            )}
+                }
+              }}
+              disabled={planLoading || treatmentPlan.length === 0}
+              className="text-[10px] uppercase font-black tracking-widest text-rose-500 hover:text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors px-3 py-1.5 rounded-lg border border-rose-500/30"
+            >
+              Réinitialiser
+            </button>
           </div>
           
           <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-elite flex flex-col h-full relative overflow-hidden">
@@ -547,6 +510,17 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
               )}
             </div>
 
+            {planLoading && (
+              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500" role="status">
+                Chargement du plan enregistré…
+              </div>
+            )}
+            {planError && (
+              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700" role="alert">
+                {planError}
+              </div>
+            )}
+
             {/* PROGRESS BAR */}
             <div className="w-full h-2 bg-slate-200/50 dark:bg-slate-800/50 rounded-full mb-8 overflow-hidden flex relative z-10 shadow-inner">
               <motion.div 
@@ -557,6 +531,11 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
 
             {/* TIMELINE */}
             <div className="flex flex-col gap-5 flex-1 relative z-10">
+              {!planLoading && !planError && treatmentPlan.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-center text-xs font-bold text-slate-500">
+                  Aucune étape de traitement enregistrée.
+                </div>
+              )}
               <AnimatePresence>
                 {treatmentPlan.map((step, index) => {
                   const ast = ASSISTANTS.find(a => a.id === step.assistant);
@@ -658,25 +637,9 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
             </div>
             
             <div className="pt-6 mt-6 border-t border-border-main/50 relative z-10">
-              <button 
-                onClick={() => {
-                  localStorage.setItem('pending_devis_plan', JSON.stringify(treatmentPlan));
-                  toast.loading('Préparation du devis...', { duration: 1000 });
-                  setTimeout(() => {
-                    toast.success('Le Master Plan est pré-chargé pour la comptabilité.');
-                  }, 1200);
-                }}
-                disabled={treatmentPlan.length === 0}
-                className={cn(
-                  "w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.15em] shadow-xl transition-all flex items-center justify-center gap-2 border",
-                  treatmentPlan.length === 0 
-                    ? "bg-slate-200 dark:bg-slate-800 text-slate-400 border-transparent cursor-not-allowed" 
-                    : "bg-slate-900 dark:bg-slate-800 text-white hover:bg-black active:scale-95 border-slate-700"
-                )}
-              >
-                <Sparkles size={16} />
-                Générer Devis Global
-              </button>
+              <div className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-center text-[11px] font-bold text-slate-500">
+                Pour créer un devis, utilisez l'espace Documents afin de conserver le flux comptable et l'archivage officiels.
+              </div>
             </div>
           </div>
         </div>
