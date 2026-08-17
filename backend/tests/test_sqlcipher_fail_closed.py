@@ -29,7 +29,7 @@ print("DATABASE_IMPORT_OK")
             "DATABASE_URL": database_url,
             "ENVIRONMENT": environment,
             "SECRET_KEY": "p0-3-test-secret-key-that-is-long-enough",
-            "CABINET_MASTER_KEY_HEX": "p0-3-test-cabinet-key",
+            "CABINET_MASTER_KEY_HEX": "a" * 64,
         }
     )
     return subprocess.run(
