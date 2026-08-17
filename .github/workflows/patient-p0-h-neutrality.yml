@@ -1,0 +1,60 @@
+name: Patient P0 H — Clinical neutrality
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - .github/workflows/patient-p0-h-neutrality.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-truth-safety
+          fetch-depth: 0
+
+      - name: Remove commercial patient score from clinical header
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              ("import { PatientScoreBadge } from './components/PatientScoreBadge';\n", "", "PatientScoreBadge import"),
+              ("import { useSettingsStore } from '../admin/Settings/hooks/useSettingsStore';\n", "", "settings store import"),
+              ("  const show_patient_badges = useSettingsStore(state => state.profile.show_patient_badges);\n", "", "badge setting read"),
+              ("                  {show_patient_badges && <PatientScoreBadge patientId={Number(id)} />}\n", "", "clinical score render"),
+          ]
+          for old, new, label in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 occurrence, found {count}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify minimal scope
+        run: |
+          git diff --check
+          test "$(git diff --name-only | grep -v '^.github/workflows/patient-p0-h-neutrality.yml$' | wc -l)" -eq 1
+          ! grep -q 'PatientScoreBadge' frontend/src/features/patients/PatientDetailsInner.tsx
+          ! grep -q 'show_patient_badges' frontend/src/features/patients/PatientDetailsInner.tsx
+          git diff -- frontend/src/features/patients/PatientDetailsInner.tsx
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/patient-p0-h-neutrality.yml
+          git config user.name "digital-crown-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add frontend/src/features/patients/PatientDetailsInner.tsx .github/workflows/patient-p0-h-neutrality.yml
+          git commit -m "fix(patient): remove commercial score from clinical header"
+          git push origin HEAD:agent/patient-page-p0-truth-safety
