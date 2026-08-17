@@ -1,0 +1,85 @@
+name: Settings IA Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Settings/tabs/IATab.tsx"
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
+      - "frontend/src/features/admin/Settings/runtimePreferences.ts"
+      - ".github/workflows/settings-ia-visual-cert.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject IA Settings harness
+        working-directory: frontend
+        run: |
+          cat > settings-ia-cert.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="icon" href="data:,"/><title>Settings IA</title></head><body><div id="root"></div><script type="module" src="/src/settings-ia-cert.tsx"></script></body></html>
+          EOF
+          cat > src/settings-ia-cert.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({ user: ({ id:1, email:'admin@ia-cert.local', nom_complet:'Dr IA', role:'ADMIN', is_superadmin:false, permissions:{} } as any), isAuthenticated:true, isLoading:false, error:null });
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > settings-ia-cert.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const output='settings-ia-artifacts'; await fs.mkdir(output,{recursive:true});
+          const server=await createServer({server:{host:'127.0.0.1',port:4178,strictPort:true},clearScreen:false}); await server.listen();
+          const browser=await chromium.launch();
+          const widths=[1440,1024,768,430,390];
+          try {
+            for (const width of widths) {
+              const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const errors=[];
+              page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`)); page.on('console',m=>{if(m.type()==='error') errors.push(`console: ${m.text()}`)});
+              await page.route('**/api/**', async route => {
+                const url=new URL(route.request().url());
+                if(url.pathname.endsWith('/clinics/me')) return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({nom_praticien:'Dr IA',nom_cabinet:'Cabinet IA',header_lines_fr:['Dr IA'],specialty_ids:[],show_patient_badges:true,performance_mode:false,clinical_tips_enabled:true})});
+                return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+              });
+              await page.goto('http://127.0.0.1:4178/settings-ia-cert.html',{waitUntil:'networkidle'});
+              await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'IA & Système',exact:true}).click();
+              await page.getByRole('heading',{name:'Intelligence & Performance',exact:true}).waitFor({state:'visible'});
+              const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth); if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
+              if(errors.length) throw new Error(errors.join('\n'));
+              await page.screenshot({path:`${output}/admin-ia-${width}x1200.png`,fullPage:true,animations:'disabled'}); await context.close();
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture and assert IA views
+        working-directory: frontend
+        run: node settings-ia-cert.mjs
+      - name: Verify proof count
+        working-directory: frontend
+        run: test "$(find settings-ia-artifacts -name '*.png' | wc -l)" -eq 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-ia-visual-cert
+          path: frontend/settings-ia-artifacts/
+          if-no-files-found: error
+          retention-days: 14
