@@ -10,7 +10,7 @@ from backend.schemas.catalog import (
     PathologyCreate, PathologyUpdate, PathologyOut,
     CatalogActCreate, CatalogActUpdate, CatalogActOut,
 )
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_permission
 from backend.services import cabinet_catalog_store as store
 
 router = APIRouter(tags=["Catalog (Specialties, Acts, Pathologies)"])
@@ -37,7 +37,7 @@ def get_specialties(
 def create_specialty(
     payload: SpecialtyCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     try:
         row = store.create_specialty(db, _tenant_id(current_user), payload.model_dump())
@@ -51,7 +51,7 @@ def update_specialty(
     specialty_id: int,
     payload: SpecialtyUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     tenant = _tenant_id(current_user)
     try:
@@ -69,7 +69,7 @@ def create_pathology(
     specialty_id: int,
     payload: PathologyCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     try:
         row = store.create_pathology(db, _tenant_id(current_user), specialty_id, payload.model_dump())
@@ -85,7 +85,7 @@ def update_pathology(
     pathology_id: int,
     payload: PathologyUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     try:
         row = store.update_owned(
@@ -103,7 +103,7 @@ def create_act(
     specialty_id: int,
     payload: CatalogActCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     try:
         row = store.create_act(db, _tenant_id(current_user), specialty_id, payload.model_dump())
@@ -119,7 +119,7 @@ def update_act(
     act_id: int,
     payload: CatalogActUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_permission("settings")),
 ):
     try:
         row = store.update_owned(db, store.acts, act_id, _tenant_id(current_user), payload.model_dump(exclude_unset=True))
