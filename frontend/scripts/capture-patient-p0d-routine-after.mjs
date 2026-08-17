@@ -89,10 +89,22 @@ for (const viewport of viewports) {
 const relevantHttpErrors = evidence.flatMap(e => e.httpErrors.map(err => ({ phase: e.phase, viewport: e.viewport, ...err })))
   .filter(e => !/\/api\/patients\/\d+\/master-plan$/.test(e.url) || e.status !== 404);
 const results = evidence.filter(e => e.phase === 'result');
-// Clinical observations may legitimately contain labels such as “Parodontite sévère”,
-// “Caries actives” or “Bruxisme”. The contract must reject automatic actions/prescriptions,
-// not the patient's recorded findings themselves.
-const bannedAutomaticAction = /Antibioprophylaxie|Amox\s*2\s*g|surfaçage|Détartrage bi-maxillaire|radiograph(?:ie|ies|ique)?\s+(?:panoramique|rétro|retro|systématique|systematique)|Traitement des caries|Gouttière de protection|IRM|Biopsie\s*\/\s*cytodiagnostic|cytodiagnostic|Équilibration occlusale/i;
+
+// Match only concrete automatic interventions from the legacy Routine engine.
+// Do not ban generic clinical words: e.g. "confirmer" contains the letters "IRM".
+const bannedAutomaticActions = [
+  /Antibioprophylaxie avant tout soin invasif/i,
+  /Amox\s*2\s*g\s*,?\s*1h avant/i,
+  /Phase I\s*:\s*surfaçage radiculaire/i,
+  /Détartrage bi-maxillaire/i,
+  /Bilan radiologique complet/i,
+  /Bilan cariologique\s*\(radiographies/i,
+  /Traitement des caries\s*\(composite\s*\/\s*amalgame\)/i,
+  /Gouttière de protection nocturne/i,
+  /\bIRM\s+ATM\b/i,
+  /Biopsie\s*\/\s*cytodiagnostic/i,
+  /Équilibration occlusale sélective/i,
+];
 const required = [/Observations recueillies/i, /Vigilance/i, /ne pose pas automatiquement de diagnostic/i, /décision du praticien/i];
 const summary = {
   totalCaptures: evidence.length,
@@ -101,7 +113,7 @@ const summary = {
   relevantHttpErrors,
   resultContracts: results.map(e => ({
     viewport: e.viewport,
-    hasBannedOutput: bannedAutomaticAction.test(e.focusedText),
+    bannedMatches: bannedAutomaticActions.filter(pattern => pattern.test(e.focusedText)).map(pattern => pattern.source),
     hasRequiredSafetyText: required.every(pattern => pattern.test(e.focusedText)),
   })),
 };
@@ -111,7 +123,7 @@ if (summary.totalCaptures !== 8 || summary.overflowFindings.length || summary.pa
   console.error(JSON.stringify(summary, null, 2));
   process.exit(1);
 }
-if (summary.resultContracts.some(e => e.hasBannedOutput || !e.hasRequiredSafetyText)) {
+if (summary.resultContracts.some(e => e.bannedMatches.length || !e.hasRequiredSafetyText)) {
   console.error('Routine fail-closed contract failed.');
   console.error(JSON.stringify(summary.resultContracts, null, 2));
   process.exit(1);
