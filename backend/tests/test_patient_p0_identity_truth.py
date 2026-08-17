@@ -80,9 +80,12 @@ def test_duplicate_precheck_never_exposes_matching_patient_from_other_tenant(cli
 
 def test_same_identity_is_allowed_in_two_tenants_and_detected_only_locally(client, db, dentiste, auth_headers):
     tenant_b = _make_user(db)
-    headers_b = _headers(client, tenant_b)
     foreign_patient = _make_patient(db, tenant_b)
 
+    # Keep all tenant-A requests before logging tenant B into the shared TestClient.
+    # The login endpoint may update client cookie state in addition to returning the
+    # bearer token; interleaving logins would make this isolation test test its own
+    # client state rather than the patient duplicate boundary.
     create_a = client.post("/api/patients/", json=_identity_payload(), headers=auth_headers)
     assert create_a.status_code == 200, create_a.text
     patient_a_id = create_a.json()["id"]
@@ -93,15 +96,17 @@ def test_same_identity_is_allowed_in_two_tenants_and_detected_only_locally(clien
         json={"nom": "DUPONT", "prenom": "Alice", "date_naissance": "1990-04-12"},
         headers=auth_headers,
     )
+    assert duplicate_a.status_code == 200
+    assert duplicate_a.json()["existing_patient"]["id"] == patient_a_id
+
+    headers_b = _headers(client, tenant_b)
     duplicate_b = client.post(
         "/api/patients/check-duplicate",
         json={"nom": "DUPONT", "prenom": "Alice", "date_naissance": "1990-04-12"},
         headers=headers_b,
     )
 
-    assert duplicate_a.status_code == 200
     assert duplicate_b.status_code == 200
-    assert duplicate_a.json()["existing_patient"]["id"] == patient_a_id
     assert duplicate_b.json()["existing_patient"]["id"] == foreign_patient.id
 
 
