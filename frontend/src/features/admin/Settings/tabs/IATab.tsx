@@ -4,6 +4,7 @@ import { useSettingsStore } from '../hooks/useSettingsStore';
 import { SettingsSection } from '../components/SharedUI';
 import { cn } from '../../../../utils/cn';
 import { safeStorage } from '../../../../hooks/useLocalStorage';
+import { stageRuntimePreferences } from '../runtimePreferences';
 
 const ToggleRow = ({ icon, title, description, state, onToggle, activeColorClass, style }: any) => (
   <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 flex items-center justify-between gap-8">
@@ -14,7 +15,7 @@ const ToggleRow = ({ icon, title, description, state, onToggle, activeColorClass
       </div>
       <p className="text-sm text-slate-500 font-medium">{description}</p>
     </div>
-    <button 
+    <button
       onClick={onToggle}
       className={cn("w-14 h-7 rounded-full transition-all relative flex items-center px-1", state ? activeColorClass : "bg-slate-300")}
       style={style}
@@ -25,7 +26,7 @@ const ToggleRow = ({ icon, title, description, state, onToggle, activeColorClass
 );
 
 export const IATab: React.FC = () => {
-  const { profile, updateProfile } = useSettingsStore();
+  const profile = useSettingsStore((state) => state.profile);
   const performanceMode = profile.performance_mode ?? safeStorage.get('performanceMode') === 'true';
   const clinicalTipsEnabled = profile.clinical_tips_enabled ?? safeStorage.get('clinical_tips_enabled') !== 'false';
 
@@ -34,17 +35,11 @@ export const IATab: React.FC = () => {
   );
 
   const togglePerformanceMode = () => {
-    const newVal = !performanceMode;
-    safeStorage.set('performanceMode', String(newVal));
-    updateProfile({ performance_mode: newVal });
+    stageRuntimePreferences({ performance_mode: !performanceMode });
   };
 
   const toggleClinicalTips = () => {
-    const newVal = !clinicalTipsEnabled;
-    safeStorage.set('clinical_tips_enabled', String(newVal));
-    safeStorage.set('clinicalTipsEnabled', String(newVal));
-    updateProfile({ clinical_tips_enabled: newVal });
-    window.dispatchEvent(new Event('clinical-tips-changed'));
+    stageRuntimePreferences({ clinical_tips_enabled: !clinicalTipsEnabled });
   };
 
   const toggleAnimatedBg = () => {
@@ -56,13 +51,13 @@ export const IATab: React.FC = () => {
 
   return (
     <div className="space-y-12">
-      <SettingsSection 
-        title="Intelligence & Performance" 
+      <SettingsSection
+        title="Intelligence & Performance"
         subtitle="Optimisez la vitesse et l'intelligence de Ghost Elite."
         icon={<Brain size={32} />}
       >
         <div className="space-y-6">
-          <ToggleRow 
+          <ToggleRow
             icon={<Zap size={18} className="text-amber-500" />}
             title="Mode Performance (Ultra-Fluide)"
             description="Désactive les effets visuels complexes pour garantir une fluidité maximale sur les configurations modestes."
@@ -72,7 +67,7 @@ export const IATab: React.FC = () => {
             style={{ backgroundColor: performanceMode ? 'var(--primary)' : undefined }}
           />
 
-          <ToggleRow 
+          <ToggleRow
             icon={<Sparkles size={18} className="text-violet-500" />}
             title="Arrière-plan Animé (Premium Elite)"
             description="Affiche un motif dentaire abstrait et subtil en arrière-plan de l'application."
@@ -81,7 +76,7 @@ export const IATab: React.FC = () => {
             activeColorClass="bg-violet-500"
           />
 
-          <ToggleRow 
+          <ToggleRow
             icon={<Activity size={18} className="text-emerald-500" />}
             title="Conseils Cliniques (Tips Proactifs)"
             description="Affiche des faits scientifiques et des conseils durant l'analyse des dossiers patients."
@@ -90,16 +85,12 @@ export const IATab: React.FC = () => {
             activeColorClass="bg-emerald-500"
           />
 
-          <ToggleRow 
+          <ToggleRow
             icon={<Shield size={18} className="text-indigo-600" />}
             title="Badges de Fiabilité Patient"
             description="Évaluation automatique de la fidélité et de l'historique de paiement des patients."
             state={profile.show_patient_badges}
-            onToggle={() => {
-              const newVal = !profile.show_patient_badges;
-              updateProfile({ show_patient_badges: newVal });
-              safeStorage.set('show_patient_badges', String(newVal));
-            }}
+            onToggle={() => stageRuntimePreferences({ show_patient_badges: !profile.show_patient_badges })}
             activeColorClass="bg-indigo-600"
           />
         </div>

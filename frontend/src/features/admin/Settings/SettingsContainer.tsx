@@ -26,6 +26,7 @@ import type { Tab } from './types';
 import { DigitalCrownLoader } from '../../../components/DigitalCrownLoader';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { getSettingsAccess } from '../../../utils/settingsAccess';
+import { commitRuntimePreferences } from './runtimePreferences';
 
 const SettingsContainer: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -68,8 +69,10 @@ const SettingsContainer: React.FC = () => {
   const handleGlobalSave = async () => {
     try {
       await saveProfile();
+      commitRuntimePreferences(useSettingsStore.getState().profile);
     } catch {
-      // The store owns the user-facing error toast. Avoid an unhandled rejection.
+      // The store owns the user-facing error toast. Runtime preferences remain
+      // untouched until a backend write succeeds.
     }
   };
 
