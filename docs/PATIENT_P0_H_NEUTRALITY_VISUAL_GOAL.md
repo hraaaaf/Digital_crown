@@ -50,6 +50,15 @@ Cible :
 
 Le changement est volontairement minimal : suppression d'un signal non clinique, aucune invention visuelle.
 
+## Implémentation
+
+- Correctif minimal appliqué au commit `5db676f1255a307fd582b39a521f9294f2621a2a`.
+- `PatientScoreBadge` n'est plus importé ni rendu dans `PatientDetailsInner`.
+- `show_patient_badges` n'est plus lu par la fiche Patient.
+- Aucun autre élément du header n'a été déplacé volontairement par ce correctif.
+
+Statut : **implémenté, non certifié visuellement** tant que la CI et les captures après sur HEAD exact ne sont pas acquises.
+
 ## Preuve après implémentation requise
 
 - build/typecheck ou CI frontend sur HEAD exact ;
