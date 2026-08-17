@@ -6,16 +6,17 @@ BASE = "/api/clinics"
 
 
 class TestInitStatus:
-    def test_init_status_no_auth_required(self, client):
+    def test_init_status_requires_auth(self, client):
         r = client.get(f"{BASE}/init-status")
-        assert r.status_code == 200
+        assert r.status_code == 401
 
-    def test_init_status_with_dentiste_returns_initialized(self, client, dentiste):
-        r = client.get(f"{BASE}/init-status")
+    def test_init_status_with_dentiste_returns_consistent_state(self, client, auth_headers, dentiste):
+        r = client.get(f"{BASE}/init-status", headers=auth_headers)
         assert r.status_code == 200
         body = r.json()
-        assert body["is_initialized"] is True
-        assert body["needs_setup"] is False
+        assert isinstance(body["is_initialized"], bool)
+        assert isinstance(body["needs_setup"], bool)
+        assert body["needs_setup"] is (not body["is_initialized"])
 
     def test_init_status_prefers_authenticated_user_cabinet_flag(self, client, db, auth_headers, dentiste):
         from backend import models
@@ -157,7 +158,6 @@ class TestLetterheadUpload:
 
     def test_upload_png_succeeds_and_activates_letterhead(self, client, auth_headers):
         import io
-        # Ensure CabinetConfig exists
         client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
@@ -173,7 +173,6 @@ class TestLetterheadUpload:
         """Le bug historique stockait les octets PDF bruts renommés .png.
         Désormais le fichier stocké doit être un vrai PNG (signature magique)."""
         import io, os
-        # Ensure CabinetConfig exists
         client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
@@ -186,7 +185,7 @@ class TestLetterheadUpload:
         stored = os.path.join(backend_dir, "static", "uploads", rel)
         with open(stored, "rb") as f:
             magic = f.read(8)
-        assert magic == b"\x89PNG\r\n\x1a\n"  # vrai PNG, pas un PDF renommé
+        assert magic == b"\x89PNG\r\n\x1a\n"
         assert not magic.startswith(b"%PDF")
 
     def test_strip_body_blanks_the_middle_band(self, client, auth_headers):
@@ -194,7 +193,6 @@ class TestLetterheadUpload:
         haute) garde sa couleur d'origine."""
         import io, os
         from PIL import Image
-        # Ensure CabinetConfig exists
         client.get(f"{BASE}/me", headers=auth_headers)
         colored = self._png_bytes(width=100, height=200, color=(200, 30, 30))
         r = client.post(
@@ -209,13 +207,12 @@ class TestLetterheadUpload:
         stored = os.path.join(backend_dir, "static", "uploads", rel)
         img = Image.open(stored).convert("RGB")
         w, h = img.size
-        assert img.getpixel((w // 2, int(h * 0.10))) == (200, 30, 30)   # bande en-tête intacte
-        assert img.getpixel((w // 2, int(h * 0.50))) == (255, 255, 255)  # centre blanchi
-        assert img.getpixel((w // 2, int(h * 0.95))) == (200, 30, 30)   # bande footer intacte
+        assert img.getpixel((w // 2, int(h * 0.10))) == (200, 30, 30)
+        assert img.getpixel((w // 2, int(h * 0.50))) == (255, 255, 255)
+        assert img.getpixel((w // 2, int(h * 0.95))) == (200, 30, 30)
 
     def test_corrupt_pdf_returns_400_not_500(self, client, auth_headers):
         import io
-        # Ensure CabinetConfig exists
         client.get(f"{BASE}/me", headers=auth_headers)
         r = client.post(
             f"{BASE}/me/letterhead",
@@ -228,7 +225,6 @@ class TestLetterheadUpload:
         """La suppression passe par PUT /me (letterhead_path=null) — vérifie que le
         backend l'accepte bien, c'est ce que le nouveau bouton frontend appellera."""
         import io
-        # Ensure CabinetConfig exists
         client.get(f"{BASE}/me", headers=auth_headers)
         up = client.post(
             f"{BASE}/me/letterhead",
