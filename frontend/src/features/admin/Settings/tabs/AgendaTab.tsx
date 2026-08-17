@@ -90,9 +90,9 @@ export const AgendaTab: React.FC = () => {
             <h4 className="font-bold text-slate-500 uppercase tracking-widest text-xs">
               {settings.is_continuous ? "Heure d'ouverture" : 'Matin'}
             </h4>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4 min-w-0">
               <input type="time" name="opening_time_morning" value={settings.opening_time_morning} onChange={handleChange} className={timeInputClass} />
-              <span className="font-bold text-slate-400">à</span>
+              <span className="font-bold text-slate-400 text-center">à</span>
               <input type="time" name="closing_time_morning" value={settings.closing_time_morning} onChange={handleChange} className={timeInputClass} />
             </div>
           </div>
@@ -100,9 +100,9 @@ export const AgendaTab: React.FC = () => {
           {!settings.is_continuous && (
             <div className="space-y-4 min-w-0">
               <h4 className="font-bold text-slate-500 uppercase tracking-widest text-xs">Après-midi</h4>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4 min-w-0">
                 <input type="time" name="opening_time_afternoon" value={settings.opening_time_afternoon} onChange={handleChange} className={timeInputClass} />
-                <span className="font-bold text-slate-400">à</span>
+                <span className="font-bold text-slate-400 text-center">à</span>
                 <input type="time" name="closing_time_afternoon" value={settings.closing_time_afternoon} onChange={handleChange} className={timeInputClass} />
               </div>
             </div>
