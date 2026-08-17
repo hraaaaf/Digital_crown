@@ -2,6 +2,13 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 import datetime
 
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 128
+
+
+def _password_field(default=...):
+    return Field(default, min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
 
 class Token(BaseModel):
     access_token: str
@@ -21,9 +28,10 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
 class UserSignup(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=4)
+    password: str = _password_field()
     nom_complet: str = Field(min_length=2)
     telephone_mobile: Optional[str] = None
     adresse_complete: Optional[str] = None
@@ -34,7 +42,7 @@ class UserSignup(BaseModel):
 class TrialActivationRequest(BaseModel):
     code: str = Field(min_length=6)
     email: EmailStr
-    password: str = Field(min_length=4)
+    password: str = _password_field()
     nom_complet: str = Field(min_length=2)
     cabinet_name: Optional[str] = None
     accept_terms: bool
@@ -66,7 +74,7 @@ class UserOut(BaseModel):
 class TeamMemberCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
-    password: str = Field(min_length=4)
+    password: str = _password_field()
     nom_complet: str = Field(min_length=2)
     role: Optional[str] = "SECRETAIRE"
     telephone_mobile: Optional[str] = None
@@ -79,7 +87,7 @@ class TeamMemberUpdate(BaseModel):
     email: Optional[EmailStr] = None
     telephone_mobile: Optional[str] = None
     is_active: Optional[bool] = None
-    new_password: Optional[str] = Field(None, min_length=4)
+    new_password: Optional[str] = _password_field(None)
     permissions: Optional[dict] = None
 
 
@@ -111,4 +119,3 @@ class QuotaOut(BaseModel):
 class SupabaseSyncRequest(BaseModel):
     access_token: str
     email: EmailStr
-
