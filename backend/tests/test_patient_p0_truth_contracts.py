@@ -51,6 +51,11 @@ def test_patient_update_can_omit_sex_but_rejects_empty_value():
         PatientUpdate(sexe="")
 
 
+def test_patient_update_rejects_unknown_fields():
+    with pytest.raises(ValidationError):
+        PatientUpdate(nom="DUPONT", champ_inconnu="ne-doit-pas-etre-ignore")
+
+
 def test_duplicate_check_never_crosses_tenant_boundary(db):
     owner_a = make_user(db, email="tenant-a@cabinet.ma")
     owner_b = make_user(db, email="tenant-b@cabinet.ma")
