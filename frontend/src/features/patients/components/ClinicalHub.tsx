@@ -135,39 +135,42 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     const s = localStorage.getItem(`odontogram_state_${patientId}`);
     return s ? JSON.parse(s) : null;
   });
-  const [lastDiagnosis, setLastDiagnosis] = useState<LastDiagnosis | null>(() => {
-    const s = localStorage.getItem(`diag_${patientId}`);
-    return s ? JSON.parse(s) : null;
-  });
+  // Assistant output is session-only until explicitly validated by the practitioner.
+  const [lastDiagnosis, setLastDiagnosis] = useState<LastDiagnosis | null>(null);
   const wizardRef = useRef<HTMLDivElement>(null);
 
-  const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>(() => {
-    const saved = localStorage.getItem(`master_plan_${patientId}`);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return [
-      { id: 'step-1', title: 'Consultation & Bilan complet', assistant: 'general', status: 'done', date: 'Aujourd\'hui' },
-      { id: 'step-2', title: 'Détartrage & Surfaçage', assistant: 'paro', status: 'pending', date: 'À planifier' }
-    ];
-  });
+  // The backend Master Plan is the only authoritative treatment-plan source.
+  const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>([]);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setPlanLoading(true);
+    setPlanError(null);
     api.get(`/patients/${patientId}/master-plan`)
       .then((res: any) => {
-        if (res.data && res.data.steps && res.data.steps.length > 0) {
-          const steps = res.data.steps.map((s: any) => ({
-            id: s.id ? s.id.toString() : Math.random().toString(36).substring(7),
-            title: s.title,
-            assistant: s.assistant,
-            status: s.status,
-            date: s.date_str
-          }));
-          setTreatmentPlan(steps);
-          localStorage.setItem(`master_plan_${patientId}`, JSON.stringify(steps));
-        }
+        if (cancelled) return;
+        const rawSteps = Array.isArray(res.data?.steps) ? res.data.steps : [];
+        const steps = rawSteps.map((s: any) => ({
+          id: s.id ? s.id.toString() : crypto.randomUUID(),
+          title: s.title,
+          assistant: s.assistant,
+          status: s.status,
+          date: s.date_str
+        }));
+        setTreatmentPlan(steps);
       })
-      .catch((err: any) => console.error("Erreur sync master plan:", err));
+      .catch((err: any) => {
+        if (cancelled) return;
+        console.error("Erreur chargement master plan:", err);
+        setTreatmentPlan([]);
+        setPlanError("Plan de traitement indisponible. Aucune donnée locale n'est utilisée comme remplacement.");
+      })
+      .finally(() => {
+        if (!cancelled) setPlanLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [patientId]);
 
   useEffect(() => {
@@ -178,97 +181,73 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
     }
   }, [activeAssistant]);
 
-  const deleteStep = (id: string) => {
-    const updated = treatmentPlan.filter(step => step.id !== id);
-    savePlan(updated);
-    toast.success('Étape supprimée du plan.');
-  };
-
-  const savePlan = (plan: TreatmentStep[]) => {
-    setTreatmentPlan(plan);
-    localStorage.setItem(`master_plan_${patientId}`, JSON.stringify(plan));
-    
-    const payload = plan.map((s, index) => ({
-       title: s.title,
-       assistant: s.assistant,
-       status: s.status,
-       date_str: s.date,
-       order_index: index
+  const mapPersistedPlan = (data: any): TreatmentStep[] => {
+    const rawSteps = Array.isArray(data?.steps) ? data.steps : [];
+    return rawSteps.map((s: any) => ({
+      id: s.id ? s.id.toString() : crypto.randomUUID(),
+      title: s.title,
+      assistant: s.assistant,
+      status: s.status,
+      date: s.date_str
     }));
-    api.put(`/patients/${patientId}/master-plan`, payload).catch((err: any) => console.error("Erreur sauvegarde master plan:", err));
   };
 
-  const updateStatus = (id: string, newStatus: PlanStatus) => {
-    const updated = treatmentPlan.map(step => 
+  const savePlan = async (plan: TreatmentStep[]): Promise<boolean> => {
+    const payload = plan.map((s, index) => ({
+      title: s.title,
+      assistant: s.assistant,
+      status: s.status,
+      date_str: s.date,
+      order_index: index
+    }));
+    try {
+      const res: any = await api.put(`/patients/${patientId}/master-plan`, payload);
+      setTreatmentPlan(mapPersistedPlan(res.data));
+      setPlanError(null);
+      return true;
+    } catch (err) {
+      console.error("Erreur sauvegarde master plan:", err);
+      setPlanError("La modification n'a pas été enregistrée. Le plan affiché reste inchangé.");
+      toast.error("Échec de sauvegarde du plan de traitement.");
+      return false;
+    }
+  };
+
+  const deleteStep = async (id: string) => {
+    const updated = treatmentPlan.filter(step => step.id !== id);
+    if (await savePlan(updated)) {
+      toast.success('Étape supprimée du plan enregistré.');
+    }
+  };
+
+  const updateStatus = async (id: string, newStatus: PlanStatus) => {
+    const updated = treatmentPlan.map(step =>
       step.id === id ? { ...step, status: newStatus, date: newStatus === 'done' ? 'Fait le ' + new Date().toLocaleDateString() : 'Reporté' } : step
     );
-    savePlan(updated);
-    if (newStatus === 'done') {
-      toast.success('Étape validée et synchronisée avec l\'historique.');
+    if (await savePlan(updated) && newStatus === 'done') {
+      toast.success('Étape validée dans le plan enregistré.');
     }
   };
 
   const completedSteps = treatmentPlan.filter(s => s.status === 'done').length;
   const progressPercent = treatmentPlan.length > 0 ? Math.round((completedSteps / treatmentPlan.length) * 100) : 0;
 
-  const handleWizardComplete = (wizardId: string, diag: string, steps: any[], suggestedNextAssistant?: string | null) => {
-    const newSteps = steps.map(s => ({
-      id: crypto.randomUUID(),
-      title: s.title,
-      assistant: s.assistant,
-      status: 'pending' as PlanStatus,
-      date: 'Nouveau'
-    }));
-    
-    const diagStep = {
-      id: crypto.randomUUID(),
-      title: `Diagnostic : ${diag}`,
-      assistant: wizardId,
-      status: 'done' as PlanStatus,
-      date: new Date().toLocaleDateString()
-    };
-    
-    // Ordre scientifique des spécialités : Paro/Urgence -> Endo -> Chirurgie -> ODF -> Prothèse
-    const scientificOrder: Record<string, number> = {
-      'urgences': 1, 'paro': 2, 'endo': 3, 'patho': 4,
-      'chirurgie': 5, 'ortho': 6, 'pedo': 7, 'prothese': 8,
-      'atm': 9, 'general': 10
-    };
-
-    const combined = [...treatmentPlan, diagStep, ...newSteps].sort((a, b) => {
-      // Les étapes terminées restent en haut
-      if (a.status === 'done' && b.status !== 'done') return -1;
-      if (a.status !== 'done' && b.status === 'done') return 1;
-      if (a.status === 'done' && b.status === 'done') return 0;
-      
-      const oa = scientificOrder[a.assistant] || 99;
-      const ob = scientificOrder[b.assistant] || 99;
-      return oa - ob;
-    });
-    
-    savePlan(combined);
-
-    const diagnosis: LastDiagnosis = {
+  const handleWizardComplete = (wizardId: string, diag: string, _steps: any[], _suggestedNextAssistant?: string | null) => {
+    // P0 fail-closed: an assistant may formulate a proposal, never validate a diagnosis
+    // or mutate the authoritative treatment plan on behalf of the practitioner.
+    const proposal: LastDiagnosis = {
       text: diag,
       date: new Date().toLocaleString('fr-FR'),
       wizard: ASSISTANTS.find(a => a.id === wizardId)?.name || wizardId
     };
-    setLastDiagnosis(diagnosis);
-    localStorage.setItem(`diag_${patientId}`, JSON.stringify(diagnosis));
-
-    if (suggestedNextAssistant) {
-      setActiveAssistant(suggestedNextAssistant);
-      toast.success(`Diagnostic généré. Relais passé à l'Assistant ${suggestedNextAssistant.toUpperCase()}`);
-    } else {
-      setActiveAssistant(null);
-      toast.success(`Diagnostic généré avec succès !`);
-    }
+    setLastDiagnosis(proposal);
+    setActiveAssistant(null);
+    toast.success('Proposition clinique générée. Validation du praticien requise.');
   };
 
   const clearLastDiagnosis = () => {
     setLastDiagnosis(null);
-    localStorage.removeItem(`diag_${patientId}`);
-    toast.success('Diagnostic supprimé.');
+    toast.success('Proposition supprimée.');
   };
 
   return (
@@ -284,12 +263,12 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
           </div>
           <div>
             <h2 className="text-2xl font-black text-text-main flex items-center gap-3 tracking-tight">
-              Cerveau Clinique Central
+              Espace Clinique
               <span className="text-[10px] uppercase tracking-widest bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20 font-black shadow-sm" style={{ color: 'var(--primary)' }}>
-                Ghost Orchestrator
+                Protocoles structurés
               </span>
             </h2>
-            <p className="text-sm text-text-muted font-bold mt-1">Diagnostic intelligent, plan de traitement global et suivi automatisé.</p>
+            <p className="text-sm text-text-muted font-bold mt-1">Collecte clinique structurée, propositions à valider et plan de traitement enregistré.</p>
           </div>
         </div>
       </div>
@@ -310,7 +289,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                   viewMode === 'ASSISTANTS' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-text-muted hover:text-text-main"
                 )}
               >
-                Assistants IA
+                Protocoles cliniques
               </button>
               <button
                 onClick={() => setViewMode('ODONTOGRAM')}
@@ -332,7 +311,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                  </div>
                  <div>
                     <h4 className="font-black text-lg">Schéma Dentaire Initial</h4>
-                    <p className="text-xs text-text-muted font-bold">Renseignez les caries, restaurations, et dents absentes</p>
+                    <p className="text-xs text-text-muted font-bold">Brouillon local non enregistré au dossier — renseignez les caries, restaurations et dents absentes</p>
                  </div>
               </div>
               <Odontogram 
@@ -354,7 +333,7 @@ export const ClinicalHub: React.FC<ClinicalHubProps> = ({ patientId }) => {
                       <Sparkles size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-black text-indigo-900">Dernier Diagnostic — {lastDiagnosis.wizard}</h4>
+                      <h4 className="text-sm font-black text-indigo-900">Proposition clinique à valider — {lastDiagnosis.wizard}</h4>
                       <p className="text-xs text-indigo-700 font-bold mt-1 leading-relaxed break-words">{lastDiagnosis.text}</p>
                       <p className="text-[10px] text-indigo-600/70 font-mono mt-2">{lastDiagnosis.date}</p>
                     </div>
