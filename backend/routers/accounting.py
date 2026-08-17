@@ -102,13 +102,39 @@ def record_act(data: dict, db: Session = Depends(database.get_db), current_user:
 
 @router.post("/payments", response_model=schemas.PaymentOut)
 def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission(["accounting", "payments"]))):
-    """Enregistre un encaissement réel dans le tiroir-caisse."""
+    """Enregistre un encaissement réel, strictement lié aux entités du même patient."""
     assert_patient_access(payment.patient_id, current_user, db)
-    
+
+    if payment.acte_id is not None and payment.installment_id is not None:
+        raise HTTPException(status_code=422, detail="Un paiement ne peut pas cibler simultanément un acte et une échéance.")
+
+    acte = None
+    if payment.acte_id is not None:
+        acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
+        if acte is None:
+            raise HTTPException(status_code=404, detail="Acte introuvable")
+        if acte.patient_id != payment.patient_id:
+            raise HTTPException(status_code=409, detail="L'acte n'appartient pas au patient du paiement.")
+
+    installment = None
+    if payment.installment_id is not None:
+        installment = db.query(models.Installment).filter(models.Installment.id == payment.installment_id).first()
+        if installment is None:
+            raise HTTPException(status_code=404, detail="Échéance introuvable")
+        plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == installment.plan_id).first()
+        if plan is None:
+            raise HTTPException(status_code=409, detail="Plan d'échéances introuvable pour cette échéance.")
+        if plan.patient_id != payment.patient_id:
+            raise HTTPException(status_code=409, detail="L'échéance n'appartient pas au patient du paiement.")
+
+    payment_method = getattr(models.PaymentMethod, payment.payment_method, None)
+    if payment_method is None:
+        raise HTTPException(status_code=422, detail="Mode de paiement invalide")
+
     new_payment = models.Payment(
         patient_id=payment.patient_id,
         amount=payment.amount,
-        payment_method=getattr(models.PaymentMethod, payment.payment_method, models.PaymentMethod.ESPECES),
+        payment_method=payment_method,
         payment_date=payment.payment_date or datetime.now(),
         acte_id=payment.acte_id,
         installment_id=payment.installment_id,
@@ -116,23 +142,22 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
         validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
     )
     db.add(new_payment)
+    db.flush()
+
+    # Auto-sync statut de l'acte si le paiement est lié à un acte.
+    if acte is not None:
+        total_paid = db.query(func.sum(models.Payment.amount)).filter(
+            models.Payment.acte_id == acte.id
+        ).scalar() or 0.0
+        if total_paid >= acte.montant:
+            acte.statut_paiement = models.PaiementStatut.PAYE
+            acte.is_collected = True
+        elif total_paid > 0:
+            acte.statut_paiement = models.PaiementStatut.PARTIEL
+            acte.is_collected = False
+
     db.commit()
     db.refresh(new_payment)
-
-    # Auto-sync statut de l'acte si le paiement est lié à un acte
-    if payment.acte_id:
-        acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
-        if acte:
-            total_paid = db.query(func.sum(models.Payment.amount)).filter(
-                models.Payment.acte_id == payment.acte_id
-            ).scalar() or 0.0
-            if total_paid >= acte.montant:
-                acte.statut_paiement = models.PaiementStatut.PAYE
-                acte.is_collected = True
-            elif total_paid > 0:
-                acte.statut_paiement = models.PaiementStatut.PARTIEL
-            db.commit()
-
     return new_payment
 
 @router.get("/payments/patient/{patient_id}", response_model=List[schemas.PaymentOut])
@@ -324,12 +349,17 @@ async def get_treasury_hub(
 @router.post("/encaisser/{item_id}")
 async def mark_as_paid(
     item_id: str,
-    payment_method: str = Body(default="ESPECES", embed=True),
+    payment_method: str = Body(..., embed=True),
     db: Session = Depends(database.get_db),
     user: models.User = Depends(require_permission(["accounting", "payments"]))
 ):
     try:
         from backend.utils.access_control import assert_patient_access
+
+        method_code = str(payment_method or "").strip().upper()
+        method_enum = getattr(models.PaymentMethod, method_code, None)
+        if method_enum is None:
+            raise HTTPException(status_code=422, detail="Mode de paiement explicite invalide")
         
         now = datetime.now()
         
@@ -349,7 +379,7 @@ async def mark_as_paid(
             payment_obj = models.Payment(
                 patient_id=doc.patient_id,
                 amount=extract_amount_from_clinical_data(doc.clinical_data),
-                payment_method=payment_method,
+                payment_method=method_enum,
                 payment_date=now,
                 notes=f"Lien Doc ID: {doc.id}",
                 validated_by=doc.validated_by
@@ -368,7 +398,7 @@ async def mark_as_paid(
             payment_obj = models.Payment(
                 patient_id=acte.patient_id,
                 amount=acte.montant,
-                payment_method=payment_method,
+                payment_method=method_enum,
                 payment_date=now,
                 notes=f"Lien Acte ID: {acte.id}",
                 validated_by=acte.validated_by
@@ -390,7 +420,7 @@ async def mark_as_paid(
             payment_obj = models.Payment(
                 patient_id=doc.patient_id,
                 amount=extract_amount_from_clinical_data(doc.clinical_data),
-                payment_method=payment_method,
+                payment_method=method_enum,
                 payment_date=now,
                 notes=f"Lien Doc ID: {doc.id}",
                 validated_by=doc.validated_by
@@ -709,4 +739,3 @@ def get_patient_debts(
         "total_amount": round(sum(i["remaining_due"] for i in items), 2),
         "items": items,
     }
-
