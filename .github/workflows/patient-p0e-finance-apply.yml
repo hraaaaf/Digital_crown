@@ -1,0 +1,169 @@
+name: Patient P0-E Finance Apply
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0e-finance-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p0e-finance-apply-secret-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Materialize verified finance candidate
+        run: |
+          git fetch origin agent/patient-page-p0-truth-safety --depth=1
+          git show FETCH_HEAD:frontend/src/features/patients/components/PatientFinances.tsx > frontend/src/features/patients/components/PatientFinances.tsx
+          git show FETCH_HEAD:frontend/src/features/patients/components/InstallmentPlanModal.tsx > frontend/src/features/patients/components/InstallmentPlanModal.tsx
+          git diff --check
+
+      - name: Finance truth contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          f=Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
+          m=Path('frontend/src/features/patients/components/InstallmentPlanModal.tsx').read_text(encoding='utf-8')
+          assert 'const hasBillingBase = snapshot.total_billed > 0;' in f
+          assert "recoveryRate === null ? '—'" in f
+          assert "recoveryRate === null ? 'Non applicable'" in f
+          assert "await api.post('/installments/'," in m
+          assert 'acte_id: acte.id' in m
+          assert 'coverageExact' in m
+          assert "toast.error('Le plan doit couvrir exactement le reste dû de l’acte')" in m
+          assert "await api.post('/accounting/plans'" not in m
+          print('P0-E frontend truth contracts OK')
+          PY
+
+      - name: Add zero-billed runtime fixture only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/t2_runtime_server.py')
+          s=p.read_text(encoding='utf-8')
+          needle='    db.commit()\n    print(f"T2_RUNTIME_PATIENT_ID={patient.id}", flush=True)'
+          insert='''    zero_billed_patient = db.query(models.Patient).filter(\n        models.Patient.numero_dossier == "T2-ZERO-BILL",\n        models.Patient.employer_id == user.id,\n    ).first()\n    if not zero_billed_patient:\n        zero_billed_patient = models.Patient(\n            numero_dossier="T2-ZERO-BILL", nom="ZEROFACTURE", prenom="T2",\n            date_naissance=datetime(1991, 2, 2), sexe="F", employer_id=user.id, assurance="AUCUNE",\n        )\n        db.add(zero_billed_patient); db.commit(); db.refresh(zero_billed_patient)\n        db.add(models.DossierClinique(patient_id=zero_billed_patient.id, is_ortho_active=False))\n        db.add(models.Payment(patient_id=zero_billed_patient.id, amount=800.0, payment_method=models.PaymentMethod.ESPECES, payment_date=datetime.now(), notes="T2 synthetic zero-billed finance edge state"))\n\n    db.commit()\n    print(f"T2_ZERO_BILLED_PATIENT_ID={zero_billed_patient.id}", flush=True)\n    print(f"T2_RUNTIME_PATIENT_ID={patient.id}", flush=True)'''
+          assert needle in s
+          p.write_text(s.replace(needle,insert),encoding='utf-8')
+          PY
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0e-finance.txt
+          pip install -r /tmp/requirements-p0e-finance.txt
+          pip install httpx==0.27.2
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/p0e-finance-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p0e-finance-backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p0e-finance-front.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/p0e-finance-front.log
+          exit 1
+
+      - name: Capture P0-E AFTER
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/p0e-finance-after
+          cat > .p0e-finance-after.mjs <<'JS'
+          import fs from 'node:fs'; import path from 'node:path'; import { chromium, request } from 'playwright';
+          const out=path.resolve('../artifacts/p0e-finance-after'); const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'}); const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}}); if(!login.ok())throw new Error(await login.text());
+          const tok=await login.json(); const ps=await api.get('/api/patients',{headers:{Authorization:`Bearer ${tok.access_token}`}}); const all=await ps.json(); const zero=all.find(p=>p.numero_dossier==='T2-ZERO-BILL'); const normal=all.find(p=>p.numero_dossier==='T2-0001'); if(!zero||!normal)throw new Error('fixtures missing');
+          const browser=await chromium.launch({headless:true}); const evidence=[];
+          for(const viewport of viewports){
+            for(const mode of ['zero','modal']){
+              const ctx=await browser.newContext({viewport,colorScheme:'light'}); const page=await ctx.newPage(); await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});
+              const errors=[]; page.on('pageerror',e=>errors.push(String(e))); const patient=mode==='zero'?zero:normal; await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=finances`,{waitUntil:'networkidle',timeout:90000}); await page.waitForTimeout(500);
+              if(mode==='modal'){ const plan=page.getByRole('button',{name:'Plan'}).first(); await plan.click(); await page.getByRole('dialog').waitFor({state:'visible'}); }
+              const body=await page.locator('body').innerText(); const metrics=await page.evaluate(()=>({noHorizontalOverflow:document.documentElement.scrollWidth<=document.documentElement.clientWidth+2}));
+              const screenshot=`${mode}-after-${viewport.width}x${viewport.height}.png`; await page.screenshot({path:path.join(out,screenshot),fullPage:true}); evidence.push({viewport,mode,body,metrics,errors,screenshot}); await ctx.close();
+            }
+          }
+          const zeroRows=evidence.filter(x=>x.mode==='zero'); const modalRows=evidence.filter(x=>x.mode==='modal'); const summary={captures:evidence.length,zeroRecoveryTruthEverywhere:zeroRows.every(x=>x.body.includes('Taux Recouvrement')&&x.body.includes('Non applicable')&&!x.body.includes('100%')),modalVisibleEverywhere:modalRows.every(x=>x.body.includes("Plan d'échéances")||x.body.includes('Plan d’échéances')),overflowFindings:evidence.filter(x=>!x.metrics.noHorizontalOverflow),runtimeErrors:evidence.filter(x=>x.errors.length)};
+          fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2)); fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(summary,null,2)); await browser.close(); await api.dispose(); if(!summary.zeroRecoveryTruthEverywhere||!summary.modalVisibleEverywhere||summary.overflowFindings.length||summary.runtimeErrors.length)process.exit(1);
+          JS
+          node .p0e-finance-after.mjs
+          rm .p0e-finance-after.mjs
+
+      - name: Write proof
+        env:
+          RUN_ID: ${{ github.run_id }}
+          PRE_APPLY_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          summary=json.loads(Path('artifacts/p0e-finance-after/summary.json').read_text())
+          proof={'lot':'Patient P0-E finance frontend truth','status':'CERTIFIED','baseline':{'run_id':32134082751,'artifact_id':9323361000,'captures':8},'after':summary,'contracts':['zero billed is non-applicable, never 100%','Patient installment modal uses /installments/','acte_id explicit','exact coverage required'],'workflow_run_id':os.environ['RUN_ID'],'pre_apply_sha':os.environ['PRE_APPLY_SHA']}
+          Path('docs/PATIENT_P0E_FINANCE_UI_CERT.json').write_text(json.dumps(proof,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+          git diff --check
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patient-p0e-finance-after
+          path: artifacts/p0e-finance-after
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit certified P0-E frontend truth
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/features/patients/components/PatientFinances.tsx frontend/src/features/patients/components/InstallmentPlanModal.tsx docs/PATIENT_P0E_FINANCE_UI_CERT.json
+          git diff --cached --check
+          git commit -m 'cert(patient): fix P0-E finance truth' || exit 0
+          git push origin HEAD:agent/patient-page-p0-rescue
