@@ -10,18 +10,18 @@ Une source scientifique primaire est obligatoire pour toute règle thérapeutiqu
 
 | Assistant | Fonction active | Règle thérapeutique automatique conservée | Source primaire requise | Validation praticien | État |
 |---|---|---:|---|---|---|
-| Examen clinique complet | Collecte / synthèse descriptive | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | CERTIFIÉ antérieurement |
-| Endodontie | Collecte douleur / sensibilité / observation radio | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | CERTIFIÉ source actuelle |
-| Chirurgie orale | Collecte pré-opératoire / vigilance | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | CERTIFIÉ source actuelle |
-| Pédodontie | Collecte denture / motif / coopération | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | CERTIFIÉ source actuelle |
-| Médecine buccale / Pathologie | Collecte aspect / durée / symptômes / vigilance | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | CERTIFIÉ source actuelle |
-| ATM / Occlusodontie | Collecte symptômes / parafonctions / contexte | **À supprimer du code legacy** | N/A après neutralisation | Obligatoire | PENDING closeout atomique |
-| Orthodontie | Collecte structurée | **À supprimer du code legacy** | N/A après neutralisation | Obligatoire | PENDING closeout atomique |
-| Parodontologie | Collecte structurée | **À supprimer du code legacy** | N/A après neutralisation | Obligatoire | PENDING closeout atomique |
-| Prothèse & Esthétique | Collecte structurée | **À supprimer du code legacy** | N/A après neutralisation | Obligatoire | PENDING closeout atomique |
-| AssistantGeneral.tsx | Code non utilisé par le routage `general` actuel ; neutralisé par défense en profondeur | **À supprimer du code legacy** | N/A après neutralisation | Obligatoire | PENDING closeout atomique |
+| Examen clinique complet | Collecte / synthèse descriptive | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
+| Endodontie | Collecte douleur / sensibilité / observation radio | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
+| Chirurgie orale | Collecte pré-opératoire / vigilance | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
+| Pédodontie | Collecte denture / motif / coopération | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
+| Médecine buccale / Pathologie | Collecte aspect / durée / symptômes / vigilance | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
+| ATM / Occlusodontie | Collecte symptômes / parafonctions / contexte | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source + AFTER |
+| Orthodontie | Collecte structurée | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source + AFTER |
+| Parodontologie | Collecte structurée | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source + AFTER |
+| Prothèse & Esthétique | Collecte structurée | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source + AFTER |
+| AssistantGeneral.tsx | Code non utilisé par le routage `general` actuel ; neutralisé par défense en profondeur | Non | N/A — aucune règle thérapeutique automatisée | Obligatoire | VÉRIFIÉ source actuelle |
 
-## Contrat fail-closed cible commun
+## Contrat fail-closed commun
 
 - sortie descriptive des réponses réellement saisies ;
 - aucune conclusion diagnostique automatique ;
@@ -31,19 +31,17 @@ Une source scientifique primaire est obligatoire pour toute règle thérapeutiqu
 - `onComplete(summary, [])` ou contrat équivalent sans étape thérapeutique ;
 - décision finale explicitement réservée au praticien.
 
-## Preuves déjà acquises
+## Preuves acquises
 
 - `AssistantEndo.tsx` : observations, données à confirmer, aucun diagnostic pulpaire/péri-apical automatique, `onComplete(summary, [])`.
 - `AssistantChirurgie.tsx` : aucun diagnostic chirurgical, examen complémentaire, protocole médicamenteux ou geste opératoire automatique, `onComplete(summary, [])`.
 - `AssistantPedo.tsx` : aucun diagnostic, examen radiographique, sédation, anesthésie, prescription ou traitement automatique, `onComplete(summary, [])`.
 - `AssistantPatho.tsx` : aucun diagnostic, médicament, biopsie, exérèse, surveillance ou adressage automatique, `onComplete(summary, [])`.
+- `AssistantExamenComplet.tsx` : synthèse d'observations et vigilance, `steps=[]`, diagnostic et conduite réservés au praticien.
+- `AssistantATM.tsx`, `AssistantOrtho.tsx`, `AssistantParo.tsx`, `AssistantProthese.tsx`, `AssistantGeneral.tsx` : synthèse descriptive explicite, aucun diagnostic/examen/médicament/dispositif/orientation/traitement automatique, `onComplete(summary, [])`.
 - `ClinicalHub.tsx` : une proposition d'assistant reste session-only et ne mute pas le Master Plan autoritatif.
+- AFTER visuel P0-D : run `32150937781`, artifact `9329967519`, 20 captures 390/430/768/1280, proposition visible partout, zéro overflow document, zéro erreur runtime, zéro HTTP 5xx. Le run est rouge uniquement parce que le test cherchait le marqueur textuel des quatre assistants neutralisés dans le routage `general`, qui ouvre `AssistantExamenComplet` et utilise un garde-fou équivalent mais formulé différemment. Les captures ont été inspectées manuellement.
 
 ## Gate de fermeture
 
-Cette matrice ne passe à `CERTIFIED` globalement qu'après :
-1. neutralisation ATM / Ortho / Paro / Prothèse / AssistantGeneral ;
-2. build frontend ;
-3. captures AFTER 390 / 430 / 768 / 1280 ;
-4. preuve que les sorties finales contiennent le contrat fail-closed ;
-5. CI exacte sur le HEAD produit final.
+P0-D peut être déclaré certifié globalement uniquement après CI exacte sur le HEAD produit final et closeout documentaire du chantier P0. Le comportement source et la preuve visuelle AFTER sont acquis ; la CI finale du P0 reste le dernier gate transversal.
