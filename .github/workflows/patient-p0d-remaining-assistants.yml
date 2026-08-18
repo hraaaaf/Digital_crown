@@ -1,0 +1,125 @@
+name: Patient P0-D Remaining Assistants
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-rescue
+    paths:
+      - '.github/workflows/patient-p0d-remaining-assistants.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patient-p0d-remaining-assistants-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Replace auto-diagnostic engines with descriptive summaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = {
+            'AssistantATM.tsx': ('Synthèse ATM / parafonctions structurée.', 'ATM, parafonctions, facteurs déclenchants'),
+            'AssistantGeneral.tsx': ('Synthèse générale structurée.', 'motif de consultation, hygiène, antécédents médicaux'),
+            'AssistantOrtho.tsx': ('Synthèse orthodontique structurée.', 'motif, croissance, préférence exprimée par le patient'),
+            'AssistantParo.tsx': ('Synthèse parodontale structurée.', 'signes parodontaux renseignés'),
+            'AssistantProthese.tsx': ('Synthèse prothétique structurée.', 'données prothétiques renseignées'),
+          }
+          root = Path('frontend/src/features/patients/components/wizards')
+
+          for filename, (title, scope) in files.items():
+              p = root / filename
+              src = p.read_text(encoding='utf-8')
+              pattern = re.compile(
+                  r"  const generateDiagnosis = \(finalAnswers: Record<string, number>\) => \{.*?\n  \};\n\n  if \(isCalculating\)",
+                  re.S,
+              )
+              replacement = f'''  const generateDiagnosis = (finalAnswers: Record<string, number>) => {{
+    setIsCalculating(true);
+
+    setTimeout(() => {{
+      const selected = QUESTIONS.map((question) => {{
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${{question.title}} : ${{option?.label ?? 'Non renseigné'}}`;
+      }});
+
+      const summary = [
+        '{title}',
+        `Observations recueillies : ${{selected.join(' ; ')}}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
+
+      onComplete(summary, []);
+    }}, 1500);
+  }};
+
+  if (isCalculating)'''
+              updated, count = pattern.subn(replacement, src, count=1)
+              if count != 1:
+                  raise SystemExit(f'{filename}: generateDiagnosis source mismatch')
+              p.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Fail-closed contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root = Path('frontend/src/features/patients/components/wizards')
+          names = ['AssistantATM.tsx','AssistantGeneral.tsx','AssistantOrtho.tsx','AssistantParo.tsx','AssistantProthese.tsx']
+          banned = [
+            'Prescription Myorelaxants', 'CBCT / IRM', 'Gouttière de libération occlusale',
+            'Antibioprophylaxie avant tout soin invasif', 'Radiographie de contrôle (RVG)',
+            'Traitement global par Aligneurs', 'Pose Appareillage Multi-attaches',
+            'Appareillage Orthopédique', 'Avis Chirurgie Maxillo-Faciale',
+          ]
+          for name in names:
+              text=(root/name).read_text(encoding='utf-8')
+              assert 'onComplete(summary, [])' in text, name
+              assert 'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.' in text, name
+              for marker in banned:
+                  assert marker not in text, f'{name}: {marker}'
+          print('Remaining assistants fail-closed contracts: OK')
+          PY
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Commit fail-closed assistants
+        run: |
+          if git diff --quiet -- frontend/src/features/patients/components/wizards; then
+            echo 'No assistant changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            frontend/src/features/patients/components/wizards/AssistantATM.tsx \
+            frontend/src/features/patients/components/wizards/AssistantGeneral.tsx \
+            frontend/src/features/patients/components/wizards/AssistantOrtho.tsx \
+            frontend/src/features/patients/components/wizards/AssistantParo.tsx \
+            frontend/src/features/patients/components/wizards/AssistantProthese.tsx
+          git commit -m 'fix(patient): fail-close remaining clinical assistants'
+          git push origin HEAD:${GITHUB_REF_NAME}
