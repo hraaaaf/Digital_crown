@@ -59,45 +59,23 @@ export const AssistantGeneral: React.FC<AssistantGeneralProps> = ({ onComplete, 
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Bilan Général";
-      const steps = [];
-      let suggestedNextAssistant: string | null = null;
+      const selected = QUESTIONS.map((question) => {
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${question.title} : ${option?.label ?? 'Non renseigné'}`;
+      });
 
-      // Logic General & Scientific Routing
-      if (finalAnswers.motif === 1) {
-        diag = "Consultation d'Urgence";
-        steps.push({ title: 'Gestion de la douleur / Urgence', assistant: 'general' });
-        steps.push({ title: 'Radiographie de contrôle (RVG)', assistant: 'radio' });
-        suggestedNextAssistant = 'endo'; // Suggest Endo for pain
-      } else if (finalAnswers.motif === 2) {
-        diag = "Bilan Esthétique";
-        steps.push({ title: 'Prise de photos intra/extra-orales (Studio)', assistant: 'general' });
-        suggestedNextAssistant = 'prothese';
-      } else {
-        steps.push({ title: 'Examen Clinique Complet', assistant: 'general' });
-      }
+      const summary = [
+        'Synthèse générale structurée.',
+        `Observations recueillies : ${selected.join(' ; ')}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
 
-      if (finalAnswers.hygiene === 1) {
-        steps.push({ title: 'Détartrage bi-maxillaire', assistant: 'paro' });
-      } else if (finalAnswers.hygiene === 2) {
-        steps.push({ title: 'Assainissement parodontal & Motivation', assistant: 'paro' });
-        // Override next assistant if periodontium is critical (scientific logic: Paro first)
-        if (finalAnswers.motif !== 1) {
-          suggestedNextAssistant = 'paro';
-        }
-      }
-
-      if (finalAnswers.medical === 1) {
-        diag += " (Haut Risque Infectieux)";
-        steps.unshift({ title: 'Antibioprophylaxie avant tout soin invasif (Amox 2g)', assistant: 'general' });
-      } else if (finalAnswers.medical === 2) {
-        diag += " (Patient Allergique)";
-        steps.unshift({ title: 'Mise à jour du dossier médical (Alerte Allergie)', assistant: 'general' });
-      }
-
-      onComplete(diag, steps, suggestedNextAssistant);
+      onComplete(summary, []);
     }, 1500);
   };
 
