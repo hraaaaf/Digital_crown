@@ -1,0 +1,184 @@
+name: Patient P0 Final Read-Only Certification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/patient-p0-final-readonly-cert.yml'
+      - 'backend/routers/accounting.py'
+      - 'backend/routers/installments.py'
+      - 'backend/routers/ia.py'
+      - 'backend/routers/documents.py'
+      - 'backend/services/habits_engine.py'
+      - 'backend/services/elite_manager.py'
+      - 'backend/services/rag_context.py'
+      - 'backend/services/panoramic_service.py'
+      - 'backend/services/sota_panoramic_service.py'
+      - 'backend/services/generators/panoramic_elite_gen.py'
+      - 'backend/models.py'
+      - 'backend/schemas/**'
+      - 'backend/tests/test_patient_p0_*.py'
+      - 'frontend/src/features/patients/**'
+      - 'frontend/src/features/panoramic/PanoramicStudio.tsx'
+      - 'frontend/src/services/rvgService.ts'
+      - 'alembic/versions/c4d5e6f7a8b9_link_installment_plans_to_actes.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENVIRONMENT: test
+  SECRET_KEY: patient-p0-final-readonly-secret-000001
+  DATABASE_URL: sqlite:///:memory:
+  TELEMETRY_ENABLED: 'false'
+  CLOUD_AI_ENABLED: 'false'
+  DEBUG: 'false'
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: P0 source truth contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # P0-C — ClinicalHub cannot fabricate or auto-persist assistant output.
+          hub = Path('frontend/src/features/patients/components/ClinicalHub.tsx').read_text(encoding='utf-8')
+          for banned in [
+              'Détartrage & Surfaçage',
+              'scientificOrder',
+              'pending_devis_plan',
+              'Diagnostic intelligent, plan de traitement global et suivi automatisé.'
+          ]:
+              assert banned not in hub, f'P0-C banned: {banned}'
+          assert 'Aucune étape de traitement enregistrée.' in hub
+          assert 'Proposition clinique à valider' in hub
+
+          # P0-D — all assistants are proposals only.
+          root = Path('frontend/src/features/patients/components/wizards')
+          assistant_names = [
+              'AssistantATM.tsx','AssistantGeneral.tsx','AssistantOrtho.tsx','AssistantParo.tsx',
+              'AssistantProthese.tsx','AssistantEndo.tsx','AssistantExamenComplet.tsx',
+              'AssistantChirurgie.tsx','AssistantPedo.tsx','AssistantPatho.tsx'
+          ]
+          for name in assistant_names:
+              text = (root / name).read_text(encoding='utf-8')
+              assert 'onComplete(summary, [])' in text, name
+
+          # P0-E — strict binding + explicit payment method + truthful zero base.
+          acct = Path('backend/routers/accounting.py').read_text(encoding='utf-8')
+          start = acct.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          end = acct.index('@router.get("/payments/patient/{patient_id}"', start)
+          payment_block = acct[start:end]
+          assert 'acte.patient_id != payment.patient_id' in payment_block
+          assert 'plan.patient_id != payment.patient_id' in payment_block
+          assert 'payment.acte_id is not None and payment.installment_id is not None' in payment_block
+          assert 'getattr(models.PaymentMethod, payment.payment_method, None)' in payment_block
+          assert 'models.PaymentMethod.ESPECES' not in payment_block
+          assert 'Body(default="ESPECES"' not in acct
+
+          fin = Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
+          modal = Path('frontend/src/features/patients/components/InstallmentPlanModal.tsx').read_text(encoding='utf-8')
+          quick = Path('frontend/src/features/patients/components/QuickPayModal.tsx').read_text(encoding='utf-8')
+          assert "recoveryRate === null ? '—'" in fin
+          assert 'Non applicable' in fin
+          assert "api.post('/installments/'" in modal
+          assert 'acte_id: acte.id' in modal
+          assert 'coverageExact' in modal
+          assert 'useState<PaymentMethod | null>(null)' in quick or 'useState<PaymentMethod | null>(null' in quick
+
+          # P0-H — commercial score absent from clinical header.
+          details = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text(encoding='utf-8')
+          assert 'PatientScoreBadge' not in details
+
+          # P0-I — no automated clinical/commercial NBA conclusion; panoramic wording is neutral.
+          habits = Path('backend/services/habits_engine.py').read_text(encoding='utf-8')
+          for banned in [
+              'Risque parodontal élevé','Planifier Détartrage','Suggérer Détartrage',
+              'Patient Premium — Impayé Critique','Patient PLATINUM',
+              'ORTHO_PROGRESSION','ORTHO_COMPLETION_ESTIMATE'
+          ]:
+              assert banned not in habits, f'P0-I banned: {banned}'
+
+          elite = Path('backend/services/elite_manager.py').read_text(encoding='utf-8')
+          rag = Path('backend/services/rag_context.py').read_text(encoding='utf-8')
+          assert 'anomalies détectées sur la panoramique' not in elite
+          assert 'panoramic_findings' not in elite
+          assert 'panoramic_findings' not in rag
+          assert 'panoramic_landmarks' in elite and 'panoramic_landmarks' in rag
+          assert 'Repérage Panoramique' in elite
+          assert "Aucune anomalie n'est conclue automatiquement." in elite
+
+          # R1 — authenticated panoramic PDF is streamed as a blob.
+          ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
+          a = ia.index('@router.get("/panoramic/{analysis_id}/pdf")')
+          b = ia.index('@router.delete("/panoramic/{analysis_id}"', a)
+          pdf_ep = ia[a:b]
+          assert pdf_ep.index('assert_patient_access') < pdf_ep.index('panoramic_elite_generator.generate')
+          assert 'FileResponse(' in pdf_ep
+          assert 'pdf_url' not in pdf_ep
+
+          pano_ui = Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
+          assert "responseType: 'blob'" in pano_ui
+          assert 'response.data.pdf_url' not in pano_ui
+
+          print('Patient P0 source contracts OK')
+          PY
+          python -m py_compile \
+            backend/routers/accounting.py \
+            backend/routers/installments.py \
+            backend/routers/ia.py \
+            backend/services/habits_engine.py \
+            backend/services/elite_manager.py \
+            backend/services/rag_context.py
+          git diff --check
+
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0-final.txt
+          pip install -r /tmp/requirements-p0-final.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: P0 targeted backend regression
+        run: |
+          python -m pytest \
+            backend/tests/test_patient_p0_identity_truth.py \
+            backend/tests/test_patient_p0_payment_binding.py \
+            backend/tests/test_patient_p0_installment_acte_link.py \
+            backend/tests/test_patient_medical_source_truth.py \
+            backend/tests/test_patient_p0_rvg_lifecycle.py \
+            -q --maxfail=1
+
+      - name: Alembic single-head contract
+        run: |
+          heads="$(alembic heads | awk '{print $1}')"
+          printf '%s\n' "$heads"
+          test "$(printf '%s\n' "$heads" | sed '/^$/d' | wc -l)" -eq 1
+          test "$(printf '%s\n' "$heads" | sed '/^$/d')" = 'c4d5e6f7a8b9'
+
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend test and build
+        working-directory: frontend
+        run: |
+          npm test -- --run
+          npm run build
