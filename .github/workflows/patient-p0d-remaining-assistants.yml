@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -107,7 +110,7 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Commit fail-closed assistants
+      - name: Commit fail-closed assistants rebase-safe
         run: |
           if git diff --quiet -- frontend/src/features/patients/components/wizards; then
             echo 'No assistant changes.'
@@ -122,7 +125,9 @@ jobs:
             frontend/src/features/patients/components/wizards/AssistantParo.tsx \
             frontend/src/features/patients/components/wizards/AssistantProthese.tsx
           git commit -m 'fix(patient): fail-close remaining clinical assistants'
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git fetch origin agent/patient-page-p0-rescue
+          git rebase origin/agent/patient-page-p0-rescue
+          git push origin HEAD:agent/patient-page-p0-rescue
 
 # Baseline 5x4 acquired before product mutation: run 32143986367
-# Re-triggered from latest branch head after after-cert wiring.
+# Writer hardened against concurrent branch-head movement.
