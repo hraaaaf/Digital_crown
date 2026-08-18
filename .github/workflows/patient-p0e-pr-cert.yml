@@ -37,12 +37,10 @@ jobs:
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0e-pr.txt
           pip install -r /tmp/requirements-p0e-pr.txt
           pip install httpx==0.27.2 pytest pytest-asyncio
-      - name: Payment + installment transaction contracts
-        run: |
-          python -m pytest \
-            backend/tests/test_patient_p0_payment_binding.py \
-            backend/tests/test_patient_p0_installment_acte_link.py \
-            -q --maxfail=1
+      - name: Payment entity binding contracts
+        run: python -m pytest backend/tests/test_patient_p0_payment_binding.py -q --maxfail=1
+      - name: Installment to acte binding contracts
+        run: python -m pytest backend/tests/test_patient_p0_installment_acte_link.py -q --maxfail=1
       - name: Alembic single head
         run: |
           python -m alembic heads | tee /tmp/heads.txt
