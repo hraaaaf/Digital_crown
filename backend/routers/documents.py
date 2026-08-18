@@ -402,13 +402,13 @@ def download_document(
     from backend.routers.auth import SECRET_KEY, ALGORITHM
     from jose import jwt, JWTError
     
-    # 1. Extraction du token (Header ou Query)
+    # 1. Extraction du token — Authorization header uniquement.
+    # Les tokens en query string sont interdits : ils peuvent fuiter dans
+    # l'historique navigateur, les logs intermédiaires et les referrers.
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-    else:
-        token = request.query_params.get("token")
+        token = auth_header.split(" ", 1)[1]
         
     if not token:
         raise HTTPException(status_code=401, detail="Token manquant")
