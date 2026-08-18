@@ -1,0 +1,12 @@
+{
+  "status": "CERTIFIED",
+  "tested_sha": "3e5b7afd689b994310519c9c245a31208a13c21b",
+  "run_id": "32119317306",
+  "contracts": [
+    "header-only auth",
+    "tenant isolation",
+    "recoverable trash/restore",
+    "authenticated blob UI",
+    "frontend build"
+  ]
+}
