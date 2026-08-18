@@ -3,7 +3,7 @@ name: Patient P0-E Payment After
 on:
   push:
     branches:
-      - agent/patient-page-p0-truth-safety
+      - agent/patient-p0e2-payment-ui-truth
     paths:
       - .github/workflows/patient-p0e-payment-after.yml
       - frontend/scripts/capture-patient-p0e-payment-after.mjs
