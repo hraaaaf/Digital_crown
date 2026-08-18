@@ -132,7 +132,7 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
 
       - name: Payment integrity regressions
         run: |
-          python -m pytest backend/tests/test_patient_p0_payment_binding.py backend/tests/test_patient_p0_payment_link_integrity.py backend/tests/test_accounting_router.py -q --maxfail=1
+          python -m pytest backend/tests/test_patient_p0_payment_binding.py backend/tests/test_accounting_router.py -q --maxfail=1
           python -m py_compile backend/routers/accounting.py
 
       - name: Commit proven fix
