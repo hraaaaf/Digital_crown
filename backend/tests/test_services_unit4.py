@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 
 # ── rag_context pure helpers ──────────────────────────────────────────────────
 
-class TestExtractPanoramicSummary:
+class TestExtractPanoramicLandmarks:
     def _fn(self, panoramics):
-        from backend.services.rag_context import _extract_panoramic_summary
-        return _extract_panoramic_summary(panoramics)
+        from backend.services.rag_context import _extract_panoramic_landmarks
+        return _extract_panoramic_landmarks(panoramics)
 
     def _make_pano(self, detections):
         mock = MagicMock()
@@ -22,57 +22,58 @@ class TestExtractPanoramicSummary:
         pano = self._make_pano([])
         assert self._fn([pano]) == []
 
-    def test_single_detection_returned(self):
+    def test_explicit_tooth_fdi_becomes_neutral_landmark(self):
         pano = self._make_pano([{"class_name": "Carie", "tooth_fdi": "16"}])
-        result = self._fn([pano])
-        assert len(result) == 1
-        assert "Carie" in result[0]
-        assert "16" in result[0]
+        assert self._fn([pano]) == ["Dent 16"]
 
-    def test_detection_without_tooth_fdi(self):
-        pano = self._make_pano([{"class_name": "Tartre"}])
-        result = self._fn([pano])
-        assert result == ["Tartre"]
+    def test_pathology_without_tooth_locator_is_ignored(self):
+        pano = self._make_pano([{"class_name": "Tartre"}, {"label": "Parodontite"}])
+        assert self._fn([pano]) == []
 
-    def test_detection_uses_label_fallback(self):
-        pano = self._make_pano([{"label": "Parodontite"}])
-        result = self._fn([pano])
-        assert result == ["Parodontite"]
+    def test_generic_tooth_class_can_use_fdi_label(self):
+        pano = self._make_pano([{"class": "tooth", "label": "21"}])
+        assert self._fn([pano]) == ["Dent 21"]
 
-    def test_max_5_findings_returned(self):
-        dets = [{"class_name": f"Anomaly{i}", "tooth_fdi": str(i)} for i in range(10)]
-        pano = self._make_pano(dets)
-        result = self._fn([pano])
-        assert len(result) <= 5
+    def test_invalid_fdi_is_ignored(self):
+        pano = self._make_pano([
+            {"class": "tooth", "label": "99"},
+            {"class_name": "Carie", "tooth_fdi": "51"},
+            {"class_name": "Carie", "tooth_fdi": "1"},
+        ])
+        assert self._fn([pano]) == []
+
+    def test_max_5_landmarks_returned(self):
+        dets = [{"class": "tooth", "label": value} for value in ["11", "12", "13", "14", "15", "16", "17"]]
+        result = self._fn([self._make_pano(dets)])
+        assert result == ["Dent 11", "Dent 12", "Dent 13", "Dent 14", "Dent 15"]
 
     def test_no_duplicates(self):
         pano = self._make_pano([
             {"class_name": "Carie", "tooth_fdi": "16"},
-            {"class_name": "Carie", "tooth_fdi": "16"},
+            {"class_name": "Fracture", "tooth_fdi": "16"},
         ])
-        result = self._fn([pano])
-        assert result.count("Carie (dent 16)") == 1
+        assert self._fn([pano]) == ["Dent 16"]
 
     def test_up_to_2_panoramics_scanned(self):
-        pano1 = self._make_pano([{"class_name": "Carie", "tooth_fdi": "11"}])
-        pano2 = self._make_pano([{"class_name": "Tartre", "tooth_fdi": "26"}])
-        pano3 = self._make_pano([{"class_name": "Kyste", "tooth_fdi": "38"}])
+        pano1 = self._make_pano([{"class": "tooth", "label": "11"}])
+        pano2 = self._make_pano([{"class": "tooth", "label": "26"}])
+        pano3 = self._make_pano([{"class": "tooth", "label": "38"}])
         result = self._fn([pano1, pano2, pano3])
-        # Only first 2 panoramics are scanned
-        assert any("Carie" in r for r in result)
-        assert any("Tartre" in r for r in result)
-        # pano3 should not be included
-        assert not any("Kyste" in r for r in result)
+        assert "Dent 11" in result
+        assert "Dent 26" in result
+        assert "Dent 38" not in result
 
-    def test_detection_empty_class_name_skipped(self):
-        pano = self._make_pano([{"class_name": "", "tooth_fdi": "16"}])
+    def test_pathology_text_never_propagates(self):
+        pano = self._make_pano([
+            {"class_name": "Carie", "tooth_fdi": "16"},
+            {"class_name": "Kyste", "tooth_fdi": "38"},
+            {"class_name": "Parodontite", "tooth_fdi": "31"},
+        ])
         result = self._fn([pano])
-        assert result == []
-
-    def test_detection_none_class_name_uses_label(self):
-        pano = self._make_pano([{"class_name": None, "label": "Fracture"}])
-        result = self._fn([pano])
-        assert result == ["Fracture"]
+        joined = " ".join(result).lower()
+        assert result == ["Dent 16", "Dent 38", "Dent 31"]
+        for forbidden in ("carie", "kyste", "parodontite"):
+            assert forbidden not in joined
 
 
 class TestExtractCephaloTrend:
@@ -126,7 +127,7 @@ class TestExtractCephaloTrend:
         assert self._fn([c1, c2]) == "stable"
 
 
-# ── ghost_memory_service._hash_context ────────��──────────────────────────────
+# ── ghost_memory_service._hash_context ───────────────────────────────────────
 
 class TestGhostMemoryHash:
     def _svc(self):
@@ -213,18 +214,15 @@ class TestCephaloConsistencyValidator:
 
     def test_validate_angles_valid_case(self):
         v = self._validator()
-        # Valid SNA, SNB, ANB values
         angles = {
             "SNA": {"valeur": 82.0},
             "SNB": {"valeur": 80.0},
             "ANB": {"valeur": 2.0},
         }
-        # Should not raise
         try:
             result = v.validate(angles)
             assert result is not None
         except AttributeError:
-            # method might be named differently
             pass
 
     def test_class_is_instantiable(self):
