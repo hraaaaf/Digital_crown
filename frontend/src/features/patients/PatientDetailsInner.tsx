@@ -4,19 +4,16 @@ import {
   Activity,
   FileText,
   ArrowLeft,
-  User,
   Calendar,
   Phone,
-  Loader2,
-  Archive,
   FileDigit,
   Target,
-  HeartPulse,
   Stethoscope,
   Mail,
-  MapPin,
   AlertTriangle,
-  RefreshCcw
+  RefreshCcw,
+  Plus,
+  History,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -65,7 +62,7 @@ type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'f
 export const PatientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
 
@@ -74,7 +71,7 @@ export const PatientDetails = () => {
   const user = useAuthStore(state => state.user);
   const canClinical = !user?.employer_id || Boolean(user?.permissions?.clinical);
 
-  const { editingDoc, setEditingDoc, patientsCache } = usePatientStore();
+  const { editingDoc, patientsCache } = usePatientStore();
   const cachedPatient = patientsCache.find(p => String(p.id) === id);
   const [patient, setPatient] = useState<Patient | null>(cachedPatient ? { ...cachedPatient, assurance: cachedPatient.assurance } : null);
   const [loading, setLoading] = useState(!cachedPatient);
@@ -111,7 +108,7 @@ export const PatientDetails = () => {
       const response = await api.get(`/patients/${id}`);
       setPatient(response.data);
     } catch (error) {
-      console.error("❌ Erreur chargement patient:", error);
+      console.error('❌ Erreur chargement patient:', error);
       setFetchError(true);
     } finally {
       setLoading(false);
@@ -130,13 +127,13 @@ export const PatientDetails = () => {
           toast(`💡 ${res.data.nba.title} — ${res.data.nba.action}`, { duration: 6000 });
         }
       }).catch(() => {});
-    }, 1500); // Délai pour ne pas spammer au chargement immédiat
-    
+    }, 1500);
+
     return () => clearTimeout(timer);
   }, [id]);
 
   // Garde-fou : l'onglet clinique peut être atteint via l'URL (?tab=clinical).
-  // Sans la permission, on bascule sur le suivi pour éviter un onglet vide.
+  // Sans la permission, on bascule sur la vue d'ensemble pour éviter un onglet vide.
   useEffect(() => {
     if (!canClinical && activeTab === 'clinical') {
       setSearchParams({ tab: 'tracking' }, { replace: true });
@@ -150,7 +147,7 @@ export const PatientDetails = () => {
       setPatient(prev => prev ? { ...prev, dossier: { ...prev.dossier, is_ortho_active: true } } : null);
       toast.success('Suivi orthodontique activé');
     } catch (err) {
-      toast.error('Erreur lors de l\'activation');
+      toast.error("Erreur lors de l'activation");
     } finally {
       setLoading(false);
     }
@@ -189,110 +186,107 @@ export const PatientDetails = () => {
   if (!patient) return null;
 
   const fullName = `${patient.nom.toUpperCase()} ${patient.prenom}`;
-  const isCompact = activeTab === 'admin' || activeTab === 'archives';
+  const isDocuments = activeTab === 'admin' || activeTab === 'archives';
+  const documentView = activeTab === 'archives' ? 'history' : 'create';
+  const birthDate = new Date(patient.date_naissance);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayPending = today.getMonth() < birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+  if (birthdayPending) age -= 1;
+  const birthLabel = Number.isNaN(birthDate.getTime())
+    ? patient.date_naissance
+    : birthDate.toLocaleDateString('fr-FR');
 
   return (
-    <div className={cn("flex flex-col bg-transparent", isCompact ? "h-screen overflow-hidden" : "min-h-screen")}>
-      
-      <header className={cn(
-        "sticky top-0 z-[300] bg-card-bg/80 backdrop-blur-xl border-b border-border-main transition-all duration-500",
-        isCompact ? "pt-3 pb-0 shadow-elite" : "pt-8 pb-0 shadow-elite"
-      )}>
-        <div className="max-w-[1600px] mx-auto px-6 md:px-10">
-          
-          <div className={cn("flex items-center justify-between transition-all duration-500", isCompact ? "mb-2" : "mb-6")}>
-            <div className="flex items-center gap-5">
+    <div className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
+      <header className="sticky top-0 z-[300] bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-8 pt-3">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 mb-3">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
               <button
                 onClick={() => navigate('/patients')}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:border-primary flex items-center justify-center rounded-xl transition-all shadow-sm active:scale-95",
-                  isCompact ? "w-8 h-8" : "w-12 h-12"
-                )}
+                className="w-10 h-10 shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all"
                 style={{ color: 'var(--primary)' }}
                 aria-label="Retourner à la liste des patients"
               >
-                <ArrowLeft size={isCompact ? 18 : 24} strokeWidth={2.5} />
+                <ArrowLeft size={20} strokeWidth={2.5} />
               </button>
-              
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className={cn("font-black tracking-tight flex items-center gap-4 transition-all duration-500", isCompact ? "text-xl" : "text-3xl")} style={{ color: 'var(--primary)' }}>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="font-black tracking-tight text-xl md:text-2xl truncate" style={{ color: 'var(--primary)' }}>
                     {fullName}
                   </h1>
                   <AssuranceBadge assurance={patient.assurance} size="full" hideWhenNone />
-                  {!isCompact && (
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-lg uppercase tracking-widest border border-primary/10 shadow-sm" style={{ color: 'var(--primary)' }}>
-                        Dossier Actif
-                      </span>
-                      <button 
-                        onClick={() => navigate(`/patients/${id}/edit`)}
-                        className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg uppercase tracking-widest shadow-sm hover:opacity-90 transition-opacity"
-                        style={{ backgroundColor: 'var(--primary)' }}
-                      >
-                        Modifier Dossier
-                      </button>
-                    </div>
+                  {patient.antecedents_medicaux && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[10px] font-black uppercase tracking-wide">
+                      <AlertTriangle size={12} /> Alerte médicale
+                    </span>
                   )}
+                  <button
+                    onClick={() => navigate(`/patients/${id}/edit`)}
+                    className="px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border border-primary/15 bg-primary/5 hover:bg-primary/10 transition-colors"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    Modifier
+                  </button>
                 </div>
-                
-                <div className={cn("flex flex-wrap items-center gap-4 mt-3 text-sm font-bold text-text-muted transition-all duration-300", isCompact ? "hidden" : "opacity-100")}>
-                  <div className="flex items-center gap-2 px-2 py-1 bg-card-bg border border-border-main rounded-lg shadow-sm">
-                    <FileDigit size={14} style={{ color: 'var(--primary)' }} />
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-bold text-text-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <FileDigit size={13} style={{ color: 'var(--primary)' }} />
                     <span className="font-mono" style={{ color: 'var(--primary)' }}>{patient.numero_dossier || `ID-${patient.id}`}</span>
-                  </div>
-                  <div className="flex items-center gap-2"><Calendar size={16} className="text-text-muted" /><span>{new Date(patient.date_naissance).toLocaleDateString('fr-FR')}</span></div>
-                  <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone}</span></div>
-                  {patient.telephone_2 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_2}</span></div>}
-                  {patient.telephone_3 && <div className="flex items-center gap-2"><Phone size={16} className="text-text-muted" /><span>{patient.telephone_3}</span></div>}
-                  {patient.email && <div className="flex items-center gap-2"><Mail size={16} className="text-text-muted" /><span>{patient.email}</span></div>}
-                  {patient.adresse && <div className="flex items-center gap-2"><MapPin size={16} className="text-text-muted" /><span>{patient.adresse}</span></div>}
+                  </span>
+                  <span>{age >= 0 && age < 130 ? `${age} ans · ` : ''}{birthLabel}</span>
+                  <span className="inline-flex items-center gap-1.5"><Phone size={13} />{patient.telephone}</span>
+                  {patient.email && <span className="hidden md:inline-flex items-center gap-1.5"><Mail size={13} />{patient.email}</span>}
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <button
+
+            <div className="grid grid-cols-4 gap-2 w-full xl:w-auto" aria-label="Actions rapides patient">
+              <QuickAction
+                icon={<Calendar size={18} />}
+                label="RDV"
                 onClick={() => navigate('/agenda', {
                   state: { prefillPatientId: patient.id, prefillPatientNom: patient.nom, prefillPatientPrenom: patient.prenom }
                 })}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
-              >
-                <Calendar size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
-                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Prendre RDV</span>}
-              </button>
-
-              <button
+              />
+              <QuickAction
+                icon={<Stethoscope size={18} />}
+                label={canClinical ? 'Examen' : 'Suivi'}
+                onClick={() => handleTabChange(canClinical ? 'clinical' : 'tracking')}
+              />
+              <QuickAction
+                icon={<FileText size={18} />}
+                label="Document"
+                onClick={() => handleTabChange('admin')}
+              />
+              <QuickAction
+                icon={<Banknote size={18} />}
+                label="Encaisser"
                 onClick={() => setIsPayModalOpen(true)}
-                className={cn("bg-card-bg border border-border-main text-text-muted hover:text-emerald-500 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-[1.2rem] shadow-sm transition-all flex items-center justify-center group", isCompact ? "w-10 h-10" : "h-16 px-6")}
-              >
-                <Banknote size={isCompact ? 18 : 24} className="group-active:scale-95 transition-transform" />
-                {!isCompact && <span className="ml-3 font-black uppercase tracking-widest text-[11px]">Encaisser</span>}
-              </button>
-
-              <div className={cn("rounded-[1.2rem] text-white shadow-xl transition-all duration-500 flex items-center justify-center", isCompact ? "w-10 h-10" : "w-16 h-16")} style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}>
-                <User size={isCompact ? 20 : 30} strokeWidth={2} />
-              </div>
+                accent="emerald"
+              />
             </div>
           </div>
 
-          <div data-tour="patient-tabs" className="flex gap-10 border-b border-transparent -mb-[1px]">
-            <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={18} />} label="Séances & Suivi" />
-            {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={18} />} label="Examen Clinique" />}
-            <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={18} />} label="Radiologie (IA)" />
-            <TabButton active={activeTab === 'admin'} onClick={() => handleTabChange('admin')} icon={<FileText size={18} />} label="Documents A5" />
-            <TabButton active={activeTab === 'archives'} onClick={() => handleTabChange('archives')} icon={<Archive size={18} />} label="Archives & Historique" />
-            <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={18} />} label="Finances" />
+          <div data-tour="patient-tabs" className="flex gap-1 sm:gap-3 overflow-x-auto border-b border-transparent -mb-[1px] scrollbar-none">
+            <TabButton active={activeTab === 'tracking'} onClick={() => handleTabChange('tracking')} icon={<Calendar size={17} />} label="Vue d’ensemble" />
+            {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
+            <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
+            <TabButton active={isDocuments} onClick={() => handleTabChange('admin')} icon={<FileText size={17} />} label="Documents" />
+            <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />
           </div>
         </div>
       </header>
 
       <main className={cn(
-        "max-w-[1600px] mx-auto w-full transition-all duration-500",
-        isCompact ? "flex-1 h-[calc(100vh-90px)] px-4 py-4 md:px-8 md:py-6" : "flex-1 px-10 py-10 space-y-10"
+        'max-w-[1600px] mx-auto w-full transition-all duration-500',
+        isDocuments ? 'flex-1 min-h-0 px-3 py-3 md:px-6 md:py-4' : 'flex-1 px-4 py-6 md:px-8 md:py-8 space-y-6'
       )}>
-        
-        
-        {!isCompact && (patient.antecedents_medicaux || patient.motif_consultation) && (
+        {!isDocuments && (patient.antecedents_medicaux || patient.motif_consultation) && (
           <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
             {patient.antecedents_medicaux && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 shadow-sm">
@@ -335,33 +329,32 @@ export const PatientDetails = () => {
           </div>
         )}
 
-        <FlashSummary patientId={Number(id)} patientName={fullName} />
+        {activeTab === 'tracking' && <FlashSummary patientId={Number(id)} patientName={fullName} />}
 
-        <div className={cn("animate-in fade-in slide-in-from-bottom-8 duration-700 h-full", !isCompact && "delay-150")}>
+        <div className={cn('animate-in fade-in slide-in-from-bottom-8 duration-700 h-full', !isDocuments && 'delay-150')}>
           {activeTab === 'radiology' && (
             <div className="space-y-6">
-              {/* Ghost Elite Toggle */}
               <div className="flex justify-center">
-                <div className="inline-flex bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner">
-                  <button 
+                <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner">
+                  <button
                     onClick={() => handleRadioTabChange('cephalo')}
                     className={cn(
-                      "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
-                      radioTab === 'cephalo' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"
+                      'px-5 md:px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap',
+                      radioTab === 'cephalo' ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main'
                     )}
                   >
                     <Activity size={16} />
-                    Céphalométrie COM
+                    Céphalométrie
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleRadioTabChange('panoramic')}
                     className={cn(
-                      "px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2", 
-                      radioTab === 'panoramic' ? "bg-card-bg text-primary shadow-elite" : "text-text-muted hover:text-main"
+                      'px-5 md:px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap',
+                      radioTab === 'panoramic' ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main'
                     )}
                   >
                     <Target size={16} />
-                    Panoramique DENTEX
+                    Panoramique
                   </button>
                 </div>
               </div>
@@ -376,8 +369,8 @@ export const PatientDetails = () => {
                         <Activity className="w-12 h-12 text-slate-400" />
                       </div>
                       <h3 className="text-2xl font-black text-slate-800 mb-2">Module Céphalométrique Verrouillé</h3>
-                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés COM.</p>
-                      <button 
+                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
+                      <button
                         onClick={activateOrtho}
                         className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"
                       >
@@ -392,17 +385,44 @@ export const PatientDetails = () => {
               </div>
             </div>
           )}
-          
+
           {activeTab === 'tracking' && <PatientJourney patientId={Number(id)} />}
-          
+
           {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
-          {activeTab === 'admin' && (
-            <DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />
-          )}
+          {isDocuments && (
+            <div className="h-full min-h-0 flex flex-col gap-3">
+              <div className="shrink-0 flex items-center justify-center">
+                <div className="inline-flex p-1 rounded-xl bg-card-bg border border-border-main shadow-sm">
+                  <button
+                    onClick={() => handleTabChange('admin')}
+                    className={cn(
+                      'px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all',
+                      documentView === 'create' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main'
+                    )}
+                  >
+                    <Plus size={15} /> Créer
+                  </button>
+                  <button
+                    onClick={() => handleTabChange('archives')}
+                    className={cn(
+                      'px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all',
+                      documentView === 'history' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main'
+                    )}
+                  >
+                    <History size={15} /> Historique
+                  </button>
+                </div>
+              </div>
 
-          {activeTab === 'archives' && (
-            <PatientDocuments />
+              <div className="flex-1 min-h-0">
+                {documentView === 'create' ? (
+                  <DocumentHub patientId={id!} patientName={fullName} editData={editingDoc} />
+                ) : (
+                  <PatientDocuments />
+                )}
+              </div>
+            </div>
           )}
 
           {activeTab === 'finances' && (
@@ -411,23 +431,38 @@ export const PatientDetails = () => {
         </div>
       </main>
 
-      <QuickPayModal 
-        isOpen={isPayModalOpen} 
-        onClose={() => setIsPayModalOpen(false)} 
-        patientId={Number(id)} 
+      <QuickPayModal
+        isOpen={isPayModalOpen}
+        onClose={() => setIsPayModalOpen(false)}
+        patientId={Number(id)}
       />
     </div>
   );
 };
 
+const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      'h-10 min-w-0 px-2 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95',
+      accent === 'emerald'
+        ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5'
+        : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5'
+    )}
+  >
+    {icon}
+    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{label}</span>
+  </button>
+);
+
 const TabButton = ({ active, onClick, icon, label }: any) => (
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 pb-3 px-2 text-[12px] font-black uppercase tracking-[0.1em] transition-all border-b-4",
-      active 
-        ? "text-primary" 
-        : "border-transparent text-text-muted hover:text-main hover:border-border-main"
+      'shrink-0 flex items-center gap-2 pb-2.5 px-2 md:px-3 text-[11px] md:text-[12px] font-black uppercase tracking-[0.08em] transition-all border-b-[3px] whitespace-nowrap',
+      active
+        ? 'text-primary'
+        : 'border-transparent text-text-muted hover:text-main hover:border-border-main'
     )}
     style={active ? { borderColor: 'var(--primary)', color: 'var(--primary)' } : {}}
   >
