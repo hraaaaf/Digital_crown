@@ -117,3 +117,5 @@ jobs:
           git fetch origin agent/patient-page-p0-rescue
           git rebase origin/agent/patient-page-p0-rescue
           git push origin HEAD:agent/patient-page-p0-rescue
+
+# retrigger 2026-08-18
