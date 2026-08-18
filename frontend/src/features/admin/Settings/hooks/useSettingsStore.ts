@@ -333,8 +333,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     });
 
     toast.promise(uploadPromise, {
-      loading: 'Détourage IA en cours... ✨',
-      success: 'Logo Premium généré avec succès !',
+      loading: 'Optimisation du logo en cours...',
+      success: 'Logo optimisé et enregistré',
       error: 'Erreur lors du traitement du logo'
     });
 
