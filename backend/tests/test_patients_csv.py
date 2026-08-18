@@ -5,7 +5,7 @@ import io
 def _csv(rows: list[list[str]], delimiter=";", header=True) -> bytes:
     lines = []
     if header:
-        lines.append(delimiter.join(["nom", "prenom", "date_naissance", "telephone", "email"]))
+        lines.append(delimiter.join(["nom", "prenom", "date_naissance", "sexe", "telephone", "email"]))
     for row in rows:
         lines.append(delimiter.join(row))
     return "\n".join(lines).encode("utf-8")
@@ -14,8 +14,8 @@ def _csv(rows: list[list[str]], delimiter=";", header=True) -> bytes:
 class TestCsvImport:
     def test_import_valid_rows(self, client, auth_headers):
         data = _csv([
-            ["ALAMI", "Sara", "1990-05-15", "0612345678", "sara@test.dz"],
-            ["BENALI", "Omar", "1985-03-22", "", ""],
+            ["ALAMI", "Sara", "1990-05-15", "F", "0612345678", "sara@test.dz"],
+            ["BENALI", "Omar", "1985-03-22", "M", "", ""],
         ])
         r = client.post(
             "/api/patients/import-csv",
@@ -29,15 +29,13 @@ class TestCsvImport:
         assert body["errors"] == []
 
     def test_import_detects_duplicates(self, client, auth_headers):
-        data = _csv([["DUPTEST", "Lila", "1992-07-10", "", ""]])
-        # First import
+        data = _csv([["DUPTEST", "Lila", "1992-07-10", "F", "", ""]])
         r1 = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
             headers=auth_headers,
         )
         assert r1.json()["created"] == 1
-        # Second import of same row → duplicate
         r2 = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -47,7 +45,7 @@ class TestCsvImport:
         assert r2.json()["skipped_duplicates"] == 1
 
     def test_import_invalid_date_reported_as_error(self, client, auth_headers):
-        data = _csv([["ERREUR", "Test", "not-a-date", "", ""]])
+        data = _csv([["ERREUR", "Test", "not-a-date", "M", "", ""]])
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -60,8 +58,7 @@ class TestCsvImport:
         assert "date" in body["errors"][0]["reason"].lower()
 
     def test_import_missing_required_fields(self, client, auth_headers):
-        # Row with only nom and prenom, no date_naissance
-        data = b"nom;prenom;date_naissance\nALI;;1990-01-01\n"
+        data = b"nom;prenom;date_naissance;sexe\nALI;;1990-01-01;M\n"
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -71,7 +68,7 @@ class TestCsvImport:
         assert len(r.json()["errors"]) >= 1
 
     def test_import_comma_delimiter(self, client, auth_headers):
-        data = _csv([["COMMA", "Test", "1995-01-01", "", ""]], delimiter=",")
+        data = _csv([["COMMA", "Test", "1995-01-01", "M", "", ""]], delimiter=",")
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -81,7 +78,7 @@ class TestCsvImport:
         assert r.json()["created"] == 1
 
     def test_import_french_date_format(self, client, auth_headers):
-        data = _csv([["DATEFR", "Alice", "15/08/1988", "", ""]])
+        data = _csv([["DATEFR", "Alice", "15/08/1988", "F", "", ""]])
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -91,7 +88,7 @@ class TestCsvImport:
         assert r.json()["created"] == 1
 
     def test_import_unauthenticated_returns_401(self, client):
-        data = _csv([["TEST", "User", "1990-01-01", "", ""]])
+        data = _csv([["TEST", "User", "1990-01-01", "M", "", ""]])
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
@@ -99,8 +96,7 @@ class TestCsvImport:
         assert r.status_code == 401
 
     def test_import_latin1_encoding(self, client, auth_headers):
-        # Encode with latin-1
-        content = "nom;prenom;date_naissance\nDÉMO;René;1980-06-01\n"
+        content = "nom;prenom;date_naissance;sexe\nDÉMO;René;1980-06-01;M\n"
         data = content.encode("latin-1")
         r = client.post(
             "/api/patients/import-csv",
@@ -114,7 +110,7 @@ class TestCsvImport:
         """Each imported patient should have a DossierClinique record."""
         from backend import models
 
-        data = _csv([["DOSSIER", "Check", "2000-01-01", "", ""]])
+        data = _csv([["DOSSIER", "Check", "2000-01-01", "M", "", ""]])
         r = client.post(
             "/api/patients/import-csv",
             files={"file": ("p.csv", io.BytesIO(data), "text/csv")},
