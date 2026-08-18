@@ -1,0 +1,32 @@
+{
+  "lot": "Patient P0-H clinical header neutrality",
+  "status": "CERTIFIED",
+  "baseline": {
+    "run_id": 32132516440,
+    "artifact_id": 9322782313,
+    "digest": "sha256:25ff3f6476b406f099a82180e80087880b8dd978499fdc738bf0a8dda7515cad",
+    "captures": 4,
+    "badge_visible_everywhere": true,
+    "overflow_findings": 0,
+    "runtime_errors": 0
+  },
+  "after": {
+    "captures": 4,
+    "badgeAbsentEverywhere": true,
+    "overflowFindings": [],
+    "runtimeErrors": [],
+    "http5xx": []
+  },
+  "goal": "Remove only PatientScoreBadge from clinical patient header; preserve the existing application layout.",
+  "source_delta": {
+    "file": "frontend/src/features/patients/PatientDetailsInner.tsx",
+    "removed": [
+      "PatientScoreBadge import",
+      "useSettingsStore import",
+      "show_patient_badges selector",
+      "PatientScoreBadge render"
+    ]
+  },
+  "workflow_run_id": "32132978541",
+  "pre_apply_sha": "bc8cfb7497e461da379c17725656f7fec46e98f9"
+}
