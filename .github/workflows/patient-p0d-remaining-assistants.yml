@@ -123,3 +123,5 @@ jobs:
             frontend/src/features/patients/components/wizards/AssistantProthese.tsx
           git commit -m 'fix(patient): fail-close remaining clinical assistants'
           git push origin HEAD:${GITHUB_REF_NAME}
+
+# Baseline 5x4 acquired before product mutation: run 32143986367
