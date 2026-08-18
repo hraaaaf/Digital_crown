@@ -209,28 +209,7 @@ class HabitsEngine:
                 "action": f"/patients/{patient_id}/archives"
             })
 
-        # Exemple 2 : Prévention (Trigger Temps)
-        last_detartrage = db.query(models.Acte).filter(
-            models.Acte.patient_id == patient_id,
-            models.Acte.libelle.ilike("%détartrage%")
-        ).order_by(desc(models.Acte.date_debut)).first()
-        
-        if last_detartrage:
-            _days_detartrage = (datetime.now() - last_detartrage.date_debut).days
-            if _days_detartrage > 365:
-                triggers.append({
-                    "type": "CRITICAL_PREVENTION",
-                    "title": "Détartrage Annuel Dépassé",
-                    "message": f"Dernier détartrage il y a {_days_detartrage} jours. Risque parodontal élevé.",
-                    "action": "Planifier Détartrage"
-                })
-            elif _days_detartrage > 180:
-                triggers.append({
-                    "type": "PREVENTION",
-                    "title": "Hygiène & Prévention",
-                    "message": "Dernier détartrage il y a plus de 6 mois.",
-                    "action": "Suggérer Détartrage"
-                })
+        # Prévention clinique fondée sur un délai uniquement : supprimée en P0 fail-closed.
 
         # Exemple 3 : Dossier Incomplet (Trigger Qualité)
         has_antecedents = False
@@ -299,22 +278,7 @@ class HabitsEngine:
                         "action": "Contacter le Patient"
                     })
 
-        # C3: Patient Haute Valeur à Risque — score calculé dynamiquement
-        from backend.services.patient_scoring_service import patient_scoring_service as _pss
-        _score_data = _pss.calculate_score(db, patient_id)
-        _effective_grade = patient.manual_grade or _score_data.get("grade", "BRONZE")
-        if _effective_grade == "PLATINUM":
-            _solde = db.query(func.sum(models.Acte.montant)).filter(
-                models.Acte.patient_id == patient_id,
-                models.Acte.statut_paiement == "EN_ATTENTE"
-            ).scalar() or 0.0
-            if _solde > 2000:
-                triggers.append({
-                    "type": "HIGH_VALUE_RISK",
-                    "title": "Patient Premium — Impayé Critique",
-                    "message": f"Patient PLATINUM avec {_solde:.0f} MAD en attente de règlement.",
-                    "action": "Relancer le Paiement"
-                })
+        # Classement commercial Patient Premium : exclu des alertes Patient P0.
 
         # A4: Traitement Abandonné
         _devis = db.query(models.DocumentArchive).filter(
@@ -369,21 +333,8 @@ class HabitsEngine:
                     "action": "Envoyer rappel WhatsApp"
                 })
 
-        # B4: Progression Traitement Ortho
+        # Progression orthodontique automatique : supprimée, le dossier ne permet pas de conclure cliniquement.
         dossier = patient.dossier
-        if dossier and dossier.is_ortho_active:
-            _semestres = db.query(func.count(models.Acte.id)).filter(
-                models.Acte.patient_id == patient_id,
-                models.Acte.type_acte == "ORTHO_SEMESTRE"
-            ).scalar() or 0
-            if _semestres > 0:
-                _progression = min(int((_semestres / 4) * 100), 100)
-                triggers.append({
-                    "type": "ORTHO_PROGRESSION",
-                    "title": "Progression Orthodontie",
-                    "message": f"{_semestres} séance(s) sur ~4 — {_progression}% d'avancement estimé.",
-                    "action": "Voir plan de traitement"
-                })
 
         # B3: Créneau Maudit
         _all_cancelled = db.query(models.Appointment).filter(
@@ -401,28 +352,7 @@ class HabitsEngine:
                     "action": "Reprogrammer à un autre créneau"
                 })
 
-        # B5: Prédiction Fin Traitement Ortho
-        if dossier and dossier.is_ortho_active:
-            _ortho_acts = db.query(models.Acte).filter(
-                models.Acte.patient_id == patient_id,
-                models.Acte.type_acte == "ORTHO_SEMESTRE"
-            ).order_by(models.Acte.date_debut).all()
-            if len(_ortho_acts) >= 2:
-                _intervals = [
-                    (_ortho_acts[i + 1].date_debut - _ortho_acts[i].date_debut).days
-                    for i in range(len(_ortho_acts) - 1)
-                ]
-                _avg_interval = sum(_intervals) / len(_intervals)
-                _remaining_semesters = max(0, 4 - len(_ortho_acts))
-                _predicted_end = _ortho_acts[-1].date_debut + timedelta(days=int(_avg_interval * _remaining_semesters))
-                _months_left = max(0, (_predicted_end - datetime.now()).days // 30)
-                if _months_left > 0:
-                    triggers.append({
-                        "type": "ORTHO_COMPLETION_ESTIMATE",
-                        "title": "Fin de Traitement Estimée",
-                        "message": f"Fin ortho estimée dans ~{_months_left} mois ({_predicted_end.strftime('%B %Y')}).",
-                        "action": "Voir progression"
-                    })
+        # Estimation automatique de fin orthodontique : supprimée en P0 fail-closed.
 
         # C4: Rappels Semestriels Ortho (Notes d'honoraires)
         if dossier and dossier.is_ortho_active:

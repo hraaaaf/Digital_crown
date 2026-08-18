@@ -70,58 +70,23 @@ export const AssistantParo: React.FC<AssistantParoProps> = ({ onComplete, onCanc
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let stage = 'Sain';
-      let grade = 'Grade A';
-      const extent = finalAnswers.bop === 2 ? 'Généralisée' : 'Localisée';
-      
-      // Staging
-      if (finalAnswers.cal === 0 && finalAnswers.bop > 0) {
-        stage = 'Gingivite induite par la plaque';
-      } else if (finalAnswers.cal === 1) {
-        stage = 'Parodontite Stade I';
-      } else if (finalAnswers.cal === 2) {
-        stage = 'Parodontite Stade II';
-      } else if (finalAnswers.cal === 3) {
-        if (finalAnswers.complexity === 2) {
-          stage = 'Parodontite Stade IV';
-        } else {
-          stage = 'Parodontite Stade III';
-        }
-      }
+      const selected = QUESTIONS.map((question) => {
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${question.title} : ${option?.label ?? 'Non renseigné'}`;
+      });
 
-      // Grading
-      if (stage.includes('Parodontite')) {
-        if (finalAnswers.risk === 2) grade = 'Grade C (Progression rapide)';
-        else if (finalAnswers.risk === 1) grade = 'Grade B (Progression modérée)';
-        else grade = 'Grade A (Progression lente)';
-      }
+      const summary = [
+        'Synthèse parodontale structurée.',
+        `Observations recueillies : ${selected.join(' ; ')}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
 
-      const diagnosticText = stage === 'Sain' 
-        ? 'Parodonte cliniquement sain.' 
-        : stage.includes('Gingivite')
-        ? `${stage} (${extent})`
-        : `${stage}, ${grade}, ${extent}.`;
-
-      const treatmentSteps = [];
-      if (stage.includes('Gingivite') || stage.includes('Parodontite')) {
-        treatmentSteps.push({ title: 'Motivation à l\'hygiène et Contrôle de plaque', assistant: 'paro' });
-      }
-      if (stage.includes('Parodontite')) {
-        treatmentSteps.push({ title: 'Assainissement Parodontal Non-Chirurgical (Surfaçage)', assistant: 'paro' });
-      }
-      if (finalAnswers.risk === 2 && stage.includes('Stade III')) {
-        treatmentSteps.push({ title: 'Antibiothérapie adjuvante (Amoxicilline + Métronidazole)', assistant: 'paro' });
-      }
-      if (stage.includes('Stade III') || stage.includes('Stade IV')) {
-        treatmentSteps.push({ title: 'Réévaluation à 6-8 semaines', assistant: 'paro' });
-        if (finalAnswers.complexity > 0) {
-          treatmentSteps.push({ title: 'Chirurgie parodontale d\'accès ou régénératrice', assistant: 'chirurgie' });
-        }
-      }
-
-      onComplete(diagnosticText, treatmentSteps);
+      onComplete(summary, []);
     }, 1500);
   };
 

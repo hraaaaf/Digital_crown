@@ -53,10 +53,10 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
 
   if (!snapshot) return null;
 
-  const recoveryRate =
-    snapshot.total_billed > 0
-      ? Math.round((snapshot.total_collected / snapshot.total_billed) * 100)
-      : 100;
+  const hasBillingBase = snapshot.total_billed > 0;
+  const recoveryRate = hasBillingBase
+    ? Math.round((snapshot.total_collected / snapshot.total_billed) * 100)
+    : null;
 
   return (
     <div className="space-y-8 pb-10">
@@ -99,11 +99,19 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Taux Recouvrement</p>
           <div className={cn(
             "text-3xl font-black",
-            recoveryRate >= 80 ? "text-emerald-600" : recoveryRate >= 50 ? "text-amber-600" : "text-red-600"
+            recoveryRate === null
+              ? "text-slate-500"
+              : recoveryRate >= 80
+                ? "text-emerald-600"
+                : recoveryRate >= 50
+                  ? "text-amber-600"
+                  : "text-red-600"
           )}>
-            {recoveryRate}%
+            {recoveryRate === null ? '—' : `${recoveryRate}%`}
           </div>
-          <div className="text-xs text-text-muted font-bold mt-1">Encaissé / Facturé</div>
+          <div className="text-xs text-text-muted font-bold mt-1">
+            {recoveryRate === null ? 'Non applicable' : 'Encaissé / Facturé'}
+          </div>
         </div>
       </div>
 
@@ -411,6 +419,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           onCreated={() => {
             setPlanActe(null);
             refetch();
+            refetchBilling();
           }}
         />
       )}

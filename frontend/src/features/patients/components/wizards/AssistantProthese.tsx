@@ -58,48 +58,23 @@ export const AssistantProthese: React.FC<AssistantProtheseProps> = ({ onComplete
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Reconstruction coronaire";
-      const steps = [];
+      const selected = QUESTIONS.map((question) => {
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${question.title} : ${option?.label ?? 'Non renseigné'}`;
+      });
 
-      // Logic Prothese
-      if (finalAnswers.perte === 3) {
-        diag = "Édentement";
-        if (finalAnswers.esthetique === 1) {
-          diag += " avec fort préjudice esthétique";
-          steps.push({ title: 'Empreinte pour prothèse provisoire immédiate', assistant: 'prothese' });
-        }
-        steps.push({ title: 'Étude implantaire (CBCT + Guide)', assistant: 'chirurgie' });
-        steps.push({ title: 'Pose d\'Implant / Prothèse sur Implant', assistant: 'prothese' });
-      } else if (finalAnswers.perte === 2 || finalAnswers.perte === 1) {
-        diag = "Délabrement coronaire majeur";
-        if (finalAnswers.occlusion === 1) {
-          diag += " (Contexte de Bruxisme)";
-          steps.push({ title: 'Couronne monolithique ultra-résistante (Zircone ou Emax)', assistant: 'prothese' });
-          steps.push({ title: 'Gouttière de libération occlusale post-traitement', assistant: 'atm' });
-        } else {
-          if (finalAnswers.esthetique === 1) {
-            steps.push({ title: 'Couronne Céramo-Céramique Stratifiée Haute Esthétique', assistant: 'prothese' });
-          } else {
-            steps.push({ title: 'Couronne Céramo-Métallique ou Zircone', assistant: 'prothese' });
-          }
-        }
-        
-        if (finalAnswers.perte === 2) {
-          steps.unshift({ title: 'Reconstitution Corono-Radiculaire (Inlay-core / RCR)', assistant: 'prothese' });
-        }
-      } else {
-        if (finalAnswers.esthetique === 1) {
-          diag = "Lésion coronaire du secteur esthétique";
-          steps.push({ title: 'Restauration Composite Stratifié / Facette', assistant: 'prothese' });
-        } else {
-          diag = "Lésion coronaire du secteur postérieur";
-          steps.push({ title: 'Inlay / Onlay Composite ou Céramique', assistant: 'prothese' });
-        }
-      }
+      const summary = [
+        'Synthèse prothétique structurée.',
+        `Observations recueillies : ${selected.join(' ; ')}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
 
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 

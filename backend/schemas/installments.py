@@ -64,6 +64,7 @@ class InstallmentResponse(InstallmentBase):
 
 class InstallmentPlanBase(BaseModel):
     patient_id: int
+    acte_id: Optional[int] = None
     title: str = Field(min_length=1, max_length=200)
     total_amount: float = Field(gt=0, le=10_000_000, allow_inf_nan=False)
 

@@ -59,44 +59,23 @@ export const AssistantOrtho: React.FC<AssistantOrthoProps> = ({ onComplete, onCa
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Anomalie Orthodontique";
-      const steps = [];
+      const selected = QUESTIONS.map((question) => {
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${question.title} : ${option?.label ?? 'Non renseigné'}`;
+      });
 
-      // Logic Ortho
-      steps.push({ title: 'Bilan Orthodontique Complet (Téléradiographie + Empreintes + Photos)', assistant: 'general' });
-      steps.push({ title: 'Présentation du Plan de Traitement ODF', assistant: 'ortho' });
+      const summary = [
+        'Synthèse orthodontique structurée.',
+        `Observations recueillies : ${selected.join(' ; ')}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
 
-      if (finalAnswers.croissance === 0 && (finalAnswers.motif === 2 || finalAnswers.motif === 3 || finalAnswers.preference === 2)) {
-        diag = "Dysmorphose interceptable (Croissance active)";
-        if (finalAnswers.motif === 3) {
-          diag += " avec parafonction";
-          steps.push({ title: 'Rééducation myofonctionnelle (Orthophonie)', assistant: 'general' });
-        }
-        steps.push({ title: 'Appareillage Orthopédique / Interceptif (Plaque, Éducateur)', assistant: 'ortho' });
-        steps.push({ title: 'Surveillance de l\'évolution', assistant: 'ortho' });
-      } else {
-        if (finalAnswers.motif === 0) diag = "Encombrement Dentaire";
-        else if (finalAnswers.motif === 1) diag = "Diastèmes / Espacement Dentaire";
-        else if (finalAnswers.motif === 2) diag = "Dysmorphose Squelettique (Classe II/III)";
-        else diag = "Malocclusion";
-
-        if (finalAnswers.croissance === 1 && finalAnswers.motif === 2) {
-          diag += " (Adulte - Décalage Squelettique)";
-          steps.push({ title: 'Avis Chirurgie Maxillo-Faciale (Orthognathique)', assistant: 'chirurgie' });
-        }
-
-        if (finalAnswers.preference === 0) {
-          steps.push({ title: 'Traitement global par Aligneurs Transparents', assistant: 'ortho' });
-        } else {
-          steps.push({ title: 'Pose Appareillage Multi-attaches (Bagues)', assistant: 'ortho' });
-        }
-        
-        steps.push({ title: 'Contention en fin de traitement (Fil + Gouttière)', assistant: 'ortho' });
-      }
-
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 

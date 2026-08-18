@@ -59,47 +59,23 @@ export const AssistantATM: React.FC<AssistantATMProps> = ({ onComplete, onCancel
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Dysfonctionnement de l'Appareil Manducateur (DAM)";
-      const steps = [];
+      const selected = QUESTIONS.map((question) => {
+        const value = finalAnswers[question.id];
+        const option = question.options.find((item) => item.value === value);
+        return `${question.title} : ${option?.label ?? 'Non renseigné'}`;
+      });
 
-      // Logic ATM
-      if (finalAnswers.symptome === 1) {
-        diag = "Myalgie masticatoire / DAM musculaire";
-      } else if (finalAnswers.symptome === 2) {
-        diag = "DAM Articulaire (Déplacement discal irréductible)";
-      } else {
-        diag = "DAM Articulaire (Déplacement discal réductible)";
-      }
+      const summary = [
+        'Synthèse ATM / parafonctions structurée.',
+        `Observations recueillies : ${selected.join(' ; ')}.`,
+        'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+        'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join(' ');
 
-      if (finalAnswers.parafonction === 0) {
-        diag += " aggravé par Bruxisme Nocturne (Excentré)";
-        steps.push({ title: 'Gouttière de libération occlusale (Port nocturne)', assistant: 'atm' });
-      } else if (finalAnswers.parafonction === 1) {
-        diag += " aggravé par Bruxisme Diurne (Centré)";
-        steps.push({ title: 'Prise de conscience / Biofeedback (Éviter le serrement)', assistant: 'atm' });
-        steps.push({ title: 'Prescription Myorelaxants (Courte durée)', assistant: 'general' });
-      }
-
-      if (finalAnswers.facteur === 0) {
-        steps.push({ title: 'Gestion du stress / Relaxation', assistant: 'general' });
-      } else if (finalAnswers.facteur === 1) {
-        diag = "DAM post-traumatique";
-        steps.unshift({ title: 'Prescription CBCT / IRM des ATM', assistant: 'general' });
-        steps.push({ title: 'Avis spécialisé (Maxillo-facial)', assistant: 'chirurgie' });
-      }
-
-      if (finalAnswers.symptome === 1 || finalAnswers.symptome === 2) {
-        steps.push({ title: 'Kinésithérapie Maxillo-Faciale (Séances)', assistant: 'general' });
-      }
-
-      // Toujours une surveillance
-      if (!steps.find(s => s.assistant === 'chirurgie')) {
-         steps.push({ title: 'Réévaluation à 1 mois', assistant: 'atm' });
-      }
-
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 

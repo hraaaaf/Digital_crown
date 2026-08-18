@@ -76,9 +76,9 @@ class EliteManager:
                 if detections:
                     insights.append({
                         "id": f"pano_detect_{latest_pano.id}",
-                        "type": "diagnostic",
-                        "title": "Intelligence Panoramique",
-                        "content": f"🔬 {len(detections)} anomalies détectées sur la panoramique (IA).",
+                        "type": "suggestion",
+                        "title": "Repérage Panoramique",
+                        "content": f"{len(detections)} repère(s) dentaire(s) automatique(s) disponible(s) sur la panoramique. Aucune anomalie n'est conclue automatiquement.",
                         "actionLabel": "Consulter le bilan",
                         "source_type": "DETERMINISTIC",
                         "trust_level": 1.0
@@ -95,13 +95,13 @@ class EliteManager:
                     "source_type": "DETERMINISTIC",
                     "trust_level": 0.95,
                 })
-            pano_findings = rag_ctx.get("panoramic_findings", [])
-            if pano_findings:
+            pano_landmarks = rag_ctx.get("panoramic_landmarks", [])
+            if pano_landmarks:
                 insights.append({
                     "id": f"rag_pano_{patient_id}",
-                    "type": "diagnostic",
-                    "title": "Findings Panoramiques Récents",
-                    "content": "Détections IA récentes : " + ", ".join(pano_findings[:3]) + ".",
+                    "type": "suggestion",
+                    "title": "Repérages Panoramiques Récents",
+                    "content": "Repères dentaires automatiques récents : " + ", ".join(pano_landmarks[:3]) + ". Aucune anomalie n'est conclue automatiquement.",
                     "source_type": "DETERMINISTIC",
                     "trust_level": 1.0,
                 })
@@ -331,25 +331,8 @@ class EliteManager:
                     "trust_level": 1.0
                 })
 
-        # 5. Analyse de l'Odontogramme (Analyses Pano non traitées)
-        latest_pano = db.query(models.PanoramicAnalysis).filter(
-            models.PanoramicAnalysis.patient_id == patient_id
-        ).order_by(models.PanoramicAnalysis.created_at.desc()).first()
-
-        if latest_pano:
-            detections = latest_pano.detections_data.get("detections", [])
-            for det in detections:
-                label = det.get("label", "").lower()
-                if "carie" in label and "NOTE_HONORAIRES" not in doc_types:
-                    insights.append({
-                        "id": f"pano_predict_{det.get('fdi')}_{now.timestamp()}",
-                        "type": "suggestion",
-                        "title": "Opportunité de Soin",
-                        "content": f"Lésion carieuse détectée sur la dent {det.get('fdi')} (IA). Souhaitez-vous préparer la note d'honoraires ?",
-                        "actionLabel": "Facturer l'acte",
-                        "source_type": "HEURISTIC",
-                        "trust_level": 0.85
-                    })
+        # 5. Les labels panoramiques automatiques, y compris les labels historiques,
+        # ne deviennent jamais un diagnostic clinique ni une suggestion de facturation.
 
         return insights
 
@@ -443,21 +426,11 @@ class EliteManager:
         return insights
 
     async def get_treatment_plan(self, db: Session, patient_id: int) -> Dict[str, Any]:
-        """
-        Génère un plan de traitement basé sur la dernière panoramique.
-        """
-        latest_pano = db.query(models.PanoramicAnalysis).filter(
-            models.PanoramicAnalysis.patient_id == patient_id
-        ).order_by(models.PanoramicAnalysis.created_at.desc()).first()
-
-        if not latest_pano:
-            return {"error": "Aucune panoramique trouvée pour ce patient."}
-
-        detections = latest_pano.detections_data.get("detections", [])
-        plan = treatment_plan_engine.generate_plan(detections)
-        plan["patient_id"] = patient_id
-        
-        return plan
+        """La génération automatique d'un plan clinique est désactivée en P0 fail-closed."""
+        return {
+            "error": "Génération automatique du plan de traitement désactivée. Validation clinique du praticien requise.",
+            "patient_id": patient_id,
+        }
 
 # Instance unique
 elite_manager = EliteManager()

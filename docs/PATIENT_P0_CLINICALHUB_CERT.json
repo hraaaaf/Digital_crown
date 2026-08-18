@@ -1,0 +1,8 @@
+{
+  "status": "CERTIFIED",
+  "candidate_run_id": 32138801697,
+  "candidate_artifact_id": 9323328955,
+  "baseline_run_id": 32132516356,
+  "source_blob_sha": "29124da7f8e4a8ead4251c665a33e9e66125681e",
+  "contracts": ["backend Master Plan authoritative", "assistant output session-only", "no automatic diagnosis or plan mutation", "no localStorage plan fallback"]
+}

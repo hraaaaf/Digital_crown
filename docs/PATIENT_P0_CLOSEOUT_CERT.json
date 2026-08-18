@@ -1,0 +1,42 @@
+{
+  "lot": "Page Patient / P0 — Vérité & sécurité",
+  "status": "CLOSED",
+  "certified_head": "2b9d51ffca6b613ab44e1de2f08538a08a17d51a",
+  "final_exact_head_proofs": {
+    "ci_run_id": 32196646837,
+    "ci_run_number": 1099,
+    "ci_conclusion": "success",
+    "t2_run_id": 32196646938,
+    "t2_run_number": 359,
+    "t2_conclusion": "success"
+  },
+  "visual_evidence": {
+    "p0_c": "4 AFTER captures, runtime clean, scope score 9.8/10",
+    "p0_d": "run 32187055163, 20 AFTER captures, 0 overflow/runtime/5xx, scope score 9.8/10",
+    "p0_e": "8 AFTER captures, truthful KPI and responsive installment flow, scope score 9.8/10",
+    "p0_h": "4 AFTER captures, commercial score absent",
+    "p0_i": "run 32186499282, artifact 9342853792, 4 AFTER captures, 0 unsafe toast/runtime/5xx, scope score 9.7/10"
+  },
+  "canonical_certificates": [
+    "docs/PATIENT_P0_CLINICALHUB_CERT.json",
+    "docs/PATIENT_P0F_RVG_CERT.json",
+    "docs/PATIENT_P0G_MEDICAL_SOURCE_CERT.json",
+    "docs/PATIENT_P0H_NEUTRALITY_CERT.json"
+  ],
+  "contracts": [
+    "tenant-isolated duplicate patient identity",
+    "no implicit sex fallback",
+    "ClinicalHub backend-authoritative and fail-closed",
+    "clinical assistants proposal-only and fail-closed",
+    "strict patient-act-installment payment binding and explicit payment method",
+    "canonical installments flow with legacy accounting plans removed",
+    "authenticated RVG blob lifecycle with recoverable trash/restore",
+    "single authoritative medical-history source",
+    "clinical header neutral from commercial patient score",
+    "NBA and panoramic surfaces cannot promote heuristics or detections to clinical truth",
+    "panoramic RAG context carries neutral FDI landmarks only",
+    "panoramic PDF is patient-authorized and blob-streamed"
+  ],
+  "closure_basis": "CI #1099 and T2 #359 both succeeded on exact HEAD 2b9d51ffca6b613ab44e1de2f08538a08a17d51a containing the canonical roadmap closeout record.",
+  "deployment": "none"
+}

@@ -59,37 +59,23 @@ export const AssistantChirurgie: React.FC<AssistantChirurgieProps> = ({ onComple
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Indication d'Avulsion Simple";
-      const steps = [];
+      const motif = QUESTIONS[0].options.find(opt => opt.value === finalAnswers.motif)?.label ?? 'Non renseigné';
+      const anatomie = QUESTIONS[1].options.find(opt => opt.value === finalAnswers.anatomie)?.label ?? 'Non renseignée';
+      const risque = QUESTIONS[2].options.find(opt => opt.value === finalAnswers.risque)?.label ?? 'Non renseigné';
 
-      // Logic Chirurgie
-      if (finalAnswers.motif === 2) {
-        diag = "Désinclusion / Avulsion dent de sagesse";
-        steps.push({ title: 'Avulsion complexe avec lambeau et alvéolectomie', assistant: 'chirurgie' });
-      } else {
-        steps.push({ title: 'Avulsion simple', assistant: 'chirurgie' });
-      }
+      const summary = [
+        'Synthèse pré-opératoire structurée.',
+        `Motif rapporté : ${motif}.`,
+        `Rapport anatomique renseigné : ${anatomie}.`,
+        `Terrain / risque médical renseigné : ${risque}.`,
+        'Ces réponses constituent des éléments de vigilance à confronter à l’examen clinique, à l’imagerie disponible et au dossier médical.',
+        'Aucun diagnostic chirurgical, examen complémentaire, protocole médicamenteux ou geste opératoire n’est déterminé automatiquement.',
+        'Indication, examens complémentaires, conduite péri-opératoire et traitement : décision exclusive du praticien après validation clinique.'
+      ].join('\n');
 
-      if (finalAnswers.anatomie === 1) {
-        diag += " avec proximité anatomique sévère";
-        steps.unshift({ title: 'Prescription CBCT (Cone Beam 3D) Pré-opératoire', assistant: 'general' });
-      }
-
-      if (finalAnswers.risque === 1) {
-        diag += " (Haut Risque Hémorragique)";
-        steps.push({ title: 'Hémostase locale renforcée (Éponges hémostatiques, sutures)', assistant: 'chirurgie' });
-        steps.unshift({ title: 'Bilan d\'hémostase / Avis médical', assistant: 'general' });
-      } else if (finalAnswers.risque === 2) {
-        diag += " (Haut Risque d'Ostéonécrose)";
-        steps.push({ title: 'Protocole Bisphosphonates (Antibioprophylaxie + fermeture étanche)', assistant: 'chirurgie' });
-        steps.unshift({ title: 'Avis médical (Oncologue/Rhumatologue)', assistant: 'general' });
-      } else {
-        steps.push({ title: 'Prescription Post-opératoire (Antalgiques/Bains de bouche)', assistant: 'general' });
-      }
-
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 
@@ -97,7 +83,7 @@ export const AssistantChirurgie: React.FC<AssistantChirurgieProps> = ({ onComple
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Scissors className="w-12 h-12 text-purple-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Plan Chirurgical...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse pré-opératoire structurée...</h3>
       </div>
     );
   }
@@ -135,8 +121,8 @@ export const AssistantChirurgie: React.FC<AssistantChirurgieProps> = ({ onComple
                   onClick={() => handleSelect(question.id, opt.value)}
                   className={cn(
                     "p-4 rounded-2xl border text-left flex items-center justify-between transition-all group",
-                    isSelected 
-                      ? "bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-400 shadow-md shadow-purple-500/10" 
+                    isSelected
+                      ? "bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-400 shadow-md shadow-purple-500/10"
                       : "bg-card-bg border-border-main hover:border-purple-400 hover:shadow-sm text-text-main"
                   )}
                 >
