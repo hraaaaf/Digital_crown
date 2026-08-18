@@ -1,0 +1,131 @@
+name: Patient P0-E Single Shot
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0e-single-shot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply strict payment binding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('backend/routers/accounting.py')
+          s=p.read_text(encoding='utf-8')
+          start=s.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          end=s.index('@router.get("/payments/patient/{patient_id}"', start)
+          hardened='''@router.post("/payments", response_model=schemas.PaymentOut)
+          def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission(["accounting", "payments"]))):
+              """Enregistre un encaissement réel, strictement lié aux entités du même patient."""
+              assert_patient_access(payment.patient_id, current_user, db)
+
+              if payment.acte_id is not None and payment.installment_id is not None:
+                  raise HTTPException(status_code=422, detail="Un paiement ne peut pas cibler simultanément un acte et une échéance.")
+
+              acte = None
+              if payment.acte_id is not None:
+                  acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
+                  if acte is None:
+                      raise HTTPException(status_code=404, detail="Acte introuvable")
+                  if acte.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'acte n'appartient pas au patient du paiement.")
+
+              if payment.installment_id is not None:
+                  installment = db.query(models.Installment).filter(models.Installment.id == payment.installment_id).first()
+                  if installment is None:
+                      raise HTTPException(status_code=404, detail="Échéance introuvable")
+                  plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == installment.plan_id).first()
+                  if plan is None:
+                      raise HTTPException(status_code=409, detail="Plan d'échéances introuvable pour cette échéance.")
+                  if plan.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'échéance n'appartient pas au patient du paiement.")
+
+              payment_method = getattr(models.PaymentMethod, payment.payment_method, None)
+              if payment_method is None:
+                  raise HTTPException(status_code=422, detail="Mode de paiement invalide")
+
+              new_payment = models.Payment(
+                  patient_id=payment.patient_id,
+                  amount=payment.amount,
+                  payment_method=payment_method,
+                  payment_date=payment.payment_date or datetime.now(),
+                  acte_id=payment.acte_id,
+                  installment_id=payment.installment_id,
+                  notes=payment.notes,
+                  validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
+              )
+              db.add(new_payment)
+              db.flush()
+
+              if acte is not None:
+                  total_paid = db.query(func.sum(models.Payment.amount)).filter(models.Payment.acte_id == acte.id).scalar() or 0.0
+                  if total_paid >= acte.montant:
+                      acte.statut_paiement = models.PaiementStatut.PAYE
+                      acte.is_collected = True
+                  elif total_paid > 0:
+                      acte.statut_paiement = models.PaiementStatut.PARTIEL
+                      acte.is_collected = False
+
+              db.commit()
+              db.refresh(new_payment)
+              return new_payment
+
+          '''
+          import textwrap
+          s=s[:start]+textwrap.dedent(hardened)+s[end:]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Static contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('backend/routers/accounting.py').read_text(encoding='utf-8')
+          a=s.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          b=s.index('@router.get("/payments/patient/{patient_id}"',a)
+          x=s[a:b]
+          assert 'acte.patient_id != payment.patient_id' in x
+          assert 'plan.patient_id != payment.patient_id' in x
+          assert 'models.PaymentMethod.ESPECES' not in x
+          assert 'payment.acte_id is not None and payment.installment_id is not None' in x
+          PY
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0e.txt
+          pip install -r /tmp/requirements-p0e.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+      - name: Targeted regression
+        run: python -m pytest backend/tests/test_patient_p0_payment_binding.py -q --maxfail=1
+      - name: Syntax
+        run: python -m py_compile backend/routers/accounting.py backend/schemas/payments.py
+      - name: Commit and rebase-safe push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/routers/accounting.py
+          git commit -m 'fix(patient): enforce payment entity binding'
+          git fetch origin agent/patient-page-p0-rescue
+          git rebase origin/agent/patient-page-p0-rescue
+          git push origin HEAD:agent/patient-page-p0-rescue
