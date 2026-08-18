@@ -59,45 +59,36 @@ export const AssistantEndo: React.FC<AssistantEndoProps> = ({ onComplete, onCanc
   };
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
-    setIsCalculating(true);
-    
-    setTimeout(() => {
-      let diag = "Pulpe saine";
-      const steps = [];
+  setIsCalculating(true);
 
-      // Logic Endodontics
-      if (finalAnswers.vitalite === 2) {
-        if (finalAnswers.radio === 2) {
-          diag = "Nécrose pulpaire avec Parodontite apicale asymptomatique (Lésion)";
-        } else if (finalAnswers.douleur === 3) {
-          diag = "Nécrose pulpaire avec Parodontite apicale symptomatique";
-        } else {
-          diag = "Nécrose pulpaire";
-        }
-        steps.push({ title: 'Traitement Canalaire (Endodontie)', assistant: 'endo' });
-        if (finalAnswers.radio === 2) {
-          steps.push({ title: 'Suivi radiographique à 6 mois', assistant: 'radio' });
-        }
-      } else if (finalAnswers.douleur === 2 || finalAnswers.vitalite === 1) {
-        diag = "Pulpite Irréversible Symptomatique";
-        steps.push({ title: 'Urgence : Extirpation pulpaire', assistant: 'endo' });
-        steps.push({ title: 'Traitement Canalaire (Endodontie)', assistant: 'endo' });
-      } else if (finalAnswers.douleur === 1) {
-        diag = "Pulpite Réversible (Hyperhémie)";
-        steps.push({ title: 'Éviction carieuse et coiffage pulpaire (direct/indirect)', assistant: 'conservatrice' });
-      } else {
-        steps.push({ title: 'Surveillance de la vitalité', assistant: 'endo' });
-      }
+  setTimeout(() => {
+    const selectedLabel = (questionId: string, value: number | undefined) => {
+      const question = QUESTIONS.find((item) => item.id === questionId);
+      return question?.options.find((option) => option.value === value)?.label || 'Non renseigné';
+    };
 
-      onComplete(diag, steps);
-    }, 1500);
-  };
+    const observations = [
+      `Douleur rapportée : ${selectedLabel('douleur', finalAnswers.douleur)}`,
+      `Test de sensibilité rapporté : ${selectedLabel('vitalite', finalAnswers.vitalite)}`,
+      `Observation radiographique rapportée : ${selectedLabel('radio', finalAnswers.radio)}`,
+    ];
+
+    const summary = [
+      `Observations recueillies : ${observations.join(' ; ')}.`,
+      "Données à confirmer / compléter : anamnèse, examen clinique, tests de sensibilité comparatifs et interprétation de l'imagerie par le praticien.",
+      "Ces éléments ne suffisent pas à établir automatiquement un diagnostic pulpaire ou péri-apical.",
+      "Diagnostic et conduite thérapeutique : décision du praticien après synthèse des données cliniques.",
+    ].join(' ');
+
+    onComplete(summary, []);
+  }, 1500);
+};
 
   if (isCalculating) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Activity className="w-12 h-12 text-amber-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Diagnostic Endodontique...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse des observations endodontiques...</h3>
       </div>
     );
   }
