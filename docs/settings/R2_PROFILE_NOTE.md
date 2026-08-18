@@ -1,1 +1,0 @@
-R2 implementation branch is ready for PR certification. No production deploy.
