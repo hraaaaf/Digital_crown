@@ -1,0 +1,126 @@
+name: Patient P0-E Installment Rescue
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-rescue
+    paths:
+      - '.github/workflows/patient-p0e-installment-rescue.yml'
+      - 'backend/models.py'
+      - 'backend/routers/installments.py'
+      - 'backend/schemas/installments.py'
+      - 'alembic/versions/c4d5e6f7a8b9_link_installment_plans_to_actes.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patient-p0e-installment-rescue-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-minimum-32-characters-long
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: development
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply surgical model link
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/models.py')
+          src = p.read_text(encoding='utf-8')
+          old = '''    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)\n    title: Mapped[str] = mapped_column(String(255), nullable=False) # Ex: Traitement Ortho 2024\n'''
+          new = '''    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)\n    acte_id: Mapped[Optional[int]] = mapped_column(ForeignKey("actes.id", ondelete="SET NULL"), nullable=True, index=True)\n    title: Mapped[str] = mapped_column(String(255), nullable=False) # Ex: Traitement Ortho 2024\n'''
+          if new not in src:
+              if old not in src:
+                  raise SystemExit('InstallmentPlan field source mismatch')
+              src = src.replace(old, new, 1)
+          old_rel = '''    # Relations\n    patient: Mapped["Patient"] = relationship()\n    installments: Mapped[List["Installment"]] = relationship(\n'''
+          new_rel = '''    # Relations\n    patient: Mapped["Patient"] = relationship()\n    acte: Mapped[Optional["Acte"]] = relationship()\n    installments: Mapped[List["Installment"]] = relationship(\n'''
+          if new_rel not in src:
+              if old_rel not in src:
+                  raise SystemExit('InstallmentPlan relationship source mismatch')
+              src = src.replace(old_rel, new_rel, 1)
+          p.write_text(src, encoding='utf-8')
+          PY
+
+      - name: Installment source contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          models = Path('backend/models.py').read_text(encoding='utf-8')
+          router = Path('backend/routers/installments.py').read_text(encoding='utf-8')
+          schema = Path('backend/schemas/installments.py').read_text(encoding='utf-8')
+          migration = Path('alembic/versions/c4d5e6f7a8b9_link_installment_plans_to_actes.py').read_text(encoding='utf-8')
+          assert 'acte_id: Mapped[Optional[int]] = mapped_column(ForeignKey("actes.id", ondelete="SET NULL"), nullable=True, index=True)' in models
+          assert 'acte: Mapped[Optional["Acte"]] = relationship()' in models
+          assert 'acte_id: Optional[int] = None' in schema
+          assert 'linked_acte.patient_id != plan_req.patient_id' in router
+          assert 'models.InstallmentPlan.acte_id == linked_acte.id' in router
+          assert 'remaining_due' in router
+          assert 'acte_id=plan.acte_id' in router
+          assert 'linked_acte.patient_id != plan.patient_id' in router
+          assert 'down_revision: Union[str, None] = "b2c3d4e5f6a7"' in migration
+          print('P0-E installment source contracts: OK')
+          PY
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: Load canonical installment regression from prior branch
+        run: |
+          git fetch origin agent/patient-page-p0-truth-safety --depth=1
+          git show origin/agent/patient-page-p0-truth-safety:backend/tests/test_patient_p0_installment_acte_link.py > backend/tests/test_patient_p0_installment_acte_link.py
+
+      - name: Installment transaction regression
+        run: python -m pytest backend/tests/test_patient_p0_installment_acte_link.py -q --maxfail=1
+
+      - name: Python syntax and Alembic graph
+        run: |
+          python -m py_compile backend/models.py backend/routers/installments.py backend/schemas/installments.py alembic/versions/c4d5e6f7a8b9_link_installment_plans_to_actes.py
+          alembic heads | grep -Fx 'c4d5e6f7a8b9 (head)'
+
+      - name: Commit certified model patch and proof
+        env:
+          TESTED_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          rm -f backend/tests/test_patient_p0_installment_acte_link.py
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('docs/PATIENT_P0E_INSTALLMENT_CERT.json').write_text(json.dumps({
+              'status': 'CERTIFIED',
+              'tested_sha': os.environ['TESTED_SHA'],
+              'run_id': os.environ['RUN_ID'],
+              'contracts': ['acte↔patient binding', 'exact remaining due', 'one plan per act', 'payment reconciliation', 'single Alembic head'],
+          }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/models.py docs/PATIENT_P0E_INSTALLMENT_CERT.json
+          if git diff --cached --quiet; then
+            echo "Installment model/proof already current."
+            exit 0
+          fi
+          git commit -m "fix(patient): certify installment act reconciliation"
+          git push origin HEAD:${GITHUB_REF_NAME}
