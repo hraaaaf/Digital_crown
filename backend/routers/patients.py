@@ -18,12 +18,23 @@ router = APIRouter(tags=["Patients"])
 
 # --- HELPERS ---
 
-def check_duplicate_patient(db: Session, nom: str, prenom: str, date_naissance: datetime, employer_id: int, exclude_id: int = None) -> models.Patient:
+def check_duplicate_patient(
+    db: Session,
+    nom: str,
+    prenom: str,
+    date_naissance: datetime,
+    employer_id: int,
+    exclude_id: int = None,
+) -> models.Patient:
+    """Find a duplicate only inside the current cabinet.
+
+    Patient identity must never be observable across tenant boundaries.
+    """
     query = db.query(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
         func.lower(models.Patient.nom) == nom.lower().strip(),
         func.lower(models.Patient.prenom) == prenom.lower().strip(),
         models.Patient.date_naissance == date_naissance,
-        models.Patient.employer_id == employer_id,
         models.Patient.deleted_at.is_(None),
     )
     if exclude_id:
@@ -82,7 +93,14 @@ class DuplicateCheckRequest(BaseModel):
 
 @router.post("/check-duplicate")
 def check_duplicate_api(payload: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    existing = check_duplicate_patient(db, payload.nom, payload.prenom, payload.date_naissance, current_user.get_employer_id(), payload.exclude_id)
+    existing = check_duplicate_patient(
+        db,
+        payload.nom,
+        payload.prenom,
+        payload.date_naissance,
+        current_user.get_employer_id(),
+        payload.exclude_id,
+    )
     return {
         "has_duplicate": bool(existing),
         "existing_patient": {
@@ -130,7 +148,8 @@ from backend.services.audit_service import audit_service
     summary="Créer un patient",
     description="Crée un nouveau dossier patient avec détection de doublons (nom + prénom + date naissance). Passer `force_create=true` pour ignorer l'alerte doublon.")
 def create_patient(patient: schemas.PatientCreate, force_create: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("patients"))):
-    existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance, current_user.get_employer_id())
+    employer_id = current_user.get_employer_id()
+    existing = check_duplicate_patient(db, patient.nom, patient.prenom, patient.date_naissance, employer_id)
     if existing and not force_create:
         raise HTTPException(status_code=409, detail={"message": "Doublon détecté", "existing_patient": {"id": existing.id}})
     
@@ -139,8 +158,6 @@ def create_patient(patient: schemas.PatientCreate, force_create: bool = False, d
     
     patient_data['nom'] = patient_data['nom'].upper().strip()
     patient_data['prenom'] = patient_data['prenom'].capitalize().strip()
-    
-    employer_id = current_user.get_employer_id()
     patient_data['employer_id'] = employer_id
     
     if not patient_data.get('numero_dossier'):
@@ -660,7 +677,14 @@ def update_patient(patient_id: int, patient_update: schemas.PatientUpdate, db: S
     if (new_nom != db_patient.nom or 
         new_prenom != db_patient.prenom or 
         new_date != db_patient.date_naissance):
-        existing = check_duplicate_patient(db, new_nom, new_prenom, new_date, current_user.get_employer_id(), exclude_id=patient_id)
+        existing = check_duplicate_patient(
+            db,
+            new_nom,
+            new_prenom,
+            new_date,
+            current_user.get_employer_id(),
+            exclude_id=patient_id,
+        )
         if existing:
             raise HTTPException(status_code=409, detail="Un autre patient avec le même nom et date de naissance existe déjà")
 
@@ -881,9 +905,9 @@ async def import_patients_csv(
 ):
     """
     Colonnes attendues (case-insensitive, ordre libre) :
-    nom, prenom, date_naissance, telephone, email, assurance
-    Seuls nom + prenom + date_naissance sont obligatoires.
-    Les doublons (même nom+prenom+date_naissance) sont ignorés (skipped).
+    nom, prenom, date_naissance, sexe, telephone, email, assurance
+    Nom, prénom, date de naissance et sexe explicite M/F sont obligatoires.
+    Les doublons du même cabinet (même nom+prenom+date_naissance) sont ignorés.
     """
     employer_id = current_user.get_employer_id()
 
@@ -915,9 +939,13 @@ async def import_patients_csv(
         nom_raw = row.get(headers.get("nom", ""), "").strip()
         prenom_raw = row.get(headers.get("prenom", ""), "").strip()
         dob_raw = row.get(headers.get("date_naissance", ""), "").strip()
+        sexe_raw = row.get(headers.get("sexe", ""), "").strip().upper()
 
-        if not nom_raw or not prenom_raw or not dob_raw:
-            errors.append({"row": row_num, "reason": "Champs obligatoires manquants (nom, prenom, date_naissance)"})
+        if not nom_raw or not prenom_raw or not dob_raw or not sexe_raw:
+            errors.append({"row": row_num, "reason": "Champs obligatoires manquants (nom, prenom, date_naissance, sexe)"})
+            continue
+        if sexe_raw not in ("M", "F"):
+            errors.append({"row": row_num, "reason": f"Sexe invalide : {sexe_raw}. Valeurs acceptées : M ou F"})
             continue
 
         dob = _parse_date(dob_raw)
@@ -935,14 +963,12 @@ async def import_patients_csv(
         telephone = row.get(headers.get("telephone", ""), "").strip() or None
         email = row.get(headers.get("email", ""), "").strip() or None
         assurance = row.get(headers.get("assurance", ""), "").strip() or None
-        sexe_raw = row.get(headers.get("sexe", ""), "").strip().upper()
-        sexe = sexe_raw if sexe_raw in ("M", "F") else "M"
 
         db_patient = models.Patient(
             nom=nom,
             prenom=prenom,
             date_naissance=dob,
-            sexe=sexe,
+            sexe=sexe_raw,
             telephone=telephone,
             email=email,
             assurance=assurance,
@@ -967,5 +993,4 @@ async def import_patients_csv(
     )
 
     return {"created": created, "skipped_duplicates": skipped_duplicates, "errors": errors}
-
 
