@@ -1,5 +1,4 @@
-"""Tests routers/accounting.py — installment plans, payments, honoraires, treasury."""
-import pytest
+"""Tests routers/accounting.py — payments, honoraires, treasury and legacy-route guards."""
 from datetime import datetime
 
 
@@ -48,40 +47,16 @@ def _seed_legacy_doc_archive(db, patient_id, employer_id, amount=500.0):
     return doc
 
 
-def _plan_payload(patient_id):
-    return {
-        "patient_id": patient_id,
-        "title": "Plan Orthodontie 2024",
-        "total_amount": 15000.0,
-        "installments": [
-            {
-                "label": "Acompte",
-                "amount": 5000.0,
-                "due_date": "2024-01-15T00:00:00",
-                "status": "EN_ATTENTE",
-            },
-            {
-                "label": "2ème versement",
-                "amount": 5000.0,
-                "due_date": "2024-04-15T00:00:00",
-                "status": "EN_ATTENTE",
-            },
-            {
-                "label": "Solde",
-                "amount": 5000.0,
-                "due_date": "2024-07-15T00:00:00",
-                "status": "EN_ATTENTE",
-            },
-        ]
-    }
-
-
-# ── auth guards ────────────────────────────────────────────────────────────────
+# ── route / auth guards ───────────────────────────────────────────────────────
 
 class TestAccountingGuard:
-    def test_plans_requires_auth(self, client):
-        r = client.post("/api/accounting/plans", json={})
-        assert r.status_code == 401
+    def test_legacy_plan_routes_are_removed(self, client):
+        # P0-E: installment CRUD has one canonical surface under /api/installments.
+        # The former /api/accounting/plans aliases must remain absent, not merely hidden.
+        assert client.post("/api/accounting/plans", json={}).status_code == 404
+        assert client.get("/api/accounting/plans/patient/1").status_code == 404
+        assert client.put("/api/accounting/installments/1", json={}).status_code == 404
+        assert client.delete("/api/accounting/plans/1").status_code == 404
 
     def test_payments_requires_auth(self, client):
         r = client.post("/api/accounting/payments", json={})
@@ -102,73 +77,6 @@ class TestAccountingGuard:
     def test_overdue_requires_auth(self, client):
         r = client.get("/api/accounting/overdue")
         assert r.status_code == 401
-
-
-# ── installment plans ─────────────────────────────────────────────────────────
-
-class TestInstallmentPlans:
-    def test_create_plan(self, client, db, auth_headers, dentiste):
-        pat = _make_patient(db, dentiste, "PLANPAT")
-        r = client.post(
-            "/api/accounting/plans",
-            json=_plan_payload(pat.id),
-            headers=auth_headers,
-        )
-        assert r.status_code == 200
-        body = r.json()
-        assert body["title"] == "Plan Orthodontie 2024"
-        assert body["total_amount"] == 15000.0
-        assert len(body["installments"]) == 3
-
-    def test_get_patient_plans(self, client, db, auth_headers, dentiste):
-        pat = _make_patient(db, dentiste, "GETPLAN")
-        client.post("/api/accounting/plans", json=_plan_payload(pat.id), headers=auth_headers)
-
-        r = client.get(f"/api/accounting/plans/patient/{pat.id}", headers=auth_headers)
-        assert r.status_code == 200
-        plans = r.json()
-        assert isinstance(plans, list)
-        assert len(plans) >= 1
-
-    def test_get_plans_empty(self, client, db, auth_headers, dentiste):
-        pat = _make_patient(db, dentiste, "NOPLAN")
-        r = client.get(f"/api/accounting/plans/patient/{pat.id}", headers=auth_headers)
-        assert r.status_code == 200
-        assert r.json() == []
-
-    def test_delete_plan(self, client, db, auth_headers, dentiste):
-        pat = _make_patient(db, dentiste, "DELPLAN")
-        create_r = client.post("/api/accounting/plans", json=_plan_payload(pat.id), headers=auth_headers)
-        plan_id = create_r.json()["id"]
-
-        r = client.delete(f"/api/accounting/plans/{plan_id}", headers=auth_headers)
-        assert r.status_code == 200
-        assert r.json()["status"] == "success"
-
-    def test_delete_nonexistent_plan_returns_404(self, client, auth_headers):
-        r = client.delete("/api/accounting/plans/999999", headers=auth_headers)
-        assert r.status_code == 404
-
-    def test_update_installment(self, client, db, auth_headers, dentiste):
-        pat = _make_patient(db, dentiste, "UPDINST")
-        create_r = client.post("/api/accounting/plans", json=_plan_payload(pat.id), headers=auth_headers)
-        inst_id = create_r.json()["installments"][0]["id"]
-
-        r = client.put(
-            f"/api/accounting/installments/{inst_id}",
-            json={"status": "PAYE", "paid_date": "2024-01-20"},
-            headers=auth_headers,
-        )
-        assert r.status_code == 200
-        assert r.json()["status"] == "PAYE"
-
-    def test_update_nonexistent_installment_returns_404(self, client, auth_headers):
-        r = client.put(
-            "/api/accounting/installments/999999",
-            json={"status": "PAYE"},
-            headers=auth_headers,
-        )
-        assert r.status_code == 404
 
 
 # ── payments ──────────────────────────────────────────────────────────────────
