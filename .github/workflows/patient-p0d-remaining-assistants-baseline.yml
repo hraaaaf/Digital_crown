@@ -70,6 +70,7 @@ jobs:
           const out=path.resolve('../artifacts/p0d-remaining-before');
           const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
           const assistants=[
+            {id:'general', card:/Examen Général/i, unsafe:[/Antibioprophylaxie/i,/Amox 2g/i,/Radiographie de contrôle/i,/Détartrage bi-maxillaire/i,/Assainissement parodontal/i]},
             {id:'atm', card:/Occlusodontie & ATM/i, unsafe:[/DAM/i,/Gouttière/i,/CBCT/i,/IRM/i,/Myorelaxant/i]},
             {id:'ortho', card:/Orthodontie \(ODF\)/i, unsafe:[/Aligneur/i,/Multi-attaches/i,/Appareillage/i,/Chirurgie Maxillo/i]},
             {id:'paro', card:/Parodontologie/i, unsafe:[/Antibiothérapie/i,/Chirurgie parodontale/i,/Stade/i,/Grade/i]},
@@ -89,11 +90,8 @@ jobs:
               await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`,{waitUntil:'networkidle',timeout:90000}); await page.waitForTimeout(500);
               const card=page.getByText(assistant.card).first(); await card.waitFor({state:'visible',timeout:15000}); await card.click();
               for(let guard=0;guard<12;guard++){
-                const cancel=page.getByRole('button',{name:/Annuler/i});
                 const proposal=page.getByText(/Proposition clinique à valider/i);
                 if(await proposal.count()) break;
-                if(!(await cancel.count())) break;
-                const root=cancel.first().locator('xpath=ancestor::div[contains(@class,"flex")][1]');
                 const buttons=page.locator('button').filter({hasNotText:/Annuler|Retour|Fermer|Plan|Payer/i});
                 let clicked=false;
                 const n=await buttons.count();
@@ -118,7 +116,7 @@ jobs:
           }
           const summary={captures:evidence.length,assistants:[...new Set(evidence.map(x=>x.assistant))],unsafeObserved:evidence.filter(x=>x.unsafeMatches.length),overflowFindings:evidence.filter(x=>!x.metrics.noHorizontalOverflow),runtimeErrors:evidence.filter(x=>x.errors.length),http5xx:evidence.filter(x=>x.http5xx.length)};
           fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2)); fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(summary,null,2)); await browser.close(); await api.dispose();
-          if(summary.captures!==16||summary.runtimeErrors.length||summary.http5xx.length) process.exit(1);
+          if(summary.captures!==20||summary.assistants.length!==5||summary.runtimeErrors.length||summary.http5xx.length) process.exit(1);
           JS
           node .p0d-remaining-before.mjs
           rm .p0d-remaining-before.mjs
