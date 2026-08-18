@@ -10,18 +10,37 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_panoramic_landmarks(panoramics: list) -> list[str]:
-    """Extract tooth-localization landmarks only; this does not infer pathology."""
-    landmarks = []
+    """Extract FDI tooth-location landmarks only; never propagate pathology labels."""
+    landmarks: list[str] = []
+
+    def _fdi(value: Any) -> str | None:
+        raw = str(value or "").strip()
+        if len(raw) != 2 or not raw.isdigit():
+            return None
+        quadrant, tooth = int(raw[0]), int(raw[1])
+        if quadrant not in {1, 2, 3, 4} or tooth not in range(1, 9):
+            return None
+        return raw
+
     for p in panoramics[:2]:
         detections = (p.detections_data or {}).get("detections", [])
-        for d in detections[:3]:
-            label = d.get("class_name") or d.get("label", "")
-            tooth = d.get("tooth_fdi", "")
-            if label:
-                entry = f"{label}" + (f" (dent {tooth})" if tooth else "")
-                if entry not in landmarks:
-                    landmarks.append(entry)
-    return landmarks[:5]
+        for detection in detections:
+            # Prefer the explicit FDI locator. If the detector emits a generic
+            # tooth class, its label may carry the FDI number instead.
+            tooth = _fdi(detection.get("tooth_fdi"))
+            class_name = str(detection.get("class_name") or detection.get("class") or "").strip().lower()
+            if tooth is None and class_name in {"tooth", "dent", "dental_tooth"}:
+                tooth = _fdi(detection.get("label"))
+            if tooth is None:
+                continue
+
+            entry = f"Dent {tooth}"
+            if entry not in landmarks:
+                landmarks.append(entry)
+            if len(landmarks) == 5:
+                return landmarks
+
+    return landmarks
 
 
 def _extract_cephalo_trend(cephalos: list) -> str:
