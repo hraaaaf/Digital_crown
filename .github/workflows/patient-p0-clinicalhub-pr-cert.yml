@@ -122,7 +122,7 @@ jobs:
             await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});
             const errors=[]; const http5xx=[]; page.on('pageerror',e=>errors.push(String(e))); page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
             await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`,{waitUntil:'networkidle',timeout:90000}); await page.waitForTimeout(900);
-            const heading=await page.getByText('Espace Clinique',{exact:true}).count(); const fakePlan=await page.getByText('Détartrage & Surfaçage',{exact:false}).count(); const emptyPlan=await page.getByText('Aucune étape de traitement enregistrée.',{exact:true}).count();
+            const heading=await page.locator('h2').filter({hasText:/Espace Clinique/}).count(); const fakePlan=await page.getByText('Détartrage & Surfaçage',{exact:false}).count(); const emptyPlan=await page.getByText('Aucune étape de traitement enregistrée.',{exact:true}).count();
             const metrics=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,noHorizontalOverflow:document.documentElement.scrollWidth<=document.documentElement.clientWidth+2}));
             const screenshot=`clinicalhub-candidate-${viewport.width}x${viewport.height}.png`; await page.screenshot({path:path.join(out,screenshot),fullPage:false}); evidence.push({viewport,heading,fakePlan,emptyPlan,metrics,errors,http5xx,screenshot}); await ctx.close();
           }
