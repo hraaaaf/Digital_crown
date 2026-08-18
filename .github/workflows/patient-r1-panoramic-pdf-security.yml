@@ -1,0 +1,212 @@
+name: Patient R1 Panoramic PDF Security
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-truth-safety
+    paths:
+      - '.github/workflows/patient-r1-panoramic-pdf-security.yml'
+      - 'backend/routers/ia.py'
+      - 'frontend/src/features/panoramic/PanoramicStudio.tsx'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patient-r1-panoramic-pdf-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Patch authenticated panoramic PDF delivery
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ia = Path('backend/routers/ia.py')
+          src = ia.read_text(encoding='utf-8')
+          old = '''@router.get("/panoramic/{analysis_id}/pdf")
+def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+    """Génère et retourne l'URL du bilan PDF professionnel Élite."""
+    try:
+        from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator
+        pdf_url = panoramic_elite_generator.generate(
+            db=db,
+            analysis_id=analysis_id,
+            current_user=current_user
+        )
+        return {"pdf_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{pdf_url}"}
+    except Exception as e:
+        logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+'''
+          new = '''@router.get("/panoramic/{analysis_id}/pdf")
+def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+    """Génère et diffuse le PDF panoramique via un flux authentifié."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+
+    try:
+        from fastapi.responses import FileResponse
+        from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator
+
+        pdf_rel = panoramic_elite_generator.generate(
+            db=db,
+            analysis_id=analysis_id,
+            current_user=current_user
+        )
+        clean_rel = pdf_rel.removeprefix("api/")
+        pdf_path = os.path.join(BASE_DIR, clean_rel)
+        if not os.path.isfile(pdf_path):
+            raise HTTPException(status_code=500, detail="PDF généré introuvable")
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=os.path.basename(pdf_path),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+'''
+          if new not in src:
+              if old not in src:
+                  raise SystemExit('ia.py: expected PDF endpoint source not found')
+              src = src.replace(old, new, 1)
+              ia.write_text(src, encoding='utf-8')
+
+          ui = Path('frontend/src/features/panoramic/PanoramicStudio.tsx')
+          src = ui.read_text(encoding='utf-8')
+          old_download = '''  const handleDownloadPDF = async () => {
+    if (!result?.id) return;
+    setDownloading(true);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
+      window.open(response.data.pdf_url, '_blank');
+    } catch (err: any) {
+      console.error("Erreur téléchargement PDF :", err);
+      const errorMsg = err?.response?.data?.detail || "Erreur lors de la génération du PDF.";
+      toast.error(errorMsg);
+    } finally {
+      setDownloading(false);
+    }
+  };
+'''
+          new_download = '''  const handleDownloadPDF = async () => {
+    if (!result?.id) return;
+    setDownloading(true);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(response.data);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err: any) {
+      console.error("Erreur téléchargement PDF :", err);
+      const errorMsg = err?.response?.data?.detail || "Erreur lors de la génération du PDF.";
+      toast.error(errorMsg);
+    } finally {
+      setDownloading(false);
+    }
+  };
+'''
+          old_preview = '''  const handlePreview = async () => {
+    if (!result?.id) return;
+    setIsPreviewLoading(true);
+    setPreviewPdfUrl(null);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
+      setPreviewPdfUrl(response.data.pdf_url);
+    } catch (err: any) {
+      console.error("Erreur aperçu PDF :", err);
+      const errorMsg = err?.response?.data?.detail || "Impossible de charger l'aperçu PDF.";
+      toast.error(errorMsg);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+'''
+          new_preview = '''  const handlePreview = async () => {
+    if (!result?.id) return;
+    setIsPreviewLoading(true);
+    setPreviewPdfUrl(null);
+    try {
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });
+      setPreviewPdfUrl(URL.createObjectURL(response.data));
+    } catch (err: any) {
+      console.error("Erreur aperçu PDF :", err);
+      const errorMsg = err?.response?.data?.detail || "Impossible de charger l'aperçu PDF.";
+      toast.error(errorMsg);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+'''
+          if new_download not in src:
+              if old_download not in src:
+                  raise SystemExit('PanoramicStudio: download source not found')
+              src = src.replace(old_download, new_download, 1)
+          if new_preview not in src:
+              if old_preview not in src:
+                  raise SystemExit('PanoramicStudio: preview source not found')
+              src = src.replace(old_preview, new_preview, 1)
+          ui.write_text(src, encoding='utf-8')
+          PY
+
+      - name: Contract checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
+          ui = Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
+          start = ia.index('@router.get("/panoramic/{analysis_id}/pdf")')
+          end = ia.index('@router.delete("/panoramic/{analysis_id}"', start)
+          endpoint = ia[start:end]
+          assert 'assert_patient_access(analysis.patient_id, current_user, db)' in endpoint
+          assert endpoint.index('assert_patient_access') < endpoint.index('panoramic_elite_generator.generate')
+          assert 'FileResponse(' in endpoint
+          assert 'pdf_url' not in endpoint
+          assert "responseType: 'blob'" in ui
+          assert 'response.data.pdf_url' not in ui
+          print('Panoramic PDF security contracts: OK')
+          PY
+
+      - name: Python syntax
+        run: python -m py_compile backend/routers/ia.py
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Commit certified product patch
+        run: |
+          if git diff --quiet -- backend/routers/ia.py frontend/src/features/panoramic/PanoramicStudio.tsx; then
+            echo "Panoramic PDF security patch already committed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/routers/ia.py frontend/src/features/panoramic/PanoramicStudio.tsx
+          git commit -m "fix(patient): secure panoramic PDF access"
+          git push origin HEAD:${GITHUB_REF_NAME}
