@@ -47,16 +47,16 @@ Le preset personnel contenant notamment :
 **NE DOIT PAS être supprimé pour le compte propriétaire de Digital Crown.**
 
 Décision canonique :
-- il peut rester disponible / être proposé par défaut **uniquement lorsque l'utilisateur authentifié est le superadmin propriétaire** ;
+- il reste disponible **uniquement lorsque l'utilisateur authentifié est le superadmin propriétaire** ;
 - il ne doit jamais apparaître comme valeur ou modèle par défaut pour un cabinet standard ;
-- pour tout utilisateur non-superadmin, le bouton équivalent doit générer/réinitialiser l'en-tête depuis les informations réelles de son cabinet ;
-- si plusieurs superadmins peuvent exister à l'avenir, ne pas se contenter du rôle : cibler explicitement le compte propriétaire afin d'éviter de distribuer le preset personnel à d'autres comptes.
+- pour tout utilisateur non-superadmin, l'action équivalente réinitialise l'en-tête depuis les informations réelles de son cabinet ;
+- l'identité superadmin est déterminée par le backend via l'égalité avec `SUPERADMIN_EMAIL`, pas seulement par le rôle `ADMIN`.
 
-Statut : **DÉCISION PRODUIT VERROUILLÉE — à implémenter lors du lot Profil.**
+Statut : **IMPLÉMENTÉ ET CERTIFIÉ dans R2**.
 
 ## 4. Audit produit initial — verdicts
 
-| Zone | Idée | Exécution | Verdict |
+| Zone | Idée | Exécution initiale | Verdict |
 |---|---:|---:|---|
 | Sécurité & Backup | 10/10 | 9/10 | GARDER / renforcer |
 | Équipe / RBAC | 9.5/10 | 8.5/10 | GARDER |
@@ -87,24 +87,34 @@ Statut : `AUDITÉ — À EXÉCUTER`.
 
 ### R2 — Profil Cabinet
 
-À garder :
-- identité structure/cabinet/clinique ;
-- praticien FR/AR ;
-- adresse, INPE, ICE, IF ;
-- clavier arabe ;
-- spécialités bilingues ;
-- génération automatique de l'en-tête ;
-- logo ;
-- contacts pied de page.
+Décision finale : **GARDER / SIMPLIFIER — CERTIFIÉ**.
 
-À améliorer :
-- éditeur manuel d'en-tête à garder en mode avancé ;
-- vérifier toute promesse de détourage / normalisation / SVG avant affichage marketing ;
-- remplacer pour les utilisateurs standards le preset personnel par `Réinitialiser depuis les informations du cabinet`.
+Implémenté :
+- identité structure/cabinet/clinique conservée ;
+- praticien FR/AR, adresse, INPE, ICE, IF conservés ;
+- clavier arabe et spécialités bilingues conservés ;
+- génération automatique de l'en-tête conservée ;
+- éditeur manuel d'en-tête déplacé dans une surface avancée repliable ;
+- état `Automatique / Personnalisé` rendu explicite ;
+- preset Benmoussa restreint au superadmin propriétaire ;
+- utilisateur standard : `Réinitialiser depuis le cabinet` ;
+- promesse mensongère `détourage IA / vectorisation SVG` supprimée ; le texte reflète le vrai traitement Pillow/PNG et la transparence existante ;
+- double sauvegarde supprimée sur l'onglet Profil ;
+- bouton de sauvegarde Profil non flottant sur mobile pour ne plus masquer les champs.
 
-Règle Benmoussa : voir section 3.
+Preuves :
+- PR `#171` ;
+- HEAD certifié avant closeout : `99de2c4aee19f389bdbd0eee46cae072747babdb` ;
+- `Settings Profile R2 Visual Certification #17` : SUCCESS ;
+- `CI #1117` : SUCCESS ;
+- `T2 Runtime Browser Certification #377` : SUCCESS ;
+- RBAC #51, Branding #24, IA #7, Team Read Truth #5 : SUCCESS ;
+- AFTER réelles inspectées sur 1440 / 768 / 390, états admin/superadmin et replié/avancé ;
+- aucune erreur runtime dans l'artefact R2.
 
-Statut : `AUDITÉ — À EXÉCUTER`.
+Score visuel R2 : **9.6/10**.
+
+Statut : `CLOSED — CERTIFIÉ, PR #171 À MERGER`.
 
 ### R3 — Design & Ambiance
 
@@ -114,20 +124,13 @@ Problème majeur : le switch `Apparence app / Documents` ressemble à un scope d
 
 Décision recommandée : **renommer en `Aperçu : Application | Document`** plutôt que créer deux systèmes de thème séparés, sauf besoin produit démontré.
 
-Statut : `AUDITÉ — À EXÉCUTER`.
+Statut : `AUDITÉ — NEXT`.
 
 ### R4 — Modèles documentaires / Document Studio
 
 Constat majeur : les taxonomies des templates proposées par les contrôles et celles utilisées dans l'aperçu React ne sont pas alignées. Le preview visuel simulé peut donc raconter une histoire différente du moteur PDF réel.
 
-À garder :
-- sélection de modèles ;
-- marges/densité ;
-- réglages avancés ;
-- D-pad logo/QR ;
-- import de papier-en-tête ;
-- nettoyage du corps d'un document déjà rempli ;
-- **rendu PDF réel**.
+À garder : sélection de modèles, marges/densité, réglages avancés, D-pad logo/QR, import de papier-en-tête, nettoyage du corps d'un document déjà rempli, **rendu PDF réel**.
 
 Décision structurante : **le moteur PDF réel devient la source de vérité du preview documentaire**. Le faux renderer React doit être simplifié, réduit à une prévisualisation indicative ou supprimé lorsqu'il duplique mal le moteur réel.
 
@@ -135,13 +138,7 @@ Statut : `AUDITÉ — P1`.
 
 ### R5 — QR Code documentaire
 
-Garder la feature.
-
-À améliorer : pour chaque type de QR afficher clairement :
-- destination ;
-- donnée utilisée ;
-- aperçu ;
-- action de test/scanner.
+Garder la feature. À améliorer : destination, donnée utilisée, aperçu et test/scanner explicitement visibles.
 
 Statut : `AUDITÉ — P2`.
 
@@ -157,19 +154,11 @@ Statut : `AUDITÉ — P1`.
 
 ### R7 — Horaires & Agenda
 
-À garder :
-- horaires d'ouverture ;
-- journée continue ;
-- concept de mode d'agenda si son impact downstream est réel.
+À garder : horaires d'ouverture, journée continue, concept de mode d'agenda si son impact downstream est réel.
 
-À améliorer :
-- gestion par jour de semaine ;
-- jours fermés ;
-- exceptions / congés / horaires ponctuels.
+À améliorer : gestion par jour de semaine, jours fermés, exceptions / congés / horaires ponctuels.
 
-À prouver avant décision :
-- impact réel de `agenda_mode` ;
-- impact réel de `use_tickets` / file d'attente.
+À prouver avant décision : impact réel de `agenda_mode` et `use_tickets` / file d'attente.
 
 Statut : `AUDITÉ — P2 / DOWNSTREAM À PROUVER`.
 
@@ -177,52 +166,27 @@ Statut : `AUDITÉ — P2 / DOWNSTREAM À PROUVER`.
 
 Constat : le nom ne correspond plus à la page, particulièrement avec la doctrine ZERO-LLM.
 
-Contenu actuel : performance, arrière-plan animé, conseils cliniques, badges patient.
-
-Décisions :
-- renommer vers **Performance & Assistance** ou équivalent ;
-- garder Mode Performance ;
-- déplacer Arrière-plan animé vers Design & Ambiance ou le supprimer s'il n'apporte pas de valeur ;
-- auditer les Conseils cliniques downstream et leur fondement scientifique ;
-- renommer `Badges de Fiabilité Patient` vers une formulation non-jugementale, par ex. `Indicateurs de suivi administratif`, et rendre le calcul explicable.
+Décisions : renommer vers **Performance & Assistance** ou équivalent ; garder Mode Performance ; déplacer Arrière-plan animé vers Design & Ambiance ou le supprimer s'il n'apporte pas de valeur ; auditer Conseils cliniques ; renommer `Badges de Fiabilité Patient` vers une formulation non-jugementale et explicable.
 
 Statut : `AUDITÉ — P2`.
 
 ### R9 — Sécurité & Backup
 
-Meilleure zone actuelle.
+Meilleure zone actuelle. À garder : sauvegarde chiffrée, appairage mobile local, QR/code temporaire, révocation des sessions, journal d'audit.
 
-À garder :
-- sauvegarde chiffrée vérifiée ;
-- appairage mobile local ;
-- QR/code temporaire ;
-- révocation des sessions ;
-- journal d'audit.
-
-À améliorer :
-- restauration guidée de backup ;
-- humaniser le journal d'audit (`Utilisateur #13 / UPDATE / resource#27` → phrase métier compréhensible).
+À améliorer : restauration guidée et journal d'audit humanisé.
 
 Statut : `AUDITÉ — GARDER / P2 amélioration`.
 
 ### R10 — Mon Équipe
 
-À garder :
-- comptes collaborateurs ;
-- activation / désactivation ;
-- approbation / refus ;
-- permissions fines ;
-- Truth Gate équipe/quotas.
+À garder : comptes collaborateurs, activation/désactivation, approbation/refus, permissions fines, Truth Gate équipe/quotas.
 
-Points à corriger / prouver :
-- le frontend contient encore un message d'erreur `mot de passe au moins 4 caractères` alors que le Hardening a fixé 8..128 ;
-- conserver les quotas et upsell uniquement si la licence par nombre de collaborateurs reste une règle produit réelle.
+Points à corriger / prouver : message frontend mot de passe `4 caractères` vs politique réelle 8..128 ; quotas/upsell seulement si règle produit réelle.
 
 Statut : `AUDITÉ — P1 correction message / P2 produit`.
 
 ### R11 — TemplateBuilder legacy
-
-Constat : composant historique non monté par le routeur actuel, avec logique de preview et UX anciennes.
 
 Décision : **ne pas investir dans une refonte autonome**. Extraire les idées réellement utiles, vérifier les dépendances, puis supprimer/quarantainer le legacy lorsque le Document Studio couvre les besoins.
 
@@ -235,7 +199,7 @@ Statut : `AUDITÉ — P3`.
 - **P1.1 — Doctrine de sauvegarde Settings** : unifier comportement et feedback.
 - **P1.2 — Modèles documentaires** : PDF réel comme source de vérité, taxonomies alignées, preview trompeur éliminé.
 - **P1.3 — Catalogue CRUD** : supprimer tous les `prompt()` et exposer un vrai CRUD.
-- **P1.4 — Profil / preset propriétaire** : Benmoussa uniquement superadmin propriétaire ; reset dynamique pour les autres.
+- **P1.4 — Profil / preset propriétaire** : ✅ **CLOSED via R2 / PR #171**.
 - **P1.5 — Team password copy** : aligner le message frontend sur la politique 8..128 réelle.
 - **P1.6 — Scope Branding** : renommer en scope d'aperçu ou prouver le besoin d'un vrai scope d'édition.
 
@@ -256,9 +220,8 @@ Statut : `AUDITÉ — P3`.
 
 ## 7. Ordre recommandé
 
-Ordre actuel recommandé :
-1. Profil Cabinet ;
-2. Design & Ambiance + Documents ;
+1. ✅ Profil Cabinet — R2 certifié ;
+2. **Design & Ambiance + Documents — R3/R4** ;
 3. Catalogue Actes ;
 4. Agenda ;
 5. Performance & Assistance ;
@@ -266,33 +229,48 @@ Ordre actuel recommandé :
 7. Mon Équipe ;
 8. cleanup legacy.
 
-Raison : Profil + Documents portent la plus forte dette de cohérence visible et structurent les choix des pages suivantes.
-
 ## 8. Protocole de handover obligatoire
 
-À la fin de **chaque page / gros lot**, mettre à jour ce bloc :
+À la fin de **chaque page / gros lot**, mettre à jour ce bloc.
 
 ### HANDOVER COURANT
 
 - Chantier : Réglages / Paramètres — Product Review & Simplification
-- Lot actif : **aucune implémentation démarrée dans ce fichier initial**
-- Goal courant : transformer l'audit produit en exécution page par page avec preuves
+- Lot actif : **R2 Profil Cabinet — closeout certifié, merge en cours**
+- Goal courant : fermer R2 proprement puis démarrer R3 Design & Ambiance depuis la baseline réelle
 - Repo : `hraaaaf/Digital_crown`
-- Branche : `docs/settings-product-compass-v2` lors de la création initiale de cette boussole
-- Baseline de départ : `4f4a4e34e94e82bebe44b2e1fc81d79b1ad195a1`
-- Dernière décision verrouillée : preset Benmoussa uniquement superadmin propriétaire
-- Dernière preuve : audit code Settings + `SETTINGS_HARDENING_CLOSEOUT.md`
-- Blocage réel : aucun pour la documentation ; impacts downstream Agenda/Tickets/Tips/Badges à prouver avant suppression
-- Next exact : commencer **R2 / Profil Cabinet** avec baseline visuelle, goal écrit et mockup avant toute modification UI
+- Branche : `settings-r2-profile`
+- PR : `#171`
+- HEAD certifié : `99de2c4aee19f389bdbd0eee46cae072747babdb`
+- CI : `#1117 SUCCESS`
+- R2 Visual : `#17 SUCCESS`
+- Dernière décision verrouillée : preset Benmoussa uniquement superadmin propriétaire ; utilisateur standard réinitialisé depuis son cabinet
+- Dernière preuve : AFTER 1440/768/390 inspectées, score visuel R2 9.6/10
+- Blocage réel : aucun avant merge
+- Next exact : **merge #171 → vérifier master → démarrer R3 avec BEFORE + Goal + mockup**
+- Avancement roadmap validé : **1/15 lots = 6.7 %**
 - Vercel : **interdit sans autorisation explicite**
 
 ## 9. Journal de progression
+
+### 2026-08-19 — R2 Profil Cabinet
+
+- baseline réelle Settings réutilisée et état actuel vérifié ;
+- Goal visuel + wireframe écrits avant implémentation ;
+- éditeur d'en-tête rendu avancé/repliable ;
+- règle Benmoussa implémentée par vérité superadmin backend ;
+- texte logo réaligné sur le vrai traitement ;
+- double sauvegarde Profil supprimée ;
+- défaut sticky mobile détecté sur première AFTER puis corrigé ;
+- deuxième certification AFTER : SUCCESS ;
+- CI/T2/RBAC/Branding/IA/Team Truth : SUCCESS ;
+- score visuel final : **9.6/10** ;
+- aucun déploiement Vercel.
 
 ### 2026-08-19 — Initialisation
 
 - audit produit initial consolidé ;
 - roadmap P1/P2/P3 créée ;
-- règle Benmoussa corrigée : **ne pas supprimer pour le propriétaire, restreindre au superadmin propriétaire** ;
+- règle Benmoussa corrigée ;
 - protocole de mise à jour après chaque page ajouté ;
-- aucune modification fonctionnelle ni UI effectuée ;
 - aucun déploiement effectué.
