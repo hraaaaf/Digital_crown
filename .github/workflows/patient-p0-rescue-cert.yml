@@ -1,0 +1,138 @@
+name: Patient P0 Rescue Cert
+
+on:
+  push:
+    branches:
+      - agent/patient-page-p0-rescue
+    paths:
+      - '.github/workflows/patient-p0-rescue-cert.yml'
+      - 'frontend/src/features/patients/components/wizards/AssistantChirurgie.tsx'
+      - 'frontend/src/features/patients/components/wizards/AssistantPedo.tsx'
+      - 'frontend/src/features/patients/components/wizards/AssistantPatho.tsx'
+      - 'backend/services/bilan_ortho_engine.py'
+      - 'backend/services/panoramic_service.py'
+      - 'backend/services/sota_panoramic_service.py'
+      - 'backend/services/generators/panoramic_elite_gen.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patient-p0-rescue-cert-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: P0 rescue source contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          wizard_specs = {
+              'frontend/src/features/patients/components/wizards/AssistantChirurgie.tsx': [
+                  'Aucun diagnostic chirurgical, examen complémentaire, protocole médicamenteux ou geste opératoire n’est déterminé automatiquement.',
+                  'onComplete(summary, [])',
+              ],
+              'frontend/src/features/patients/components/wizards/AssistantPedo.tsx': [
+                  'Aucun diagnostic, examen radiographique, sédation, anesthésie, prescription ou traitement dentaire n’est déterminé automatiquement.',
+                  'onComplete(summary, [])',
+              ],
+              'frontend/src/features/patients/components/wizards/AssistantPatho.tsx': [
+                  'Aucun diagnostic, médicament, biopsie, exérèse, surveillance ou adressage n’est déterminé automatiquement.',
+                  'onComplete(summary, [])',
+              ],
+          }
+          for filename, required in wizard_specs.items():
+              text = Path(filename).read_text(encoding='utf-8')
+              for token in required:
+                  assert token in text, f'{filename}: missing {token}'
+
+          pano = Path('backend/services/panoramic_service.py').read_text(encoding='utf-8')
+          sota = Path('backend/services/sota_panoramic_service.py').read_text(encoding='utf-8')
+          for filename, text in [('panoramic_service.py', pano), ('sota_panoramic_service.py', sota)]:
+              assert 'in {"production", "cabinet"}' in text, f'{filename}: cabinet not clinical'
+              assert '_is_production()' not in text, f'{filename}: legacy production-only guard remains'
+          assert '"status": "UNAVAILABLE"' in pano
+          assert '"status": "SUCCESS",\n                "mode_inference": "FALLBACK_EMPTY"' not in pano
+          assert 'Aucun résultat clinique simulé n\'est généré.' in sota
+
+          bilan = Path('backend/services/bilan_ortho_engine.py').read_text(encoding='utf-8')
+          assert 'plan_traitement = self._generate_plan_traitement(cephalo, clinique)' not in bilan
+          assert "Aucune stratégie thérapeutique n'est générée automatiquement." in bilan
+          assert 'relève exclusivement de la décision du praticien' in bilan
+
+          gen = Path('backend/services/generators/panoramic_elite_gen.py').read_text(encoding='utf-8')
+          start = gen.index('def generate(')
+          patient_guard = gen.index('assert_patient_access(analysis.patient_id, current_user, db)', start)
+          patient_read = gen.index('patient = db.query(models.Patient)', start)
+          assert patient_guard < patient_read
+          print('P0 rescue source contracts: OK')
+          PY
+
+      - name: Python syntax
+        run: |
+          python -m py_compile \
+            backend/services/bilan_ortho_engine.py \
+            backend/services/panoramic_service.py \
+            backend/services/sota_panoramic_service.py \
+            backend/services/generators/panoramic_elite_gen.py
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Write certified proof
+        env:
+          TESTED_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          proof = {
+              'status': 'CERTIFIED',
+              'tested_sha': os.environ['TESTED_SHA'],
+              'run_id': os.environ['RUN_ID'],
+              'contracts': [
+                  'AssistantChirurgie fail-closed',
+                  'AssistantPedo fail-closed',
+                  'AssistantPatho fail-closed',
+                  'Panoramic cabinet fail-closed source contract',
+                  'Orthodontic strategy non-autonomous',
+                  'Panoramic PDF patient-access ordering',
+                  'Python syntax',
+                  'Frontend build',
+              ],
+          }
+          Path('docs/PATIENT_P0_RESCUE_CERT.json').write_text(
+              json.dumps(proof, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PATIENT_P0_RESCUE_CERT.json
+          if git diff --cached --quiet; then
+            echo "Proof already current."
+            exit 0
+          fi
+          git commit -m "test(patient): certify P0 rescue safety contracts"
+          git push origin HEAD:${GITHUB_REF_NAME}
