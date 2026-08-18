@@ -59,7 +59,13 @@ jobs:
           from pathlib import Path
           root=Path('frontend/src/features/patients/components/wizards')
           names=['AssistantATM.tsx','AssistantGeneral.tsx','AssistantOrtho.tsx','AssistantParo.tsx','AssistantProthese.tsx']
-          banned=['Prescription Myorelaxants','CBCT / IRM','Gouttière de libération occlusale','Antibioprophylaxie avant tout soin invasif','Radiographie de contrôle (RVG)','Traitement global par Aligneurs','Pose Appareillage Multi-attaches','Appareillage Orthopédique','Avis Chirurgie Maxillo-Faciale','Antibiothérapie adjuvante','Chirurgie parodontale','Pose d\\'Implant','Couronne monolithique']
+          banned=[
+              'Prescription Myorelaxants','CBCT / IRM','Gouttière de libération occlusale',
+              'Antibioprophylaxie avant tout soin invasif','Radiographie de contrôle (RVG)',
+              'Traitement global par Aligneurs','Pose Appareillage Multi-attaches','Appareillage Orthopédique',
+              'Avis Chirurgie Maxillo-Faciale','Antibiothérapie adjuvante','Chirurgie parodontale',
+              "Pose d'Implant",'Couronne monolithique'
+          ]
           marker='Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.'
           for name in names:
               text=(root/name).read_text(encoding='utf-8')
@@ -144,5 +150,3 @@ jobs:
           path: artifacts/p0d-remaining-after
           if-no-files-found: error
           retention-days: 14
-
-# Exact-head re-trigger after all five fail-closed product edits and P0-E cert wiring.
