@@ -1,0 +1,1 @@
+Certification gate: do not merge R2 until exact-head CI and R2 visual proof are green and AFTER captures are inspected.
