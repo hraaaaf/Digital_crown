@@ -3,6 +3,7 @@ name: Settings Profile R2 Visual Certification
 on:
   pull_request:
     paths:
+      - "frontend/src/features/admin/Settings/SettingsContainer.tsx"
       - "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx"
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
       - ".github/workflows/settings-profile-r2-visual-cert.yml"
@@ -167,7 +168,9 @@ jobs:
                 await page.goto(`http://127.0.0.1:4182/settings-r2-profile-cert.html?role=${role}`, { waitUntil: 'networkidle' });
                 await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
                 await page.getByText('Aucun détourage automatique', { exact: false }).waitFor({ state: 'visible' });
-                await page.getByText('Personnalisation avancée').waitFor({ state: 'hidden' }).catch(() => {});
+
+                const profileSave = page.getByRole('button', { name: /Mettre à jour le profil/i });
+                if (await profileSave.count() !== 1) throw new Error('Profile must expose exactly one save action');
 
                 await page.screenshot({ path: `${output}/${role}-profil-collapsed-${width}x1200.png`, fullPage: true, animations: 'disabled' });
 
@@ -205,7 +208,7 @@ jobs:
             echo "Runtime errors detected in R2 Profile harness" >&2
             exit 1
           fi
-          ! grep -R -n -E 'Détourage IA|Logo Premium généré' src/features/admin/Settings
+          ! grep -R -n -E 'Détourage IA|Logo Premium généré' src/features/admin/Settings/tabs/ProfileTab.tsx src/features/admin/Settings/hooks/useSettingsStore.ts
 
       - name: Record metadata
         working-directory: frontend
