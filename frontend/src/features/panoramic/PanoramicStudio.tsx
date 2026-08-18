@@ -184,8 +184,10 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     if (!result?.id) return;
     setDownloading(true);
     try {
-      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
-      window.open(response.data.pdf_url, '_blank');
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(response.data);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err: any) {
       console.error("Erreur téléchargement PDF :", err);
       const errorMsg = err?.response?.data?.detail || "Erreur lors de la génération du PDF.";
@@ -200,8 +202,8 @@ export const PanoramicStudio: React.FC<PanoramicStudioProps> = ({ patientId, pat
     setIsPreviewLoading(true);
     setPreviewPdfUrl(null);
     try {
-      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);
-      setPreviewPdfUrl(response.data.pdf_url);
+      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });
+      setPreviewPdfUrl(URL.createObjectURL(response.data));
     } catch (err: any) {
       console.error("Erreur aperçu PDF :", err);
       const errorMsg = err?.response?.data?.detail || "Impossible de charger l'aperçu PDF.";

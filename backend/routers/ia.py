@@ -383,15 +383,22 @@ def delete_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get
 
 @router.get("/panoramic/{analysis_id}/pdf")
 def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
-    """Génère et retourne l'URL du bilan PDF professionnel Élite."""
+    """Génère et diffuse le PDF panoramique via un flux authentifié."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
     try:
+        from fastapi.responses import FileResponse
         from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator
-        pdf_url = panoramic_elite_generator.generate(
-            db=db,
-            analysis_id=analysis_id,
-            current_user=current_user
-        )
-        return {"pdf_url": f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/{pdf_url}"}
+        pdf_rel = panoramic_elite_generator.generate(db=db, analysis_id=analysis_id, current_user=current_user)
+        clean_rel = pdf_rel.removeprefix("api/")
+        pdf_path = os.path.join(BASE_DIR, clean_rel)
+        if not os.path.isfile(pdf_path):
+            raise HTTPException(status_code=500, detail="PDF généré introuvable")
+        return FileResponse(path=pdf_path, media_type="application/pdf", filename=os.path.basename(pdf_path))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
         raise HTTPException(status_code=500, detail=str(e))
