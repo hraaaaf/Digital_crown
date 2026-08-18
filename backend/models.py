@@ -298,7 +298,6 @@ class DossierClinique(Base):
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), unique=True, nullable=False)
     is_ortho_active: Mapped[bool] = mapped_column(Boolean, default=False)
     note_honnetete: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    antecedents_medicaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     patient: Mapped["Patient"] = relationship(back_populates="dossier")
 
@@ -851,6 +850,7 @@ class InstallmentPlan(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    acte_id: Mapped[Optional[int]] = mapped_column(ForeignKey("actes.id", ondelete="SET NULL"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False) # Ex: Traitement Ortho 2024
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)
     
@@ -859,6 +859,7 @@ class InstallmentPlan(Base):
 
     # Relations
     patient: Mapped["Patient"] = relationship()
+    acte: Mapped[Optional["Acte"]] = relationship()
     installments: Mapped[List["Installment"]] = relationship(
         back_populates="plan", 
         cascade="all, delete-orphan",
