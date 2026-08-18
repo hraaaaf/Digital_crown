@@ -1,13 +1,13 @@
 {
   "lot": "Page Patient / P0 — Vérité & sécurité",
-  "status": "AWAITING_FINAL_EXACT_HEAD_CI",
-  "code_candidate_sha": "653b19b926019653ea8c1f6ad4c21f17005aeb5e",
-  "code_candidate_proofs": {
-    "ci_run_id": 32195798290,
-    "ci_run_number": 1095,
+  "status": "CLOSED",
+  "certified_head": "2b9d51ffca6b613ab44e1de2f08538a08a17d51a",
+  "final_exact_head_proofs": {
+    "ci_run_id": 32196646837,
+    "ci_run_number": 1099,
     "ci_conclusion": "success",
-    "t2_run_id": 32195798150,
-    "t2_run_number": 356,
+    "t2_run_id": 32196646938,
+    "t2_run_number": 359,
     "t2_conclusion": "success"
   },
   "visual_evidence": {
@@ -37,6 +37,6 @@
     "panoramic RAG context carries neutral FDI landmarks only",
     "panoramic PDF is patient-authorized and blob-streamed"
   ],
-  "closure_rule": "P0 may be declared CLOSED only when CI and T2 both succeed on the exact HEAD containing this closeout record and the canonical roadmap update.",
+  "closure_basis": "CI #1099 and T2 #359 both succeeded on exact HEAD 2b9d51ffca6b613ab44e1de2f08538a08a17d51a containing the canonical roadmap closeout record.",
   "deployment": "none"
 }
