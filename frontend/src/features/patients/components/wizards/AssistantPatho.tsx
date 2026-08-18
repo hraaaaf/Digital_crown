@@ -59,47 +59,28 @@ export const AssistantPatho: React.FC<AssistantPathoProps> = ({ onComplete, onCa
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Lésion Muqueuse Buccale";
-      const steps = [];
+      const aspect = QUESTIONS[0].options.find(opt => opt.value === finalAnswers.type)?.label ?? 'Non renseigné';
+      const duree = QUESTIONS[1].options.find(opt => opt.value === finalAnswers.duree)?.label ?? 'Non renseignée';
+      const symptome = QUESTIONS[2].options.find(opt => opt.value === finalAnswers.symptome)?.label ?? 'Non renseigné';
 
-      // Logic Patho
-      if (finalAnswers.type === 0) {
-        if (finalAnswers.duree === 0) {
-          diag = "Ulcération Aiguë (Aphtose ou Traumatique)";
-          steps.push({ title: 'Élimination du facteur traumatique (si existant)', assistant: 'general' });
-          steps.push({ title: 'Prescription gel cicatrisant/anesthésique', assistant: 'general' });
-        } else {
-          diag = "Ulcération Chronique Persistante";
-        }
-      } else if (finalAnswers.type === 1) {
-        diag = "Lésion Blanche (Suspicion Lichen / Candidose / Leucoplasie)";
-        if (finalAnswers.symptome === 1) {
-          steps.push({ title: 'Prescription Antifongique (Épreuve thérapeutique)', assistant: 'general' });
-        }
-      } else if (finalAnswers.type === 2) {
-        diag = "Lésion Érythémateuse ou Vésiculeuse";
-        if (finalAnswers.duree === 0) {
-          steps.push({ title: 'Traitement Antiviral (si primo-infection herpétique)', assistant: 'general' });
-        }
-      } else if (finalAnswers.type === 3) {
-        diag = "Tuméfaction / Excroissance bénigne probable";
-        steps.push({ title: 'Exérèse chirurgicale (Biopsie exérèse)', assistant: 'chirurgie' });
-        steps.push({ title: 'Analyse Anatomo-Pathologique (Anapath)', assistant: 'patho' });
-      }
+      const vigilance = finalAnswers.duree === 1 || finalAnswers.symptome === 2
+        ? 'Point de vigilance déclaré : persistance et/ou signe clinique nécessitant une évaluation attentive par le praticien.'
+        : 'Aucun point de vigilance spécifique n’est conclu automatiquement à partir du questionnaire.';
 
-      // RED FLAGS (Lésion suspecte)
-      if (finalAnswers.duree === 1 && (finalAnswers.type === 0 || finalAnswers.type === 1) || finalAnswers.symptome === 2) {
-        diag = "Lésion Suspecte (À investiguer urgemment)";
-        steps.unshift({ title: 'Prise de photos intra-orales détaillées', assistant: 'general' });
-        steps.push({ title: 'Biopsie incisionnelle pour analyse', assistant: 'chirurgie' });
-        steps.push({ title: 'Adressage en service de Pathologie Buccale / Maxillo-facial', assistant: 'general' });
-      } else if (finalAnswers.type !== 3) {
-        steps.push({ title: 'Surveillance à 7-14 jours', assistant: 'patho' });
-      }
+      const summary = [
+        'Synthèse muqueuse structurée.',
+        `Aspect clinique renseigné : ${aspect}.`,
+        `Durée renseignée : ${duree}.`,
+        `Symptomatologie renseignée : ${symptome}.`,
+        vigilance,
+        'Le questionnaire ne permet pas d’identifier automatiquement la nature histologique ou étiologique d’une lésion.',
+        'Aucun diagnostic, médicament, biopsie, exérèse, surveillance ou adressage n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après examen clinique.'
+      ].join('\n');
 
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 
@@ -107,7 +88,7 @@ export const AssistantPatho: React.FC<AssistantPathoProps> = ({ onComplete, onCa
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Microscope className="w-12 h-12 text-teal-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Analyse de la Lésion Muqueuse...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse muqueuse structurée...</h3>
       </div>
     );
   }
@@ -145,8 +126,8 @@ export const AssistantPatho: React.FC<AssistantPathoProps> = ({ onComplete, onCa
                   onClick={() => handleSelect(question.id, opt.value)}
                   className={cn(
                     "p-4 rounded-2xl border text-left flex items-center justify-between transition-all group",
-                    isSelected 
-                      ? "bg-teal-500/10 border-teal-500 text-teal-600 dark:text-teal-400 shadow-md shadow-teal-500/10" 
+                    isSelected
+                      ? "bg-teal-500/10 border-teal-500 text-teal-600 dark:text-teal-400 shadow-md shadow-teal-500/10"
                       : "bg-card-bg border-border-main hover:border-teal-400 hover:shadow-sm text-text-main"
                   )}
                 >
