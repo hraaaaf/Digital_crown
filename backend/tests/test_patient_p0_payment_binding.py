@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -169,3 +170,14 @@ def test_valid_act_payment_updates_only_bound_act(db):
     assert payment.payment_method == models.PaymentMethod.CARTE
     assert acte.statut_paiement == models.PaiementStatut.PARTIEL
     assert acte.is_collected is False
+
+
+def test_accounting_router_has_no_legacy_installment_routes():
+    source = Path("backend/routers/accounting.py").read_text(encoding="utf-8")
+    for banned in (
+        '@router.post("/plans"',
+        '@router.get("/plans/patient/{patient_id}"',
+        '@router.put("/installments/{installment_id}"',
+        '@router.delete("/plans/{plan_id}"',
+    ):
+        assert banned not in source
