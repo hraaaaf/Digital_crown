@@ -144,3 +144,5 @@ jobs:
           path: artifacts/p0d-remaining-after
           if-no-files-found: error
           retention-days: 14
+
+# Exact-head re-trigger after all five fail-closed product edits and P0-E cert wiring.
