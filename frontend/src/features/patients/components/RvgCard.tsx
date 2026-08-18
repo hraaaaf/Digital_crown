@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Trash2, Download, ExternalLink } from 'lucide-react';
 import type { RVGDocument } from '../../../services/rvgService';
 import rvgService from '../../../services/rvgService';
+import { useAuthenticatedImage } from '../../../hooks/useAuthenticatedImage';
 
 interface RvgCardProps {
   doc: RVGDocument;
@@ -22,13 +23,16 @@ export const RvgCard: React.FC<RvgCardProps> = ({
 }) => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [opening, setOpening] = useState(false);
+  const thumbnailUrl = useAuthenticatedImage(`/api/documents/${doc.id}/download`);
 
   const handleOpenFile = async () => {
     setOpening(true);
     try {
-      const token = localStorage.getItem('token');
-      const url = rvgService.getDownloadUrl(doc.id, token ?? undefined);
-      window.open(url, '_blank');
+      const blob = await rvgService.fetchRVGBlob(doc.id);
+      const objectUrl = URL.createObjectURL(blob);
+      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) URL.revokeObjectURL(objectUrl);
+      else window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch (err) {
       console.error('Error opening file:', err);
     } finally {
@@ -38,12 +42,15 @@ export const RvgCard: React.FC<RvgCardProps> = ({
 
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const url = rvgService.getDownloadUrl(doc.id, token ?? undefined);
+      const blob = await rvgService.fetchRVGBlob(doc.id);
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = objectUrl;
       a.download = doc.original_filename || `rvg_${doc.id}`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
       console.error('Error downloading file:', err);
     }
@@ -90,7 +97,7 @@ export const RvgCard: React.FC<RvgCardProps> = ({
             </div>
           ) : (
             <img
-              src={doc.download_url}
+              src={thumbnailUrl}
               alt={`${radioTypeLabel} - ${doc.original_filename}`}
               className="w-full h-full object-cover"
               onError={(e) => {
