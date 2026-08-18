@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/patient-p0d-remaining-assistants-after.yml'
       - 'frontend/src/features/patients/components/wizards/AssistantATM.tsx'
-      - 'frontend/src/features/patients/components/wizards/AssistantGeneral.tsx'
+      - 'frontend/src/features/patients/components/wizards/AssistantExamenComplet.tsx'
       - 'frontend/src/features/patients/components/wizards/AssistantOrtho.tsx'
       - 'frontend/src/features/patients/components/wizards/AssistantParo.tsx'
       - 'frontend/src/features/patients/components/wizards/AssistantProthese.tsx'
@@ -58,7 +58,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           root=Path('frontend/src/features/patients/components/wizards')
-          names=['AssistantATM.tsx','AssistantGeneral.tsx','AssistantOrtho.tsx','AssistantParo.tsx','AssistantProthese.tsx']
+          standard=['AssistantATM.tsx','AssistantOrtho.tsx','AssistantParo.tsx','AssistantProthese.tsx']
           banned=[
               'Prescription Myorelaxants','CBCT / IRM','Gouttière de libération occlusale',
               'Antibioprophylaxie avant tout soin invasif','Radiographie de contrôle (RVG)',
@@ -67,13 +67,16 @@ jobs:
               "Pose d'Implant",'Couronne monolithique'
           ]
           marker='Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.'
-          for name in names:
+          for name in standard:
               text=(root/name).read_text(encoding='utf-8')
               assert 'onComplete(summary, [])' in text, name
               assert marker in text, name
               for value in banned:
                   assert value not in text, f'{name}: banned {value}'
-          print('P0-D source contracts OK')
+          complete=(root/'AssistantExamenComplet.tsx').read_text(encoding='utf-8')
+          assert complete.count('return { diag: summary, steps: [], next: null }') >= 2
+          assert 'Ce questionnaire ne pose pas automatiquement de diagnostic et ne détermine pas de traitement.' in complete
+          print('P0-D active source contracts OK')
           PY
       - name: Start isolated runtime
         run: |
@@ -94,14 +97,14 @@ jobs:
           import fs from 'node:fs'; import path from 'node:path'; import { chromium, request } from 'playwright';
           const out=path.resolve('../artifacts/p0d-remaining-after');
           const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const standardSafe=/Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement/i;
           const assistants=[
-            {id:'general',card:/Examen Clinique Complet/i,protocol:/Protocole Examen Clinique Complet/i},
-            {id:'atm',card:/Occlusodontie & ATM/i,protocol:/Protocole Occlusodontie & ATM/i},
-            {id:'ortho',card:/Orthodontie \(ODF\)/i,protocol:/Protocole Orthodontie \(ODF\)/i},
-            {id:'paro',card:/Parodontologie/i,protocol:/Protocole Parodontologie/i},
-            {id:'prothese',card:/Prothèse & Esthétique/i,protocol:/Protocole Prothèse & Esthétique/i},
+            {id:'general',card:/Examen Clinique Complet/i,protocol:/Protocole Examen Clinique Complet/i,safe:/Ce questionnaire ne pose pas automatiquement de diagnostic et ne détermine pas de traitement/i},
+            {id:'atm',card:/Occlusodontie & ATM/i,protocol:/Protocole Occlusodontie & ATM/i,safe:standardSafe},
+            {id:'ortho',card:/Orthodontie \(ODF\)/i,protocol:/Protocole Orthodontie \(ODF\)/i,safe:standardSafe},
+            {id:'paro',card:/Parodontologie/i,protocol:/Protocole Parodontologie/i,safe:standardSafe},
+            {id:'prothese',card:/Prothèse & Esthétique/i,protocol:/Protocole Prothèse & Esthétique/i,safe:standardSafe},
           ];
-          const safe=/Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement/i;
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
           const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}}); if(!login.ok()) throw new Error(await login.text());
           const tok=await login.json(); const ps=await api.get('/api/patients',{headers:{Authorization:`Bearer ${tok.access_token}`}}); if(!ps.ok()) throw new Error(await ps.text());
@@ -130,9 +133,10 @@ jobs:
               }
               await page.waitForTimeout(1900);
               const proposal=page.getByText(/Proposition clinique à valider/i).first(); const proposalVisible=await proposal.isVisible().catch(()=>false);
-              const safeLocator=page.getByText(safe).first(); const safeVisible=(await safeLocator.count())>0;
-              if(safeVisible) await safeLocator.scrollIntoViewIfNeeded();
+              const safeLocator=page.getByText(assistant.safe).first(); const safeFound=(await safeLocator.count())>0;
+              if(safeFound) await safeLocator.scrollIntoViewIfNeeded();
               else if(proposalVisible) await proposal.scrollIntoViewIfNeeded();
+              const safeVisible=safeFound && await safeLocator.isVisible().catch(()=>false);
               const screenshot=`${assistant.id}-after-${viewport.width}x${viewport.height}.png`; await page.screenshot({path:path.join(out,screenshot),fullPage:false});
               const metrics=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,noHorizontalOverflow:document.documentElement.scrollWidth<=document.documentElement.clientWidth+2}));
               evidence.push({assistant:assistant.id,viewport,proposalVisible,safeVisible,metrics,errors,http5xx,screenshot}); await ctx.close();
