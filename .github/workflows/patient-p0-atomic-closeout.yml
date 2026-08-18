@@ -1,0 +1,407 @@
+name: Patient P0 Atomic Closeout
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0-atomic-closeout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ENVIRONMENT: test
+  SECRET_KEY: patient-p0-atomic-closeout-secret-000001
+  DATABASE_URL: sqlite:///./t2-runtime-cert.db
+  TELEMETRY_ENABLED: 'false'
+  CLOUD_AI_ENABLED: 'false'
+  DEBUG: 'false'
+  ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Apply certified P0-E UI files
+        run: |
+          git fetch origin agent/patient-page-p0-truth-safety --depth=1
+          git show FETCH_HEAD:frontend/src/features/patients/components/PatientFinances.tsx > frontend/src/features/patients/components/PatientFinances.tsx
+          git show FETCH_HEAD:frontend/src/features/patients/components/InstallmentPlanModal.tsx > frontend/src/features/patients/components/InstallmentPlanModal.tsx
+
+      - name: Apply strict payment binding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('backend/routers/accounting.py')
+          s=p.read_text(encoding='utf-8')
+          start=s.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          end=s.index('\n@router.get("/payments/patient/{patient_id}"',start)
+          new='''@router.post("/payments", response_model=schemas.PaymentOut)
+          def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission(["accounting", "payments"]))):
+              """Enregistre un encaissement réel, strictement lié aux entités du même patient."""
+              assert_patient_access(payment.patient_id, current_user, db)
+
+              if payment.acte_id is not None and payment.installment_id is not None:
+                  raise HTTPException(status_code=422, detail="Un paiement ne peut pas cibler simultanément un acte et une échéance.")
+
+              acte = None
+              if payment.acte_id is not None:
+                  acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
+                  if acte is None:
+                      raise HTTPException(status_code=404, detail="Acte introuvable")
+                  if acte.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'acte n'appartient pas au patient du paiement.")
+
+              if payment.installment_id is not None:
+                  installment = db.query(models.Installment).filter(models.Installment.id == payment.installment_id).first()
+                  if installment is None:
+                      raise HTTPException(status_code=404, detail="Échéance introuvable")
+                  plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == installment.plan_id).first()
+                  if plan is None:
+                      raise HTTPException(status_code=409, detail="Plan d'échéances introuvable pour cette échéance.")
+                  if plan.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'échéance n'appartient pas au patient du paiement.")
+
+              payment_method = getattr(models.PaymentMethod, payment.payment_method, None)
+              if payment_method is None:
+                  raise HTTPException(status_code=422, detail="Mode de paiement invalide")
+
+              new_payment = models.Payment(
+                  patient_id=payment.patient_id,
+                  amount=payment.amount,
+                  payment_method=payment_method,
+                  payment_date=payment.payment_date or datetime.now(),
+                  acte_id=payment.acte_id,
+                  installment_id=payment.installment_id,
+                  notes=payment.notes,
+                  validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
+              )
+              db.add(new_payment)
+              db.flush()
+
+              if acte is not None:
+                  total_paid = db.query(func.sum(models.Payment.amount)).filter(models.Payment.acte_id == acte.id).scalar() or 0.0
+                  if total_paid >= acte.montant:
+                      acte.statut_paiement = models.PaiementStatut.PAYE
+                      acte.is_collected = True
+                  elif total_paid > 0:
+                      acte.statut_paiement = models.PaiementStatut.PARTIEL
+                      acte.is_collected = False
+
+              db.commit()
+              db.refresh(new_payment)
+              return new_payment
+          '''
+          # Dedent the embedded function because YAML/Python indentation is only transport noise.
+          import textwrap
+          s=s[:start]+textwrap.dedent(new)+s[end:]
+          s=s.replace('payment_method: str = Body(default="ESPECES", embed=True),','payment_method: str = Body(..., embed=True),',1)
+          needle='''    try:\n        from backend.utils.access_control import assert_patient_access\n        \n        now = datetime.now()\n'''
+          repl='''    try:\n        from backend.utils.access_control import assert_patient_access\n\n        method_code = str(payment_method or "").strip().upper()\n        method_enum = getattr(models.PaymentMethod, method_code, None)\n        if method_enum is None:\n            raise HTTPException(status_code=422, detail="Mode de paiement explicite invalide")\n        \n        now = datetime.now()\n'''
+          if needle in s:
+              s=s.replace(needle,repl,1)
+          a=s.index('async def mark_as_paid('); b=s.index('\n@router.get("/export-pdf")',a)
+          block=s[a:b]
+          if 'payment_method=method_enum,' not in block:
+              block=block.replace('payment_method=payment_method,','payment_method=method_enum,')
+          s=s[:a]+block+s[b:]
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Apply fail-closed remaining assistants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          files = {
+            'AssistantATM.tsx': 'Synthèse ATM / parafonctions structurée.',
+            'AssistantGeneral.tsx': 'Synthèse générale structurée.',
+            'AssistantOrtho.tsx': 'Synthèse orthodontique structurée.',
+            'AssistantParo.tsx': 'Synthèse parodontale structurée.',
+            'AssistantProthese.tsx': 'Synthèse prothétique structurée.',
+          }
+          root=Path('frontend/src/features/patients/components/wizards')
+          pattern=re.compile(r"  const generateDiagnosis = \(finalAnswers: Record<string, number>\) => \{.*?\n  \};\n\n  if \(isCalculating\)",re.S)
+          for filename,title in files.items():
+              p=root/filename; src=p.read_text(encoding='utf-8')
+              if 'onComplete(summary, [])' in src: continue
+              replacement=f'''  const generateDiagnosis = (finalAnswers: Record<string, number>) => {{
+                setIsCalculating(true);
+                setTimeout(() => {{
+                  const selected = QUESTIONS.map((question) => {{
+                    const value = finalAnswers[question.id];
+                    const option = question.options.find((item) => item.value === value);
+                    return `${{question.title}} : ${{option?.label ?? 'Non renseigné'}}`;
+                  }});
+                  const summary = [
+                    '{title}',
+                    `Observations recueillies : ${{selected.join(' ; ')}}.`,
+                    'Ces réponses décrivent uniquement les informations saisies dans le questionnaire.',
+                    'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.',
+                    'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+                  ].join(' ');
+                  onComplete(summary, []);
+                }}, 1500);
+              }};
+
+              if (isCalculating)'''
+              updated,count=pattern.subn(replacement,src,count=1)
+              if count!=1: raise SystemExit(f'{filename}: generateDiagnosis source mismatch')
+              p.write_text(updated,encoding='utf-8')
+          PY
+
+      - name: Apply P0-I truth fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('backend/services/habits_engine.py'); s=p.read_text(encoding='utf-8')
+          patterns=[
+            (r'\n        # Exemple 2 : Prévention \(Trigger Temps\).*?\n        # Exemple 3 : Dossier Incomplet', '\n        # Prévention clinique fondée sur un délai uniquement : supprimée en P0 fail-closed.\n\n        # Exemple 3 : Dossier Incomplet'),
+            (r'\n        # C3: Patient Haute Valeur à Risque.*?\n        # A4: Traitement Abandonné', '\n        # Classement commercial Patient Premium : exclu des alertes Patient P0.\n\n        # A4: Traitement Abandonné'),
+            (r'\n        # B4: Progression Traitement Ortho.*?\n        # B3: Créneau Maudit', '\n        # Progression orthodontique automatique : supprimée, le dossier ne permet pas de conclure cliniquement.\n\n        # B3: Créneau Maudit'),
+            (r'\n        # B5: Prédiction Fin Traitement Ortho.*?\n        # C4: Rappels Semestriels Ortho', '\n        # Estimation automatique de fin orthodontique : supprimée en P0 fail-closed.\n\n        # C4: Rappels Semestriels Ortho'),
+          ]
+          for pat,repl in patterns:
+              s2,n=re.subn(pat,repl,s,count=1,flags=re.S)
+              if n!=1: raise SystemExit(f'habits_engine source mismatch: {pat[:40]}')
+              s=s2
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('backend/services/elite_manager.py'); s=p.read_text(encoding='utf-8')
+          old='''                    insights.append({
+                        "id": f"pano_detect_{latest_pano.id}",
+                        "type": "diagnostic",
+                        "title": "Intelligence Panoramique",
+                        "content": f"🔬 {len(detections)} anomalies détectées sur la panoramique (IA).",
+                        "actionLabel": "Consulter le bilan",
+                        "source_type": "DETERMINISTIC",
+                        "trust_level": 1.0
+                    })'''
+          new='''                    insights.append({
+                        "id": f"pano_detect_{latest_pano.id}",
+                        "type": "suggestion",
+                        "title": "Repérage Panoramique",
+                        "content": f"{len(detections)} repère(s) dentaire(s) automatique(s) disponible(s) sur la panoramique. Aucune anomalie n'est conclue automatiquement.",
+                        "actionLabel": "Consulter le bilan",
+                        "source_type": "DETERMINISTIC",
+                        "trust_level": 1.0
+                    })'''
+          if old not in s: raise SystemExit('elite pano source mismatch')
+          s=s.replace(old,new,1)
+          s=s.replace('"type": "diagnostic",\n                    "title": "Findings Panoramiques Récents",\n                    "content": "Détections IA récentes : " + ", ".join(pano_findings[:3]) + ".",','"type": "suggestion",\n                    "title": "Repérages Panoramiques Récents",\n                    "content": "Repères dentaires automatiques récents : " + ", ".join(pano_findings[:3]) + ". Aucune anomalie n’est conclue automatiquement.",',1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('backend/services/rag_context.py'); s=p.read_text(encoding='utf-8')
+          s=s.replace('"""Extract top findings from the most recent panoramic analyses."""','"""Extract neutral automatic tooth-location labels from recent panoramic analyses."""',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Apply authenticated panoramic PDF flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          ia=Path('backend/routers/ia.py'); src=ia.read_text(encoding='utf-8')
+          start=src.index('@router.get("/panoramic/{analysis_id}/pdf")')
+          end=src.index('@router.delete("/panoramic/{analysis_id}"',start)
+          endpoint=src[start:end]
+          if 'return FileResponse(path=pdf_path' not in endpoint:
+              new='''@router.get("/panoramic/{analysis_id}/pdf")
+              def download_panoramic_pdf(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+                  """Génère et diffuse le PDF panoramique via un flux authentifié."""
+                  analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id).first()
+                  if not analysis:
+                      raise HTTPException(status_code=404, detail="Analyse introuvable")
+                  assert_patient_access(analysis.patient_id, current_user, db)
+                  try:
+                      from fastapi.responses import FileResponse
+                      from backend.services.generators.panoramic_elite_gen import panoramic_elite_generator
+                      pdf_rel = panoramic_elite_generator.generate(db=db, analysis_id=analysis_id, current_user=current_user)
+                      clean_rel = pdf_rel.removeprefix("api/")
+                      pdf_path = os.path.join(BASE_DIR, clean_rel)
+                      if not os.path.isfile(pdf_path):
+                          raise HTTPException(status_code=500, detail="PDF généré introuvable")
+                      return FileResponse(path=pdf_path, media_type="application/pdf", filename=os.path.basename(pdf_path))
+                  except HTTPException:
+                      raise
+                  except Exception as e:
+                      logger.exception(f"Erreur lors de la génération du PDF panoramique Élite: {e}")
+                      raise HTTPException(status_code=500, detail=str(e))
+
+
+              '''
+              import textwrap
+              src=src[:start]+textwrap.dedent(new)+src[end:]
+              ia.write_text(src,encoding='utf-8')
+
+          ui=Path('frontend/src/features/panoramic/PanoramicStudio.tsx'); src=ui.read_text(encoding='utf-8')
+          pairs=[
+            ('''      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);\n      window.open(response.data.pdf_url, '_blank');''','''      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });\n      const blobUrl = URL.createObjectURL(response.data);\n      window.open(blobUrl, '_blank', 'noopener,noreferrer');\n      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);'''),
+            ('''      const response = await api.get(`/ia/panoramic/${result.id}/pdf`);\n      setPreviewPdfUrl(response.data.pdf_url);''','''      const response = await api.get(`/ia/panoramic/${result.id}/pdf`, { responseType: 'blob' });\n      setPreviewPdfUrl(URL.createObjectURL(response.data));''')]
+          for old,new in pairs:
+              if new not in src:
+                  if old not in src: raise SystemExit('PanoramicStudio PDF source mismatch')
+                  src=src.replace(old,new,1)
+          ui.write_text(src,encoding='utf-8')
+          PY
+
+      - name: Source contracts and syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          acct=Path('backend/routers/accounting.py').read_text(encoding='utf-8')
+          assert "L'acte n'appartient pas au patient" in acct and "L'échéance n'appartient pas au patient" in acct
+          assert 'getattr(models.PaymentMethod, payment.payment_method, None)' in acct
+          fin=Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
+          modal=Path('frontend/src/features/patients/components/InstallmentPlanModal.tsx').read_text(encoding='utf-8')
+          assert "recoveryRate === null ? '—'" in fin
+          assert "api.post('/installments/'" in modal and 'acte_id: acte.id' in modal
+          root=Path('frontend/src/features/patients/components/wizards')
+          for name in ['AssistantATM.tsx','AssistantGeneral.tsx','AssistantOrtho.tsx','AssistantParo.tsx','AssistantProthese.tsx']:
+              text=(root/name).read_text(encoding='utf-8')
+              assert 'onComplete(summary, [])' in text, name
+              assert 'Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement.' in text, name
+          habits=Path('backend/services/habits_engine.py').read_text(encoding='utf-8')
+          for banned in ['Planifier Détartrage','Suggérer Détartrage','Patient Premium — Impayé Critique','Progression Orthodontie','Fin de Traitement Estimée']:
+              assert banned not in habits, banned
+          elite=Path('backend/services/elite_manager.py').read_text(encoding='utf-8')
+          assert 'anomalies détectées sur la panoramique' not in elite
+          assert '"title": "Repérage Panoramique"' in elite
+          ia=Path('backend/routers/ia.py').read_text(encoding='utf-8')
+          a=ia.index('@router.get("/panoramic/{analysis_id}/pdf")'); b=ia.index('@router.delete("/panoramic/{analysis_id}"',a); ep=ia[a:b]
+          assert ep.index('assert_patient_access') < ep.index('panoramic_elite_generator.generate')
+          assert 'FileResponse(' in ep and 'pdf_url' not in ep
+          ui=Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
+          assert "responseType: 'blob'" in ui and 'response.data.pdf_url' not in ui
+          print('P0 atomic source contracts OK')
+          PY
+          python -m py_compile backend/routers/accounting.py backend/services/habits_engine.py backend/services/elite_manager.py backend/services/rag_context.py backend/routers/ia.py
+          git diff --check
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p0-atomic.txt
+          pip install -r /tmp/requirements-p0-atomic.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: Backend P0 targeted tests
+        run: |
+          python -m pytest backend/tests/test_patient_p0_payment_binding.py backend/tests/test_patient_p0_installment_acte_link.py backend/tests/test_patient_p0_identity_truth.py -q --maxfail=1
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start isolated backend
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/p0-atomic-backend.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/p0-atomic-backend.log; exit 1
+
+      - name: Seed P0-I deterministic fixtures
+        run: |
+          python - <<'PY'
+          from datetime import datetime,timedelta
+          from backend import database,models
+          with database.SessionLocal() as db:
+              p=db.query(models.Patient).filter(models.Patient.numero_dossier=='T2-0001').first()
+              if not p: raise SystemExit('T2 patient missing')
+              user=db.query(models.User).filter(models.User.id==p.employer_id).first()
+              if user:
+                  user.subscription_plan=models.SubscriptionPlan.ELITE.value; user.is_licensed=True
+              db.add(models.Acte(patient_id=p.id,praticien_id=p.employer_id,type_acte=models.ActeType.SOIN,libelle='Détartrage P0-I ancien',montant=0.0,date_debut=datetime.now()-timedelta(days=400),statut_paiement=models.PaiementStatut.PAYE))
+              db.add(models.PanoramicAnalysis(patient_id=p.id,image_path='static/p0i-after.png',detections_data={'detections':[{'class':'tooth','label':'11','confidence':0.99},{'class':'tooth','label':'21','confidence':0.99}]},report_narrative=None))
+              db.commit()
+          PY
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p0-atomic-front.log 2>&1 &
+          for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/p0-atomic-front.log; exit 1
+
+      - name: Capture AFTER matrix
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/p0-atomic-after
+          cat > .p0-atomic-after.mjs <<'JS'
+          import fs from 'node:fs'; import path from 'node:path'; import { chromium, request } from 'playwright';
+          const out=path.resolve('../artifacts/p0-atomic-after'); const vps=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const api=await request.newContext({baseURL:'http://127.0.0.1:8005'}); const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}}); if(!login.ok())throw new Error(await login.text()); const tok=await login.json(); const headers={Authorization:`Bearer ${tok.access_token}`}; const ps=await api.get('/api/patients',{headers}); const all=await ps.json(); const main=all.find(p=>p.numero_dossier==='T2-0001'); const zero=all.find(p=>p.numero_dossier==='T2-ZERO-BILL'); if(!main||!zero)throw new Error('fixtures missing');
+          const intel=await api.get(`/api/intelligence/patient/${main.id}`,{headers}); if(!intel.ok())throw new Error(await intel.text()); const ij=await intel.json(); fs.writeFileSync(path.join(out,'intelligence-after.json'),JSON.stringify(ij,null,2)); const pano=(ij.insights||[]).find(x=>String(x.id||'').startsWith('pano_detect_')); if(!pano||pano.type==='diagnostic'||/anomalies détectées/i.test(pano.content||''))throw new Error('pano truth contract failed');
+          const browser=await chromium.launch({headless:true}); const ev=[];
+          async function seed(page){await page.addInitScript(({a,r})=>{localStorage.setItem('token',a);localStorage.setItem('refresh_token',r||'');localStorage.setItem('appMode','prod');},{a:tok.access_token,r:tok.refresh_token});}
+          const cards={atm:/Occlusodontie & ATM/i,ortho:/Orthodontie \(ODF\)/i,paro:/Parodontologie/i,prothese:/Prothèse & Esthétique/i};
+          for(const vp of vps){
+            // Finance truth
+            {const ctx=await browser.newContext({viewport:vp,colorScheme:'light'});const page=await ctx.newPage();await seed(page);await page.goto(`http://127.0.0.1:5173/patients/${zero.id}?tab=finances`,{waitUntil:'networkidle',timeout:90000});const body=await page.locator('body').innerText();if(/100%/.test(body)||!/Non applicable/.test(body))throw new Error(`finance truth ${vp.width}`);await page.screenshot({path:path.join(out,`finance-after-${vp.width}x${vp.height}.png`),fullPage:false});await ctx.close();}
+            // P0-I toast must not prescribe detartrage
+            {const ctx=await browser.newContext({viewport:vp,colorScheme:'light'});const page=await ctx.newPage();await seed(page);await page.goto(`http://127.0.0.1:5173/patients/${main.id}`,{waitUntil:'networkidle',timeout:90000});await page.waitForTimeout(2200);const body=await page.locator('body').innerText();if(/Planifier Détartrage|Suggérer Détartrage|Patient Premium|Fin de Traitement Estimée|Progression Orthodontie/i.test(body))throw new Error(`NBA unsafe ${vp.width}`);await page.screenshot({path:path.join(out,`nba-after-${vp.width}x${vp.height}.png`),fullPage:false});await ctx.close();}
+            // Remaining assistants: first option through each wizard, result must be fail-closed.
+            for(const [id,cardRx] of Object.entries(cards)){const ctx=await browser.newContext({viewport:vp,colorScheme:'light'});const page=await ctx.newPage();await seed(page);await page.goto(`http://127.0.0.1:5173/patients/${main.id}?tab=clinical`,{waitUntil:'networkidle',timeout:90000});await page.getByRole('button',{name:cardRx}).first().click();const heading=page.getByRole('heading',{name:new RegExp(`Protocole .*`,'i')}).last();await heading.waitFor();const wizard=heading.locator('xpath=..');for(let guard=0;guard<12;guard++){const buttons=wizard.locator('button').filter({hasNotText:/Annuler|Retour/i});const n=await buttons.count();if(n===0)break;await buttons.first().click();await page.waitForTimeout(350);if(await page.getByText(/Proposition clinique à valider/i).isVisible().catch(()=>false))break;}await page.getByText(/Proposition clinique à valider/i).waitFor({timeout:10000});const body=await page.locator('body').innerText();if(!/Aucun diagnostic, examen complémentaire, médicament, dispositif, orientation ou traitement n’est déterminé automatiquement/i.test(body)||!/décision exclusive du praticien/i.test(body))throw new Error(`${id} failclosed ${vp.width}`);await page.screenshot({path:path.join(out,`${id}-after-${vp.width}x${vp.height}.png`),fullPage:false});ev.push({id,vp});await ctx.close();}
+          }
+          const summary={financeCaptures:vps.length,nbaCaptures:vps.length,assistantCaptures:ev.length,panoInsight:pano};fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(summary,null,2));await browser.close();await api.dispose();if(ev.length!==16)process.exit(1);
+          JS
+          node .p0-atomic-after.mjs
+          rm .p0-atomic-after.mjs
+
+      - name: Write canonical P0 closeout proofs
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          a=Path('artifacts/p0-atomic-after/summary.json')
+          proof={
+            'status':'CERTIFIED',
+            'after_summary_sha256':hashlib.sha256(a.read_bytes()).hexdigest(),
+            'contracts':['P0-E finance truth and installment UI','P0-E strict payment entity binding','P0-D remaining assistants fail-closed','P0-I NBA/Radar truth','R1 authenticated panoramic PDF'],
+            'viewports':['390x844','430x932','768x1024','1280x900']
+          }
+          Path('docs/PATIENT_P0_ATOMIC_CLOSEOUT_CERT.json').write_text(json.dumps(proof,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patient-p0-atomic-after
+          path: artifacts/p0-atomic-after
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit tested closeout atomically
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/routers/accounting.py backend/services/habits_engine.py backend/services/elite_manager.py backend/services/rag_context.py backend/routers/ia.py frontend/src/features/patients/components/PatientFinances.tsx frontend/src/features/patients/components/InstallmentPlanModal.tsx frontend/src/features/patients/components/wizards/AssistantATM.tsx frontend/src/features/patients/components/wizards/AssistantGeneral.tsx frontend/src/features/patients/components/wizards/AssistantOrtho.tsx frontend/src/features/patients/components/wizards/AssistantParo.tsx frontend/src/features/patients/components/wizards/AssistantProthese.tsx frontend/src/features/panoramic/PanoramicStudio.tsx docs/PATIENT_P0_ATOMIC_CLOSEOUT_CERT.json
+          git diff --cached --check
+          git commit -m 'fix(patient): close remaining P0 truth and safety gaps'
+          git fetch origin agent/patient-page-p0-rescue
+          git rebase origin/agent/patient-page-p0-rescue
+          git push origin HEAD:agent/patient-page-p0-rescue
