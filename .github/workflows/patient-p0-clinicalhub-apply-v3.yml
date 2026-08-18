@@ -1,0 +1,69 @@
+name: Patient P0 ClinicalHub Apply V3
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0-clinicalhub-apply-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Materialize certified candidate
+        run: |
+          git fetch origin agent/patient-page-p0-truth-safety --depth=1
+          git show FETCH_HEAD:frontend/src/features/patients/components/ClinicalHub.tsx > frontend/src/features/patients/components/ClinicalHub.tsx
+          git diff --check
+      - name: Truth contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('frontend/src/features/patients/components/ClinicalHub.tsx').read_text(encoding='utf-8')
+          required=['const [treatmentPlan, setTreatmentPlan] = useState<TreatmentStep[]>([]);','Aucune étape de traitement enregistrée.','Espace Clinique',"toast.success('Proposition clinique générée. Validation du praticien requise.');"]
+          banned=['scientificOrder','localStorage.getItem(`master_plan_${patientId}`)','localStorage.setItem(`master_plan_${patientId}`','Diagnostic : ${diag}',"Détartrage & Surfaçage', assistant: 'paro'",'Générer Devis Global']
+          for x in required: assert x in s, x
+          for x in banned: assert x not in s, x
+          print('ClinicalHub contracts OK')
+          PY
+      - name: Frontend build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Record certified source digest
+        run: |
+          CANDIDATE_SHA=$(git hash-object frontend/src/features/patients/components/ClinicalHub.tsx)
+          cat > docs/PATIENT_P0_CLINICALHUB_CERT.json <<EOF
+          {
+            "status": "CERTIFIED",
+            "candidate_run_id": 32138801697,
+            "candidate_artifact_id": 9323328955,
+            "baseline_run_id": 32132516356,
+            "source_blob_sha": "$CANDIDATE_SHA",
+            "contracts": ["backend Master Plan authoritative", "assistant output session-only", "no automatic diagnosis or plan mutation", "no localStorage plan fallback"]
+          }
+          EOF
+          git diff --check
+      - name: Commit certified ClinicalHub
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/features/patients/components/ClinicalHub.tsx docs/PATIENT_P0_CLINICALHUB_CERT.json
+          git diff --cached --check
+          git commit -m 'cert(patient): apply fail-closed ClinicalHub'
+          git push origin HEAD:agent/patient-page-p0-rescue
