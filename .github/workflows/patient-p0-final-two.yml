@@ -1,0 +1,275 @@
+name: Patient P0 Final Two
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0-final-two.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: patient-p0-final-two-secret-000001
+      DATABASE_URL: sqlite:///:memory:
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply strict P0-E payment binding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          p = Path('backend/routers/accounting.py')
+          s = p.read_text(encoding='utf-8')
+          start = s.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          end = s.index('\n@router.get("/payments/patient/{patient_id}"', start)
+          hardened = '''@router.post("/payments", response_model=schemas.PaymentOut)
+          def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission(["accounting", "payments"]))):
+              """Enregistre un encaissement réel, strictement lié aux entités du même patient."""
+              assert_patient_access(payment.patient_id, current_user, db)
+
+              if payment.acte_id is not None and payment.installment_id is not None:
+                  raise HTTPException(status_code=422, detail="Un paiement ne peut pas cibler simultanément un acte et une échéance.")
+
+              acte = None
+              if payment.acte_id is not None:
+                  acte = db.query(models.Acte).filter(models.Acte.id == payment.acte_id).first()
+                  if acte is None:
+                      raise HTTPException(status_code=404, detail="Acte introuvable")
+                  if acte.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'acte n'appartient pas au patient du paiement.")
+
+              if payment.installment_id is not None:
+                  installment = db.query(models.Installment).filter(models.Installment.id == payment.installment_id).first()
+                  if installment is None:
+                      raise HTTPException(status_code=404, detail="Échéance introuvable")
+                  plan = db.query(models.InstallmentPlan).filter(models.InstallmentPlan.id == installment.plan_id).first()
+                  if plan is None:
+                      raise HTTPException(status_code=409, detail="Plan d'échéances introuvable pour cette échéance.")
+                  if plan.patient_id != payment.patient_id:
+                      raise HTTPException(status_code=409, detail="L'échéance n'appartient pas au patient du paiement.")
+
+              payment_method = getattr(models.PaymentMethod, payment.payment_method, None)
+              if payment_method is None:
+                  raise HTTPException(status_code=422, detail="Mode de paiement invalide")
+
+              new_payment = models.Payment(
+                  patient_id=payment.patient_id,
+                  amount=payment.amount,
+                  payment_method=payment_method,
+                  payment_date=payment.payment_date or datetime.now(),
+                  acte_id=payment.acte_id,
+                  installment_id=payment.installment_id,
+                  notes=payment.notes,
+                  validated_by=f"{current_user.nom_complet or 'Utilisateur'} ({current_user.role})"
+              )
+              db.add(new_payment)
+              db.flush()
+
+              if acte is not None:
+                  total_paid = db.query(func.sum(models.Payment.amount)).filter(
+                      models.Payment.acte_id == acte.id
+                  ).scalar() or 0.0
+                  if total_paid >= acte.montant:
+                      acte.statut_paiement = models.PaiementStatut.PAYE
+                      acte.is_collected = True
+                  elif total_paid > 0:
+                      acte.statut_paiement = models.PaiementStatut.PARTIEL
+                      acte.is_collected = False
+
+              db.commit()
+              db.refresh(new_payment)
+              return new_payment
+
+          '''
+          s = s[:start] + textwrap.dedent(hardened) + s[end:]
+
+          s = s.replace(
+              'payment_method: str = Body(default="ESPECES", embed=True),',
+              'payment_method: str = Body(..., embed=True),',
+              1,
+          )
+
+          a = s.index('async def mark_as_paid(')
+          b = s.index('\n@router.get("/export-pdf")', a)
+          block = s[a:b]
+          if 'method_enum = getattr(models.PaymentMethod, method_code, None)' not in block:
+              needle = '''    try:\n        from backend.utils.access_control import assert_patient_access\n        \n        now = datetime.now()\n'''
+              repl = '''    try:\n        from backend.utils.access_control import assert_patient_access\n\n        method_code = str(payment_method or "").strip().upper()\n        method_enum = getattr(models.PaymentMethod, method_code, None)\n        if method_enum is None:\n            raise HTTPException(status_code=422, detail="Mode de paiement explicite invalide")\n        \n        now = datetime.now()\n'''
+              if needle not in block:
+                  raise SystemExit('mark_as_paid source mismatch')
+              block = block.replace(needle, repl, 1)
+          block = block.replace('payment_method=payment_method,', 'payment_method=method_enum,')
+          s = s[:a] + block + s[b:]
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Apply P0-I truth boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('backend/services/habits_engine.py')
+          s = p.read_text(encoding='utf-8')
+          replacements = [
+              (r'\n        # Exemple 2 : Prévention \(Trigger Temps\).*?\n        # Exemple 3 : Dossier Incomplet',
+               '\n        # Prévention clinique fondée sur un délai uniquement : supprimée en P0 fail-closed.\n\n        # Exemple 3 : Dossier Incomplet'),
+              (r'\n        # C3: Patient Haute Valeur à Risque.*?\n        # A4: Traitement Abandonné',
+               '\n        # Classement commercial Patient Premium : exclu des alertes Patient P0.\n\n        # A4: Traitement Abandonné'),
+              (r'\n        # B4: Progression Traitement Ortho.*?\n        # B3: Créneau Maudit',
+               '\n        # Progression orthodontique automatique : supprimée, le dossier ne permet pas de conclure cliniquement.\n\n        # B3: Créneau Maudit'),
+              (r'\n        # B5: Prédiction Fin Traitement Ortho.*?\n        # C4: Rappels Semestriels Ortho',
+               '\n        # Estimation automatique de fin orthodontique : supprimée en P0 fail-closed.\n\n        # C4: Rappels Semestriels Ortho'),
+          ]
+          for pattern, repl in replacements:
+              s2, n = re.subn(pattern, repl, s, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit(f'habits_engine source mismatch: {pattern[:48]}')
+              s = s2
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('backend/services/elite_manager.py')
+          s = p.read_text(encoding='utf-8')
+          old = '''                    insights.append({
+                        "id": f"pano_detect_{latest_pano.id}",
+                        "type": "diagnostic",
+                        "title": "Intelligence Panoramique",
+                        "content": f"🔬 {len(detections)} anomalies détectées sur la panoramique (IA).",
+                        "actionLabel": "Consulter le bilan",
+                        "source_type": "DETERMINISTIC",
+                        "trust_level": 1.0
+                    })'''
+          new = '''                    insights.append({
+                        "id": f"pano_detect_{latest_pano.id}",
+                        "type": "suggestion",
+                        "title": "Repérage Panoramique",
+                        "content": f"{len(detections)} repère(s) dentaire(s) automatique(s) disponible(s) sur la panoramique. Aucune anomalie n'est conclue automatiquement.",
+                        "actionLabel": "Consulter le bilan",
+                        "source_type": "DETERMINISTIC",
+                        "trust_level": 1.0
+                    })'''
+          if old not in s:
+              raise SystemExit('elite_manager panorama source mismatch')
+          s = s.replace(old, new, 1)
+
+          old2 = '''            pano_findings = rag_ctx.get("panoramic_findings", [])
+            if pano_findings:
+                insights.append({
+                    "id": f"rag_pano_{patient_id}",
+                    "type": "diagnostic",
+                    "title": "Findings Panoramiques Récents",
+                    "content": "Détections IA récentes : " + ", ".join(pano_findings[:3]) + ".",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 1.0,
+                })'''
+          new2 = '''            pano_landmarks = rag_ctx.get("panoramic_landmarks", [])
+            if pano_landmarks:
+                insights.append({
+                    "id": f"rag_pano_{patient_id}",
+                    "type": "suggestion",
+                    "title": "Repérages Panoramiques Récents",
+                    "content": "Repères dentaires automatiques récents : " + ", ".join(pano_landmarks[:3]) + ". Aucune anomalie n'est conclue automatiquement.",
+                    "source_type": "DETERMINISTIC",
+                    "trust_level": 1.0,
+                })'''
+          if old2 not in s:
+              raise SystemExit('elite_manager RAG panorama source mismatch')
+          p.write_text(s.replace(old2, new2, 1), encoding='utf-8')
+
+          p = Path('backend/services/rag_context.py')
+          s = p.read_text(encoding='utf-8')
+          old = '''def _extract_panoramic_summary(panoramics: list) -> list[str]:
+    """Extract top findings from the most recent panoramic analyses."""
+    findings = []'''
+          new = '''def _extract_panoramic_landmarks(panoramics: list) -> list[str]:
+    """Extract tooth-localization landmarks only; this does not infer pathology."""
+    landmarks = []'''
+          if old not in s:
+              raise SystemExit('rag_context summary source mismatch')
+          s = s.replace(old, new, 1)
+          s = s.replace(
+              'if entry not in findings:\n                    findings.append(entry)\n    return findings[:5]',
+              'if entry not in landmarks:\n                    landmarks.append(entry)\n    return landmarks[:5]',
+              1,
+          )
+          s = s.replace(
+              '"panoramic_findings": _extract_panoramic_summary(panoramics),',
+              '"panoramic_landmarks": _extract_panoramic_landmarks(panoramics),',
+              1,
+          )
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Static contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          acct = Path('backend/routers/accounting.py').read_text(encoding='utf-8')
+          start = acct.index('@router.post("/payments", response_model=schemas.PaymentOut)')
+          end = acct.index('@router.get("/payments/patient/{patient_id}"', start)
+          block = acct[start:end]
+          assert 'acte.patient_id != payment.patient_id' in block
+          assert 'plan.patient_id != payment.patient_id' in block
+          assert 'models.PaymentMethod.ESPECES' not in block
+          assert 'payment.acte_id is not None and payment.installment_id is not None' in block
+          assert 'Body(default="ESPECES"' not in acct
+
+          habits = Path('backend/services/habits_engine.py').read_text(encoding='utf-8')
+          for banned in [
+              'Risque parodontal élevé', 'Planifier Détartrage', 'Suggérer Détartrage',
+              'Patient Premium — Impayé Critique', 'Patient PLATINUM',
+              'ORTHO_PROGRESSION', 'ORTHO_COMPLETION_ESTIMATE'
+          ]:
+              assert banned not in habits, banned
+
+          elite = Path('backend/services/elite_manager.py').read_text(encoding='utf-8')
+          rag = Path('backend/services/rag_context.py').read_text(encoding='utf-8')
+          assert 'anomalies détectées sur la panoramique' not in elite
+          assert 'panoramic_findings' not in elite
+          assert 'panoramic_findings' not in rag
+          assert 'panoramic_landmarks' in elite and 'panoramic_landmarks' in rag
+          assert 'Aucune anomalie n\'est conclue automatiquement.' in elite
+          print('P0-E backend + P0-I static contracts OK')
+          PY
+          python -m py_compile backend/routers/accounting.py backend/services/habits_engine.py backend/services/elite_manager.py backend/services/rag_context.py
+          git diff --check
+
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-final-two.txt
+          pip install -r /tmp/requirements-final-two.txt
+          pip install httpx==0.27.2 pytest pytest-asyncio
+
+      - name: P0-E transactional tests
+        run: |
+          python -m pytest backend/tests/test_patient_p0_payment_binding.py backend/tests/test_patient_p0_installment_acte_link.py -q --maxfail=1
+
+      - name: Commit tested product changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/routers/accounting.py backend/services/habits_engine.py backend/services/elite_manager.py backend/services/rag_context.py
+          git diff --cached --check
+          git commit -m 'fix(patient): close P0-E backend and P0-I truth'
+          git fetch origin agent/patient-page-p0-rescue
+          git rebase origin/agent/patient-page-p0-rescue
+          git push origin HEAD:agent/patient-page-p0-rescue
