@@ -1,6 +1,6 @@
 /**
  * RVG (Intra-oral X-ray) service
- * Handles upload, listing, and deletion of patient RVG documents.
+ * Handles upload, listing, authenticated download, and soft deletion of patient RVG documents.
  */
 import { api } from './api';
 
@@ -32,10 +32,7 @@ export interface RVGUploadRequest {
 }
 
 export const rvgService = {
-  /**
-   * Upload a new RVG to a patient's file.
-   * Returns the created DocumentArchive entry.
-   */
+  /** Upload a new RVG to a patient's file. */
   async uploadRVG(patientId: number, request: RVGUploadRequest): Promise<RVGDocument> {
     const formData = new FormData();
     formData.append('file', request.file);
@@ -48,37 +45,31 @@ export const rvgService = {
     const response = await api.post<RVGDocument>(
       `/documents/patients/${patientId}/rvg`,
       formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   },
 
-  /**
-   * List all RVG documents for a patient.
-   */
+  /** List all RVG documents for a patient. */
   async listRVG(patientId: number): Promise<RVGDocument[]> {
     const response = await api.get<RVGDocument[]>(`/documents/patients/${patientId}/rvg`);
     return response.data;
   },
 
   /**
-   * Delete an RVG document (permanent delete via DocumentArchive).
+   * Fetch RVG bytes through the authenticated API client.
+   * Bearer credentials stay in the Authorization header and never enter the URL.
    */
-  async deleteRVG(documentId: number): Promise<void> {
-    await api.delete(`/documents/${documentId}`, { params: { confirm: true } });
+  async fetchRVGBlob(documentId: number): Promise<Blob> {
+    const response = await api.get<Blob>(`/documents/${documentId}/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
   },
 
-  /**
-   * Get download URL for an RVG (authenticated).
-   * This URL should be used with AuthImg/useAuthenticatedImage.
-   */
-  getDownloadUrl(documentId: number, token?: string): string {
-    if (token) {
-      return `/api/documents/${documentId}/download?token=${token}`;
-    }
-    return `/api/documents/${documentId}/download`;
+  /** Soft-delete an RVG document through the recoverable document trash. */
+  async deleteRVG(documentId: number): Promise<void> {
+    await api.post(`/documents/${documentId}/trash`);
   },
 };
 
