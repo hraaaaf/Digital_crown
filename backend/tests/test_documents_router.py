@@ -145,19 +145,26 @@ class TestDownloadDocument:
         )
         assert r.status_code == 401
 
-    def test_valid_token_doc_not_found_returns_404(self, client, auth_headers, dentiste):
-        # Get a valid token first via login
+    def test_query_token_is_rejected_even_if_valid(self, client, dentiste):
         from backend.routers.auth import SECRET_KEY, ALGORITHM
         from jose import jwt
         import time
 
         token = jwt.encode(
             {"sub": dentiste.email, "type": "access", "exp": int(time.time()) + 3600},
-            SECRET_KEY, algorithm=ALGORITHM
+            SECRET_KEY,
+            algorithm=ALGORITHM,
         )
         r = client.get(
             "/api/documents/999999/download",
             params={"token": token},
+        )
+        assert r.status_code == 401
+
+    def test_bearer_token_doc_not_found_returns_404(self, client, auth_headers):
+        r = client.get(
+            "/api/documents/999999/download",
+            headers=auth_headers,
         )
         assert r.status_code == 404
 
@@ -180,7 +187,6 @@ class TestArchiveDocumentEndpoint:
             files={"file": ("test.pdf", fake_pdf, "application/pdf")},
             headers=auth_headers,
         )
-        # 404 (patient not found) or 403 (access denied)
         assert r.status_code in (403, 404)
 
     def test_archive_valid_patient_reaches_endpoint(self, client, db, auth_headers, dentiste):
@@ -244,13 +250,9 @@ class TestTrashRestoreDelete:
     def test_trash_and_restore(self, client, db, auth_headers, dentiste):
         pat = self._make_patient(db, dentiste, "TRASHRESTORE")
         doc = _seed_archive(db, pat.id, dentiste.id)
-
-        # Move to trash
         r = client.post(f"/api/documents/{doc.id}/trash", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["id"] == doc.id
-
-        # Restore
         r2 = client.post(f"/api/documents/{doc.id}/restore", headers=auth_headers)
         assert r2.status_code == 200
         assert r2.json()["id"] == doc.id
@@ -329,21 +331,14 @@ class TestTrashRestoreActe:
     def test_trash_acte_succeeds_and_disappears_from_honoraires(self, client, db, auth_headers, dentiste):
         pat = self._make_patient(db, dentiste)
         acte = self._make_acte(db, pat.id, dentiste.id)
-
-        # Visible avant suppression
         r0 = client.get("/api/accounting/honoraires", headers=auth_headers)
         assert r0.status_code == 200
         assert any(it["id"] == f"acte_{acte.id}" for it in r0.json()["items"])
-
-        # Suppression via l'endpoint générique documents/trash (ce que le frontend appelle)
         r = client.post(f"/api/documents/acte_{acte.id}/trash", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["id"] == f"acte_{acte.id}"
-
         db.refresh(acte)
         assert acte.deleted_at is not None
-
-        # N'apparaît plus dans la Comptabilité
         r2 = client.get("/api/accounting/honoraires", headers=auth_headers)
         assert r2.status_code == 200
         assert not any(it["id"] == f"acte_{acte.id}" for it in r2.json()["items"])
@@ -351,14 +346,11 @@ class TestTrashRestoreActe:
     def test_trash_then_restore_acte(self, client, db, auth_headers, dentiste):
         pat = self._make_patient(db, dentiste, "ACTERESTORE")
         acte = self._make_acte(db, pat.id, dentiste.id)
-
         r = client.post(f"/api/documents/acte_{acte.id}/trash", headers=auth_headers)
         assert r.status_code == 200
-
         r2 = client.post(f"/api/documents/acte_{acte.id}/restore", headers=auth_headers)
         assert r2.status_code == 200
         assert r2.json()["id"] == f"acte_{acte.id}"
-
         db.refresh(acte)
         assert acte.deleted_at is None
 
