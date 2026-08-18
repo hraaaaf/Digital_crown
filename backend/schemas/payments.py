@@ -19,7 +19,7 @@ _PAYMENT_METHOD_ALIASES = {
 class PaymentCreate(BaseModel):
     patient_id: int
     amount: float = Field(gt=0)
-    payment_method: PaymentMethodCode = "ESPECES"
+    payment_method: PaymentMethodCode
     payment_date: Optional[datetime] = None
     acte_id: Optional[int] = None
     installment_id: Optional[int] = None
@@ -28,8 +28,11 @@ class PaymentCreate(BaseModel):
     @field_validator("payment_method", mode="before")
     @classmethod
     def normalize_payment_method(cls, value):
-        if value is None:
-            return "ESPECES"
+        if value is None or not str(value).strip():
+            raise PydanticCustomError(
+                "payment_method_required",
+                "Le mode de paiement doit être choisi explicitement",
+            )
         normalized = str(value).strip().upper()
         if normalized not in _PAYMENT_METHOD_ALIASES:
             raise PydanticCustomError(

@@ -207,11 +207,12 @@ class TestPayments:
 
     def test_get_patient_payments(self, client, db, auth_headers, dentiste):
         pat = _make_patient(db, dentiste, "GETPAY")
-        client.post(
+        create_r = client.post(
             "/api/accounting/payments",
-            json={"patient_id": pat.id, "amount": 500.0},
+            json={"patient_id": pat.id, "amount": 500.0, "payment_method": "ESPECES"},
             headers=auth_headers,
         )
+        assert create_r.status_code == 200
         r = client.get(f"/api/accounting/payments/patient/{pat.id}", headers=auth_headers)
         assert r.status_code == 200
         assert isinstance(r.json(), list)
@@ -221,7 +222,7 @@ class TestPayments:
         pat = _make_patient(db, dentiste, "PAYVALIDBY")
         r = client.post(
             "/api/accounting/payments",
-            json={"patient_id": pat.id, "amount": 300.0},
+            json={"patient_id": pat.id, "amount": 300.0, "payment_method": "ESPECES"},
             headers=auth_headers,
         )
         assert r.status_code == 200
@@ -339,7 +340,6 @@ class TestTreasuryHub:
         assert r.status_code == 200
 
     def test_treasury_hub_new_document_not_double_counted(self, client, db, auth_headers, dentiste):
-        from backend import models
         pat = _make_patient(db, dentiste, "TREASDEDUPPAT")
         req_data = {
             "type": "note",
@@ -362,7 +362,6 @@ class TestTreasuryHub:
             it for it in body.get("items", [])
             if it.get("patient_id") == pat.id
         ]
-        # Un seul item pour ce patient (via son Acte, pas aussi via le doc JSON)
         assert len(matching_items) == 1
         assert matching_items[0]["id"].startswith("acte_")
 
@@ -400,5 +399,9 @@ class TestOverdue:
 
 class TestEncaisser:
     def test_encaisser_nonexistent_item_returns_404(self, client, auth_headers):
-        r = client.post("/api/accounting/encaisser/doc_999999", headers=auth_headers)
+        r = client.post(
+            "/api/accounting/encaisser/doc_999999",
+            json={"payment_method": "ESPECES"},
+            headers=auth_headers,
+        )
         assert r.status_code == 404
