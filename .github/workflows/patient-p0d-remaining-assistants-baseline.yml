@@ -70,7 +70,7 @@ jobs:
           const out=path.resolve('../artifacts/p0d-remaining-before');
           const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
           const assistants=[
-            {id:'general', card:/Examen Général/i, unsafe:[/Antibioprophylaxie/i,/Amox 2g/i,/Radiographie de contrôle/i,/Détartrage bi-maxillaire/i,/Assainissement parodontal/i]},
+            {id:'general', card:/Examen Clinique Complet/i, unsafe:[/Antibioprophylaxie/i,/Amox 2g/i,/Radiographie de contrôle/i,/Détartrage bi-maxillaire/i,/Assainissement parodontal/i]},
             {id:'atm', card:/Occlusodontie & ATM/i, unsafe:[/DAM/i,/Gouttière/i,/CBCT/i,/IRM/i,/Myorelaxant/i]},
             {id:'ortho', card:/Orthodontie \(ODF\)/i, unsafe:[/Aligneur/i,/Multi-attaches/i,/Appareillage/i,/Chirurgie Maxillo/i]},
             {id:'paro', card:/Parodontologie/i, unsafe:[/Antibiothérapie/i,/Chirurgie parodontale/i,/Stade/i,/Grade/i]},
