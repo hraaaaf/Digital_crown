@@ -58,45 +58,23 @@ export const AssistantPedo: React.FC<AssistantPedoProps> = ({ onComplete, onCanc
 
   const generateDiagnosis = (finalAnswers: Record<string, number>) => {
     setIsCalculating(true);
-    
+
     setTimeout(() => {
-      let diag = "Bilan Pédiatrique";
-      const steps = [];
+      const denture = QUESTIONS[0].options.find(opt => opt.value === finalAnswers.denture)?.label ?? 'Non renseignée';
+      const motif = QUESTIONS[1].options.find(opt => opt.value === finalAnswers.motif)?.label ?? 'Non renseigné';
+      const comportement = QUESTIONS[2].options.find(opt => opt.value === finalAnswers.comportement)?.label ?? 'Non renseigné';
 
-      // Gestion du comportement
-      if (finalAnswers.comportement === 1) {
-        diag += " chez enfant anxieux/non coopératif";
-        steps.push({ title: 'Prise en charge sous Sédation Consciente (MEOPA) ou AG', assistant: 'general' });
-      }
+      const summary = [
+        'Synthèse pédodontique structurée.',
+        `Stade de denture renseigné : ${denture}.`,
+        `Motif rapporté : ${motif}.`,
+        `Coopération / comportement renseigné : ${comportement}.`,
+        'Ces éléments doivent être confrontés à l’examen clinique, aux antécédents, à l’âge réel et aux examens complémentaires jugés nécessaires par le praticien.',
+        'Aucun diagnostic, examen radiographique, sédation, anesthésie, prescription ou traitement dentaire n’est déterminé automatiquement.',
+        'Diagnostic, examens complémentaires et conduite thérapeutique : décision exclusive du praticien après validation clinique.'
+      ].join('\n');
 
-      // Motif
-      if (finalAnswers.motif === 0) {
-        diag = "Prévention et Prophylaxie";
-        steps.push({ title: 'Enseignement de l\'Hygiène Bucco-Dentaire', assistant: 'pedo' });
-        steps.push({ title: 'Application de Vernis Fluoré', assistant: 'pedo' });
-        if (finalAnswers.denture === 1 || finalAnswers.denture === 2) {
-          steps.push({ title: 'Scellement des Sillons (Sealants) sur molaires définitives', assistant: 'pedo' });
-        }
-      } else if (finalAnswers.motif === 1) {
-        diag = "Polycaries de l'enfant / Lésions carieuses";
-        if (finalAnswers.denture === 0) {
-          steps.push({ title: 'Pulpotomie et Coiffe Pédiatrique Préformée (CPP)', assistant: 'pedo' });
-        } else {
-          steps.push({ title: 'Restauration composite / CVI', assistant: 'conservatrice' });
-          steps.push({ title: 'Avis orthodontique (Mainteneur d\'espace si avulsion)', assistant: 'ortho' });
-        }
-      } else if (finalAnswers.motif === 2) {
-        diag = "Traumatisme Alvéolo-Dentaire";
-        steps.push({ title: 'Bilan radiographique d\'urgence (Rétro-alvéolaire)', assistant: 'radio' });
-        steps.push({ title: 'Déclaration d\'accident (Assurance Scolaire)', assistant: 'general' });
-        if (finalAnswers.denture === 2) {
-          steps.push({ title: 'Contention semi-rigide (si luxation) ou Coiffage pulpaire (si fracture)', assistant: 'pedo' });
-        } else {
-          steps.push({ title: 'Surveillance / Avulsion si risque pour le germe permanent', assistant: 'pedo' });
-        }
-      }
-
-      onComplete(diag, steps);
+      onComplete(summary, []);
     }, 1500);
   };
 
@@ -104,7 +82,7 @@ export const AssistantPedo: React.FC<AssistantPedoProps> = ({ onComplete, onCanc
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-4">
         <Baby className="w-12 h-12 text-sky-500 animate-pulse" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Génération du Plan Pédodontique...</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Synthèse pédodontique structurée...</h3>
       </div>
     );
   }
@@ -142,8 +120,8 @@ export const AssistantPedo: React.FC<AssistantPedoProps> = ({ onComplete, onCanc
                   onClick={() => handleSelect(question.id, opt.value)}
                   className={cn(
                     "p-4 rounded-2xl border text-left flex items-center justify-between transition-all group",
-                    isSelected 
-                      ? "bg-sky-500/10 border-sky-500 text-sky-600 dark:text-sky-400 shadow-md shadow-sky-500/10" 
+                    isSelected
+                      ? "bg-sky-500/10 border-sky-500 text-sky-600 dark:text-sky-400 shadow-md shadow-sky-500/10"
                       : "bg-card-bg border-border-main hover:border-sky-400 hover:shadow-sm text-text-main"
                   )}
                 >
