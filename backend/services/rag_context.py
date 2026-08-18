@@ -9,9 +9,9 @@ from backend import models
 logger = logging.getLogger(__name__)
 
 
-def _extract_panoramic_summary(panoramics: list) -> list[str]:
-    """Extract top findings from the most recent panoramic analyses."""
-    findings = []
+def _extract_panoramic_landmarks(panoramics: list) -> list[str]:
+    """Extract tooth-localization landmarks only; this does not infer pathology."""
+    landmarks = []
     for p in panoramics[:2]:
         detections = (p.detections_data or {}).get("detections", [])
         for d in detections[:3]:
@@ -19,9 +19,9 @@ def _extract_panoramic_summary(panoramics: list) -> list[str]:
             tooth = d.get("tooth_fdi", "")
             if label:
                 entry = f"{label}" + (f" (dent {tooth})" if tooth else "")
-                if entry not in findings:
-                    findings.append(entry)
-    return findings[:5]
+                if entry not in landmarks:
+                    landmarks.append(entry)
+    return landmarks[:5]
 
 
 def _extract_cephalo_trend(cephalos: list) -> str:
@@ -42,8 +42,8 @@ def _extract_cephalo_trend(cephalos: list) -> str:
 
 def build_patient_rag_context(patient_id: int, db: Session, months: int = 24) -> dict[str, Any]:
     """
-    Build a rich patient history context for LLM prompt injection.
-    Queries the last N months of procedures, panoramic findings, and cephalo trend.
+    Build a rich deterministic patient-history context.
+    Queries the last N months of procedures, panoramic tooth landmarks, and cephalo trend.
     """
     try:
         cutoff = datetime.now() - timedelta(days=months * 30)
@@ -83,7 +83,7 @@ def build_patient_rag_context(patient_id: int, db: Session, months: int = 24) ->
 
         return {
             "recent_acts": recent_acts,
-            "panoramic_findings": _extract_panoramic_summary(panoramics),
+            "panoramic_landmarks": _extract_panoramic_landmarks(panoramics),
             "cephalo_trend": _extract_cephalo_trend(cephalos),
             "acts_count_24m": len(acts),
         }

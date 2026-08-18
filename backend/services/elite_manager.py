@@ -76,9 +76,9 @@ class EliteManager:
                 if detections:
                     insights.append({
                         "id": f"pano_detect_{latest_pano.id}",
-                        "type": "diagnostic",
-                        "title": "Intelligence Panoramique",
-                        "content": f"🔬 {len(detections)} anomalies détectées sur la panoramique (IA).",
+                        "type": "suggestion",
+                        "title": "Repérage Panoramique",
+                        "content": f"{len(detections)} repère(s) dentaire(s) automatique(s) disponible(s) sur la panoramique. Aucune anomalie n'est conclue automatiquement.",
                         "actionLabel": "Consulter le bilan",
                         "source_type": "DETERMINISTIC",
                         "trust_level": 1.0
@@ -95,13 +95,13 @@ class EliteManager:
                     "source_type": "DETERMINISTIC",
                     "trust_level": 0.95,
                 })
-            pano_findings = rag_ctx.get("panoramic_findings", [])
-            if pano_findings:
+            pano_landmarks = rag_ctx.get("panoramic_landmarks", [])
+            if pano_landmarks:
                 insights.append({
                     "id": f"rag_pano_{patient_id}",
-                    "type": "diagnostic",
-                    "title": "Findings Panoramiques Récents",
-                    "content": "Détections IA récentes : " + ", ".join(pano_findings[:3]) + ".",
+                    "type": "suggestion",
+                    "title": "Repérages Panoramiques Récents",
+                    "content": "Repères dentaires automatiques récents : " + ", ".join(pano_landmarks[:3]) + ". Aucune anomalie n'est conclue automatiquement.",
                     "source_type": "DETERMINISTIC",
                     "trust_level": 1.0,
                 })
