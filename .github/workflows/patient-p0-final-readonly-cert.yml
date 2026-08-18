@@ -1,6 +1,10 @@
 name: Patient P0 Final Read-Only Certification
 
 on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0-final-readonly-cert.yml'
   pull_request:
     branches: [master]
     paths:
@@ -117,12 +121,19 @@ jobs:
 
           elite = Path('backend/services/elite_manager.py').read_text(encoding='utf-8')
           rag = Path('backend/services/rag_context.py').read_text(encoding='utf-8')
-          assert 'anomalies détectées sur la panoramique' not in elite
-          assert 'panoramic_findings' not in elite
+          for banned in [
+              'anomalies détectées sur la panoramique',
+              'panoramic_findings',
+              'Lésion carieuse détectée',
+              'pano_predict_',
+              'treatment_plan_engine.generate_plan('
+          ]:
+              assert banned not in elite, f'P0-I elite banned: {banned}'
           assert 'panoramic_findings' not in rag
           assert 'panoramic_landmarks' in elite and 'panoramic_landmarks' in rag
           assert 'Repérage Panoramique' in elite
           assert "Aucune anomalie n'est conclue automatiquement." in elite
+          assert 'Génération automatique du plan de traitement désactivée' in elite
 
           # R1 — authenticated panoramic PDF is streamed as a blob.
           ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
