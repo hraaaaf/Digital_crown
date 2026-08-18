@@ -257,7 +257,7 @@ class TestCheckProactiveTriggers:
         types = [t["type"] for t in triggers]
         assert "QUALITY" in types
 
-    def test_overdue_detartrage_triggers_prevention(self, engine, db, dentiste):
+    def test_overdue_detartrage_does_not_auto_trigger_clinical_prevention(self, engine, db, dentiste):
         from backend import models
 
         pat = models.Patient(
@@ -273,7 +273,7 @@ class TestCheckProactiveTriggers:
         db.commit()
         db.refresh(pat)
 
-        # Détartrage il y a >365 jours
+        # Un délai seul ne constitue pas une indication clinique automatique.
         db.add(models.Acte(
             patient_id=pat.id,
             praticien_id=dentiste.id,
@@ -287,4 +287,4 @@ class TestCheckProactiveTriggers:
 
         triggers = engine.check_proactive_triggers(db, pat.id)
         types = [t["type"] for t in triggers]
-        assert "CRITICAL_PREVENTION" in types
+        assert "CRITICAL_PREVENTION" not in types
