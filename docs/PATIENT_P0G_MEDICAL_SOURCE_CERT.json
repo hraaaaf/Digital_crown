@@ -1,0 +1,10 @@
+{
+  "status": "CERTIFIED",
+  "tested_sha": "07acdecee200227330bc48f16bbc3754eedd0184",
+  "run_id": "32131068189",
+  "contracts": [
+    "Patient.antecedents_medicaux canonical",
+    "no DossierClinique duplicate",
+    "single API field"
+  ]
+}
