@@ -23,21 +23,30 @@ def test_p0_clinicalhub_has_no_fabricated_clinical_truth():
 
 def test_p0_all_clinical_assistants_are_proposal_only():
     root = ROOT / "frontend/src/features/patients/components/wizards"
-    assistants = (
+
+    # Standard assistants emit a narrative summary with an explicitly empty plan.
+    standard_assistants = (
         "AssistantATM.tsx",
         "AssistantGeneral.tsx",
         "AssistantOrtho.tsx",
         "AssistantParo.tsx",
         "AssistantProthese.tsx",
         "AssistantEndo.tsx",
-        "AssistantExamenComplet.tsx",
         "AssistantChirurgie.tsx",
         "AssistantPedo.tsx",
         "AssistantPatho.tsx",
     )
-    for filename in assistants:
+    for filename in standard_assistants:
         source = (root / filename).read_text(encoding="utf-8")
         assert "onComplete(summary, [])" in source, filename
+
+    # ExamenComplet has two branches and deliberately returns a typed result object.
+    # Its semantic contract is the same: both branches carry no treatment steps and
+    # no automatic next assistant; the component forwards that fail-closed result.
+    complete = (root / "AssistantExamenComplet.tsx").read_text(encoding="utf-8")
+    assert complete.count("return { diag: summary, steps: [], next: null };") >= 2
+    assert "onComplete(result.diag, result.steps, result.next)" in complete
+    assert "Ce questionnaire ne pose pas automatiquement de diagnostic et ne détermine pas de traitement." in complete
 
 
 def test_p0_finance_uses_strict_binding_explicit_method_and_canonical_installments():
