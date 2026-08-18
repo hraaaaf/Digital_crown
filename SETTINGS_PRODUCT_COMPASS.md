@@ -103,8 +103,9 @@ Implémenté :
 - bouton de sauvegarde Profil non flottant sur mobile pour ne plus masquer les champs.
 
 Preuves :
-- PR `#171` ;
-- HEAD certifié avant closeout : `99de2c4aee19f389bdbd0eee46cae072747babdb` ;
+- PR `#171` — MERGED ;
+- HEAD produit certifié : `99de2c4aee19f389bdbd0eee46cae072747babdb` ;
+- merge squash : `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ;
 - `Settings Profile R2 Visual Certification #17` : SUCCESS ;
 - `CI #1117` : SUCCESS ;
 - `T2 Runtime Browser Certification #377` : SUCCESS ;
@@ -114,7 +115,7 @@ Preuves :
 
 Score visuel R2 : **9.6/10**.
 
-Statut : `CLOSED — CERTIFIÉ, PR #171 À MERGER`.
+Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 ### R3 — Design & Ambiance
 
@@ -236,25 +237,27 @@ Statut : `AUDITÉ — P3`.
 ### HANDOVER COURANT
 
 - Chantier : Réglages / Paramètres — Product Review & Simplification
-- Lot actif : **R2 Profil Cabinet — closeout certifié, merge en cours**
-- Goal courant : fermer R2 proprement puis démarrer R3 Design & Ambiance depuis la baseline réelle
+- Lot actif : **R3 — Design & Ambiance**
+- Goal courant : auditer puis corriger le modèle mental `Apparence app / Documents` sans casser le studio ni le preview réel
 - Repo : `hraaaaf/Digital_crown`
-- Branche : `settings-r2-profile`
-- PR : `#171`
-- HEAD certifié : `99de2c4aee19f389bdbd0eee46cae072747babdb`
-- CI : `#1117 SUCCESS`
+- Branche : `master` avant création de la branche R3
+- PR précédente : `#171 MERGED`
+- Merge R2 : `397f40b50a52457ad53f4b1cb8a9def85b74f5a8`
+- CI R2 : `#1117 SUCCESS`
 - R2 Visual : `#17 SUCCESS`
 - Dernière décision verrouillée : preset Benmoussa uniquement superadmin propriétaire ; utilisateur standard réinitialisé depuis son cabinet
 - Dernière preuve : AFTER 1440/768/390 inspectées, score visuel R2 9.6/10
-- Blocage réel : aucun avant merge
-- Next exact : **merge #171 → vérifier master → démarrer R3 avec BEFORE + Goal + mockup**
+- Blocage réel : aucun
+- Next exact : **R3 BEFORE → Goal visuel → mockup → implémentation → AFTER → score → boussole**
 - Avancement roadmap validé : **1/15 lots = 6.7 %**
 - Vercel : **interdit sans autorisation explicite**
 
 ## 9. Journal de progression
 
-### 2026-08-19 — R2 Profil Cabinet
+### 2026-08-19 — R2 Profil Cabinet CLOSED
 
+- PR #171 squash-merged sur master ;
+- merge commit `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ;
 - baseline réelle Settings réutilisée et état actuel vérifié ;
 - Goal visuel + wireframe écrits avant implémentation ;
 - éditeur d'en-tête rendu avancé/repliable ;
