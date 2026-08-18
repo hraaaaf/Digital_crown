@@ -1,0 +1,58 @@
+name: Patient P0-E UI Single Shot
+
+on:
+  push:
+    branches: [agent/patient-page-p0-rescue]
+    paths:
+      - '.github/workflows/patient-p0e-ui-single-shot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/patient-page-p0-rescue
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Apply already-proven P0-E UI candidate
+        run: |
+          git fetch origin agent/patient-page-p0-truth-safety --depth=1
+          git show FETCH_HEAD:frontend/src/features/patients/components/PatientFinances.tsx > frontend/src/features/patients/components/PatientFinances.tsx
+          git show FETCH_HEAD:frontend/src/features/patients/components/InstallmentPlanModal.tsx > frontend/src/features/patients/components/InstallmentPlanModal.tsx
+      - name: Contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          finance=Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
+          modal=Path('frontend/src/features/patients/components/InstallmentPlanModal.tsx').read_text(encoding='utf-8')
+          assert 'const hasBillingBase = snapshot.total_billed > 0' in finance
+          assert "recoveryRate === null ? '—'" in finance
+          assert "recoveryRate === null ? 'Non applicable'" in finance
+          assert "api.post('/installments/'" in modal
+          assert 'acte_id: acte.id' in modal
+          assert 'coverageExact' in modal
+          assert "api.post('/accounting/plans'" not in modal
+          PY
+      - name: Frontend build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Commit and rebase-safe push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/features/patients/components/PatientFinances.tsx frontend/src/features/patients/components/InstallmentPlanModal.tsx
+          git commit -m 'fix(patient): align finance truth and installment UI'
+          git fetch origin agent/patient-page-p0-rescue
+          git rebase origin/agent/patient-page-p0-rescue
+          git push origin HEAD:agent/patient-page-p0-rescue
