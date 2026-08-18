@@ -114,6 +114,17 @@ const SettingsContainer: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-8 animate-in fade-in duration-700">
+      {activeTab === 'profil' && (
+        <style>{`
+          @media (max-width: 639px) {
+            .settings-profile-surface .sticky.bottom-6 {
+              position: static !important;
+              bottom: auto !important;
+              margin-top: 1.5rem;
+            }
+          }
+        `}</style>
+      )}
       <div className="flex flex-col lg:flex-row gap-12 items-start">
         <div className="w-full lg:w-80 space-y-8 sticky top-24">
           <div className="flex items-center gap-4 mb-10">
@@ -138,7 +149,7 @@ const SettingsContainer: React.FC = () => {
             ))}
           </nav>
 
-          {access.canSettings && !profileReadError && (
+          {access.canSettings && !profileReadError && activeTab !== 'profil' && (
             <div className="pt-6">
               <button
                 onClick={handleGlobalSave}
@@ -173,7 +184,10 @@ const SettingsContainer: React.FC = () => {
           )}
         </div>
 
-        <div className="flex-1 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative">
+        <div className={cn(
+          "flex-1 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative",
+          activeTab === 'profil' && 'settings-profile-surface'
+        )}>
           <div className="p-8 sm:p-12">
             {profileReadError && activeProfileBackedTab ? (
               <SettingsReadError
