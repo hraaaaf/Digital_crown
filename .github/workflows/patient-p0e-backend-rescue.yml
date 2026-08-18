@@ -28,6 +28,8 @@ jobs:
       CLOUD_AI_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -163,4 +165,6 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
             exit 0
           fi
           git commit -m "fix(patient): enforce payment entity binding"
+          git fetch origin ${GITHUB_REF_NAME}
+          git rebase origin/${GITHUB_REF_NAME}
           git push origin HEAD:${GITHUB_REF_NAME}
