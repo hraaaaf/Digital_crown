@@ -1,5 +1,6 @@
 name: Patient P0-E Installment Rescue
 
+# Retrigger: reconcile InstallmentPlan ORM with the already-defined schema/router/migration contract.
 on:
   push:
     branches:
