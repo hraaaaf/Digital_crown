@@ -45,3 +45,5 @@ jobs:
         run: |
           python -m alembic heads | tee /tmp/heads.txt
           test "$(grep -c '(head)' /tmp/heads.txt)" -eq 1
+
+# Explicitly re-triggered after P0-D product edits; P0-E product code unchanged.
