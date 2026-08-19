@@ -1,0 +1,123 @@
+name: Patient P4A Truth Patch
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p3-clinique
+    paths:
+      - '.github/workflows/patient-p4a-truth-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p4-imagerie'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply exact P4-A truth replacements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, count: int = 1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              found = text.count(old)
+              if found != count:
+                  raise SystemExit(f'{path}: expected {count} occurrences, found {found}: {old[:90]!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          ceph = 'frontend/src/features/ortho/CephaloWorkspace.tsx'
+          pano = 'frontend/src/features/panoramic/PanoramicStudio.tsx'
+
+          replace_exact(
+              ceph,
+              " *   * SLM Integration            - /patients/{id}/ai-diagnostic (ai_advisor.py)\n *                                   Fallback heuristique transparent côté backend\n",
+              "",
+          )
+          replace_exact(
+              ceph,
+              "import { \n  computeStep3Data,\n  generateTreatmentPlan\n} from './cephaloUtils';",
+              "import { computeStep3Data } from './cephaloUtils';",
+          )
+          replace_exact(
+              ceph,
+              "  const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);\n  const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');",
+              "  const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);\n  const [patientDataError, setPatientDataError] = useState<string | null>(null);\n  const [patientDataReloadKey, setPatientDataReloadKey] = useState(0);\n  const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');",
+          )
+          replace_exact(
+              ceph,
+              "  // Initialisation Patient\n  useEffect(() => {\n    const fetchPatient = async () => {\n      try {\n        const { data } = await import('../../services/api').then(m => m.api.get(`/patients/${patientId}`));\n        if (data) {\n          let age = data.age;\n          if (!age && data.date_naissance) {\n            const birth = new Date(data.date_naissance);\n            const now = new Date();\n            age = now.getFullYear() - birth.getFullYear();\n            if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;\n          }\n          setPatientData({ age: age || 20, sexe: data.sexe || 'M' });\n        }\n      } catch (e) {\n        console.error('Erreur patient data:', e);\n        setPatientData({ age: 20, sexe: 'M' });\n      }\n    };\n    fetchPatient();\n  }, [patientId]);",
+              "  // Données démographiques Patient : requises pour les calculs dépendant de l'âge/sexe.\n  // Aucun fallback n'est autorisé : une lecture invalide suspend ces calculs au lieu\n  // d'inventer un profil clinique.\n  useEffect(() => {\n    const fetchPatient = async () => {\n      setPatientData(null);\n      setPatientDataError(null);\n      try {\n        const { data } = await import('../../services/api').then(m => m.api.get(`/patients/${patientId}`));\n        let age = typeof data?.age === 'number' && Number.isFinite(data.age) && data.age >= 0 ? data.age : null;\n        if (age === null && data?.date_naissance) {\n          const birth = new Date(data.date_naissance);\n          if (!Number.isNaN(birth.getTime())) {\n            const now = new Date();\n            age = now.getFullYear() - birth.getFullYear();\n            if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;\n          }\n        }\n        const sexe = data?.sexe === 'M' || data?.sexe === 'F' ? data.sexe : null;\n        if (age === null || age < 0 || !sexe) {\n          throw new Error('Données démographiques Patient incomplètes ou invalides');\n        }\n        setPatientData({ age, sexe });\n      } catch (e) {\n        console.error('Erreur patient data:', e);\n        setPatientData(null);\n        setPatientDataError(\"Données Patient indisponibles : les calculs dépendant de l'âge et du sexe sont suspendus.\");\n      }\n    };\n    fetchPatient();\n  }, [patientId, patientDataReloadKey]);",
+          )
+          replace_exact(
+              ceph,
+              "  //  AUTOMATISATION ÉTAPE 3 (Diagnostic Intelligent COM)",
+              "  // Calculs déterministes de l'étape 3 — données Patient explicites requises",
+          )
+          replace_exact(
+              ceph,
+              "      // Sync intelligent pour le diagnostic textuel",
+              "      // Pré-remplissage déterministe de l'analyse des moulages, à valider par le praticien",
+          )
+          replace_exact(
+              ceph,
+              "\n      // Auto-fill stratégie thérapeutique si vide\n      if (!store.diag.strategie_therapeutique || store.diag.strategie_therapeutique.trim() === \"\") {\n        const plan = generateTreatmentPlan(automated as any);\n        if (plan) {\n          store.setDiag(d => ({ ...d, strategie_therapeutique: plan }));\n        }\n      }\n",
+              "\n      // La stratégie thérapeutique est volontairement laissée au praticien.\n      // Aucun calcul déterministe ne l'auto-promouvoit dans le dossier.\n",
+          )
+          replace_exact(
+              ceph,
+              "      {/* Message d'erreur navigation */}\n      <AnimatePresence>\n        {stepError && (",
+              "      {/* Données Patient manquantes : fail-closed pour les calculs démographiques */}\n      {patientDataError && (\n        <div className=\"px-6 pt-3\">\n          <div className=\"flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm\" style={{ background: `${P.accentError}15`, border: `1px solid ${P.accentError}40`, color: P.accentError }}>\n            <span className=\"flex items-center gap-2\"><AlertCircle size={16} />{patientDataError}</span>\n            <button type=\"button\" onClick={() => setPatientDataReloadKey(key => key + 1)} className=\"px-3 py-1.5 rounded-lg font-bold\" style={{ border: `1px solid ${P.accentError}50` }}>Réessayer</button>\n          </div>\n        </div>\n      )}\n\n      {/* Message d'erreur navigation */}\n      <AnimatePresence>\n        {stepError && (",
+          )
+
+          # Panoramique: neutraliser uniquement le vocabulaire trompeur, sans toucher au moteur.
+          replacements = {
+              'Studio Panoramique IA - {patientName}': 'Studio Panoramique - {patientName}',
+              'Pipeline Loki-Silvres V8 (Détection SOTA)': 'Repérage dentaire automatique · validation praticien',
+              'Analyse panoramique simulée : modèle IA indisponible.': 'Repérage panoramique simulé : moteur indisponible.',
+              \"Erreur lors de l'analyse panoramique.\": \"Erreur lors du traitement panoramique.\",
+              'Neural Engine v8.0 • Zéro-Hallucination': 'Repérage automatique • Vérification praticien requise',
+              '/* Colonne Droite : Intelligence Clinique */': '/* Colonne Droite : constatations cliniques */',
+              '>Diagnostics<': '>Constatations<',
+              'Cliquez sur une dent dans la radio pour ouvrir le panneau de diagnostic. Les anomalies apparaissent ci-dessous.': 'Cliquez sur une dent dans la radio pour saisir une constatation. Les éléments saisis apparaissent ci-dessous.',
+              '/* SECTION DIAGNOSTICS MANUELS */': '/* SECTION CONSTATATIONS MANUELLES */',
+              'Diagnostics ({manualAnomaliesList.length + annotations.length})': 'Constatations ({manualAnomaliesList.length + annotations.length})',
+              'Intelligence Clinique IA': 'Constatations cliniques',
+          }
+          p = Path(pano)
+          text = p.read_text(encoding='utf-8')
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{pano}: expected 1 occurrence, found {count}: {old!r}')
+              text = text.replace(old, new)
+          p.write_text(text, encoding='utf-8')
+
+          # Source contract: forbidden P4-A patterns must be gone.
+          ceph_text = Path(ceph).read_text(encoding='utf-8')
+          pano_text = Path(pano).read_text(encoding='utf-8')
+          for forbidden in ["age || 20", "sexe: data.sexe || 'M'", "setPatientData({ age: 20, sexe: 'M' })", 'generateTreatmentPlan']:
+              if forbidden in ceph_text:
+                  raise SystemExit(f'Cephalo truth violation remains: {forbidden}')
+          for forbidden in ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Neural Engine v8.0 • Zéro-Hallucination']:
+              if forbidden in pano_text:
+                  raise SystemExit(f'Panoramic misleading label remains: {forbidden}')
+          PY
+          git diff --check
+
+      - name: Commit guarded patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/ortho/CephaloWorkspace.tsx frontend/src/features/panoramic/PanoramicStudio.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): harden P4 imaging truth boundary'
+          git push origin HEAD:${GITHUB_HEAD_REF}
