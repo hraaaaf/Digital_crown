@@ -20,7 +20,6 @@ import { useDocumentGenerator } from './DocumentStudio/useDocumentGenerator';
 import { type SelectedSurfaceData } from '../../components/odontogram/types';
 import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
-import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';
 import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
 
 interface DocumentHubProps {
@@ -232,13 +231,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     }
   }, [activeTab]);
 
-  const handleConvertPlanToQuote = useCallback((allActs: any[]) => {
-    const newItems = convertPlanActsToQuoteItems(allActs);
-    setItems(previous => [...previous, ...newItems]);
-    setActiveTab('devis');
-    syncDocumentTab('devis');
-  }, [setItems, setActiveTab, syncDocumentTab]);
-
   return (
     <div className="relative w-full h-full overflow-hidden flex animate-in fade-in duration-700">
       <div className={cn(
@@ -292,7 +284,6 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
           setLibreAlignment={setLibreAlignment}
           setEcheancierPayload={setEcheancierPayload}
           setSelectedTeethFromOdontogram={setSelectedTeethFromOdontogram}
-          onConvertPlanToQuote={handleConvertPlanToQuote}
           generator={generator}
         />
 
