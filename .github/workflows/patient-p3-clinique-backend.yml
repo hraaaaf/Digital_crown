@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 25
     env:
       ENVIRONMENT: test
-      SECRET_KEY: patient-p3-backend-secret-0001
+      SECRET_KEY: patient-p3-backend-secret-0001-long-enough-for-tests
       DATABASE_URL: sqlite:///./p3-backend-test.db
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
