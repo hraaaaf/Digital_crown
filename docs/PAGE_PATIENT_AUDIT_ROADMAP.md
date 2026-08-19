@@ -219,12 +219,27 @@ Actions :
 
 **Goal :** rendre création/édition/finance plus courte et sans ambiguïté.
 
-- [ ] Unifier Add/Edit Patient autour d'un même contrat de formulaire.
-- [ ] Corriger anti-doublon fail-open côté UI.
-- [ ] Réduire la saisie initiale au nécessaire puis enrichir dans le dossier.
-- [ ] Simplifier KPI patient : Facturé / Encaissé / Reste dû / Prochaine échéance.
-- [ ] Reléguer ou supprimer le taux de recouvrement côté fiche patient.
-- [ ] Harmoniser encaissement rapide, acte et échéancier avec le contrat financier canonique.
+- [x] Unifier Add/Edit Patient autour d'un même contrat de formulaire.
+- [x] Corriger anti-doublon fail-open côté UI.
+- [x] Réduire la saisie initiale au nécessaire puis enrichir dans le dossier.
+- [x] Simplifier KPI patient : Facturé / Encaissé / Reste dû / Prochaine échéance.
+- [x] Reléguer ou supprimer le taux de recouvrement côté fiche patient.
+- [x] Harmoniser encaissement rapide, acte et échéancier avec le contrat financier canonique.
+
+**Statut produit : CERTIFIED sur `fb2bd0357d6da6d4c3be9b51be45d84c764589c1`.**
+
+### Preuves P6
+
+- Goal + wireframe : `docs/PATIENT_P6_FINANCES_IDENTITE_GOAL.md`.
+- Certificat : `docs/PATIENT_P6_FINANCES_IDENTITE_CERT.json`.
+- P5 courant `76fe188a7a9606e2ed93dd6d347753a2dbab3c14` → P6 : `behind=0`, `ahead=50`, merge-base=P5.
+- CI : run `32309262380` (#1447) SUCCESS.
+- T2 Runtime Browser Certification : run `32309262379` (#689) SUCCESS.
+- BEFORE : run `32309262409` (#44) SUCCESS, artifact `9385927643`.
+- AFTER : run `32309262388` (#31) SUCCESS, artifact `9385921989`, digest `sha256:a451b7d29b62f85598a9d2d9d6279ac2a5dcc5d58a86c26c20c5d1d2faf4e9a1`.
+- AFTER : 12/12 captures valides sur 390x844, 430x932, 768x1024 et 1280x900 ; zéro overflow horizontal, zéro runtime error, zéro HTTP 5xx.
+- Score visuel de scope P6 : **9,6/10**.
+- Le commit documentaire de closeout contenant ces preuves doit lui-même repasser CI/T2 exact-HEAD avant déclaration CLOSED.
 
 ---
 
