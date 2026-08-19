@@ -1,0 +1,41 @@
+name: Settings R11 TemplateBuilder Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-r11-templatebuilder-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record legacy builder references
+        run: |
+          mkdir -p r11-templatebuilder-audit
+          {
+            echo '=== matching filenames ==='
+            find frontend/src -type f \( -iname '*template*builder*' -o -iname '*builder*template*' -o -iname '*templatebuilder*' \) -print | sort
+            echo
+            echo '=== TemplateBuilder refs ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'TemplateBuilder|template[ -]?builder|Template Builder' frontend/src || true
+            echo
+            echo '=== designConfig refs ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git 'designConfig' frontend/src || true
+            echo
+            echo '=== document template routes/imports ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'template-builder|template_builder|document-template|DocumentTemplate|TemplateStudio' frontend/src || true
+            echo
+            echo '=== persisted template refs ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'selected_template|branding_preview_scope|branding_scope' frontend/src/features frontend/src/pages frontend/src/App.tsx || true
+          } | tee r11-templatebuilder-audit/references.txt
+          echo "head_sha=${{ github.event.pull_request.head.sha }}" > r11-templatebuilder-audit/metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-r11-templatebuilder-dependency-audit
+          path: r11-templatebuilder-audit/
+          if-no-files-found: error
+          retention-days: 14
