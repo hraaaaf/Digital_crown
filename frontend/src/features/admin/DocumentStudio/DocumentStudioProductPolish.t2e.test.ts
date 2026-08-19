@@ -18,9 +18,12 @@ describe('Document Studio T2-E product polish', () => {
     expect(header).toContain('truncate font-black');
   });
 
-  it('keeps canonical tabs usable in dark mode without changing product vocabulary', () => {
+  it('keeps current canonical document tabs usable in dark mode', () => {
     expect(tabs).toContain('dark:bg-slate-900/80');
-    expect(tabs).toContain('DOCUMENT_STUDIO_LABELS.plan');
+    expect(tabs).toContain('DOCUMENT_STUDIO_LABELS.ordonnance');
+    expect(tabs).toContain('DOCUMENT_STUDIO_LABELS.certificat');
+    expect(tabs).toContain('DOCUMENT_STUDIO_LABELS.libre');
+    expect(tabs).not.toContain('DOCUMENT_STUDIO_LABELS.plan');
     expect(tabs).toContain('aria-pressed={active}');
   });
 
