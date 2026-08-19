@@ -115,7 +115,7 @@ const page = await context.newPage();
 const basePatientUrl = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=`;
 
 async function waitForStudio(label) {
-  await page.getByText('Documents A5', { exact: true }).waitFor({ timeout: 30000 });
+  await page.locator('[data-tour="patient-tabs"]').getByText('Documents', { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText(label, { exact: true }).first().waitFor({ timeout: 30000 });
 }
 
