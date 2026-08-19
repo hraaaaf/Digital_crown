@@ -50,9 +50,16 @@ def _settings():
     return {"weekly_schedule": _week()}
 
 
-def _wire(monkeypatch, settings):
-    monkeypatch.setattr(availability, "_ensure_tenant_columns", lambda _db: None)
+def _wire(monkeypatch, settings, schema_ready=True):
+    monkeypatch.setattr(availability, "_agenda_schema_ready", lambda _db: schema_ready)
     monkeypatch.setattr(availability, "_settings_row", lambda _db, _employer_id: settings)
+
+
+def test_uninitialized_r7_schema_keeps_historical_behavior(monkeypatch):
+    _wire(monkeypatch, _settings(), schema_ready=False)
+    assert availability.validate_appointment_availability(
+        _Db(), 1, datetime(2026, 8, 17, 3, 0), 30, SchedulingType.EXACT_TIME
+    ) is None
 
 
 def test_legacy_install_without_settings_keeps_historical_behavior(monkeypatch):
@@ -73,11 +80,10 @@ def test_exact_time_must_fit_entire_opening_window(monkeypatch):
     assert availability.validate_appointment_availability(
         _Db(), 1, datetime(2026, 8, 17, 14, 0), 30, SchedulingType.EXACT_TIME
     ) is None
-    assert "hors" in availability.validate_appointment_availability(
-        _Db(), 1, datetime(2026, 8, 17, 17, 45), 30, SchedulingType.EXACT_TIME
-    ) or "chevauche" in availability.validate_appointment_availability(
+    closing_error = availability.validate_appointment_availability(
         _Db(), 1, datetime(2026, 8, 17, 17, 45), 30, SchedulingType.EXACT_TIME
     )
+    assert "hors" in closing_error or "chevauche" in closing_error
 
 
 def test_closed_day_and_exception_are_rejected(monkeypatch):
