@@ -22,12 +22,14 @@ Le backend Journey reste un agrégateur en lecture seule. Les tables sources dem
 
 | Information | Source canonique | Règle P2 |
 |---|---|---|
-| Prochain RDV | Appointment | date/id réels, lien Agenda |
+| Prochain RDV | Appointment | date réelle, lien Agenda |
 | Plan actif | TreatmentMasterPlan + TreatmentPlanStep | aucune étape => « Aucun plan enregistré », jamais `0/0` présenté comme activité |
-| Prochaine action | Appointment puis première TreatmentPlanStep PENDING par `order_index` | règle opérationnelle déterministe, jamais recommandation clinique |
+| Prochaine action | Appointment puis événement TreatmentPlanStep PENDING déjà exposé par Journey | priorité au RDV futur réel ; sans RDV, une étape PENDING factuelle du fil ; jamais recommandation clinique |
 | Situation financière | Acte + Payment, avec `has_billing_data` | absence de base facturée => « Solde indéterminé », jamais faux `0 MAD` |
 | Dernier document | DocumentArchive | date réelle |
 | Timeline | 9 sources Journey existantes | chaque événement conserve source, ref_id, date et cible réelle |
+
+P2 ne prétend pas reconstruire `order_index` côté frontend : ce champ n’est pas exposé par le contrat Journey. Une future évolution du contrat devra l’ajouter explicitement avant de revendiquer l’ordre canonique du Master Plan dans la carte « Prochaine action ».
 
 ## Suppression P2
 `FlashSummary` doit disparaître de la Vue d’ensemble. Son endpoint actuel agrège des heuristiques (`risk_level`, alertes, tendances) et n’est pas une source de vérité nécessaire au Journey.
@@ -49,7 +51,7 @@ VUE D’ENSEMBLE
 │ PLAN ACTIF       │ │ PROCHAIN RDV     │ │ FINANCES         │
 │ 2 étapes en cours│ │ 24 août · 10:30  │ │ 1 200 MAD        │
 │ Source: Master   │ │ Source: Agenda   │ │ Actes + paiements│
-│ Plan · date      │ │ · date           │ │ · date activité  │
+│ Plan · date      │ │ · date           │ │ · date calcul    │
 └──────────────────┘ └──────────────────┘ └──────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -67,7 +69,7 @@ VUE D’ENSEMBLE
 
 ## Succès observable
 1. `FlashSummary` n’est plus rendu dans la Vue d’ensemble.
-2. Une carte « Prochaine action » existe et ne repose que sur Appointment ou une étape PENDING enregistrée.
+2. Une carte « Prochaine action » existe et ne repose que sur Appointment ou une étape PENDING enregistrée et exposée par Journey.
 3. Plan actif, prochain RDV et finances affichent une provenance explicite et un état neutre honnête.
 4. Treatment Plan ouvre l’espace Clinique / Master Plan, jamais Documents.
 5. Chaque événement navigable expose une action « Ouvrir la source ».
