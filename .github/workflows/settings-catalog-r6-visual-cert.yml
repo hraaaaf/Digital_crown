@@ -6,6 +6,7 @@ on:
       - ".github/workflows/settings-catalog-r6-visual-cert.yml"
       - "frontend/src/features/admin/Settings/tabs/CatalogTab.tsx"
       - "frontend/src/features/admin/Settings/hooks/useCatalogStore.ts"
+      - "frontend/src/test/catalogR6Crud.test.ts"
 
 permissions:
   contents: read
@@ -168,7 +169,8 @@ jobs:
               await page.goto('http://127.0.0.1:4181/settings-catalog-r6.html', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
               await page.getByRole('button', { name: /Catalogue Actes/i }).click();
-              await page.getByRole('heading', { name: /Catalogue Dynamique/i }).waitFor({ state: 'visible' });
+              await page.getByRole('heading', { name: /Catalogue des actes/i }).waitFor({ state: 'visible' });
+              await page.getByText('Inactif', { exact: true }).waitFor({ state: 'visible' });
 
               const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
               if (overflow) throw new Error(`Horizontal overflow at ${width}px`);
@@ -178,6 +180,20 @@ jobs:
                 fullPage: true,
                 animations: 'disabled',
               });
+
+              await page.getByRole('button', { name: "Modifier l'acte Consultation" }).click();
+              await page.getByRole('dialog').waitFor({ state: 'visible' });
+              await page.getByRole('heading', { name: "Modifier l'acte" }).waitFor({ state: 'visible' });
+
+              const modalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (modalOverflow) throw new Error(`Horizontal modal overflow at ${width}px`);
+
+              await page.screenshot({
+                path: `${output}/admin-catalog-act-modal-${width}x1200.png`,
+                fullPage: true,
+                animations: 'disabled',
+              });
+
               await fs.writeFile(`${output}/admin-catalog-${width}x1200.errors.txt`, runtimeErrors.join('\n'));
               await context.close();
             }
@@ -195,7 +211,7 @@ jobs:
         working-directory: frontend
         run: |
           count=$(find settings-catalog-r6-artifacts -name '*.png' | wc -l)
-          test "$count" -eq 5
+          test "$count" -eq 10
           if grep -R -n -E 'pageerror:|console:' settings-catalog-r6-artifacts/*.errors.txt; then
             echo "Runtime errors detected" >&2
             exit 1
@@ -207,6 +223,8 @@ jobs:
           cat > settings-catalog-r6-artifacts/metadata.txt <<EOF
           head_sha=${{ github.event.pull_request.head.sha }}
           viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          states=page,act-edit-modal
+          expected_screenshots=10
           fixture=same-catalog-fixture
           product_scope=Settings Catalog only
           EOF
