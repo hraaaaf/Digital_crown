@@ -1,0 +1,44 @@
+name: Patient P6AB Identity Patch V2
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p5-documents
+    paths:
+      - '.github/workflows/patient-p6ab-identity-patch-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p6-finances-identite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Reuse guarded P6 patch with whitespace correction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/patient-p6ab-identity-patch.yml').read_text(encoding='utf-8')
+          start = workflow.index("          python - <<'PY'\n") + len("          python - <<'PY'\n")
+          end = workflow.index("\n          PY\n", start)
+          script = textwrap.dedent(workflow[start:end])
+          script = script.replace('"    sexe: \'\', "', '"    sexe: \'\',"')
+          exec(compile(script, 'p6ab-identity-patch', 'exec'), {})
+          PY
+          git diff --check
+      - name: Commit guarded patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): harden P6 identity truth boundary'
+          git push origin HEAD:${GITHUB_HEAD_REF}
