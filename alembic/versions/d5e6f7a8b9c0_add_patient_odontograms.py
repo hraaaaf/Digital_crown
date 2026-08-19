@@ -1,4 +1,4 @@
-"""Add patient-scoped persistent odontograms.
+"""Add patient-scoped P3 clinical persistence.
 
 Revision ID: d5e6f7a8b9c0
 Revises: c4d5e6f7a8b9
@@ -35,8 +35,30 @@ def upgrade() -> None:
     op.create_index("ix_patient_odontograms_patient_id", "patient_odontograms", ["patient_id"], unique=True)
     op.create_index("ix_patient_odontograms_updated_by", "patient_odontograms", ["updated_by"], unique=False)
 
+    op.create_table(
+        "clinical_conclusions",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("patient_id", sa.Integer(), nullable=False),
+        sa.Column("conclusion_text", sa.Text(), nullable=False),
+        sa.Column("proposal_text", sa.Text(), nullable=True),
+        sa.Column("proposal_source", sa.String(length=100), nullable=True),
+        sa.Column("validated_by", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["patient_id"], ["patients.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["validated_by"], ["users.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_clinical_conclusions_patient_id", "clinical_conclusions", ["patient_id"], unique=False)
+    op.create_index("ix_clinical_conclusions_validated_by", "clinical_conclusions", ["validated_by"], unique=False)
+    op.create_index("ix_clinical_conclusions_created_at", "clinical_conclusions", ["created_at"], unique=False)
+
 
 def downgrade() -> None:
+    op.drop_index("ix_clinical_conclusions_created_at", table_name="clinical_conclusions")
+    op.drop_index("ix_clinical_conclusions_validated_by", table_name="clinical_conclusions")
+    op.drop_index("ix_clinical_conclusions_patient_id", table_name="clinical_conclusions")
+    op.drop_table("clinical_conclusions")
+
     op.drop_index("ix_patient_odontograms_updated_by", table_name="patient_odontograms")
     op.drop_index("ix_patient_odontograms_patient_id", table_name="patient_odontograms")
     op.drop_table("patient_odontograms")
