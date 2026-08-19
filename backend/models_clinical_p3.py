@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models import Base
@@ -61,5 +61,28 @@ class ClinicalConclusion(Base):
     proposal_source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     validated_by: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+
+class TreatmentMasterPlanRevision(Base):
+    """Append-only snapshot created after each successful Master Plan save."""
+
+    __tablename__ = "treatment_master_plan_revisions"
+    __table_args__ = (
+        UniqueConstraint("plan_id", "revision", name="uq_master_plan_revision"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    plan_id: Mapped[int] = mapped_column(
+        ForeignKey("treatment_master_plans.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    steps_snapshot: Mapped[list[Dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    updated_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)

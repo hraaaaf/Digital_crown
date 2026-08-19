@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, API_BASE } from '../../services/api';
+import { api } from '../../services/api';
 import { usePatientStore } from '../../stores/usePatientStore';
 import {
   FileText,
@@ -18,6 +18,7 @@ import {
   Trash2,
   Edit,
   FileX2,
+  RefreshCcw,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -37,21 +38,27 @@ export const PatientDocuments = () => {
   const { id } = useParams();
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchDocs = async () => {
+      setLoading(true);
+      setFetchError(false);
       try {
         const res = await api.get(`/patients/${id}/documents`);
         setDocs(res.data);
       } catch (err) {
         console.error("Erreur archives:", err);
+        setDocs([]);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchDocs();
-  }, [id]);
+  }, [id, reloadKey]);
 
   const handleDelete = async (docId: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
@@ -79,7 +86,10 @@ export const PatientDocuments = () => {
     try {
       const clean = url.startsWith('/') ? url.slice(1) : url;
       const res = await api.get(`/${clean}`, { responseType: 'blob' });
-      window.open(URL.createObjectURL(res.data), '_blank');
+      const blobUrl = URL.createObjectURL(res.data);
+      const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) URL.revokeObjectURL(blobUrl);
+      else window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err) {
       console.error("Erreur lors de la visualisation:", err);
       alert("Impossible d'ouvrir le document.");
@@ -91,9 +101,13 @@ export const PatientDocuments = () => {
       const clean = url.startsWith('/') ? url.slice(1) : url;
       const res = await api.get(`/${clean}`, { responseType: 'blob' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(res.data);
+      const blobUrl = URL.createObjectURL(res.data);
+      a.href = blobUrl;
       a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);
     } catch (err) {
       console.error("Erreur lors du téléchargement:", err);
       alert("Impossible de télécharger le document.");
@@ -149,6 +163,25 @@ export const PatientDocuments = () => {
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
+        <ArchiveX size={40} className="text-rose-400" />
+        <div>
+          <h3 className="text-slate-800 font-black text-lg">Impossible de charger l'historique</h3>
+          <p className="text-slate-400 text-sm mt-1">Aucun état vide n'est déduit tant que le backend ne répond pas.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setReloadKey(key => key + 1)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-widest"
+        >
+          <RefreshCcw size={15} /> Réessayer
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-700 h-full flex flex-col">
       
@@ -182,7 +215,7 @@ export const PatientDocuments = () => {
 
             {doc.isDuplicate && (
               <div className="absolute top-0 inset-x-0 bg-rose-500 text-white text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 shadow-md">
-                Doublon de contenu détecté
+                Contenu similaire à vérifier
               </div>
             )}
 

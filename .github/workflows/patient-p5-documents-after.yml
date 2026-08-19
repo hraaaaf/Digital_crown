@@ -1,23 +1,25 @@
-name: Patient P5 Documents Before
+name: Patient P5 Documents After
 
 on:
   pull_request:
     branches:
       - agent/patient-page-p4-imagerie
     paths:
-      - 'docs/PATIENT_P5_DOCUMENTS_GOAL.md'
-      - '.github/workflows/patient-p5-documents-before.yml'
+      - 'frontend/src/features/admin/DocumentHub.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/**'
+      - 'frontend/src/features/patients/PatientDocuments.tsx'
+      - '.github/workflows/patient-p5-documents-after.yml'
 
 permissions:
   contents: read
 
 jobs:
-  before:
+  after:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       ENVIRONMENT: test
-      SECRET_KEY: patient-p5-before-secret-000001
+      SECRET_KEY: patient-p5-after-secret-000001-long-enough
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
@@ -25,8 +27,6 @@ jobs:
       ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: 7a4f4226dfd6773392709147b010e733b1489b83
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -40,8 +40,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p5-before.txt
-          pip install -r /tmp/requirements-p5-before.txt
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p5-after.txt
+          pip install -r /tmp/requirements-p5-after.txt
           pip install httpx==0.27.2
 
       - name: Install frontend and Chromium
@@ -50,33 +50,42 @@ jobs:
           npm ci
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+          npm test -- --run \
+            src/features/admin/DocumentStudio/DocumentStudioVocabulary.t2a.test.ts \
+            src/features/admin/DocumentStudio/DocumentTabNavigationPolicy.test.ts \
+            src/features/admin/DocumentStudio/DocumentHubDecomposition.t2c.test.ts \
+            src/features/admin/DocumentStudio/DocumentHubClinicalBoundary.test.ts \
+            src/features/admin/DocumentStudio/DocumentStudioRbac.p5.test.ts \
+            src/features/admin/DocumentStudio/PatientDocumentsTruth.p5.test.ts
+          npm run build
 
       - name: Start backend
         run: |
           rm -f t2-runtime-cert.db
-          python scripts/t2_runtime_server.py > /tmp/p5-before-backend.log 2>&1 &
+          python scripts/t2_runtime_server.py > /tmp/p5-after-backend.log 2>&1 &
           for i in {1..90}; do if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/p5-before-backend.log
+          cat /tmp/p5-after-backend.log
           exit 1
 
       - name: Start frontend
         working-directory: frontend
         run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p5-before-front.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p5-after-front.log 2>&1 &
           for i in {1..90}; do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/p5-before-front.log
+          cat /tmp/p5-after-front.log
           exit 1
 
-      - name: Capture P5 BEFORE
+      - name: Capture P5 AFTER
         working-directory: frontend
         run: |
-          mkdir -p ../artifacts/p5-documents-before
-          cat > .p5-before.mjs <<'JS'
+          mkdir -p ../artifacts/p5-documents-after
+          cat > .p5-after.mjs <<'JS'
           import fs from 'node:fs';
           import path from 'node:path';
           import { chromium, request } from 'playwright';
-          const out=path.resolve('../artifacts/p5-documents-before');
+          const out=path.resolve('../artifacts/p5-documents-after');
           const viewports=[{width:390,height:844},{width:430,height:932},{width:768,height:1024},{width:1280,height:900}];
+          const expectedTabs=['Ordonnance','Certificat','Devis','Note Honoraires','Suivi Paiement','Document Libre'];
           const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
           const login=await api.post('/api/auth/login',{form:{username:'t2-browser@cabinet.ma',password:'T2BrowserPass123!'}});
           if(!login.ok()) throw new Error(await login.text());
@@ -91,38 +100,42 @@ jobs:
             const errors=[]; const http5xx=[];
             page.on('pageerror',e=>errors.push(String(e)));
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
-            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`,{waitUntil:'networkidle',timeout:90000});
-            const documents=page.getByRole('button',{name:'Documents',exact:true});
-            await documents.waitFor({state:'visible',timeout:30000});
-            await documents.click();
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=plan`,{waitUntil:'networkidle',timeout:90000});
             await page.getByRole('button',{name:'Créer',exact:true}).waitFor({state:'visible',timeout:30000});
-            await page.waitForTimeout(800);
-            const createShot=`p5-before-create-${viewport.width}x${viewport.height}.png`;
+            const studio=page.getByLabel('Types de documents');
+            await studio.waitFor({state:'visible',timeout:30000});
+            for(const label of expectedTabs){
+              if(await studio.getByRole('button',{name:label,exact:true}).count()!==1) throw new Error(`Missing document tab: ${label}`);
+            }
+            if(await studio.getByRole('button',{name:'Compagnon Diagnostique',exact:true}).count()) throw new Error('Clinical companion still exposed in Documents');
+            if(new URL(page.url()).searchParams.get('documentTab')==='plan') throw new Error('Forbidden legacy plan URL was not normalized');
+            await page.waitForTimeout(500);
             const createOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
-            const companionVisible=await page.getByRole('button',{name:'Compagnon Diagnostique',exact:true}).count();
+            const createShot=`p5-after-create-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,createShot),fullPage:false});
 
             await page.getByRole('button',{name:'Historique',exact:true}).click();
-            await page.getByPlaceholder('Rechercher dans l\'historique...').waitFor({state:'visible',timeout:30000});
-            await page.waitForTimeout(800);
-            const historyShot=`p5-before-history-${viewport.width}x${viewport.height}.png`;
+            await page.getByPlaceholder("Rechercher dans l'historique...").waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(500);
             const historyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
+            const historyShot=`p5-after-history-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,historyShot),fullPage:false});
-            evidence.push({viewport,createOverflow,historyOverflow,companionVisible,errors,http5xx,createShot,historyShot,url:page.url()});
+            evidence.push({viewport,createOverflow,historyOverflow,errors,http5xx,createShot,historyShot,url:page.url()});
             await ctx.close();
           }
           fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));
-          fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({captures:evidence.length*2,evidence},null,2));
+          const invalid=evidence.filter(e=>e.createOverflow||e.historyOverflow||e.errors.length||e.http5xx.length);
+          fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({captures:evidence.length*2,invalid,evidence},null,2));
           await browser.close(); await api.dispose();
-          if(evidence.length!==4) process.exit(1);
+          if(evidence.length!==4 || invalid.length) process.exit(1);
           JS
-          node .p5-before.mjs
-          rm .p5-before.mjs
+          node .p5-after.mjs
+          rm .p5-after.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: patient-p5-documents-before
-          path: artifacts/p5-documents-before
-          if-no-files-found: warn
+          name: patient-p5-documents-after
+          path: artifacts/p5-documents-after
+          if-no-files-found: error
           retention-days: 14
