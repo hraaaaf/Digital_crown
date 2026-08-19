@@ -109,7 +109,16 @@ class CMOAgentService:
         patient_id: int,
         employer_id: int = 1,
     ) -> Dict[str, Any]:
-        """Génère une synthèse non prescriptive, sans LLM, sur les imageries actives seulement."""
+        """Génère une synthèse non prescriptive, sans LLM, sur les imageries actives seulement.
+
+        Le cabinet est toujours dérivé du Patient. Le paramètre `employer_id` reste accepté
+        uniquement pour compatibilité avec les anciens callers et n'est jamais une source de vérité.
+        """
+        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+        if patient is None:
+            return self._empty_fallback()
+        canonical_employer_id = patient.employer_id
+
         pano_trash_ids = [
             row[0]
             for row in db.query(ImagingTrashRecord.analysis_id)
@@ -159,7 +168,7 @@ class CMOAgentService:
         ghost_memory.add_memory(
             db=db,
             patient_id=patient_id,
-            employer_id=employer_id,
+            employer_id=canonical_employer_id,
             insight_type="SIGNAL_CLINIQUE",
             content=content,
             context_data=context_str,
