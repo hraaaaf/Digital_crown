@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from backend import models
 from backend.security import get_password_hash
@@ -58,7 +58,7 @@ def test_snapshot_distinguishes_absent_billing_base_from_real_zero(client, db):
     assert empty.status_code == 200, empty.text
     assert empty.json()["has_billing_data"] is False
     assert empty.json()["total_billed"] == 0
-    assert empty.json()["remaining_due"] == 0
+    assert empty.json()["remaining_due"] is None
 
     db.add(models.Acte(
         patient_id=patient.id,
@@ -76,6 +76,45 @@ def test_snapshot_distinguishes_absent_billing_base_from_real_zero(client, db):
     assert body["total_billed"] == 250.0
     assert body["total_collected"] == 0.0
     assert body["remaining_due"] == 250.0
+
+
+def test_snapshot_exposes_next_real_installment(client, db):
+    owner = _make_user(db, "p6-finance-installment-owner@test.ma")
+    patient = _make_patient(db, owner, "P6-FIN-3")
+    headers = _headers(client, owner)
+
+    plan = models.InstallmentPlan(
+        patient_id=patient.id,
+        total_amount=600.0,
+        installment_count=2,
+        status="ACTIF",
+    )
+    db.add(plan)
+    db.flush()
+    later = models.Installment(
+        plan_id=plan.id,
+        label="Échéance 2",
+        amount=300.0,
+        due_date=date.today() + timedelta(days=20),
+        status="EN_ATTENTE",
+    )
+    sooner = models.Installment(
+        plan_id=plan.id,
+        label="Échéance 1",
+        amount=300.0,
+        due_date=date.today() + timedelta(days=7),
+        status="EN_ATTENTE",
+    )
+    db.add_all([later, sooner])
+    db.commit()
+
+    response = client.get(f"/api/patients/{patient.id}/financial-snapshot", headers=headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["upcoming_installments_count"] == 2
+    assert body["next_installment"]["label"] == "Échéance 1"
+    assert body["next_installment"]["amount"] == 300.0
+    assert body["next_installment"]["due_date"] == (date.today() + timedelta(days=7)).isoformat()
 
 
 def test_snapshot_requires_accounting_or_payments_for_subaccount(client, db):
@@ -100,3 +139,12 @@ def test_snapshot_requires_accounting_or_payments_for_subaccount(client, db):
     )
     allowed = client.get(url, headers=_headers(client, payments_user))
     assert allowed.status_code == 200, allowed.text
+
+    accounting_user = _make_user(
+        db,
+        "p6-finance-accounting@test.ma",
+        employer_id=owner.id,
+        permissions={"patients": True, "accounting": True},
+    )
+    allowed_accounting = client.get(url, headers=_headers(client, accounting_user))
+    assert allowed_accounting.status_code == 200, allowed_accounting.text
