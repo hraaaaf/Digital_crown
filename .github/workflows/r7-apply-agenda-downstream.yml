@@ -1,0 +1,155 @@
+name: R7 Apply Agenda Downstream
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/r7-apply-agenda-downstream.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Apply verified R7 downstream patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              return text.replace(old, new, 1)
+
+          # AgendaStudio: responsive shell, no dead Ticket action, pass authoritative schedule/exceptions.
+          path = Path('frontend/src/features/agenda/AgendaStudio.tsx')
+          text = path.read_text()
+          text = replace_once(text,
+              "import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Ticket, Users } from 'lucide-react';",
+              "import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, ListFilter, UploadCloud, Users } from 'lucide-react';",
+              'AgendaStudio Ticket import')
+          text = replace_once(text,
+              "  const [settings, setSettings] = useState<any>(null);\n",
+              "  const [settings, setSettings] = useState<any>(null);\n  const [exceptions, setExceptions] = useState<any[]>([]);\n",
+              'AgendaStudio exceptions state')
+          text = replace_once(text,
+              "    api.get('/agenda/settings').then(res => setSettings(res.data)).catch(console.error);\n    fetchPendingRequests();",
+              "    api.get('/agenda/settings').then(res => setSettings(res.data)).catch(console.error);\n    api.get('/agenda/exceptions').then(res => setExceptions(Array.isArray(res.data) ? res.data : [])).catch(console.error);\n    fetchPendingRequests();",
+              'AgendaStudio exception fetch')
+          text = replace_once(text,
+              "      case 'day': return <DailyView key={`day-${refreshKey}`} selectedDate={selectedDate} />;\n      case 'week': return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} />;",
+              "      case 'day': return <DailyView key={`day-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;\n      case 'week': return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;",
+              'AgendaStudio view props')
+          text = replace_once(text,
+              "      default: return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} />;",
+              "      default: return <WeeklyView key={`week-${refreshKey}`} selectedDate={selectedDate} agendaSettings={settings} exceptions={exceptions} />;",
+              'AgendaStudio default view')
+          text = replace_once(text,
+              '    <div className="w-full max-w-7xl mx-auto space-y-6">',
+              '    <div className="w-full max-w-7xl mx-auto space-y-6 min-w-0 overflow-x-clip">',
+              'AgendaStudio root')
+          text = replace_once(text,
+              '        <div className="bg-primary text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-4">',
+              '        <div className="bg-primary text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">',
+              'AgendaStudio holiday banner')
+          text = replace_once(text,
+              '      <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-6 rounded-[2.5rem] shadow-2xl">',
+              '      <div data-tour="agenda-header" className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-6 bg-white/40 backdrop-blur-2xl border border-white/60 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl min-w-0">',
+              'AgendaStudio header')
+          text = replace_once(text,
+              '        <div className="flex items-center gap-6">',
+              '        <div className="flex items-center gap-3 sm:gap-6 min-w-0">',
+              'AgendaStudio left header')
+          text = replace_once(text,
+              '            <h1 className="text-3xl font-black text-primary tracking-tight">Studio Agenda</h1>',
+              '            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight whitespace-nowrap">Studio Agenda</h1>',
+              'AgendaStudio title')
+          text = replace_once(text,
+              '        <div data-tour="agenda-view-switcher" className="flex items-center gap-4 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">',
+              '        <div data-tour="agenda-view-switcher" className="w-full lg:w-auto min-w-0 flex flex-wrap items-center justify-center lg:justify-end gap-1 sm:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md">',
+              'AgendaStudio switcher')
+          ticket_block = '''          {settings?.use_tickets && (\n            <button \n              className="flex items-center gap-2 px-4 py-2.5 text-amber-600 hover:bg-amber-100 font-bold text-sm rounded-xl transition-all"\n              title="Générer un ticket"\n            >\n              <Ticket size={18} />\n              <span className="hidden xl:inline">Nouveau Ticket</span>\n            </button>\n          )}\n\n'''
+          text = replace_once(text, ticket_block, '', 'AgendaStudio dead Ticket block')
+          text = text.replace('px-5 py-2.5 rounded-xl font-bold text-sm transition-all', 'px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all')
+          text = text.replace('className="w-px h-6 bg-slate-200 mx-1"', 'className="hidden sm:block w-px h-6 bg-slate-200 mx-1"')
+          path.write_text(text)
+
+          # DailyView: use selected day's real configured bounds and closures.
+          path = Path('frontend/src/features/agenda/DailyView.tsx')
+          text = path.read_text()
+          text = replace_once(text,
+              "import { AgendaModal } from './AgendaModal';\n",
+              "import { AgendaModal } from './AgendaModal';\nimport { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';\n",
+              'DailyView schedule import')
+          text = replace_once(text,
+              "interface DailyViewProps {\n  selectedDate: Date;\n}\n\nexport const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {",
+              "interface DailyViewProps {\n  selectedDate: Date;\n  agendaSettings?: AgendaSettingsLike | null;\n  exceptions?: AgendaExceptionLike[] | null;\n}\n\nexport const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettings, exceptions }) => {",
+              'DailyView props')
+          text = replace_once(text,
+              "  // Configuration de la grille : 08:00 à 19:00, slots de 15 minutes\n  const startHour = 8;\n  const endHour = 19;\n  const totalHours = endHour - startHour;\n  const slotsPerHour = 4;\n  const totalSlots = totalHours * slotsPerHour;",
+              "  const daySchedule = getDaySchedule(selectedDate, agendaSettings);\n  const exception = getExceptionForDate(selectedDate, exceptions);\n  const dayOpen = isDateOpen(selectedDate, agendaSettings, exceptions);\n  const { startHour, endHour } = getDayBounds(daySchedule);\n  const totalHours = endHour - startHour;\n  const slotsPerHour = 4;\n  const totalSlots = totalHours * slotsPerHour;",
+              'DailyView grid bounds')
+          text = replace_once(text,
+              "  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {\n    // Ne pas ouvrir si on clique sur un rdv existant",
+              "  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {\n    if (!dayOpen) return;\n    // Ne pas ouvrir si on clique sur un rdv existant",
+              'DailyView closed click')
+          text = replace_once(text,
+              "        <button \n          onClick={() => setIsModalOpen(true)}\n          className=\"px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2\"\n        >",
+              "        <button \n          onClick={() => setIsModalOpen(true)}\n          disabled={!dayOpen}\n          title={!dayOpen ? 'Cabinet fermé ce jour' : 'Nouveau rendez-vous'}\n          className=\"px-4 sm:px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed\"\n        >",
+              'DailyView add button')
+          marker = "      {/* CSS GRID AGENDA */}"
+          banner = """      {!dayOpen && (\n        <div className=\"rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900\">\n          <p className=\"font-black\">Cabinet fermé ce jour</p>\n          <p className=\"text-sm font-medium mt-1\">{exception?.reason || 'Jour fermé selon les horaires du cabinet.'}</p>\n        </div>\n      )}\n\n      {/* CSS GRID AGENDA */}"""
+          text = replace_once(text, marker, banner, 'DailyView closure banner')
+          path.write_text(text)
+
+          # WeeklyView: real week bounds, closed days, stacked mobile representation.
+          path = Path('frontend/src/features/agenda/WeeklyView.tsx')
+          text = path.read_text()
+          text = replace_once(text,
+              "import type { Appointment, AppointmentStatus } from './DailyView';\n",
+              "import type { Appointment, AppointmentStatus } from './DailyView';\nimport { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';\n",
+              'WeeklyView schedule import')
+          text = replace_once(text,
+              "interface WeeklyViewProps {\n  selectedDate: Date;\n}\n\nexport const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {",
+              "interface WeeklyViewProps {\n  selectedDate: Date;\n  agendaSettings?: AgendaSettingsLike | null;\n  exceptions?: AgendaExceptionLike[] | null;\n}\n\nexport const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSettings, exceptions }) => {",
+              'WeeklyView props')
+          text = replace_once(text,
+              "  // Configuration de la grille\n  const startHour = 8;\n  const endHour = 19;\n  const totalHours = endHour - startHour;\n\n",
+              "",
+              'WeeklyView hard-coded bounds')
+          text = replace_once(text,
+              "  const handleGridClick = (e: React.MouseEvent, date: Date) => {\n    if ((e.target as HTMLElement).closest('.appointment-item')) return;",
+              "  const handleGridClick = (e: React.MouseEvent, date: Date) => {\n    if (!isDateOpen(date, agendaSettings, exceptions)) return;\n    if ((e.target as HTMLElement).closest('.appointment-item')) return;",
+              'WeeklyView closed click')
+          text = replace_once(text,
+              "  const weekDays = getWeekDays(selectedDate);\n",
+              "  const weekDays = getWeekDays(selectedDate);\n  const { startHour, endHour } = getWeekBounds(weekDays, agendaSettings, exceptions);\n  const totalHours = endHour - startHour;\n",
+              'WeeklyView real bounds')
+          desktop_marker = '      <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">'
+          mobile = '''      <div className="md:hidden space-y-3">\n        {weekDays.map((date) => {\n          const schedule = getDaySchedule(date, agendaSettings);\n          const exception = getExceptionForDate(date, exceptions);\n          const open = isDateOpen(date, agendaSettings, exceptions);\n          const dayAppointments = appointments\n            .filter((appt) => new Date(appt.datetime_start).toDateString() === date.toDateString())\n            .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime());\n          return (\n            <div key={date.toISOString()} className={cn("rounded-2xl border p-4 shadow-sm", open ? "bg-white border-slate-100" : "bg-slate-100/80 border-slate-200")}>\n              <div className="flex items-start justify-between gap-3">\n                <div>\n                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{date.toLocaleDateString('fr-FR', { weekday: 'long' })}</p>\n                  <p className="font-black text-slate-800 mt-1">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</p>\n                  <p className="text-xs font-bold text-slate-500 mt-1">{exception ? exception.reason || 'Fermeture exceptionnelle' : formatScheduleSummary(schedule)}</p>\n                </div>\n                <span className={cn("text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full", open ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600")}>{open ? 'Ouvert' : 'Fermé'}</span>\n              </div>\n              <div className="mt-3 space-y-2">\n                {dayAppointments.length === 0 ? (\n                  <p className="text-sm font-medium text-slate-400 py-2">Aucun rendez-vous</p>\n                ) : dayAppointments.map((appt) => (\n                  <button\n                    key={appt.id}\n                    type="button"\n                    onClick={() => { setEditingAppointment(appt); setModalDate(date); setIsModalOpen(true); }}\n                    className={cn("w-full text-left rounded-xl border px-3 py-2", getStatusColor(appt.status))}\n                  >\n                    <span className="font-black text-sm">{appt.patient_name || 'Patient'}</span>\n                    <span className="block text-xs font-bold opacity-75 mt-0.5">\n                      {appt.scheduling_type && appt.scheduling_type !== 'EXACT_TIME'\n                        ? appt.scheduling_type === 'MORNING' ? 'Matin' : appt.scheduling_type === 'AFTERNOON' ? 'Après-midi' : 'Toute la journée'\n                        : new Date(appt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}\n                      {appt.motif ? ` · ${appt.motif}` : ''}\n                    </span>\n                  </button>\n                ))}\n              </div>\n              {open && (\n                <button\n                  type="button"\n                  onClick={() => { setModalDate(date); setInitialTime(schedule.morning_start); setEditingAppointment(null); setIsModalOpen(true); }}\n                  className="mt-3 w-full rounded-xl border border-primary/20 bg-primary/5 text-primary font-black text-sm py-2.5"\n                >\n                  + Ajouter un rendez-vous\n                </button>\n              )}\n            </div>\n          );\n        })}\n      </div>\n\n      <div className="hidden md:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">'''
+          text = replace_once(text, desktop_marker, mobile, 'WeeklyView mobile/desktop split')
+          # Make desktop headers visibly truthful about closures.
+          old_header = '''          {weekDays.map((date, i) => (\n            <div key={i} className={cn(\n              "p-4 text-center border-r border-slate-100 last:border-0",\n              date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""\n            )}>\n              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>\n              <span className={cn(\n                "inline-flex items-center justify-center w-8 h-8 mt-1 text-sm font-black rounded-lg",\n                date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-slate-700"\n              )}>\n                {date.getDate()}\n              </span>\n            </div>\n          ))}'''
+          new_header = '''          {weekDays.map((date, i) => {\n            const open = isDateOpen(date, agendaSettings, exceptions);\n            const exception = getExceptionForDate(date, exceptions);\n            return (\n              <div key={i} className={cn(\n                "p-3 text-center border-r border-slate-100 last:border-0 min-w-0",\n                !open ? "bg-slate-100/80" : date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""\n              )}>\n                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>\n                <span className={cn(\n                  "inline-flex items-center justify-center w-8 h-8 mt-1 text-sm font-black rounded-lg",\n                  date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-slate-700"\n                )}>{date.getDate()}</span>\n                {!open && <span className="block mt-1 text-[8px] font-black uppercase tracking-wider text-slate-500 truncate" title={exception?.reason || 'Fermé'}>{exception?.reason || 'Fermé'}</span>}\n              </div>\n            );\n          })}'''
+          text = replace_once(text, old_header, new_header, 'WeeklyView desktop header')
+          # Closed desktop day columns must not invite a booking click.
+          old_col = '''              <div \n                key={dayIdx} \n                className="relative border-r border-slate-100 last:border-0 grow cursor-crosshair hover:bg-slate-50/30 transition-colors"\n                onClick={(e) => handleGridClick(e, date)}\n              >'''
+          new_col = '''              <div \n                key={dayIdx} \n                className={cn("relative border-r border-slate-100 last:border-0 grow transition-colors", isDateOpen(date, agendaSettings, exceptions) ? "cursor-crosshair hover:bg-slate-50/30" : "cursor-not-allowed bg-slate-100/60")}\n                onClick={(e) => handleGridClick(e, date)}\n              >'''
+          text = replace_once(text, old_col, new_col, 'WeeklyView desktop columns')
+          path.write_text(text)
+          PY
+
+          git diff --check
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/features/agenda/AgendaStudio.tsx frontend/src/features/agenda/DailyView.tsx frontend/src/features/agenda/WeeklyView.tsx
+          git commit -m "feat(agenda): apply real schedule to day and week views"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
