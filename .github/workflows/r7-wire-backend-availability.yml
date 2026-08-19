@@ -1,0 +1,89 @@
+name: R7 Wire Backend Availability
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/r7-wire-backend-availability.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Wire authoritative availability into appointment mutations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old in text:
+                  if text.count(old) != 1:
+                      raise SystemExit(f'{label}: expected 1 match, found {text.count(old)}')
+                  return text.replace(old, new, 1)
+              if new in text:
+                  return text
+              raise SystemExit(f'{label}: neither source nor target form found')
+
+          path = Path('backend/routers/appointments.py')
+          text = path.read_text()
+
+          text = replace_once(
+              text,
+              'from backend.services.audit_service import audit_service\n',
+              'from backend.services.audit_service import audit_service\nfrom backend.services.agenda_availability import validate_appointment_availability\n',
+              'availability import',
+          )
+
+          text = replace_once(
+              text,
+              "    appt_data = appt.model_dump()\n    appt_data['employer_id'] = current_user.get_employer_id()\n",
+              "    employer_id = current_user.get_employer_id()\n    availability_error = validate_appointment_availability(\n        db, employer_id, appt.datetime_start, appt.duration_minutes, appt.scheduling_type\n    )\n    if availability_error:\n        raise HTTPException(status_code=422, detail=availability_error)\n\n    appt_data = appt.model_dump()\n    appt_data['employer_id'] = employer_id\n",
+              'create availability guard',
+          )
+
+          text = replace_once(
+              text,
+              "    update_data = appt_update.model_dump(exclude_unset=True)\n    for key, value in update_data.items():\n",
+              "    update_data = appt_update.model_dump(exclude_unset=True)\n    if any(key in update_data for key in ('datetime_start', 'duration_minutes', 'scheduling_type')):\n        effective_start = update_data.get('datetime_start', db_appt.datetime_start)\n        effective_duration = update_data.get('duration_minutes', db_appt.duration_minutes)\n        effective_type = update_data.get('scheduling_type', db_appt.scheduling_type)\n        availability_error = validate_appointment_availability(\n            db, user_employer_id, effective_start, effective_duration, effective_type\n        )\n        if availability_error:\n            raise HTTPException(status_code=422, detail=availability_error)\n\n    for key, value in update_data.items():\n",
+              'update availability guard',
+          )
+
+          text = replace_once(
+              text,
+              "    created_appts = []\n    user_employer_id = current_user.get_employer_id()\n    for item in payload.appointments:\n",
+              "    created_appts = []\n    user_employer_id = current_user.get_employer_id()\n    for item in payload.appointments:\n        availability_error = validate_appointment_availability(\n            db, user_employer_id, item.datetime_start, item.duration_minutes, item.scheduling_type\n        )\n        if availability_error:\n            raise HTTPException(status_code=422, detail=availability_error)\n\n    for item in payload.appointments:\n",
+              'bulk availability prevalidation',
+          )
+
+          path.write_text(text)
+
+          wiring_test = Path('backend/tests/test_agenda_availability_wiring.py')
+          wiring_test.write_text("""from pathlib import Path
+
+
+def test_appointment_mutations_use_authoritative_agenda_availability():
+    source = Path('backend/routers/appointments.py').read_text()
+    assert 'from backend.services.agenda_availability import validate_appointment_availability' in source
+    assert source.count('validate_appointment_availability(') >= 3
+    assert "any(key in update_data for key in ('datetime_start', 'duration_minutes', 'scheduling_type'))" in source
+    assert source.count('raise HTTPException(status_code=422, detail=availability_error)') >= 3
+""")
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/routers/appointments.py backend/tests/test_agenda_availability_wiring.py
+          if git diff --cached --quiet; then
+            echo "R7 backend availability already wired"
+            exit 0
+          fi
+          git commit -m "fix(agenda): enforce settings on appointment writes"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
