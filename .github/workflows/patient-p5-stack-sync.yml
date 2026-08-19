@@ -1,0 +1,29 @@
+name: Patient P5 Stack Sync
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p4-imagerie
+    paths:
+      - '.github/workflows/patient-p5-stack-sync.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.head_ref == 'agent/patient-page-p5-documents'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Merge current P4 base into P5 stack
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git fetch origin agent/patient-page-p4-imagerie
+          git merge --no-edit origin/agent/patient-page-p4-imagerie
+          git push origin HEAD:${GITHUB_HEAD_REF}
