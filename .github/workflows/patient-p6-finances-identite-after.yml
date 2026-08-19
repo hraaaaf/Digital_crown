@@ -5,7 +5,8 @@ on:
     branches:
       - agent/patient-page-p5-documents
     paths:
-      - 'backend/routers/patients.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/routers/patient_financial_p6.py'
       - 'backend/tests/test_patient_p6_financial_snapshot.py'
       - 'frontend/src/features/patients/AddPatientForm.tsx'
       - 'frontend/src/features/patients/EditPatientForm.tsx'
@@ -14,6 +15,7 @@ on:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/components/PatientFinances.tsx'
       - 'frontend/src/features/patients/PatientP6Truth.test.ts'
+      - 'frontend/src/features/patients/PatientP6PaymentContract.test.ts'
       - '.github/workflows/patient-p6-finances-identite-after.yml'
 
 permissions:
@@ -65,7 +67,8 @@ jobs:
         run: |
           npm test -- --run \
             src/features/patients/PatientP6Truth.test.ts \
-            src/features/patients/PatientIdentityContract.p6.test.ts
+            src/features/patients/PatientIdentityContract.p6.test.ts \
+            src/features/patients/PatientP6PaymentContract.test.ts
           npm run build
 
       - name: Source contract
@@ -77,7 +80,9 @@ jobs:
           identity = Path('frontend/src/features/patients/PatientIdentityContract.ts').read_text(encoding='utf-8')
           details = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text(encoding='utf-8')
           finances = Path('frontend/src/features/patients/components/PatientFinances.tsx').read_text(encoding='utf-8')
-          backend = Path('backend/routers/patients.py').read_text(encoding='utf-8')
+          backend = Path('backend/routers/patient_financial_p6.py').read_text(encoding='utf-8')
+          router_init = Path('backend/routers/__init__.py').read_text(encoding='utf-8')
+
           for required in ["sexe: ''", 'validatePatientIdentity', 'patientIdentityToApiPayload']:
               assert required in identity, required
           for source, required in [
@@ -91,19 +96,23 @@ jobs:
               (edit, 'patientIdentityToApiPayload'),
           ]:
               assert required in source, required
-          assert "sexe: 'F'" not in add
+          assert "sexe: 'F'" not in identity
           assert '<option value="">Choisir' in add
           assert "patient.sexe || 'F'" not in edit
           assert '<option value="">Choisir' in edit
           for required in ['Impossible de charger le patient', 'Disponibilité non vérifiée']:
               assert required in edit, required
-          for required in ['const canFinance =', "if (!canFinance && activeTab === 'finances')", 'canFinance &&']:
+
+          for required in ['const canFinance = Boolean(', "userPermissions.accounting === true || userPermissions.payments === true", "if (!canFinance && activeTab === 'finances')", "canFinance && activeTab === 'finances'"]:
               assert required in details, required
-          for required in ['Boolean(snapshot.has_billing_data)', 'Facturé', 'Encaissé', 'Reste dû', 'Prochaine échéance', 'Indéterminé', 'Impossible de charger les finances']:
+          for required in ['snapshot.has_billing_data === true', 'Facturé', 'Encaissé', 'Reste dû', 'Prochaine échéance', 'Indéterminé', 'Situation d’impayé indéterminée', 'Impossible de charger les finances']:
               assert required in finances, required
           assert 'Taux Recouvrement' not in finances
-          for required in ['require_permission(["accounting", "payments"])', 'has_billing_data = (acte_count or 0) > 0', '"has_billing_data": has_billing_data']:
+
+          for required in ['require_permission(["accounting", "payments"])', 'has_billing_data = acte_count > 0', 'remaining_due = max(total_billed - total_collected, 0.0) if has_billing_data else None', '"next_installment": next_installment']:
               assert required in backend, required
+          assert 'patient_financial_p6.router' in router_init
+          assert '/{patient_id}/financial-snapshot' in router_init
           PY
 
       - name: Start backend
