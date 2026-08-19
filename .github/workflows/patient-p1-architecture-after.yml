@@ -107,11 +107,15 @@ jobs:
             await page.waitForTimeout(1800);
             const patientTabs=page.locator('[data-tour="patient-tabs"]');
             await patientTabs.waitFor({state:'visible',timeout:30000});
-            const tabsText=await patientTabs.innerText();
             for(const label of ['Vue d’ensemble','Clinique','Imagerie','Documents','Finances']){
-              if(!tabsText.includes(label)) throw new Error(`main tab missing: ${label} @ ${viewport.width}`);
+              const tab=patientTabs.getByText(label,{exact:true});
+              if(await tab.count()===0) throw new Error(`main tab missing: ${label} @ ${viewport.width}`);
+              await tab.first().scrollIntoViewIfNeeded();
+              if(!await tab.first().isVisible()) throw new Error(`main tab not reachable: ${label} @ ${viewport.width}`);
             }
-            for(const bad of ['Radiologie (IA)','Documents A5','Archives & Historique']) if(tabsText.includes(bad)) throw new Error(`legacy patient tab visible: ${bad}`);
+            for(const bad of ['Radiologie (IA)','Documents A5','Archives & Historique']){
+              if(await patientTabs.getByText(bad,{exact:true}).count()>0) throw new Error(`legacy patient tab visible: ${bad}`);
+            }
             const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             await patientTabs.getByText('Documents',{exact:true}).click();
             await page.waitForTimeout(500);
