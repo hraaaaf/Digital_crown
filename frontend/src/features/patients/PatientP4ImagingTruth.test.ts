@@ -11,21 +11,24 @@ const cephHistory = src('src/features/ortho/CephaloHistory.tsx');
 
 describe('P4 unified imaging truth boundary', () => {
   it('exposes RVG, Panoramique and Céphalométrie as one imaging space', () => {
-    expect(details).toContain("'rvg' | 'panoramic' | 'cephalo'");
+    expect(details).toContain("type RadioTab = 'rvg' | 'panoramic' | 'cephalo'");
     expect(details).toContain("handleRadioTabChange('rvg')");
     expect(details).toContain('<PatientRvgPanel patientId={Number(id)} />');
+    expect(details.indexOf('label="RVG"')).toBeLessThan(details.indexOf('label="Panoramique"'));
+    expect(details.indexOf('label="Panoramique"')).toBeLessThan(details.indexOf('label="Céphalométrie"'));
   });
 
-  it('mirrors backend imaging permissions including legacy defaults', () => {
-    expect(details).toContain("const canRvg = hasPatientPermission('patients')");
-    expect(details).toContain("const canPanoramic = hasPatientPermission('panoramic')");
-    expect(details).toContain("const canCephalo = hasPatientPermission('cephalo')");
-    expect(details).toContain("user.role === 'DENTISTE'");
-    expect(details).toContain("user.role === 'SECRETAIRE'");
-    expect(details).toContain('{canRvg && (');
-    expect(details).toContain('{canPanoramic && (');
-    expect(details).toContain('{canCephalo && (');
-    expect(details).toContain('const currentImagingAllowed =');
+  it('mirrors backend imaging permissions including legacy defaults and fails closed on URL state', () => {
+    expect(details).toContain("const legacyDentistEmployee = Boolean(user?.employer_id && role === 'DENTISTE' && !hasExplicitPermissions)");
+    expect(details).toContain("permissions.panoramic === true");
+    expect(details).toContain("permissions.cephalo === true");
+    expect(details).toContain("const availableRadioTabs: RadioTab[] = [");
+    expect(details).toContain("...(canPanoramic ? ['panoramic' as const] : [])");
+    expect(details).toContain("...(canCephalo ? ['cephalo' as const] : [])");
+    expect(details).toContain('availableRadioTabs.includes(requestedRadioTab)');
+    expect(details).toContain("requestedRadioTab !== radioTab");
+    expect(details).toContain('{canPanoramic && <ImagingButton');
+    expect(details).toContain('{canCephalo && <ImagingButton');
   });
 
   it('never invents cephalometric demographics or auto-writes a treatment strategy', () => {
@@ -34,7 +37,8 @@ describe('P4 unified imaging truth boundary', () => {
     expect(cephalo).not.toContain("setPatientData({ age: 20, sexe: 'M' })");
     expect(cephalo).not.toContain('generateTreatmentPlan(');
     expect(cephalo).toContain('patientDataError');
-    expect(cephalo).toContain('Réessayer');
+    expect(cephalo).toContain('Données Patient requises');
+    expect(cephalo).toContain("data?.sexe === 'M' || data?.sexe === 'F'");
   });
 
   it('uses terminology matching the panoramic tooth-landmark contract', () => {
@@ -42,6 +46,7 @@ describe('P4 unified imaging truth boundary', () => {
       expect(pano).not.toContain(forbidden);
     }
     expect(pano).toContain('Repérage dentaire automatique · validation praticien');
+    expect(pano).toContain('Moteur déterministe • validation praticien');
     expect(pano).toContain('Constatations cliniques');
     expect(panoHistory).not.toContain('anomalie');
     expect(panoHistory).toContain('repère');
@@ -49,18 +54,22 @@ describe('P4 unified imaging truth boundary', () => {
 });
 
 describe('P4 recoverable imaging history UI', () => {
-  it('uses trash and restore for panoramic history', () => {
+  it('uses trash and restore for panoramic history and excludes trash from active history', () => {
     expect(panoHistory).toContain('/panoramic-trash');
     expect(panoHistory).toContain('/panoramic/${analysis.id}/restore');
     expect(panoHistory).toContain('Mettre à la corbeille');
     expect(panoHistory).toContain('Restaurer');
+    expect(panoHistory).toContain('const trashedIds = new Set<number>');
+    expect(panoHistory).toContain('filter(item => !trashedIds.has(item.id))');
   });
 
-  it('uses trash and restore for cephalometric history', () => {
+  it('uses trash and restore for cephalometric history and excludes trash from active history', () => {
     expect(cephHistory).toContain('/cephalo-trash');
     expect(cephHistory).toContain('/cephalo/${analysis.id}/restore');
     expect(cephHistory).toContain('Mettre à la corbeille');
     expect(cephHistory).toContain('Restaurer');
+    expect(cephHistory).toContain('const trashedIds = new Set<number>');
+    expect(cephHistory).toContain('filter(item => !trashedIds.has(item.id))');
   });
 
   it('does not expose permanent deletion from either history surface', () => {
