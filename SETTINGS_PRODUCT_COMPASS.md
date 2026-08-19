@@ -5,7 +5,6 @@ Repo : `hraaaaf/Digital_crown`
 Statut : **BOUSSOLE CANONIQUE ACTIVE**
 
 > Source de reprise prioritaire du chantier Réglages / Paramètres.
-> Toute nouvelle fenêtre doit lire ce fichier avant de poursuivre.
 > Mise à jour obligatoire après chaque page / gros lot réellement traité.
 > `SETTINGS_HARDENING_CLOSEOUT.md` reste la preuve du Hardening précédent.
 > Aucun déploiement Vercel sans autorisation explicite.
@@ -68,17 +67,9 @@ Statut : `AUDITÉ — À EXÉCUTER`.
 
 Décision : **GARDER / SIMPLIFIER — CLOSED**.
 
-Implémenté :
-- identité/praticien FR-AR/adresse/identifiants conservés ;
-- clavier arabe + spécialités bilingues conservés ;
-- génération automatique d'en-tête conservée ;
-- édition manuelle avancée/repliable ;
-- Automatique/Personnalisé explicite ;
-- preset Benmoussa réservé au superadmin propriétaire ;
-- faux discours détourage IA/SVG supprimé ;
-- double sauvegarde et sticky mobile corrigés.
+Implémenté : identité/praticien FR-AR, spécialités bilingues, génération automatique d'en-tête ; édition manuelle avancée/repliable ; preset Benmoussa réservé au superadmin ; faux discours détourage IA/SVG supprimé ; double sauvegarde et sticky mobile corrigés.
 
-Preuves : PR #171 MERGED ; HEAD produit `99de2c4aee19f389bdbd0eee46cae072747babdb` ; merge `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ; R2 Visual #17 SUCCESS ; CI #1117 SUCCESS ; T2 #377 SUCCESS ; AFTER 1440/768/390 inspectées.
+Preuves : PR #171 MERGED ; HEAD produit `99de2c4aee19f389bdbd0eee46cae072747babdb` ; merge `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ; R2 Visual #17 / CI #1117 / T2 #377 SUCCESS.
 
 Score visuel : **9.6/10**.
 Statut : `CLOSED — CERTIFIÉ — MERGED`.
@@ -87,11 +78,7 @@ Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 Décision : **GARDER / CLARIFIER LE MODÈLE MENTAL — CLOSED**.
 
-Implémenté :
-- `Apparence app | Documents` → `APERÇU — Application | Document` ;
-- microcopie explicite : le sélecteur change uniquement l'aperçu ;
-- `previewScope` + migration locale ;
-- aucune duplication de thème/profil.
+Implémenté : `Apparence app | Documents` → `APERÇU — Application | Document` ; microcopie explicite ; `previewScope` + migration locale ; aucune duplication de thème/profil.
 
 Preuves : BEFORE 5 viewports ; Goal/wireframe avant code ; PR #173 MERGED ; HEAD produit `9db4b560af7925233d5584dfb7af870b76e086d2` ; merge `985873dc644453b078a2a0efc6a1e006121ee6b0` ; Branding #26 / RBAC #53 / T2 #381 / CI #1124 SUCCESS ; 10 AFTER inspectées.
 
@@ -100,33 +87,34 @@ Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 ### R4 — Réglages / Modèles & rendu des documents
 
-**Périmètre verrouillé : Réglages uniquement. Le Document Studio clinique est hors scope.**
+Décision finale : **GARDER / RENDRE LE PDF RÉEL AUTORITAIRE — CLOSED**.
 
-Constat vérifié :
-- Réglages expose `swiss / royal / clinical / modern / heritage` ;
-- vrai moteur PDF implémente ces mêmes 5 modèles ;
-- ancien preview React de Réglages utilisait encore `classic / asymetric / future / frame / double-column` ;
-- ancien preview réel se régénérait automatiquement après chaque changement avec debounce 600 ms.
+Implémenté :
+- faux renderer documentaire React supprimé de Réglages ;
+- PDF réel = aperçu documentaire principal ;
+- état `À actualiser / Rendu à jour` ; génération explicite, plus de régénération automatique 600 ms ;
+- 5 IDs conservés et alignés : `swiss / royal / clinical / modern / heritage` ;
+- moteur dédié `premium_document_headers.py` ;
+- cinq signatures visuelles réellement distinctes ;
+- arabe corrigé via fonte Unicode locale, sans réseau ;
+- choix typographiques Settings rendus déterministes ;
+- previews isolés sous `.previews/settings_branding/<user>` et stockage borné ;
+- Document Studio clinique hors scope et non modifié.
 
-Décision structurante : **PDF réel = source de vérité de l'aperçu documentaire dans Réglages**.
+Preuves :
+- PR #174 MERGED ;
+- HEAD produit certifié `0dd384c7b242945270ddb009350961da3590f44f` ;
+- merge `5efca67d5416c1d7752a792c304b8d90c7a80aea` ;
+- Settings Document Models Visual Audit #19 run `32207520254` SUCCESS ;
+- Branding #56 run `32207520252` SUCCESS ;
+- RBAC #91 run `32207520212` SUCCESS ;
+- T2 #459 run `32207520238` SUCCESS ;
+- CI #1205 run `32207520301` SUCCESS ;
+- closeout : `docs/settings/R4B_PREMIUM_DOCUMENT_MODELS_CLOSEOUT.md` ;
+- scores modèles AFTER : Swiss 9.2, Royal 9.1, Clinical 9.3, Modern 9.2, Heritage 9.1.
 
-Implémentation en PR #174 :
-- faux renderer documentaire React supprimé de la vue Réglages ;
-- PDF réel devient l'aperçu principal ;
-- état `À actualiser / Rendu à jour` ;
-- génération uniquement par action explicite ;
-- vue Application conservée ;
-- preview non-sticky avant `xl` sur mobile/tablette ;
-- requêtes marquées `settings_preview` ;
-- fichiers isolés sous `.previews/settings_branding/<user>` ;
-- ancien preview PDF du même utilisateur supprimé avant le suivant ;
-- test backend : un seul preview courant par utilisateur + drapeau interne retiré avant moteur ;
-- test de taxonomie : les 5 IDs Settings dispatchent vers les 5 headers PDF réels ;
-- certification Branding contrôle aussi l'absence de régénération automatique après changement de modèle.
-
-Fichier Goal canonique : `docs/settings/R4_SETTINGS_DOCUMENT_RENDERING_VISUAL_GOAL.md`.
-
-Statut : `EN VALIDATION — PR #174`.
+Score visuel global modèles : **9.2/10**.
+Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 ### R5 — QR documentaire
 
@@ -136,18 +124,26 @@ Statut : `AUDITÉ — P2`.
 ### R6 — Catalogue Actes
 
 Architecture Spécialité → Actes → Pathologies : **GARDER**.
-CRUD `window.prompt()` : **REFONDRE** avec vrais formulaires/modales, validation et archivage/suppression contrôlée.
-Statut : `AUDITÉ — P1`.
+CRUD `window.prompt()` : **REFONDRE** avec vrais formulaires/modales, validation et désactivation contrôlée.
+
+État courant vérifié : PR #177 entièrement verte au HEAD `f0e05923e85c34e90493a1086bec6b5eeabc86ed` ; score visuel AFTER 9.6/10 ; closeout/merge restant.
+Statut : `EN CLOSEOUT — P1`.
 
 ### R7 — Horaires & Agenda
 
-Garder horaires/journée continue. Améliorer vers semaine réelle, jours fermés, exceptions/congés.
-À prouver : impact `agenda_mode` et `use_tickets`.
-Statut : `AUDITÉ — P2 / DOWNSTREAM À PROUVER`.
+Garder horaires. Cible : semaine réelle persistée + fermetures/congés. Audit downstream : `agenda_mode` non consommé ; `use_tickets` ne mène qu'à un bouton mort ; exceptions backend déjà présentes.
+
+État courant : Settings visual et CI verts sur le HEAD audité, mais downstream baseline détecte un overflow 1440 px et RBAC est rouge. Ne pas déclarer certifié.
+Statut : `ACTIF APRÈS R6 — P2`.
 
 ### R8 — IA & Système
 
-Renommer vers **Performance & Assistance** ou équivalent. Garder Performance. Déplacer/supprimer arrière-plan animé selon valeur. Auditer Conseils cliniques. Renommer badges patient vers formulation explicable et non-jugementale.
+Cible : **Performance & Assistance**.
+- Performance : downstream réel, GARDER.
+- Fond animé : downstream réel, DÉPLACER vers Design & Ambiance.
+- Conseils cliniques : persistés mais aucun consommateur retrouvé, candidat retrait UI.
+- Indicateurs patient : persistés mais aucun consommateur retrouvé, candidat retrait UI / cleanup après preuve finale.
+
 Statut : `AUDITÉ — P2`.
 
 ### R9 — Sécurité & Backup
@@ -170,15 +166,15 @@ Statut : `AUDITÉ — P3`.
 ### P1 — incohérences fortes / dette visible
 
 - **P1.1** Doctrine de sauvegarde Settings.
-- **P1.2** Modèles/rendu documentaire dans Réglages. **ACTIF R4 / PR #174**.
-- **P1.3** Catalogue CRUD réel.
+- **P1.2** Modèles/rendu documentaire dans Réglages. ✅ CLOSED R4.
+- **P1.3** Catalogue CRUD réel. **EN CLOSEOUT R6 / PR #177**.
 - **P1.4** Profil / preset propriétaire. ✅ CLOSED R2.
 - **P1.5** Team password copy 8..128.
 - **P1.6** Scope Branding. ✅ CLOSED R3.
 
 ### P2 — valeur métier / simplification
 
-- **P2.1** Agenda hebdomadaire réel.
+- **P2.1** Agenda hebdomadaire réel. R7 actif après R6.
 - **P2.2** Catalogue avancé.
 - **P2.3** IA & Système → Performance & Assistance.
 - **P2.4** Audit Log humanisé.
@@ -195,8 +191,8 @@ Statut : `AUDITÉ — P3`.
 
 1. ✅ R2 Profil Cabinet ;
 2. ✅ R3 Design & Ambiance ;
-3. **R4 Réglages / Modèles & rendu des documents** ;
-4. R6 Catalogue Actes ;
+3. ✅ R4 Modèles & rendu documents ;
+4. **R6 Catalogue Actes** ;
 5. R7 Agenda ;
 6. R8 Performance & Assistance ;
 7. R9 Sécurité & Backup ;
@@ -206,44 +202,36 @@ Statut : `AUDITÉ — P3`.
 ## 8. HANDOVER COURANT
 
 - Chantier : **Réglages / Paramètres — Product Review & Simplification**
-- Lot actif : **R4 — Réglages / Modèles & rendu des documents**
-- Goal : PDF réel source de vérité de l'aperçu documentaire dans Réglages, sans toucher au Document Studio clinique
+- Lot actif : **R6 — Catalogue Actes**
+- Goal : remplacer le CRUD `prompt()` par des formulaires sûrs sans suppression physique non supportée
 - Repo : `hraaaaf/Digital_crown`
-- Branche : `settings-r4-document-studio` *(nom historique de branche ; scope produit corrigé)*
-- PR : `#174 OPEN / mergeable`
-- HEAD : `005f7806e0b0e13a5631bdc76c21deae0392ac09`
-- Goal visuel : `docs/settings/R4_SETTINGS_DOCUMENT_RENDERING_VISUAL_GOAL.md`
-- Dernière preuve : diff limité à Settings preview + schéma/DocumentFactory de preview + tests ; aucun fichier `DocumentStudio` clinique modifié
-- CI/run : Branding #35 in_progress ; RBAC #62 in_progress ; T2 #392 in_progress ; CI #1137 queued au dernier check
-- Blocage réel : validation CI + AFTER R4 à inspecter
-- Next exact : **Branding SUCCESS → télécharger/inspecter AFTER 1440/1024/768/430/390 → score → CI/T2 verts → boussole finale → merge #174 → R6 Catalogue**
-- Avancement roadmap validé : **2/15 = 13.3 %**
+- Branche : `settings-r6-catalog-crud`
+- PR : `#177 OPEN / mergeable`
+- HEAD produit certifié R6 : `f0e05923e85c34e90493a1086bec6b5eeabc86ed`
+- Preuves R6 : Catalog #9 / RBAC #89 / Read Truth #12 / T2 #450 / CI #1196 SUCCESS
+- Dernière preuve visuelle : 10 AFTER Catalogue inspectées, score 9.6/10
+- Blocage réel : aucun produit ; closeout + merge R6 restent à faire après intégration R4 dans master
+- Next exact : **closeout R6 contre master post-R4 → merge #177 → corriger R7 downstream overflow/RBAC**
+- Avancement roadmap validé : **3/15 = 20.0 %**
 - Vercel : **interdit sans autorisation explicite**
 
 ## 9. Journal
 
-### 2026-08-19 — R4 EN VALIDATION
+### 2026-08-19 — R4 CLOSED
 
-- scope corrigé : Réglages uniquement ;
-- fichier Goal renommé pour supprimer l'ambiguïté `Document Studio` ;
-- ancien renderer documentaire simulé retiré ;
-- PDF réel promu comme vérité visuelle ;
-- régénération automatique supprimée ;
-- cycle de fichiers preview isolé et borné par utilisateur ;
-- tests backend de cycle de vie + taxonomie ajoutés ;
-- PR #174 ouverte ;
+- PDF réel promu vérité du preview documentaire ;
+- renderer simulé supprimé ;
+- 5 modèles premium réalignés et différenciés ;
+- arabe corrigé ;
+- Document Models / Branding / RBAC / T2 / CI verts sur HEAD exact ;
+- score visuel global 9.2/10 ;
+- PR #174 mergée en `5efca67d5416c1d7752a792c304b8d90c7a80aea` ;
 - aucun déploiement Vercel.
 
 ### 2026-08-19 — R3 CLOSED
 
-- PR #173 mergée ;
-- 10 AFTER certifiées ;
-- score visuel 9.7/10 ;
-- aucun déploiement Vercel.
+- PR #173 mergée ; 10 AFTER certifiées ; score 9.7/10 ; aucun déploiement Vercel.
 
 ### 2026-08-19 — R2 CLOSED
 
-- PR #171 mergée ;
-- preset Benmoussa limité au superadmin propriétaire ;
-- score visuel 9.6/10 ;
-- aucun déploiement Vercel.
+- PR #171 mergée ; preset Benmoussa limité au superadmin propriétaire ; score 9.6/10 ; aucun déploiement Vercel.
