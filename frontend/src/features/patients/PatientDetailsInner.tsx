@@ -443,15 +443,16 @@ export const PatientDetails = () => {
 const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
   <button
     onClick={onClick}
+    aria-label={label}
     className={cn(
-      'h-10 min-w-0 px-2 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95',
+      'h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95',
       accent === 'emerald'
         ? 'text-text-muted hover:text-emerald-600 hover:border-emerald-500/30 hover:bg-emerald-500/5'
         : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5'
     )}
   >
     {icon}
-    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{label}</span>
+    <span className="inline text-[8px] sm:text-[10px] leading-none font-black uppercase tracking-[0.04em] sm:tracking-widest whitespace-nowrap">{label}</span>
   </button>
 );
 
