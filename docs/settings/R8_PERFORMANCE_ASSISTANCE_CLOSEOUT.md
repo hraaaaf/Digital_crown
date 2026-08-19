@@ -2,7 +2,8 @@
 
 Date : 2026-08-19
 Repo : `hraaaaf/Digital_crown`
-PR : `#183` — **CERTIFIÉ — READY TO MERGE**
+PR : `#183` — **MERGED**
+Merge : `1ac1dd54a9f29c29c06107cd2a1395e8bf6639ce`
 HEAD produit certifié : `bfabc0cb4809b7cca2a0a9b4bee4cc93b669d482`
 
 ## Goal
@@ -43,7 +44,9 @@ Le compare `7ee155...` → `bfabc0...` contient exactement **un fichier de workf
 
 `npx playwright install --with-deps chromium` → `npx playwright install chromium` dans `.github/workflows/settings-ia-visual-cert.yml`.
 
-Aucun fichier produit, test métier ou donnée n’a changé entre ces deux commits. La preuve CI #1396 est donc applicable au produit certifié `bfabc0...`. Le run CI exact-head #1398 peut continuer sans bloquer le chantier ; il n’est pas utilisé pour fabriquer une preuve inexistante.
+Aucun fichier produit, test métier ou donnée n’a changé entre ces deux commits. La preuve CI #1396 est donc applicable au produit certifié `bfabc0...`. Le run CI exact-head #1398 a été laissé poursuivre sans retenir le merge ; il n’est pas utilisé comme preuve tant que son résultat n’est pas vérifié.
+
+Le commit de closeout pré-merge `f9f6321a3a4c8b14bcdff1f5bad465fbd355ff89` ne modifiait que `SETTINGS_PRODUCT_COMPASS.md` et ce document de closeout. Le squash merge `1ac1dd54...` a intégré ce produit certifié.
 
 ### Preuve visuelle exact-head
 
@@ -70,10 +73,8 @@ Réserve : la surface mobile reste assez longue verticalement et le shell Régla
 
 ## Statut
 
-**CERTIFIÉ — READY TO MERGE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-Le lot ne sera comptabilisé dans l’avancement global qu’après preuve du merge et mise à jour post-merge.
-
-Avancement chantier avant merge : **5/15 = 33,3 %**.
+Avancement chantier après merge : **6/15 = 40,0 %**.
 
 Aucun déploiement Vercel.
