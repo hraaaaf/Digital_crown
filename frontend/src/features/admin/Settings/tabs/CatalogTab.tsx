@@ -9,12 +9,8 @@ import {
   Stethoscope,
   X,
 } from 'lucide-react';
-import {
-  CatalogAct,
-  Pathology,
-  Specialty,
-  useCatalogStore,
-} from '../hooks/useCatalogStore';
+import { useCatalogStore } from '../hooks/useCatalogStore';
+import type { CatalogAct, Pathology, Specialty } from '../hooks/useCatalogStore';
 import { cn } from '../../../../utils/cn';
 import { SettingsReadError } from '../components/SharedUI';
 
