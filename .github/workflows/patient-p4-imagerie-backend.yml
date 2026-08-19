@@ -9,6 +9,7 @@ on:
       - 'backend/schemas/clinical.py'
       - 'backend/schemas/panoramic.py'
       - 'backend/routers/ia.py'
+      - 'backend/services/cmo_agent_service.py'
       - 'backend/services/patient_journey_service.py'
       - 'backend/tests/test_patient_p4_imaging_trash.py'
       - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_fields.py'
@@ -52,10 +53,16 @@ jobs:
           assert 'revision: str = "f7a8b9c0d1e2"' in text
           assert 'down_revision: Union[str, None] = "e6f7a8b9c0d1"' in text
           ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
+          cmo = Path('backend/services/cmo_agent_service.py').read_text(encoding='utf-8')
           for required in ['panoramic-trash', 'cephalo-trash', '/panoramic/{analysis_id}/restore', '/cephalo/{analysis_id}/restore']:
               assert required in ia, required
           assert 'db.delete(analysis)' not in ia
           assert 'os.remove(file_abs_path)' not in ia
+          assert ia.count('current_user.get_employer_id())') >= 2
+          assert 'models.PanoramicAnalysis.deleted_at.is_(None)' in cmo
+          assert 'models.CephaloAnalysis.deleted_at.is_(None)' in cmo
+          assert 'sans LLM' in cmo
+          assert 'practitioner_validation_required' in cmo
           PY
           test "$(alembic heads | wc -l)" -eq 1
 
