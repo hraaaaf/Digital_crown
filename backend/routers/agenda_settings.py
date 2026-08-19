@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List
 
@@ -18,7 +19,7 @@ from backend.services.holiday_engine import holiday_engine
 
 router = APIRouter(prefix="/agenda", tags=["Agenda"])
 
-_SETTINGS_FIELDS = (
+_LEGACY_SETTINGS_FIELDS = (
     "opening_time_morning",
     "closing_time_morning",
     "opening_time_afternoon",
@@ -28,15 +29,28 @@ _SETTINGS_FIELDS = (
     "use_tickets",
 )
 
+_WEEKDAYS = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
+
 
 def _ensure_tenant_columns(db: Session) -> None:
-    """Add the tenant columns idempotently for legacy installations."""
+    """Add tenant and additive Agenda columns idempotently for legacy installations."""
     bind = db.get_bind()
     inspector = inspect(bind)
     for table_name in ("cabinet_settings", "agenda_exceptions"):
         columns = {col["name"] for col in inspector.get_columns(table_name)}
         if "employer_id" not in columns:
             db.execute(text(f"ALTER TABLE {table_name} ADD COLUMN employer_id INTEGER"))
+            db.commit()
+        if table_name == "cabinet_settings" and "weekly_schedule_json" not in columns:
+            db.execute(text("ALTER TABLE cabinet_settings ADD COLUMN weekly_schedule_json TEXT"))
             db.commit()
         db.execute(text(
             f"CREATE INDEX IF NOT EXISTS ix_{table_name}_employer_id "
@@ -71,30 +85,59 @@ def _prepare_tenant(db: Session, current_user: models.User) -> int:
     return employer_id
 
 
+def _legacy_weekly_schedule(row: dict) -> dict:
+    day = {
+        "is_open": True,
+        "is_continuous": bool(row.get("is_continuous")),
+        "morning_start": row.get("opening_time_morning") or "09:00",
+        "morning_end": row.get("closing_time_morning") or "13:00",
+        "afternoon_start": row.get("opening_time_afternoon") or "14:00",
+        "afternoon_end": row.get("closing_time_afternoon") or "18:00",
+    }
+    return {weekday: dict(day) for weekday in _WEEKDAYS}
+
+
+def _hydrate_settings_row(row):
+    if row is None:
+        return None
+    data = dict(row)
+    raw_schedule = data.pop("weekly_schedule_json", None)
+    if raw_schedule:
+        try:
+            data["weekly_schedule"] = json.loads(raw_schedule)
+        except (TypeError, json.JSONDecodeError):
+            data["weekly_schedule"] = _legacy_weekly_schedule(data)
+    else:
+        data["weekly_schedule"] = _legacy_weekly_schedule(data)
+    return data
+
+
 def _settings_row(db: Session, employer_id: int):
-    return db.execute(
+    row = db.execute(
         text(
             "SELECT id, opening_time_morning, closing_time_morning, "
             "opening_time_afternoon, closing_time_afternoon, is_continuous, "
-            "agenda_mode, use_tickets FROM cabinet_settings "
+            "agenda_mode, use_tickets, weekly_schedule_json FROM cabinet_settings "
             "WHERE employer_id = :employer_id ORDER BY id LIMIT 1"
         ),
         {"employer_id": employer_id},
     ).mappings().first()
+    return _hydrate_settings_row(row)
 
 
 def _create_default_settings(db: Session, employer_id: int):
     defaults = CabinetSettingsUpdate().model_dump()
+    defaults.pop("weekly_schedule", None)
     mode = defaults["agenda_mode"]
     defaults["agenda_mode"] = getattr(mode, "value", mode)
     db.execute(
         text(
             "INSERT INTO cabinet_settings ("
             "opening_time_morning, closing_time_morning, opening_time_afternoon, "
-            "closing_time_afternoon, is_continuous, agenda_mode, use_tickets, employer_id"
+            "closing_time_afternoon, is_continuous, agenda_mode, use_tickets, employer_id, weekly_schedule_json"
             ") VALUES ("
             ":opening_time_morning, :closing_time_morning, :opening_time_afternoon, "
-            ":closing_time_afternoon, :is_continuous, :agenda_mode, :use_tickets, :employer_id"
+            ":closing_time_afternoon, :is_continuous, :agenda_mode, :use_tickets, :employer_id, NULL"
             ")"
         ),
         {**defaults, "employer_id": employer_id},
@@ -124,12 +167,19 @@ def update_cabinet_settings(
         _create_default_settings(db, employer_id)
 
     payload = settings_update.model_dump()
+    weekly_schedule = payload.pop("weekly_schedule", None)
     mode = payload["agenda_mode"]
     payload["agenda_mode"] = getattr(mode, "value", mode)
-    assignments = ", ".join(f"{field} = :{field}" for field in _SETTINGS_FIELDS)
+
+    assignments = [f"{field} = :{field}" for field in _LEGACY_SETTINGS_FIELDS]
+    params = {**payload, "employer_id": employer_id}
+    if weekly_schedule is not None:
+        assignments.append("weekly_schedule_json = :weekly_schedule_json")
+        params["weekly_schedule_json"] = json.dumps(weekly_schedule, ensure_ascii=False, separators=(",", ":"))
+
     db.execute(
-        text(f"UPDATE cabinet_settings SET {assignments} WHERE employer_id = :employer_id"),
-        {**payload, "employer_id": employer_id},
+        text(f"UPDATE cabinet_settings SET {', '.join(assignments)} WHERE employer_id = :employer_id"),
+        params,
     )
     db.commit()
     return _settings_row(db, employer_id)
