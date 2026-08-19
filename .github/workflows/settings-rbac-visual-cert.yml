@@ -70,8 +70,8 @@ jobs:
           await server.listen();
           const browser = await chromium.launch();
           const widths = [1440, 1024, 768, 430, 390];
-          const forbiddenForSecretary = ['Profil Cabinet','Design & Ambiance','Catalogue Actes','IA & Système','Sécurité & Backup','Mon Équipe'];
-          const allAdminTabs = ['Profil Cabinet','Design & Ambiance','Catalogue Actes','Horaires & Agenda','IA & Système','Sécurité & Backup','Mon Équipe'];
+          const forbiddenForSecretary = ['Profil Cabinet','Design & Ambiance','Catalogue Actes','Performance & Assistance','Sécurité & Backup','Mon Équipe'];
+          const allAdminTabs = ['Profil Cabinet','Design & Ambiance','Catalogue Actes','Horaires & Agenda','Performance & Assistance','Sécurité & Backup','Mon Équipe'];
           try {
             for (const role of ['admin','secretary']) {
               for (const width of widths) {
