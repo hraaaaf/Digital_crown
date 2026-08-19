@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useSettingsStore } from '../hooks/useSettingsStore';
 import { cn } from '../../../../utils/cn';
 import toast from 'react-hot-toast';
+import { safeStorage } from '../../../../hooks/useLocalStorage';
 
 import type { Scope } from './branding/types';
 import { detectPreset, presetToProfilePatch, PRESETS } from './branding/presets';
@@ -20,6 +22,9 @@ export const BrandingTab: React.FC = () => {
     );
   });
   const [presetsOpen, setPresetsOpen] = useState(false);
+  const [animatedBgEnabled, setAnimatedBgEnabled] = useState(
+    safeStorage.get('app_background_animated') === 'true'
+  );
 
   if (!profile) return null;
 
@@ -44,6 +49,13 @@ export const BrandingTab: React.FC = () => {
     updateProfile(presetToProfilePatch(preset));
     setPresetsOpen(false);
     toast.success("Aperçu appliqué — sauvegardez pour confirmer");
+  };
+
+  const toggleAnimatedBackground = () => {
+    const next = !animatedBgEnabled;
+    setAnimatedBgEnabled(next);
+    safeStorage.set('app_background_animated', String(next));
+    window.dispatchEvent(new Event('settings_updated'));
   };
 
   return (
@@ -92,6 +104,28 @@ export const BrandingTab: React.FC = () => {
           className="px-3 sm:px-4 py-2 font-semibold text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-medical-pearl)] hover:text-[var(--text-main)] rounded-lg transition-colors border border-transparent hover:border-[var(--border-color)] whitespace-nowrap"
         >
           ↺ Réinitialiser
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-medical-pearl)] px-4 sm:px-5 py-4">
+        <div className="min-w-0 flex items-start gap-3">
+          <Sparkles size={18} className="text-violet-500 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="font-black text-[var(--text-main)]">Arrière-plan animé</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] font-medium mt-1 leading-relaxed">Motif décoratif subtil appliqué à l’interface. Ce réglage est immédiat et ne dépend pas du modèle de document.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={toggleAnimatedBackground}
+          aria-pressed={animatedBgEnabled}
+          aria-label="Arrière-plan animé"
+          className={cn(
+            'w-14 h-7 shrink-0 rounded-full transition-all relative flex items-center px-1',
+            animatedBgEnabled ? 'bg-violet-500' : 'bg-slate-300'
+          )}
+        >
+          <span className={cn('w-5 h-5 bg-white rounded-full shadow-lg transition-all', animatedBgEnabled ? 'translate-x-7' : 'translate-x-0')} />
         </button>
       </div>
 

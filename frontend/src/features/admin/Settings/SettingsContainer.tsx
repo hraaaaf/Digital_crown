@@ -3,7 +3,7 @@ import {
   Settings as SettingsIcon,
   UserCircle,
   Palette,
-  Brain,
+  Gauge,
   Shield,
   Users,
   Save,
@@ -52,7 +52,7 @@ const SettingsContainer: React.FC = () => {
       { id: 'agenda' as Tab, label: 'Horaires & Agenda', icon: <Calendar size={20} /> },
     ] : []),
     ...(access.canSettings ? [
-      { id: 'ia' as Tab, label: 'IA & Système', icon: <Brain size={20} /> },
+      { id: 'ia' as Tab, label: 'Performance & Assistance', icon: <Gauge size={20} /> },
     ] : []),
     ...(access.canAdmin ? [
       { id: 'securite' as Tab, label: 'Sécurité & Backup', icon: <Shield size={20} /> },

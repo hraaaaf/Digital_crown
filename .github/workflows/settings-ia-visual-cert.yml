@@ -27,7 +27,7 @@ jobs:
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Inject IA Settings harness
         working-directory: frontend
         run: |
@@ -63,8 +63,8 @@ jobs:
               });
               await page.goto('http://127.0.0.1:4178/settings-ia-cert.html',{waitUntil:'networkidle'});
               await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
-              await page.getByRole('button',{name:'IA & Système',exact:true}).click();
-              await page.getByRole('heading',{name:'Intelligence & Performance',exact:true}).waitFor({state:'visible'});
+              await page.getByRole('button',{name:'Performance & Assistance',exact:true}).click();
+              await page.getByRole('heading',{name:'Performance & Assistance',exact:true}).waitFor({state:'visible'});
               const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth); if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
               if(errors.length) throw new Error(errors.join('\n'));
               await page.screenshot({path:`${output}/admin-ia-${width}x1200.png`,fullPage:true,animations:'disabled'}); await context.close();
