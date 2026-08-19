@@ -1,0 +1,43 @@
+name: Patient P4AB Unified Patch V2
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p3-clinique
+    paths:
+      - '.github/workflows/patient-p4ab-unified-patch-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p4-imagerie'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Reuse guarded P4 A/B patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/patient-p4ab-unified-patch.yml').read_text(encoding='utf-8')
+          start = workflow.index("          python - <<'PY'\n") + len("          python - <<'PY'\n")
+          end = workflow.index("\n          PY\n", start)
+          script = textwrap.dedent(workflow[start:end])
+          exec(compile(script, 'p4ab-unified-patch', 'exec'), {})
+          PY
+          git diff --check
+      - name: Commit guarded patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/ortho/CephaloWorkspace.tsx frontend/src/features/panoramic/PanoramicStudio.tsx frontend/src/features/patients/PatientDetailsInner.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): unify P4 imaging truth and RVG'
+          git push origin HEAD:${GITHUB_HEAD_REF}
