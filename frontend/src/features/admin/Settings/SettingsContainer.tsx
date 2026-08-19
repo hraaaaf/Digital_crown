@@ -132,6 +132,39 @@ const SettingsContainer: React.FC = () => {
               min-width: 0 !important;
               max-width: 100% !important;
             }
+
+            .settings-team-surface .space-y-3 > .group {
+              flex-direction: column !important;
+              align-items: stretch !important;
+              gap: 1rem;
+            }
+
+            .settings-team-surface .space-y-3 > .group > div:first-child {
+              min-width: 0;
+              width: 100%;
+            }
+
+            .settings-team-surface .space-y-3 > .group > div:first-child > div:last-child {
+              min-width: 0;
+            }
+
+            .settings-team-surface .space-y-3 > .group > div:first-child > div:last-child > h4,
+            .settings-team-surface .space-y-3 > .group > div:first-child > div:last-child > div {
+              flex-wrap: wrap;
+              min-width: 0;
+            }
+
+            .settings-team-surface .space-y-3 > .group > div:first-child span {
+              min-width: 0;
+              overflow-wrap: anywhere;
+            }
+
+            .settings-team-surface .space-y-3 > .group > div:last-child {
+              opacity: 1 !important;
+              align-self: flex-end;
+              flex-wrap: wrap;
+              max-width: 100%;
+            }
           }
         `}</style>
       )}
