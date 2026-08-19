@@ -5,9 +5,21 @@
 from . import patients as patients
 from . import patient_odontogram as patient_odontogram
 from . import patient_clinical_conclusions as patient_clinical_conclusions
+from . import patient_master_plan_p3 as patient_master_plan_p3
 from . import patient_journey_p4 as patient_journey_p4
 from . import ia as ia
 from . import imaging_lifecycle_p4 as imaging_lifecycle_p4
+
+# Bring P3 Master Plan truth forward: same public GET/PUT path, immutable revision per
+# successful save, plus /master-plan/revisions.
+patients.router.routes = [
+    route
+    for route in patients.router.routes
+    if not (
+        getattr(route, "path", None) == "/{patient_id}/master-plan"
+        and ({"GET", "PUT"} & (getattr(route, "methods", set()) or set()))
+    )
+]
 
 # Replace only the P2 Journey GET handler. Milestone create/delete routes remain on the
 # original patients router. The P4 facade delegates to the P2 aggregator then removes
@@ -22,6 +34,7 @@ patients.router.routes = [
 ]
 patients.router.include_router(patient_odontogram.router)
 patients.router.include_router(patient_clinical_conclusions.router)
+patients.router.include_router(patient_master_plan_p3.router)
 patients.router.include_router(patient_journey_p4.router)
 
 # P4 replaces only the two normal hard-delete handlers. The scientific upload,
