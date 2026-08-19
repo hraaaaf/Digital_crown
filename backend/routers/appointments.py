@@ -10,6 +10,7 @@ from backend.utils.access_control import assert_patient_access
 from backend.services.elite_manager import elite_manager
 from backend.services.notification_service import notification_service
 from backend.services.audit_service import audit_service
+from backend.services.agenda_availability import validate_appointment_availability
 
 router = APIRouter(tags=["Appointments"])
 
@@ -59,9 +60,16 @@ def create_appointment(
 ):
     if appt.patient_id:
         assert_patient_access(appt.patient_id, current_user, db)
-        
+
+    employer_id = current_user.get_employer_id()
+    availability_error = validate_appointment_availability(
+        db, employer_id, appt.datetime_start, appt.duration_minutes, appt.scheduling_type
+    )
+    if availability_error:
+        raise HTTPException(status_code=422, detail=availability_error)
+
     appt_data = appt.model_dump()
-    appt_data['employer_id'] = current_user.get_employer_id()
+    appt_data['employer_id'] = employer_id
     db_appt = models.Appointment(**appt_data)
     db.add(db_appt)
     db.commit()
@@ -82,11 +90,21 @@ def update_appointment(
         models.Appointment.employer_id == user_employer_id
     ).first()
     if not db_appt: raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-    
+
     update_data = appt_update.model_dump(exclude_unset=True)
+    if any(key in update_data for key in ('datetime_start', 'duration_minutes', 'scheduling_type')):
+        effective_start = update_data.get('datetime_start', db_appt.datetime_start)
+        effective_duration = update_data.get('duration_minutes', db_appt.duration_minutes)
+        effective_type = update_data.get('scheduling_type', db_appt.scheduling_type)
+        availability_error = validate_appointment_availability(
+            db, user_employer_id, effective_start, effective_duration, effective_type
+        )
+        if availability_error:
+            raise HTTPException(status_code=422, detail=availability_error)
+
     for key, value in update_data.items():
         setattr(db_appt, key, value)
-        
+
     db.commit()
     db.refresh(db_appt)
     audit_service.log(db=db, user_id=current_user.id, employer_id=current_user.get_employer_id(), action="UPDATE", resource_type="Appointment", resource_id=str(id), details=f"Champs: {', '.join(update_data.keys())}")
@@ -113,10 +131,20 @@ def create_bulk_appointments(
 ):
     created_appts = []
     user_employer_id = current_user.get_employer_id()
+
+    # Validate the complete batch before any insert, so a rejected item cannot leave
+    # a partially imported agenda behind.
+    for item in payload.appointments:
+        availability_error = validate_appointment_availability(
+            db, user_employer_id, item.datetime_start, item.duration_minutes, item.scheduling_type
+        )
+        if availability_error:
+            raise HTTPException(status_code=422, detail=availability_error)
+
     for item in payload.appointments:
         if item.patient_id:
             assert_patient_access(item.patient_id, current_user, db)
-            
+
         db_appt = models.Appointment(
             patient_name=item.patient_name,
             patient_id=item.patient_id,
@@ -129,11 +157,11 @@ def create_bulk_appointments(
         )
         db.add(db_appt)
         created_appts.append(db_appt)
-    
+
     db.commit()
     for appt in created_appts:
         db.refresh(appt)
-        
+
     return created_appts
 
 @router.post("/reminders/send")
@@ -154,7 +182,7 @@ async def suggest_appointment(
     current_user: models.User = Depends(require_permission("agenda"))
 ):
     """Renvoie une proposition d'appel basée sur le plan de traitement actif.
-    Algorithme déterministe :
+    Algorithme déterministe :
     - récupère le plan via elite_manager
     - parcourt les phases dans l'ordre clinique
     - retourne le premier acte trouvé avec durée estimée
