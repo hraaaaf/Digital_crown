@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "frontend/src/features/admin/Settings/tabs/BrandingTab.tsx"
+      - "frontend/src/features/admin/Settings/tabs/branding/StudioPreview.tsx"
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
       - "frontend/src/features/admin/Settings/hooks/themePersistenceTruth.test.ts"
       - ".github/workflows/settings-branding-visual-cert.yml"
@@ -64,11 +65,19 @@ jobs:
           try {
             for (const width of [1440,1024,768,430,390]) {
               const context=await browser.newContext({viewport:{width,height:1200}}); const page=await context.newPage(); const errors=[];
+              let samplePreviewCalls=0;
               page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
               page.on('console',m=>{if(m.type()==='error') errors.push(`console: ${m.text()}`)});
               await page.route('**/api/**', async route => {
                 const url=new URL(route.request().url());
                 if(url.pathname.endsWith('/clinics/me')) return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(profile)});
+                if(url.pathname.endsWith('/documents/sample-preview')) {
+                  samplePreviewCalls += 1;
+                  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({pdf_url:'static/settings-preview.pdf'})});
+                }
+                if(url.pathname.endsWith('/static/settings-preview.pdf')) {
+                  return route.fulfill({status:200,contentType:'application/pdf',body:'%PDF-1.4\n% Digital Crown Settings preview\n%%EOF\n'});
+                }
                 return route.fulfill({status:200,contentType:'application/json',body:'{}'});
               });
               await page.goto('http://127.0.0.1:4178/settings-branding-cert.html',{waitUntil:'networkidle'});
@@ -86,8 +95,22 @@ jobs:
               await page.screenshot({path:`${output}/admin-branding-app-${width}x1200.png`,fullPage:true,animations:'disabled'});
 
               await page.getByRole('button',{name:'Document',exact:true}).click();
-              await page.getByText('Document A4',{exact:true}).waitFor();
-              await page.waitForTimeout(100);
+              await page.getByText('PDF réel non généré',{exact:true}).waitFor();
+              if(samplePreviewCalls!==0) throw new Error(`Preview generated before explicit action: ${samplePreviewCalls}`);
+
+              await page.getByRole('button',{name:'Générer le rendu PDF réel',exact:true}).click();
+              await page.getByText('Rendu à jour',{exact:true}).waitFor({timeout:10000});
+              if(samplePreviewCalls!==1) throw new Error(`Expected 1 explicit preview generation, got ${samplePreviewCalls}`);
+
+              await page.getByRole('button',{name:/^Royal Elite/}).click();
+              await page.getByText('À actualiser',{exact:true}).waitFor();
+              await page.waitForTimeout(850);
+              if(samplePreviewCalls!==1) throw new Error(`Preview regenerated automatically after settings change: ${samplePreviewCalls}`);
+
+              await page.getByRole('button',{name:'Actualiser le rendu',exact:true}).click();
+              await page.getByText('Rendu à jour',{exact:true}).waitFor({timeout:10000});
+              if(samplePreviewCalls!==2) throw new Error(`Expected second explicit preview generation, got ${samplePreviewCalls}`);
+
               bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
               if(bodyWidth>width) throw new Error(`Horizontal overflow DOC: document=${bodyWidth}, viewport=${width}`);
               if(errors.length) throw new Error(errors.join('\n'));

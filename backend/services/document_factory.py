@@ -100,6 +100,26 @@ class DocumentFactory:
         today = date.today()
         birth = born.date() if hasattr(born, 'date') else born
         return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+
+    def _create_settings_preview_ordonnance(self, patient, data, db: Session, user_id: int, custom_config: dict):
+        """Génère un PDF de preview Settings dans un espace isolé et borné par utilisateur."""
+        preview_root = os.path.join(self.output_dir, ".previews", "settings_branding", str(user_id or "anonymous"))
+        os.makedirs(preview_root, exist_ok=True)
+
+        # Une seule génération de preview conservée par utilisateur : la suivante
+        # remplace la précédente au lieu de polluer le dossier des vrais documents.
+        for root, _, files in os.walk(preview_root):
+            for filename in files:
+                if filename.lower().endswith(".pdf"):
+                    try:
+                        os.remove(os.path.join(root, filename))
+                    except OSError as exc:
+                        logger.warning("Impossible de nettoyer un ancien preview Settings %s: %s", filename, exc)
+
+        preview_config = dict(custom_config or {})
+        preview_config.pop("settings_preview", None)
+        preview_generator = OrdonnanceGenerator(preview_root)
+        return preview_generator.generate(patient, data, db=db, user_id=user_id, custom_config=preview_config)
     
     # ==========================================================================
     # MÉTHODES PUBLIQUES
@@ -107,6 +127,8 @@ class DocumentFactory:
     
     def create_ordonnance(self, patient, data, db: Session = None, user_id: int = None, custom_config: dict = None):
         """Génère une ordonnance PDF via ReportLab (Stable v1.2 Ghost Elite)."""
+        if custom_config and custom_config.get("settings_preview"):
+            return self._create_settings_preview_ordonnance(patient, data, db, user_id, custom_config)
         return self.ord_gen.generate(patient, data, db=db, user_id=user_id, custom_config=custom_config)
 
     def create_certificat(self, patient, data, db: Session = None, user_id: int = None):

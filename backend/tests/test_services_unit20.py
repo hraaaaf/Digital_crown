@@ -306,11 +306,13 @@ class TestDrawHeaderHeritage:
         )
         return c
 
-    def test_canvas_drawString_called(self):
-        assert self._call().drawString.called
+    def test_canvas_drawCentredString_called(self):
+        assert self._call().drawCentredString.called
 
-    def test_canvas_drawRightString_called(self):
-        assert self._call().drawRightString.called
+    def test_centered_layout_avoids_left_right_draws(self):
+        c = self._call()
+        assert not c.drawString.called
+        assert not c.drawRightString.called
 
     def test_canvas_double_line_drawn(self):
         # Heritage uses two lines for its separator
@@ -333,7 +335,7 @@ class TestDrawHeaderHeritage:
             mock_img.assert_called_once()
 
     def test_no_logo_runs(self):
-        assert self._call(logo=None).drawString.called
+        assert self._call(logo=None).drawCentredString.called
 
 
 # ── _draw_auto_header dispatch ─────────────────────────────────────────────────
@@ -364,7 +366,7 @@ class TestDrawAutoHeader:
 
     def test_heritage_called(self):
         c = self._call('heritage')
-        assert c.drawString.called
+        assert c.drawCentredString.called
 
     def test_unknown_template_falls_through_to_swiss(self):
         # Any unrecognised key hits the `else` branch → swiss
