@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from backend import models
 from backend.security import get_password_hash
@@ -82,12 +82,12 @@ def test_snapshot_exposes_next_real_installment(client, db):
     owner = _make_user(db, "p6-finance-installment-owner@test.ma")
     patient = _make_patient(db, owner, "P6-FIN-3")
     headers = _headers(client, owner)
+    now = datetime.now().replace(microsecond=0)
 
     plan = models.InstallmentPlan(
         patient_id=patient.id,
+        title="Plan P6",
         total_amount=600.0,
-        installment_count=2,
-        status="ACTIF",
     )
     db.add(plan)
     db.flush()
@@ -95,14 +95,14 @@ def test_snapshot_exposes_next_real_installment(client, db):
         plan_id=plan.id,
         label="Échéance 2",
         amount=300.0,
-        due_date=date.today() + timedelta(days=20),
+        due_date=now + timedelta(days=20),
         status="EN_ATTENTE",
     )
     sooner = models.Installment(
         plan_id=plan.id,
         label="Échéance 1",
         amount=300.0,
-        due_date=date.today() + timedelta(days=7),
+        due_date=now + timedelta(days=7),
         status="EN_ATTENTE",
     )
     db.add_all([later, sooner])
@@ -114,7 +114,7 @@ def test_snapshot_exposes_next_real_installment(client, db):
     assert body["upcoming_installments_count"] == 2
     assert body["next_installment"]["label"] == "Échéance 1"
     assert body["next_installment"]["amount"] == 300.0
-    assert body["next_installment"]["due_date"] == (date.today() + timedelta(days=7)).isoformat()
+    assert body["next_installment"]["due_date"].startswith((now + timedelta(days=7)).date().isoformat())
 
 
 def test_snapshot_requires_accounting_or_payments_for_subaccount(client, db):
