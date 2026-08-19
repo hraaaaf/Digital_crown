@@ -20,8 +20,9 @@ describe('P4 unified imaging truth boundary', () => {
 
   it('mirrors backend imaging permissions including legacy defaults and fails closed on URL state', () => {
     expect(details).toContain("const legacyDentistEmployee = Boolean(user?.employer_id && role === 'DENTISTE' && !hasExplicitPermissions)");
-    expect(details).toContain("permissions.panoramic === true");
-    expect(details).toContain("permissions.cephalo === true");
+    expect(details).toContain("userPermissions.panoramic === true");
+    expect(details).toContain("userPermissions.cephalo === true");
+    expect(details).toContain("const ownerOrAdmin = Boolean(user && (role === 'ADMIN' || (role === 'DENTISTE' && !user.employer_id)))");
     expect(details).toContain("const availableRadioTabs: RadioTab[] = [");
     expect(details).toContain("...(canPanoramic ? ['panoramic' as const] : [])");
     expect(details).toContain("...(canCephalo ? ['cephalo' as const] : [])");

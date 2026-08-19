@@ -95,9 +95,9 @@ jobs:
             const clinicalTab=page.getByRole('button',{name:'Clinique',exact:true});
             await clinicalTab.waitFor({state:'visible',timeout:30000});
             await clinicalTab.click();
-            await page.getByText('Espace Clinique',{exact:true}).waitFor({state:'visible',timeout:30000});
-            await page.waitForTimeout(800);
+            await page.waitForTimeout(1200);
             const labels={
+              clinicalHeading:await page.getByText('Espace Clinique',{exact:true}).count(),
               protocols:await page.getByText('Protocoles cliniques',{exact:true}).count(),
               dentalStatus:await page.getByText('Statut Dentaire',{exact:true}).count(),
               masterPlan:await page.getByText(/Master Plan de Traitement/i).count(),
@@ -122,5 +122,5 @@ jobs:
         with:
           name: patient-p3-clinique-before
           path: artifacts/p3-clinique-before
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
