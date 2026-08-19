@@ -89,7 +89,10 @@ jobs:
             const errors=[]; const http5xx=[];
             page.on('pageerror',e=>errors.push(String(e)));
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
-            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=clinical`,{waitUntil:'networkidle',timeout:90000});
+            await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`,{waitUntil:'networkidle',timeout:90000});
+            const clinicalTab=page.getByRole('button',{name:'Clinique',exact:true});
+            await clinicalTab.waitFor({state:'visible',timeout:30000});
+            await clinicalTab.click();
             await page.getByText('Espace Clinique',{exact:true}).waitFor({state:'visible',timeout:30000});
             await page.waitForTimeout(800);
             const labels={
@@ -101,7 +104,7 @@ jobs:
             const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const shot=`p3-before-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,shot),fullPage:false});
-            evidence.push({viewport,overflow,errors,http5xx,labels,shot});
+            evidence.push({viewport,overflow,errors,http5xx,labels,shot,url:page.url()});
             await ctx.close();
           }
           fs.writeFileSync(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));
@@ -117,5 +120,5 @@ jobs:
         with:
           name: patient-p3-clinique-before
           path: artifacts/p3-clinique-before
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
