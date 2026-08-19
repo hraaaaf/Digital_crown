@@ -79,15 +79,16 @@ export const PatientDetails = () => {
 
   const user = useAuthStore(state => state.user);
   const role = userRoleValue(user?.role);
-  const permissions = user?.permissions || {};
-  const hasExplicitPermissions = Object.keys(permissions).length > 0;
+  const userPermissions = user?.permissions || {};
+  const hasExplicitPermissions = Object.keys(userPermissions).length > 0;
   const ownerOrAdmin = Boolean(user && (role === 'ADMIN' || (role === 'DENTISTE' && !user.employer_id)));
-  const canClinical = ownerOrAdmin || Boolean(permissions.clinical === true);
+  const canClinical = ownerOrAdmin || Boolean(userPermissions.clinical === true);
   const legacyDentistEmployee = Boolean(user?.employer_id && role === 'DENTISTE' && !hasExplicitPermissions);
-  const canPanoramic = ownerOrAdmin || legacyDentistEmployee || Boolean(hasExplicitPermissions && permissions.panoramic === true);
-  const canCephalo = ownerOrAdmin || legacyDentistEmployee || Boolean(hasExplicitPermissions && permissions.cephalo === true);
-  const canFinance = ownerOrAdmin || Boolean(
-    hasExplicitPermissions && (permissions.accounting === true || permissions.payments === true)
+  const canPanoramic = ownerOrAdmin || legacyDentistEmployee || Boolean(hasExplicitPermissions && userPermissions.panoramic === true);
+  const canCephalo = ownerOrAdmin || legacyDentistEmployee || Boolean(hasExplicitPermissions && userPermissions.cephalo === true);
+  const canFinance = Boolean(
+    ownerOrAdmin ||
+    (hasExplicitPermissions && (userPermissions.accounting === true || userPermissions.payments === true))
   );
   const availableRadioTabs: RadioTab[] = [
     'rvg',
@@ -347,7 +348,9 @@ export const PatientDetails = () => {
         </div>
       </main>
 
-      {canFinance && <QuickPayModal isOpen={isPayModalOpen} onClose={() => setIsPayModalOpen(false)} patientId={Number(id)} />}
+      {canFinance && (
+        <QuickPayModal isOpen={isPayModalOpen} onClose={() => setIsPayModalOpen(false)} patientId={Number(id)} />
+      )}
     </div>
   );
 };
