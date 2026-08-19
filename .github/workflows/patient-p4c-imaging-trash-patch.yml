@@ -1,0 +1,382 @@
+name: Patient P4C Imaging Trash Patch
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p3-clinique
+    paths:
+      - '.github/workflows/patient-p4c-imaging-trash-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p4-imagerie'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply recoverable imaging lifecycle
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              found = text.count(old)
+              if found != count:
+                  raise SystemExit(f'{path}: expected {count}, found {found}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          models = 'backend/models.py'
+          clinical_schema = 'backend/schemas/clinical.py'
+          panoramic_schema = 'backend/schemas/panoramic.py'
+          ia = 'backend/routers/ia.py'
+          journey = 'backend/services/patient_journey_service.py'
+
+          replace_exact(models, '''    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="analyses")
+
+class PanoramicAnalysis(Base):''', '''    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    patient: Mapped["Patient"] = relationship(back_populates="analyses")
+
+class PanoramicAnalysis(Base):''')
+          replace_exact(models, '''    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="panoramic_analyses")''', '''    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    patient: Mapped["Patient"] = relationship(back_populates="panoramic_analyses")''')
+
+          replace_exact(clinical_schema, '''    mm_per_pixel: Optional[float] = None
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)''', '''    mm_per_pixel: Optional[float] = None
+    created_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime] = None
+    deleted_by: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)''')
+          replace_exact(panoramic_schema, '''    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)''', '''    id: int
+    patient_id: int
+    created_at: datetime.datetime
+    deleted_at: Optional[datetime.datetime] = None
+    deleted_by: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)''')
+
+          p = Path(ia)
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(
+              'filter(models.CephaloAnalysis.id == analysis_id).first()',
+              'filter(models.CephaloAnalysis.id == analysis_id, models.CephaloAnalysis.deleted_at.is_(None)).first()'
+          )
+          text = text.replace(
+              'filter(models.PanoramicAnalysis.id == analysis_id).first()',
+              'filter(models.PanoramicAnalysis.id == analysis_id, models.PanoramicAnalysis.deleted_at.is_(None)).first()'
+          )
+          text = text.replace(
+              'filter(models.PanoramicAnalysis.id == req.analysis_id).first()',
+              'filter(models.PanoramicAnalysis.id == req.analysis_id, models.PanoramicAnalysis.deleted_at.is_(None)).first()'
+          )
+
+          old_pano_list = '''    analyses = db.query(models.PanoramicAnalysis).filter(
+        models.PanoramicAnalysis.patient_id == patient_id
+    ).order_by(models.PanoramicAnalysis.created_at.desc()).all()
+    return analyses'''
+          new_pano_list = '''    analyses = db.query(models.PanoramicAnalysis).filter(
+        models.PanoramicAnalysis.patient_id == patient_id,
+        models.PanoramicAnalysis.deleted_at.is_(None),
+    ).order_by(models.PanoramicAnalysis.created_at.desc()).all()
+    return analyses
+
+
+@router.get("/patients/{patient_id}/panoramic-trash", response_model=List[schemas.PanoramicAnalysisOut])
+def get_patient_panoramic_trash(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("panoramic"))):
+    assert_patient_access(patient_id, current_user, db)
+    return db.query(models.PanoramicAnalysis).filter(
+        models.PanoramicAnalysis.patient_id == patient_id,
+        models.PanoramicAnalysis.deleted_at.isnot(None),
+    ).order_by(models.PanoramicAnalysis.deleted_at.desc()).all()'''
+          if old_pano_list not in text:
+              raise SystemExit('panoramic active list marker missing')
+          text = text.replace(old_pano_list, new_pano_list, 1)
+
+          old_compare = '''        .filter(models.PanoramicAnalysis.patient_id == patient_id)
+        .order_by(desc(models.PanoramicAnalysis.created_at))'''
+          new_compare = '''        .filter(
+            models.PanoramicAnalysis.patient_id == patient_id,
+            models.PanoramicAnalysis.deleted_at.is_(None),
+        )
+        .order_by(desc(models.PanoramicAnalysis.created_at))'''
+          if old_compare not in text:
+              raise SystemExit('panoramic comparison marker missing')
+          text = text.replace(old_compare, new_compare, 1)
+
+          old_ceph_list = '''    analyses = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id).order_by(models.CephaloAnalysis.created_at.desc()).all()
+    return analyses'''
+          new_ceph_list = '''    analyses = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.patient_id == patient_id,
+        models.CephaloAnalysis.deleted_at.is_(None),
+    ).order_by(models.CephaloAnalysis.created_at.desc()).all()
+    return analyses
+
+
+@router.get("/patients/{patient_id}/cephalo-trash", response_model=List[schemas.CephaloAnalysisOut])
+def get_patient_cephalo_trash(patient_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    assert_patient_access(patient_id, current_user, db)
+    return db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.patient_id == patient_id,
+        models.CephaloAnalysis.deleted_at.isnot(None),
+    ).order_by(models.CephaloAnalysis.deleted_at.desc()).all()'''
+          if old_ceph_list not in text:
+              raise SystemExit('cephalo active list marker missing')
+          text = text.replace(old_ceph_list, new_ceph_list, 1)
+
+          old_ceph_delete = '''@router.delete("/cephalo/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    """Supprime une analyse céphalométrique et son fichier image associé."""
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id, models.CephaloAnalysis.deleted_at.is_(None)).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    try:
+        from backend.services.audit_service import audit_service
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="CephaloAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Suppression de l'analyse cephalo {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        if analysis.image_original_path:
+            rel_path = analysis.image_original_path.replace("api/", "", 1) if analysis.image_original_path.startswith("api/") else analysis.image_original_path
+            file_abs_path = os.path.join(BASE_DIR, rel_path)
+            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
+                try:
+                    os.remove(file_abs_path)
+                except Exception as _e:
+                    logger.warning(f"Impossible de supprimer le fichier image cephalo {file_abs_path}: {_e}")
+        db.delete(analysis)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la suppression de l'analyse cephalo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))'''
+          new_ceph_delete = '''@router.delete("/cephalo/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    """Met une analyse céphalométrique en corbeille sans supprimer son fichier."""
+    analysis = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.id == analysis_id, models.CephaloAnalysis.deleted_at.is_(None)).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    try:
+        from backend.services.audit_service import audit_service
+        analysis.deleted_at = datetime.now()
+        analysis.deleted_by = current_user.id
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="TRASH",
+            resource_type="CephaloAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Mise en corbeille de l'analyse cephalo {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la mise en corbeille de l'analyse cephalo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cephalo/{analysis_id}/restore", response_model=schemas.CephaloAnalysisOut)
+def restore_cephalo_analysis(analysis_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(require_permission("cephalo"))):
+    analysis = db.query(models.CephaloAnalysis).filter(
+        models.CephaloAnalysis.id == analysis_id,
+        models.CephaloAnalysis.deleted_at.isnot(None),
+    ).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analyse en corbeille introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    from backend.services.audit_service import audit_service
+    analysis.deleted_at = None
+    analysis.deleted_by = None
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="RESTORE",
+        resource_type="CephaloAnalysis",
+        resource_id=str(analysis_id),
+        details=f"Restauration de l'analyse cephalo {analysis_id} pour le patient {analysis.patient_id}"
+    )
+    db.commit()
+    db.refresh(analysis)
+    return analysis'''
+          if old_ceph_delete not in text:
+              raise SystemExit('cephalo delete block missing')
+          text = text.replace(old_ceph_delete, new_ceph_delete, 1)
+
+          old_pano_delete = '''@router.delete("/panoramic/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_panoramic_analysis(
+    analysis_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(require_permission("panoramic"))
+):
+    """Supprime un bilan/radio panoramique (et son fichier physique)."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id, models.PanoramicAnalysis.deleted_at.is_(None)).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Bilan panoramique introuvable")
+    
+    assert_patient_access(analysis.patient_id, current_user, db)
+    
+    try:
+        # Audit log before deletion
+        from backend.services.audit_service import audit_service
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="DELETE",
+            resource_type="PanoramicAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Suppression du bilan panoramique {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        
+        # Suppression du fichier physique de la radio si présent
+        if analysis.image_path:
+            rel_path = analysis.image_path.replace("api/", "", 1) if analysis.image_path.startswith("api/") else analysis.image_path
+            file_abs_path = os.path.join(BASE_DIR, rel_path)
+            if os.path.exists(file_abs_path) and os.path.isfile(file_abs_path):
+                try:
+                    os.remove(file_abs_path)
+                except Exception as _e:
+                    logger.warning(f"Impossible de supprimer le fichier radio physique {file_abs_path}: {_e}")
+        
+        # Suppression de l'enregistrement de la base de données
+        db.delete(analysis)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la suppression du bilan panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return Response(status_code=status.HTTP_204_NO_CONTENT)'''
+          new_pano_delete = '''@router.delete("/panoramic/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_panoramic_analysis(
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("panoramic"))
+):
+    """Met un bilan panoramique en corbeille sans supprimer son fichier."""
+    analysis = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.id == analysis_id, models.PanoramicAnalysis.deleted_at.is_(None)).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Bilan panoramique introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    try:
+        from backend.services.audit_service import audit_service
+        analysis.deleted_at = datetime.now()
+        analysis.deleted_by = current_user.id
+        audit_service.log(
+            db=db,
+            user_id=current_user.id,
+            employer_id=current_user.get_employer_id(),
+            action="TRASH",
+            resource_type="PanoramicAnalysis",
+            resource_id=str(analysis_id),
+            details=f"Mise en corbeille du bilan panoramique {analysis_id} pour le patient {analysis.patient_id}"
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Erreur lors de la mise en corbeille du bilan panoramique: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/panoramic/{analysis_id}/restore", response_model=schemas.PanoramicAnalysisOut)
+def restore_panoramic_analysis(
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("panoramic"))
+):
+    analysis = db.query(models.PanoramicAnalysis).filter(
+        models.PanoramicAnalysis.id == analysis_id,
+        models.PanoramicAnalysis.deleted_at.isnot(None),
+    ).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Bilan panoramique en corbeille introuvable")
+    assert_patient_access(analysis.patient_id, current_user, db)
+    from backend.services.audit_service import audit_service
+    analysis.deleted_at = None
+    analysis.deleted_by = None
+    audit_service.log(
+        db=db,
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="RESTORE",
+        resource_type="PanoramicAnalysis",
+        resource_id=str(analysis_id),
+        details=f"Restauration du bilan panoramique {analysis_id} pour le patient {analysis.patient_id}"
+    )
+    db.commit()
+    db.refresh(analysis)
+    return analysis'''
+          if old_pano_delete not in text:
+              raise SystemExit('panoramic delete block missing')
+          text = text.replace(old_pano_delete, new_pano_delete, 1)
+
+          p.write_text(text, encoding='utf-8')
+
+          j = Path(journey).read_text(encoding='utf-8')
+          j = j.replace(
+              'db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id)',
+              'db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id, models.PanoramicAnalysis.deleted_at.is_(None))'
+          )
+          j = j.replace(
+              'db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id)',
+              'db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id, models.CephaloAnalysis.deleted_at.is_(None))'
+          )
+          Path(journey).write_text(j, encoding='utf-8')
+
+          migration = Path('alembic/versions/e6f7a8b9c0d1_add_imaging_trash_fields.py')
+          if migration.exists():
+              raise SystemExit('P4C migration already exists unexpectedly')
+          migration.write_text('''"""Add recoverable trash fields to panoramic and cephalo analyses.\n\nRevision ID: e6f7a8b9c0d1\nRevises: d5e6f7a8b9c0\nCreate Date: 2026-08-19\n"""\nfrom typing import Sequence, Union\n\nfrom alembic import op\nimport sqlalchemy as sa\n\nrevision: str = "e6f7a8b9c0d1"\ndown_revision: Union[str, None] = "d5e6f7a8b9c0"\nbranch_labels: Union[str, Sequence[str], None] = None\ndepends_on: Union[str, Sequence[str], None] = None\n\ndef upgrade() -> None:\n    for table in ("cephalo_analyses", "panoramic_analyses"):\n        op.add_column(table, sa.Column("deleted_at", sa.DateTime(), nullable=True))\n        op.add_column(table, sa.Column("deleted_by", sa.Integer(), nullable=True))\n        op.create_index(f"ix_{table}_deleted_at", table, ["deleted_at"], unique=False)\n\ndef downgrade() -> None:\n    for table in ("panoramic_analyses", "cephalo_analyses"):\n        op.drop_index(f"ix_{table}_deleted_at", table_name=table)\n        op.drop_column(table, "deleted_by")\n        op.drop_column(table, "deleted_at")\n''', encoding='utf-8')
+
+          checks = {
+              models: ['deleted_at: Mapped[Optional[datetime]]', 'deleted_by: Mapped[Optional[int]]'],
+              ia: ['panoramic-trash', 'cephalo-trash', 'RESTORE', 'action="TRASH"'],
+              journey: ['PanoramicAnalysis.deleted_at.is_(None)', 'CephaloAnalysis.deleted_at.is_(None)'],
+          }
+          for path, required in checks.items():
+              body = Path(path).read_text(encoding='utf-8')
+              for marker in required:
+                  if marker not in body:
+                      raise SystemExit(f'{path}: missing {marker}')
+          PY
+          python -m compileall -q backend alembic/versions/e6f7a8b9c0d1_add_imaging_trash_fields.py
+          git diff --check
+
+      - name: Commit P4-C backend lifecycle
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/models.py backend/schemas/clinical.py backend/schemas/panoramic.py backend/routers/ia.py backend/services/patient_journey_service.py alembic/versions/e6f7a8b9c0d1_add_imaging_trash_fields.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): make P4 imaging deletion recoverable'
+          git push origin HEAD:${GITHUB_HEAD_REF}
