@@ -1,6 +1,10 @@
 from datetime import datetime
 
 from backend import models
+from backend.security import get_password_hash
+
+
+PASSWORD = "TestPass123!"
 
 
 def _make_patient(db, owner, dossier):
@@ -16,6 +20,32 @@ def _make_patient(db, owner, dossier):
     db.commit()
     db.refresh(patient)
     return patient
+
+
+def _make_user(db, email, *, employer_id=None, permissions=None, role="DENTISTE"):
+    user = models.User(
+        email=email,
+        hashed_password=get_password_hash(PASSWORD),
+        role=role,
+        nom_complet="Dr P4 Test",
+        is_active=True,
+        is_licensed=True,
+        employer_id=employer_id,
+        permissions=permissions or {},
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _headers(client, user):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": user.email, "password": PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def test_panoramic_delete_is_recoverable_and_preserves_file(client, db, dentiste, auth_headers, tmp_path):
@@ -93,3 +123,64 @@ def test_cephalo_delete_is_recoverable_and_preserves_file(client, db, dentiste, 
     assert restored.status_code == 200, restored.text
     assert restored.json()["deleted_at"] is None
     assert image.exists()
+
+
+def test_imaging_trash_and_restore_are_tenant_scoped(client, db, dentiste):
+    patient = _make_patient(db, dentiste, "P4-TRASH-TENANT")
+    pano = models.PanoramicAnalysis(
+        patient_id=patient.id,
+        image_path="tenant-pano.jpg",
+        detections_data={},
+        deleted_at=datetime.utcnow(),
+        deleted_by=dentiste.id,
+    )
+    ceph = models.CephaloAnalysis(
+        patient_id=patient.id,
+        image_original_path="tenant-ceph.jpg",
+        landmarks_data={},
+        angles_data={},
+        is_calibrated=False,
+        deleted_at=datetime.utcnow(),
+        deleted_by=dentiste.id,
+    )
+    db.add_all([pano, ceph])
+    db.commit()
+    db.refresh(pano)
+    db.refresh(ceph)
+
+    foreign_owner = _make_user(db, "p4-foreign-owner@test.ma")
+    headers = _headers(client, foreign_owner)
+
+    assert client.get(f"/api/ia/patients/{patient.id}/panoramic-trash", headers=headers).status_code == 403
+    assert client.get(f"/api/ia/patients/{patient.id}/cephalo-trash", headers=headers).status_code == 403
+    assert client.post(f"/api/ia/panoramic/{pano.id}/restore", headers=headers).status_code == 403
+    assert client.post(f"/api/ia/cephalo/{ceph.id}/restore", headers=headers).status_code == 403
+
+
+def test_imaging_lifecycle_requires_modality_permissions(client, db, dentiste):
+    patient = _make_patient(db, dentiste, "P4-TRASH-RBAC")
+    pano = models.PanoramicAnalysis(patient_id=patient.id, image_path="rbac-pano.jpg", detections_data={})
+    ceph = models.CephaloAnalysis(
+        patient_id=patient.id,
+        image_original_path="rbac-ceph.jpg",
+        landmarks_data={},
+        angles_data={},
+        is_calibrated=False,
+    )
+    db.add_all([pano, ceph])
+    db.commit()
+    db.refresh(pano)
+    db.refresh(ceph)
+
+    collaborator = _make_user(
+        db,
+        "p4-no-imaging@test.ma",
+        employer_id=dentiste.id,
+        permissions={"patients": True, "panoramic": False, "cephalo": False},
+    )
+    headers = _headers(client, collaborator)
+
+    assert client.get(f"/api/ia/patients/{patient.id}/panoramic-trash", headers=headers).status_code == 403
+    assert client.get(f"/api/ia/patients/{patient.id}/cephalo-trash", headers=headers).status_code == 403
+    assert client.delete(f"/api/ia/panoramic/{pano.id}", headers=headers).status_code == 403
+    assert client.delete(f"/api/ia/cephalo/{ceph.id}", headers=headers).status_code == 403
