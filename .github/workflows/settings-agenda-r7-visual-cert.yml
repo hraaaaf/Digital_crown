@@ -5,6 +5,9 @@ on:
     paths:
       - ".github/workflows/settings-agenda-r7-visual-cert.yml"
       - "frontend/src/features/admin/Settings/tabs/AgendaTab.tsx"
+      - "backend/routers/agenda_settings.py"
+      - "backend/schemas/agenda.py"
+      - "frontend/src/test/agendaR7Truth.test.ts"
 
 permissions:
   contents: read
@@ -52,7 +55,9 @@ jobs:
           const output = 'settings-agenda-r7-artifacts';
           await fs.mkdir(output, { recursive: true });
           const profile = { id: 1, public_id: 'agenda-r7', nom_cabinet: 'Cabinet Agenda R7', nom_praticien: 'Dr Agenda R7', primary_color: '#003380', secondary_color: '#1e40af', accent_color: '#60a5fa', selected_theme: 'elite', font_fr: 'inter', selected_template: 'swiss', header_lines_fr: ['Dr Agenda R7'], header_lines_ar: [], specialty_ids: [], contacts_json: {}, margin_top: 3.6, margin_bottom: 3.2, watermark_enabled: true, use_letterhead: false, qr_code_enabled: false, show_patient_badges: true, performance_mode: false, clinical_tips_enabled: true, cabinet_type: 'PRIVE' };
-          const settings = { id: 1, opening_time_morning: '09:00', closing_time_morning: '13:00', opening_time_afternoon: '14:00', closing_time_afternoon: '18:00', is_continuous: false, agenda_mode: 'EXACT', use_tickets: true };
+          const day = { is_open: true, is_continuous: false, morning_start: '09:00', morning_end: '13:00', afternoon_start: '14:00', afternoon_end: '18:00' };
+          const weekly_schedule = Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(key => [key, { ...day }]));
+          const settings = { id: 1, opening_time_morning: '09:00', closing_time_morning: '13:00', opening_time_afternoon: '14:00', closing_time_afternoon: '18:00', is_continuous: false, agenda_mode: 'EXACT', use_tickets: true, weekly_schedule };
           const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
           const server = await createServer({ server: { host: '127.0.0.1', port: 4182, strictPort: true }, clearScreen: false });
           await server.listen();
@@ -67,18 +72,36 @@ jobs:
               await page.route('**/*', async route => {
                 const req = route.request(); const url = new URL(req.url());
                 if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
-                if (req.method() !== 'GET') return route.fulfill(json(settings));
                 if (url.pathname === '/api/clinics/me') return route.fulfill(json(profile));
-                if (url.pathname === '/api/agenda/settings') return route.fulfill(json(settings));
+                if (url.pathname === '/api/agenda/settings') {
+                  if (req.method() === 'PUT') return route.fulfill(json({ ...settings, ...JSON.parse(req.postData() || '{}') }));
+                  return route.fulfill(json(settings));
+                }
+                if (url.pathname === '/api/agenda/exceptions') {
+                  if (req.method() === 'POST') return route.fulfill(json({ id: 9, ...JSON.parse(req.postData() || '{}'), created_at: '2026-08-19T00:00:00' }));
+                  return route.fulfill(json([]));
+                }
+                if (url.pathname.startsWith('/api/agenda/exceptions/') && req.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
                 return route.fulfill(json({}));
               });
               await page.goto('http://127.0.0.1:4182/settings-agenda-r7.html', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'Paramètres' }).waitFor({ state: 'visible', timeout: 15000 });
               await page.getByRole('button', { name: /Horaires & Agenda/i }).click();
               await page.getByRole('heading', { name: /Horaires & Agenda/i }).waitFor({ state: 'visible' });
+              await page.getByRole('heading', { name: /Semaine d'ouverture/i }).waitFor({ state: 'visible' });
+              if (await page.getByText("Mode d'Agenda", { exact: true }).count()) throw new Error('Legacy agenda_mode UI still visible');
+              if (await page.getByText('File d\'attente (Tickets)', { exact: true }).count()) throw new Error('Legacy ticket UI still visible');
               const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
               if (overflow) throw new Error(`Horizontal overflow at ${width}px`);
               await page.screenshot({ path: `${output}/admin-agenda-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+              await page.getByRole('button', { name: /Ajouter une fermeture/i }).click();
+              await page.getByRole('dialog').waitFor({ state: 'visible' });
+              await page.getByRole('heading', { name: /Ajouter une fermeture/i }).waitFor({ state: 'visible' });
+              const modalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (modalOverflow) throw new Error(`Modal overflow at ${width}px`);
+              await page.screenshot({ path: `${output}/admin-agenda-exception-modal-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
               await fs.writeFile(`${output}/admin-agenda-${width}x1200.errors.txt`, errors.join('\n'));
               await context.close();
             }
@@ -90,7 +113,7 @@ jobs:
       - name: Verify proof
         working-directory: frontend
         run: |
-          test "$(find settings-agenda-r7-artifacts -name '*.png' | wc -l)" -eq 5
+          test "$(find settings-agenda-r7-artifacts -name '*.png' | wc -l)" -eq 10
           if grep -R -n -E 'pageerror:|console:' settings-agenda-r7-artifacts/*.errors.txt; then exit 1; fi
       - name: Record metadata
         working-directory: frontend
@@ -98,8 +121,10 @@ jobs:
           cat > settings-agenda-r7-artifacts/metadata.txt <<EOF
           head_sha=${{ github.event.pull_request.head.sha }}
           viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
-          fixture=split-day-use-tickets-enabled
-          product_scope=Settings Agenda only
+          states=settings-week,exception-modal
+          expected_screenshots=10
+          fixture=same-legacy-hours-derived-week
+          product_scope=Settings Agenda
           EOF
       - uses: actions/upload-artifact@v4
         with:
