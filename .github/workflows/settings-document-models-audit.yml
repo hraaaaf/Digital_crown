@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - "backend/services/base_template.py"
+      - "backend/services/premium_document_headers.py"
       - "backend/services/generators/ordonnance_gen.py"
+      - "backend/tests/test_premium_document_headers.py"
+      - "frontend/src/features/admin/constants.ts"
       - "frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx"
       - ".github/workflows/settings-document-models-audit.yml"
   workflow_dispatch:
@@ -23,7 +26,9 @@ jobs:
       - name: Install audit dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf pytest
+      - name: Contract test premium headers
+        run: python -m pytest backend/tests/test_premium_document_headers.py -q
       - name: Generate five real ordonnance models
         run: |
           python - <<'PY'
@@ -93,6 +98,15 @@ jobs:
 
           templates = ['swiss', 'royal', 'clinical', 'modern', 'heritage']
           generator = OrdonnanceGenerator(str(pdf_dir / '_tmp'))
+          assert generator.base_template.arabic_font == 'ArabicFont', (
+              'Audit runner must resolve a Unicode Arabic font; broken-glyph fallback is forbidden.'
+          )
+          assert Path(generator.base_template.arabic_font_path).exists()
+          (out / 'font-proof.txt').write_text(
+              f"arabic_font={generator.base_template.arabic_font}\n"
+              f"arabic_font_path={generator.base_template.arabic_font_path}\n",
+              encoding='utf-8',
+          )
 
           for template in templates:
               config = dict(common, selected_template=template)
