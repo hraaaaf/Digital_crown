@@ -74,8 +74,17 @@ def test_p0_finance_uses_strict_binding_explicit_method_and_canonical_installmen
     modal = _read("frontend/src/features/patients/components/InstallmentPlanModal.tsx")
     quick_pay = _read("frontend/src/features/patients/components/QuickPayModal.tsx")
 
-    assert "recoveryRate === null ? '—'" in finances
-    assert "Non applicable" in finances
+    for required in (
+        "Facturé",
+        "Encaissé",
+        "Reste dû",
+        "Prochaine échéance",
+        "has_billing_data",
+        "Indéterminé",
+    ):
+        assert required in finances
+    assert "Taux Recouvrement" not in finances
+    assert "recoveryRate" not in finances
     assert "api.post('/installments/'" in modal
     assert "acte_id: acte.id" in modal
     assert "coverageExact" in modal
