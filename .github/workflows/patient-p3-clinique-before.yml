@@ -25,6 +25,8 @@ jobs:
       ALLOWED_ORIGINS: 'http://127.0.0.1:5173,http://localhost:5173'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: dfd62f1f3899b455a1af3961f8e434a05061276d
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

@@ -17,9 +17,17 @@ class ClinicalConclusionCreate(BaseModel):
     proposal_text: Optional[str] = Field(default=None, max_length=8000)
     proposal_source: Optional[str] = Field(default=None, max_length=100)
 
-    @field_validator("conclusion_text", "proposal_text", "proposal_source", mode="before")
+    @field_validator("conclusion_text", mode="before")
     @classmethod
-    def strip_text(cls, value):
+    def strip_required_conclusion(cls, value):
+        cleaned = "" if value is None else str(value).strip()
+        if not cleaned:
+            raise ValueError("La conclusion clinique ne peut pas être vide")
+        return cleaned
+
+    @field_validator("proposal_text", "proposal_source", mode="before")
+    @classmethod
+    def strip_optional_provenance(cls, value):
         if value is None:
             return None
         cleaned = str(value).strip()
