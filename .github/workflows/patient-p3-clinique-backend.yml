@@ -8,13 +8,16 @@ on:
       - 'backend/__init__.py'
       - 'backend/models_clinical_p3.py'
       - 'backend/routers/__init__.py'
+      - 'backend/routers/patients.py'
       - 'backend/routers/patient_odontogram.py'
       - 'backend/routers/patient_clinical_conclusions.py'
       - 'backend/schemas/odontogram.py'
       - 'backend/schemas/clinical_conclusion.py'
       - 'backend/tests/test_patient_p3_odontogram.py'
       - 'backend/tests/test_patient_p3_clinical_conclusions.py'
+      - 'backend/tests/test_patient_p3_master_plan_revisions.py'
       - 'alembic/versions/d5e6f7a8b9c0_add_patient_odontograms.py'
+      - 'alembic/versions/e6f7a8b9c0d1_add_master_plan_revisions.py'
       - '.github/workflows/patient-p3-clinique-backend.yml'
 
 permissions:
@@ -49,12 +52,13 @@ jobs:
         run: |
           python - <<'PY'
           from backend import models
-          assert 'patient_odontograms' in models.Base.metadata.tables
-          assert 'clinical_conclusions' in models.Base.metadata.tables
+          for table in ('patient_odontograms', 'clinical_conclusions', 'treatment_master_plan_revisions'):
+              assert table in models.Base.metadata.tables
           from backend.main import app
           paths = {route.path for route in app.routes}
           assert '/api/patients/{patient_id}/odontogram' in paths
           assert '/api/patients/{patient_id}/clinical-conclusions' in paths
+          assert '/api/patients/{patient_id}/master-plan/revisions' in paths
           PY
 
       - name: P3 migration structural contract
@@ -71,25 +75,31 @@ jobs:
           for table in ('patient_odontograms', 'clinical_conclusions'):
               assert f'"{table}"' in migration
 
+          master_plan_migration = Path('alembic/versions/e6f7a8b9c0d1_add_master_plan_revisions.py').read_text(encoding='utf-8')
+          assert 'revision: str = "e6f7a8b9c0d1"' in master_plan_migration
+          assert 'down_revision: Union[str, None] = "d5e6f7a8b9c0"' in master_plan_migration
+          assert '"treatment_master_plan_revisions"' in master_plan_migration
+
           # The repository's historical clean-db Alembic chain currently fails before P3
-          # in legacy revision 8f6465e49d90 (missing SQLite index). Do not turn that
-          # pre-existing defect into a false P3 failure. Validate the P3 runtime schema
-          # from canonical SQLAlchemy metadata instead, while still enforcing one Alembic head
-          # and exact P3 revision ancestry/source above.
+          # in legacy revision 8f6465e49d90 (missing SQLite index). Validate runtime
+          # metadata plus exact new migration ancestry without laundering that older defect.
           engine = create_engine('sqlite:///:memory:')
           models.Base.metadata.create_all(engine)
           inspector = inspect(engine)
-          assert 'patient_odontograms' in inspector.get_table_names()
-          assert 'clinical_conclusions' in inspector.get_table_names()
+          for table in ('patient_odontograms', 'clinical_conclusions', 'treatment_master_plan_revisions'):
+              assert table in inspector.get_table_names()
 
           odonto_cols = {c['name'] for c in inspector.get_columns('patient_odontograms')}
           assert {'patient_id','dentition_type','state','revision','updated_by','created_at','updated_at'} <= odonto_cols
           conclusion_cols = {c['name'] for c in inspector.get_columns('clinical_conclusions')}
           assert {'patient_id','conclusion_text','proposal_text','proposal_source','validated_by','created_at'} <= conclusion_cols
+          revision_cols = {c['name'] for c in inspector.get_columns('treatment_master_plan_revisions')}
+          assert {'plan_id','patient_id','revision','steps_snapshot','updated_by','created_at'} <= revision_cols
           PY
 
       - name: P3 targeted clinical persistence tests
         run: |
           pytest -q -x --tb=short \
             backend/tests/test_patient_p3_odontogram.py \
-            backend/tests/test_patient_p3_clinical_conclusions.py
+            backend/tests/test_patient_p3_clinical_conclusions.py \
+            backend/tests/test_patient_p3_master_plan_revisions.py
