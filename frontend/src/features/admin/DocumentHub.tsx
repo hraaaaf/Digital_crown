@@ -22,6 +22,7 @@ import { useAccountingStore } from './store/useAccountingStore';
 import { accountingDocumentTotal } from './DocumentStudio/AccountingTotalPolicy';
 import { documentPreviewFingerprint } from './DocumentStudio/DocumentPreviewFingerprint';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { allowedDocumentStudioTabs } from './DocumentStudio/DocumentStudioPermissionPolicy';
 
 interface DocumentHubProps {
   patientId: string | undefined;
@@ -54,16 +55,10 @@ export type HubDocumentType = CertifiableDocumentStudioTab;
 
 export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName, editData }) => {
   const user = useAuthStore(state => state.user);
-  const allowedTabs = useMemo<CertifiableDocumentStudioTab[]>(() => {
-    const isOwner = !user?.employer_id;
-    const has = (permission: string) => isOwner || Boolean(user?.permissions?.[permission]);
-    const tabs: CertifiableDocumentStudioTab[] = [];
-    if (has('prescriptions')) tabs.push('ordonnance');
-    if (has('patients')) tabs.push('certificat');
-    if (has('accounting')) tabs.push('devis', 'honoraires', 'echeancier');
-    if (has('clinical')) tabs.push('libre');
-    return tabs;
-  }, [user?.employer_id, user?.permissions]);
+  const allowedTabs = useMemo<CertifiableDocumentStudioTab[]>(
+    () => allowedDocumentStudioTabs(user),
+    [user],
+  );
 
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [sideStudioType, setSideStudioType] = useState<'NONE' | 'PREVIEW'>('NONE');
@@ -126,8 +121,7 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({ patientId, patientName
     showLegalAnnotations, echeancierPayload,
   }), [
     patientId, patientDetails, activeTab, drugs, certifType, certifDays, certifStartDate, certifCustomMotif,
-    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate,
-    libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
+    items, paymentMode, libreTitle, libreContent, libreCustomPatient, libreCustomDate, libreHideHeader, librePageSize, libreAlignment, docDate, selectedTeethFromOdontogram, smartSuggestion,
     installments, isAccounted, paymentStatus, isGlobalNote, showLegalAnnotations, echeancierPayload,
   ]);
 
