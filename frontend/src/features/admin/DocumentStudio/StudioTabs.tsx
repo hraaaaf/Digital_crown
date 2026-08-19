@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pill, FileBadge, Calculator, Receipt, Type, Brain } from 'lucide-react';
+import { Pill, FileBadge, Calculator, Receipt, Type } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './DocumentStudioVocabulary';
 
@@ -21,7 +21,6 @@ export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 
     <TabButton active={activeTab === 'honoraires'} onClick={() => onTabChange('honoraires')} icon={<Receipt size={16} />} label={DOCUMENT_STUDIO_LABELS.honoraires} tourId="tab-honoraires" />
     <TabButton active={activeTab === 'echeancier'} onClick={() => onTabChange('echeancier')} icon={<Calculator size={16} />} label={DOCUMENT_STUDIO_LABELS.echeancier} tourId="tab-suivi" />
     <TabButton active={activeTab === 'libre'} onClick={() => onTabChange('libre')} icon={<Type size={16} />} label={DOCUMENT_STUDIO_LABELS.libre} tourId="tab-libre" />
-    <TabButton active={activeTab === 'plan'} onClick={() => onTabChange('plan')} icon={<Brain size={16} />} label={DOCUMENT_STUDIO_LABELS.plan} tourId="tab-strategie" />
   </div>
 );
 
