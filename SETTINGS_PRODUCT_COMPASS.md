@@ -1,6 +1,7 @@
 # SETTINGS PRODUCT COMPASS — Réglages / Paramètres
 
 Date d'initialisation : 2026-08-19
+Dernière mise à jour : 2026-08-20
 Repo : `hraaaaf/Digital_crown`
 Statut : **BOUSSOLE CANONIQUE ACTIVE**
 
@@ -36,8 +37,10 @@ Statut : **CERTIFIÉ R2**.
 | R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) | 9,6/10 |
 | R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CLOSED — MERGED (#178) | 9,3/10 |
 | R8 Performance & Assistance | GARDER / CLARIFIER / DÉPLACER | CLOSED — MERGED (#183) | 9,5/10 |
+| R9-A Journal d’Audit | GARDER / HUMANISER | CLOSED — MERGED (#185) | 9,6/10 |
+| R10-A Mon Équipe / mot de passe | GARDER / ALIGNER VÉRITÉ BACKEND | CLOSED — MERGED (#188) | 9,4/10 |
 
-**Avancement vérifié : 6/15 = 40,0 %.**
+**Avancement vérifié : 8/15 = 53,3 %.**
 
 ## 5. Décisions restantes
 
@@ -47,7 +50,7 @@ Shell/RBAC/Truth Gates : **GARDER**. Doctrine de sauvegarde inter-onglets : **À
 
 ### R5 — QR documentaire
 
-**GARDER / RENDRE EXPLICITE ET TESTABLE**. PR d’audit #187 ouverte ; aucune refonte avant preuve des destinations réelles.
+**GARDER / RENDRE EXPLICITE ET TESTABLE**. PR d’audit #187 préparée ; aucune refonte avant preuve des destinations réelles.
 
 ### R7 — Horaires & Agenda
 
@@ -62,8 +65,8 @@ Preuves : `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` + `docs/setting
 Décision finale :
 - Mode Performance : **GARDER** ; downstream réel ;
 - Arrière-plan animé : **DÉPLACER vers Design & Ambiance** ;
-- Conseils cliniques contextuels : **GARDER** ; consommateurs `Sidebar` + `Step1Cephalo` ;
-- Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ; backend = 60 % assiduité RDV + 40 % encaissé/facturé, neutre 50 sans données, override praticien possible ;
+- Conseils cliniques contextuels : **GARDER** ;
+- Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ;
 - aucune nouvelle IA/LLM ; aucun champ persistant supprimé.
 
 HEAD produit certifié : `bfabc0cb4809b7cca2a0a9b4bee4cc93b669d482`.
@@ -73,47 +76,82 @@ Closeout : `docs/settings/R8_PERFORMANCE_ASSISTANCE_CLOSEOUT.md`.
 
 ### R9 — Sécurité & Backup
 
-**LOT ACTIF SUIVANT — R9-A Journal d’Audit humanisé — PR #185**.
+**R9-A CLOSED — CERTIFIÉ — MERGED**.
 
-Zone forte : **GARDER** backup chiffré, appairage local, révocation, audit log. La collecte backend reste hors scope R9-A. Cible immédiate : rendre actions, ressources, sévérités, utilisateur et détails immédiatement compréhensibles sans inventer de données.
+Décision : **GARDER** backup chiffré, appairage local, révocation et audit log. Journal humanisé sans modifier la collecte backend : actions/sévérités/ressources lisibles, `Utilisateur #id` sans identité inventée, fallback brut pour valeurs inconnues, détails/IP explicites, responsive corrigé.
 
-Vérité déjà auditée : endpoint tenant-isolé ; filtres action/resource_type/severity ; API retourne `user_id` mais aucun nom utilisateur, donc UI honnête = `Utilisateur #id`.
-
-PR #185 est préparatoire seulement et doit être reconstruite sur master post-R8 avant implémentation. Sa baseline BEFORE historique a été annulée pendant `playwright install --with-deps chromium`; stratégie retenue : installation Chromium simple, puis une baseline unique.
+HEAD produit certifié : `f20cfe39eeddf28152c1cc106c17eb6727edf11b`.
+Merge : `bda7f99aa95e9341f5154293618c35949bcae331`.
+Score : **9,6/10**.
+Closeout : `docs/settings/R9A_AUDIT_LOG_HUMANIZED_CLOSEOUT.md`.
 
 ### R10 — Mon Équipe
 
-**GARDER** comptes/activation/approbation/permissions fines/Truth Gate. Corriger la vérité mot de passe UI vers 8..128 ; PR #184 ouverte. Quotas/upsell uniquement si règle licence réelle.
+**R10-A CLOSED — CERTIFIÉ — MERGED**.
+
+Décision : **GARDER** comptes/activation/approbation/permissions fines/Truth Gate. Contrat mot de passe frontend aligné exactement sur le backend `8..128`; overflow mobile réel de la carte membre corrigé sans toucher auth/hash/quota/RBAC/approbation.
+
+HEAD produit certifié : `d174abee1ab01804ba4c4b5cadb18d3a82eb9b1c`.
+Merge : `5e8307d4d20ee6ed0df18ee7d06fe2cdb24bc24a`.
+AFTER : `32311979010` ; CI `32311979067` ; T2 `32311978966` ; Read Truth `32311978959` — **SUCCESS**.
+Score : **9,4/10**.
+Closeout : `docs/settings/R10A_TEAM_PASSWORD_TRUTH_CLOSEOUT.md`.
 
 ### R11 — TemplateBuilder legacy
 
-Ne pas refondre isolément. Prouver les dépendances, extraire les idées utiles, puis supprimer/quarantainer lorsque Document Studio couvre le besoin. Audit PR #186 ouverte.
+**LOT ACTIF — RECONSTRUCTION D’AUDIT SUR MASTER POST-R10**.
+
+L’ancienne PR #186 a été **fermée sans merge** car son hypothèse de départ était devenue fausse : `frontend/src/features/admin/TemplateBuilder.tsx` existe réellement sur master.
+
+Faits actuels déjà vérifiés :
+- `TemplateBuilder.tsx` existe mais n’est pas routé dans `App.tsx` ;
+- il appelle `templateApi.getById/update/preview/setDefault` ;
+- le router `/api/templates` actuel expose list/get/create/set-default/delete mais pas update/preview ;
+- `DocumentTemplate` + table `document_templates` persistent réellement `body_html` et `design_config` ;
+- le seed recrée 6 styles ordonnance + 1 certificat au démarrage ;
+- `DocumentFactory` instancie encore `TemplateEngine` et possède `_get_default_template()`, mais ses méthodes publiques inspectées délèguent directement aux générateurs ReportLab ;
+- `OrdonnanceGenerator` lit la configuration active depuis `CabinetConfig`, pas `DocumentTemplate.design_config` ;
+- le backend `DesignConfig` et le `CabinetConfig` actif constituent deux architectures documentaires parallèles.
+
+Pré-verdict : **TemplateBuilder / TemplateEngine = legacy candidat à quarantaine/suppression**, mais **ne pas supprimer les données ni le modèle `DocumentTemplate` avant preuve repo-wide d’absence de dépendances**.
 
 ## 6. Roadmap active
 
-P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ; Branding ✅.
+P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ✅ ; Branding ✅.
 
-P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; **Audit Log humanisé ACTIF** ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
+P2 : Agenda réel ✅ ; Catalogue avancé ; Performance & Assistance ✅ ; Audit Log humanisé ✅ ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
 
-P3 : TemplateBuilder legacy ; suppression de toggles/features uniquement après preuve downstream.
+P3 : **TemplateBuilder legacy ACTIF** ; suppression de toggles/features uniquement après preuve downstream.
 
 ## 7. HANDOVER COURANT
 
 - Chantier : **Réglages — Product Review & Simplification**
-- Lot actif : **R9-A — Journal d’Audit humanisé**
+- Lot actif : **R11 — TemplateBuilder legacy**
 - Repo : `hraaaaf/Digital_crown`
 - Base : `master`
-- Dernier merge R8 : `1ac1dd54a9f29c29c06107cd2a1395e8bf6639ce`
-- R8 : CLOSED — score **9,5/10**
-- PR suivante : `#185`
-- Branche R9-A : `settings-r9-audit-log-humanized`
-- HEAD R9-A préparatoire : `6397ccc680070ee73a9b29f234c206881328cdb0`
-- Scope R9-A actuel : Goal + workflow BEFORE uniquement, zéro code produit
-- Next exact : **reconstruire R9-A sur master post-R8 → corriger baseline Chromium → BEFORE 5 viewports → implémentation unique → AFTER/tests/score**
-- Avancement vérifié : **6/15 = 40,0 %**
+- Dernier merge : R10-A `5e8307d4d20ee6ed0df18ee7d06fe2cdb24bc24a`
+- R10-A : CLOSED — score **9,4/10**
+- Ancienne PR R11 : #186 **CLOSED — NON MERGÉE — SUPERSEDED**
+- Next exact : **repo-wide reachability TemplateBuilder / TemplateEngine / DocumentTemplate → classifier dépendances actives vs legacy → nouveau Goal R11 propre → décision quarantaine/suppression minimale**
+- Avancement vérifié : **8/15 = 53,3 %**
 - Vercel : **aucun déploiement**
 
 ## 8. Journal
+
+### 2026-08-20 — R10-A CLOSED
+
+- PR #188 squash-mergée ; merge `5e8307d4...` ;
+- contrat frontend mot de passe aligné sur backend 8..128 ;
+- overflow mobile diagnostiqué jusqu’au groupe d’actions invisible en layout puis corrigé ;
+- AFTER exact-head 5/5 sans overflow, erreurs runtime 0/5 ;
+- CI #1455, T2 #697, Read Truth #16, RBAC #128, Profile R2 #28 et IA #22 verts ;
+- score **9,4/10** ; aucun Vercel.
+
+### 2026-08-19 — R9-A CLOSED
+
+- PR #185 mergée ; merge `bda7f99...` ;
+- Journal d’Audit humanisé sans perte d’information ni identité inventée ;
+- 5 viewports exact-head propres ; score **9,6/10** ; aucun Vercel.
 
 ### 2026-08-19 — R8 CLOSED
 
@@ -121,10 +159,7 @@ P3 : TemplateBuilder legacy ; suppression de toggles/features uniquement après 
 - `IA & Système` remplacé par `Performance & Assistance` ;
 - arrière-plan animé déplacé vers Design & Ambiance ;
 - conseils cliniques et indicateurs patients conservés sur preuve downstream ;
-- score patient expliqué factuellement 60/40 ;
-- AFTER exact-head inspecté sur 1440/1024/768/430/390 ; score **9,5/10** ;
-- IA Visual #18, Branding #65, RBAC #124, Profile R2 #24, Read Truth #12 et T2 #644 verts sur le HEAD produit ; CI #1396 verte sur parent produit-identique ;
-- aucun Vercel.
+- score **9,5/10** ; aucun Vercel.
 
 ### 2026-08-19 — R7 CLOSED
 
