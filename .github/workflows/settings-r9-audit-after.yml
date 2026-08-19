@@ -1,0 +1,74 @@
+name: Settings R9 Audit Log Visual Certification
+
+on:
+  pull_request:
+    paths:
+      - "frontend/src/features/admin/Security/AuditLogViewer.tsx"
+      - ".github/workflows/settings-r9-audit-after.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  after:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install chromium
+      - name: Inject audit AFTER harness
+        working-directory: frontend
+        run: |
+          cat > settings-r9-after.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>R9 AFTER</title></head><body><div id="root"></div><script type="module" src="/src/settings-r9-after.tsx"></script></body></html>
+          EOF
+          cat > src/settings-r9-after.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import Settings from './pages/Settings';
+          import { useAuthStore } from './stores/useAuthStore';
+          useAuthStore.setState({user:{id:1,email:'owner@r9.local',role:'ADMIN',is_superadmin:false,permissions:{}} as any,isAuthenticated:true,isLoading:false,error:null});
+          createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/settings']}><Settings /></MemoryRouter>);
+          EOF
+          cat > settings-r9-after.mjs <<'EOF'
+          import { chromium } from 'playwright'; import { createServer } from 'vite'; import fs from 'node:fs/promises';
+          const output='settings-r9-after'; await fs.mkdir(output,{recursive:true});
+          const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)});
+          const profile={nom_praticien:'Dr Security',nom_cabinet:'Cabinet Security',header_lines_fr:['Dr Security'],specialty_ids:[],contacts_json:{}};
+          const logs={total:5,logs:[
+            {id:1,timestamp:'2026-08-19T07:30:00Z',user_id:1,employer_id:1,action:'LOGIN_SUCCESS',resource_type:'User',resource_id:'1',severity:'INFO',ip_address:'127.0.0.1',details:'Authentification réussie.'},
+            {id:2,timestamp:'2026-08-19T07:25:00Z',user_id:2,employer_id:1,action:'ACCESS_DENIED',resource_type:'Patient',resource_id:'742',severity:'WARNING',ip_address:'127.0.0.1',details:'Permission patients refusée.'},
+            {id:3,timestamp:'2026-08-19T07:20:00Z',user_id:1,employer_id:1,action:'EXPORT_DB',resource_type:'DatabaseBackup',resource_id:'',severity:'CRITICAL',ip_address:'127.0.0.1',details:'Sauvegarde chiffrée vérifiée téléchargée.'},
+            {id:4,timestamp:'2026-08-19T07:15:00Z',user_id:1,employer_id:1,action:'MOBILE_ACCESS_REVOKED',resource_type:'ZKAMasterKey',resource_id:'',severity:'CRITICAL',ip_address:'127.0.0.1',details:'Sessions mobiles révoquées et clé renouvelée.'},
+            {id:5,timestamp:'2026-08-19T07:10:00Z',user_id:3,employer_id:1,action:'FUTURE_UNKNOWN_ACTION',resource_type:'FutureResource',resource_id:'99',severity:'NOTICE',ip_address:'127.0.0.1',details:'Valeur inconnue conservée sans traduction inventée.'}
+          ]};
+          const server=await createServer({server:{host:'127.0.0.1',port:4187,strictPort:true},clearScreen:false});await server.listen();const browser=await chromium.launch();
+          try{for(const width of [1440,1024,768,430,390]){const context=await browser.newContext({viewport:{width,height:1200}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});await page.route('**/api/**',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/clinics/me'))return route.fulfill(json(profile));if(url.pathname==='/api/admin/audit-logs'||url.pathname.startsWith('/api/admin/audit-logs?'))return route.fulfill(json(logs));return route.fulfill(json({}));});await page.goto('http://127.0.0.1:4187/settings-r9-after.html',{waitUntil:'networkidle'});await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({state:'visible',timeout:15000});await page.getByRole('button',{name:'Sécurité & Backup',exact:true}).click();await page.getByRole('heading',{name:"Journal d'Audit",exact:true}).waitFor({state:'visible'});await page.getByText('Connexion réussie',{exact:true}).first().waitFor({state:'visible'});await page.getByText('Utilisateur #1',{exact:true}).first().waitFor({state:'visible'});await page.getByText('FUTURE_UNKNOWN_ACTION',{exact:true}).first().waitFor({state:'visible'});const details=page.getByRole('button',{name:/Voir les détails/i}).first();await details.click();await page.getByText('Authentification réussie.',{exact:true}).waitFor({state:'visible'});const layout=await page.evaluate(()=>({clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth}));if(layout.scrollWidth>layout.clientWidth)throw new Error(`Horizontal overflow: ${layout.scrollWidth}>${layout.clientWidth}`);if(errors.length)throw new Error(errors.join('\n'));await page.screenshot({path:`${output}/security-audit-${width}x1200.png`,fullPage:true,animations:'disabled'});await fs.writeFile(`${output}/security-audit-${width}.layout.json`,JSON.stringify(layout,null,2));await fs.writeFile(`${output}/security-audit-${width}.errors.txt`,errors.join('\n'));await context.close();}}finally{await browser.close();await server.close();}
+          EOF
+      - name: Capture AFTER
+        working-directory: frontend
+        run: node settings-r9-after.mjs
+      - name: Verify AFTER
+        working-directory: frontend
+        run: |
+          test "$(find settings-r9-after -name '*.png' | wc -l)" -eq 5
+          if grep -R -n -E 'pageerror:|console:' settings-r9-after/*.errors.txt; then exit 1; fi
+          node -e "const fs=require('fs'); for (const f of fs.readdirSync('settings-r9-after').filter(x=>x.endsWith('.layout.json'))) { const x=JSON.parse(fs.readFileSync('settings-r9-after/'+f)); if(x.scrollWidth>x.clientWidth) process.exit(1); }"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-r9-audit-after
+          path: frontend/settings-r9-after/
+          if-no-files-found: error
+          retention-days: 14
