@@ -125,10 +125,10 @@ Transformer la Page Patient en workspace clinique simple, traçable, sûr et coh
 **Goal :** réduire la densité et faire apparaître immédiatement la prochaine action utile.
 
 Avant toute implémentation UI :
-- [ ] captures baseline des viewports concernés ;
-- [ ] Goal visuel écrit ;
-- [ ] mockup/wireframe basé sur l'application existante ;
-- [ ] comparaison avant/mockup/après.
+- [x] captures baseline des viewports concernés ;
+- [x] Goal visuel écrit ;
+- [x] mockup/wireframe basé sur l'application existante ;
+- [x] comparaison avant/mockup/après.
 
 Architecture cible :
 1. Vue d’ensemble
@@ -138,12 +138,26 @@ Architecture cible :
 5. Finances
 
 Actions :
-- [ ] Header compact : identité, âge/date naissance, dossier, assurance, alertes critiques.
-- [ ] Actions rapides : RDV, séance/examen, document, encaissement.
-- [ ] Fusionner Archives dans Documents.
-- [ ] Renommer `Documents A5` en `Documents`.
-- [ ] Renommer `Radiologie (IA)` en `Imagerie`.
-- [ ] Éviter les labels techniques internes dans la navigation utilisateur.
+- [x] Header compact : identité, âge/date naissance, dossier, assurance, alertes critiques.
+- [x] Actions rapides : RDV, séance/examen, document, encaissement.
+- [x] Fusionner Archives dans Documents.
+- [x] Renommer `Documents A5` en `Documents`.
+- [x] Renommer `Radiologie (IA)` en `Imagerie`.
+- [x] Éviter les labels techniques internes dans la navigation utilisateur.
+
+**Statut : CERTIFIED.**
+
+### Preuves P1
+
+- Goal + wireframe : `docs/PATIENT_P1_ARCHITECTURE_GOAL.md`.
+- Certificat : `docs/PATIENT_P1_ARCHITECTURE_CERT.json`.
+- Product HEAD certifié : `67e979b3df2058bf7079f36c84abd67a3f0e2e0c`.
+- Visual AFTER : run `32201889501` (#6) SUCCESS, artifact `9347877116`, digest `sha256:0e1c42bc50b64c12b9f13da25483dbbe52cc963cdcfed62dd9afd064c5b3b8e4`.
+- 4 captures : 390x844, 430x932, 768x1024, 1280x900 ; zéro overflow horizontal global, zéro runtime error, zéro HTTP 5xx.
+- CI : run `32201889504` (#1141) SUCCESS.
+- T2 Runtime Browser Certification : run `32201889557` (#396) SUCCESS.
+- Score visuel de scope P1 : **9,7/10**.
+- Le commit documentaire de closeout postérieur au product HEAD doit lui-même repasser CI/T2 exact-HEAD avant déclaration CLOSED.
 
 ---
 
