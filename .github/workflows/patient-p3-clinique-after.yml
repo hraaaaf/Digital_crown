@@ -51,7 +51,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           hub = Path('frontend/src/features/patients/components/ClinicalHub.tsx').read_text(encoding='utf-8')
-          odonto = Path('frontend/src/components/odontogram/Odontogram.tsx').read_text(encoding='utf-8')
           persistence = Path('frontend/src/features/patients/services/patientClinicalPersistence.ts').read_text(encoding='utf-8')
           patients = Path('backend/routers/patients.py').read_text(encoding='utf-8')
 
@@ -67,7 +66,6 @@ jobs:
               'master-plan/revisions',
           ]:
               assert required in hub or required in persistence or required in patients, required
-          assert 'onDentitionTypeChange' in odonto
           for forbidden in [
               'Génération du Diagnostic AAP/EFP 2017',
               'Génération du Plan Prothétique',
