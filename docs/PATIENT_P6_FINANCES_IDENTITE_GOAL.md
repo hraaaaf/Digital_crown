@@ -17,100 +17,7 @@ Rendre la création, l’édition et la lecture financière d’un patient plus 
 11. Zéro overflow horizontal, erreur runtime ou HTTP 5xx sur 390x844, 430x932, 768x1024 et 1280x900.
 
 ## Audit initial
-
-### Contrat backend identité
-`backend/schemas/patient.py` impose à `PatientCreate` :
-- `nom` ;
-- `prenom` ;
-- `date_naissance` ;
-- `sexe`, normalisé uniquement à partir d’une valeur explicite M/F.
-
-`numero_dossier`, téléphone(s), email, adresse, assurance, antécédents, motif et statut ortho sont optionnels. Le backend génère un numéro de dossier lorsqu’il est absent.
-
-### AddPatientForm
-Constats :
-- `sexe` est initialisé à `F` avant interaction ;
-- `assurance` est initialisée à `AUCUNE` ;
-- le check numéro de dossier, en cas d’erreur réseau, force `status: available` ;
-- `checkDuplicate()`, en cas d’erreur réseau, retourne `false` et poursuit donc la création ;
-- le backend refait heureusement le contrôle doublon au POST, mais l’UI reste fail-open avant soumission ;
-- téléphone/email/adresse sont correctement traités comme optionnels par la validation Add ;
-- la page demande beaucoup d’enrichissement dès la première création alors que le backend ne l’exige pas.
-
-### EditPatientForm
-Constats :
-- état initial `sexe: F`, puis `patient.sexe || F` ;
-- même check de dossier fail-open (`catch => available`) ;
-- en échec du GET Patient, l’erreur est seulement loggée puis `loading=false`, ce qui peut laisser un formulaire construit à partir de valeurs initiales ;
-- téléphone principal est marqué `required` alors qu’il est optionnel dans le contrat backend et dans Add ;
-- Add/Edit dupliquent structure, validation, assurance et téléphone avec des règles divergentes.
-
-### Header Patient
-P1 a déjà rendu le header compact. Identité, date/âge, dossier, assurance et alerte médicale sont visibles. P6 ne le redesign pas : il corrige seulement les ambiguïtés issues du formulaire et les permissions des actions financières.
-
-### PatientFinances
-`PatientFinances.tsx` :
-- récupère `/patients/{id}/financial-snapshot` puis `/accounting/actes-billing/patient/{id}` ;
-- ne gère pas explicitement `isError` sur le snapshot ;
-- calcule le taux de recouvrement côté frontend ;
-- affiche 4 KPI actuels : Facturé / Encaissé / Reste dû / Taux Recouvrement ;
-- propose paiements par acte, échéancier et encaissement rapide.
-
-Le snapshot backend calcule actuellement `total_billed` uniquement depuis `Acte` et `total_collected` depuis `Payment`, puis `remaining_due=max(facturé-encaissé,0)`. Contrairement au Journey P2, il n’expose pas `has_billing_data`. Un patient avec paiements mais sans lignes Acte peut donc visuellement ressembler à un dossier `0 facturé / 0 dû / aucun impayé`, alors que la base facturée est absente.
-
-### Permissions financières
-- `/patients/{id}/financial-snapshot` exige actuellement seulement `patients` ;
-- `/accounting/actes-billing/patient/{id}` exige `accounting` ;
-- `POST /accounting/payments` exige `accounting` ou `payments` ;
-- la Page Patient affiche pourtant systématiquement l’onglet `Finances` et l’action rapide `Encaisser`.
-
-Cette asymétrie doit être supprimée. L’UI ne doit pas inviter à une action interdite et le snapshot financier doit suivre une permission financière cohérente.
-
-### Paiement canonique déjà correct à préserver
-`QuickPayModal` exige :
-- montant > 0 ;
-- méthode explicite parmi ESPECES/CARTE/VIREMENT/CHEQUE ;
-- appel `paymentApi.recordPayment()` vers `/accounting/payments`.
-
-Le backend vérifie déjà qu’un `acte_id` / `installment_id` appartient au même patient et refuse un paiement ciblant les deux simultanément. P6 préserve cette frontière.
-
-## Découpage P6
-
-### P6-A — Contrat identité unique
-- extraire un contrat/form model partagé Add/Edit sans créer une abstraction plus large que nécessaire ;
-- aucun défaut de sexe ;
-- aligner required/optional sur le backend ;
-- état erreur de chargement Edit + Réessayer ;
-- garder création rapide sur 4 champs obligatoires, enrichissement secondaire repliable.
-
-### P6-B — Anti-doublon et dossier fail-closed
-- état `unknown/error` distinct de `available` ;
-- si précheck doublon échoue, ne pas interpréter cela comme « pas de doublon » ;
-- permettre la soumission seulement via le backend canonique en affichant clairement que le précheck est indisponible, ou exiger un retry selon le flux retenu ;
-- conserver le 409 backend comme autorité finale ;
-- tests tenant/duplicate existants conservés.
-
-### P6-C — Vérité financière
-- exposer `has_billing_data` (ou équivalent explicite) dans le snapshot Patient ;
-- `Facturé / Encaissé / Reste dû / Prochaine échéance` ;
-- absence de base facturée => état indéterminé, jamais faux zéro ;
-- supprimer/relocaliser le taux de recouvrement de la fiche Patient ;
-- erreur snapshot => état erreur + Réessayer.
-
-### P6-D — RBAC et cohérence encaissement
-- aligner onglet Finances + action Encaisser sur `accounting/payments` ;
-- aligner permission du snapshot avec la surface financière ;
-- conserver `Payment` comme seule écriture d’encaissement ;
-- tester QuickPay, paiement acte, échéance, patient A→B et sous-compte sans permission.
-
-### P6-E — Certification
-- BEFORE Add + Edit + Finances sur les 4 viewports ;
-- tests frontend ciblés ;
-- tests backend vérité financière/duplicate/RBAC ;
-- AFTER mêmes 12 vues ;
-- comparaison BEFORE / wireframe / AFTER ;
-- CI + T2 exact-HEAD ;
-- certificat P6 puis roadmap.
+L’audit a établi que `PatientCreate` n’exige réellement que nom, prénom, date de naissance et sexe explicite. Add/Edit divergeaient, préremplissaient `F`, transformaient certains échecs réseau en faux états positifs, et Edit pouvait afficher un formulaire à partir de valeurs initiales après échec GET. Côté finances, le snapshot ne distinguait pas absence de base facturée et zéro réel ; la fiche exposait un taux de recouvrement et des surfaces Finances/Encaisser sans RBAC cohérent.
 
 ## Wireframe cible
 
@@ -144,16 +51,41 @@ Facturé : Indéterminé | Reste dû : Indéterminé
 Encaissé reste affichable si des Payments existent réellement.
 ```
 
-## Preuve requise
-- baseline BEFORE 12 captures (Add/Edit/Finances × 4 viewports) ;
-- tests d’erreurs réseau Add/Edit/Finances ;
-- anti-doublon fail-closed ;
-- test sexe non prérempli ;
-- RBAC finance ;
-- cohérence totals/payment/installment ;
-- AFTER 12 captures mêmes viewports ;
-- CI/T2 exact-HEAD ;
-- score visuel argumenté.
+## Implémentation actuelle — à certifier
+
+### P6-A/B — Identité partagée et fail-closed
+- `PatientIdentityContract.ts` centralise initialisation, mapping API, validation et payload Add/Edit.
+- sexe initial vide et option `Choisir…`; aucune substitution `F`.
+- téléphone cohérent et optionnel.
+- erreur check-dossier => `Disponibilité non vérifiée`.
+- erreur précheck doublon => création interrompue ; 409 backend reste l’autorité finale.
+- erreur GET Edit => état erreur + Réessayer, aucun formulaire fantôme.
+
+### P6-C — Vérité financière
+- `patient_financial_p6.py` remplace explicitement l’ancien snapshot sous la même URL publique.
+- `has_billing_data` signifie au moins une ligne `Acte` ; `remaining_due=null` si aucune base facturée n’existe.
+- paiements restent factuels même sans base Acte.
+- prochaine échéance réelle exposée via `next_installment`.
+- UI : Facturé / Encaissé / Reste dû / Prochaine échéance ; taux de recouvrement retiré.
+- base facturée absente => Facturé/Reste dû indéterminés et situation d’impayé indéterminée.
+- erreur snapshot => erreur + Réessayer.
+
+### P6-D — RBAC / encaissement
+- snapshot : permission `accounting OR payments` + isolation patient.
+- Page Patient masque Finances + Encaisser + QuickPay sans permission adéquate et redirige `?tab=finances` vers Vue d’ensemble.
+- QuickPay et paiements ciblés continuent d’utiliser `/accounting/payments`, avec méthode explicite.
+
+## Preuves préparées
+- backend : absence de base vs zéro réel, prochaine échéance, RBAC accounting/payments.
+- frontend : identité partagée, fail-closed, finance visible/RBAC, KPI factuels, paiement canonique.
+- AFTER : Add/Edit/Finances × 390/430/768/1280 = 12 captures.
+
+## Reste avant CLOSED
+1. resynchroniser P6 sur P5 final ;
+2. CI + T2 + AFTER exact-HEAD ;
+3. inspecter les 12 captures et scorer ;
+4. certificat + roadmap ;
+5. recertification closeout exact-HEAD.
 
 ## Règles
 - pas de nouvelle donnée obligatoire non imposée par le backend ;
