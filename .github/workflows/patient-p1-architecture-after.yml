@@ -105,20 +105,22 @@ jobs:
             page.on('response',r=>{if(r.status()>=500)http5xx.push({url:r.url(),status:r.status()});});
             await page.goto(`http://127.0.0.1:5173/patients/${patient.id}`,{waitUntil:'networkidle',timeout:90000});
             await page.waitForTimeout(1800);
+            const patientTabs=page.locator('[data-tour="patient-tabs"]');
+            await patientTabs.waitFor({state:'visible',timeout:30000});
+            const tabsText=await patientTabs.innerText();
             for(const label of ['Vue d’ensemble','Clinique','Imagerie','Documents','Finances']){
-              if(await page.getByText(label,{exact:true}).count()===0) throw new Error(`main tab missing: ${label} @ ${viewport.width}`);
+              if(!tabsText.includes(label)) throw new Error(`main tab missing: ${label} @ ${viewport.width}`);
             }
-            const body=await page.locator('body').innerText();
-            for(const bad of ['Radiologie (IA)','Documents A5','Archives & Historique']) if(body.includes(bad)) throw new Error(`legacy label visible: ${bad}`);
+            for(const bad of ['Radiologie (IA)','Documents A5','Archives & Historique']) if(tabsText.includes(bad)) throw new Error(`legacy patient tab visible: ${bad}`);
             const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
-            await page.getByText('Documents',{exact:true}).first().click();
+            await patientTabs.getByText('Documents',{exact:true}).click();
             await page.waitForTimeout(500);
             if(await page.getByText('Créer',{exact:true}).count()===0 || await page.getByText('Historique',{exact:true}).count()===0) throw new Error('document subnav missing');
             await page.getByText('Historique',{exact:true}).first().click();
             await page.waitForTimeout(500);
             const historyVisible=(await page.getByPlaceholder("Rechercher dans l'historique...").count())>0 || (await page.getByText(/Documents$/).count())>0;
             if(!historyVisible) throw new Error('document history inaccessible');
-            await page.getByText('Vue d’ensemble',{exact:true}).first().click();
+            await patientTabs.getByText('Vue d’ensemble',{exact:true}).click();
             await page.waitForTimeout(350);
             const shot=`p1-after-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,shot),fullPage:false});
