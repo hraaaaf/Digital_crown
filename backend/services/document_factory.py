@@ -146,7 +146,7 @@ class DocumentFactory:
         return self.acc_gen.generate_devis(patient, data, document_number=devis_seq, db=db, user_id=user_id)
     
     def create_document_libre(self, patient, data, db: Session = None, user_id: int = None):
-        return self.lib_gen.generate(patient, data, db=db, user_id=user_id)
+        return self.libre_gen.generate(patient, data, db=db, user_id=user_id)
     
     def create_cephalo_report(self, patient, analysis, db: Session = None, user_id: int = None):
         try:
