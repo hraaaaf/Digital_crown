@@ -69,16 +69,15 @@ jobs:
               await page.goto('http://127.0.0.1:4183/agenda-r7-downstream.html', { waitUntil: 'networkidle' });
               await page.getByRole('heading', { name: 'Studio Agenda' }).waitFor({ state: 'visible', timeout: 15000 });
               await page.getByRole('button', { name: /Semaine/i }).waitFor({ state: 'visible' });
-              const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-              if (overflow) throw new Error(`Root overflow weekly at ${width}px`);
+              const weeklyMetrics = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
               await page.screenshot({ path: `${output}/agenda-week-${width}x1200.png`, fullPage: true, animations: 'disabled' });
 
               await page.getByRole('button', { name: /^Jour$/i }).click();
               await page.getByText('Aucun rendez-vous ce jour').waitFor({ state: 'visible', timeout: 10000 });
-              const dayOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-              if (dayOverflow) throw new Error(`Root overflow day at ${width}px`);
+              const dailyMetrics = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
               await page.screenshot({ path: `${output}/agenda-day-${width}x1200.png`, fullPage: true, animations: 'disabled' });
 
+              await fs.writeFile(`${output}/agenda-${width}.layout.json`, JSON.stringify({ width, weekly: weeklyMetrics, daily: dailyMetrics }, null, 2));
               await fs.writeFile(`${output}/agenda-${width}.errors.txt`, errors.join('\n'));
               await context.close();
             }
@@ -91,6 +90,7 @@ jobs:
         working-directory: frontend
         run: |
           test "$(find agenda-r7-downstream-before -name '*.png' | wc -l)" -eq 10
+          test "$(find agenda-r7-downstream-before -name '*.layout.json' | wc -l)" -eq 5
           if grep -R -n -E 'pageerror:|console:' agenda-r7-downstream-before/*.errors.txt; then exit 1; fi
       - name: Record metadata
         working-directory: frontend
@@ -101,6 +101,7 @@ jobs:
           states=weekly,daily
           fixture=legacy-09-13-14-18-use-tickets-true
           product_scope=AgendaStudio DailyView WeeklyView BEFORE only
+          note=baseline records overflow metrics; it does not fail on pre-existing overflow
           EOF
       - uses: actions/upload-artifact@v4
         with:
