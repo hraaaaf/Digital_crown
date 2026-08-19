@@ -7,12 +7,18 @@ on:
     paths:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/components/PatientRvgPanel.tsx'
+      - 'frontend/src/features/patients/PatientP4ImagingTruth.test.ts'
       - 'frontend/src/features/panoramic/**'
       - 'frontend/src/features/ortho/CephaloWorkspace.tsx'
-      - 'backend/models.py'
-      - 'backend/routers/ia.py'
+      - 'frontend/src/features/ortho/CephaloHistory.tsx'
+      - 'backend/__init__.py'
+      - 'backend/models_imaging_p4.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/routers/imaging_lifecycle_p4.py'
+      - 'backend/routers/patient_journey_p4.py'
+      - 'backend/services/cmo_agent_service.py'
       - 'backend/tests/test_patient_p4_imaging_trash.py'
-      - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_fields.py'
+      - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py'
       - '.github/workflows/patient-p4-imagerie-after.yml'
 
 permissions:
@@ -48,27 +54,34 @@ jobs:
           details = Path('frontend/src/features/patients/PatientDetailsInner.tsx').read_text(encoding='utf-8')
           ceph = Path('frontend/src/features/ortho/CephaloWorkspace.tsx').read_text(encoding='utf-8')
           pano = Path('frontend/src/features/panoramic/PanoramicStudio.tsx').read_text(encoding='utf-8')
-          ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
-          migration = Path('alembic/versions/f7a8b9c0d1e2_add_imaging_trash_fields.py')
+          lifecycle = Path('backend/routers/imaging_lifecycle_p4.py').read_text(encoding='utf-8')
+          router_init = Path('backend/routers/__init__.py').read_text(encoding='utf-8')
+          journey = Path('backend/routers/patient_journey_p4.py').read_text(encoding='utf-8')
+          cmo = Path('backend/services/cmo_agent_service.py').read_text(encoding='utf-8')
+          migration = Path('alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py')
 
-          for required in ["'rvg' | 'panoramic' | 'cephalo'", "handleRadioTabChange('rvg')", '<PatientRvgPanel patientId={Number(id)} />']:
+          for required in ["type RadioTab = 'rvg' | 'panoramic' | 'cephalo'", "handleRadioTabChange('rvg')", '<PatientRvgPanel patientId={Number(id)} />', 'legacyDentistEmployee', 'availableRadioTabs']:
               assert required in details, required
           for forbidden in ["age || 20", "sexe: data.sexe || 'M'", "setPatientData({ age: 20, sexe: 'M' })", 'generateTreatmentPlan(']:
               assert forbidden not in ceph, forbidden
-          for required in ['patientDataError', 'Réessayer', 'setPatientData({ age, sexe })']:
+          for required in ['patientDataError', 'Données Patient requises', 'setPatientData({ age, sexe })']:
               assert required in ceph, required
           for forbidden in ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Zéro-Hallucination']:
               assert forbidden not in pano, forbidden
-          for required in ['Studio Panoramique - {patientName}', 'Repérage dentaire automatique · validation praticien', 'Constatations cliniques']:
+          for required in ['Studio Panoramique - {patientName}', 'Repérage dentaire automatique · validation praticien', 'Moteur déterministe • validation praticien', 'Constatations cliniques']:
               assert required in pano, required
-          for required in ['panoramic-trash', 'cephalo-trash', '/panoramic/{analysis_id}/restore', '/cephalo/{analysis_id}/restore']:
-              assert required in ia, required
-          assert 'db.delete(analysis)' not in ia
-          assert 'os.remove(file_abs_path)' not in ia
+          for required in ['panoramic-trash', 'cephalo-trash', '/panoramic/{analysis_id}/restore', '/cephalo/{analysis_id}/restore', 'ImagingTrashRecord']:
+              assert required in lifecycle, required
+          assert '_HARD_DELETE_PATHS' in router_init
+          assert 'patient_journey_p4.router' in router_init
+          assert 'removed_keys' in journey
+          assert 'canonical_employer_id = patient.employer_id' in cmo
+          assert 'sans LLM' in cmo
           assert migration.exists()
           m = migration.read_text(encoding='utf-8')
           assert 'revision: str = "f7a8b9c0d1e2"' in m
           assert 'down_revision: Union[str, None] = "e6f7a8b9c0d1"' in m
+          assert '"imaging_trash_records"' in m
           PY
 
       - name: Install backend
@@ -88,6 +101,7 @@ jobs:
           npm ci
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+          npm test -- --run src/features/patients/PatientP4ImagingTruth.test.ts
           npm run build
 
       - name: Start backend
@@ -145,7 +159,8 @@ jobs:
             await page.screenshot({path:path.join(out,rvgShot),fullPage:false});
 
             await pano.click(); await page.waitForTimeout(900);
-            if(await page.getByText(/Studio Panoramique IA|Intelligence Clinique IA|Détection SOTA/).count()) throw new Error(`Legacy Pano IA label visible @ ${viewport.width}`);
+            if(await page.getByText(/Studio Panoramique IA|Intelligence Clinique IA|Détection SOTA|Zéro-Hallucination/).count()) throw new Error(`Legacy Pano AI label visible @ ${viewport.width}`);
+            await page.getByText('Repérage dentaire automatique · validation praticien',{exact:true}).waitFor({state:'visible',timeout:30000});
             const panoOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const panoShot=`p4-after-panoramic-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,panoShot),fullPage:false});
