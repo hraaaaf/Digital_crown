@@ -8,7 +8,6 @@ export interface DocumentDirtySnapshot {
   accounting: boolean;
   installment: boolean;
   libre: boolean;
-  plan: boolean;
 }
 
 export function shouldGuardDocumentTabTransition(
@@ -35,8 +34,6 @@ export function shouldGuardDocumentTabTransition(
       return dirty.installment;
     case 'libre':
       return dirty.libre;
-    case 'plan':
-      return dirty.plan;
     default:
       return false;
   }
