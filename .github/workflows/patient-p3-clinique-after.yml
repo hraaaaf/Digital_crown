@@ -18,6 +18,7 @@ on:
       - 'backend/tests/test_patient_p3_odontogram.py'
       - 'backend/tests/test_patient_p3_clinical_conclusions.py'
       - 'backend/tests/test_patient_p3_master_plan_revisions.py'
+      - '.github/workflows/patient-p3-clinique-after.yml'
 
 permissions:
   contents: read
@@ -62,7 +63,7 @@ jobs:
               'patientClinicalPersistence.getOdontogram',
               'patientClinicalPersistence.saveOdontogram',
               'clinical-conclusions',
-              'Conclusion clinique retenue',
+              'Conclusion retenue par le praticien',
               'master-plan/revisions',
           ]:
               assert required in hub or required in persistence or required in patients, required
@@ -153,7 +154,7 @@ jobs:
             await clinical.waitFor({state:'visible',timeout:30000});
             await clinical.click();
             await page.getByText('Espace Clinique',{exact:true}).waitFor({state:'visible',timeout:30000});
-            for(const required of ['Sécurité médicale','Dossier Clinique','Master Plan de Traitement']){
+            for(const required of ['Sécurité médicale','Dossier clinique','Master Plan']){
               if(await page.getByText(required,{exact:true}).count()===0) throw new Error(`P3 section missing: ${required}`);
             }
             if(await page.getByText(/Radar de Vigilance/i).count()) throw new Error('Legacy VigilanceRadar still visible');
