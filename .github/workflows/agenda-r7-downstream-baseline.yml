@@ -1,0 +1,110 @@
+name: Agenda R7 Downstream Visual Baseline
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/agenda-r7-downstream-baseline.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  agenda-downstream-before:
+    name: Agenda downstream BEFORE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Inject AgendaStudio baseline harness
+        working-directory: frontend
+        run: |
+          cat > agenda-r7-downstream.html <<'EOF'
+          <!doctype html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Agenda R7 downstream BEFORE</title></head><body><div id="root"></div><script type="module" src="/src/agenda-r7-downstream.tsx"></script></body></html>
+          EOF
+          cat > src/agenda-r7-downstream.tsx <<'EOF'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { MemoryRouter } from 'react-router-dom';
+          import './index.css';
+          import { AgendaStudio } from './features/agenda/AgendaStudio';
+          createRoot(document.getElementById('root')!).render(<React.StrictMode><MemoryRouter initialEntries={['/agenda']}><div className="min-h-screen bg-slate-50 p-3 sm:p-6"><AgendaStudio /></div></MemoryRouter></React.StrictMode>);
+          EOF
+          cat > agenda-r7-downstream.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { createServer } from 'vite';
+          import fs from 'node:fs/promises';
+          const output = 'agenda-r7-downstream-before';
+          await fs.mkdir(output, { recursive: true });
+          const settings = { id: 1, opening_time_morning: '09:00', closing_time_morning: '13:00', opening_time_afternoon: '14:00', closing_time_afternoon: '18:00', is_continuous: false, agenda_mode: 'EXACT', use_tickets: true };
+          const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+          const server = await createServer({ server: { host: '127.0.0.1', port: 4183, strictPort: true }, clearScreen: false });
+          await server.listen();
+          const browser = await chromium.launch();
+          try {
+            for (const width of [1440, 1024, 768, 430, 390]) {
+              const context = await browser.newContext({ viewport: { width, height: 1200 } });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+              page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+              await page.route('**/*', async route => {
+                const req = route.request(); const url = new URL(req.url());
+                if (url.port !== '8005' || !url.pathname.startsWith('/api/')) return route.continue();
+                if (url.pathname === '/api/upcoming-holidays' || url.pathname === '/api/agenda/upcoming-holidays') return route.fulfill(json([]));
+                if (url.pathname === '/api/agenda/settings') return route.fulfill(json(settings));
+                if (url.pathname === '/api/appointments/pending') return route.fulfill(json([]));
+                if (url.pathname.startsWith('/api/appointments')) return route.fulfill(json([]));
+                return route.fulfill(json([]));
+              });
+              await page.goto('http://127.0.0.1:4183/agenda-r7-downstream.html', { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { name: 'Studio Agenda' }).waitFor({ state: 'visible', timeout: 15000 });
+              await page.getByRole('button', { name: /Semaine/i }).waitFor({ state: 'visible' });
+              const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (overflow) throw new Error(`Root overflow weekly at ${width}px`);
+              await page.screenshot({ path: `${output}/agenda-week-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+              await page.getByRole('button', { name: /^Jour$/i }).click();
+              await page.getByText('Aucun rendez-vous ce jour').waitFor({ state: 'visible', timeout: 10000 });
+              const dayOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+              if (dayOverflow) throw new Error(`Root overflow day at ${width}px`);
+              await page.screenshot({ path: `${output}/agenda-day-${width}x1200.png`, fullPage: true, animations: 'disabled' });
+
+              await fs.writeFile(`${output}/agenda-${width}.errors.txt`, errors.join('\n'));
+              await context.close();
+            }
+          } finally { await browser.close(); await server.close(); }
+          EOF
+      - name: Capture BEFORE
+        working-directory: frontend
+        run: node agenda-r7-downstream.mjs
+      - name: Verify BEFORE
+        working-directory: frontend
+        run: |
+          test "$(find agenda-r7-downstream-before -name '*.png' | wc -l)" -eq 10
+          if grep -R -n -E 'pageerror:|console:' agenda-r7-downstream-before/*.errors.txt; then exit 1; fi
+      - name: Record metadata
+        working-directory: frontend
+        run: |
+          cat > agenda-r7-downstream-before/metadata.txt <<EOF
+          head_sha=${{ github.event.pull_request.head.sha }}
+          viewports=1440x1200,1024x1200,768x1200,430x1200,390x1200
+          states=weekly,daily
+          fixture=legacy-09-13-14-18-use-tickets-true
+          product_scope=AgendaStudio DailyView WeeklyView BEFORE only
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agenda-r7-downstream-before
+          path: frontend/agenda-r7-downstream-before/
+          if-no-files-found: error
+          retention-days: 14
