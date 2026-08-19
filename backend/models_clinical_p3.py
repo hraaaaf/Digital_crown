@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models import Base
@@ -40,3 +40,26 @@ class PatientOdontogram(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+
+
+class ClinicalConclusion(Base):
+    """Append-only practitioner-retained clinical conclusion.
+
+    Assistant output, when supplied, is stored only as provenance in ``proposal_text``.
+    It never becomes authoritative without the distinct practitioner-authored/
+    confirmed ``conclusion_text`` and ``validated_by`` identity.
+    """
+
+    __tablename__ = "clinical_conclusions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    patient_id: Mapped[int] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    conclusion_text: Mapped[str] = mapped_column(Text, nullable=False)
+    proposal_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    proposal_source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    validated_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
