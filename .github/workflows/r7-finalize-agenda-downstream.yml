@@ -97,7 +97,8 @@ jobs:
           weekly_path.write_text(weekly)
 
           test_path = Path('frontend/src/test/agendaR7Schedule.test.ts')
-          test_path.write_text("""import { describe, expect, it } from 'vitest';
+          test_path.write_text(textwrap.dedent("""\
+          import { describe, expect, it } from 'vitest';
           import fs from 'node:fs';
           import path from 'node:path';
           import { isTimeWithinSchedule, type DaySchedule } from '../features/agenda/agendaSchedule';
@@ -134,7 +135,7 @@ jobs:
               expect(weekly).toContain('isTimeWithinSchedule(timeString, getDaySchedule(date, agendaSettings))');
             });
           });
-          """.replace(/^          /gm, ''))
+          """))
           PY
 
           git diff --check
