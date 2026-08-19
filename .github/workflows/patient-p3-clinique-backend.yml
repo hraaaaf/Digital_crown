@@ -9,8 +9,11 @@ on:
       - 'backend/models_clinical_p3.py'
       - 'backend/routers/__init__.py'
       - 'backend/routers/patient_odontogram.py'
+      - 'backend/routers/patient_clinical_conclusions.py'
       - 'backend/schemas/odontogram.py'
+      - 'backend/schemas/clinical_conclusion.py'
       - 'backend/tests/test_patient_p3_odontogram.py'
+      - 'backend/tests/test_patient_p3_clinical_conclusions.py'
       - 'alembic/versions/d5e6f7a8b9c0_add_patient_odontograms.py'
       - '.github/workflows/patient-p3-clinique-backend.yml'
 
@@ -18,7 +21,7 @@ permissions:
   contents: read
 
 jobs:
-  p3a-backend:
+  p3-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -47,9 +50,11 @@ jobs:
           python - <<'PY'
           from backend import models
           assert 'patient_odontograms' in models.Base.metadata.tables
+          assert 'clinical_conclusions' in models.Base.metadata.tables
           from backend.main import app
           paths = {route.path for route in app.routes}
           assert '/api/patients/{patient_id}/odontogram' in paths
+          assert '/api/patients/{patient_id}/clinical-conclusions' in paths
           PY
 
       - name: Alembic single head and upgrade
@@ -58,5 +63,8 @@ jobs:
           rm -f p3-backend-test.db
           alembic upgrade head
 
-      - name: P3-A targeted tests
-        run: pytest -q backend/tests/test_patient_p3_odontogram.py
+      - name: P3 targeted clinical persistence tests
+        run: |
+          pytest -q \
+            backend/tests/test_patient_p3_odontogram.py \
+            backend/tests/test_patient_p3_clinical_conclusions.py
