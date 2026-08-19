@@ -55,6 +55,7 @@ export const StudioPreview: React.FC<StudioPreviewProps> = ({ profile, scope }) 
       for (const key in sanitizedPayload) {
         if (sanitizedPayload[key] === '') sanitizedPayload[key] = null;
       }
+      sanitizedPayload.settings_preview = true;
 
       const res = await api.post('/documents/sample-preview', sanitizedPayload);
       let pdfPath = res.data.pdf_url;
