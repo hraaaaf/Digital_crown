@@ -5,12 +5,15 @@ import { cn } from '../../utils/cn';
 import toast from 'react-hot-toast';
 import { AgendaModal } from './AgendaModal';
 import type { Appointment, AppointmentStatus } from './DailyView';
+import { formatScheduleSummary, getDaySchedule, getExceptionForDate, getWeekBounds, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 
 interface WeeklyViewProps {
   selectedDate: Date;
+  agendaSettings?: AgendaSettingsLike | null;
+  exceptions?: AgendaExceptionLike[] | null;
 }
 
-export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
+export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate, agendaSettings, exceptions }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,12 +36,8 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
     }
   };
 
-  // Configuration de la grille
-  const startHour = 8;
-  const endHour = 19;
-  const totalHours = endHour - startHour;
-
   const handleGridClick = (e: React.MouseEvent, date: Date) => {
+    if (!isDateOpen(date, agendaSettings, exceptions)) return;
     if ((e.target as HTMLElement).closest('.appointment-item')) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -49,6 +48,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
     const hours = startHour + Math.floor(slotIndex / 4);
     const minutes = (slotIndex % 4) * 15;
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (!isTimeWithinSchedule(timeString, getDaySchedule(date, agendaSettings))) return;
     
     setModalDate(date);
     setInitialTime(timeString);
@@ -70,6 +70,8 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
   };
 
   const weekDays = getWeekDays(selectedDate);
+  const { startHour, endHour } = getWeekBounds(weekDays, agendaSettings, exceptions);
+  const totalHours = endHour - startHour;
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -128,23 +130,78 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
         </button>
       </div>
 
-      <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div className="md:hidden space-y-3">
+        {weekDays.map((date) => {
+          const schedule = getDaySchedule(date, agendaSettings);
+          const exception = getExceptionForDate(date, exceptions);
+          const open = isDateOpen(date, agendaSettings, exceptions);
+          const dayAppointments = appointments
+            .filter((appt) => new Date(appt.datetime_start).toDateString() === date.toDateString())
+            .sort((a, b) => new Date(a.datetime_start).getTime() - new Date(b.datetime_start).getTime());
+          return (
+            <div key={date.toISOString()} className={cn("rounded-2xl border p-4 shadow-sm", open ? "bg-white border-slate-100" : "bg-slate-100/80 border-slate-200")}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{date.toLocaleDateString('fr-FR', { weekday: 'long' })}</p>
+                  <p className="font-black text-slate-800 mt-1">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</p>
+                  <p className="text-xs font-bold text-slate-500 mt-1">{exception ? exception.reason || 'Fermeture exceptionnelle' : formatScheduleSummary(schedule)}</p>
+                </div>
+                <span className={cn("text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full", open ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-600")}>{open ? 'Ouvert' : 'Fermé'}</span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {dayAppointments.length === 0 ? (
+                  <p className="text-sm font-medium text-slate-400 py-2">Aucun rendez-vous</p>
+                ) : dayAppointments.map((appt) => (
+                  <button
+                    key={appt.id}
+                    type="button"
+                    onClick={() => { setEditingAppointment(appt); setModalDate(date); setIsModalOpen(true); }}
+                    className={cn("w-full text-left rounded-xl border px-3 py-2", getStatusColor(appt.status))}
+                  >
+                    <span className="font-black text-sm">{appt.patient_name || 'Patient'}</span>
+                    <span className="block text-xs font-bold opacity-75 mt-0.5">
+                      {appt.scheduling_type && appt.scheduling_type !== 'EXACT_TIME'
+                        ? appt.scheduling_type === 'MORNING' ? 'Matin' : appt.scheduling_type === 'AFTERNOON' ? 'Après-midi' : 'Toute la journée'
+                        : new Date(appt.datetime_start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      {appt.motif ? ` · ${appt.motif}` : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {open && (
+                <button
+                  type="button"
+                  onClick={() => { setModalDate(date); setInitialTime(schedule.morning_start); setEditingAppointment(null); setIsModalOpen(true); }}
+                  className="mt-3 w-full rounded-xl border border-primary/20 bg-primary/5 text-primary font-black text-sm py-2.5"
+                >
+                  + Ajouter un rendez-vous
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="grid grid-cols-8 border-b border-slate-100 bg-slate-50/50">
           <div className="p-4 border-r border-slate-100"></div>
-          {weekDays.map((date, i) => (
-            <div key={i} className={cn(
-              "p-4 text-center border-r border-slate-100 last:border-0",
-              date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""
-            )}>
-              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
-              <span className={cn(
-                "inline-flex items-center justify-center w-8 h-8 mt-1 text-sm font-black rounded-lg",
-                date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-slate-700"
+          {weekDays.map((date, i) => {
+            const open = isDateOpen(date, agendaSettings, exceptions);
+            const exception = getExceptionForDate(date, exceptions);
+            return (
+              <div key={i} className={cn(
+                "p-3 text-center border-r border-slate-100 last:border-0 min-w-0",
+                !open ? "bg-slate-100/80" : date.toDateString() === new Date().toDateString() ? "bg-blue-50/50" : ""
               )}>
-                {date.getDate()}
-              </span>
-            </div>
-          ))}
+                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{date.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
+                <span className={cn(
+                  "inline-flex items-center justify-center w-8 h-8 mt-1 text-sm font-black rounded-lg",
+                  date.toDateString() === new Date().toDateString() ? "bg-[#003380] text-white" : "text-slate-700"
+                )}>{date.getDate()}</span>
+                {!open && <span className="block mt-1 text-[8px] font-black uppercase tracking-wider text-slate-500 truncate" title={exception?.reason || 'Fermé'}>{exception?.reason || 'Fermé'}</span>}
+              </div>
+            );
+          })}
         </div>
 
         {/* SECTION FLEXIBLE / ALL DAY */}
@@ -196,7 +253,7 @@ export const WeeklyView: React.FC<WeeklyViewProps> = ({ selectedDate }) => {
             {weekDays.map((date, dayIdx) => (
               <div 
                 key={dayIdx} 
-                className="relative border-r border-slate-100 last:border-0 grow cursor-crosshair hover:bg-slate-50/30 transition-colors"
+                className={cn("relative border-r border-slate-100 last:border-0 grow transition-colors", isDateOpen(date, agendaSettings, exceptions) ? "cursor-crosshair hover:bg-slate-50/30" : "cursor-not-allowed bg-slate-100/60")}
                 onClick={(e) => handleGridClick(e, date)}
               >
                 {Array.from({ length: totalHours }).map((_, i) => (

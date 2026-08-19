@@ -77,12 +77,105 @@ class BaseTemplate:
         self._register_fonts()
 
     def _register_fonts(self):
-        from backend.services.premium_document_headers import register_document_fonts
-        register_document_fonts(self)
+        # 1. Arabe (Amiri)
+        if os.path.exists(self.font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('ArabicFont', self.font_path))
+                self.arabic_font = 'ArabicFont'
+            except Exception:
+                self.arabic_font = 'Helvetica'
+        else:
+            self.arabic_font = 'Helvetica'
+
+        # 2. Latin Premium (Montserrat)
+        self.premium_font = "Helvetica" # Fallback
+        self.premium_bold = "Helvetica-Bold"
+        self.header_font = "Helvetica"
+        self.header_bold = "Helvetica-Bold"
+        
+        if os.path.exists(self.montserrat_reg) and os.path.exists(self.montserrat_bold):
+            try:
+                pdfmetrics.registerFont(TTFont('Montserrat', self.montserrat_reg))
+                pdfmetrics.registerFont(TTFont('Montserrat-Bold', self.montserrat_bold))
+                self.premium_font = 'Montserrat'
+                self.premium_bold = 'Montserrat-Bold'
+                
+                # Outfit (Elite Header Premium)
+                font_dir = os.path.dirname(self.montserrat_reg)
+                pdfmetrics.registerFont(TTFont('Outfit', os.path.join(font_dir, 'Outfit-Regular.ttf')))
+                pdfmetrics.registerFont(TTFont('Outfit-Bold', os.path.join(font_dir, 'Outfit-Bold.ttf')))
+                self.header_font = 'Outfit'
+                self.header_bold = 'Outfit-Bold'
+
+                # Inter Tight
+                inter_reg = os.path.join(font_dir, 'InterTight-Regular.ttf')
+                inter_bold = os.path.join(font_dir, 'InterTight-Bold.ttf')
+                if os.path.exists(inter_reg) and os.path.exists(inter_bold):
+                    pdfmetrics.registerFont(TTFont('InterTight', inter_reg))
+                    pdfmetrics.registerFont(TTFont('InterTight-Bold', inter_bold))
+                    
+                # Playfair Display
+                playfair_reg = os.path.join(font_dir, 'PlayfairDisplay-Regular.ttf')
+                playfair_bold = os.path.join(font_dir, 'PlayfairDisplay-Bold.ttf')
+                if os.path.exists(playfair_reg) and os.path.exists(playfair_bold):
+                    pdfmetrics.registerFont(TTFont('PlayfairDisplay', playfair_reg))
+                    pdfmetrics.registerFont(TTFont('PlayfairDisplay-Bold', playfair_bold))
+
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Erreur enregistrement Montserrat/Premium Fonts: {e}")
+                self.header_font = self.premium_font
+                self.header_bold = self.premium_bold
 
     def update_active_fonts(self, config):
-        from backend.services.premium_document_headers import update_document_fonts
-        update_document_fonts(self, config)
+        """
+        Met à jour dynamiquement les polices actives du template en fonction de la configuration de l'utilisateur.
+        """
+        font_fr = self._get_val(config, 'font_fr', 'inter')
+        
+        def safe_font(font_name, fallback="Helvetica"):
+            try:
+                pdfmetrics.getFont(font_name)
+                return font_name
+            except Exception:
+                return fallback
+        
+        # Mappings des polices pré-enregistrées
+        if font_fr == 'outfit':
+            self.premium_font = safe_font('Outfit')
+            self.premium_bold = safe_font('Outfit-Bold', 'Helvetica-Bold')
+            self.header_font = safe_font('Outfit')
+            self.header_bold = safe_font('Outfit-Bold', 'Helvetica-Bold')
+        elif font_fr == 'inter':
+            # Fallback à Helvetica ou Montserrat si InterTight n'est pas présent
+            try:
+                pdfmetrics.getFont('InterTight')
+                self.premium_font = 'InterTight'
+                self.premium_bold = 'InterTight-Bold'
+                self.header_font = 'InterTight'
+                self.header_bold = 'InterTight-Bold'
+            except Exception:
+                self.premium_font = safe_font('Montserrat')
+                self.premium_bold = safe_font('Montserrat-Bold', 'Helvetica-Bold')
+                self.header_font = safe_font('Outfit', 'Helvetica')
+                self.header_bold = safe_font('Outfit-Bold', 'Helvetica-Bold')
+        elif font_fr == 'playfair':
+            try:
+                pdfmetrics.getFont('PlayfairDisplay')
+                self.premium_font = 'PlayfairDisplay'
+                self.premium_bold = 'PlayfairDisplay-Bold'
+                self.header_font = 'PlayfairDisplay'
+                self.header_bold = 'PlayfairDisplay-Bold'
+            except Exception:
+                self.premium_font = safe_font('Montserrat')
+                self.premium_bold = safe_font('Montserrat-Bold', 'Helvetica-Bold')
+                self.header_font = safe_font('Outfit', 'Helvetica')
+                self.header_bold = safe_font('Outfit-Bold', 'Helvetica-Bold')
+        else:
+            self.premium_font = safe_font('Montserrat')
+            self.premium_bold = safe_font('Montserrat-Bold', 'Helvetica-Bold')
+            self.header_font = safe_font('Outfit', 'Helvetica')
+            self.header_bold = safe_font('Outfit-Bold', 'Helvetica-Bold')
 
     def _prepare_arabic(self, text):
         if not text: return ""
@@ -475,24 +568,292 @@ class BaseTemplate:
             self._draw_header_swiss(canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
 
     def _draw_header_swiss(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-        from backend.services.premium_document_headers import draw_swiss
-        return draw_swiss(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        # Swiss Clinic (Asymétrique)
+        from reportlab.lib.units import cm
+        
+        margin = 1.5*cm
+        y_top = p_height - 1.8*cm
+        
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        logo_size = 2.2*cm * hl_scale
+        
+        if logo_path:
+            self._draw_header_logo(canvas, config, logo_path, margin, y_top - logo_size + 0.3*cm, logo_size)
+            text_x = margin + logo_size + 0.8*cm
+        else:
+            text_x = margin
+            
+        column_w = (p_width - text_x - margin) / 2.0
+        global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'swiss')
+
+        # [C1] Pré-calcul des hauteurs pour centrage vertical
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
+        ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
+        max_h = max(fr_total_h, ar_total_h)
+        fr_offset = (max_h - fr_total_h) / 2.0
+        ar_offset = (max_h - ar_total_h) / 2.0
+
+        # French Text
+        curr_y_fr = y_top - fr_offset
+        for i, line in enumerate(fr_lines):
+            fs = fr_sizes[i]
+            curr_y_fr -= (fs * 1.2) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(self.header_bold if i == 0 else self.header_font, fs)
+            canvas.drawString(text_x, curr_y_fr, line)
+
+        # Arabic Text
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        curr_y_ar = y_top - ar_offset
+        for i, line in enumerate(ar_lines):
+            fs = ar_sizes[i]
+            curr_y_ar -= (fs * 1.3) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(font_ar, fs)
+            canvas.drawRightString(p_width - margin, curr_y_ar, self._prepare_arabic(line))
+
+        # [C3] Séparateur dynamique basé sur la position réelle du texte
+        lowest_y = min(curr_y_fr, curr_y_ar)
+        line_y = lowest_y - 0.4 * cm
+        canvas.saveState()
+        canvas.setStrokeColor(a_color)
+        canvas.setLineWidth(1)
+        canvas.line(margin, line_y, margin + 4.0*cm, line_y)
+        canvas.restoreState()
 
     def _draw_header_royal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-        from backend.services.premium_document_headers import draw_royal
-        return draw_royal(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        # Royal Elite (Le Symétrique Absolu)
+        from reportlab.lib.units import cm
+        
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        margin = 1.5 * cm
+        y_top = p_height - 1.5 * cm
+        logo_size = 2.4 * cm * hl_scale
+        
+        # [m3] Initialiser logo_y avant le if
+        logo_y = y_top
+        if logo_path:
+            logo_y = y_top - logo_size + 0.4 * cm
+            self._draw_header_logo(canvas, config, logo_path, (p_width - logo_size) / 2, logo_y, logo_size)
+            
+        column_w = (p_width - 2 * margin - logo_size - 1 * cm) / 2.0
+        global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'royal')
+
+        # [C1] Pré-calcul des hauteurs pour centrage vertical
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
+        ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
+        max_h = max(fr_total_h, ar_total_h)
+        fr_offset = (max_h - fr_total_h) / 2.0
+        ar_offset = (max_h - ar_total_h) / 2.0
+
+        # Français à gauche
+        curr_y_fr = y_top - fr_offset
+        for i, line in enumerate(fr_lines):
+            fs = fr_sizes[i]
+            curr_y_fr -= (fs * 1.2) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(self.header_bold if i == 0 else self.header_font, fs)
+            canvas.drawString(margin, curr_y_fr, line)
+
+        # Arabe à droite
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        curr_y_ar = y_top - ar_offset
+        for i, line in enumerate(ar_lines):
+            fs = ar_sizes[i]
+            curr_y_ar -= (fs * 1.3) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(font_ar, fs)
+            canvas.drawRightString(p_width - margin, curr_y_ar, self._prepare_arabic(line))
+
+        # Hairline
+        lowest_y = min(curr_y_fr, curr_y_ar, logo_y)
+        line_y = lowest_y - 0.6 * cm
+        canvas.saveState()
+        canvas.setStrokeColor(a_color)
+        canvas.setLineWidth(0.25)
+        canvas.line(margin, line_y, p_width - margin, line_y)
+        canvas.restoreState()
 
     def _draw_header_clinical(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-        from backend.services.premium_document_headers import draw_clinical
-        return draw_clinical(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        from reportlab.lib.units import cm
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        margin = 1.5 * cm
+        y_top = p_height - 1.5 * cm
+        logo_size = 2.4 * cm * hl_scale
+        center_x = p_width / 2.0
+
+        if logo_path:
+            logo_y = y_top - logo_size + 0.2 * cm
+            self._draw_header_logo(canvas, config, logo_path, margin, logo_y, logo_size)
+            y_start = logo_y - 0.4 * cm
+        else:
+            y_start = y_top
+            
+        column_w = (p_width / 2.0) - margin - 0.5 * cm
+        global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'clinical')
+        
+        # [C1] Centrage vertical
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
+        ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
+        max_h = max(fr_total_h, ar_total_h)
+        fr_offset = (max_h - fr_total_h) / 2.0
+        ar_offset = (max_h - ar_total_h) / 2.0
+
+        # French (Left)
+        curr_y_fr = y_start - fr_offset
+        for i, line in enumerate(fr_lines):
+            fs = fr_sizes[i]
+            curr_y_fr -= (fs * 1.2) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(self.header_bold if i == 0 else self.header_font, fs)
+            canvas.drawString(margin, curr_y_fr, line)
+
+        # Arabic (Right)
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        curr_y_ar = y_start - ar_offset
+        for i, line in enumerate(ar_lines):
+            fs = ar_sizes[i]
+            curr_y_ar -= (fs * 1.3) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(font_ar, fs)
+            canvas.drawRightString(p_width - margin, curr_y_ar, self._prepare_arabic(line))
+            
+        lowest_y = min(curr_y_fr, curr_y_ar)
+        line_y = lowest_y - 0.4 * cm
+        
+        canvas.saveState()
+        canvas.setStrokeColor(s_color)
+        canvas.setLineWidth(0.5)
+        # [M3] Ligne verticale commence à y_start (pas au-dessus du contenu)
+        canvas.line(center_x, y_start, center_x, line_y)
+        canvas.line(margin, line_y, p_width - margin, line_y)
+        canvas.restoreState()
 
     def _draw_header_modern(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-        from backend.services.premium_document_headers import draw_modern
-        return draw_modern(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        from reportlab.lib.units import cm
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        margin = 1.5 * cm
+        y_top = p_height - 1.5 * cm
+        logo_size = 2.4 * cm * hl_scale
+        
+        if logo_path:
+            logo_y = y_top - logo_size + 0.2 * cm
+            self._draw_header_logo(canvas, config, logo_path, margin, logo_y, logo_size)
+            y_start = logo_y - 0.4 * cm
+        else:
+            y_start = y_top
+            
+        column_w = (p_width / 2.0) - margin
+        global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'modern')
+        
+        # [C1] Centrage vertical
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
+        ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
+        max_h = max(fr_total_h, ar_total_h)
+        fr_offset = (max_h - fr_total_h) / 2.0
+        ar_offset = (max_h - ar_total_h) / 2.0
+
+        curr_y_fr = y_start - fr_offset
+        for i, line in enumerate(fr_lines):
+            fs = fr_sizes[i]
+            curr_y_fr -= (fs * 1.2) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(self.header_bold if i == 0 else self.header_font, fs)
+            canvas.drawString(margin, curr_y_fr, line)
+
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        curr_y_ar = y_start - ar_offset
+        for i, line in enumerate(ar_lines):
+            fs = ar_sizes[i]
+            curr_y_ar -= (fs * 1.3) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(font_ar, fs)
+            canvas.drawRightString(p_width - margin, curr_y_ar, self._prepare_arabic(line))
+            
+        # [C4] Utiliser min(fr, ar) pour que le trait soit sous les DEUX colonnes
+        lowest_y = min(curr_y_fr, curr_y_ar)
+        line_y = lowest_y - 0.4 * cm
+        canvas.saveState()
+        canvas.setStrokeColor(a_color)
+        canvas.setLineWidth(2.5)
+        canvas.line(margin, line_y, margin + 4 * cm, line_y)
+        canvas.restoreState()
 
     def _draw_header_heritage(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale):
-        from backend.services.premium_document_headers import draw_heritage
-        return draw_heritage(self, canvas, config, logo_path, p_color, s_color, a_color, p_width, p_height, fr_lines, ar_lines, h_scale)
+        from reportlab.lib.units import cm
+        hf_scale = self._get_val(config, 'header_font_scale', 1.0) * h_scale
+        hl_scale = self._get_val(config, 'header_logo_scale', 1.0) * h_scale
+        lh_scale = self._get_val(config, 'header_line_height', 1.0)
+
+        margin = 1.5 * cm
+        y_top = p_height - 1.5 * cm
+        column_w = (p_width / 2.0) - margin
+        global_ratio = self._get_global_header_ratio(fr_lines, ar_lines, column_w, hf_scale, 'heritage')
+        
+        logo_size = 2.4 * cm * hl_scale
+        y_start = y_top
+        if logo_path:
+            logo_y = y_top - logo_size
+            self._draw_header_logo(canvas, config, logo_path, (p_width - logo_size) / 2, logo_y, logo_size)
+            y_start = logo_y - 0.4 * cm
+
+        # [C1] Centrage vertical + [C2] Nom à 24pt comme les autres
+        fr_sizes = [(HEADER_FS_FR_TITLE if i == 0 else HEADER_FS_FR_SUB) * hf_scale * global_ratio for i in range(len(fr_lines))]
+        ar_sizes = [(HEADER_FS_AR_TITLE if i == 0 else HEADER_FS_AR_SUB) * hf_scale * global_ratio for i in range(len(ar_lines))]
+        fr_total_h = self._vcenter_offset(fr_lines, fr_sizes, 1.2, lh_scale)
+        ar_total_h = self._vcenter_offset(ar_lines, ar_sizes, 1.3, lh_scale)
+        max_h = max(fr_total_h, ar_total_h)
+        fr_offset = (max_h - fr_total_h) / 2.0
+        ar_offset = (max_h - ar_total_h) / 2.0
+
+        curr_y_fr = y_start - fr_offset
+        for i, line in enumerate(fr_lines):
+            fs = fr_sizes[i]
+            curr_y_fr -= (fs * 1.2) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(self.header_bold if i == 0 else self.header_font, fs)
+            canvas.drawString(margin, curr_y_fr, line)
+
+        font_ar = self.arabic_font if hasattr(self, 'arabic_font') else "Helvetica"
+        curr_y_ar = y_start - ar_offset
+        for i, line in enumerate(ar_lines):
+            fs = ar_sizes[i]
+            curr_y_ar -= (fs * 1.3) * lh_scale
+            canvas.setFillColor(p_color if i == 0 else s_color)
+            canvas.setFont(font_ar, fs)
+            canvas.drawRightString(p_width - margin, curr_y_ar, self._prepare_arabic(line))
+            
+        lowest_y = min(curr_y_fr, curr_y_ar)
+        line_y = lowest_y - 0.5 * cm
+        
+        canvas.saveState()
+        canvas.setStrokeColor(p_color)
+        canvas.setLineWidth(0.5)
+        # [m1] Double trait avec écart 0.2cm au lieu de 0.1cm
+        canvas.line(margin, line_y, p_width - margin, line_y)
+        canvas.line(margin, line_y - 0.2 * cm, p_width - margin, line_y - 0.2 * cm)
+        canvas.restoreState()
+
 
 
     def _draw_footer(self, canvas, doc, config, draw_legal_ids=False, user=None):

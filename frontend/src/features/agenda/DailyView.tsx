@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { Plus, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AgendaModal } from './AgendaModal';
+import { getDayBounds, getDaySchedule, getExceptionForDate, isDateOpen, isTimeWithinSchedule, type AgendaExceptionLike, type AgendaSettingsLike } from './agendaSchedule';
 
 export type AppointmentStatus = 'PRÉVU' | 'EN_S_ATTENTE' | 'EN_FAUTEUIL' | 'TERMINÉ' | 'ANNULÉ' | 'EN_ATTENTE_DEMANDE' | 'EN_ATTENTE_CONFIRM' | 'CONFIRMÉ' | 'REFUSÉ' | 'EXPIRÉ' | 'ABSENT';
 
@@ -22,9 +23,11 @@ export interface Appointment {
 
 interface DailyViewProps {
   selectedDate: Date;
+  agendaSettings?: AgendaSettingsLike | null;
+  exceptions?: AgendaExceptionLike[] | null;
 }
 
-export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
+export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettings, exceptions }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -33,14 +36,16 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
   const [initialTime, setInitialTime] = useState('09:00');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   
-  // Configuration de la grille : 08:00 à 19:00, slots de 15 minutes
-  const startHour = 8;
-  const endHour = 19;
+  const daySchedule = getDaySchedule(selectedDate, agendaSettings);
+  const exception = getExceptionForDate(selectedDate, exceptions);
+  const dayOpen = isDateOpen(selectedDate, agendaSettings, exceptions);
+  const { startHour, endHour } = getDayBounds(daySchedule);
   const totalHours = endHour - startHour;
   const slotsPerHour = 4;
   const totalSlots = totalHours * slotsPerHour;
 
   const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dayOpen) return;
     // Ne pas ouvrir si on clique sur un rdv existant (ils ont leur propre z-index et stopPropagation pourrait être ajouté)
     if ((e.target as HTMLElement).closest('.appointment-item')) return;
 
@@ -51,6 +56,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
     const hours = startHour + Math.floor(slotIndex / slotsPerHour);
     const minutes = (slotIndex % slotsPerHour) * 15;
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (!isTimeWithinSchedule(timeString, daySchedule)) return;
     
     setInitialTime(timeString);
     setEditingAppointment(null);
@@ -165,11 +171,20 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate }) => {
         </button>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+          disabled={!dayOpen}
+          title={!dayOpen ? 'Cabinet fermé ce jour' : 'Nouveau rendez-vous'}
+          className="px-4 sm:px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
         >
           <Plus size={18} /> Nouveau RV
         </button>
       </div>
+
+      {!dayOpen && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          <p className="font-black">Cabinet fermé ce jour</p>
+          <p className="text-sm font-medium mt-1">{exception?.reason || 'Jour fermé selon les horaires du cabinet.'}</p>
+        </div>
+      )}
 
       {/* CSS GRID AGENDA */}
       <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">

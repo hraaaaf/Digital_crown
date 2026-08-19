@@ -222,11 +222,11 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         </h3>
         <div className={cn("grid grid-cols-2 gap-3", designLockedClass)}>
           {[
-            { id: 'swiss', name: 'Swiss Clinic', desc: 'Grille asymétrique précise' },
-            { id: 'royal', name: 'Royal Elite', desc: 'Symétrie premium équilibrée' },
-            { id: 'clinical', name: 'Clinical Grid', desc: 'Grille institutionnelle' },
-            { id: 'modern', name: 'Modern Flush', desc: 'Accent vertical contemporain' },
-            { id: 'heritage', name: 'L\'Héritage', desc: 'Papeterie classique sobre' }
+            { id: 'swiss', name: 'Swiss Clinic', desc: 'Précision & Clarté' },
+            { id: 'royal', name: 'Royal Elite', desc: 'Symétrie Absolue' },
+            { id: 'clinical', name: 'Clinical Grid', desc: 'Rigueur Scientifique' },
+            { id: 'modern', name: 'Modern Flush', desc: 'Aération Contemporaine' },
+            { id: 'heritage', name: 'L\'Héritage', desc: 'Prestige Classique' }
           ].map(tpl => {
             const isSelected = profile.selected_template === tpl.id;
             return (

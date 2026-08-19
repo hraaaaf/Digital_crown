@@ -84,10 +84,15 @@ jobs:
                   const url = new URL(route.request().url());
                   if (url.pathname.endsWith('/clinics/me')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ nom_praticien: 'Dr Visual', nom_cabinet: 'Cabinet Visual', adresse: 'Rabat', telephone: '05 00 00 00 00', header_lines_fr: ['Dr Visual'], specialty_ids: [] }) });
                   if (url.pathname.endsWith('/agenda/settings')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ opening_time_morning:'09:00', closing_time_morning:'13:00', opening_time_afternoon:'14:00', closing_time_afternoon:'18:00', is_continuous:false, agenda_mode:'EXACT', use_tickets:false }) });
+                  if (url.pathname.endsWith('/agenda/exceptions')) return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
                   return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
                 });
                 await page.goto(`http://127.0.0.1:4178/settings-rbac-cert.html?role=${role}`, { waitUntil: 'networkidle' });
-                await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
+                try {
+                  await page.getByRole('heading', { name: 'Paramètres', exact: true }).waitFor({ timeout: 15000 });
+                } catch (error) {
+                  throw new Error(`Settings failed to mount for ${role} at ${width}px: ${errors.join(' | ') || 'no captured browser error'}`, { cause: error });
+                }
                 if (role === 'admin') {
                   for (const label of allAdminTabs) {
                     await page.getByRole('button', { name: label, exact: true }).waitFor({ state: 'visible' });

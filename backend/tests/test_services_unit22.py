@@ -116,7 +116,7 @@ class TestDrawStaticElements:
     def test_heritage_template_draws_header(self):
         cfg = {'selected_template': 'heritage'}
         c = self._call(cfg)
-        assert c.drawCentredString.called
+        assert c.drawString.called
 
     def test_draw_legal_ids_true(self):
         cfg = {'ice': '001234567890123', 'footer_address': 'Rabat'}
