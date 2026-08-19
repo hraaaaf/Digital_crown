@@ -200,13 +200,13 @@ export const AuditLogViewer = () => {
           <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-sm font-medium text-slate-400">Aucun log trouvé</div>
         ) : (
           <>
-            <div className="grid gap-3 lg:hidden">
+            <div className="grid gap-3 xl:hidden">
               <AnimatePresence>
                 {logs.map(log => <AuditEntry key={log.id} log={log} />)}
               </AnimatePresence>
             </div>
 
-            <div className="hidden lg:block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="hidden xl:block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
