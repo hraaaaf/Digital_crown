@@ -1,6 +1,8 @@
 from pathlib import Path
 
+from backend.schemas.branding import BrandingPreviewPayload
 from backend.services import document_factory as document_factory_module
+from backend.services.base_template import BaseTemplate
 
 
 class _FakeGenerator:
@@ -41,6 +43,13 @@ def _build_factory(monkeypatch, tmp_path):
         output_dir=str(tmp_path / "documents"),
         static_dir=str(tmp_path / "static"),
     )
+
+
+def test_branding_payload_accepts_internal_settings_preview_flag():
+    payload = BrandingPreviewPayload(settings_preview=True, selected_template="royal")
+
+    assert payload.settings_preview is True
+    assert payload.selected_template == "royal"
 
 
 def test_settings_preview_is_isolated_and_replaces_previous_pdf(monkeypatch, tmp_path):
@@ -89,3 +98,36 @@ def test_normal_ordonnance_keeps_regular_output_path(monkeypatch, tmp_path):
     assert ".previews/settings_branding" not in result.replace("\\", "/")
     assert _FakeGenerator.calls[-1]["output_dir"] == str(tmp_path / "documents")
     assert _FakeGenerator.calls[-1]["custom_config"] == {"selected_template": "swiss"}
+
+
+def test_official_settings_templates_dispatch_to_real_pdf_headers():
+    base_template = object.__new__(BaseTemplate)
+    calls = []
+
+    def record(name):
+        def _renderer(*args, **kwargs):
+            calls.append(name)
+        return _renderer
+
+    base_template._draw_header_swiss = record("swiss")
+    base_template._draw_header_royal = record("royal")
+    base_template._draw_header_clinical = record("clinical")
+    base_template._draw_header_modern = record("modern")
+    base_template._draw_header_heritage = record("heritage")
+
+    for template_id in ["swiss", "royal", "clinical", "modern", "heritage"]:
+        base_template._draw_auto_header(
+            canvas=None,
+            config={
+                "selected_template": template_id,
+                "header_lines_fr": ["Dr Test"],
+                "header_lines_ar": ["د. اختبار"],
+            },
+            logo_path=None,
+            p_color=None,
+            s_color=None,
+            a_color=None,
+            p_width=420,
+            p_height=594,
+        )
+        assert calls[-1] == template_id
