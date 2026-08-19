@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from backend.routers.agenda_settings import _ensure_tenant_columns, _settings_row
+from backend.routers.agenda_settings import _settings_row
 from backend.schemas.base import SchedulingType
 
 _WEEKDAYS = (
@@ -18,6 +18,17 @@ _WEEKDAYS = (
     "saturday",
     "sunday",
 )
+
+
+def _agenda_schema_ready(db: Session) -> bool:
+    """Read-only check: schema upgrades belong to Settings, never booking writes."""
+    inspector = inspect(db.get_bind())
+    tables = set(inspector.get_table_names())
+    if not {"cabinet_settings", "agenda_exceptions"}.issubset(tables):
+        return False
+    settings_columns = {column["name"] for column in inspector.get_columns("cabinet_settings")}
+    exception_columns = {column["name"] for column in inspector.get_columns("agenda_exceptions")}
+    return {"employer_id", "weekly_schedule_json"}.issubset(settings_columns) and "employer_id" in exception_columns
 
 
 def _local_naive(value: datetime) -> datetime:
@@ -69,13 +80,14 @@ def validate_appointment_availability(
 ) -> str | None:
     """Return a user-facing reason when an appointment violates Agenda settings.
 
-    Legacy compatibility: if no cabinet Agenda settings row exists yet, keep the
-    historical behavior and do not invent restrictions.
+    Legacy compatibility: until the additive R7 schema has been initialized by
+    Settings, preserve historical booking behavior and do not mutate the DB here.
     """
     if duration_minutes <= 0:
         return "La durée du rendez-vous doit être positive."
 
-    _ensure_tenant_columns(db)
+    if not _agenda_schema_ready(db):
+        return None
     settings = _settings_row(db, employer_id)
     if settings is None:
         return None
