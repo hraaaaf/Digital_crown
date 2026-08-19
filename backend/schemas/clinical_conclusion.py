@@ -2,6 +2,7 @@ import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 
 class ClinicalConclusionCreate(BaseModel):
@@ -22,7 +23,10 @@ class ClinicalConclusionCreate(BaseModel):
     def strip_required_conclusion(cls, value):
         cleaned = "" if value is None else str(value).strip()
         if not cleaned:
-            raise ValueError("La conclusion clinique ne peut pas être vide")
+            raise PydanticCustomError(
+                "clinical_conclusion_empty",
+                "La conclusion clinique ne peut pas être vide",
+            )
         return cleaned
 
     @field_validator("proposal_text", "proposal_source", mode="before")
