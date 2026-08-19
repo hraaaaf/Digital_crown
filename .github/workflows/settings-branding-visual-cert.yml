@@ -3,6 +3,7 @@ name: Settings Branding Visual Certification
 on:
   pull_request:
     paths:
+      - "frontend/src/features/admin/Settings/tabs/BrandingTab.tsx"
       - "frontend/src/features/admin/Settings/hooks/useSettingsStore.ts"
       - "frontend/src/features/admin/Settings/hooks/themePersistenceTruth.test.ts"
       - ".github/workflows/settings-branding-visual-cert.yml"
@@ -73,11 +74,24 @@ jobs:
               await page.goto('http://127.0.0.1:4178/settings-branding-cert.html',{waitUntil:'networkidle'});
               await page.getByRole('heading',{name:'Paramètres',exact:true}).waitFor({timeout:15000});
               await page.getByRole('button',{name:'Design & Ambiance',exact:true}).click();
-              await page.waitForTimeout(150);
-              const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
-              if(bodyWidth>width) throw new Error(`Horizontal overflow: document=${bodyWidth}, viewport=${width}`);
+              await page.getByText('Ce sélecteur change uniquement l’aperçu affiché.',{exact:true}).waitFor({timeout:15000});
+              await page.getByRole('button',{name:'Application',exact:true}).waitFor();
+              await page.getByRole('button',{name:'Document',exact:true}).waitFor();
+              await page.getByText('Tableau de bord',{exact:true}).first().waitFor();
+              await page.waitForTimeout(100);
+
+              let bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
+              if(bodyWidth>width) throw new Error(`Horizontal overflow APP: document=${bodyWidth}, viewport=${width}`);
               if(errors.length) throw new Error(errors.join('\n'));
-              await page.screenshot({path:`${output}/admin-branding-${width}x1200.png`,fullPage:true,animations:'disabled'});
+              await page.screenshot({path:`${output}/admin-branding-app-${width}x1200.png`,fullPage:true,animations:'disabled'});
+
+              await page.getByRole('button',{name:'Document',exact:true}).click();
+              await page.getByText('Document A4',{exact:true}).waitFor();
+              await page.waitForTimeout(100);
+              bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
+              if(bodyWidth>width) throw new Error(`Horizontal overflow DOC: document=${bodyWidth}, viewport=${width}`);
+              if(errors.length) throw new Error(errors.join('\n'));
+              await page.screenshot({path:`${output}/admin-branding-doc-${width}x1200.png`,fullPage:true,animations:'disabled'});
               await context.close();
             }
           } finally { await browser.close(); await server.close(); }
@@ -87,7 +101,7 @@ jobs:
         run: node settings-branding-cert.mjs
       - name: Verify proof count
         working-directory: frontend
-        run: test "$(find settings-branding-artifacts -name '*.png' | wc -l)" -eq 5
+        run: test "$(find settings-branding-artifacts -name '*.png' | wc -l)" -eq 10
       - uses: actions/upload-artifact@v4
         with:
           name: settings-branding-visual-cert

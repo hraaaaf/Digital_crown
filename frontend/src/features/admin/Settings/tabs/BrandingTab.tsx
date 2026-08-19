@@ -12,8 +12,12 @@ import { StudioPreview } from './branding/StudioPreview';
 
 export const BrandingTab: React.FC = () => {
   const { profile, updateProfile } = useSettingsStore();
-  const [scope, setScope] = useState<Scope>(() => {
-    return (localStorage.getItem('branding_scope') as Scope) || 'app';
+  const [previewScope, setPreviewScope] = useState<Scope>(() => {
+    return (
+      (localStorage.getItem('branding_preview_scope') as Scope) ||
+      (localStorage.getItem('branding_scope') as Scope) ||
+      'app'
+    );
   });
   const [presetsOpen, setPresetsOpen] = useState(false);
 
@@ -21,9 +25,10 @@ export const BrandingTab: React.FC = () => {
 
   const currentPreset = detectPreset(profile);
 
-  const handleScopeChange = (newScope: Scope) => {
-    setScope(newScope);
-    localStorage.setItem('branding_scope', newScope);
+  const handlePreviewScopeChange = (newScope: Scope) => {
+    setPreviewScope(newScope);
+    localStorage.setItem('branding_preview_scope', newScope);
+    localStorage.removeItem('branding_scope');
   };
 
   const handleReset = () => {
@@ -43,31 +48,47 @@ export const BrandingTab: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 min-w-0">
-      
       {/* Top action row */}
-      <div className="flex flex-wrap items-center gap-3 pb-5 border-b border-[var(--border-color)]">
+      <div className="flex flex-wrap items-start gap-3 pb-5 border-b border-[var(--border-color)]">
         <AmbiancePill currentPreset={currentPreset} onClick={() => setPresetsOpen(true)} />
-        
+
         <div className="hidden sm:block sm:flex-1" />
-        
-        {/* Scope Switch */}
-        <div className="flex max-w-full bg-[var(--bg-medical-pearl)] p-1 rounded-xl border border-[var(--border-color)]">
-          {(['app', 'doc'] as Scope[]).map(s => (
-            <button
-              key={s}
-              onClick={() => handleScopeChange(s)}
-              className={cn(
-                "px-3 sm:px-4 py-1.5 font-semibold text-[13px] rounded-lg transition-all capitalize whitespace-nowrap",
-                scope === s ? "bg-white text-[var(--text-main)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
-              )}
+
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex items-center gap-2 max-w-full">
+            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-muted)] whitespace-nowrap">
+              Aperçu
+            </span>
+            <div
+              className="flex max-w-full bg-[var(--bg-medical-pearl)] p-1 rounded-xl border border-[var(--border-color)]"
+              aria-label="Choisir l'aperçu du studio"
             >
-              {s === 'app' ? 'Apparence app' : 'Documents'}
-            </button>
-          ))}
+              {(['app', 'doc'] as Scope[]).map((scope) => (
+                <button
+                  key={scope}
+                  type="button"
+                  onClick={() => handlePreviewScopeChange(scope)}
+                  aria-pressed={previewScope === scope}
+                  className={cn(
+                    "px-3 sm:px-4 py-1.5 font-semibold text-[13px] rounded-lg transition-all whitespace-nowrap",
+                    previewScope === scope
+                      ? "bg-white text-[var(--text-main)] shadow-sm"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  )}
+                >
+                  {scope === 'app' ? 'Application' : 'Document'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] leading-tight sm:text-right">
+            Ce sélecteur change uniquement l’aperçu affiché.
+          </p>
         </div>
 
-        <button 
-          onClick={handleReset} 
+        <button
+          type="button"
+          onClick={handleReset}
           className="px-3 sm:px-4 py-2 font-semibold text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-medical-pearl)] hover:text-[var(--text-main)] rounded-lg transition-colors border border-transparent hover:border-[var(--border-color)] whitespace-nowrap"
         >
           ↺ Réinitialiser
@@ -80,7 +101,7 @@ export const BrandingTab: React.FC = () => {
           <StudioControls profile={profile} updateProfile={updateProfile} />
         </div>
         <div className="min-w-0">
-          <StudioPreview profile={profile} scope={scope} />
+          <StudioPreview profile={profile} scope={previewScope} />
         </div>
       </div>
 
@@ -90,7 +111,6 @@ export const BrandingTab: React.FC = () => {
         onClose={() => setPresetsOpen(false)}
         onApply={handleApplyPreset}
       />
-      
     </div>
   );
 };
