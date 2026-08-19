@@ -6,21 +6,22 @@ import { DOCUMENT_STUDIO_LABELS, type CertifiableDocumentStudioTab } from './Doc
 interface StudioTabsProps {
   activeTab: CertifiableDocumentStudioTab;
   onTabChange: (tab: CertifiableDocumentStudioTab) => void;
+  allowedTabs: CertifiableDocumentStudioTab[];
   'data-tour'?: string;
 }
 
-export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, 'data-tour': dataTour }) => (
+export const StudioTabs: React.FC<StudioTabsProps> = ({ activeTab, onTabChange, allowedTabs, 'data-tour': dataTour }) => (
   <div
     data-tour={dataTour}
     aria-label="Types de documents"
     className="flex w-full justify-start xl:justify-center bg-slate-100/90 dark:bg-slate-900/80 p-1.5 rounded-2xl gap-1 overflow-x-auto shrink-0 relative z-50 scroll-smooth border border-slate-200/70 dark:border-white/10 shadow-inner"
   >
-    <TabButton active={activeTab === 'ordonnance'} onClick={() => onTabChange('ordonnance')} icon={<Pill size={16} />} label={DOCUMENT_STUDIO_LABELS.ordonnance} tourId="tab-ordonnance" />
-    <TabButton active={activeTab === 'certificat'} onClick={() => onTabChange('certificat')} icon={<FileBadge size={16} />} label={DOCUMENT_STUDIO_LABELS.certificat} tourId="tab-certificat" />
-    <TabButton active={activeTab === 'devis'} onClick={() => onTabChange('devis')} icon={<Calculator size={16} />} label={DOCUMENT_STUDIO_LABELS.devis} tourId="tab-devis" />
-    <TabButton active={activeTab === 'honoraires'} onClick={() => onTabChange('honoraires')} icon={<Receipt size={16} />} label={DOCUMENT_STUDIO_LABELS.honoraires} tourId="tab-honoraires" />
-    <TabButton active={activeTab === 'echeancier'} onClick={() => onTabChange('echeancier')} icon={<Calculator size={16} />} label={DOCUMENT_STUDIO_LABELS.echeancier} tourId="tab-suivi" />
-    <TabButton active={activeTab === 'libre'} onClick={() => onTabChange('libre')} icon={<Type size={16} />} label={DOCUMENT_STUDIO_LABELS.libre} tourId="tab-libre" />
+    {allowedTabs.includes('ordonnance') && <TabButton active={activeTab === 'ordonnance'} onClick={() => onTabChange('ordonnance')} icon={<Pill size={16} />} label={DOCUMENT_STUDIO_LABELS.ordonnance} tourId="tab-ordonnance" />}
+    {allowedTabs.includes('certificat') && <TabButton active={activeTab === 'certificat'} onClick={() => onTabChange('certificat')} icon={<FileBadge size={16} />} label={DOCUMENT_STUDIO_LABELS.certificat} tourId="tab-certificat" />}
+    {allowedTabs.includes('devis') && <TabButton active={activeTab === 'devis'} onClick={() => onTabChange('devis')} icon={<Calculator size={16} />} label={DOCUMENT_STUDIO_LABELS.devis} tourId="tab-devis" />}
+    {allowedTabs.includes('honoraires') && <TabButton active={activeTab === 'honoraires'} onClick={() => onTabChange('honoraires')} icon={<Receipt size={16} />} label={DOCUMENT_STUDIO_LABELS.honoraires} tourId="tab-honoraires" />}
+    {allowedTabs.includes('echeancier') && <TabButton active={activeTab === 'echeancier'} onClick={() => onTabChange('echeancier')} icon={<Calculator size={16} />} label={DOCUMENT_STUDIO_LABELS.echeancier} tourId="tab-suivi" />}
+    {allowedTabs.includes('libre') && <TabButton active={activeTab === 'libre'} onClick={() => onTabChange('libre')} icon={<Type size={16} />} label={DOCUMENT_STUDIO_LABELS.libre} tourId="tab-libre" />}
   </div>
 );
 
