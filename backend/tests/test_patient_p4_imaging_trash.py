@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from backend import models
+from backend.models_imaging_p4 import ImagingTrashRecord
 from backend.security import get_password_hash
 
 
@@ -48,6 +49,17 @@ def _headers(client, user):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+def _trash_record(db, modality, analysis_id):
+    return (
+        db.query(ImagingTrashRecord)
+        .filter(
+            ImagingTrashRecord.modality == modality,
+            ImagingTrashRecord.analysis_id == analysis_id,
+        )
+        .first()
+    )
+
+
 def test_panoramic_delete_is_recoverable_and_preserves_file(client, db, dentiste, auth_headers, tmp_path):
     patient = _make_patient(db, dentiste, "P4-PANO-TRASH")
     image = tmp_path / "pano.jpg"
@@ -64,17 +76,14 @@ def test_panoramic_delete_is_recoverable_and_preserves_file(client, db, dentiste
     analysis_id = analysis.id
 
     deleted = client.delete(f"/api/ia/panoramic/{analysis_id}", headers=auth_headers)
-    assert deleted.status_code == 204, deleted.text
-    db.expire_all()
-    persisted = db.get(models.PanoramicAnalysis, analysis_id)
-    assert persisted is not None
-    assert persisted.deleted_at is not None
-    assert persisted.deleted_by == dentiste.id
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["recoverable"] is True
+    assert db.get(models.PanoramicAnalysis, analysis_id) is not None
+    trash_marker = _trash_record(db, "panoramic", analysis_id)
+    assert trash_marker is not None
+    assert trash_marker.patient_id == patient.id
+    assert trash_marker.deleted_by == dentiste.id
     assert image.exists(), "Normal trash must never remove the clinical image file"
-
-    active = client.get(f"/api/ia/patients/{patient.id}/panoramic-analyses", headers=auth_headers)
-    assert active.status_code == 200, active.text
-    assert all(row["id"] != analysis_id for row in active.json())
 
     trash = client.get(f"/api/ia/patients/{patient.id}/panoramic-trash", headers=auth_headers)
     assert trash.status_code == 200, trash.text
@@ -82,7 +91,10 @@ def test_panoramic_delete_is_recoverable_and_preserves_file(client, db, dentiste
 
     restored = client.post(f"/api/ia/panoramic/{analysis_id}/restore", headers=auth_headers)
     assert restored.status_code == 200, restored.text
-    assert restored.json()["deleted_at"] is None
+    assert restored.json()["status"] == "restored"
+    db.expire_all()
+    assert _trash_record(db, "panoramic", analysis_id) is None
+    assert db.get(models.PanoramicAnalysis, analysis_id) is not None
     assert image.exists()
 
 
@@ -103,17 +115,14 @@ def test_cephalo_delete_is_recoverable_and_preserves_file(client, db, dentiste, 
     analysis_id = analysis.id
 
     deleted = client.delete(f"/api/ia/cephalo/{analysis_id}", headers=auth_headers)
-    assert deleted.status_code == 204, deleted.text
-    db.expire_all()
-    persisted = db.get(models.CephaloAnalysis, analysis_id)
-    assert persisted is not None
-    assert persisted.deleted_at is not None
-    assert persisted.deleted_by == dentiste.id
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["recoverable"] is True
+    assert db.get(models.CephaloAnalysis, analysis_id) is not None
+    trash_marker = _trash_record(db, "cephalo", analysis_id)
+    assert trash_marker is not None
+    assert trash_marker.patient_id == patient.id
+    assert trash_marker.deleted_by == dentiste.id
     assert image.exists(), "Normal trash must never remove the clinical image file"
-
-    active = client.get(f"/api/ia/patients/{patient.id}/cephalo-analyses", headers=auth_headers)
-    assert active.status_code == 200, active.text
-    assert all(row["id"] != analysis_id for row in active.json())
 
     trash = client.get(f"/api/ia/patients/{patient.id}/cephalo-trash", headers=auth_headers)
     assert trash.status_code == 200, trash.text
@@ -121,32 +130,32 @@ def test_cephalo_delete_is_recoverable_and_preserves_file(client, db, dentiste, 
 
     restored = client.post(f"/api/ia/cephalo/{analysis_id}/restore", headers=auth_headers)
     assert restored.status_code == 200, restored.text
-    assert restored.json()["deleted_at"] is None
+    assert restored.json()["status"] == "restored"
+    db.expire_all()
+    assert _trash_record(db, "cephalo", analysis_id) is None
+    assert db.get(models.CephaloAnalysis, analysis_id) is not None
     assert image.exists()
 
 
 def test_imaging_trash_and_restore_are_tenant_scoped(client, db, dentiste):
     patient = _make_patient(db, dentiste, "P4-TRASH-TENANT")
-    pano = models.PanoramicAnalysis(
-        patient_id=patient.id,
-        image_path="tenant-pano.jpg",
-        detections_data={},
-        deleted_at=datetime.utcnow(),
-        deleted_by=dentiste.id,
-    )
+    pano = models.PanoramicAnalysis(patient_id=patient.id, image_path="tenant-pano.jpg", detections_data={})
     ceph = models.CephaloAnalysis(
         patient_id=patient.id,
         image_original_path="tenant-ceph.jpg",
         landmarks_data={},
         angles_data={},
         is_calibrated=False,
-        deleted_at=datetime.utcnow(),
-        deleted_by=dentiste.id,
     )
     db.add_all([pano, ceph])
     db.commit()
     db.refresh(pano)
     db.refresh(ceph)
+    db.add_all([
+        ImagingTrashRecord(modality="panoramic", analysis_id=pano.id, patient_id=patient.id, deleted_by=dentiste.id),
+        ImagingTrashRecord(modality="cephalo", analysis_id=ceph.id, patient_id=patient.id, deleted_by=dentiste.id),
+    ])
+    db.commit()
 
     foreign_owner = _make_user(db, "p4-foreign-owner@test.ma")
     headers = _headers(client, foreign_owner)
