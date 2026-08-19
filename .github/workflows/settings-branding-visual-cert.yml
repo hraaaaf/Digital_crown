@@ -102,7 +102,7 @@ jobs:
               await page.getByText('Rendu à jour',{exact:true}).waitFor({timeout:10000});
               if(samplePreviewCalls!==1) throw new Error(`Expected 1 explicit preview generation, got ${samplePreviewCalls}`);
 
-              await page.getByRole('button',{name:'Royal Elite',exact:true}).click();
+              await page.getByRole('button',{name:/^Royal Elite/}).click();
               await page.getByText('À actualiser',{exact:true}).waitFor();
               await page.waitForTimeout(850);
               if(samplePreviewCalls!==1) throw new Error(`Preview regenerated automatically after settings change: ${samplePreviewCalls}`);
