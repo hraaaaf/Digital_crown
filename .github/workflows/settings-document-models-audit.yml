@@ -26,9 +26,37 @@ jobs:
       - name: Install audit dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf pytest
-      - name: Contract test premium headers
-        run: python -m pytest backend/tests/test_premium_document_headers.py -q
+          pip install reportlab arabic-reshaper python-bidi svglib pillow qrcode pymupdf
+      - name: Contract check premium font mappings
+        run: |
+          python - <<'PY'
+          from reportlab.pdfbase import pdfmetrics
+          from backend.services.premium_document_headers import update_document_fonts
+
+          class Base:
+              outfit_font = 'Outfit'
+              outfit_bold = 'Outfit-Bold'
+              premium_font = 'Helvetica'
+              premium_bold = 'Helvetica-Bold'
+              header_font = 'Helvetica'
+              header_bold = 'Helvetica-Bold'
+              @staticmethod
+              def _get_val(config, key, default=None):
+                  return (config or {}).get(key, default)
+
+          base = Base()
+          expected = {
+              'inter': ('Helvetica', 'Helvetica-Bold'),
+              'playfair': ('Times-Roman', 'Times-Bold'),
+              'serif': ('Times-Roman', 'Times-Bold'),
+              'mono': ('Courier', 'Courier-Bold'),
+          }
+          for font_id, pair in expected.items():
+              update_document_fonts(base, {'font_fr': font_id})
+              assert (base.premium_font, base.premium_bold) == pair
+              pdfmetrics.getFont(base.premium_font)
+              pdfmetrics.getFont(base.premium_bold)
+          PY
       - name: Generate five real ordonnance models
         run: |
           python - <<'PY'
