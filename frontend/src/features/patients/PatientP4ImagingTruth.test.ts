@@ -16,6 +16,18 @@ describe('P4 unified imaging truth boundary', () => {
     expect(details).toContain('<PatientRvgPanel patientId={Number(id)} />');
   });
 
+  it('mirrors backend imaging permissions including legacy defaults', () => {
+    expect(details).toContain("const canRvg = hasPatientPermission('patients')");
+    expect(details).toContain("const canPanoramic = hasPatientPermission('panoramic')");
+    expect(details).toContain("const canCephalo = hasPatientPermission('cephalo')");
+    expect(details).toContain("user.role === 'DENTISTE'");
+    expect(details).toContain("user.role === 'SECRETAIRE'");
+    expect(details).toContain('{canRvg && (');
+    expect(details).toContain('{canPanoramic && (');
+    expect(details).toContain('{canCephalo && (');
+    expect(details).toContain('const currentImagingAllowed =');
+  });
+
   it('never invents cephalometric demographics or auto-writes a treatment strategy', () => {
     expect(cephalo).not.toContain('age || 20');
     expect(cephalo).not.toContain("sexe: data.sexe || 'M'");
