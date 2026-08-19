@@ -176,5 +176,13 @@ jobs:
           fi
 
           git diff --check
+
+          # A current P6 branch may already contain the exact P5 base. In that case
+          # `git merge` prints "Already up to date" and leaves no merge to commit.
+          if git diff --quiet && git diff --cached --quiet && [ ! -f .git/MERGE_HEAD ]; then
+            echo 'P6 already contains current P5; no stack commit required.'
+            exit 0
+          fi
+
           git commit -m 'sync(patient): merge current P5 into P6 stack'
           git push origin HEAD:${GITHUB_HEAD_REF}
