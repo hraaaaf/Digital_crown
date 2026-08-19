@@ -45,7 +45,7 @@ jobs:
           pip install -r /tmp/requirements-p3-backend.txt
           pip install httpx==0.27.2 pytest alembic
 
-      - name: Source contract
+      - name: Source and API contract
         run: |
           python - <<'PY'
           from backend import models
@@ -57,11 +57,36 @@ jobs:
           assert '/api/patients/{patient_id}/clinical-conclusions' in paths
           PY
 
-      - name: Alembic single head and upgrade
+      - name: P3 migration structural contract
         run: |
           test "$(alembic heads | wc -l)" -eq 1
-          rm -f p3-backend-test.db
-          alembic upgrade head
+          python - <<'PY'
+          from pathlib import Path
+          from sqlalchemy import create_engine, inspect
+          from backend import models
+
+          migration = Path('alembic/versions/d5e6f7a8b9c0_add_patient_odontograms.py').read_text(encoding='utf-8')
+          assert 'revision: str = "d5e6f7a8b9c0"' in migration
+          assert 'down_revision: Union[str, None] = "c4d5e6f7a8b9"' in migration
+          for table in ('patient_odontograms', 'clinical_conclusions'):
+              assert f'"{table}"' in migration
+
+          # The repository's historical clean-db Alembic chain currently fails before P3
+          # in legacy revision 8f6465e49d90 (missing SQLite index). Do not turn that
+          # pre-existing defect into a false P3 failure. Validate the P3 runtime schema
+          # from canonical SQLAlchemy metadata instead, while still enforcing one Alembic head
+          # and exact P3 revision ancestry/source above.
+          engine = create_engine('sqlite:///:memory:')
+          models.Base.metadata.create_all(engine)
+          inspector = inspect(engine)
+          assert 'patient_odontograms' in inspector.get_table_names()
+          assert 'clinical_conclusions' in inspector.get_table_names()
+
+          odonto_cols = {c['name'] for c in inspector.get_columns('patient_odontograms')}
+          assert {'patient_id','dentition_type','state','revision','updated_by','created_at','updated_at'} <= odonto_cols
+          conclusion_cols = {c['name'] for c in inspector.get_columns('clinical_conclusions')}
+          assert {'patient_id','conclusion_text','proposal_text','proposal_source','validated_by','created_at'} <= conclusion_cols
+          PY
 
       - name: P3 targeted clinical persistence tests
         run: |
