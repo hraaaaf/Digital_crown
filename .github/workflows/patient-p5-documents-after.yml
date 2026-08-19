@@ -50,7 +50,13 @@ jobs:
           npm ci
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-          npm test -- --run src/features/admin/DocumentStudio/DocumentStudioVocabulary.t2a.test.ts src/features/admin/DocumentStudio/DocumentTabNavigationPolicy.test.ts src/features/admin/DocumentStudio/DocumentHubDecomposition.t2c.test.ts src/features/admin/DocumentStudio/DocumentHubClinicalBoundary.test.ts src/features/admin/DocumentStudio/DocumentStudioRbac.p5.test.ts
+          npm test -- --run \
+            src/features/admin/DocumentStudio/DocumentStudioVocabulary.t2a.test.ts \
+            src/features/admin/DocumentStudio/DocumentTabNavigationPolicy.test.ts \
+            src/features/admin/DocumentStudio/DocumentHubDecomposition.t2c.test.ts \
+            src/features/admin/DocumentStudio/DocumentHubClinicalBoundary.test.ts \
+            src/features/admin/DocumentStudio/DocumentStudioRbac.p5.test.ts \
+            src/features/admin/DocumentStudio/PatientDocumentsTruth.p5.test.ts
           npm run build
 
       - name: Start backend
