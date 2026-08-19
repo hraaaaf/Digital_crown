@@ -1,20 +1,9 @@
 /**
  * CephaloWorkspace.tsx  *  v4.2  *  Digital Crown - Studio COM
- * 
- * Composant central du workflow d'analyse céphalométrique en 4 étapes.
  *
- * Architecture :
- *   * Optimistic Update Pattern  - state local source de vérité, sync backend 600ms debounce
- *   * Payload Consolidé          - schemas.py AnalysisUpdate strict (landmarks + clinical_data + ai_diagnostic)
- *   * Sauvegarde silencieuse     - déclenchée automatiquement lors du changement d'étape
- *   * Mathématiques cliniques    - IMPA L1/Plan Mandibulaire (Go*Me), 180-rawAngle
- *                                   DDM Cephalo = (90 - IMPA) * 0.8, DDM Réelle = Mand + Cephalo
- *   * SLM Integration            - /patients/{id}/ai-diagnostic (ai_advisor.py)
- *                                   Fallback heuristique transparent côté backend
- *   * PDF Gate                   - bouton bloqué si REQUIRED_LANDMARKS incomplets
- *   * Dual theme                 - light / dark via PALETTE
- *   * CALIBRATION V2             - clic sur image pour 2 points + saisie distance mm
- * 
+ * Composant central du workflow d'analyse céphalométrique en 4 étapes.
+ * Les données démographiques Patient sont requises : aucune valeur clinique n'est inventée
+ * pour permettre aux calculs de continuer, et aucune stratégie thérapeutique n'est auto-écrite.
  */
 
 import React, {
@@ -26,13 +15,12 @@ import {
   Loader2, AlertCircle,
   Save
 } from 'lucide-react';
-import type { 
-  StepId 
+import type {
+  StepId
 } from './cephaloShared';
 
-import { 
+import {
   computeStep3Data,
-  generateTreatmentPlan
 } from './cephaloUtils';
 import { PALETTE } from './cephaloTheme';
 
@@ -50,24 +38,11 @@ import { cephaloRepository } from './cephaloRepository';
 import { API_BASE, api } from '../../services/api';
 import toast from 'react-hot-toast';
 
-
 export interface CephaloWorkspaceProps {
-  patientId:   number;
+  patientId: number;
   patientName: string;
 }
 
-// StepTab, SyncBadge imported from ./components/
-
-
-
-
-// StepTab, SyncBadge imported from ./components/
-
-// Step2BlockerModal imported from ./components/Step2BlockerModal
-
-// 
-// COMPOSANT PRINCIPAL
-// 
 export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   patientId,
   patientName,
@@ -76,6 +51,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const mode = store.mode;
   const P = PALETTE[mode];
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
+  const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
 
   const resolveImageSrc = (imagePath?: string) => {
@@ -120,18 +96,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   };
 
   const handleDeleteHistory = (analysisId: number) => {
-    // If the currently loaded analysis is deleted, clear it
     if (store.analysisId === analysisId) {
       store.setAnalysisId(undefined as any);
     }
-    // No additional state to update here; CephaloHistory will refresh its list
   };
 
-  // Initialisation du Store Zustand & Sync Thème
   useEffect(() => {
     store.setPatientInfo(patientId, patientName);
-    
-    // Sync reactive avec le thème global
+
     const syncTheme = () => {
       const isDark = document.body.dataset.theme === 'dark' || document.body.dataset.theme === 'prestige';
       store.setMode(isDark ? 'dark' : 'light');
@@ -139,39 +111,48 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     const observer = new MutationObserver(syncTheme);
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    syncTheme(); // Init immédiat
+
+    syncTheme();
     return () => observer.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, patientName]);
 
-  // Initialisation Patient
   useEffect(() => {
+    let cancelled = false;
     const fetchPatient = async () => {
+      setPatientDataError(false);
+      setPatientData(null);
       try {
-        const { data } = await import('../../services/api').then(m => m.api.get(`/patients/${patientId}`));
-        if (data) {
-          let age = data.age;
-          if (!age && data.date_naissance) {
-            const birth = new Date(data.date_naissance);
+        const { data } = await api.get(`/patients/${patientId}`);
+        if (cancelled) return;
+
+        let age: number | null = typeof data?.age === 'number' ? data.age : null;
+        if (age === null && data?.date_naissance) {
+          const birth = new Date(data.date_naissance);
+          if (!Number.isNaN(birth.getTime())) {
             const now = new Date();
             age = now.getFullYear() - birth.getFullYear();
             if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
           }
-          setPatientData({ age: age || 20, sexe: data.sexe || 'M' });
         }
-      } catch (e) {
-        console.error('Erreur patient data:', e);
-        setPatientData({ age: 20, sexe: 'M' });
+
+        const sexe = data?.sexe === 'M' || data?.sexe === 'F' ? data.sexe : null;
+        if (age === null || age < 0 || age > 130 || !sexe) {
+          setPatientDataError(true);
+          return;
+        }
+        setPatientData({ age, sexe });
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Erreur patient data:', error);
+        setPatientDataError(true);
       }
     };
-    fetchPatient();
+    void fetchPatient();
+    return () => { cancelled = true; };
   }, [patientId]);
 
-  //  Modal blocage étape 2
   const [showStep2Blocker, setShowStep2Blocker] = useState<'calibration' | null>(null);
-
-  //  Refs 
   const fileRef = useRef<HTMLInputElement>(null);
   const step1ContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -189,29 +170,27 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     setEtape3Data
   } = store;
 
-  //  AUTOMATISATION ÉTAPE 3 (Diagnostic Intelligent COM)
   useEffect(() => {
     if (!patientData) return;
     const automated = computeStep3Data(
-      local.landmarks, 
-      patientData.age, 
-      patientData.sexe, 
-      mmPerPixel, 
+      local.landmarks,
+      patientData.age,
+      patientData.sexe,
+      mmPerPixel,
       store.etape2Data
     );
-    
+
     setEtape3Data(prev => {
       const hasOsseuseChanged = JSON.stringify(automated.osseuse) !== JSON.stringify(prev.osseuse);
       const hasEsthetiqueChanged = JSON.stringify(automated.esthetique) !== JSON.stringify(prev.esthetique);
       const hasMoulageChanged = automated.analyse_moulages_auto !== prev.analyse_moulages_auto;
-      
+
       if (!hasOsseuseChanged && !hasEsthetiqueChanged && !hasMoulageChanged && prev.age === patientData.age && prev.cvm === automated.cvm) {
         return prev;
       }
 
-      // Sync intelligent pour le diagnostic textuel
       const currentMoulageDiag = store.diag.analyse_moulages;
-      const isPlaceholder = !currentMoulageDiag || 
+      const isPlaceholder = !currentMoulageDiag ||
                            currentMoulageDiag === "Occlusion à préciser (Classe d'Angle, Subdivision, Forme d'arcade)." ||
                            currentMoulageDiag.trim() === "";
 
@@ -219,14 +198,6 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         store.setDiag(d => ({ ...d, analyse_moulages: automated.analyse_moulages_auto || "" }));
       }
 
-      // Auto-fill stratégie thérapeutique si vide
-      if (!store.diag.strategie_therapeutique || store.diag.strategie_therapeutique.trim() === "") {
-        const plan = generateTreatmentPlan(automated as any);
-        if (plan) {
-          store.setDiag(d => ({ ...d, strategie_therapeutique: plan }));
-        }
-      }
-      
       return {
         ...prev,
         ...automated,
@@ -237,11 +208,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local.landmarks, patientData, mmPerPixel, store.etape2Data, store.etape3Data.selectedAnalysis, store.diag.analyse_moulages]);
 
-  
-
   const [stepError, setStepError] = useState<string | null>(null);
 
-  // Sync internal step errors with store upload error
   useEffect(() => {
     if (uploadError) {
       setStepError(uploadError);
@@ -250,14 +218,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   }, [uploadError]);
 
-  // Reset scroll on step change
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [step]);
 
-  //  Effects
   useEffect(() => {
     if (!store.isStep1Fullscreen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -276,16 +242,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     }
   }, [store.isStep1Fullscreen]);
 
-  // M4 — Radio visible sous les landmarks.
-  // Les fichiers radio sont servis sous /api/static/uploads/radios/ qui requiert
-  // l'en-tête `Authorization: Bearer <jwt>`. Un <image href> SVG ou <img src>
-  // natif ne peut pas envoyer cet en-tête → 401 → radio invisible, landmarks visibles.
-  // Fix : fetch authentifié via le client Axios (qui joint le Bearer), création d'un
-  // blob URL local utilisable sans auth par le SVG.
   useEffect(() => {
     if (!imageSrc) return;
 
-    // Blob / data URL déjà authentifiés — charger directement.
     if (imageSrc.startsWith('blob:') || imageSrc.startsWith('data:')) {
       const img = new Image();
       img.onload = () => setImgDim({ w: img.naturalWidth, h: img.naturalHeight });
@@ -293,7 +252,6 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       return;
     }
 
-    // URL HTTP(S) protégée : fetch avec headers auth, convertir en blob URL.
     let cancelled = false;
     let createdBlobUrl: string | null = null;
 
@@ -303,11 +261,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         const blobUrl = URL.createObjectURL(response.data as Blob);
         createdBlobUrl = blobUrl;
         store.setImageSrc(blobUrl);
-        // Le blob URL est transféré au store — annuler la révocation au cleanup.
         createdBlobUrl = null;
       })
       .catch(() => {
-        // Fallback : tenter le chargement direct (permet le dev sans auth ou base64).
         if (cancelled) return;
         const img = new Image();
         img.onload = () => { if (!cancelled) setImgDim({ w: img.naturalWidth, h: img.naturalHeight }); };
@@ -316,15 +272,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
     return () => {
       cancelled = true;
-      // Révoquer le blob URL seulement s'il n'a pas été transféré au store
-      // (cas : fetch annulé avant completion ou erreur).
       if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl);
     };
   }, [imageSrc, setImgDim]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 
-  // RENDU ÉTAPE 1 - CÉPHALOMÉTRIE
-  // 
   const renderStep1 = () => (
     <Step1Cephalo
       P={P}
@@ -333,12 +284,22 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     />
   );
 
-  // 
-  // RENDU PRINCIPAL
-  // 
+  if (patientDataError) {
+    return (
+      <div className="min-h-[420px] flex flex-col items-center justify-center gap-4 px-6 text-center" style={{ background: P.bg }}>
+        <AlertCircle size={40} style={{ color: P.accentError }} />
+        <div>
+          <h3 className="text-lg font-black" style={{ color: P.text }}>Données Patient requises</h3>
+          <p className="mt-2 max-w-lg text-sm" style={{ color: P.textMuted }}>
+            La céphalométrie ne peut pas calculer avec un âge ou un sexe inventé. Vérifiez la date de naissance et le sexe du dossier Patient, puis rechargez cet espace.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full" style={{ background: P.bg }}>
-      {/* Modal Blocage Étape 2 */}
       <AnimatePresence>
         {showStep2Blocker && (
           <Step2BlockerModal
@@ -350,30 +311,28 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Modal Aperçu PDF */}
       <AnimatePresence>
         {(previewPdfUrl || isPreviewLoading) && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className="fixed inset-4 z-50 rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-black/5"
           >
-            <LivePreview 
-              pdfUrl={previewPdfUrl} 
-              loading={isPreviewLoading} 
+            <LivePreview
+              pdfUrl={previewPdfUrl}
+              loading={isPreviewLoading}
               onClose={() => {
                 if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
                 setPreviewPdfUrl(null);
                 setIsPreviewLoading(false);
-              }} 
-              title="Aperçu du Bilan Orthodontique" 
+              }}
+              title="Aperçu du Bilan Orthodontique"
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: P.border, background: P.bgPanel }}>
         <div>
           <h2 className="text-lg font-bold" style={{ color: P.text }}>Studio Céphalométrique</h2>
@@ -385,10 +344,10 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
              <button onClick={() => setViewMode('history')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'history' ? 'bg-white shadow-sm' : 'opacity-50'}`} style={{ color: P.text }}>Historique</button>
           </div>
           <SyncBadge state={syncState} P={P} />
-          <button 
-            onClick={handleSave} 
-            disabled={!analysisId || isSaving} 
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md" 
+          <button
+            onClick={handleSave}
+            disabled={!analysisId || isSaving}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 shadow-sm hover:shadow-md"
             style={{ background: P.bgCard, border: `1px solid ${P.border}`, color: P.text }}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -397,18 +356,16 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
-      {/* Stepper */}
       <div data-tour="cephalo-stepper" className="flex items-center gap-2 px-6 py-4 overflow-x-auto" style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={3} label="Diagnostic" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
+        <StepTab id={3} label="Synthèse clinique" isActive={step === 3} isCompleted={completedSteps.has(3)} onClick={() => goToStep(3)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
-        <StepTab id={4} label="Ghost Brain & Plan" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
+        <StepTab id={4} label="Documents & stratégie" isActive={step === 4} isCompleted={completedSteps.has(4)} onClick={() => goToStep(4)} P={P} />
       </div>
 
-      {/* Message d'erreur navigation */}
       <AnimatePresence>
         {stepError && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-6">
@@ -420,7 +377,6 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Content */}
       <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6 scroll-smooth" style={{ background: P.bg }}>
         <div className="max-w-4xl mx-auto">
           {viewMode === 'studio' ? (
@@ -430,28 +386,17 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
               {step === 3 && <Step3Clinical P={P} />}
               {step === 4 && <Step4Documents P={P} />}
 
-              {/* Navigation des étapes */}
               <div className={`flex mt-8 pt-6 border-t ${step > 1 ? 'justify-between' : 'justify-end'}`} style={{ borderColor: P.border }}>
                 {step > 1 && (
-                  <button
-                    onClick={() => goToStep((step - 1) as StepId)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80"
-                    style={{ border: `1px solid ${P.border}`, color: P.textMuted }}
-                  >
-                    <ChevronLeft size={18} />
-                    Précédent
+                  <button onClick={() => goToStep((step - 1) as StepId)} className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-80" style={{ border: `1px solid ${P.border}`, color: P.textMuted }}>
+                    <ChevronLeft size={18} /> Précédent
                   </button>
                 )}
-                
                 {step < 4 && (
-                  <button
-                    onClick={() => goToStep((step + 1) as StepId)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg"
-                    style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}
-                  >
+                  <button onClick={() => goToStep((step + 1) as StepId)} className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 shadow-lg" style={{ background: P.accent, color: 'white', boxShadow: `0 4px 12px ${P.accent}40` }}>
                     {step === 1 && 'Passer aux moulages'}
-                    {step === 2 && 'Passer au diagnostic'}
-                    {step === 3 && 'Discuter du plan (Ghost Brain)'}
+                    {step === 2 && 'Passer à la synthèse'}
+                    {step === 3 && 'Préparer les documents et la stratégie'}
                     <ChevronRight size={18} />
                   </button>
                 )}
