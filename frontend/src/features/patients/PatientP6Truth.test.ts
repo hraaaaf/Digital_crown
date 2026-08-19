@@ -12,6 +12,7 @@ describe('Patient P6 identity truth boundary', () => {
   it('never invents sex and blocks create when duplicate precheck is unavailable', () => {
     expect(add).toContain("sexe: ''");
     expect(add).not.toContain("sexe: 'F'");
+    expect(add).toContain('<option value="">Choisir');
     expect(add).toContain('Le sexe doit être renseigné explicitement.');
     expect(add).toContain('Promise<boolean | null>');
     expect(add).toContain('Vérification anti-doublon indisponible');
@@ -19,9 +20,10 @@ describe('Patient P6 identity truth boundary', () => {
     expect(add).toContain('Disponibilité non vérifiée');
   });
 
-  it('never substitutes edit values after a patient load failure', () => {
+  it('never substitutes or visually invents edit values after a patient load failure', () => {
     expect(edit).toContain("sexe: ''");
     expect(edit).not.toContain("patient.sexe || 'F'");
+    expect(edit).toContain('<option value="">Choisir');
     expect(edit).toContain('Impossible de charger le patient');
     expect(edit).toContain("Le formulaire n'est pas affiché avec des valeurs par défaut.");
     expect(edit).toContain('Disponibilité non vérifiée');
