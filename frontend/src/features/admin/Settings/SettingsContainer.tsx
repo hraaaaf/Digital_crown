@@ -125,13 +125,23 @@ const SettingsContainer: React.FC = () => {
           }
         `}</style>
       )}
-      <div className="flex flex-col lg:flex-row gap-12 items-start">
-        <div className="w-full lg:w-80 space-y-8 sticky top-24">
-          <div className="flex items-center gap-4 mb-10">
-            <div className="w-14 h-14 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
+      {activeTab === 'equipe' && (
+        <style>{`
+          @media (max-width: 639px) {
+            .settings-team-surface select {
+              min-width: 0 !important;
+              max-width: 100% !important;
+            }
+          }
+        `}</style>
+      )}
+      <div className="flex flex-col lg:flex-row gap-12 items-start min-w-0">
+        <div className="w-full lg:w-80 space-y-8 sticky top-24 min-w-0">
+          <div className="flex items-center gap-4 mb-10 min-w-0">
+            <div className="w-14 h-14 shrink-0 bg-primary text-white rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-primary/30">
               <SettingsIcon size={28} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Ghost Elite Studio</p>
             </div>
@@ -185,10 +195,11 @@ const SettingsContainer: React.FC = () => {
         </div>
 
         <div className={cn(
-          "flex-1 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative",
-          activeTab === 'profil' && 'settings-profile-surface'
+          "flex-1 min-w-0 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative",
+          activeTab === 'profil' && 'settings-profile-surface',
+          activeTab === 'equipe' && 'settings-team-surface'
         )}>
-          <div className="p-8 sm:p-12">
+          <div className="min-w-0 p-5 sm:p-12">
             {profileReadError && activeProfileBackedTab ? (
               <SettingsReadError
                 title={activeTab === 'profil' ? 'Profil indisponible' : 'Configuration cabinet indisponible'}
