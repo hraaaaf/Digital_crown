@@ -61,7 +61,7 @@ jobs:
           pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/requirements-p2-after.txt
           pip install -r /tmp/requirements-p2-after.txt
-          pip install httpx==0.27.2
+          pip install httpx==0.27.2 pytest
 
       - name: P2 targeted backend truth tests
         run: pytest -q backend/tests/test_patient_p2_journey_truth.py
