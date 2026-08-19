@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import type { Patient } from '../../types';
 import { cn } from '../../utils/cn';
 import { MotifSelector } from './components/MotifSelector';
+import { createPatientIdentityFormData, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';
 
 // Types pour la gestion des doublons
 interface DuplicateInfo {
@@ -34,26 +35,12 @@ export const AddPatientForm = () => {
   const prefillPrenom = searchParams.get('prenom') || '';
 
   // État pour la validation du numéro de dossier
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });
 
-  const [formData, setFormData] = useState<any>({
-    numero_dossier: '',
+  const [formData, setFormData] = useState(() => createPatientIdentityFormData({
     nom: prefillNom,
     prenom: prefillPrenom,
-    date_naissance: '',
-    sexe: '',
-    telephone: '',
-    telephone_2: '',
-    telephone_3: '',
-    email: '',
-    adresse: '',
-    assurance: 'AUCUNE',
-    assurance_privee_nom: '',
-    assurance_complementaire: false,
-    assurance_complementaire_nom: '',
-    antecedents_medicaux: '',
-    motif_consultation: [] as string[]
-  });
+  }));
 
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
@@ -130,26 +117,7 @@ export const AddPatientForm = () => {
   };
 
   const validate = () => {
-    const newErrors: { [key: string]: string } = {};
-    if (!formData.nom) newErrors.nom = "Le nom est requis.";
-    if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";
-    if (!formData.date_naissance) {
-      newErrors.date_naissance = "La date de naissance est obligatoire.";
-    } else {
-      const bDate = new Date(formData.date_naissance);
-      const minDate = new Date('1900-01-01');
-      const maxDate = new Date();
-      if (isNaN(bDate.getTime()) || bDate < minDate || bDate > maxDate) {
-        newErrors.date_naissance = "Date invalide (doit être entre 1900 et aujourd'hui).";
-      }
-    }
-    if (!formData.sexe) newErrors.sexe = "Le sexe doit être renseigné explicitement.";
-    // Téléphone, email et adresse sont optionnels
-    
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Format d'email invalide.";
-    }
-
+    const newErrors = validatePatientIdentity(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -204,21 +172,10 @@ export const AddPatientForm = () => {
   const performSubmit = async (isForced: boolean) => {
     setLoading(true);
 
-    // Sanitization
     const payload = {
-      ...formData,
+      ...patientIdentityToApiPayload(formData),
       is_ortho_active: isOrtho,
-      email: formData.email === '' ? null : formData.email,
-      adresse: formData.adresse === '' ? null : formData.adresse,
-      telephone: formData.telephone === '' ? null : formData.telephone,
-      telephone_2: formData.telephone_2 === '' ? null : formData.telephone_2,
-      telephone_3: formData.telephone_3 === '' ? null : formData.telephone_3,
-      assurance_privee_nom: formData.assurance_privee_nom === '' ? null : formData.assurance_privee_nom,
-      assurance_complementaire_nom: formData.assurance_complementaire_nom === '' ? null : formData.assurance_complementaire_nom,
-      antecedents_medicaux: formData.antecedents_medicaux === '' ? null : formData.antecedents_medicaux,
-      motif_consultation: formData.motif_consultation.length === 0 ? null : JSON.stringify(formData.motif_consultation),
     };
-
     try {
       // Si isForced est true, on ajoute le paramètre force_create
       const url = isForced ? '/patients/?force_create=true' : '/patients/';

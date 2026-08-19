@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react';
 import { MotifSelector } from './components/MotifSelector';
+import { createPatientIdentityFormData, patientIdentityFromApi, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';
 
 
 export const EditPatientForm = () => {
@@ -30,28 +31,11 @@ export const EditPatientForm = () => {
   const [fetchError, setFetchError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   
-  const [formData, setFormData] = useState({
-    numero_dossier: '',
-    nom: '',
-    prenom: '',
-    date_naissance: '',
-    sexe: '',
-    telephone: '',
-    telephone_2: '',
-    telephone_3: '',
-    email: '',
-    adresse: '',
-    assurance: 'AUCUNE',
-    assurance_privee_nom: '',
-    assurance_complementaire: false,
-    assurance_complementaire_nom: '',
-    antecedents_medicaux: '',
-    motif_consultation: [] as string[]
-  });
+  const [formData, setFormData] = useState(() => createPatientIdentityFormData());
   const [showPhone2, setShowPhone2] = useState(false);
   const [showPhone3, setShowPhone3] = useState(false);
   const [numeroError, setNumeroError] = useState('');
-  const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });
+  const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });
   const [originalNumero, setOriginalNumero] = useState('');
 
   // Chargement initial des données du patient
@@ -63,31 +47,7 @@ export const EditPatientForm = () => {
         const res = await api.get(`/patients/${id}`);
         const patient = res.data;
         
-        // Formater la date de naissance pour l'input type="date" (YYYY-MM-DD)
-        let dateFormatted = '';
-        if (patient.date_naissance) {
-          const date = new Date(patient.date_naissance);
-          dateFormatted = date.toISOString().split('T')[0];
-        }
-        
-        setFormData({
-          numero_dossier: patient.numero_dossier || '',
-          nom: patient.nom || '',
-          prenom: patient.prenom || '',
-          date_naissance: dateFormatted,
-          sexe: patient.sexe === 'M' || patient.sexe === 'F' ? patient.sexe : '',
-          telephone: patient.telephone || '',
-          telephone_2: patient.telephone_2 || '',
-          telephone_3: patient.telephone_3 || '',
-          email: patient.email || '',
-          adresse: patient.adresse || '',
-          assurance: patient.assurance || 'AUCUNE',
-          assurance_privee_nom: patient.assurance_privee_nom || '',
-          assurance_complementaire: patient.assurance_complementaire || false,
-          assurance_complementaire_nom: patient.assurance_complementaire_nom || '',
-          antecedents_medicaux: patient.antecedents_medicaux || '',
-          motif_consultation: patient.motif_consultation || []
-        });
+        setFormData(patientIdentityFromApi(patient));
         if (patient.telephone_2) setShowPhone2(true);
         if (patient.telephone_3) setShowPhone3(true);
         setOriginalNumero(patient.numero_dossier || '');
@@ -134,10 +94,15 @@ export const EditPatientForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNumeroError('');
+    const identityErrors = validatePatientIdentity(formData);
+    if (Object.keys(identityErrors).length > 0) {
+      window.alert(Object.values(identityErrors)[0]);
+      return;
+    }
     setSaving(true);
     try {
       // Mise à jour via l'API
-      await api.put(`/patients/${id}`, formData);
+      await api.put(`/patients/${id}`, patientIdentityToApiPayload(formData));
       // Retour immédiat à la fiche patient après succès
       navigate(`/patients/${id}`);
     } catch (err: any) {
@@ -289,9 +254,10 @@ export const EditPatientForm = () => {
             <select 
               name="sexe" 
               value={formData.sexe} 
-              onChange={(e) => setFormData({...formData, sexe: e.target.value})}
+              onChange={(e) => setFormData({...formData, sexe: e.target.value as '' | 'M' | 'F'})}
               className={inputClass}
             >
+              <option value="">Choisir…</option>
               <option value="F">Féminin</option>
               <option value="M">Masculin</option>
             </select>
@@ -373,7 +339,6 @@ export const EditPatientForm = () => {
                 className={cn(inputClass, "pl-14")} 
                 value={formData.telephone} 
                 onChange={(e) => setFormData({...formData, telephone: e.target.value})} 
-                required 
               />
             </div>
 
