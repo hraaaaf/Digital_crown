@@ -71,8 +71,6 @@ def _make_panoramic_analysis(db, patient_id):
     return analysis
 
 
-# ── auth guards ────────────────────────────────────────────────────────────────
-
 class TestIaGuard:
     def test_upload_radio_requires_auth(self, client):
         r = client.post("/api/ia/upload-radio?patient_id=1")
@@ -99,8 +97,6 @@ class TestIaGuard:
         assert r.status_code == 401
 
 
-# ── cephalo analyses ──────────────────────────────────────────────────────────
-
 class TestCephaloAnalyses:
     def test_list_analyses_empty(self, client, db, auth_headers, dentiste):
         pat = _make_patient(db, dentiste, "LISTCEPH")
@@ -123,8 +119,6 @@ class TestCephaloAnalyses:
         assert r.json()["id"] == analysis.id
 
     def test_legacy_analysis_calibrated_derives_verified_status(self, client, db, auth_headers, dentiste):
-        # _make_cephalo_analysis crée un angles_data sans calibration_status (legacy) avec
-        # is_calibrated=True — le GET doit dériver "verified" sans migration ni écriture.
         pat = _make_patient(db, dentiste, "LEGVERIF")
         analysis = _make_cephalo_analysis(db, pat.id)
         r = client.get(f"/api/ia/analyses/{analysis.id}", headers=auth_headers)
@@ -144,7 +138,6 @@ class TestCephaloAnalyses:
         db.add(analysis)
         db.commit()
         db.refresh(analysis)
-
         r = client.get(f"/api/ia/analyses/{analysis.id}", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["angles_data"]["calibration_status"] == "unverified"
@@ -183,11 +176,7 @@ class TestCephaloAnalyses:
     def test_calibrate_nonexistent_analysis_returns_404(self, client, auth_headers):
         r = client.post(
             "/api/ia/analyses/999999/calibrate",
-            json={
-                "p1": {"x": 100.0, "y": 100.0},
-                "p2": {"x": 200.0, "y": 100.0},
-                "distance_mm": 30.0,
-            },
+            json={"p1": {"x": 100.0, "y": 100.0}, "p2": {"x": 200.0, "y": 100.0}, "distance_mm": 30.0},
             headers=auth_headers,
         )
         assert r.status_code == 404
@@ -197,17 +186,11 @@ class TestCephaloAnalyses:
         analysis = _make_cephalo_analysis(db, pat.id)
         r = client.post(
             f"/api/ia/analyses/{analysis.id}/calibrate",
-            json={
-                "p1": {"x": 100.0, "y": 100.0},
-                "p2": {"x": 101.0, "y": 100.0},  # only 1px apart
-                "distance_mm": 30.0,
-            },
+            json={"p1": {"x": 100.0, "y": 100.0}, "p2": {"x": 101.0, "y": 100.0}, "distance_mm": 30.0},
             headers=auth_headers,
         )
         assert r.status_code == 400
 
-
-# ── panoramic analyses ────────────────────────────────────────────────────────
 
 class TestPanoramicAnalyses:
     def test_list_panoramic_empty(self, client, db, auth_headers, dentiste):

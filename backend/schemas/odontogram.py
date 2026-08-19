@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
 
 class OdontogramType(str, Enum):
@@ -69,7 +70,10 @@ class OdontogramUpdate(BaseModel):
     @classmethod
     def reject_empty_or_non_fdi_state(cls, value: Dict[int, ToothSurfaceState]):
         if not value:
-            raise ValueError("L'odontogramme ne peut pas être vide")
+            raise PydanticCustomError(
+                "odontogram_empty",
+                "L'odontogramme ne peut pas être vide",
+            )
         return value
 
     @model_validator(mode="after")
@@ -78,7 +82,11 @@ class OdontogramUpdate(BaseModel):
         received = set(self.state.keys())
         if not received.issubset(allowed):
             invalid = sorted(received - allowed)
-            raise ValueError(f"Numéro(s) FDI incompatible(s) avec la dentition: {invalid}")
+            raise PydanticCustomError(
+                "odontogram_fdi_incompatible",
+                "Numéro(s) FDI incompatible(s) avec la dentition: {invalid}",
+                {"invalid": invalid},
+            )
         return self
 
 
