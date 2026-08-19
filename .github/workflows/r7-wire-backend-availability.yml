@@ -64,6 +64,16 @@ jobs:
 
           path.write_text(text)
 
+          modal_path = Path('frontend/src/features/agenda/AgendaModal.tsx')
+          modal = modal_path.read_text()
+          modal = replace_once(
+              modal,
+              '    } catch (err) {\n      console.error("Erreur saving appt", err);\n      toast.error("Erreur lors de la sauvegarde du rendez-vous.");\n',
+              '    } catch (err: any) {\n      console.error("Erreur saving appt", err);\n      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");\n',
+              'AgendaModal explicit availability error',
+          )
+          modal_path.write_text(modal)
+
           wiring_test = Path('backend/tests/test_agenda_availability_wiring.py')
           wiring_test.write_text("""from pathlib import Path
 
@@ -75,12 +85,29 @@ def test_appointment_mutations_use_authoritative_agenda_availability():
     assert "any(key in update_data for key in ('datetime_start', 'duration_minutes', 'scheduling_type'))" in source
     assert source.count('raise HTTPException(status_code=422, detail=availability_error)') >= 3
 """)
+
+          frontend_test = Path('frontend/src/test/agendaR7AvailabilityError.test.ts')
+          frontend_test.write_text("""import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+
+describe('R7 appointment availability feedback', () => {
+  it('surfaces the server availability reason instead of a generic save error', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'src/features/agenda/AgendaModal.tsx'), 'utf8');
+    expect(source).toContain('err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous."');
+  });
+});
+""")
           PY
 
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/routers/appointments.py backend/tests/test_agenda_availability_wiring.py
+          git add \
+            backend/routers/appointments.py \
+            backend/tests/test_agenda_availability_wiring.py \
+            frontend/src/features/agenda/AgendaModal.tsx \
+            frontend/src/test/agendaR7AvailabilityError.test.ts
           if git diff --cached --quiet; then
             echo "R7 backend availability already wired"
             exit 0
