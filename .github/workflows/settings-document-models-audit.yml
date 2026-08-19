@@ -41,7 +41,10 @@ jobs:
           pdf_dir.mkdir(parents=True, exist_ok=True)
           png_dir.mkdir(parents=True, exist_ok=True)
 
-          logo_path = out / 'audit-logo.png'
+          upload_dir = Path('backend/static/uploads')
+          upload_dir.mkdir(parents=True, exist_ok=True)
+          logo_filename = 'audit-logo.png'
+          logo_path = upload_dir / logo_filename
           logo = Image.new('RGBA', (400, 400), (255, 255, 255, 0))
           draw = ImageDraw.Draw(logo)
           draw.ellipse((14, 14, 386, 386), fill='#003380')
@@ -75,7 +78,7 @@ jobs:
               'footer_address': 'Rabat, Maroc',
               'footer_phones': '05 37 00 00 00',
               'footer_email': 'contact@digitalcrown.local',
-              'logo_path': str(logo_path),
+              'logo_path': logo_filename,
               'margin_top': None,
               'margin_bottom': None,
               'qr_code_enabled': False,
@@ -104,6 +107,7 @@ jobs:
               pix.save(png_dir / f'{template}.png')
               doc.close()
 
+          shutil.copy2(logo_path, out / logo_filename)
           assert len(list(pdf_dir.glob('*.pdf'))) == 5
           assert len(list(png_dir.glob('*.png'))) == 5
           PY
