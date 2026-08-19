@@ -349,9 +349,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       setDuration(30);
       setStatus('PRÉVU');
       setSchedulingType('EXACT_TIME');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur saving appt", err);
-      toast.error("Erreur lors de la sauvegarde du rendez-vous.");
+      toast.error(err?.response?.data?.detail || "Erreur lors de la sauvegarde du rendez-vous.");
     } finally {
       setLoading(false);
     }
