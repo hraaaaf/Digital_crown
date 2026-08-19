@@ -157,7 +157,8 @@ class TestCephaloAnalyses:
         pat = _make_patient(db, dentiste, "DELCEPH")
         analysis = _make_cephalo_analysis(db, pat.id)
         r = client.delete(f"/api/ia/cephalo/{analysis.id}", headers=auth_headers)
-        assert r.status_code == 204
+        assert r.status_code == 200
+        assert r.json() == {"status": "trashed", "id": analysis.id, "recoverable": True}
 
     def test_delete_nonexistent_cephalo_returns_404(self, client, auth_headers):
         r = client.delete("/api/ia/cephalo/999999", headers=auth_headers)
@@ -232,7 +233,8 @@ class TestPanoramicAnalyses:
         pat = _make_patient(db, dentiste, "DELPANO")
         analysis = _make_panoramic_analysis(db, pat.id)
         r = client.delete(f"/api/ia/panoramic/{analysis.id}", headers=auth_headers)
-        assert r.status_code == 204
+        assert r.status_code == 200
+        assert r.json() == {"status": "trashed", "id": analysis.id, "recoverable": True}
 
     def test_delete_nonexistent_panoramic_returns_404(self, client, auth_headers):
         r = client.delete("/api/ia/panoramic/999999", headers=auth_headers)
