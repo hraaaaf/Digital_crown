@@ -1,0 +1,38 @@
+name: Settings R5 QR Route Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/settings-r5-qr-route-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record QR destinations and matching backend routes
+        run: |
+          mkdir -p r5-qr-audit
+          {
+            echo '=== QR type definitions ==='
+            grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'QR_TYPES|qr_code_type|VALIDATION|PAYMENT|WHATSAPP|INSTAGRAM|LOCATION|VCARD' frontend/src/features/admin/Settings backend/services/base_template.py || true
+            echo
+            echo '=== verify routes/references ==='
+            grep -R -n --exclude-dir=.git -E '(/verify/|/verify\{|"/verify|\x27/verify|verify_document|verify.*document)' backend frontend/src || true
+            echo
+            echo '=== track routes/references ==='
+            grep -R -n --exclude-dir=.git -E '(/track/|/track\{|"/track|\x27/track|track_document|track.*document)' backend frontend/src || true
+            echo
+            echo '=== router declarations with verify/track ==='
+            grep -R -n --exclude-dir=.git -E '@(router|app)\.(get|post|put|delete|patch).*verify|@(router|app)\.(get|post|put|delete|patch).*track' backend || true
+          } | tee r5-qr-audit/references.txt
+          echo "head_sha=${{ github.event.pull_request.head.sha }}" > r5-qr-audit/metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: settings-r5-qr-route-audit
+          path: r5-qr-audit/
+          if-no-files-found: error
+          retention-days: 14
