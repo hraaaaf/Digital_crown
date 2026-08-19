@@ -41,12 +41,20 @@ describe('P3 clinical assistant authority boundary', () => {
     expect(complete).toContain('décision du praticien');
   });
 
-  it('keeps assistant output session-only in ClinicalHub', () => {
-    expect(hub).toContain('Assistant output is session-only until explicitly validated by the practitioner.');
-    expect(hub).toContain('Proposition clinique à valider');
+  it('keeps assistant output session-only until explicit practitioner validation', () => {
+    expect(hub).toContain('Proposition à valider');
+    expect(hub).toContain('Une proposition d’assistant ne devient jamais une conclusion sans cette action explicite.');
     expect(hub).toContain('const handleWizardComplete');
-    expect(hub).toContain('setLastDiagnosis(proposal)');
-    expect(hub).not.toContain('savePlan(_steps');
-    expect(hub).not.toContain('savePlan(steps');
+    expect(hub).toContain('setLastProposal({ text: proposalText');
+    expect(hub).toContain('patientClinicalPersistence.createConclusion');
+    expect(hub).toContain('Enregistrer la conclusion');
+
+    const handlerStart = hub.indexOf('const handleWizardComplete');
+    const handlerEnd = hub.indexOf('const completedSteps', handlerStart);
+    const handler = hub.slice(handlerStart, handlerEnd);
+    expect(handler).not.toContain('savePlan(');
+    expect(handler).not.toContain('createConclusion(');
+    expect(handler).not.toContain('/prescriptions');
+    expect(handler).not.toContain('/accounting');
   });
 });
