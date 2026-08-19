@@ -98,10 +98,13 @@ def test_conclusions_are_append_only(client, db):
     assert created.status_code == 201
     conclusion_id = created.json()["id"]
 
-    assert client.put(f"{url}/{conclusion_id}", headers=headers, json={"conclusion_text": "Overwrite"}).status_code == 405
-    assert client.delete(f"{url}/{conclusion_id}", headers=headers).status_code == 405
+    # No mutation routes exist by design: FastAPI returns 404 for these unmatched paths.
+    assert client.put(f"{url}/{conclusion_id}", headers=headers, json={"conclusion_text": "Overwrite"}).status_code == 404
+    assert client.delete(f"{url}/{conclusion_id}", headers=headers).status_code == 404
 
-    history = client.get(url, headers=headers).json()
+    history_response = client.get(url, headers=headers)
+    assert history_response.status_code == 200, history_response.text
+    history = history_response.json()
     assert len(history) == 1
     assert history[0]["conclusion_text"] == "Conclusion initiale."
 
