@@ -197,8 +197,8 @@ export const TeamManager: React.FC = () => {
         if (Array.isArray(detail)) {
           // FastAPI Validation Error
           const msgs = detail.map(d => {
-            if (d.loc?.includes('password') && d.type === 'string_too_short') {
-              return "Le mot de passe doit contenir au moins 4 caractères.";
+            if (d.loc?.includes('password') && (d.type === 'string_too_short' || d.type === 'string_too_long')) {
+              return "Le mot de passe doit contenir entre 8 et 128 caractères.";
             }
             if (d.loc?.includes('email')) {
               return "L'adresse email est invalide.";
@@ -241,24 +241,24 @@ export const TeamManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+    <div className="min-w-0 space-y-8 animate-in slide-in-from-right-4 duration-500">
       
       {/* HEADER */}
-      <div className="flex items-center justify-between pb-6 border-b border-slate-100">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-16 h-16 shrink-0 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
             <Users size={32} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>Mon Équipe</h3>
-            <p className="text-slate-500 text-sm font-medium mt-1">
+            <p className="text-slate-500 text-sm font-medium mt-1 break-words">
               Gérez les sous-comptes de vos collaborateurs (Assistantes, Dentistes associés).
             </p>
           </div>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 hover:brightness-110"
+          className="self-start sm:self-auto shrink-0 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 hover:brightness-110"
           style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 25px -8px var(--primary)' }}
         >
           {showForm ? <X size={18} /> : <UserPlus size={18} />}
@@ -268,7 +268,7 @@ export const TeamManager: React.FC = () => {
 
       {/* QUOTA BANNER */}
       {quota && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-wrap items-center gap-4">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-wrap items-center gap-4 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
             <span
@@ -299,9 +299,9 @@ export const TeamManager: React.FC = () => {
             </div>
           )}
           {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
-            <div className="ml-auto flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
-              <TrendingUp size={14} />
-              Quota atteint — passez au plan supérieur
+            <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
+              <TrendingUp size={14} className="shrink-0" />
+              <span className="break-words">Quota atteint — passez au plan supérieur</span>
             </div>
           )}
         </div>
@@ -326,25 +326,25 @@ export const TeamManager: React.FC = () => {
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="bg-slate-50 border border-slate-200 rounded-2xl p-8 space-y-6 animate-in slide-in-from-top-4 duration-300"
+          className="min-w-0 bg-slate-50 border border-slate-200 rounded-2xl p-5 sm:p-8 space-y-6 animate-in slide-in-from-top-4 duration-300"
         >
           <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
             <UserPlus size={20} style={{ color: 'var(--primary)' }} />
             Nouveau sous-compte
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="md:col-span-2">
+          <div className="min-w-0 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="min-w-0 md:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
                 Nom complet du collaborateur
               </label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={form.nom_complet}
                   onChange={(e) => setForm(f => ({ ...f, nom_complet: e.target.value }))}
-                  className="w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="Ex: Fatima Zahra"
                   required
@@ -352,7 +352,7 @@ export const TeamManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="md:col-span-2">
+            <div className="min-w-0 md:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
                 Rôle du collaborateur
               </label>
@@ -368,7 +368,7 @@ export const TeamManager: React.FC = () => {
                       : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, clinical: false, panoramic: false, cephalo: false, settings: false }
                   }));
                 }}
-                className="w-full px-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                className="min-w-0 w-full px-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
                 style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
               >
                 <option value="SECRETAIRE">Assistante (Accès restreint par défaut)</option>
@@ -376,17 +376,17 @@ export const TeamManager: React.FC = () => {
               </select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
                 Email de connexion
               </label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="assistante@cabinet.com"
                   required
@@ -394,20 +394,21 @@ export const TeamManager: React.FC = () => {
               </div>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
                 Mot de passe provisoire
               </label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                  className="w-full pl-11 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="••••••••"
-                  minLength={4}
+                  minLength={8}
+                  maxLength={128}
                   required
                 />
                 <button
@@ -418,30 +419,31 @@ export const TeamManager: React.FC = () => {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <p className="mt-2 ml-1 text-[11px] font-bold text-slate-400">8 à 128 caractères</p>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
                 Téléphone (optionnel)
               </label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="tel"
                   value={form.telephone_mobile}
                   onChange={(e) => setForm(f => ({ ...f, telephone_mobile: e.target.value }))}
-                  className="w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="06 00 00 00 00"
                 />
               </div>
             </div>
 
-            <div className="md:col-span-2 border-t border-slate-200 pt-6">
+            <div className="min-w-0 md:col-span-2 border-t border-slate-200 pt-6">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4 ml-1">
                 Permissions d'accès granulaires
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="min-w-0 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {[
                   { key: 'agenda', label: 'Studio Agenda', desc: 'Gestion des rendez-vous et plannings' },
                   { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
@@ -456,7 +458,7 @@ export const TeamManager: React.FC = () => {
                   <label
                     key={perm.key}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      "min-w-0 flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
                       form.permissions[perm.key as keyof typeof form.permissions]
                         ? "bg-primary/5 border-primary/20"
                         : "bg-white border-slate-200 hover:bg-slate-50"
@@ -472,11 +474,11 @@ export const TeamManager: React.FC = () => {
                           [perm.key]: e.target.checked
                         }
                       }))}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
                     />
-                    <div>
-                      <span className="block text-sm font-black text-slate-800" style={form.permissions[perm.key as keyof typeof form.permissions] ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
-                      <span className="block text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
+                    <div className="min-w-0">
+                      <span className="block break-words text-sm font-black text-slate-800" style={form.permissions[perm.key as keyof typeof form.permissions] ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
+                      <span className="block break-words text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
                     </div>
                   </label>
                 ))}
@@ -484,17 +486,17 @@ export const TeamManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 min-w-0">
             <button
               type="submit"
               disabled={creating}
-              className="px-8 py-4 text-white rounded-xl font-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-70"
+              className="self-start shrink-0 px-8 py-4 text-white rounded-xl font-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-70"
               style={{ backgroundColor: 'var(--primary)', boxShadow: '0 10px 30px -10px var(--primary)' }}
             >
               {creating ? <Loader2 className="animate-spin" size={20} /> : <UserPlus size={20} />}
               {creating ? 'Création en cours...' : 'Créer le compte'}
             </button>
-            <p className="text-xs text-slate-400 font-medium max-w-xs">
+            <p className="min-w-0 text-xs text-slate-400 font-medium max-w-xs break-words">
               L'accès de ce membre sera sécurisé avec cet email et ce mot de passe.
             </p>
           </div>
