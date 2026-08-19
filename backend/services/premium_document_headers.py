@@ -297,18 +297,19 @@ def draw_heritage(base, canvas, config, logo_path, p_color, s_color, a_color, p_
     if logo_path:
         _logo(base, canvas, config, logo_path, center - logo_size / 2, p_height - 1.38 * cm, logo_size)
 
-    fr_y = p_height - 1.88 * cm
+    # Compact but non-overlapping stacked identity: 3 FR lines, then 2 AR lines.
+    fr_y = p_height - 1.76 * cm
     _fr_block(
         base, canvas, fr_lines, center, fr_y, align="center",
-        title_size=10.8 * fs, sub_size=7.0 * fs,
-        font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale,
+        title_size=10.6 * fs, sub_size=6.7 * fs,
+        font="Times-Roman", bold="Times-Bold", color=p_color, line_scale=line_scale * 0.82,
     )
     _ar_block(
-        base, canvas, ar_lines, center, p_height - 2.42 * cm, align="center",
-        title_size=8.8 * fs, sub_size=6.8 * fs, color=s_color, line_scale=line_scale,
+        base, canvas, ar_lines, center, p_height - 2.64 * cm, align="center",
+        title_size=8.2 * fs, sub_size=6.4 * fs, color=s_color, line_scale=line_scale * 0.82,
     )
 
-    line_y = p_height - 2.82 * cm
+    line_y = p_height - 3.22 * cm
     canvas.setStrokeColor(s_color)
     canvas.setLineWidth(0.35)
     canvas.line(margin, line_y, p_width - margin, line_y)
