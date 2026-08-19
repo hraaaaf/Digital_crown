@@ -84,6 +84,8 @@ jobs:
           const ps=await api.get('/api/patients',{headers});
           const patient=(await ps.json()).find(p=>p.numero_dossier==='T2-0001');
           if(!patient) throw new Error('T2 patient missing');
+          const ortho=await api.patch(`/api/patients/${patient.id}/ortho`,{headers,data:{is_ortho_active:true}});
+          if(!ortho.ok()) throw new Error(`Unable to activate ortho fixture: ${ortho.status()} ${await ortho.text()}`);
           const browser=await chromium.launch({headless:true}); const evidence=[];
           for(const viewport of viewports){
             const ctx=await browser.newContext({viewport,colorScheme:'light'}); const page=await ctx.newPage();
@@ -95,7 +97,10 @@ jobs:
             const imaging=page.getByRole('button',{name:'Imagerie',exact:true});
             await imaging.waitFor({state:'visible',timeout:30000});
             await imaging.click();
-            await page.getByRole('button',{name:'Céphalométrie',exact:true}).waitFor({state:'visible',timeout:30000});
+            const ceph=page.getByRole('button',{name:'Céphalométrie',exact:true});
+            await ceph.waitFor({state:'visible',timeout:30000});
+            await ceph.click();
+            await page.getByText('Studio Céphalométrique',{exact:true}).waitFor({state:'visible',timeout:30000});
             await page.waitForTimeout(800);
             const cephaloOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const cephaloShot=`p4-before-cephalo-${viewport.width}x${viewport.height}.png`;
@@ -122,5 +127,5 @@ jobs:
         with:
           name: patient-p4-imagerie-before
           path: artifacts/p4-imagerie-before
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
