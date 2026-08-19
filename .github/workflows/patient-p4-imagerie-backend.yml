@@ -12,6 +12,7 @@ on:
       - 'backend/routers/patient_journey_p4.py'
       - 'backend/services/cmo_agent_service.py'
       - 'backend/tests/test_patient_p4_imaging_trash.py'
+      - 'backend/tests/test_patient_p4_imaging_consumers.py'
       - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py'
       - '.github/workflows/patient-p4-imagerie-backend.yml'
 
@@ -71,5 +72,8 @@ jobs:
           PY
           test "$(alembic heads | wc -l)" -eq 1
 
-      - name: P4 recoverable lifecycle tests
-        run: pytest -q backend/tests/test_patient_p4_imaging_trash.py
+      - name: P4 recoverable lifecycle and consumer tests
+        run: |
+          pytest -q \
+            backend/tests/test_patient_p4_imaging_trash.py \
+            backend/tests/test_patient_p4_imaging_consumers.py
