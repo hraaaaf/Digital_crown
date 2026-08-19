@@ -31,6 +31,7 @@ jobs:
           from types import SimpleNamespace
           import shutil
           import fitz
+          from PIL import Image, ImageDraw, ImageFont
 
           from backend.services.generators.ordonnance_gen import OrdonnanceGenerator
 
@@ -39,6 +40,17 @@ jobs:
           png_dir = out / 'png'
           pdf_dir.mkdir(parents=True, exist_ok=True)
           png_dir.mkdir(parents=True, exist_ok=True)
+
+          logo_path = out / 'audit-logo.png'
+          logo = Image.new('RGBA', (400, 400), (255, 255, 255, 0))
+          draw = ImageDraw.Draw(logo)
+          draw.ellipse((14, 14, 386, 386), fill='#003380')
+          font = ImageFont.truetype('backend/static/assets/fonts/Outfit-Bold.ttf', 150)
+          bbox = draw.textbbox((0, 0), 'DC', font=font)
+          x = (400 - (bbox[2] - bbox[0])) / 2
+          y = (400 - (bbox[3] - bbox[1])) / 2 - bbox[1]
+          draw.text((x, y), 'DC', fill='white', font=font)
+          logo.save(logo_path)
 
           patient = SimpleNamespace(
               nom='ALAMI', prenom='Sara', date_naissance=__import__('datetime').date(1990, 4, 12)
@@ -63,6 +75,7 @@ jobs:
               'footer_address': 'Rabat, Maroc',
               'footer_phones': '05 37 00 00 00',
               'footer_email': 'contact@digitalcrown.local',
+              'logo_path': str(logo_path),
               'margin_top': None,
               'margin_bottom': None,
               'qr_code_enabled': False,
