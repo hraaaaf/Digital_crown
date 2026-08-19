@@ -31,11 +31,7 @@ Pour chaque page / lot :
 
 ## 3. Règle spéciale — preset Benmoussa
 
-Le preset personnel (`Dr. Benmoussa Achraf`, équivalent arabe et expertises associées) :
-- disponible uniquement pour le superadmin propriétaire ;
-- jamais défaut d'un cabinet standard ;
-- non-superadmin : `Réinitialiser depuis le cabinet` utilise ses données réelles ;
-- vérité propriétaire = backend `SUPERADMIN_EMAIL`, pas seulement rôle `ADMIN`.
+Le preset personnel (`Dr. Benmoussa Achraf`, équivalent arabe et expertises associées) reste réservé au superadmin propriétaire ; jamais défaut d'un cabinet standard ; non-superadmin = reset depuis données réelles ; vérité propriétaire = backend `SUPERADMIN_EMAIL`.
 
 Statut : **IMPLÉMENTÉ ET CERTIFIÉ R2**.
 
@@ -56,32 +52,21 @@ Statut : **IMPLÉMENTÉ ET CERTIFIÉ R2**.
 
 ### R1 — Shell / architecture Settings
 
-- RBAC / Truth Gates : garder.
-- Navigation : correcte.
-- Doctrine de sauvegarde encore incohérente entre pages.
-
+RBAC / Truth Gates : garder. Navigation correcte. Doctrine de sauvegarde encore incohérente.
 Décision : **GARDER le shell, REFONDRE la doctrine de sauvegarde**.
 Statut : `AUDITÉ — À EXÉCUTER`.
 
 ### R2 — Profil Cabinet
 
 Décision : **GARDER / SIMPLIFIER — CLOSED**.
-
-Implémenté : identité/praticien FR-AR, spécialités bilingues, génération automatique d'en-tête ; édition manuelle avancée/repliable ; preset Benmoussa réservé au superadmin ; faux discours détourage IA/SVG supprimé ; double sauvegarde et sticky mobile corrigés.
-
 Preuves : PR #171 MERGED ; HEAD produit `99de2c4aee19f389bdbd0eee46cae072747babdb` ; merge `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ; R2 Visual #17 / CI #1117 / T2 #377 SUCCESS.
-
 Score visuel : **9.6/10**.
 Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 ### R3 — Design & Ambiance
 
 Décision : **GARDER / CLARIFIER LE MODÈLE MENTAL — CLOSED**.
-
-Implémenté : `Apparence app | Documents` → `APERÇU — Application | Document` ; microcopie explicite ; `previewScope` + migration locale ; aucune duplication de thème/profil.
-
-Preuves : BEFORE 5 viewports ; Goal/wireframe avant code ; PR #173 MERGED ; HEAD produit `9db4b560af7925233d5584dfb7af870b76e086d2` ; merge `985873dc644453b078a2a0efc6a1e006121ee6b0` ; Branding #26 / RBAC #53 / T2 #381 / CI #1124 SUCCESS ; 10 AFTER inspectées.
-
+Preuves : PR #173 MERGED ; HEAD produit `9db4b560af7925233d5584dfb7af870b76e086d2` ; merge `985873dc644453b078a2a0efc6a1e006121ee6b0` ; Branding #26 / RBAC #53 / T2 #381 / CI #1124 SUCCESS ; 10 AFTER inspectées.
 Score visuel : **9.7/10**.
 Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
@@ -89,29 +74,9 @@ Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 Décision finale : **GARDER / RENDRE LE PDF RÉEL AUTORITAIRE — CLOSED**.
 
-Implémenté :
-- faux renderer documentaire React supprimé de Réglages ;
-- PDF réel = aperçu documentaire principal ;
-- état `À actualiser / Rendu à jour` ; génération explicite, plus de régénération automatique 600 ms ;
-- 5 IDs conservés et alignés : `swiss / royal / clinical / modern / heritage` ;
-- moteur dédié `premium_document_headers.py` ;
-- cinq signatures visuelles réellement distinctes ;
-- arabe corrigé via fonte Unicode locale, sans réseau ;
-- choix typographiques Settings rendus déterministes ;
-- previews isolés sous `.previews/settings_branding/<user>` et stockage borné ;
-- Document Studio clinique hors scope et non modifié.
+Implémenté : faux renderer React supprimé ; PDF réel = aperçu principal ; génération explicite ; 5 IDs alignés `swiss / royal / clinical / modern / heritage` ; moteur `premium_document_headers.py` ; cinq signatures réellement distinctes ; arabe via fonte Unicode locale ; previews isolés et bornés ; Document Studio clinique hors scope.
 
-Preuves :
-- PR #174 MERGED ;
-- HEAD produit certifié `0dd384c7b242945270ddb009350961da3590f44f` ;
-- merge `5efca67d5416c1d7752a792c304b8d90c7a80aea` ;
-- Settings Document Models Visual Audit #19 run `32207520254` SUCCESS ;
-- Branding #56 run `32207520252` SUCCESS ;
-- RBAC #91 run `32207520212` SUCCESS ;
-- T2 #459 run `32207520238` SUCCESS ;
-- CI #1205 run `32207520301` SUCCESS ;
-- closeout : `docs/settings/R4B_PREMIUM_DOCUMENT_MODELS_CLOSEOUT.md` ;
-- scores modèles AFTER : Swiss 9.2, Royal 9.1, Clinical 9.3, Modern 9.2, Heritage 9.1.
+Preuves : PR #174 MERGED ; HEAD produit `0dd384c7b242945270ddb009350961da3590f44f` ; merge `5efca67d5416c1d7752a792c304b8d90c7a80aea` ; Document Models #19 `32207520254` / Branding #56 `32207520252` / RBAC #91 `32207520212` / T2 #459 `32207520238` / CI #1205 `32207520301` SUCCESS ; closeout `docs/settings/R4B_PREMIUM_DOCUMENT_MODELS_CLOSEOUT.md`.
 
 Score visuel global modèles : **9.2/10**.
 Statut : `CLOSED — CERTIFIÉ — MERGED`.
@@ -123,18 +88,54 @@ Statut : `AUDITÉ — P2`.
 
 ### R6 — Catalogue Actes
 
-Architecture Spécialité → Actes → Pathologies : **GARDER**.
-CRUD `window.prompt()` : **REFONDRE** avec vrais formulaires/modales, validation et désactivation contrôlée.
+Décision finale : **GARDER L'ARCHITECTURE / REFONDRE LE CRUD — CLOSED**.
 
-État courant vérifié : PR #177 entièrement verte au HEAD `f0e05923e85c34e90493a1086bec6b5eeabc86ed` ; score visuel AFTER 9.6/10 ; closeout/merge restant.
-Statut : `EN CLOSEOUT — P1`.
+Implémenté :
+- architecture Spécialité → Actes → Pathologies conservée ;
+- `window.prompt()` supprimé ;
+- vrais formulaires/modales avec validation ;
+- édition complète des actes/pathologies ;
+- désactivation contrôlée pour entités supportant `is_active` ;
+- aucune suppression physique inventée pour les spécialités ;
+- mutations ne ferment la modale qu'après succès backend ;
+- mobile rééquilibré ; états inactifs rendus explicites.
+
+Preuves :
+- PR #177 MERGED ;
+- HEAD produit certifié `f0e05923e85c34e90493a1086bec6b5eeabc86ed` ;
+- merge `f88da1bed2f0cc66be8ecf6fef140d7f270903db` ;
+- Catalog #9 run `32207096740` SUCCESS ;
+- RBAC #89 run `32207096768` SUCCESS ;
+- Read Truth #12 run `32207096741` SUCCESS ;
+- T2 #450 run `32207096762` SUCCESS ;
+- CI #1196 run `32207096743` SUCCESS ;
+- 10 AFTER inspectées : page + modale Acte × 1440/1024/768/430/390.
+
+Score visuel : **9.6/10**.
+Statut : `CLOSED — CERTIFIÉ — MERGED`.
 
 ### R7 — Horaires & Agenda
 
-Garder horaires. Cible : semaine réelle persistée + fermetures/congés. Audit downstream : `agenda_mode` non consommé ; `use_tickets` ne mène qu'à un bouton mort ; exceptions backend déjà présentes.
+Décision en cours : **GARDER les horaires, rendre la configuration réellement appliquée**.
 
-État courant : Settings visual et CI verts sur le HEAD audité, mais downstream baseline détecte un overflow 1440 px et RBAC est rouge. Ne pas déclarer certifié.
-Statut : `ACTIF APRÈS R6 — P2`.
+Audit vérifié :
+- modèle historique = horaires globaux + `agenda_mode` + `use_tickets` ;
+- DailyView / WeeklyView historiquement codés 08:00–19:00 ;
+- `agenda_mode` n'est pas consommé par Agenda ; la flexibilité réelle vit déjà dans `Appointment.scheduling_type` ;
+- `use_tickets` ne produit qu'un bouton `Nouveau Ticket` sans action ;
+- backend possède déjà les exceptions/congés `/agenda/exceptions` ;
+- Goal + wireframe écrits dans `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` ;
+- Settings R7 a déjà avancé vers semaine persistée + exceptions.
+
+Preuves courantes au HEAD `4d44a820f680ebdf75150e3d8d43e41f84333f82` :
+- Settings Agenda Visual #9 SUCCESS ;
+- Read Truth #17 SUCCESS ;
+- T2 #463 SUCCESS ;
+- CI #1209 SUCCESS ;
+- **Agenda Downstream BEFORE #1 FAILURE : root overflow weekly à 1440 px** ;
+- **RBAC #95 FAILURE**.
+
+Statut : `ACTIF — NON CERTIFIÉ`.
 
 ### R8 — IA & Système
 
@@ -143,7 +144,6 @@ Cible : **Performance & Assistance**.
 - Fond animé : downstream réel, DÉPLACER vers Design & Ambiance.
 - Conseils cliniques : persistés mais aucun consommateur retrouvé, candidat retrait UI.
 - Indicateurs patient : persistés mais aucun consommateur retrouvé, candidat retrait UI / cleanup après preuve finale.
-
 Statut : `AUDITÉ — P2`.
 
 ### R9 — Sécurité & Backup
@@ -166,15 +166,15 @@ Statut : `AUDITÉ — P3`.
 ### P1 — incohérences fortes / dette visible
 
 - **P1.1** Doctrine de sauvegarde Settings.
-- **P1.2** Modèles/rendu documentaire dans Réglages. ✅ CLOSED R4.
-- **P1.3** Catalogue CRUD réel. **EN CLOSEOUT R6 / PR #177**.
+- **P1.2** Modèles/rendu documentaire. ✅ CLOSED R4.
+- **P1.3** Catalogue CRUD réel. ✅ CLOSED R6.
 - **P1.4** Profil / preset propriétaire. ✅ CLOSED R2.
 - **P1.5** Team password copy 8..128.
 - **P1.6** Scope Branding. ✅ CLOSED R3.
 
 ### P2 — valeur métier / simplification
 
-- **P2.1** Agenda hebdomadaire réel. R7 actif après R6.
+- **P2.1** Agenda hebdomadaire réel. **ACTIF R7**.
 - **P2.2** Catalogue avancé.
 - **P2.3** IA & Système → Performance & Assistance.
 - **P2.4** Audit Log humanisé.
@@ -192,8 +192,8 @@ Statut : `AUDITÉ — P3`.
 1. ✅ R2 Profil Cabinet ;
 2. ✅ R3 Design & Ambiance ;
 3. ✅ R4 Modèles & rendu documents ;
-4. **R6 Catalogue Actes** ;
-5. R7 Agenda ;
+4. ✅ R6 Catalogue Actes ;
+5. **R7 Agenda** ;
 6. R8 Performance & Assistance ;
 7. R9 Sécurité & Backup ;
 8. R10 Mon Équipe ;
@@ -202,36 +202,28 @@ Statut : `AUDITÉ — P3`.
 ## 8. HANDOVER COURANT
 
 - Chantier : **Réglages / Paramètres — Product Review & Simplification**
-- Lot actif : **R6 — Catalogue Actes**
-- Goal : remplacer le CRUD `prompt()` par des formulaires sûrs sans suppression physique non supportée
+- Lot actif : **R7 — Horaires & Agenda**
+- Goal : semaine réelle persistée + fermetures/congés + Agenda downstream réellement borné par les horaires
 - Repo : `hraaaaf/Digital_crown`
-- Branche : `settings-r6-catalog-crud`
-- PR : `#177 OPEN / mergeable`
-- HEAD produit certifié R6 : `f0e05923e85c34e90493a1086bec6b5eeabc86ed`
-- Preuves R6 : Catalog #9 / RBAC #89 / Read Truth #12 / T2 #450 / CI #1196 SUCCESS
-- Dernière preuve visuelle : 10 AFTER Catalogue inspectées, score 9.6/10
-- Blocage réel : aucun produit ; closeout + merge R6 restent à faire après intégration R4 dans master
-- Next exact : **closeout R6 contre master post-R4 → merge #177 → corriger R7 downstream overflow/RBAC**
-- Avancement roadmap validé : **3/15 = 20.0 %**
+- Branche : `settings-r7-agenda-real-schedule`
+- PR : `#178 OPEN / mergeable`
+- HEAD : `4d44a820f680ebdf75150e3d8d43e41f84333f82`
+- Dernière preuve : Settings Agenda Visual #9 / Read Truth #17 / T2 #463 / CI #1209 SUCCESS ; downstream baseline et RBAC rouges
+- Blocage réel : overflow weekly détecté à 1440 px dans le downstream + RBAC #95 à diagnostiquer/corriger
+- Next exact : **corriger baseline/harness ou overflow réel → diagnostiquer RBAC #95 → wiring Daily/Weekly → AFTER Settings + downstream mêmes viewports → score → merge**
+- Avancement roadmap validé : **4/15 = 26.7 %**
 - Vercel : **interdit sans autorisation explicite**
 
 ## 9. Journal
 
-### 2026-08-19 — R4 CLOSED
+### 2026-08-19 — R6 CLOSED
+- CRUD prompt remplacé par formulaires sûrs ; aucune suppression physique inventée ; 10 AFTER inspectées ; score 9.6/10 ; Catalog/RBAC/Read Truth/T2/CI verts ; PR #177 mergée en `f88da1bed2f0cc66be8ecf6fef140d7f270903db` ; aucun Vercel.
 
-- PDF réel promu vérité du preview documentaire ;
-- renderer simulé supprimé ;
-- 5 modèles premium réalignés et différenciés ;
-- arabe corrigé ;
-- Document Models / Branding / RBAC / T2 / CI verts sur HEAD exact ;
-- score visuel global 9.2/10 ;
-- PR #174 mergée en `5efca67d5416c1d7752a792c304b8d90c7a80aea` ;
-- aucun déploiement Vercel.
+### 2026-08-19 — R4 CLOSED
+- PDF réel promu vérité du preview ; 5 modèles premium réalignés ; arabe corrigé ; score global 9.2/10 ; tous gates verts ; PR #174 mergée en `5efca67d5416c1d7752a792c304b8d90c7a80aea` ; aucun Vercel.
 
 ### 2026-08-19 — R3 CLOSED
-
-- PR #173 mergée ; 10 AFTER certifiées ; score 9.7/10 ; aucun déploiement Vercel.
+- PR #173 mergée ; 10 AFTER certifiées ; score 9.7/10 ; aucun Vercel.
 
 ### 2026-08-19 — R2 CLOSED
-
-- PR #171 mergée ; preset Benmoussa limité au superadmin propriétaire ; score 9.6/10 ; aucun déploiement Vercel.
+- PR #171 mergée ; preset Benmoussa limité au superadmin propriétaire ; score 9.6/10 ; aucun Vercel.
