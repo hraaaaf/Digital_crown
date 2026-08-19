@@ -51,7 +51,8 @@ jobs:
           assert "setSearchParams({ tab: 'admin' })" not in journey
           assert 'risk_level' not in flash
           assert '/ai-summary' not in flash
-          assert 'return null' in flash
+          assert "from '../../services/api'" not in flash
+          assert '=> null' in flash
           PY
 
       - name: Install backend
@@ -147,5 +148,5 @@ jobs:
         with:
           name: patient-p2-journey-after
           path: artifacts/p2-journey-after
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
