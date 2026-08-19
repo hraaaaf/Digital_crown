@@ -2,7 +2,8 @@
 
 Date : 2026-08-19
 Repo : `hraaaaf/Digital_crown`
-PR : `#185`
+PR : `#185` — **MERGED**
+Merge : `bda7f99aa95e9341f5154293618c35949bcae331`
 HEAD produit certifié : `f20cfe39eeddf28152c1cc106c17eb6727edf11b`
 
 ## Goal
@@ -59,10 +60,10 @@ Forces : lecture praticien nettement meilleure, détails explicites, fallback te
 
 Réserve : à 1024 px la page Réglages globale conserve une composition assez verticale, mais le Journal d’Audit lui-même reste lisible, stable et sans overflow.
 
-## Statut pré-merge
+## Statut
 
-**CERTIFIÉ — READY TO MERGE**.
+**CLOSED — CERTIFIÉ — MERGED**.
 
-Avancement chantier créditable après merge : **7/15 = 46,7 %**.
+Avancement chantier après merge : **7/15 = 46,7 %**.
 
 Aucun déploiement Vercel.
