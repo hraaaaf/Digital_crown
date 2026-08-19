@@ -1,0 +1,260 @@
+name: Patient P6A Shared Identity Contract
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p5-documents
+    paths:
+      - '.github/workflows/patient-p6a-shared-identity-contract.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p6-finances-identite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Wire Add/Edit to the same identity contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          add = Path('frontend/src/features/patients/AddPatientForm.tsx')
+          edit = Path('frontend/src/features/patients/EditPatientForm.tsx')
+          test = Path('frontend/src/features/patients/PatientIdentityContract.p6.test.ts')
+
+          a = add.read_text(encoding='utf-8')
+          if "from './PatientIdentityContract'" not in a:
+              a = a.replace(
+                  "import { MotifSelector } from './components/MotifSelector';\n",
+                  "import { MotifSelector } from './components/MotifSelector';\nimport { createPatientIdentityFormData, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';\n",
+                  1,
+              )
+          a = a.replace(
+              "const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });",
+              "const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });",
+              1,
+          )
+          old_form = '''  const [formData, setFormData] = useState<any>({
+    numero_dossier: '',
+    nom: prefillNom,
+    prenom: prefillPrenom,
+    date_naissance: '',
+    sexe: '',
+    telephone: '',
+    telephone_2: '',
+    telephone_3: '',
+    email: '',
+    adresse: '',
+    assurance: 'AUCUNE',
+    assurance_privee_nom: '',
+    assurance_complementaire: false,
+    assurance_complementaire_nom: '',
+    antecedents_medicaux: '',
+    motif_consultation: [] as string[]
+  });'''
+          new_form = '''  const [formData, setFormData] = useState(() => createPatientIdentityFormData({
+    nom: prefillNom,
+    prenom: prefillPrenom,
+  }));'''
+          if old_form in a:
+              a = a.replace(old_form, new_form, 1)
+          elif 'createPatientIdentityFormData' not in a.split('const [showPhone2')[0]:
+              raise SystemExit('Add form state marker missing')
+
+          old_validate = '''  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.nom) newErrors.nom = "Le nom est requis.";
+    if (!formData.prenom) newErrors.prenom = "Le prénom est requis.";
+    if (!formData.date_naissance) {
+      newErrors.date_naissance = "La date de naissance est obligatoire.";
+    } else {
+      const bDate = new Date(formData.date_naissance);
+      const minDate = new Date('1900-01-01');
+      const maxDate = new Date();
+      if (isNaN(bDate.getTime()) || bDate < minDate || bDate > maxDate) {
+        newErrors.date_naissance = "Date invalide (doit être entre 1900 et aujourd'hui).";
+      }
+    }
+    if (!formData.sexe) newErrors.sexe = "Le sexe doit être renseigné explicitement.";
+    // Téléphone, email et adresse sont optionnels
+    
+    if (formData.email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(formData.email)) {
+      newErrors.email = "Format d'email invalide.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };'''
+          new_validate = '''  const validate = () => {
+    const newErrors = validatePatientIdentity(formData);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };'''
+          if old_validate in a:
+              a = a.replace(old_validate, new_validate, 1)
+          elif 'validatePatientIdentity(formData)' not in a:
+              raise SystemExit('Add validate marker missing')
+
+          old_payload = '''    // Sanitization
+    const payload = {
+      ...formData,
+      is_ortho_active: isOrtho,
+      email: formData.email === '' ? null : formData.email,
+      adresse: formData.adresse === '' ? null : formData.adresse,
+      telephone: formData.telephone === '' ? null : formData.telephone,
+      telephone_2: formData.telephone_2 === '' ? null : formData.telephone_2,
+      telephone_3: formData.telephone_3 === '' ? null : formData.telephone_3,
+      assurance_privee_nom: formData.assurance_privee_nom === '' ? null : formData.assurance_privee_nom,
+      assurance_complementaire_nom: formData.assurance_complementaire_nom === '' ? null : formData.assurance_complementaire_nom,
+      antecedents_medicaux: formData.antecedents_medicaux === '' ? null : formData.antecedents_medicaux,
+      motif_consultation: formData.motif_consultation.length === 0 ? null : JSON.stringify(formData.motif_consultation),
+    };'''
+          new_payload = '''    const payload = {
+      ...patientIdentityToApiPayload(formData),
+      is_ortho_active: isOrtho,
+    };'''
+          if old_payload in a:
+              a = a.replace(old_payload, new_payload, 1)
+          elif 'patientIdentityToApiPayload(formData)' not in a:
+              raise SystemExit('Add payload marker missing')
+          add.write_text(a, encoding='utf-8')
+
+          e = edit.read_text(encoding='utf-8')
+          if "from './PatientIdentityContract'" not in e:
+              e = e.replace(
+                  "import { MotifSelector } from './components/MotifSelector';\n",
+                  "import { MotifSelector } from './components/MotifSelector';\nimport { createPatientIdentityFormData, patientIdentityFromApi, patientIdentityToApiPayload, validatePatientIdentity, type DossierStatus } from './PatientIdentityContract';\n",
+                  1,
+              )
+          old_edit_form = '''  const [formData, setFormData] = useState({
+    numero_dossier: '',
+    nom: '',
+    prenom: '',
+    date_naissance: '',
+    sexe: '',
+    telephone: '',
+    telephone_2: '',
+    telephone_3: '',
+    email: '',
+    adresse: '',
+    assurance: 'AUCUNE',
+    assurance_privee_nom: '',
+    assurance_complementaire: false,
+    assurance_complementaire_nom: '',
+    antecedents_medicaux: '',
+    motif_consultation: [] as string[]
+  });'''
+          if old_edit_form in e:
+              e = e.replace(old_edit_form, "  const [formData, setFormData] = useState(() => createPatientIdentityFormData());", 1)
+          elif 'createPatientIdentityFormData()' not in e:
+              raise SystemExit('Edit form state marker missing')
+          e = e.replace(
+              "const [dossierStatus, setDossierStatus] = useState<{ status: 'idle' | 'checking' | 'available' | 'taken' | 'error', owner?: string }>({ status: 'idle' });",
+              "const [dossierStatus, setDossierStatus] = useState<DossierStatus>({ status: 'idle' });",
+              1,
+          )
+
+          old_fetch = '''        // Formater la date de naissance pour l'input type="date" (YYYY-MM-DD)
+        let dateFormatted = '';
+        if (patient.date_naissance) {
+          const date = new Date(patient.date_naissance);
+          dateFormatted = date.toISOString().split('T')[0];
+        }
+        
+        setFormData({
+          numero_dossier: patient.numero_dossier || '',
+          nom: patient.nom || '',
+          prenom: patient.prenom || '',
+          date_naissance: dateFormatted,
+          sexe: patient.sexe === 'M' || patient.sexe === 'F' ? patient.sexe : '',
+          telephone: patient.telephone || '',
+          telephone_2: patient.telephone_2 || '',
+          telephone_3: patient.telephone_3 || '',
+          email: patient.email || '',
+          adresse: patient.adresse || '',
+          assurance: patient.assurance || 'AUCUNE',
+          assurance_privee_nom: patient.assurance_privee_nom || '',
+          assurance_complementaire: patient.assurance_complementaire || false,
+          assurance_complementaire_nom: patient.assurance_complementaire_nom || '',
+          antecedents_medicaux: patient.antecedents_medicaux || '',
+          motif_consultation: patient.motif_consultation || []
+        });'''
+          if old_fetch in e:
+              e = e.replace(old_fetch, '        setFormData(patientIdentityFromApi(patient));', 1)
+          elif 'patientIdentityFromApi(patient)' not in e:
+              raise SystemExit('Edit API mapping marker missing')
+
+          submit_marker = '''  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNumeroError('');
+    setSaving(true);'''
+          submit_replacement = '''  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNumeroError('');
+    const identityErrors = validatePatientIdentity(formData);
+    if (Object.keys(identityErrors).length > 0) {
+      window.alert(Object.values(identityErrors)[0]);
+      return;
+    }
+    setSaving(true);'''
+          if submit_marker in e:
+              e = e.replace(submit_marker, submit_replacement, 1)
+          elif 'validatePatientIdentity(formData)' not in e:
+              raise SystemExit('Edit submit validation marker missing')
+          e = e.replace('await api.put(`/patients/${id}`, formData);', 'await api.put(`/patients/${id}`, patientIdentityToApiPayload(formData));', 1)
+          e = e.replace(
+              "onChange={(e) => setFormData({...formData, sexe: e.target.value})}",
+              "onChange={(e) => setFormData({...formData, sexe: e.target.value as '' | 'M' | 'F'})}",
+              1,
+          )
+          sex_option = '''            >
+              <option value="F">Féminin</option>
+              <option value="M">Masculin</option>'''
+          if sex_option in e:
+              e = e.replace(sex_option, '''            >
+              <option value="">Choisir…</option>
+              <option value="F">Féminin</option>
+              <option value="M">Masculin</option>''', 1)
+          elif '<option value="">Choisir…</option>' not in e:
+              raise SystemExit('Edit explicit sex placeholder marker missing')
+          edit.write_text(e, encoding='utf-8')
+
+          test.write_text('''import { describe, expect, it } from 'vitest';\nimport {\n  createPatientIdentityFormData,\n  patientIdentityFromApi,\n  patientIdentityToApiPayload,\n  validatePatientIdentity,\n} from './PatientIdentityContract';\n\ndescribe('P6 shared patient identity contract', () => {\n  it('never invents a sex and requires the four backend identity fields', () => {\n    const empty = createPatientIdentityFormData();\n    expect(empty.sexe).toBe('');\n    const errors = validatePatientIdentity(empty, new Date('2026-08-19'));\n    expect(errors.nom).toBeTruthy();\n    expect(errors.prenom).toBeTruthy();\n    expect(errors.date_naissance).toBeTruthy();\n    expect(errors.sexe).toBeTruthy();\n  });\n\n  it('maps unknown backend sex to empty and parses stored motif JSON', () => {\n    const data = patientIdentityFromApi({\n      nom: 'TEST', prenom: 'Patient', date_naissance: '1990-01-02', sexe: 'X',\n      motif_consultation: '["Douleur","Contrôle"]',\n    });\n    expect(data.sexe).toBe('');\n    expect(data.motif_consultation).toEqual(['Douleur', 'Contrôle']);\n  });\n\n  it('serializes optional blanks consistently for Add and Edit', () => {\n    const data = createPatientIdentityFormData({\n      nom: 'TEST', prenom: 'Patient', date_naissance: '1990-01-02', sexe: 'F',\n      motif_consultation: ['Contrôle'],\n    });\n    const payload = patientIdentityToApiPayload(data);\n    expect(payload.telephone).toBeNull();\n    expect(payload.email).toBeNull();\n    expect(payload.motif_consultation).toBe('["Contrôle"]');\n  });\n});\n''', encoding='utf-8')
+
+          merged = add.read_text(encoding='utf-8') + edit.read_text(encoding='utf-8')
+          for marker in ['validatePatientIdentity(formData)', 'patientIdentityToApiPayload(formData)', 'DossierStatus']:
+              if merged.count(marker) < 2:
+                  raise SystemExit(f'Shared identity marker missing twice: {marker}')
+          if '<option value="">Choisir…</option>' not in edit.read_text(encoding='utf-8'):
+              raise SystemExit('Edit still lacks explicit neutral sex option')
+          PY
+          git diff --check
+
+      - name: Test shared contract and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run test -- --run src/features/patients/PatientIdentityContract.p6.test.ts
+          npm run build
+
+      - name: Commit shared contract wiring
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/patients/PatientIdentityContract.ts frontend/src/features/patients/PatientIdentityContract.p6.test.ts frontend/src/features/patients/AddPatientForm.tsx frontend/src/features/patients/EditPatientForm.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'refactor(patient): unify P6 identity contract'
+          git push origin HEAD:${GITHUB_HEAD_REF}
