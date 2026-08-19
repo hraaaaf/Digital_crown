@@ -12,7 +12,6 @@ const studioPages = [
   { slug: 'honoraires', label: 'Note Honoraires', tourId: 'tab-honoraires' },
   { slug: 'echeancier', label: 'Suivi Paiement', tourId: 'tab-suivi' },
   { slug: 'libre', label: 'Document Libre', tourId: 'tab-libre' },
-  { slug: 'plan', label: 'Compagnon Diagnostique', tourId: 'tab-strategie' },
 ];
 
 const viewports = [
@@ -53,6 +52,15 @@ async function seedAuth(page) {
   }, { access: tokens.access_token, refresh: tokens.refresh_token });
 }
 
+async function assertCompanionAbsent(page) {
+  if (await page.locator('[data-tour="tab-strategie"]').count()) {
+    throw new Error('Compagnon Diagnostique legacy tab is still mounted');
+  }
+  if (await page.getByText('Compagnon Diagnostique', { exact: true }).count()) {
+    throw new Error('Compagnon Diagnostique legacy label is still visible');
+  }
+}
+
 async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
@@ -60,6 +68,7 @@ async function certifyStudioPage(page, studioPage, viewport, colorScheme) {
   const url = `http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=${studioPage.slug}`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('[data-tour="patient-tabs"]').getByText('Documents', { exact: true }).waitFor({ timeout: 30000 });
+  await assertCompanionAbsent(page);
   await page.getByText(studioPage.label, { exact: true }).first().waitFor({ timeout: 30000 });
 
   const metrics = await page.evaluate(({ slug }) => {
@@ -177,9 +186,8 @@ for (const viewport of viewports) {
   try {
     await page.goto(`http://127.0.0.1:5173/patients/${patient.id}?tab=admin&documentTab=libre`, { waitUntil: 'networkidle', timeout: 90000 });
     await page.getByText('Document Libre', { exact: true }).first().waitFor({ timeout: 30000 });
+    await assertCompanionAbsent(page);
 
-    // Document Libre opens its preview automatically. This stress scenario certifies
-    // tab transitions and dirty-draft protection, so close that independent surface first.
     const openPreview = page.getByRole('dialog').last();
     if (await openPreview.isVisible({ timeout: 1500 }).catch(() => false)) {
       await page.keyboard.press('Escape');
@@ -197,10 +205,6 @@ for (const viewport of viewports) {
     for (const studioPage of transitionSequence) {
       const tab = page.locator(`[data-tour="${studioPage.tourId}"]`);
       await tab.waitFor({ state: 'attached', timeout: 10000 });
-
-      // The viewport matrices already certify visible navigation and pointer reachability.
-      // This stress loop intentionally isolates the dirty-draft transition contract from
-      // horizontal tab-strip geometry, which otherwise makes Playwright recertify layout.
       await tab.evaluate((element) => element.click());
 
       const discardDialog = page.getByRole('dialog').filter({ hasText: 'Document en cours' }).last();
@@ -214,6 +218,7 @@ for (const viewport of viewports) {
         studioPage.slug,
         { timeout: 10000 },
       );
+      await assertCompanionAbsent(page);
       completedTransitions += 1;
       await page.waitForTimeout(80);
     }
@@ -274,6 +279,7 @@ const report = {
   totalPages: studioPages.length,
   viewports: viewports.map((v) => `${v.width}x${v.height}`),
   darkModeDoubleCheck: true,
+  companionDiagnosticAbsent: true,
   stress: stressEvidence,
   summary,
   evidence,
