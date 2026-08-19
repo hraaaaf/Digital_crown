@@ -1,0 +1,227 @@
+name: Patient P4AB Unified Patch
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p3-clinique
+    paths:
+      - '.github/workflows/patient-p4ab-unified-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p4-imagerie'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply P4-A/B structural patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          ceph = Path('frontend/src/features/ortho/CephaloWorkspace.tsx')
+          pano = Path('frontend/src/features/panoramic/PanoramicStudio.tsx')
+          details = Path('frontend/src/features/patients/PatientDetailsInner.tsx')
+
+          # P4-A: Cephalo must stop rather than invent age/sex, and never auto-write treatment strategy.
+          c = ceph.read_text(encoding='utf-8')
+          c = re.sub(r"\n \*   \* SLM Integration.*?Fallback heuristique transparent côté backend\n", "\n", c, flags=re.S)
+          c = re.sub(r"import \{\s*computeStep3Data,\s*generateTreatmentPlan\s*\} from './cephaloUtils';", "import { computeStep3Data } from './cephaloUtils';", c)
+
+          if 'patientDataError' not in c:
+              marker = "  const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);"
+              if marker not in c: raise SystemExit('Cephalo patientData marker missing')
+              c = c.replace(marker, marker + "\n  const [patientDataError, setPatientDataError] = useState<string | null>(null);\n  const [patientDataReloadKey, setPatientDataReloadKey] = useState(0);", 1)
+
+          patient_block = re.compile(r"  // Initialisation Patient\n  useEffect\(\(\) => \{.*?\n  \}, \[patientId\]\);", re.S)
+          replacement = '''  // Données démographiques Patient requises : aucun fallback clinique inventé.
+  useEffect(() => {
+    const fetchPatient = async () => {
+      setPatientData(null);
+      setPatientDataError(null);
+      try {
+        const { data } = await import('../../services/api').then(m => m.api.get(`/patients/${patientId}`));
+        let age = typeof data?.age === 'number' && Number.isFinite(data.age) && data.age >= 0 ? data.age : null;
+        if (age === null && data?.date_naissance) {
+          const birth = new Date(data.date_naissance);
+          if (!Number.isNaN(birth.getTime())) {
+            const now = new Date();
+            age = now.getFullYear() - birth.getFullYear();
+            if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
+          }
+        }
+        const sexe = data?.sexe === 'M' || data?.sexe === 'F' ? data.sexe : null;
+        if (age === null || age < 0 || !sexe) throw new Error('Données démographiques Patient incomplètes ou invalides');
+        setPatientData({ age, sexe });
+      } catch (e) {
+        console.error('Erreur patient data:', e);
+        setPatientData(null);
+        setPatientDataError("Données Patient indisponibles : les calculs dépendant de l'âge et du sexe sont suspendus.");
+      }
+    };
+    fetchPatient();
+  }, [patientId, patientDataReloadKey]);'''
+          c, n = patient_block.subn(replacement, c, count=1)
+          if n != 1 and 'patientDataReloadKey]);' not in c:
+              raise SystemExit('Cephalo patient initialization block not found')
+
+          c = c.replace('//  AUTOMATISATION ÉTAPE 3 (Diagnostic Intelligent COM)', "// Calculs déterministes de l'étape 3 — données Patient explicites requises")
+          c = c.replace('// Sync intelligent pour le diagnostic textuel', "// Pré-remplissage déterministe de l'analyse des moulages, à valider par le praticien")
+          c, n = re.subn(
+              r"\n\s*// Auto-fill stratégie thérapeutique si vide\n\s*if \(!store\.diag\.strategie_therapeutique.*?\n\s*\}\n",
+              "\n      // La stratégie thérapeutique reste exclusivement saisie/validée par le praticien.\n",
+              c,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1 and 'generateTreatmentPlan(' in c:
+              raise SystemExit('Cephalo therapeutic auto-fill block not removed')
+
+          if 'onClick={() => setPatientDataReloadKey' not in c:
+              marker = "      {/* Message d'erreur navigation */}"
+              banner = '''      {patientDataError && (
+        <div className="px-6 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm" style={{ background: `${P.accentError}15`, border: `1px solid ${P.accentError}40`, color: P.accentError }}>
+            <span className="flex items-center gap-2"><AlertCircle size={16} />{patientDataError}</span>
+            <button type="button" onClick={() => setPatientDataReloadKey(key => key + 1)} className="px-3 py-1.5 rounded-lg font-bold" style={{ border: `1px solid ${P.accentError}50` }}>Réessayer</button>
+          </div>
+        </div>
+      )}
+
+'''
+              if marker not in c: raise SystemExit('Cephalo error marker missing')
+              c = c.replace(marker, banner + marker, 1)
+          ceph.write_text(c, encoding='utf-8')
+
+          # P4-A: Panoramic terminology must match tooth/landmark + practitioner finding contract.
+          p = pano.read_text(encoding='utf-8')
+          replacements = {
+              'Studio Panoramique IA - {patientName}':'Studio Panoramique - {patientName}',
+              'Pipeline Loki-Silvres V8 (Détection SOTA)':'Repérage dentaire automatique · validation praticien',
+              'Analyse panoramique simulée : modèle IA indisponible.':'Repérage panoramique simulé : moteur indisponible.',
+              "Erreur lors de l'analyse panoramique.":"Erreur lors du traitement panoramique.",
+              'Neural Engine v8.0 • Zéro-Hallucination':'Repérage automatique • Vérification praticien requise',
+              'Intelligence Clinique IA':'Constatations cliniques',
+              'Cliquez sur une dent dans la radio pour ouvrir le panneau de diagnostic. Les anomalies apparaissent ci-dessous.':'Cliquez sur une dent dans la radio pour saisir une constatation. Les éléments saisis apparaissent ci-dessous.',
+              'Diagnostics ({manualAnomaliesList.length + annotations.length})':'Constatations ({manualAnomaliesList.length + annotations.length})',
+          }
+          for old, new in replacements.items():
+              p = p.replace(old, new)
+          p = p.replace('/* Colonne Droite : Intelligence Clinique */', '/* Colonne Droite : constatations cliniques */')
+          p = p.replace('/* SECTION DIAGNOSTICS MANUELS */', '/* SECTION CONSTATATIONS MANUELLES */')
+          p = re.sub(r'>\s*Diagnostics\s*<', '>Constatations<', p)
+          pano.write_text(p, encoding='utf-8')
+
+          # P4-B: mount the already-certified RVG panel in the unified imaging navigation.
+          d = details.read_text(encoding='utf-8')
+          if 'PatientRvgPanel' not in d:
+              import_marker = "import { PatientFinances } from './components/PatientFinances';"
+              if import_marker not in d: raise SystemExit('PatientDetails import marker missing')
+              d = d.replace(import_marker, import_marker + "\nimport { PatientRvgPanel } from './components/PatientRvgPanel';", 1)
+
+          d = d.replace(
+              "  const radioTab = (searchParams.get('radioTab') as 'cephalo' | 'panoramic') || 'cephalo';\n  const handleRadioTabChange = (v: 'cephalo' | 'panoramic') =>",
+              "  const radioTab = (searchParams.get('radioTab') as 'rvg' | 'panoramic' | 'cephalo') || 'rvg';\n  const handleRadioTabChange = (v: 'rvg' | 'panoramic' | 'cephalo') =>",
+              1,
+          )
+
+          nav_pattern = re.compile(r'''                <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1\.5 rounded-2xl border border-border-main shadow-inner">.*?                </div>\n              </div>''', re.S)
+          nav_new = '''                <div className="inline-flex max-w-full overflow-x-auto bg-card-bg/50 p-1.5 rounded-2xl border border-border-main shadow-inner">
+                  <button
+                    onClick={() => handleRadioTabChange('rvg')}
+                    className={cn(
+                      'px-5 md:px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap',
+                      radioTab === 'rvg' ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main'
+                    )}
+                  >
+                    <FileText size={16} /> RVG
+                  </button>
+                  <button
+                    onClick={() => handleRadioTabChange('panoramic')}
+                    className={cn(
+                      'px-5 md:px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap',
+                      radioTab === 'panoramic' ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main'
+                    )}
+                  >
+                    <Target size={16} /> Panoramique
+                  </button>
+                  <button
+                    onClick={() => handleRadioTabChange('cephalo')}
+                    className={cn(
+                      'px-5 md:px-8 py-3 text-xs font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap',
+                      radioTab === 'cephalo' ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main'
+                    )}
+                  >
+                    <Activity size={16} /> Céphalométrie
+                  </button>
+                </div>
+              </div>'''
+          d, n = nav_pattern.subn(nav_new, d, count=1)
+          if n != 1 and "handleRadioTabChange('rvg')" not in d:
+              raise SystemExit('Imaging navigation block not found')
+
+          render_pattern = re.compile(r'''              <div className="bg-card-bg rounded-\[2\.5rem\] shadow-elite border border-border-main overflow-hidden min-h-\[85vh\]">\n                \{radioTab === 'cephalo' \? \(.*?                \)\}\n              </div>''', re.S)
+          render_new = '''              <div className="bg-card-bg rounded-[2.5rem] shadow-elite border border-border-main overflow-hidden min-h-[85vh]">
+                {radioTab === 'rvg' ? (
+                  <div className="p-4 sm:p-6 md:p-8">
+                    <PatientRvgPanel patientId={Number(id)} />
+                  </div>
+                ) : radioTab === 'cephalo' ? (
+                  patient?.dossier?.is_ortho_active ? (
+                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10">
+                      <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                        <Activity className="w-12 h-12 text-slate-400" />
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-800 mb-2">Module Céphalométrique Verrouillé</h3>
+                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
+                      <button
+                        onClick={activateOrtho}
+                        className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"
+                      >
+                        <Target className="w-5 h-5" />
+                        Activer le Suivi Orthodontique
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <PanoramicStudio patientId={Number(id)} patientName={fullName} />
+                )}
+              </div>'''
+          d, n = render_pattern.subn(render_new, d, count=1)
+          if n != 1 and '<PatientRvgPanel patientId={Number(id)} />' not in d:
+              raise SystemExit('Imaging render block not found')
+          details.write_text(d, encoding='utf-8')
+
+          # Final contracts.
+          c = ceph.read_text(encoding='utf-8')
+          p = pano.read_text(encoding='utf-8')
+          d = details.read_text(encoding='utf-8')
+          for forbidden in ["age || 20", "sexe: data.sexe || 'M'", "setPatientData({ age: 20, sexe: 'M' })", 'generateTreatmentPlan(']:
+              if forbidden in c: raise SystemExit(f'Cephalo truth violation remains: {forbidden}')
+          for required in ['patientDataError', 'Réessayer', 'setPatientData({ age, sexe })']:
+              if required not in c: raise SystemExit(f'Cephalo truth requirement missing: {required}')
+          for forbidden in ['Studio Panoramique IA', 'Détection SOTA', 'Intelligence Clinique IA', 'Zéro-Hallucination']:
+              if forbidden in p: raise SystemExit(f'Panoramic misleading label remains: {forbidden}')
+          for required in ["'rvg' | 'panoramic' | 'cephalo'", "handleRadioTabChange('rvg')", '<PatientRvgPanel patientId={Number(id)} />']:
+              if required not in d: raise SystemExit(f'RVG integration requirement missing: {required}')
+          PY
+          git diff --check
+
+      - name: Commit P4-A/B product patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/ortho/CephaloWorkspace.tsx frontend/src/features/panoramic/PanoramicStudio.tsx frontend/src/features/patients/PatientDetailsInner.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): unify P4 imaging truth and RVG'
+          git push origin HEAD:${GITHUB_HEAD_REF}
