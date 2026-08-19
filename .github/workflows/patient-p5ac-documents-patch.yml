@@ -1,0 +1,81 @@
+name: Patient P5AC Documents Patch
+
+on:
+  pull_request:
+    branches:
+      - agent/patient-page-p4-imagerie
+    paths:
+      - '.github/workflows/patient-p5ac-documents-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/patient-page-p5-documents'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply P5-A and P5-C exact replacements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p=Path(path); text=p.read_text(encoding='utf-8'); found=text.count(old)
+              if found != count:
+                  raise SystemExit(f'{path}: expected {count}, found {found}: {old[:100]!r}')
+              p.write_text(text.replace(old,new), encoding='utf-8')
+
+          tabs='frontend/src/features/admin/DocumentStudio/StudioTabs.tsx'
+          vocab='frontend/src/features/admin/DocumentStudio/DocumentStudioVocabulary.ts'
+          content='frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx'
+          hub='frontend/src/features/admin/DocumentHub.tsx'
+          history='frontend/src/features/patients/PatientDocuments.tsx'
+
+          # P5-C: Compagnon Diagnostique is not a document type.
+          replace_exact(tabs, "import { Pill, FileBadge, Calculator, Receipt, Brain, Type } from 'lucide-react';", "import { Pill, FileBadge, Calculator, Receipt, Type } from 'lucide-react';")
+          replace_exact(tabs, "    <TabButton active={activeTab === 'plan'} onClick={() => onTabChange('plan')} icon={<Brain size={16} />} label={DOCUMENT_STUDIO_LABELS.plan} tourId=\"tab-plan\" />\n", "")
+          replace_exact(vocab, "  plan: 'Compagnon Diagnostique',\n", "")
+          replace_exact(vocab, "  plan: 'Compagnon Diagnostique',\n", "")
+          replace_exact(content, "import { TreatmentPlanStudio } from './TreatmentPlanStudio';\n", "")
+          replace_exact(content, "type PlanConversionHandler = React.ComponentProps<typeof TreatmentPlanStudio>['onConvertToQuote'];\n", "")
+          replace_exact(content, "  onConvertPlanToQuote: PlanConversionHandler;\n", "")
+          replace_exact(content, "  onConvertPlanToQuote,\n", "")
+          replace_exact(content, "    {activeTab === 'plan' && (\n      <TreatmentPlanStudio\n        patientId={Number(patientId)}\n        onConvertToQuote={onConvertPlanToQuote}\n      />\n    )}\n\n", "")
+          replace_exact(hub, "import { convertPlanActsToQuoteItems } from './DocumentStudio/AccountingPlanConversionPolicy';\n", "")
+          replace_exact(hub, "  const handleConvertPlanToQuote = useCallback((allActs: any[]) => {\n    const newItems = convertPlanActsToQuoteItems(allActs);\n    setItems(previous => [...previous, ...newItems]);\n    setActiveTab('devis');\n    syncDocumentTab('devis');\n  }, [setItems, setActiveTab, syncDocumentTab]);\n\n", "")
+          replace_exact(hub, "          onConvertPlanToQuote={handleConvertPlanToQuote}\n", "")
+
+          # P5-A: History is fail-closed and blob URLs are revoked.
+          replace_exact(history, "  FileX2,\n} from 'lucide-react';", "  FileX2,\n  RefreshCcw,\n} from 'lucide-react';")
+          replace_exact(history, "  const [loading, setLoading] = useState(true);\n  const [searchTerm, setSearchTerm] = useState('');", "  const [loading, setLoading] = useState(true);\n  const [fetchError, setFetchError] = useState(false);\n  const [reloadKey, setReloadKey] = useState(0);\n  const [searchTerm, setSearchTerm] = useState('');")
+          replace_exact(history, "    const fetchDocs = async () => {\n      try {\n        const res = await api.get(`/patients/${id}/documents`);\n        setDocs(res.data);\n      } catch (err) {\n        console.error(\"Erreur archives:\", err);\n      } finally {\n        setLoading(false);\n      }\n    };\n    fetchDocs();\n  }, [id]);", "    const fetchDocs = async () => {\n      setLoading(true);\n      setFetchError(false);\n      try {\n        const res = await api.get(`/patients/${id}/documents`);\n        setDocs(res.data);\n      } catch (err) {\n        console.error(\"Erreur archives:\", err);\n        setDocs([]);\n        setFetchError(true);\n      } finally {\n        setLoading(false);\n      }\n    };\n    fetchDocs();\n  }, [id, reloadKey]);")
+          replace_exact(history, "      const res = await api.get(`/${clean}`, { responseType: 'blob' });\n      window.open(URL.createObjectURL(res.data), '_blank');", "      const res = await api.get(`/${clean}`, { responseType: 'blob' });\n      const blobUrl = URL.createObjectURL(res.data);\n      window.open(blobUrl, '_blank', 'noopener,noreferrer');\n      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);")
+          replace_exact(history, "      const a = document.createElement('a');\n      a.href = URL.createObjectURL(res.data);\n      a.download = filename;\n      a.click();", "      const a = document.createElement('a');\n      const blobUrl = URL.createObjectURL(res.data);\n      a.href = blobUrl;\n      a.download = filename;\n      document.body.appendChild(a);\n      a.click();\n      a.remove();\n      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);")
+          replace_exact(history, "  return (\n    <div className=\"space-y-6 animate-in fade-in duration-700 h-full flex flex-col\">", "  if (fetchError) {\n    return (\n      <div className=\"flex flex-col items-center justify-center py-28 gap-4 text-center\">\n        <ArchiveX size={40} className=\"text-rose-400\" />\n        <div>\n          <h3 className=\"text-slate-800 font-black text-lg\">Impossible de charger l'historique</h3>\n          <p className=\"text-slate-400 text-sm mt-1\">Aucun état vide n'est déduit tant que le backend ne répond pas.</p>\n        </div>\n        <button type=\"button\" onClick={() => setReloadKey(key => key + 1)} className=\"flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-widest\">\n          <RefreshCcw size={15} /> Réessayer\n        </button>\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"space-y-6 animate-in fade-in duration-700 h-full flex flex-col\">")
+          replace_exact(history, "Doublon de contenu détecté", "Contenu similaire à vérifier")
+
+          # Source contracts.
+          merged='\n'.join(Path(p).read_text(encoding='utf-8') for p in [tabs,vocab,content,hub])
+          if 'Compagnon Diagnostique' in merged or "activeTab === 'plan'" in merged or 'TreatmentPlanStudio' in merged:
+              raise SystemExit('P5-C document diagnostic companion still exposed')
+          hist=Path(history).read_text(encoding='utf-8')
+          for required in ["Impossible de charger l'historique", 'Réessayer', 'Contenu similaire à vérifier', 'URL.revokeObjectURL']:
+              if required not in hist: raise SystemExit(f'P5-A requirement missing: {required}')
+          PY
+          git diff --check
+
+      - name: Commit guarded patch
+        run: |
+          git config user.name 'digital-crown-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/features/admin/DocumentStudio/StudioTabs.tsx frontend/src/features/admin/DocumentStudio/DocumentStudioVocabulary.ts frontend/src/features/admin/DocumentStudio/DocumentHubContent.tsx frontend/src/features/admin/DocumentHub.tsx frontend/src/features/patients/PatientDocuments.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(patient): harden P5 document truth boundary'
+          git push origin HEAD:${GITHUB_HEAD_REF}
