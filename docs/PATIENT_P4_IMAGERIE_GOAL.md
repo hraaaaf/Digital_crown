@@ -18,69 +18,16 @@ Réunir RVG, Panoramique et Céphalométrie dans un seul espace Imagerie cohére
 ## Baseline / audit initial
 
 ### Navigation Patient
-`PatientDetailsInner.tsx` expose actuellement seulement deux sous-onglets Imagerie : `Céphalométrie` et `Panoramique`. `RVG` existe dans le repo mais n’est pas intégré à cette navigation.
+`PatientDetailsInner.tsx` exposait seulement `Céphalométrie` et `Panoramique`. `RVG` existait déjà dans le repo mais n’était pas intégré à cette navigation.
 
 ### RVG
-Contrat certifié existant P0-F (`docs/PATIENT_P0F_RVG_CERT.json`) :
-- authentification par header ;
-- isolation tenant ;
-- corbeille/restauration récupérable ;
-- rendu via blob authentifié ;
-- frontend build.
-
-Composants/services existants à conserver :
-- `frontend/src/services/rvgService.ts` ;
-- `frontend/src/features/patients/components/RvgCard.tsx` ;
-- `frontend/src/features/patients/components/RvgUploadModal.tsx` ;
-- endpoints Documents `/documents/patients/{patient_id}/rvg` et cycle `/trash` / `/restore`.
+Contrat certifié existant P0-F (`docs/PATIENT_P0F_RVG_CERT.json`) : authentification par header, isolation tenant, corbeille/restauration récupérable, rendu via blob authentifié, build frontend.
 
 ### Panoramique
-Le backend `upload-panoramic` indique explicitement que la vision automatique nomme les dents uniquement et que la sémiologie est saisie manuellement. En revanche, l’UI et certaines docstrings conservent encore des termes legacy comme `diagnostics`, `anomalies détectées`, `détections IA`.
-
-L’historique panoramique appelle actuellement `DELETE /ia/panoramic/{id}`. Le backend supprime la ligne DB et le fichier physique. Ce cycle n’est pas récupérable.
+Le backend `upload-panoramic` limite la vision automatique au repérage dentaire. L’UI exposait encore des termes legacy `IA/SOTA/Intelligence Clinique` et le DELETE normal effaçait ligne DB + fichier.
 
 ### Céphalométrie
-`CephaloWorkspace.tsx` contient deux comportements incompatibles avec la doctrine de vérité :
-- échec de lecture Patient => fallback `age: 20`, `sexe: M` ;
-- auto-remplissage de `strategie_therapeutique` via `generateTreatmentPlan()` lorsqu’elle est vide.
-
-Le commentaire de tête expose encore `SLM Integration` et `/patients/{id}/ai-diagnostic`, alors que P0 a supprimé le positionnement LLM comme vérité clinique.
-
-L’historique céphalo appelle actuellement `DELETE /ia/cephalo/{id}`. Le backend supprime la ligne DB et le fichier physique.
-
-### Permissions
-Backend actuel :
-- Céphalo : permission `cephalo` ;
-- Panoramique : permission `panoramic` ;
-- RVG : cycle Documents déjà durci, à recartographier précisément avant branchement UI.
-
-Le sous-espace Imagerie lui-même n’applique pas encore une matrice frontend par modalité.
-
-## Découpage P4
-
-### P4-A — Vérité / sécurité Imagerie
-- supprimer les fallbacks démographiques céphalo ;
-- supprimer l’auto-remplissage thérapeutique ;
-- neutraliser les libellés legacy `IA`/`diagnostic intelligent` qui ne correspondent plus au contrat réel ;
-- vérifier les tâches de synthèse en arrière-plan avant conservation.
-
-### P4-B — RVG intégré
-- ajouter RVG à la sous-navigation Imagerie ;
-- réutiliser `rvgService`, `RvgCard`, `RvgUploadModal` ;
-- aucun changement au contrat P0-F sans nouvelle preuve ;
-- états chargement/erreur/vide explicites.
-
-### P4-C — Historique récupérable
-- remplacer le hard-delete normal Panoramique/Céphalo par une corbeille traçable ;
-- restaurer depuis l’historique/corbeille ;
-- ne supprimer physiquement qu’au travers d’une action permanente séparée et explicitement autorisée si cette fonction est réellement nécessaire.
-
-### P4-D — Permissions + certification
-- matrice frontend/backend RVG/Pano/Céphalo ;
-- tests isolation Patient A→B/tenant ;
-- certifications scientifiques Panoramique et Céphalo séparées ;
-- AFTER mêmes viewports/modes que BEFORE ;
-- CI + T2 exact-HEAD.
+`CephaloWorkspace.tsx` contenait fallback `age: 20`, `sexe: M` et auto-remplissage de `strategie_therapeutique` via `generateTreatmentPlan()`.
 
 ## Wireframe cible
 
@@ -112,20 +59,42 @@ CÉPHALOMÉTRIE
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Preuve requise
-- BEFORE P4 sur 390/430/768/1280 pour l’espace Céphalo et Panoramique actuels ;
-- source contract RVG P0-F ;
-- tests permissions et lifecycle par modalité ;
-- tests scientifiques ciblés sans élargir les règles cliniques ;
-- AFTER mêmes viewports/modes ;
-- comparaison BEFORE / wireframe / AFTER ;
-- CI + T2 exact-HEAD ;
-- certificat P4 puis roadmap.
+## Implémentation actuelle — non certifiée tant que les gates ne sont pas exécutés
+
+### P4-A — Vérité / sécurité
+- sous-navigation `RVG → Panoramique → Céphalométrie`.
+- RBAC modalité miroir backend ; URL non autorisée normalisée vers une modalité accessible.
+- Céphalo : aucune donnée `20/M` inventée ; données Patient absentes/invalides => blocage explicite `Données Patient requises`.
+- Céphalo : aucun auto `generateTreatmentPlan()`.
+- Panoramique : UI `Repérage dentaire automatique · validation praticien`, `Moteur déterministe`, `Constatations`; labels IA/SOTA/Zéro-Hallucination retirés.
+
+### P4-B — RVG
+- `PatientRvgPanel` réutilise `rvgService`, `RvgCard`, `RvgUploadModal`; aucun nouveau stockage.
+
+### P4-C — Lifecycle récupérable
+- migration additive `f7a8b9c0d1e2` après P3 `e6f7a8b9c0d1`.
+- `imaging_trash_records` séparé des tables scientifiques.
+- DELETE normal = marqueur de corbeille ; analyse + fichier conservés.
+- Historique/Corbeille/Restaurer pour Pano et Céphalo ; listes actives soustraient les IDs trashés.
+- Journey P2 conservé comme agrégateur, façade P4 retire seulement les événements imagerie trashés.
+- CMO déterministe/non prescriptif ignore la corbeille et dérive le cabinet depuis `Patient.employer_id`.
+
+## Preuves préparées
+- backend lifecycle : non-destruction ligne/fichier, restore, tenant, RBAC.
+- UI contract : navigation/RBAC, vérité Céphalo, terminologie Pano, corbeille/restauration.
+- AFTER : RVG/Pano/Céphalo × 390/430/768/1280 = 12 captures.
+
+## Reste avant CLOSED
+1. resynchroniser P4 sur P3 final ;
+2. CI + T2 + backend + UI-contract + AFTER exact-HEAD ;
+3. inspecter les 12 captures et scorer ;
+4. certificat + roadmap ;
+5. recertification closeout exact-HEAD.
 
 ## Règles
 - ne pas refaire le RVG déjà certifié ;
-- pas de donnée clinique inventée pour permettre au calcul de continuer ;
+- pas de donnée clinique inventée ;
 - pas de stratégie thérapeutique automatique ;
-- pas de hard-delete comme action normale d’une imagerie clinique ;
+- pas de hard-delete comme action normale ;
 - aucune modification scientifique silencieuse ;
 - aucun déploiement Vercel.
