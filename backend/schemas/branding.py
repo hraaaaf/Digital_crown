@@ -32,6 +32,7 @@ class BrandingPreviewPayload(BaseModel):
     qr_code_label: Optional[str] = None
     qr_code_offset_x: Optional[float] = None
     qr_code_offset_y: Optional[float] = None
+    settings_preview: Optional[bool] = None
 
     @field_validator('*', mode='before')
     def empty_str_to_none(cls, v: Any) -> Any:
