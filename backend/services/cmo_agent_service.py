@@ -4,19 +4,14 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.models_imaging_p4 import ImagingTrashRecord
 from backend.services.ghost_memory_service import ghost_memory
 
 logger = logging.getLogger(__name__)
 
 
 class CMOAgentService:
-    """
-    Synthèse documentaire clinique déterministe et non prescriptive.
-
-    Le service peut signaler des mentions présentes dans les comptes rendus,
-    mais ne doit ni diagnostiquer, ni établir un pronostic, ni autoriser,
-    reporter ou prescrire un traitement de manière autonome.
-    """
+    """Synthèse documentaire clinique déterministe et non prescriptive."""
 
     @staticmethod
     def _matched_terms(text: str, terms: List[str]) -> List[str]:
@@ -27,7 +22,6 @@ class CMOAgentService:
         pano_text: Optional[str],
         cephalo_available: bool,
     ) -> Dict[str, Any]:
-        """Transforme des données documentaires en signaux à valider par le praticien."""
         normalized = (pano_text or "").lower()
         evidence: List[Dict[str, Any]] = []
         signal_parts: List[str] = []
@@ -115,19 +109,44 @@ class CMOAgentService:
         patient_id: int,
         employer_id: int = 1,
     ) -> Dict[str, Any]:
-        """Génère une synthèse non prescriptive en croisant les données disponibles, sans LLM."""
-        pano = (
-            db.query(models.PanoramicAnalysis)
-            .filter(models.PanoramicAnalysis.patient_id == patient_id)
-            .order_by(models.PanoramicAnalysis.created_at.desc())
-            .first()
-        )
-        cephalo = (
-            db.query(models.CephaloAnalysis)
-            .filter(models.CephaloAnalysis.patient_id == patient_id)
-            .order_by(models.CephaloAnalysis.created_at.desc())
-            .first()
-        )
+        """Génère une synthèse non prescriptive, sans LLM, sur les imageries actives seulement.
+
+        Le cabinet est toujours dérivé du Patient. Le paramètre `employer_id` reste accepté
+        uniquement pour compatibilité avec les anciens callers et n'est jamais une source de vérité.
+        """
+        patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+        if patient is None:
+            return self._empty_fallback()
+        canonical_employer_id = patient.employer_id
+
+        pano_trash_ids = [
+            row[0]
+            for row in db.query(ImagingTrashRecord.analysis_id)
+            .filter(
+                ImagingTrashRecord.modality == "panoramic",
+                ImagingTrashRecord.patient_id == patient_id,
+            )
+            .all()
+        ]
+        cephalo_trash_ids = [
+            row[0]
+            for row in db.query(ImagingTrashRecord.analysis_id)
+            .filter(
+                ImagingTrashRecord.modality == "cephalo",
+                ImagingTrashRecord.patient_id == patient_id,
+            )
+            .all()
+        ]
+
+        pano_query = db.query(models.PanoramicAnalysis).filter(models.PanoramicAnalysis.patient_id == patient_id)
+        if pano_trash_ids:
+            pano_query = pano_query.filter(~models.PanoramicAnalysis.id.in_(pano_trash_ids))
+        pano = pano_query.order_by(models.PanoramicAnalysis.created_at.desc()).first()
+
+        cephalo_query = db.query(models.CephaloAnalysis).filter(models.CephaloAnalysis.patient_id == patient_id)
+        if cephalo_trash_ids:
+            cephalo_query = cephalo_query.filter(~models.CephaloAnalysis.id.in_(cephalo_trash_ids))
+        cephalo = cephalo_query.order_by(models.CephaloAnalysis.created_at.desc()).first()
 
         if not pano and not cephalo:
             return self._empty_fallback()
@@ -149,7 +168,7 @@ class CMOAgentService:
         ghost_memory.add_memory(
             db=db,
             patient_id=patient_id,
-            employer_id=employer_id,
+            employer_id=canonical_employer_id,
             insight_type="SIGNAL_CLINIQUE",
             content=content,
             context_data=context_str,

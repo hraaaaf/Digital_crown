@@ -8,9 +8,9 @@ on:
       - 'backend/__init__.py'
       - 'backend/models_clinical_p3.py'
       - 'backend/routers/__init__.py'
-      - 'backend/routers/patients.py'
       - 'backend/routers/patient_odontogram.py'
       - 'backend/routers/patient_clinical_conclusions.py'
+      - 'backend/routers/patient_master_plan_p3.py'
       - 'backend/schemas/odontogram.py'
       - 'backend/schemas/clinical_conclusion.py'
       - 'backend/tests/test_patient_p3_odontogram.py'
@@ -51,6 +51,7 @@ jobs:
       - name: Source and API contract
         run: |
           python - <<'PY'
+          from pathlib import Path
           from backend import models
           for table in ('patient_odontograms', 'clinical_conclusions', 'treatment_master_plan_revisions'):
               assert table in models.Base.metadata.tables
@@ -59,6 +60,10 @@ jobs:
           assert '/api/patients/{patient_id}/odontogram' in paths
           assert '/api/patients/{patient_id}/clinical-conclusions' in paths
           assert '/api/patients/{patient_id}/master-plan/revisions' in paths
+          route_src = Path('backend/routers/patient_master_plan_p3.py').read_text(encoding='utf-8')
+          assert 'TreatmentMasterPlanRevision' in route_src
+          assert 'revision=latest_revision + 1' in route_src
+          assert 'steps_snapshot=snapshot' in route_src
           PY
 
       - name: P3 migration structural contract
@@ -80,9 +85,6 @@ jobs:
           assert 'down_revision: Union[str, None] = "d5e6f7a8b9c0"' in master_plan_migration
           assert '"treatment_master_plan_revisions"' in master_plan_migration
 
-          # The repository's historical clean-db Alembic chain currently fails before P3
-          # in legacy revision 8f6465e49d90 (missing SQLite index). Validate runtime
-          # metadata plus exact new migration ancestry without laundering that older defect.
           engine = create_engine('sqlite:///:memory:')
           models.Base.metadata.create_all(engine)
           inspector = inspect(engine)
