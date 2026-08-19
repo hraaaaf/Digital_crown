@@ -5,14 +5,14 @@ on:
     branches:
       - agent/patient-page-p3-clinique
     paths:
-      - 'backend/models.py'
-      - 'backend/schemas/clinical.py'
-      - 'backend/schemas/panoramic.py'
-      - 'backend/routers/ia.py'
+      - 'backend/__init__.py'
+      - 'backend/models_imaging_p4.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/routers/imaging_lifecycle_p4.py'
+      - 'backend/routers/patient_journey_p4.py'
       - 'backend/services/cmo_agent_service.py'
-      - 'backend/services/patient_journey_service.py'
       - 'backend/tests/test_patient_p4_imaging_trash.py'
-      - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_fields.py'
+      - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py'
       - '.github/workflows/patient-p4-imagerie-backend.yml'
 
 permissions:
@@ -43,26 +43,31 @@ jobs:
           pip install -r /tmp/requirements-p4-backend.txt
           pip install httpx==0.27.2 pytest alembic
 
-      - name: Migration ancestry and source contract
+      - name: Migration and source contract
         run: |
           python - <<'PY'
           from pathlib import Path
-          migration = Path('alembic/versions/f7a8b9c0d1e2_add_imaging_trash_fields.py')
+          migration = Path('alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py')
           assert migration.exists(), 'P4 imaging trash migration missing'
           text = migration.read_text(encoding='utf-8')
           assert 'revision: str = "f7a8b9c0d1e2"' in text
           assert 'down_revision: Union[str, None] = "e6f7a8b9c0d1"' in text
-          ia = Path('backend/routers/ia.py').read_text(encoding='utf-8')
+          assert '"imaging_trash_records"' in text
+
+          lifecycle = Path('backend/routers/imaging_lifecycle_p4.py').read_text(encoding='utf-8')
+          router_init = Path('backend/routers/__init__.py').read_text(encoding='utf-8')
           cmo = Path('backend/services/cmo_agent_service.py').read_text(encoding='utf-8')
+          journey = Path('backend/routers/patient_journey_p4.py').read_text(encoding='utf-8')
           for required in ['panoramic-trash', 'cephalo-trash', '/panoramic/{analysis_id}/restore', '/cephalo/{analysis_id}/restore']:
-              assert required in ia, required
-          assert 'db.delete(analysis)' not in ia
-          assert 'os.remove(file_abs_path)' not in ia
-          assert ia.count('current_user.get_employer_id())') >= 2
-          assert 'models.PanoramicAnalysis.deleted_at.is_(None)' in cmo
-          assert 'models.CephaloAnalysis.deleted_at.is_(None)' in cmo
+              assert required in lifecycle, required
+          assert 'ImagingTrashRecord' in lifecycle
+          assert '_HARD_DELETE_PATHS' in router_init
+          assert 'patient_journey_p4.router' in router_init
+          assert 'ImagingTrashRecord' in cmo
+          assert 'canonical_employer_id = patient.employer_id' in cmo
           assert 'sans LLM' in cmo
           assert 'practitioner_validation_required' in cmo
+          assert 'removed_keys' in journey
           PY
           test "$(alembic heads | wc -l)" -eq 1
 
