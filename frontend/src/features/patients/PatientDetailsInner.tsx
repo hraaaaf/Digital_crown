@@ -14,6 +14,7 @@ import {
   RefreshCcw,
   Plus,
   History,
+  Banknote,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -33,7 +34,6 @@ import { usePatientStore } from '../../stores/usePatientStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { EliteGhostLoader } from '../../components/EliteGhostLoader';
 import { AssuranceBadge } from '../../components/AssuranceBadge';
-import { Banknote } from 'lucide-react';
 
 interface Patient {
   id: number;
@@ -59,17 +59,33 @@ interface Patient {
 
 type TabType = 'tracking' | 'clinical' | 'radiology' | 'admin' | 'archives' | 'finances';
 
+const roleValue = (role: unknown): string => {
+  if (!role) return '';
+  if (typeof role === 'string') return role;
+  if (typeof role === 'object' && role !== null && 'value' in role) {
+    return String((role as { value?: unknown }).value || '');
+  }
+  return '';
+};
+
 export const PatientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
 
-  // Permission « clinical » : le propriétaire (sans employer_id) passe toujours,
-  // un sous-compte doit l'avoir explicitement (miroir de has_permission backend).
   const user = useAuthStore(state => state.user);
   const canClinical = !user?.employer_id || Boolean(user?.permissions?.clinical);
+  const userRole = roleValue(user?.role);
+  const userPermissions = user?.permissions || {};
+  const hasExplicitPermissions = Object.keys(userPermissions).length > 0;
+  const canFinance = Boolean(
+    user && (
+      !user.employer_id ||
+      userRole === 'ADMIN' ||
+      (hasExplicitPermissions && (userPermissions.accounting === true || userPermissions.payments === true))
+    )
+  );
 
   const { editingDoc, patientsCache } = usePatientStore();
   const cachedPatient = patientsCache.find(p => String(p.id) === id);
@@ -132,13 +148,18 @@ export const PatientDetails = () => {
     return () => clearTimeout(timer);
   }, [id]);
 
-  // Garde-fou : l'onglet clinique peut être atteint via l'URL (?tab=clinical).
-  // Sans la permission, on bascule sur la vue d'ensemble pour éviter un onglet vide.
   useEffect(() => {
     if (!canClinical && activeTab === 'clinical') {
       setSearchParams({ tab: 'tracking' }, { replace: true });
     }
   }, [canClinical, activeTab, setSearchParams]);
+
+  useEffect(() => {
+    if (!canFinance && activeTab === 'finances') {
+      setIsPayModalOpen(false);
+      setSearchParams({ tab: 'tracking' }, { replace: true });
+    }
+  }, [canFinance, activeTab, setSearchParams]);
 
   const activateOrtho = async () => {
     try {
@@ -146,7 +167,7 @@ export const PatientDetails = () => {
       await api.patch(`/patients/${id}/ortho`, { is_ortho_active: true });
       setPatient(prev => prev ? { ...prev, dossier: { ...prev.dossier, is_ortho_active: true } } : null);
       toast.success('Suivi orthodontique activé');
-    } catch (err) {
+    } catch {
       toast.error("Erreur lors de l'activation");
     } finally {
       setLoading(false);
@@ -245,7 +266,7 @@ export const PatientDetails = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 w-full xl:w-auto" aria-label="Actions rapides patient">
+            <div className={cn('grid gap-2 w-full xl:w-auto', canFinance ? 'grid-cols-4' : 'grid-cols-3')} aria-label="Actions rapides patient">
               <QuickAction
                 icon={<Calendar size={18} />}
                 label="RDV"
@@ -263,12 +284,14 @@ export const PatientDetails = () => {
                 label="Document"
                 onClick={() => handleTabChange('admin')}
               />
-              <QuickAction
-                icon={<Banknote size={18} />}
-                label="Encaisser"
-                onClick={() => setIsPayModalOpen(true)}
-                accent="emerald"
-              />
+              {canFinance && (
+                <QuickAction
+                  icon={<Banknote size={18} />}
+                  label="Encaisser"
+                  onClick={() => setIsPayModalOpen(true)}
+                  accent="emerald"
+                />
+              )}
             </div>
           </div>
 
@@ -277,7 +300,7 @@ export const PatientDetails = () => {
             {canClinical && <TabButton active={activeTab === 'clinical'} onClick={() => handleTabChange('clinical')} icon={<Stethoscope size={17} />} label="Clinique" />}
             <TabButton active={activeTab === 'radiology'} onClick={() => handleTabChange('radiology')} icon={<Activity size={17} />} label="Imagerie" />
             <TabButton active={isDocuments} onClick={() => handleTabChange('admin')} icon={<FileText size={17} />} label="Documents" />
-            <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />
+            {canFinance && <TabButton active={activeTab === 'finances'} onClick={() => handleTabChange('finances')} icon={<Banknote size={17} />} label="Finances" />}
           </div>
         </div>
       </header>
@@ -387,7 +410,6 @@ export const PatientDetails = () => {
           )}
 
           {activeTab === 'tracking' && <PatientJourney patientId={Number(id)} />}
-
           {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
 
           {isDocuments && (
@@ -425,17 +447,17 @@ export const PatientDetails = () => {
             </div>
           )}
 
-          {activeTab === 'finances' && (
-            <PatientFinances patientId={Number(id)} />
-          )}
+          {canFinance && activeTab === 'finances' && <PatientFinances patientId={Number(id)} />}
         </div>
       </main>
 
-      <QuickPayModal
-        isOpen={isPayModalOpen}
-        onClose={() => setIsPayModalOpen(false)}
-        patientId={Number(id)}
-      />
+      {canFinance && (
+        <QuickPayModal
+          isOpen={isPayModalOpen}
+          onClose={() => setIsPayModalOpen(false)}
+          patientId={Number(id)}
+        />
+      )}
     </div>
   );
 };
