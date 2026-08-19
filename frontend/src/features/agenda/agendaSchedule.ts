@@ -20,6 +20,12 @@ export type AgendaSettingsLike = {
   weekly_schedule?: Partial<WeeklySchedule> | null;
 };
 
+export type AgendaExceptionLike = {
+  start_date: string;
+  end_date: string;
+  reason?: string | null;
+};
+
 const WEEKDAY_KEYS: WeekdayKey[] = [
   'sunday',
   'monday',
@@ -32,6 +38,12 @@ const WEEKDAY_KEYS: WeekdayKey[] = [
 
 const validTime = (value: unknown, fallback: string): string =>
   typeof value === 'string' && /^\d{2}:\d{2}$/.test(value) ? value : fallback;
+
+const startOfLocalDay = (value: Date): number => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
 
 export const timeToMinutes = (value: string): number => {
   const [hours, minutes] = value.split(':').map(Number);
@@ -54,6 +66,24 @@ export const getDaySchedule = (date: Date, settings?: AgendaSettingsLike | null)
   return configured ? { ...legacy, ...configured } : legacy;
 };
 
+export const getExceptionForDate = (
+  date: Date,
+  exceptions?: AgendaExceptionLike[] | null,
+): AgendaExceptionLike | null => {
+  const target = startOfLocalDay(date);
+  return (exceptions || []).find((exception) => {
+    const start = startOfLocalDay(new Date(exception.start_date));
+    const end = startOfLocalDay(new Date(exception.end_date));
+    return target >= start && target <= end;
+  }) || null;
+};
+
+export const isDateOpen = (
+  date: Date,
+  settings?: AgendaSettingsLike | null,
+  exceptions?: AgendaExceptionLike[] | null,
+): boolean => getDaySchedule(date, settings).is_open && !getExceptionForDate(date, exceptions);
+
 export const getDayBounds = (schedule: DaySchedule): { startHour: number; endHour: number } => {
   const startMinutes = timeToMinutes(schedule.morning_start);
   const endMinutes = timeToMinutes(schedule.is_continuous ? schedule.morning_end : schedule.afternoon_end);
@@ -63,14 +93,17 @@ export const getDayBounds = (schedule: DaySchedule): { startHour: number; endHou
   };
 };
 
-export const getWeekBounds = (days: Date[], settings?: AgendaSettingsLike | null): { startHour: number; endHour: number } => {
+export const getWeekBounds = (
+  days: Date[],
+  settings?: AgendaSettingsLike | null,
+  exceptions?: AgendaExceptionLike[] | null,
+): { startHour: number; endHour: number } => {
   const openSchedules = days
-    .map((date) => getDaySchedule(date, settings))
-    .filter((schedule) => schedule.is_open);
+    .filter((date) => isDateOpen(date, settings, exceptions))
+    .map((date) => getDaySchedule(date, settings));
 
   if (openSchedules.length === 0) {
-    const fallback = getDayBounds(buildLegacyDay(settings));
-    return fallback;
+    return getDayBounds(buildLegacyDay(settings));
   }
 
   const starts = openSchedules.map((schedule) => timeToMinutes(schedule.morning_start));
