@@ -28,6 +28,7 @@ describe('Document Studio T2-C shell decomposition', () => {
     expect(navigation).toContain("activeTab === 'devis' && newTab === 'honoraires'");
     expect(navigation).toContain("window.addEventListener('beforeunload', handler)");
     expect(navigation).toContain("nextParams.set('documentTab', activeTab)");
+    expect(navigation).toContain('allowedTabs.includes');
   });
 
   it('keeps patient loading in its dedicated session boundary', () => {
@@ -36,8 +37,8 @@ describe('Document Studio T2-C shell decomposition', () => {
     expect(patient).toContain('setPatientDetails(null)');
   });
 
-  it('keeps all seven domain pages behind the content boundary', () => {
-    expect(content).toContain('TreatmentPlanStudio');
+  it('keeps the six document-producing pages behind the content boundary and clinical plan outside it', () => {
+    expect(content).not.toContain('TreatmentPlanStudio');
     expect(content).toContain('PrescriptionAgenticStudio');
     expect(content).toContain('CertificateForm');
     expect(content).toContain('AccountingStudio');
