@@ -5,267 +5,126 @@ Repo : `hraaaaf/Digital_crown`
 Statut : **BOUSSOLE CANONIQUE ACTIVE**
 
 > Source de reprise prioritaire du chantier Réglages / Paramètres.
-> Toute nouvelle fenêtre doit lire ce fichier avant de poursuivre.
-> Mise à jour obligatoire après chaque page / gros lot réellement traité.
 > `SETTINGS_HARDENING_CLOSEOUT.md` reste la preuve du Hardening précédent.
 > Aucun déploiement Vercel sans autorisation explicite.
 
-## 1. Goal du chantier
+## 1. Goal
 
-Juger et améliorer chaque feature de Réglages comme un produit réel de cabinet dentaire : utilité métier, UX, robustesse, cohérence, dette, doublons, promesses trompeuses et complexité inutile.
+Juger et améliorer chaque feature de Réglages comme un produit réel de cabinet dentaire : valeur métier, UX, robustesse, vérité backend, dette, doublons, promesses trompeuses et complexité inutile.
 
-Décisions possibles : **GARDER / AMÉLIORER / REFONDRE / DÉPLACER / SUPPRIMER / À PROUVER**.
+Décisions : **GARDER / AMÉLIORER / REFONDRE / DÉPLACER / SUPPRIMER / À PROUVER**.
 
-## 2. Doctrine d'exécution
+## 2. Doctrine
 
-Pour chaque page / lot :
-1. lire code + dépendances downstream ;
-2. si UI touchée : BEFORE réelle ;
-3. écrire Goal + critères de succès ;
-4. produire mockup/wireframe/référence visuelle avant implémentation ;
-5. implémenter le chemin le plus simple et fiable ;
-6. tests proportionnés au risque ;
-7. AFTER mêmes viewports + score ;
-8. mettre à jour ce fichier avec preuves, PR/commit/CI et Next exact ;
-9. ne jamais déclarer CLOSED sans preuve.
+Pour chaque lot significatif : audit downstream → BEFORE si UI → Goal + critères → wireframe/référence → implémentation → tests → AFTER mêmes viewports + score → docs canoniques → merge/post-merge.
 
-## 3. Règle spéciale — preset Benmoussa
+Ne jamais créditer un lot sans preuve. Une CI queued/in-progress n’arrête pas le travail indépendant. Vercel reste interdit sans autorisation explicite.
 
-Le preset personnel (`Dr. Benmoussa Achraf`, équivalent arabe et expertises associées) :
-- reste disponible **uniquement pour le superadmin propriétaire** ;
-- ne doit jamais devenir le défaut d'un cabinet standard ;
-- pour un non-superadmin : `Réinitialiser depuis le cabinet` utilise ses données réelles ;
-- l'identité propriétaire repose sur la vérité backend `SUPERADMIN_EMAIL`, pas seulement sur le rôle `ADMIN`.
+## 3. Règle propriétaire Benmoussa
 
-Statut : **IMPLÉMENTÉ ET CERTIFIÉ R2**.
+Le preset personnel `Dr. Benmoussa Achraf` reste réservé au superadmin propriétaire. Pour un non-superadmin, la réinitialisation repart des données réelles de son cabinet. L’identité propriétaire repose sur `SUPERADMIN_EMAIL`, pas seulement sur le rôle ADMIN.
 
-## 4. Audit produit initial — verdicts
+Statut : **CERTIFIÉ R2**.
 
-| Zone | Idée | Exécution initiale | Verdict |
-|---|---:|---:|---|
-| Sécurité & Backup | 10/10 | 9/10 | GARDER / renforcer |
-| Équipe / RBAC | 9.5/10 | 8.5/10 | GARDER |
-| Profil Cabinet | 9/10 | 7.5/10 | GARDER / simplifier |
-| Design & Ambiance | 9.5/10 | 6.5/10 | REFONDRE ciblé |
-| Catalogue Actes | 9.5/10 | 5/10 | REFONDRE UX |
-| Horaires & Agenda | 8.5/10 | 6/10 | AMÉLIORER |
-| IA & Système | 6/10 | 5/10 | RESTRUCTURER / RENOMMER |
-| TemplateBuilder legacy | 8/10 | 2/10 | MIGRER idées utiles puis SUPPRIMER |
+## 4. Lots certifiés / état courant
 
-Le Hardening précédent a surtout fiabilisé la vérité backend, les permissions et les états d'erreur. Le chantier actuel juge la valeur et la forme produit.
+| Lot | Décision | Statut | Score visuel |
+|---|---|---|---:|
+| R2 Profil Cabinet | GARDER / SIMPLIFIER | CLOSED — MERGED (#171) | 9,6/10 |
+| R3 Design & Ambiance | GARDER / CLARIFIER | CLOSED — MERGED (#173) | 9,7/10 |
+| R4 Modèles documentaires | PDF réel = vérité | CLOSED — MERGED (#174) | 9,2/10 |
+| R6 Catalogue Actes | GARDER architecture / REFONDRE CRUD | CLOSED — MERGED (#177) | 9,6/10 |
+| R7 Horaires & Agenda | GARDER / RENDRE RÉEL | CERTIFIÉ — READY TO MERGE (#178) | 9,3/10 |
 
-## 5. Décisions par page
+Progression **créditée avant merge R7 : 4/15 = 26,7 %**. Après merge et vérification post-merge de R7 : **5/15 = 33,3 %**.
 
-### R1 — Shell / architecture générale Settings
+## 5. Décisions restantes
 
-- RBAC / filtrage onglets : très bon.
-- Truth Gates / erreurs : garder.
-- Navigation latérale : correcte.
-- Doctrine de sauvegarde encore incohérente entre pages.
+### R1 — Shell / doctrine de sauvegarde
 
-Décision : **GARDER le shell, REFONDRE la doctrine de sauvegarde**.
-Cible : sauvegarde explicite par onglet + état `Modifications non enregistrées`, hors mutations CRUD atomiques.
+Shell/RBAC/Truth Gates : **GARDER**. Doctrine de sauvegarde inter-onglets : **À UNIFIER**. Cible : sauvegarde explicite par onglet + état de modifications non enregistrées, hors CRUD atomiques.
 
-Statut : `AUDITÉ — À EXÉCUTER`.
+### R5 — QR documentaire
 
-### R2 — Profil Cabinet
-
-Décision finale : **GARDER / SIMPLIFIER — CLOSED**.
-
-Implémenté :
-- identité/praticien FR-AR/adresse/INPE/ICE/IF conservés ;
-- clavier arabe + spécialités bilingues conservés ;
-- génération automatique de l'en-tête conservée ;
-- édition manuelle déplacée en avancé repliable ;
-- état Automatique/Personnalisé explicite ;
-- preset Benmoussa réservé au superadmin propriétaire ;
-- non-superadmin : reset depuis son cabinet ;
-- faux discours `détourage IA / SVG` supprimé ;
-- double sauvegarde Profil supprimée ;
-- défaut sticky mobile corrigé.
-
-Preuves :
-- PR `#171` MERGED ;
-- HEAD produit certifié `99de2c4aee19f389bdbd0eee46cae072747babdb` ;
-- merge `397f40b50a52457ad53f4b1cb8a9def85b74f5a8` ;
-- R2 Visual #17 SUCCESS ; CI #1117 SUCCESS ; T2 #377 SUCCESS ;
-- RBAC #51 / Branding #24 / IA #7 / Team Truth #5 SUCCESS ;
-- AFTER 1440/768/390 inspectées.
-
-Score visuel : **9.6/10**.
-Statut : `CLOSED — CERTIFIÉ — MERGED`.
-
-### R3 — Design & Ambiance
-
-Décision finale : **GARDER / CLARIFIER LE MODÈLE MENTAL — CLOSED**.
-
-Constat vérifié : `Apparence app | Documents` ne séparait pas deux configurations. Le scope pilotait uniquement `StudioPreview`, tandis que `StudioControls` modifiait le même profil.
-
-Implémenté :
-- `Apparence app | Documents` → **`APERÇU — Application | Document`** ;
-- microcopie : `Ce sélecteur change uniquement l’aperçu affiché.` ;
-- état interne renommé `previewScope` ;
-- migration locale `branding_scope` → `branding_preview_scope` ;
-- aucune duplication de thème/profil par scope ;
-- R4 volontairement non touché.
-
-Preuves :
-- BEFORE Branding certifiée : workflow #24, 1440/1024/768/430/390 ;
-- Goal + wireframe écrits avant code dans `docs/settings/R3_BRANDING_VISUAL_GOAL.md` ;
-- PR `#173` MERGED ;
-- HEAD produit certifié `9db4b560af7925233d5584dfb7af870b76e086d2` ;
-- merge `985873dc644453b078a2a0efc6a1e006121ee6b0` ;
-- Branding Visual #26 SUCCESS ;
-- RBAC #53 SUCCESS ;
-- T2 #381 SUCCESS ;
-- CI #1124 SUCCESS ;
-- 10 AFTER inspectées : Application + Document × 1440/1024/768/430/390 ;
-- aucun overflow horizontal ni chevauchement observé.
-
-Incident CI : #1124 a duré anormalement longtemps dans la suite backend (~47 min) mais a finalement terminé SUCCESS. Aucune modification backend dans R3.
-
-Score visuel : **9.7/10**.
-Statut : `CLOSED — CERTIFIÉ — MERGED`.
-
-### R4 — Modèles documentaires / Document Studio
-
-Constat majeur déjà vérifié côté frontend :
-- contrôles : `swiss / royal / clinical / modern / heritage` ;
-- aperçu React historique contient des branches `classic / asymetric / future / frame / double-column` ;
-- risque de preview simulé différent du moteur PDF réel.
-
-À garder :
-- sélection de modèles ;
-- marges/densité ;
-- réglages avancés ;
-- D-pad logo/QR ;
-- import papier-en-tête ;
-- nettoyage corps d'un document déjà rempli ;
-- **rendu PDF réel**.
-
-Décision structurante : **le moteur PDF réel devient la source de vérité du preview documentaire**. Le renderer React ne doit jamais prétendre être fidèle s'il ne partage pas la même taxonomie/logique.
-
-Statut : `ACTIF — P1`.
-
-### R5 — QR Code documentaire
-
-Garder. À améliorer : destination, donnée utilisée, aperçu, action tester/scanner.
-Statut : `AUDITÉ — P2`.
-
-### R6 — Catalogue Actes
-
-Architecture Spécialité → Actes → Pathologies : **GARDER**.
-CRUD `window.prompt()` : **REFONDRE** avec formulaires/modales, validation, édition et archivage/suppression contrôlée.
-Statut : `AUDITÉ — P1`.
+**GARDER / RENDRE EXPLICITE ET TESTABLE**. PR d’audit #187 ouverte ; aucune refonte avant preuve des destinations réelles.
 
 ### R7 — Horaires & Agenda
 
-Garder horaires/journée continue. Améliorer vers semaine réelle, jours fermés, exceptions/congés.
-À prouver avant décision : impact `agenda_mode` et `use_tickets`.
-Statut : `AUDITÉ — P2 / DOWNSTREAM À PROUVER`.
+**CERTIFIÉ — READY TO MERGE**.
 
-### R8 — IA & Système
+Implémenté : semaine 7 jours réelle, jours fermés, exceptions, journée continue, bornes réelles dans Daily/Weekly, garde pause/hors-plage, backend autoritaire sur create/update/bulk, compatibilité legacy fail-safe, feedback backend explicite.
 
-Renommer vers **Performance & Assistance** ou équivalent. Garder Performance. Déplacer/supprimer arrière-plan animé selon valeur. Auditer Conseils cliniques. Renommer les badges patient vers une formulation explicable et non-jugementale.
-Statut : `AUDITÉ — P2`.
+Preuves canoniques : `docs/settings/R7_AGENDA_REAL_SCHEDULE_VISUAL_GOAL.md` et `docs/settings/R7_AGENDA_REAL_SCHEDULE_CLOSEOUT.md`.
+
+### R8 — Performance & Assistance
+
+Décision corrigée après audit complet :
+- Mode Performance : **GARDER** ; downstream réel ;
+- Arrière-plan animé : **DÉPLACER vers Design & Ambiance** ; downstream réel ;
+- Conseils cliniques contextuels : **GARDER** ; consommateurs réels `Sidebar` + `Step1Cephalo` ;
+- Indicateurs patient : **GARDER / RENOMMER / EXPLIQUER** ; consommateurs `Dashboard` + `PatientList/PatientScoreBadge` ; backend = 60 % assiduité RDV + 40 % encaissé/facturé, neutre 50 sans données, override praticien possible.
+
+PR #183 ouverte, visuellement pré-certifiée. Seul défaut identifié : workflow RBAC historique attend encore `IA & Système` au lieu de `Performance & Assistance`. Un seul commit final est prévu après R7.
 
 ### R9 — Sécurité & Backup
 
-Zone forte. Garder backup chiffré, appairage local, révocation, audit log. Améliorer restauration guidée + audit log humanisé.
-Statut : `AUDITÉ — GARDER / P2`.
+Zone forte : **GARDER** backup chiffré, appairage local, révocation, audit log. Audit log humanisé préparé dans PR #185. Restauration guidée reste à traiter.
 
 ### R10 — Mon Équipe
 
-Garder comptes/activation/approbation/permissions fines/Truth Gate. Corriger message `4 caractères` vs politique réelle 8..128. Quotas/upsell à garder seulement si règle licence réelle.
-Statut : `AUDITÉ — P1/P2`.
+**GARDER** comptes/activation/approbation/permissions fines/Truth Gate. Corriger la vérité mot de passe UI vers 8..128 ; PR #184 ouverte. Quotas/upsell uniquement si règle licence réelle.
 
 ### R11 — TemplateBuilder legacy
 
-Ne pas refondre isolément. Extraire idées utiles, vérifier dépendances, puis supprimer/quarantainer lorsque Document Studio couvre les besoins.
-Statut : `AUDITÉ — P3`.
+Ne pas refondre isolément. Prouver les dépendances, extraire les idées utiles, puis supprimer/quarantainer lorsque Document Studio couvre le besoin. Audit PR #186 ouverte.
 
-## 6. Roadmap canonique
+## 6. Roadmap active
 
-### P1 — incohérences fortes / dette visible
+P1 : doctrine sauvegarde ; modèles documentaires ✅ ; Catalogue CRUD ✅ ; Profil ✅ ; mot de passe Team ; Branding ✅.
 
-- **P1.1** Doctrine de sauvegarde Settings.
-- **P1.2** Modèles documentaires : PDF réel source de vérité, taxonomies alignées, preview trompeur éliminé. **ACTIF R4**.
-- **P1.3** Catalogue CRUD réel.
-- **P1.4** Profil / preset propriétaire. ✅ CLOSED R2.
-- **P1.5** Team password copy 8..128.
-- **P1.6** Scope Branding. ✅ CLOSED R3.
+P2 : Agenda réel **certifié, merge en attente** ; Catalogue avancé ; Performance & Assistance ; Audit Log humanisé ; indicateurs patient explicables ; QR documentaire ; restauration guidée.
 
-### P2 — valeur métier / simplification
+P3 : TemplateBuilder legacy ; suppression de toggles/features uniquement après preuve downstream.
 
-- **P2.1** Agenda hebdomadaire réel.
-- **P2.2** Catalogue avancé.
-- **P2.3** IA & Système → Performance & Assistance.
-- **P2.4** Audit Log humanisé.
-- **P2.5** Indicateurs patient explicables/non-jugementaux.
-- **P2.6** QR documentaire explicite/testable.
-- **P2.7** Restauration guidée backup.
+## 7. HANDOVER COURANT
 
-### P3 — cleanup / consolidation
-
-- **P3.1** TemplateBuilder legacy : extraction utile puis suppression/quarantaine.
-- **P3.2** Suppression de toggles/features uniquement après preuve d'absence de valeur downstream.
-
-## 7. Ordre d'exécution
-
-1. ✅ R2 Profil Cabinet ;
-2. ✅ R3 Design & Ambiance ;
-3. **R4 Modèles documentaires / Document Studio** ;
-4. Catalogue Actes ;
-5. Agenda ;
-6. Performance & Assistance ;
-7. Sécurité & Backup ;
-8. Mon Équipe ;
-9. cleanup legacy.
-
-## 8. HANDOVER COURANT
-
-- Chantier : **Réglages / Paramètres — Product Review & Simplification**
-- Lot actif : **R4 — Modèles documentaires / Document Studio**
-- Goal courant : rendre le moteur PDF réel source de vérité du preview et éliminer les divergences de taxonomie/renderer sans perdre les réglages utiles
+- Chantier : **Réglages — Product Review & Simplification**
+- Lot courant : **R7 closeout / merge**
 - Repo : `hraaaaf/Digital_crown`
-- Branche courante canonique : `master`
-- Dernière PR : `#173 MERGED`
-- Dernier merge : `985873dc644453b078a2a0efc6a1e006121ee6b0`
-- Dernier HEAD produit certifié : `9db4b560af7925233d5584dfb7af870b76e086d2`
-- Dernière CI : `#1124 SUCCESS`
-- Dernière preuve visuelle : 10 AFTER R3 inspectées, score 9.7/10
-- Blocage réel : aucun pour commencer l'audit R4 ; moteur PDF backend exact à cartographier avant toute modification
-- Next exact : **R4 cartographie frontend/backend → BEFORE document → Goal visuel → mockup → implémentation**
-- Avancement roadmap validé : **2/15 lots = 13.3 %**
-- Vercel : **interdit sans autorisation explicite**
+- PR : `#178`
+- Branche : `settings-r7-agenda-real-schedule`
+- HEAD produit certifié : `e45f677a44d7ad7c950efcd88d9afed17585df95`
+- Gates exact-head : Downstream #20 ✅ ; RBAC #120 ✅ ; Agenda Visual #28 ✅ ; Read Truth #36 ✅ ; CI #1353 ✅ ; T2 #601 ✅
+- Tests : backend 2748 passed / 7 skipped ; frontend 367 passed ; build ✅
+- Score R7 : **9,3/10**
+- Blocage réel : aucun avant commit documentaire final puis recertification exacte
+- Next exact : **commit closeout unique → recertification exact-HEAD → merge #178 → post-merge → R8 #183**
+- Avancement crédité : **4/15 = 26,7 %** ; après merge R7 : **5/15 = 33,3 %**
+- Vercel : **aucun déploiement**
 
-## 9. Journal de progression
+## 8. Journal
 
-### 2026-08-19 — R3 Design & Ambiance CLOSED
+### 2026-08-19 — R7 CERTIFIÉ, READY TO MERGE
 
-- BEFORE 5 viewports inspectée ;
-- Goal + wireframe écrits avant implémentation ;
-- scope clarifié en simple sélecteur d'aperçu ;
-- 10 AFTER Application/Document certifiées ;
-- Branding/RBAC/T2/CI SUCCESS ;
-- score visuel **9.7/10** ;
-- PR #173 mergée ;
-- aucun déploiement Vercel.
+- six gates exact-HEAD vertes ;
+- backend 2748 passed ; frontend 367 passed ; build vert ;
+- 10 AFTER Settings + 10 downstream inspectées sur 5 viewports ;
+- aucun overflow horizontal downstream ;
+- score **9,3/10** ;
+- aucun Vercel.
 
-### 2026-08-19 — R2 Profil Cabinet CLOSED
+### 2026-08-19 — R6 CLOSED
 
-- PR #171 mergée ;
-- preset Benmoussa limité au superadmin propriétaire ;
-- en-tête avancé/repliable ;
-- texte logo réaligné sur le vrai traitement ;
-- double sauvegarde et sticky mobile corrigés ;
-- score visuel **9.6/10** ;
-- aucun déploiement Vercel.
+- PR #177 mergée ; CRUD prompt remplacé par formulaires sûrs ; score **9,6/10**.
 
-### 2026-08-19 — Initialisation
+### 2026-08-19 — R4 CLOSED
 
-- audit produit consolidé ;
-- roadmap P1/P2/P3 créée ;
-- règle Benmoussa verrouillée ;
-- protocole de handover canonique créé ;
-- aucun déploiement.
+- PR #174 mergée ; PDF réel source de vérité ; cinq modèles premium ; score global **9,2/10**.
+
+### 2026-08-19 — R3 CLOSED
+
+- PR #173 mergée ; scope Branding clarifié ; score **9,7/10**.
+
+### 2026-08-19 — R2 CLOSED
+
+- PR #171 mergée ; Profil simplifié et preset propriétaire verrouillé ; score **9,6/10**.
