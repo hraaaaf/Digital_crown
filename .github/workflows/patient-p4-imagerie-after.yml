@@ -18,6 +18,7 @@ on:
       - 'backend/routers/patient_journey_p4.py'
       - 'backend/services/cmo_agent_service.py'
       - 'backend/tests/test_patient_p4_imaging_trash.py'
+      - 'backend/tests/test_patient_p4_imaging_consumers.py'
       - 'alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py'
       - '.github/workflows/patient-p4-imagerie-after.yml'
 
@@ -59,7 +60,6 @@ jobs:
           journey = Path('backend/routers/patient_journey_p4.py').read_text(encoding='utf-8')
           cmo = Path('backend/services/cmo_agent_service.py').read_text(encoding='utf-8')
           migration = Path('alembic/versions/f7a8b9c0d1e2_add_imaging_trash_records.py')
-
           for required in ["type RadioTab = 'rvg' | 'panoramic' | 'cephalo'", "handleRadioTabChange('rvg')", '<PatientRvgPanel patientId={Number(id)} />', 'legacyDentistEmployee', 'availableRadioTabs']:
               assert required in details, required
           for forbidden in ["age || 20", "sexe: data.sexe || 'M'", "setPatientData({ age: 20, sexe: 'M' })", 'generateTreatmentPlan(']:
@@ -92,8 +92,11 @@ jobs:
           pip install -r /tmp/requirements-p4-after.txt
           pip install httpx==0.27.2 pytest
 
-      - name: P4 recoverable lifecycle tests
-        run: pytest -q backend/tests/test_patient_p4_imaging_trash.py
+      - name: P4 recoverable lifecycle and consumer tests
+        run: |
+          pytest -q \
+            backend/tests/test_patient_p4_imaging_trash.py \
+            backend/tests/test_patient_p4_imaging_consumers.py
 
       - name: Install frontend and Chromium
         working-directory: frontend
@@ -137,6 +140,8 @@ jobs:
           const ps=await api.get('/api/patients',{headers});
           const patient=(await ps.json()).find(p=>p.numero_dossier==='T2-0001');
           if(!patient) throw new Error('T2 patient missing');
+          const ortho=await api.patch(`/api/patients/${patient.id}/ortho`,{headers,data:{is_ortho_active:true}});
+          if(!ortho.ok()) throw new Error(`Unable to activate ortho fixture: ${ortho.status()} ${await ortho.text()}`);
           const browser=await chromium.launch({headless:true}); const evidence=[];
           for(const viewport of viewports){
             const ctx=await browser.newContext({viewport,colorScheme:'light'}); const page=await ctx.newPage();
@@ -165,7 +170,9 @@ jobs:
             const panoShot=`p4-after-panoramic-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,panoShot),fullPage:false});
 
-            await ceph.click(); await page.waitForTimeout(900);
+            await ceph.click();
+            await page.getByText('Studio Céphalométrique',{exact:true}).waitFor({state:'visible',timeout:30000});
+            await page.waitForTimeout(900);
             const cephOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+2);
             const cephShot=`p4-after-cephalo-${viewport.width}x${viewport.height}.png`;
             await page.screenshot({path:path.join(out,cephShot),fullPage:false});
